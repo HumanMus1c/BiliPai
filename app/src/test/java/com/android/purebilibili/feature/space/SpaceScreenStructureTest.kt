@@ -8,10 +8,12 @@ import kotlin.test.assertTrue
 class SpaceScreenStructureTest {
 
     @Test
-    fun `space chrome uses native tab rows and piliplus actions`() {
+    fun `space chrome uses liquid tab rows and piliplus actions`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
+        assertFalse(source.contains("AppNativeTabRow("))
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(source.contains("forceLiquidChrome = true"))
         assertTrue(source.contains("SpaceSecondarySwitchRow("))
         assertTrue(source.contains("resolveSpacePrimaryTab(selectedMainTab)"))
         assertTrue(source.contains("showTabRail = false"))
@@ -19,7 +21,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("onFansClick"))
         assertTrue(source.contains("Intent.ACTION_SEND"))
         assertFalse(source.contains("暂不支持私信"))
-        assertFalse(source.contains("AppNativeTabRow("))
+        assertFalse(source.contains("AppFilterChip("))
     }
 
     @Test
@@ -81,13 +83,37 @@ class SpaceScreenStructureTest {
     }
 
     @Test
-    fun `secondary contribution switch keeps the native tab row`() {
+    fun `secondary contribution switch uses responsive liquid glass rail`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val secondaryRow = source
+            .substringAfter("private fun SpaceSecondarySwitchRow(")
+            .substringBefore("private fun SpaceMainTabRow(")
 
         assertTrue(source.contains("SpaceSecondarySwitchRow("))
-        assertTrue(source.contains("AppFilterChip("))
-        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(secondaryRow.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(secondaryRow.contains("shouldScrollSpaceSecondarySwitch("))
+        assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchAdaptiveItemWidthDp("))
+        assertTrue(secondaryRow.contains("Modifier.horizontalScroll(scrollState)"))
+        assertTrue(secondaryRow.contains("dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail"))
+        assertTrue(secondaryRow.contains("longPressDragSelectionEnabled = useScrollableRail"))
+        assertTrue(secondaryRow.contains("scrollState.dispatchRawDelta("))
+        assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchDragScrollDeltaPx("))
+        assertTrue(secondaryRow.contains("onIndicatorPositionChanged = { position ->"))
+        assertFalse(secondaryRow.contains("AppFilterChip("))
+        assertFalse(secondaryRow.contains("AppNativeTabRow("))
         assertFalse(source.contains("rememberTextMeasurer()"))
+    }
+
+    @Test
+    fun `space media library uses card semantic corners`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("AppShapes.borderedContainer(ContainerLevel.Card)"))
+        assertTrue(source.contains("AppShapes.containerCornerDp(ContainerLevel.Card)"))
+        assertFalse(source.contains("RoundedCornerShape("))
+        assertFalse(source.contains("ContainerLevel.Dialog"))
+        assertFalse(source.contains("sourceCornerDp = 12"))
+        assertFalse(source.contains("sourceCornerDp = 14"))
     }
 
     @Test
@@ -118,6 +144,22 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("Text(\"分享\")"))
         assertTrue(source.contains("Text(\"举报\")"))
         assertTrue(source.contains("https://space.bilibili.com/${'$'}mid"))
+    }
+
+    @Test
+    fun `space official verify follows piliplus multiline badge presentation`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val officialTag = source
+            .substringAfter("private fun SpaceOfficialTag(")
+            .substringBefore("private fun SpaceBadgeChip(")
+
+        assertTrue(source.contains("userInfo.official.spliceTitle.ifBlank"))
+        assertTrue(officialTag.contains("Icons.Outlined.Bolt"))
+        assertTrue(officialTag.contains("Color(0xFFFFCC00)"))
+        assertTrue(officialTag.contains("fontSize = 12.sp"))
+        assertFalse(officialTag.contains("maxLines = 1"))
+        assertFalse(officialTag.contains("TextOverflow.Ellipsis"))
+        assertFalse(officialTag.contains("widthIn("))
     }
 
     @Test

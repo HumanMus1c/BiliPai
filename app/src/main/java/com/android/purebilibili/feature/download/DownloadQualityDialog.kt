@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -22,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
@@ -52,8 +53,8 @@ fun DownloadQualityDialog(
     ) {
         AppCard(
             modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
-            shape = AppShapes.container(ContainerLevel.Card),
-            colors = CardDefaults.cardColors(
+            shape = AppCardShape.Semantic(ContainerLevel.Card),
+            colors = AppCardDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
         ) {

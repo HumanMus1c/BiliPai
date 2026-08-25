@@ -16,8 +16,17 @@ data class DynamicCreateFeedReq(
     val pics: List<DynamicCreatePic>? = null,
     val attach_card: JsonObject? = null,
     val option: DynamicCreateOption? = null,
+    val topic: DynamicCreateTopic? = null,
     val upload_id: String,
     val meta: DynamicCreateMeta = DynamicCreateMeta()
+)
+
+@Serializable
+data class DynamicCreateTopic(
+    val id: Long,
+    val name: String,
+    val from_source: String = "dyn.web.list",
+    val from_topic_id: Long = 0L,
 )
 
 @Serializable
@@ -118,8 +127,15 @@ data class DynamicPublishDraft(
     val voteId: Long = 0L,
     val voteTitle: String = "",
     val reserveId: Long = 0L,
-    val private: Boolean = false
+    val private: Boolean = false,
+    val mentions: List<DynamicPublishMention> = emptyList(),
+    val emotes: List<String> = emptyList(),
+    val topic: DynamicPublishTopic? = null,
 )
+
+data class DynamicPublishMention(val uid: Long, val name: String)
+
+data class DynamicPublishTopic(val id: Long, val name: String)
 
 data class DynamicCreatedVote(
     val voteId: Long,
@@ -144,12 +160,43 @@ internal fun resolveDynamicCreateScene(
 internal fun buildDynamicCreateContents(
     text: String,
     voteId: Long,
-    voteTitle: String
+    voteTitle: String,
+    mentions: List<DynamicPublishMention> = emptyList(),
+    emotes: List<String> = emptyList(),
 ): List<DynamicRepostContentItem> {
     val items = mutableListOf<DynamicRepostContentItem>()
     val trimmed = text.trim()
     if (trimmed.isNotEmpty()) {
-        items += DynamicRepostContentItem(raw_text = trimmed, type = 1, biz_id = "")
+        val specialNodes = buildList {
+            mentions.filter { it.uid > 0L && it.name.isNotBlank() }.forEach { mention ->
+                add(Triple("@${mention.name} ", 2, mention.uid.toString()))
+                add(Triple("@${mention.name}", 2, mention.uid.toString()))
+            }
+            emotes.filter(String::isNotBlank).distinct().forEach { emote ->
+                add(Triple(emote, 9, ""))
+            }
+        }
+        var cursor = 0
+        while (cursor < trimmed.length) {
+            val next = specialNodes
+                .sortedByDescending { it.first.length }
+                .mapNotNull { node ->
+                    trimmed.indexOf(node.first, startIndex = cursor)
+                        .takeIf { it >= 0 }
+                        ?.let { index -> index to node }
+                }
+                .minByOrNull { it.first }
+            if (next == null) {
+                items += DynamicRepostContentItem(trimmed.substring(cursor), type = 1, biz_id = "")
+                break
+            }
+            val (index, node) = next
+            if (index > cursor) {
+                items += DynamicRepostContentItem(trimmed.substring(cursor, index), type = 1, biz_id = "")
+            }
+            items += DynamicRepostContentItem(raw_text = node.first, type = node.second, biz_id = node.third)
+            cursor = index + node.first.length
+        }
     }
     if (voteId > 0L) {
         items += DynamicRepostContentItem(
@@ -161,3 +208,23 @@ internal fun buildDynamicCreateContents(
     }
     return items
 }
+
+@Serializable
+data class DynamicTopicSearchResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: DynamicTopicSearchData? = null,
+)
+
+@Serializable
+data class DynamicTopicSearchData(
+    val topic_items: List<DynamicTopicSearchItem> = emptyList(),
+)
+
+@Serializable
+data class DynamicTopicSearchItem(
+    val id: Long = 0L,
+    val name: String = "",
+    val stat_desc: String = "",
+    val description: String = "",
+)

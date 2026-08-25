@@ -16,5 +16,6 @@ data class RelatedVideo(
     val pic: String = "",
     val owner: Owner = Owner(),
     val stat: Stat = Stat(),
-    val duration: Int = 0 // 视频时长(秒)
+    val duration: Int = 0, // 视频时长(秒)
+    val pubdate: Long = 0,
 )

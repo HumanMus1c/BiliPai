@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.dynamic
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.android.purebilibili.core.ui.components.AppButton
@@ -41,8 +41,9 @@ import coil.imageLoader
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppSplitLayout
-import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.core.ui.rememberAppBackIcon
@@ -56,9 +57,13 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.dynamicInlineCommentItems
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
+import com.android.purebilibili.feature.video.ui.components.resolveBottomInputBarContentBottomPadding
+import com.android.purebilibili.feature.video.ui.components.shouldUseFloatingLiquidBottomInputBar
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 private sealed interface DynamicDetailUiState {
     data object Loading : DynamicDetailUiState
@@ -103,6 +108,12 @@ fun DynamicDetailScreen(
     }
 
     val context = LocalContext.current
+    val homeSettings by SettingsManager.getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val liquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
+    // Only scrolling content captures this backdrop. The comment controls remain sibling
+    // overlays, matching video detail and preventing a RenderNode backdrop cycle.
+    val detailCommentBackdrop = rememberLayerBackdrop()
     val gifImageLoader = context.imageLoader
     val likedDynamics by interactionViewModel.likedDynamics.collectAsStateWithLifecycle()
     val comments by interactionViewModel.comments.collectAsStateWithLifecycle()
@@ -260,6 +271,23 @@ fun DynamicDetailScreen(
                         onViewReplies = { reply -> interactionViewModel.openSubReply(reply) },
                         onReply = { reply -> interactionViewModel.startCommentReply(reply) },
                         onLike = { reply -> interactionViewModel.likeComment(reply.rpid) },
+                        dynamicAuthorMid = state.item.modules.module_author?.mid ?: 0L,
+                        currentUserMid = com.android.purebilibili.core.store.TokenManager.midCache,
+                        onDelete = { reply ->
+                            interactionViewModel.deleteDynamicComment(reply.rpid) { _, message ->
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onToggleTop = { reply ->
+                            interactionViewModel.toggleDynamicCommentTop(reply) { _, message ->
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onReport = { reply, reason ->
+                            interactionViewModel.reportDynamicComment(reply.rpid, reason) { _, message ->
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         onUserClick = onUserClick,
                         onImagePreview = { images, index, sourceRect, textContent ->
                             previewImages = images
@@ -270,7 +298,7 @@ fun DynamicDetailScreen(
                         },
                     )
                 }
-                val commentComposer: @Composable () -> Unit = {
+                val commentComposer: @Composable (Modifier) -> Unit = { modifier ->
                     DynamicInlineCommentComposer(
                         onPostComment = { message ->
                             interactionViewModel.postComment(state.item.id_str, message) { _, toastMessage ->
@@ -279,11 +307,19 @@ fun DynamicDetailScreen(
                         },
                         replyTargetUname = commentReplyTarget?.uname,
                         onClearReplyTarget = interactionViewModel::clearCommentReplyTarget,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(AppSurfaceTokens.surface()),
+                        liquidGlassEnabled = liquidGlassEnabled,
+                        backdrop = detailCommentBackdrop,
+                        modifier = modifier,
                     )
                 }
+                val floatingCommentComposer = shouldUseFloatingLiquidBottomInputBar(
+                    androidNativeLiquidGlassEnabled = liquidGlassEnabled,
+                )
+                val commentContentBottomPadding = resolveBottomInputBarContentBottomPadding(
+                    showBar = true,
+                    floatingLiquidGlass = floatingCommentComposer,
+                    showActionButtonsFallback = false,
+                )
 
                 if (useSplitLayout) {
                     //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 BiliPai 横屏分栏）
@@ -302,22 +338,58 @@ fun DynamicDetailScreen(
                             }
                         },
                         secondaryContent = {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    state = commentListState,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                                    contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
-                                ) {
-                                    commentContent()
+                            if (floatingCommentComposer) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        state = commentListState,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .layerBackdrop(detailCommentBackdrop),
+                                        contentPadding = PaddingValues(bottom = commentContentBottomPadding),
+                                    ) {
+                                        commentContent()
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = AppSpacingTokens.ExtraLarge)
+                                            .padding(bottom = AppSpacingTokens.Medium),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        commentComposer(
+                                            Modifier
+                                                .widthIn(max = 360.dp)
+                                                .fillMaxWidth(),
+                                        )
+                                    }
                                 }
-                                commentComposer()
+                            } else {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        state = commentListState,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = commentContentBottomPadding),
+                                    ) {
+                                        commentContent()
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .padding(
+                                                horizontal = AppSpacingTokens.Large,
+                                                vertical = AppSpacingTokens.Medium,
+                                            ),
+                                    ) {
+                                        commentComposer(Modifier.fillMaxWidth())
+                                    }
+                                }
                             }
                         }
                     )
                 } else {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
@@ -326,14 +398,45 @@ fun DynamicDetailScreen(
                         LazyColumn(
                             state = detailListState,
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                                .fillMaxSize()
+                                .then(
+                                    if (floatingCommentComposer) {
+                                        Modifier.layerBackdrop(detailCommentBackdrop)
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            contentPadding = PaddingValues(bottom = commentContentBottomPadding),
                         ) {
                             cardContent()
                             commentContent()
                         }
-                        commentComposer()
+                        if (floatingCommentComposer) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = AppSpacingTokens.ExtraLarge)
+                                    .padding(bottom = AppSpacingTokens.Medium),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                commentComposer(
+                                    Modifier
+                                        .widthIn(max = 360.dp)
+                                        .fillMaxWidth(),
+                                )
+                            }
+                        } else {
+                            commentComposer(
+                                Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = AppSpacingTokens.Large,
+                                        vertical = AppSpacingTokens.Medium,
+                                    ),
+                            )
+                        }
                     }
                 }
 
@@ -344,6 +447,16 @@ fun DynamicDetailScreen(
                     onUserClick = onUserClick,
                     onReplyClick = { reply -> interactionViewModel.startCommentReply(reply) },
                     onCommentLike = { rpid -> interactionViewModel.likeComment(rpid) },
+                    currentMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L,
+                    onDeleteComment = { rpid ->
+                        interactionViewModel.deleteDynamicComment(rpid) { _, message ->
+                            android.widget.Toast.makeText(
+                                context,
+                                message,
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
                 )
 
                 if (showImagePreview && previewImages.isNotEmpty()) {

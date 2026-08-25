@@ -10,11 +10,11 @@ class PortraitSubtitleOverlayPolicyTest {
     @Test
     fun subtitleBottomPadding_raisesWhenControlsVisible() {
         assertEquals(
-            132,
+            88,
             resolvePortraitSubtitleBottomPaddingDp(controlsVisible = true)
         )
         assertEquals(
-            56,
+            40,
             resolvePortraitSubtitleBottomPaddingDp(controlsVisible = false)
         )
         assertEquals(

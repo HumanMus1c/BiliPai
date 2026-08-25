@@ -5,6 +5,7 @@ package com.android.purebilibili.feature.home.components.miuix
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,6 +16,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.filter
@@ -74,7 +76,9 @@ class DampedDragAnimation(
     private val mutatorMutex = MutatorMutex()
 
     private val velocityTracker = VelocityTracker()
-    private var directTrackingJob: Job? = null
+    // Pager progress can request a new position every frame. Keep exactly one value mutation
+    // alive so an older coroutine can never run after a newer request and restore stale UI.
+    private var valueTrackingJob: Job? = null
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = requestedValue
@@ -138,6 +142,45 @@ class DampedDragAnimation(
         }
     }
 
+    val longPressModifier: Modifier = Modifier.pointerInput(Unit) {
+        var gestureAccepted = false
+        detectDragGesturesAfterLongPress(
+            onDragStart = { position ->
+                gestureAccepted = canDrag(position)
+                if (gestureAccepted) {
+                    isDragging = true
+                    onDragStarted(position)
+                    press()
+                }
+            },
+            onDragEnd = {
+                if (gestureAccepted) {
+                    onDragStopped()
+                    isDragging = false
+                    release()
+                }
+                gestureAccepted = false
+            },
+            onDragCancel = {
+                if (gestureAccepted) {
+                    onDragStopped()
+                    isDragging = false
+                    release()
+                }
+                gestureAccepted = false
+            },
+            onDrag = { change, dragAmount ->
+                if (!gestureAccepted) return@detectDragGesturesAfterLongPress
+                val isInside = canDrag(change.position)
+                val wasInside = canDrag(change.previousPosition)
+                if (isInside && wasInside) {
+                    if (dragAmount != Offset.Zero) change.consume()
+                    onDrag(size, dragAmount)
+                }
+            },
+        )
+    }
+
     fun press() {
         velocityTracker.resetTracking()
         animationScope.launch {
@@ -165,23 +208,21 @@ class DampedDragAnimation(
     fun snapTo(value: Float) {
         val next = value.coerceIn(valueRange)
         requestedValue = next
-        directTrackingJob?.cancel()
-        animationScope.launch { valueAnimation.snapTo(next) }
+        launchValueTracking { valueAnimation.snapTo(next) }
     }
 
     fun updateValue(value: Float) {
         val targetValue = value.coerceIn(valueRange)
         requestedValue = targetValue
         if (trackingMode == DampedDragTrackingMode.DIRECT) {
-            directTrackingJob?.cancel()
-            directTrackingJob = animationScope.launch {
+            launchValueTracking {
                 valueAnimation.snapTo(targetValue)
                 updateVelocity()
             }
             return
         }
-        animationScope.launch {
-            launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) { updateVelocity() } }
+        launchValueTracking {
+            valueAnimation.animateTo(targetValue, valueAnimationSpec) { updateVelocity() }
         }
     }
 
@@ -191,8 +232,7 @@ class DampedDragAnimation(
     ) {
         val targetValue = value.coerceIn(valueRange)
         requestedValue = targetValue
-        directTrackingJob?.cancel()
-        animationScope.launch {
+        launchValueTracking {
             mutatorMutex.mutate {
                 if (animatePress) press()
                 launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) }
@@ -202,6 +242,20 @@ class DampedDragAnimation(
                 if (animatePress) release()
             }
         }
+    }
+
+    /**
+     * Installs the newest position mutation before the caller returns. Pointer updates can arrive
+     * faster than the dispatcher gets a chance to run a normally launched coroutine; cancelling a
+     * still-pending job on every event leaves [valueAnimation] frozen while [requestedValue] moves.
+     * Undispatched start closes that scheduling gap while cancellation still guarantees latest-wins.
+     */
+    private fun launchValueTracking(block: suspend CoroutineScope.() -> Unit) {
+        valueTrackingJob?.cancel()
+        valueTrackingJob = animationScope.launch(
+            start = CoroutineStart.UNDISPATCHED,
+            block = block,
+        )
     }
 
     private fun updateVelocity() {

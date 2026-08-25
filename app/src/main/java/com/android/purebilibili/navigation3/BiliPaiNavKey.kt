@@ -416,7 +416,8 @@ internal sealed interface BiliPaiNavKey : NavKey {
     @Serializable
     data class BangumiDetail(
         val seasonId: Long,
-        val epId: Long = 0L
+        val epId: Long = 0L,
+        val mediaId: Long = 0L
     ) : BiliPaiNavKey {
         override val routeBase: String = "bangumi"
     }

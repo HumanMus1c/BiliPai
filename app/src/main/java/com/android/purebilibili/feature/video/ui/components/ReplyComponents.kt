@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -79,7 +80,6 @@ import com.android.purebilibili.core.ui.OfficialVerifyBadgeSpec
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeTone
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
-import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -1520,7 +1520,6 @@ fun ReplyItemView(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    val likeIcon = rememberAppLikeIcon()
                     val likeFilledIcon = rememberAppLikeFilledIcon()
 
                     // Like
@@ -1531,7 +1530,7 @@ fun ReplyItemView(
                             .padding(4.dp)
                     ) {
                         AppIcon(
-                            imageVector = if (isLiked) likeFilledIcon else likeIcon,
+                            imageVector = likeFilledIcon,
                             contentDescription = "Like",
                             tint = if (isLiked) appearance.accentColor else appearance.actionTint,
                             modifier = Modifier.size(16.dp)
@@ -1549,11 +1548,10 @@ fun ReplyItemView(
                     Spacer(modifier = Modifier.width(8.dp))
                     AppIconButton(
                         onClick = { onHateClick?.invoke() },
-                        enabled = onHateClick != null,
-                        modifier = Modifier.size(48.dp)
+                        enabled = onHateClick != null
                     ) {
                         AppIcon(
-                            imageVector = Icons.Outlined.ThumbDown,
+                            imageVector = Icons.Filled.ThumbDown,
                             contentDescription = if (isHated) "取消点踩" else "点踩评论",
                             tint = if (isHated) MaterialTheme.colorScheme.error else appearance.actionTint,
                             modifier = Modifier.size(16.dp)

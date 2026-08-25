@@ -95,6 +95,8 @@ import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
+import top.yukonga.miuix.kmp.blur.ProgressiveBlur
+import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 
 private const val HOME_HEADER_LIQUID_GLASS_ALPHA = 0.10f
 
@@ -369,14 +371,16 @@ internal fun resolveHomeTopPinnedChromeLayout(
     visibleSearchHeight: Dp,
     tabRowHeight: Dp,
     searchToTabsSpacing: Dp,
-    renderMode: HomeTopChromeRenderMode
+    renderMode: HomeTopChromeRenderMode,
+    includeTabInBlur: Boolean = true,
 ): HomeTopPinnedChromeLayout {
     val visibleSearchBlockHeight = if (visibleSearchHeight > AppSpacingTokens.None) {
         searchToTabsSpacing + visibleSearchHeight
     } else {
         AppSpacingTokens.None
     }
-    val visibleChromeHeight = statusBarHeight + tabRowHeight + visibleSearchBlockHeight
+    val visibleChromeHeight = statusBarHeight + visibleSearchBlockHeight +
+        if (includeTabInBlur) tabRowHeight else AppSpacingTokens.None
     return HomeTopPinnedChromeLayout(
         tabTop = statusBarHeight + visibleSearchBlockHeight,
         searchTop = statusBarHeight,
@@ -839,6 +843,30 @@ internal fun resolveHomeTopUnifiedLocalTabChromeRenderMode(
     )
 }
 
+internal fun resolveHomeTopTabDockChromeRenderMode(
+    detachedTopTabDock: Boolean,
+    localTabChromeRenderMode: HomeTopChromeRenderMode,
+    hasHazeState: Boolean,
+): HomeTopChromeRenderMode {
+    return if (
+        detachedTopTabDock &&
+        localTabChromeRenderMode == HomeTopChromeRenderMode.PLAIN &&
+        hasHazeState
+    ) {
+        HomeTopChromeRenderMode.BLUR
+    } else {
+        localTabChromeRenderMode
+    }
+}
+
+internal fun shouldApplyHomeTopTabDockHaze(
+    embeddedInUnifiedPanel: Boolean,
+    continuousSlabRenderMode: HomeTopChromeRenderMode,
+): Boolean = !(
+    embeddedInUnifiedPanel &&
+        continuousSlabRenderMode == HomeTopChromeRenderMode.BLUR
+    )
+
 internal fun resolveHomeTopUnifiedTabSurfaceColor(
     tabContainerColor: Color,
     tabOverlayAlpha: Float,
@@ -1041,10 +1069,14 @@ internal fun shouldEnableTopTabSecondaryBlur(
     hasHeaderBlur: Boolean,
     topTabMaterialMode: TopTabMaterialMode,
     isScrolling: Boolean,
-    isTransitionRunning: Boolean
+    isTransitionRunning: Boolean,
+    isEmbeddedInUnifiedPanel: Boolean = false,
 ): Boolean {
     if (!hasHeaderBlur) return false
     if (topTabMaterialMode == TopTabMaterialMode.PLAIN) return false
+    // The continuous header slab already samples everything behind an embedded tab row.
+    // A second Haze pass here only thickens the material and records the same pixels twice.
+    if (isEmbeddedInUnifiedPanel) return false
     if (topTabMaterialMode == TopTabMaterialMode.LIQUID_GLASS && (isScrolling || isTransitionRunning)) {
         return false
     }
@@ -1312,6 +1344,7 @@ internal fun Modifier.homeTopChromeSurface(
     isScrolling: Boolean,
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
+    useProgressiveTopBlur: Boolean = false,
     preferFlatGlass: Boolean = false,
     darkThemeWhiteOverlayMultiplier: Float = 0.86f
 ): Modifier = composed {
@@ -1345,7 +1378,23 @@ internal fun Modifier.homeTopChromeSurface(
         HomeTopChromeRenderMode.BLUR -> {
             this
                 .then(
-                    if (hazeState != null) {
+                    if (
+                        useProgressiveTopBlur &&
+                        miuixBackdrop != null &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ) {
+                        Modifier.progressiveTextureBlur(
+                            backdrop = miuixBackdrop,
+                            shape = shape,
+                            blurRadius = 24f,
+                            gradient = ProgressiveBlur(
+                                angle = 90f,
+                                startFraction = 0.08f,
+                                endFraction = 0.92f,
+                                curve = 0.72f,
+                            ),
+                        )
+                    } else if (hazeState != null) {
                         Modifier.unifiedBlur(
                             hazeState = hazeState,
                             shape = shape,
@@ -1495,11 +1544,15 @@ fun HomeHeader(
     val isTabFloating = topTabStyle.floating
     val isTabGlassEnabled = topChromeMaterialMode == TopTabMaterialMode.LIQUID_GLASS
     val isTabBlurEnabled = topChromeMaterialMode == TopTabMaterialMode.BLUR
+    val useUnifiedTopPanel = shouldUseUnifiedHomeTopPanel(topChromePolicy)
+    val useDetachedTopTabDock = shouldUseDetachedHomeTopTabDock(topChromePolicy.tabPresentation)
+    val embedTopTabsInUnifiedPanel = useUnifiedTopPanel && !useDetachedTopTabDock
     val enableTopTabSecondaryBlur = shouldEnableTopTabSecondaryBlur(
         hasHeaderBlur = hazeState != null,
         topTabMaterialMode = topChromeMaterialMode,
         isScrolling = isScrolling,
-        isTransitionRunning = isTransitionRunning
+        isTransitionRunning = isTransitionRunning,
+        isEmbeddedInUnifiedPanel = embedTopTabsInUnifiedPanel,
     )
     val isGlassSupported = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
     val allowHazeLiquidGlassFallback = shouldAllowDirectHazeLiquidGlassFallback(Build.VERSION.SDK_INT)
@@ -1679,9 +1732,6 @@ fun HomeHeader(
         isScrolling = isScrolling,
         isTransitionRunning = isTransitionRunning
     )
-    val useUnifiedTopPanel = shouldUseUnifiedHomeTopPanel(topChromePolicy)
-    val useDetachedTopTabDock = shouldUseDetachedHomeTopTabDock(topChromePolicy.tabPresentation)
-    val embedTopTabsInUnifiedPanel = useUnifiedTopPanel && !useDetachedTopTabDock
     val topPanelChromeRenderMode = resolveHomeTopPanelChromeRenderMode(
         renderMode = topChromeRenderMode,
         usesNativeContainerTreatment = usesNativeContainerTreatment,
@@ -1896,14 +1946,16 @@ fun HomeHeader(
     } else {
         localTabChromeRenderMode
     }
-    val topTabDockChromeRenderMode = if (
-        useDetachedTopTabDock &&
-        unifiedLocalTabChromeRenderMode == HomeTopChromeRenderMode.PLAIN &&
-        hazeState != null
-    ) {
-        HomeTopChromeRenderMode.BLUR
-    } else {
-        unifiedLocalTabChromeRenderMode
+    val topTabDockChromeRenderMode = resolveHomeTopTabDockChromeRenderMode(
+        detachedTopTabDock = useDetachedTopTabDock,
+        localTabChromeRenderMode = unifiedLocalTabChromeRenderMode,
+        hasHazeState = hazeState != null,
+    )
+    val topTabDockHazeState = hazeState.takeIf {
+        shouldApplyHomeTopTabDockHaze(
+            embeddedInUnifiedPanel = embedTopTabsInUnifiedPanel,
+            continuousSlabRenderMode = continuousSlabRenderMode,
+        )
     }
     val effectiveTabSurfaceColor = if (useDetachedTopTabDock) {
         resolveHomeTopDetachedTabDockSurfaceColor(
@@ -1935,10 +1987,10 @@ fun HomeHeader(
             currentSearchHeight > AppSpacingTokens.None &&
             searchRevealFraction > 0f
     val topTabLiquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
-    // 顶部分类始终复用底栏 dock 壳层；关闭液态玻璃时由同一表面降级为实色/轻 tint，
-    // 避免标签直接叠在首页头图上而失去可读性。
-    val useTopTabBottomBarMatchedDock = true
-    val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useDetachedTopTabDock
+    // 移动胶囊只绘制选中项，标签轨道直接承接顶部连续模糊层，避免搜索框下方
+    // 再出现一整块高对比的白色 dock。其余 presentation 仍保留独立轨道以保证可读性。
+    val drawTopTabDockChrome = drawTopTabOuterChromeSurface
+    val useTopTabBottomBarMatchedDock = drawTopTabDockChrome
     val topTabLabelMode = homeSettings?.topTabLabelMode
         ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
     // Floating dock shell + tabs share one wrap decision so glass length matches content.
@@ -1959,9 +2011,12 @@ fun HomeHeader(
         visibleSearchHeight = currentSearchHeight,
         tabRowHeight = currentTabHeight,
         searchToTabsSpacing = currentTabToSearchSpacing,
-        renderMode = effectiveContinuousSlabRenderMode
+        renderMode = effectiveContinuousSlabRenderMode,
+        // 没有独立轨道时让连续模糊层覆盖标签区域；有轨道时避免重复模糊。
+        includeTabInBlur = !drawTopTabDockChrome,
     )
     val continuousSlabHeight = pinnedChromeLayout.blurHeight
+    val pinnedChromeContentHeight = pinnedChromeLayout.tabTop + currentTabHeight
     val isTopTabViewportSyncEnabled = resolveHomeTopTabViewportSyncEnabled(
         currentTabHeightDp = currentTabHeight.value,
         tabAlpha = tabAlpha,
@@ -2002,7 +2057,7 @@ fun HomeHeader(
                 effectiveTabChromeRenderMode
             },
             tabSurfaceColor = effectiveTabSurfaceColor,
-            hazeState = hazeState,
+            hazeState = topTabDockHazeState,
             miuixBackdrop = miuixBackdrop,
             liquidStyle = liquidStyle,
             liquidGlassTuning = liquidGlassTuning,
@@ -2112,7 +2167,8 @@ fun HomeHeader(
                         motionTier = motionTier,
                         isScrolling = topChromeMotionPolicy.isScrolling,
                         isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
-                        forceLowBlurBudget = forceLowBlurBudget
+                        forceLowBlurBudget = forceLowBlurBudget,
+                        useProgressiveTopBlur = true,
                 )
             )
         }
@@ -2127,16 +2183,13 @@ fun HomeHeader(
                 alignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(continuousSlabHeight)
-                    .graphicsLayer {
-                        alpha = 0.76f
-                    }
+                    .height(pinnedChromeContentHeight)
                     .clearAndSetSemantics {}
             )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(continuousSlabHeight)
+                    .height(pinnedChromeContentHeight)
                     .background(
                         Brush.verticalGradient(
                             0.00f to Color.Transparent,
@@ -2176,7 +2229,18 @@ fun HomeHeader(
                         if (embedTopTabsInUnifiedPanel) {
                             Modifier
                                 .padding(horizontal = unifiedPanelHorizontalPadding)
-                                .clip(unifiedPanelShape)
+                                .then(
+                                    // Search and tabs draw independent liquid-glass capsules when
+                                    // the unified panel has no outer chrome. Keeping an otherwise
+                                    // empty parent clip here makes the search-collapse layer own the
+                                    // tab dock's drawBackdrop and can drop that backdrop while the
+                                    // tab glyphs continue to render.
+                                    if (drawUnifiedTopPanelChrome) {
+                                        Modifier.clip(unifiedPanelShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                                 .then(
                                     if (drawUnifiedTopPanelChrome) {
                                         Modifier.homeTopChromeSurface(

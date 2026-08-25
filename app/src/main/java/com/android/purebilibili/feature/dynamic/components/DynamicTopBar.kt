@@ -1,7 +1,6 @@
 // 文件路径: feature/dynamic/components/DynamicTopBar.kt
 package com.android.purebilibili.feature.dynamic.components
 
-import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -98,6 +97,7 @@ fun DynamicTopBarWithTabs(
     publishSkinDecoration: DynamicPublishSkinDecoration? = null,
     dockBackdrop: Backdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -139,25 +139,16 @@ fun DynamicTopBarWithTabs(
                 items = tabs,
                 selectedIndex = selectedTab,
                 onSelected = onTabSelected,
-                modifier = Modifier
-                    .weight(1f)
-                    .then(
-                        if (liquidGlassEnabled) {
-                            Modifier
-                        } else {
-                            Modifier
-                                .clip(dockShape)
-                                .background(dockColor)
-                        }
-                    ),
+                modifier = Modifier.weight(1f),
                 height = liquidTabSpec.heightDp.dp,
                 indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
                 labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
+                allowNativeLabelOverflow = true,
                 indicatorPositionProvider = indicatorPositionProvider,
-                isScrollInProgressProvider = { false },
+                isScrollInProgressProvider = isScrollInProgressProvider,
                 forceLiquidChrome = liquidGlassEnabled,
                 liquidGlassEffectsEnabled = liquidGlassEnabled,
-                miuixBackdrop = dockBackdrop,
+                miuixBackdrop = dockBackdrop.takeIf { liquidGlassEnabled },
                 containerColorOverride = dockColor,
                 liquidGlassTuningOverride = liquidGlassTuning,
             )
@@ -195,8 +186,7 @@ fun DynamicTopBarWithTabs(
                     var showLayoutMenu by remember { mutableStateOf(false) }
                     Box {
                         AppIconButton(
-                            onClick = { showLayoutMenu = true },
-                            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
+                            onClick = { showLayoutMenu = true }
                         ) {
                             AppIcon(
                                 imageVector = if (displayMode.isHorizontalUserList())
@@ -229,7 +219,6 @@ fun DynamicTopBarWithTabs(
                         val publishIconPaths = publishSkinDecoration?.iconPaths
                         AppIconButton(
                             onClick = onPublishClick,
-                            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
                             interactionSource = publishInteractionSource,
                         ) {
                             if (publishIconPaths != null) {

@@ -21,6 +21,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
 import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContainerColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppSplitLayout
+import com.android.purebilibili.core.ui.AppSplitPane
+import com.android.purebilibili.core.ui.rememberAppSplitLayoutState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
@@ -60,6 +63,12 @@ fun SettingsTabletShell(
         resolveSettingsTabletLayoutPolicy(widthDp = configuration.screenWidthDp)
     }
     val categories = remember { resolveSettingsRootCategoryOrder() }
+    val splitLayoutState = rememberAppSplitLayoutState()
+    LaunchedEffect(selectedCategory) {
+        if (selectedCategory != null) {
+            splitLayoutState.navigateTo(AppSplitPane.Secondary)
+        }
+    }
     val categoryIconTints = remember(categories.size) {
         resolveSettingsSiblingIconTints(categories.size)
     }
@@ -154,7 +163,12 @@ fun SettingsTabletShell(
                                     }
                                 },
                                 selected = selected,
-                                onClick = { onCategoryClick(category) },
+                                onClick = {
+                                    if (!selected) {
+                                        splitLayoutState.navigateTo(AppSplitPane.Secondary)
+                                        onCategoryClick(category)
+                                    }
+                                },
                                 icon = {
                                     Box(
                                         modifier = Modifier
@@ -205,5 +219,6 @@ fun SettingsTabletShell(
             }
         },
         tertiaryContent = if (useThreePaneLayout) detailPane else null,
+        state = splitLayoutState,
     )
 }

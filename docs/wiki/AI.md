@@ -54,7 +54,7 @@
 4. Wiki 与插件开发文档。
 5. `README.md` / `README_EN.md`。
 
-当前 `app/build.gradle.kts` 声明构建 `0.2.3-beta.11 / versionCode 301`；`CHANGELOG.md` 最新记录为 `v0.2.3-beta.11`。公开发布状态仍以 GitHub / Telegram 为准。
+当前 `app/build.gradle.kts` 声明构建 `0.2.3-beta.12 / versionCode 304`；`CHANGELOG.md` 最新记录为 `v0.2.3-beta.12`。公开发布状态仍以 GitHub / Telegram 为准。
 
 当前构建基线为 minSdk 26、targetSdk 37、compileSdk 37、AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21；Navigation3 runtime/UI 使用官方同版 `1.2.0-alpha07`，Miuix `0.9.4-4f86de92-SNAPSHOT` 用于主题、组件与视觉能力。
 

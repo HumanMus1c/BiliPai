@@ -162,25 +162,12 @@ fun rememberAppSemanticVisualPolicy(): AppSemanticVisualPolicy {
 }
 
 fun resolveAppChromeLiquidGlassEnabled(
-    supportsIndependentLiquidGlass: Boolean,
-    individualEnabled: Boolean,
     androidNativeEnabled: Boolean,
-): Boolean {
-    if (androidNativeEnabled) return true
-    return supportsIndependentLiquidGlass && individualEnabled
-}
+): Boolean = androidNativeEnabled
 
 @Composable
 fun rememberAppChromeLiquidGlassEnabled(
-    individualEnabled: Boolean,
     androidNativeEnabled: Boolean,
-): Boolean {
-    val policy = rememberAppSemanticVisualPolicy()
-    return remember(policy.supportsIndependentLiquidGlass, individualEnabled, androidNativeEnabled) {
-        resolveAppChromeLiquidGlassEnabled(
-            supportsIndependentLiquidGlass = policy.supportsIndependentLiquidGlass,
-            individualEnabled = individualEnabled,
-            androidNativeEnabled = androidNativeEnabled,
-        )
-    }
+): Boolean = remember(androidNativeEnabled) {
+    resolveAppChromeLiquidGlassEnabled(androidNativeEnabled = androidNativeEnabled)
 }

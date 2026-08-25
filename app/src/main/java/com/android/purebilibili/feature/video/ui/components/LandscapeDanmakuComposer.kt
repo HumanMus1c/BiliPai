@@ -347,8 +347,7 @@ fun LandscapeDanmakuComposer(
                     }
 
                     AppIconButton(
-                        onClick = { showStylePanel = !showStylePanel },
-                        modifier = Modifier.size(48.dp)
+                        onClick = { showStylePanel = !showStylePanel }
                     ) {
                         AppIcon(
                             imageVector = Icons.Outlined.Palette,

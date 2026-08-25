@@ -14,7 +14,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +43,7 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.util.HapticType
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -104,11 +104,11 @@ fun GlassVideoCard(
     val haptic = rememberHapticFeedback()
     val contentTypography = feedContentTypography()
     
-    // [新增] 获取圆角缩放比例
-    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Sheet)
-    val coverCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Dialog) + AppSpacingTokens.Micro
-    val tagCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Field)
-    val smallTagRadius = AppShapes.containerCornerDp(ContainerLevel.Chip)
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.ProminentCard)
+    val cardShape = AppShapes.container(ContainerLevel.ProminentCard)
+    val coverShape = AppShapes.container(ContainerLevel.Dialog)
+    val durationBadgeShape = AppShapes.container(ContainerLevel.Pill)
+    val verticalBadgeShape = AppShapes.container(ContainerLevel.Chip)
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val durationBadgeMinWidth = remember(durationText, durationBadgeStyle) {
@@ -174,15 +174,19 @@ fun GlassVideoCard(
     }
     val effectiveTransitionEnabled = transitionEnabled && LocalSharedTransitionEnabled.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         effectiveSharedElementSourceRoute,
         effectiveTransitionEnabled,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = effectiveSharedElementSourceRoute,
             transitionEnabled = effectiveTransitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val coverCacheKey = remember(video.bvid, useLowQualityCover) {
@@ -250,7 +254,7 @@ fun GlassVideoCard(
     // 🌈 彩虹渐变边框色
     val rainbowColors = HomeVisualPalette.GlassSpectrum
     
-    val cardShellShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
+    val cardShellShape = cardShape
     val enterAnimationEnabledAtMount = remember(video.bvid) {
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
@@ -266,6 +270,7 @@ fun GlassVideoCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .adaptiveCardHoverEffect(shape = cardShellShape)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -296,14 +301,14 @@ fun GlassVideoCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(cardCornerRadius))
+                .clip(cardShape)
                 // 彩虹渐变边框
                 .border(
                     width = AppSpacingTokens.Micro * 0.75f,
                     brush = Brush.sweepGradient(
                         colors = rainbowColors.map { it.copy(alpha = 0.6f) }
                     ),
-                    shape = RoundedCornerShape(cardCornerRadius)
+                    shape = cardShape
                 )
                 // 单层轻量阴影
                 .background(glassBackground)
@@ -356,7 +361,7 @@ fun GlassVideoCard(
                                 sourceRoute = effectiveSharedElementSourceRoute,
                                 isReturningFromDetail = isReturningFromVideoDetail,
                             )
-                            .clip(RoundedCornerShape(coverCornerRadius))
+                            .clip(coverShape)
                     ) {
                         // 由 AsyncImage 根据卡片布局约束选择解码尺寸。
                         AsyncImage(
@@ -398,7 +403,7 @@ fun GlassVideoCard(
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 color = emphasizedCoverPillColors.containerColor,
                                 border = BorderStroke(AppSpacingTokens.Micro * 0.4f, emphasizedCoverPillColors.borderColor),
-                                shape = RoundedCornerShape(tagCornerRadius)
+                                shape = durationBadgeShape
                             ) {
                                 AppText(
                                     text = durationText,
@@ -418,7 +423,7 @@ fun GlassVideoCard(
                                     .align(Alignment.BottomEnd)
                                     .padding(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.None, AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.Large),
                                 color = MediaContrastPalette.Scrim.copy(alpha = durationBadgeStyle.backgroundAlpha),
-                                shape = RoundedCornerShape(tagCornerRadius)
+                                shape = durationBadgeShape
                             ) {
                                 AppText(
                                     text = durationText,
@@ -442,7 +447,7 @@ fun GlassVideoCard(
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 color = HomeVisualPalette.VerticalVideoAccent.copy(alpha = 0.82f),
                                 border = BorderStroke(AppSpacingTokens.Micro * 0.4f, coverPillColors.borderColor),
-                                shape = RoundedCornerShape(smallTagRadius)
+                                shape = verticalBadgeShape
                             ) {
                                 AppText(
                                     text = "竖屏",
@@ -457,7 +462,7 @@ fun GlassVideoCard(
                                     .align(Alignment.TopStart)
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 color = HomeVisualPalette.VerticalVideoAccent.copy(alpha = 0.82f),
-                                shape = RoundedCornerShape(smallTagRadius)
+                                shape = verticalBadgeShape
                             ) {
                                 AppText(
                                     text = "竖屏",
@@ -488,8 +493,7 @@ fun GlassVideoCard(
                         text = video.title,
                         color = onSurface,
                         style = contentTypography.title,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Visible
                     )
                     
                     Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
@@ -520,6 +524,8 @@ fun GlassVideoCard(
                             badgeTextColor = onSurfaceVariant.copy(alpha = 0.85f),
                             badgeBackgroundColor = onSurfaceVariant.copy(alpha = 0.12f),
                             showUpBadge = showUpBadge,
+                            maxLines = Int.MAX_VALUE,
+                            overflow = TextOverflow.Visible,
                             modifier = Modifier.weight(1f)
                         )
                         

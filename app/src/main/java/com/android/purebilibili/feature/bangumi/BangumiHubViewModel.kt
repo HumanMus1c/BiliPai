@@ -135,17 +135,19 @@ class BangumiHubViewModel : ViewModel() {
         if (current.showPgcTimeline == enabled) return
         _uiState.update { it.copy(showPgcTimeline = enabled) }
         if (enabled) {
-            if (current.channel == BangumiChannel.BANGUMI) loadTimeline(reset = true)
+            loadTimeline(channel = current.channel, reset = true)
         } else {
-            homeJobs["timeline"]?.cancel()
-            updateHomeState(BangumiChannel.BANGUMI) { it.copy(timeline = BangumiTimelineHubState()) }
+            BangumiChannel.entries.forEach { channel ->
+                homeJobs["timeline_${channel.name}"]?.cancel()
+                updateHomeState(channel) { it.copy(timeline = BangumiTimelineHubState()) }
+            }
         }
     }
 
     fun refreshHome(channel: BangumiChannel = _uiState.value.channel) {
         loadHomeRecommendations(channel, reset = true)
         if (_uiState.value.isLoggedIn) loadHomeFollows(channel, reset = true)
-        if (channel == BangumiChannel.BANGUMI && _uiState.value.showPgcTimeline) loadTimeline(reset = true)
+        if (_uiState.value.showPgcTimeline) loadTimeline(channel = channel, reset = true)
     }
 
     fun loadMoreHomeRecommendations() {
@@ -157,7 +159,9 @@ class BangumiHubViewModel : ViewModel() {
     }
 
     fun retryTimeline() {
-        if (_uiState.value.showPgcTimeline) loadTimeline(reset = true)
+        if (_uiState.value.showPgcTimeline) {
+            loadTimeline(channel = _uiState.value.channel, reset = true)
+        }
     }
 
     fun openIndex() {
@@ -541,12 +545,11 @@ class BangumiHubViewModel : ViewModel() {
         }
     }
 
-    private fun loadTimeline(reset: Boolean) {
+    private fun loadTimeline(channel: BangumiChannel, reset: Boolean) {
         if (!_uiState.value.showPgcTimeline) return
-        val channel = BangumiChannel.BANGUMI
         val current = homeState(channel).timeline
         if (current.isLoading) return
-        val jobKey = "timeline"
+        val jobKey = "timeline_${channel.name}"
         if (reset) homeJobs[jobKey]?.cancel()
         updateHomeState(channel) { home ->
             home.copy(
@@ -558,23 +561,29 @@ class BangumiHubViewModel : ViewModel() {
             )
         }
         homeJobs[jobKey] = viewModelScope.launch {
-            val bangumi = async { BangumiRepository.getTimeline(1) }
-            val guochuang = async { BangumiRepository.getTimeline(4) }
-            val bangumiResult = bangumi.await()
-            val guochuangResult = guochuang.await()
-            val bangumiDays = bangumiResult.getOrNull()
-            val guochuangDays = guochuangResult.getOrNull()
-            if (bangumiDays != null || guochuangDays != null) {
+            val primary = async {
+                BangumiRepository.getTimeline(if (channel == BangumiChannel.CINEMA) 3 else 1)
+            }
+            val secondary = if (channel == BangumiChannel.BANGUMI) {
+                async { BangumiRepository.getTimeline(4) }
+            } else {
+                null
+            }
+            val primaryResult = primary.await()
+            val secondaryResult = secondary?.await()
+            val primaryDays = primaryResult.getOrNull()
+            val secondaryDays = secondaryResult?.getOrNull()
+            if (primaryDays != null || secondaryDays != null) {
                 updateHomeState(channel) { home ->
                     home.copy(
                         timeline = BangumiTimelineHubState(
-                            days = mergeBangumiTimelineDays(bangumiDays.orEmpty(), guochuangDays.orEmpty()),
+                            days = mergeBangumiTimelineDays(primaryDays.orEmpty(), secondaryDays.orEmpty()),
                         ),
                     )
                 }
             } else {
-                val message = bangumiResult.exceptionOrNull()?.message
-                    ?: guochuangResult.exceptionOrNull()?.message
+                val message = primaryResult.exceptionOrNull()?.message
+                    ?: secondaryResult?.exceptionOrNull()?.message
                     ?: "加载时间表失败"
                 updateHomeState(channel) { home ->
                     home.copy(timeline = home.timeline.copy(isLoading = false, isRefreshing = false, error = message))

@@ -164,6 +164,46 @@ internal fun resolveFloatingDockIndicatorHeightDp(
     return min(requestedHeightDp, maxHeightForCapsule)
 }
 
+internal fun resolveFloatingDockIndicatorOffsetPx(
+    position: Float,
+    tabWidthPx: Float,
+    tabsCount: Int,
+    indicatorWidthPx: Float,
+): Float {
+    if (tabWidthPx <= 0f || indicatorWidthPx <= 0f) return 0f
+    val safeTabsCount = tabsCount.coerceAtLeast(1)
+    val centeredOffset = position * tabWidthPx + (tabWidthPx - indicatorWidthPx) / 2f
+    val maxOffset = (tabWidthPx * safeTabsCount - indicatorWidthPx).coerceAtLeast(0f)
+    return centeredOffset.coerceIn(0f, maxOffset)
+}
+
+internal fun resolveFloatingDockIndicatorContentAlignmentPx(
+    position: Float,
+    tabWidthPx: Float,
+    tabsCount: Int,
+    indicatorWidthPx: Float,
+): Float {
+    val centeredOffset = position * tabWidthPx + (tabWidthPx - indicatorWidthPx) / 2f
+    return resolveFloatingDockIndicatorOffsetPx(
+        position = position,
+        tabWidthPx = tabWidthPx,
+        tabsCount = tabsCount,
+        indicatorWidthPx = indicatorWidthPx,
+    ) - centeredOffset
+}
+
+internal fun resolveFloatingDockClippedContentTranslationPx(
+    position: Float,
+    tabWidthPx: Float,
+    tabsCount: Int,
+    indicatorWidthPx: Float,
+): Float = -resolveFloatingDockIndicatorOffsetPx(
+    position = position,
+    tabWidthPx = tabWidthPx,
+    tabsCount = tabsCount,
+    indicatorWidthPx = indicatorWidthPx,
+)
+
 internal fun resolveFloatingDockCaptureInsets(
     shellHeightDp: Float,
     requestedIndicatorHeightDp: Float,

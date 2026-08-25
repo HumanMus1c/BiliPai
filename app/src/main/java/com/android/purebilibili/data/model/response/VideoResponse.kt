@@ -163,9 +163,15 @@ data class FormatItem(
     val format: String = "",
     @SerialName("new_description")
     val newDescription: String = "",
+    val description: String = "",
     @SerialName("display_desc")
     val displayDesc: String = "",
-    val codecs: List<String>? = null
+    val superscript: String = "",
+    val codecs: List<String>? = null,
+    @SerialName("need_login")
+    val needLogin: Boolean? = null,
+    @SerialName("need_vip")
+    val needVip: Boolean? = null
 )
 
 @Serializable

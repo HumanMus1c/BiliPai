@@ -83,7 +83,7 @@ internal fun resolvePortraitSubtitleBottomPaddingDp(
     commentExpansionProgress: Float = 0f
 ): Int {
     if (commentExpansionProgress > 0.35f) return 36
-    return if (controlsVisible) 132 else 56
+    return if (controlsVisible) 88 else 40
 }
 
 internal fun shouldShowPortraitSubtitleChip(
@@ -288,16 +288,19 @@ fun PortraitSubtitleHost(
         isAudioOnly = false,
         suppressOverlay = false
     )
-    val bottomPaddingDp = resolvePortraitSubtitleBottomPaddingDp(
-        controlsVisible = controlsVisible,
-        commentExpansionProgress = commentExpansionProgress
-    )
     val context = LocalContext.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val storedPortraitOffset by SettingsManager
         .getSubtitlePortraitVerticalOffsetFraction(context)
         .collectAsStateWithLifecycle(initialValue = 0f)
+    val subtitlePositionLocked by SettingsManager
+        .getSubtitlePositionLocked(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    val bottomPaddingDp = resolvePortraitSubtitleBottomPaddingDp(
+        controlsVisible = controlsVisible && !subtitlePositionLocked,
+        commentExpansionProgress = commentExpansionProgress
+    )
     var subtitleVerticalOffsetFraction by rememberSaveable(pageBvid) {
         mutableFloatStateOf(storedPortraitOffset)
     }
@@ -327,31 +330,38 @@ fun PortraitSubtitleHost(
                     .padding(horizontal = 12.dp)
                     .padding(bottom = bottomPaddingDp.dp)
                     .padding(vertical = 6.dp)
-                    .pointerInput(configuration.screenHeightDp) {
-                        detectDragGestures(
-                            onDragStart = { isDraggingSubtitleOffset = true },
-                            onDragEnd = {
-                                isDraggingSubtitleOffset = false
-                                scope.launch {
-                                    SettingsManager.setSubtitlePortraitVerticalOffsetFraction(
-                                        context,
-                                        subtitleVerticalOffsetFraction
-                                    )
-                                }
-                            },
-                            onDragCancel = { isDraggingSubtitleOffset = false },
-                            onDrag = { change, dragAmount ->
-                                val screenHeightPx = with(density) {
-                                    configuration.screenHeightDp.dp.toPx()
-                                }.coerceAtLeast(1f)
-                                subtitleVerticalOffsetFraction =
-                                    normalizeSubtitleVerticalOffsetFraction(
-                                        subtitleVerticalOffsetFraction + dragAmount.y / screenHeightPx
-                                    )
-                                change.consume()
+                    .then(
+                        if (subtitlePositionLocked) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(configuration.screenHeightDp) {
+                                detectDragGestures(
+                                    onDragStart = { isDraggingSubtitleOffset = true },
+                                    onDragEnd = {
+                                        isDraggingSubtitleOffset = false
+                                        scope.launch {
+                                            SettingsManager.setSubtitlePortraitVerticalOffsetFraction(
+                                                context,
+                                                subtitleVerticalOffsetFraction
+                                            )
+                                        }
+                                    },
+                                    onDragCancel = { isDraggingSubtitleOffset = false },
+                                    onDrag = { change, dragAmount ->
+                                        val screenHeightPx = with(density) {
+                                            configuration.screenHeightDp.dp.toPx()
+                                        }.coerceAtLeast(1f)
+                                        subtitleVerticalOffsetFraction =
+                                            normalizeSubtitleVerticalOffsetFraction(
+                                                subtitleVerticalOffsetFraction +
+                                                    dragAmount.y / screenHeightPx
+                                            )
+                                        change.consume()
+                                    }
+                                )
                             }
-                        )
-                    },
+                        }
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val shadow = Shadow(
@@ -402,6 +412,7 @@ fun PortraitSubtitleHost(
                 secondaryAvailable = availability.secondarySelectable,
                 trackOptions = trackOptions,
                 largeTextEnabled = largeTextEnabled,
+                positionLocked = subtitlePositionLocked,
                 canResetPosition = kotlin.math.abs(subtitleVerticalOffsetFraction) > 0.001f,
                 onDismiss = { onShowSubtitlePanelChange(false) },
                 onDisplayModeChange = { mode ->
@@ -414,6 +425,11 @@ fun PortraitSubtitleHost(
                     onShowSubtitlePanelChange(false)
                 },
                 onLargeTextChange = { largeTextEnabled = it },
+                onPositionLockedChange = { locked ->
+                    scope.launch {
+                        SettingsManager.setSubtitlePositionLocked(context, locked)
+                    }
+                },
                 onResetPosition = {
                     subtitleVerticalOffsetFraction = 0f
                     scope.launch {
@@ -437,11 +453,13 @@ private fun PortraitSubtitlePanel(
     secondaryAvailable: Boolean,
     trackOptions: List<SubtitleTrackOption>,
     largeTextEnabled: Boolean,
+    positionLocked: Boolean,
     canResetPosition: Boolean = false,
     onDismiss: () -> Unit,
     onDisplayModeChange: (SubtitleDisplayMode) -> Unit,
     onTrackSelected: (String) -> Unit,
     onLargeTextChange: (Boolean) -> Unit,
+    onPositionLockedChange: (Boolean) -> Unit,
     onResetPosition: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -556,11 +574,29 @@ private fun PortraitSubtitlePanel(
                     )
                 }
                 AppText(
-                    text = "上下拖动字幕可调整位置",
+                    text = if (positionLocked) "字幕位置已固定" else "上下拖动字幕可调整位置",
                     color = Color.White.copy(alpha = 0.55f),
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 2.dp)
                 )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    AppText(
+                        text = "锁定位置",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    AppSwitch(
+                        checked = positionLocked,
+                        onCheckedChange = onPositionLockedChange
+                    )
+                }
                 if (canResetPosition) {
                     AppSurface(
                         onClick = onResetPosition,

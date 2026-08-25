@@ -52,6 +52,9 @@ import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
+import com.android.purebilibili.core.ui.components.AppCardVariant
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -666,11 +669,11 @@ fun VideoLinkPreviewCard(
         modifier = Modifier
             .widthIn(max = 260.dp)
             .clickable { onClick() },
-        shape = AppShapes.container(ContainerLevel.Card),
-        colors = CardDefaults.cardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Card),
+        colors = AppCardDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        variant = AppCardVariant.Elevated,
     ) {
         Column {
             // 封面图
@@ -775,11 +778,11 @@ fun MessageCardPreviewCard(
         modifier = Modifier
             .widthIn(max = 260.dp)
             .clickable { onClick() },
-        shape = AppShapes.container(ContainerLevel.Card),
-        colors = CardDefaults.cardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Card),
+        colors = AppCardDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        variant = AppCardVariant.Elevated,
     ) {
         Row(
             modifier = Modifier.padding(8.dp),

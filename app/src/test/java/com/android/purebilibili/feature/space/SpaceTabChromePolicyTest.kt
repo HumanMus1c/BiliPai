@@ -25,7 +25,7 @@ class SpaceTabChromePolicyTest {
         assertFalse(spec.scrollable)
         assertEquals(40, spec.heightDp)
         assertTrue(spec.indicatorHeightDp < spec.heightDp)
-        assertTrue(spec.liquidGlassEffectsEnabled)
+        assertFalse(spec.liquidGlassEffectsEnabled)
         assertTrue(spec.dragSelectionEnabled)
     }
 
@@ -85,7 +85,7 @@ class SpaceTabChromePolicyTest {
         assertTrue((spec.itemWidthDp ?: 0) > 104)
         assertTrue(spec.indicatorHeightDp < spec.heightDp)
         assertEquals(mainSpec.horizontalPaddingDp, spec.horizontalPaddingDp)
-        assertFalse(spec.liquidGlassEffectsEnabled)
+        assertTrue(spec.liquidGlassEffectsEnabled)
         assertFalse(spec.dragSelectionEnabled)
     }
 
@@ -158,6 +158,37 @@ class SpaceTabChromePolicyTest {
     }
 
     @Test
+    fun `secondary switch caps long titles and scrolls only when content overflows`() {
+        val items = listOf(
+            SpaceSecondarySwitchItem("video", "视频", SpaceMainTab.CONTRIBUTION),
+            SpaceSecondarySwitchItem(
+                "season",
+                "合集 · 这是一个非常非常长的合集标题",
+                SpaceMainTab.CONTRIBUTION
+            )
+        )
+
+        val spec = resolveSpaceSecondarySwitchChromeSpec(items, selectedId = "season")
+
+        assertEquals(1, spec.selectedIndex)
+        assertEquals(48, spec.heightDp)
+        assertEquals(30, spec.indicatorHeightDp)
+        assertEquals(176, spec.itemWidthDp)
+        assertEquals(
+            122,
+            resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
+                preferredItemWidthDp = spec.itemWidthDp ?: 0,
+                itemCount = 5,
+                viewportWidthDp = 375,
+                containerHorizontalPaddingDp = 4
+            )
+        )
+        assertTrue(spec.liquidGlassEffectsEnabled)
+        assertFalse(shouldScrollSpaceSecondarySwitch(2, 104, 360, 4))
+        assertTrue(shouldScrollSpaceSecondarySwitch(4, 104, 360, 4))
+    }
+
+    @Test
     fun `contribution tab scroll offset centers selected item like main tab indicator`() {
         assertEquals(
             0,
@@ -174,6 +205,22 @@ class SpaceTabChromePolicyTest {
                 itemWidthPx = 160f,
                 viewportWidthPx = 360f
             )
+        )
+    }
+
+    @Test
+    fun `dragged secondary indicator asks rail to follow only near viewport edges`() {
+        assertEquals(
+            0f,
+            resolveSpaceSecondarySwitchDragScrollDeltaPx(1f, 104f, 360f, 0f, 4f, 12f)
+        )
+        assertEquals(
+            72f,
+            resolveSpaceSecondarySwitchDragScrollDeltaPx(3f, 104f, 360f, 0f, 4f, 12f)
+        )
+        assertEquals(
+            -8f,
+            resolveSpaceSecondarySwitchDragScrollDeltaPx(0f, 104f, 360f, 0f, 4f, 12f)
         )
     }
 

@@ -11,6 +11,45 @@ import java.io.File
 class VideoDetailReturnCoverPolicyTest {
 
     @Test
+    fun restoredParentSessionDoesNotRetakeVisualAssetsWhileClockIsIdle() {
+        assertFalse(
+            shouldConsumeMiuixTransitionVisualAssets(
+                entryOwnsMiuixCardTransition = true,
+                phase = VideoCardTransitionBackgroundPhase.IDLE,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldConsumeMiuixTransitionVisualAssets(
+                entryOwnsMiuixCardTransition = true,
+                phase = VideoCardTransitionBackgroundPhase.IDLE,
+                isReturnGestureInProgress = true,
+            )
+        )
+        assertTrue(
+            shouldConsumeMiuixTransitionVisualAssets(
+                entryOwnsMiuixCardTransition = true,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldConsumeMiuixTransitionVisualAssets(
+                entryOwnsMiuixCardTransition = true,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertFalse(
+            shouldConsumeMiuixTransitionVisualAssets(
+                entryOwnsMiuixCardTransition = false,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = true,
+            )
+        )
+    }
+
+    @Test
     fun nestedDetailOnlyConsumesMiuixTransitionFromItsOwnSourceEntry() {
         assertTrue(
             isVideoDetailEntryActiveMiuixTransitionSource(

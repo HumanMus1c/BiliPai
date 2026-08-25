@@ -1,6 +1,7 @@
 package com.android.purebilibili.navigation3
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 
@@ -28,6 +29,16 @@ internal data class BiliPaiNavSourceMetadata(
 
     val sharedTransitionReady: Boolean
         get() = clickedBoundsRecorded && cardFullyVisible
+}
+
+/** Convert click geometry captured in the app root into the navigation host's local space. */
+internal fun BiliPaiNavSourceMetadata.relativeToHost(originInRoot: Offset): BiliPaiNavSourceMetadata {
+    if (originInRoot == Offset.Zero) return this
+    fun Rect.toHostRect() = translate(Offset(-originInRoot.x, -originInRoot.y))
+    return copy(
+        sourceBounds = sourceBounds?.toHostRect(),
+        sourceCoverBounds = sourceCoverBounds?.toHostRect(),
+    )
 }
 
 /**

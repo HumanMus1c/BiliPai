@@ -52,6 +52,27 @@ class SettingsInformationArchitecturePolicyTest {
         assertEquals(BiliPaiNavKey.HomeSettings, resolveSettingsSearchNavigation(result))
     }
 
+    @Test
+    fun systemActionSearchResultsNavigateToTheirOwningCategory() {
+        listOf(
+            SettingsSearchTarget.OPEN_SOURCE_HOME,
+            SettingsSearchTarget.CHECK_UPDATE,
+            SettingsSearchTarget.TELEGRAM,
+        ).forEach { target ->
+            val result = SettingsSearchResult(
+                target = target,
+                title = target.name,
+                subtitle = "",
+                section = "",
+            )
+
+            assertEquals(
+                BiliPaiNavKey.SettingsCategory(SettingsRootCategory.SYSTEM_ABOUT),
+                resolveSettingsSearchNavigation(result),
+            )
+        }
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(File(path), File(normalizedPath)).firstOrNull { it.exists() }

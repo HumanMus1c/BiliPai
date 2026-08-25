@@ -37,7 +37,7 @@ import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
-import androidx.compose.material3.IconButtonDefaults
+import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -290,7 +290,7 @@ private fun CommandDanmakuCloseButton(
     AppIconButton(
         onClick = onDismiss,
         modifier = modifier.size(30.dp),
-        colors = IconButtonDefaults.iconButtonColors(
+        colors = AppIconButtonDefaults.colors(
             containerColor = Color.Black.copy(alpha = 0.34f),
             contentColor = Color.White
         )

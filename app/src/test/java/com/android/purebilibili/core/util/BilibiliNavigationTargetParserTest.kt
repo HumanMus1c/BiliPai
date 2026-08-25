@@ -46,6 +46,21 @@ class BilibiliNavigationTargetParserTest {
     }
 
     @Test
+    fun parse_bangumiMediaUrl_resolvesMediaTarget() {
+        val target = BilibiliNavigationTargetParser.parse(
+            "https://www.bilibili.com/bangumi/media/md28237119"
+        )
+
+        assertIs<BilibiliNavigationTarget.BangumiSeason>(target)
+        assertEquals(0L, target.seasonId)
+        assertEquals(28237119L, target.mediaId)
+        assertEquals(
+            target,
+            BilibiliNavigationTargetParser.parse("md28237119")
+        )
+    }
+
+    @Test
     fun parse_articleReadUrl_resolvesArticleTarget() {
         val target = BilibiliNavigationTargetParser.parse(
             "https://www.bilibili.com/read/cv12345"

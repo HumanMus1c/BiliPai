@@ -10,23 +10,25 @@ import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import com.android.purebilibili.core.theme.resolveCornerRadiusScale
 
-/** Semantic container categories shared across the three UI presets. */
+/** Semantic container categories shared by the Material 3 and MIUIX themes. */
 enum class ContainerLevel {
     /** Progress tracks / hairline chips. base = 1.5dp. */
     Micro,
-    /** Tiny tags / badges. iOS base = 4dp. */
+    /** Tiny tags / badges. base = 4dp. */
     Tag,
-    /** Small chips / micro-buttons. iOS base = 6dp. */
+    /** Small chips / micro-buttons. base = 6dp. */
     Chip,
-    /** Input fields, search bars, small chip-like containers. iOS base = 10dp. */
+    /** Input fields, search bars, small chip-like containers. base = 10dp. */
     Field,
-    /** Standard surface cards. iOS base = 12dp. */
+    /** Standard surface cards. base = 12dp. */
     Card,
-    /** Alert / confirm dialog containers. iOS base = 14dp. */
+    /** Prominent media / hero cards with a full large-radius outline. base = 20dp. */
+    ProminentCard,
+    /** Alert / confirm dialog containers. base = 14dp. */
     Dialog,
-    /** Bottom sheet / modal sheet (top-rounded). iOS base = 20dp. */
+    /** Bottom sheet / modal sheet (top-rounded). base = 20dp. */
     Sheet,
-    /** Floating elements — FABs, floating bars. iOS base = 28dp. */
+    /** Floating elements — FABs, floating bars. base = 28dp. */
     Floating,
     /** Pill / segmented selectors — radius comes from chrome tokens directly. */
     Pill
@@ -45,6 +47,7 @@ object AppShapes {
         ContainerLevel.Chip -> 6f
         ContainerLevel.Field -> 10f
         ContainerLevel.Card -> 12f
+        ContainerLevel.ProminentCard -> 20f
         ContainerLevel.Dialog -> 14f
         ContainerLevel.Sheet -> 20f
         ContainerLevel.Floating -> 28f

@@ -135,6 +135,14 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun fullscreenDragStart_ignoresHorizontalSystemGestureEdges() {
+        assertTrue(shouldIgnoreVideoPlayerHorizontalEdgeDragStart(20f, 1_000f, true, 48f))
+        assertTrue(shouldIgnoreVideoPlayerHorizontalEdgeDragStart(980f, 1_000f, true, 48f))
+        assertFalse(shouldIgnoreVideoPlayerHorizontalEdgeDragStart(500f, 1_000f, true, 48f))
+        assertFalse(shouldIgnoreVideoPlayerHorizontalEdgeDragStart(20f, 1_000f, false, 48f))
+    }
+
+    @Test
     fun bottomGestureExclusion_includesExpandedProgressPreviewContainer() {
         assertEquals(
             186,
@@ -1488,7 +1496,7 @@ class VideoPlayerSectionPolicyTest {
         assertEquals(72, hidden)
         assertEquals(180, visible)
         assertEquals(
-            144,
+            96,
             resolveSubtitleBottomOffsetPx(
                 isFullscreen = false,
                 controlsVisible = false,
@@ -1497,6 +1505,28 @@ class VideoPlayerSectionPolicyTest {
                 density = density
             )
         )
+    }
+
+    @Test
+    fun subtitleBottomOffset_staysFixedWhenPositionIsLocked() {
+        val hidden = resolveSubtitleBottomOffsetPx(
+            isFullscreen = true,
+            controlsVisible = false,
+            positionLocked = true,
+            navigationInsetPx = 12,
+            bottomControlsHeightPx = 80,
+            density = 2f
+        )
+        val visible = resolveSubtitleBottomOffsetPx(
+            isFullscreen = true,
+            controlsVisible = true,
+            positionLocked = true,
+            navigationInsetPx = 12,
+            bottomControlsHeightPx = 80,
+            density = 2f
+        )
+
+        assertEquals(hidden, visible)
     }
 
     @Test
@@ -1911,17 +1941,30 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
-    fun viewportTransformGesture_disabledDuringPlaybackEvenWhenUnlocked() {
-        assertFalse(
+    fun viewportTransformGesture_supportsFullscreenAndVerticalVideoOnlyWhenUnlocked() {
+        assertTrue(
             shouldEnableViewportTransformGesture(
-                isScreenLocked = false
+                isScreenLocked = false,
+                isFullscreen = true,
+                isPortraitFullscreen = false,
+                isVerticalVideo = false,
             )
+        )
+        assertTrue(
+            shouldEnableViewportTransformGesture(false, false, true, false)
+        )
+        assertTrue(
+            shouldEnableViewportTransformGesture(false, false, false, true)
         )
         assertFalse(
             shouldEnableViewportTransformGesture(
-                isScreenLocked = true
+                isScreenLocked = true,
+                isFullscreen = true,
+                isPortraitFullscreen = false,
+                isVerticalVideo = true,
             )
         )
+        assertFalse(shouldEnableViewportTransformGesture(false, false, false, false))
     }
 
     @Test

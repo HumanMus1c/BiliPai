@@ -38,6 +38,12 @@ internal fun resolveUnifiedBlurredEdgeTreatment(shape: Shape?): BlurredEdgeTreat
     }
 }
 
+internal fun shouldApplyUnifiedBlur(
+    enabled: Boolean,
+    surfaceType: BlurSurfaceType,
+    globalHeaderBlurEnabled: Boolean,
+): Boolean = enabled && (surfaceType != BlurSurfaceType.HEADER || globalHeaderBlurEnabled)
+
 @Composable
 fun ProvideUnifiedBlurIntensity(
     blurIntensity: BlurIntensity = LocalAppThemeConfig.current.blurIntensity,
@@ -77,7 +83,8 @@ fun Modifier.unifiedBlur(
     forceLowBudget: Boolean = false,
     blurStyleOverride: HazeBlurStyle? = null,
 ): Modifier {
-    if (!enabled) return this
+    val globalHeaderBlurEnabled = LocalAppThemeConfig.current.headerBlurEnabled
+    if (!shouldApplyUnifiedBlur(enabled, surfaceType, globalHeaderBlurEnabled)) return this
     if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return this
 
     // 运行时视觉守卫：连续掉帧时把毛玻璃/液态玻璃一并降级。调用点自带的

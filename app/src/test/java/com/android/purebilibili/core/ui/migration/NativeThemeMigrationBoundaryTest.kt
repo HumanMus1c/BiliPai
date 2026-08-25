@@ -77,6 +77,174 @@ class NativeThemeMigrationBoundaryTest {
     }
 
     @Test
+    fun featureSliderColorsUseNeutralAppTokens() {
+        val offenders = kotlinFiles("app/src/main/java/com/android/purebilibili/feature")
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (MATERIAL_SLIDER_DEFAULTS_CALL.containsMatchIn(line)) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "AppSlider colors must use AppSliderDefaults, not Material3 SliderDefaults:\n" +
+                offenders.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun appDirectSliderCallsUseFacade() {
+        val offenders = kotlinFiles("app/src/main/java")
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (DIRECT_NATIVE_SLIDER_CALL.containsMatchIn(line)) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "App production sources must use AppSlider, not a direct native Slider:\n" +
+                offenders.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun appDirectButtonCallsUseFacade() {
+        val offenders = kotlinFiles("app/src/main/java")
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (DIRECT_NATIVE_BUTTON_CALL.containsMatchIn(line)) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "App production sources must use App*Button, not a direct native Button:\n" +
+                offenders.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun appIconButtonVisualGeometryDoesNotReuseTouchTargetDimensions() {
+        val offenders = kotlinFiles("app/src/main/java")
+            .flatMap { file ->
+                file.callHeaders("AppIconButton").mapNotNull { (lineNumber, header) ->
+                    if (FIXED_ICON_BUTTON_DIMENSION.containsMatchIn(header)) {
+                        "${repoRelativePath(file)}:$lineNumber: ${header.trim()}"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "AppIconButton visual geometry must come from the native component or a role policy, " +
+                "not a fixed 48dp touch-target dimension:\n${offenders.joinToString("\n")}",
+        )
+    }
+
+    @Test
+    fun appDirectIconButtonCallsAndDefaultsUseFacade() {
+        val offenders = kotlinFiles("app/src/main/java")
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (
+                        DIRECT_NATIVE_ICON_BUTTON_CALL.containsMatchIn(line) ||
+                        MATERIAL_ICON_BUTTON_DEFAULTS_REFERENCE.containsMatchIn(line) ||
+                        DIRECT_ICON_BUTTON_VENDOR_IMPORT.containsMatchIn(line)
+                    ) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "App production sources must use App*IconButton and AppIconButtonDefaults:\n" +
+                offenders.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun featureDirectProgressCallsOnlyDecrease() {
+        val directCalls = kotlinFiles("app/src/main/java/com/android/purebilibili/feature")
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (DIRECT_PROGRESS_INDICATOR_CALL.containsMatchIn(line)) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertAtMost(
+            actual = directCalls.size,
+            maximum = MAX_FEATURE_DIRECT_PROGRESS_CALLS,
+            label = "feature direct native progress calls",
+        )
+    }
+
+    @Test
+    fun designSystemComponentsUseTheProgressFacade() {
+        val offenders = kotlinFiles(
+            "design-system/src/main/java/com/android/purebilibili/core/ui/components"
+        )
+            .filterNot { it.name == "AppProgressIndicator.kt" }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (DIRECT_PROGRESS_INDICATOR_CALL.containsMatchIn(line)) {
+                        "${repoRelativePath(file)}:${index + 1}: $line"
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        assertTrue(
+            offenders.isEmpty(),
+            "Design-system components must use App* progress facades:\n" +
+                offenders.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun appNativeCardCallsStayWithinTheExactMd3PreviewException() {
+        val directCalls = kotlinFiles("app/src/main/java")
+            .flatMap { file ->
+                var enclosingFunction = "<top-level>"
+                buildList {
+                    file.readLines().forEach { line ->
+                        FUNCTION_DECLARATION.find(line)?.groupValues?.get(1)?.let {
+                            enclosingFunction = it
+                        }
+                        DIRECT_NATIVE_CARD_CALL.findAll(line).forEach { match ->
+                            add("${repoRelativePath(file)}#$enclosingFunction#${match.value.removeSuffix("(")}")
+                        }
+                    }
+                }
+            }
+            .sorted()
+
+        assertEquals(MD3_CARD_PREVIEW_EXCEPTIONS, directCalls)
+    }
+
+    @Test
     fun primitiveFacadeVendorImportsOnlyDecrease() {
         val source = repoFile(
             "design-system/src/main/java/com/android/purebilibili/core/ui/components/" +
@@ -165,6 +333,37 @@ class NativeThemeMigrationBoundaryTest {
         lines.any { line -> prefixes.any(line::startsWith) }
     }
 
+    private fun File.callHeaders(callName: String): List<Pair<Int, String>> {
+        val marker = "$callName("
+        var startLine = -1
+        var parenthesisDepth = 0
+        var header = StringBuilder()
+
+        return buildList {
+            readLines().forEachIndexed { index, line ->
+                if (startLine < 0) {
+                    val markerIndex = line.indexOf(marker)
+                    if (markerIndex < 0) return@forEachIndexed
+                    startLine = index + 1
+                    val firstLine = line.substring(markerIndex)
+                    header.appendLine(firstLine)
+                    parenthesisDepth += firstLine.count { it == '(' } - firstLine.count { it == ')' }
+                } else {
+                    header.appendLine(line)
+                    parenthesisDepth += line.count { it == '(' } - line.count { it == ')' }
+                }
+
+                if (parenthesisDepth <= 0) {
+                    add(startLine to header.toString())
+                    startLine = -1
+                    parenthesisDepth = 0
+                    header = StringBuilder()
+                }
+            }
+            check(startLine < 0) { "Unterminated $callName call header in ${path}" }
+        }
+    }
+
     private fun assertAtMost(actual: Int, maximum: Int, label: String) {
         assertTrue(
             actual <= maximum,
@@ -220,10 +419,40 @@ class NativeThemeMigrationBoundaryTest {
             "import top.yukonga.miuix.kmp.squircle.",
         )
         val APP_UI_STYLE_BRANCH = Regex("\\bAppUiStyle\\.")
+        val MATERIAL_SLIDER_DEFAULTS_CALL = Regex("(?<![A-Za-z0-9_])SliderDefaults\\.colors\\(")
+        val DIRECT_NATIVE_SLIDER_CALL = Regex("(?<![A-Za-z0-9_])Slider\\(")
+        val DIRECT_NATIVE_BUTTON_CALL =
+            Regex("(?<![A-Za-z0-9_])(?:Button|TextButton|OutlinedButton)\\(")
+        val FIXED_ICON_BUTTON_DIMENSION = Regex(
+            "\\.(?:size|width|height|sizeIn|widthIn|heightIn)\\s*\\([^)]*" +
+                "(?:48\\.dp|(?:AppChromeSizeTokens\\.)?MinimumTouchTarget)",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+        val DIRECT_NATIVE_ICON_BUTTON_CALL = Regex(
+            "(?<![A-Za-z0-9_])(?:IconButton|FilledIconButton|FilledTonalIconButton|" +
+                "OutlinedIconButton)\\s*\\(",
+        )
+        val MATERIAL_ICON_BUTTON_DEFAULTS_REFERENCE =
+            Regex("(?<![A-Za-z0-9_])IconButtonDefaults\\.")
+        val DIRECT_ICON_BUTTON_VENDOR_IMPORT = Regex(
+            "^import (?:androidx\\.compose\\.material3\\.(?:IconButton|FilledIconButton|" +
+                "FilledTonalIconButton|OutlinedIconButton|IconButtonDefaults)|" +
+                "top\\.yukonga\\.miuix\\.kmp\\.basic\\.IconButton)(?:\\s+as\\s+\\w+)?$",
+        )
+        val DIRECT_PROGRESS_INDICATOR_CALL =
+            Regex("(?<!App)(?:Circular|Linear)ProgressIndicator\\(")
+        val DIRECT_NATIVE_CARD_CALL =
+            Regex("(?<![A-Za-z0-9_])(?:Card|ElevatedCard|OutlinedCard)\\(")
+        val FUNCTION_DECLARATION = Regex("\\bfun\\s+([A-Za-z0-9_]+)\\s*\\(")
+
+        val MD3_CARD_PREVIEW_EXCEPTIONS = listOf(
+            "app/src/main/java/com/android/purebilibili/feature/settings/screen/" +
+                "AppearanceSettingsScreen.kt#Md3ThemeColorPreview#ElevatedCard",
+        )
 
         // Frozen from production sources on 2026-08-24; lower after each migration batch.
         const val MAX_FEATURE_MATERIAL3_FILES = 237
-        const val MAX_FEATURE_MATERIAL3_IMPORTS = 341
+        const val MAX_FEATURE_MATERIAL3_IMPORTS = 332
         const val MAX_FEATURE_MATERIAL3_WILDCARD_IMPORTS = 89
         const val MAX_FEATURE_MIUIX_COMPONENT_FILES = 1
         const val MAX_FEATURE_MIUIX_COMPONENT_IMPORTS = 1
@@ -231,7 +460,8 @@ class NativeThemeMigrationBoundaryTest {
         const val MAX_FEATURE_MIUIX_ICON_IMPORTS = 26
         const val MAX_FEATURE_THEME_BRANCH_FILES = 8
         const val MAX_FEATURE_THEME_BRANCH_LINES = 34
-        const val MAX_PRIMITIVE_FACADE_MATERIAL3_IMPORTS = 76
+        const val MAX_FEATURE_DIRECT_PROGRESS_CALLS = 0
+        const val MAX_PRIMITIVE_FACADE_MATERIAL3_IMPORTS = 47
 
         const val LIQUID_GLASS_EXCEPTION_FILE_COUNT = 45
         const val LIQUID_GLASS_EXCEPTION_PATHS_SHA256 =

@@ -37,6 +37,24 @@ internal fun isVideoDetailEntryActiveMiuixTransitionSource(
     return normalizedEntrySource == normalizedActiveSource
 }
 
+/**
+ * A restored parent session is armed for its next return, but must not retake visual ownership
+ * while the navigation clock is idle. Nested pop restores that session after the child lands;
+ * consuming its cover/chrome at that point causes a deterministic delayed parent-cover flash.
+ */
+internal fun shouldConsumeMiuixTransitionVisualAssets(
+    entryOwnsMiuixCardTransition: Boolean,
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+    isGestureRestoreInProgress: Boolean = false,
+): Boolean {
+    return entryOwnsMiuixCardTransition && (
+        phase != VideoCardTransitionBackgroundPhase.IDLE ||
+            isReturnGestureInProgress ||
+            isGestureRestoreInProgress
+        )
+}
+
 internal fun resolveForceCoverOnlyForReturn(
     forceCoverOnlyOnReturn: Boolean,
     transitionEnabled: Boolean = true,

@@ -308,7 +308,8 @@ internal fun toRelatedVideoForPortraitRecommendation(item: VideoItem): RelatedVi
         pic = item.pic,
         owner = item.owner,
         stat = item.stat,
-        duration = item.duration
+        duration = item.duration,
+        pubdate = item.pubdate,
     )
 }
 
@@ -430,6 +431,7 @@ internal fun toViewInfoForPortraitDetail(related: RelatedVideo): ViewInfo {
         pic = related.pic,
         owner = related.owner,
         stat = related.stat,
+        pubdate = related.pubdate,
         pages = listOf(
             Page(duration = related.duration.toLong())
         )

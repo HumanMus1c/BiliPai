@@ -97,16 +97,6 @@ object CommentRepository {
         paginationOffset: String? = null
     ): ReplyResponse {
         return when (mode) {
-            2 -> {
-                Logger.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=0 (时间)")
-                apiClient.getReplyListLegacy(
-                    oid = oid,
-                    type = type,
-                    pn = page,
-                    ps = ps,
-                    sort = 0
-                )
-            }
             1 -> {
                 Logger.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=2 (回复数)")
                 apiClient.getReplyListLegacy(
@@ -128,12 +118,16 @@ object CommentRepository {
                 )
             }
             else -> {
+                val mainListMode = resolveCommentMainListMode(mode)
                 val (imgKey, subKey) = getWbiKeys(apiClient)
-                Logger.d("CommentRepo", " getComments (WBI): oid=$oid, type=$type, page=$page, mode=3 (热度)")
+                Logger.d(
+                    "CommentRepo",
+                    " getComments (WBI): oid=$oid, type=$type, page=$page, mode=$mainListMode"
+                )
                 val params = TreeMap<String, String>()
                 params["oid"] = oid.toString()
                 params["type"] = type.toString()
-                params["mode"] = "3"
+                params["mode"] = mainListMode.toString()
                 params["ps"] = ps.toString()
                 params["plat"] = "1"
                 params["web_location"] = "1315875"
@@ -307,7 +301,7 @@ object CommentRepository {
     /**
      * 获取评论列表
      * @param mode 排序模式:
-     * 3=最热(WBI mode=3), 2=最新(legacy sort=0), 4=点赞(legacy sort=1), 1=回复(legacy sort=2)
+     * 3=最热(WBI mode=3), 2=最新(WBI mode=2), 4=点赞(legacy sort=1), 1=回复(legacy sort=2)
      */
     suspend fun getComments(
         aid: Long,
@@ -339,7 +333,16 @@ object CommentRepository {
             // 确保 buvid3 已初始化
             VideoRepository.ensureBuvid3()
 
-            if (shouldTryGrpcMainList(type = type, page = page, mode = mode, paginationOffset = paginationOffset)) {
+            val hasSession = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
+            if (
+                shouldTryGrpcMainList(
+                    hasSession = hasSession,
+                    type = type,
+                    page = page,
+                    mode = mode,
+                    paginationOffset = paginationOffset
+                )
+            ) {
                 val grpcResult = CommentGrpcRepository.getMainList(
                     oid = oid,
                     type = type,
@@ -380,7 +383,6 @@ object CommentRepository {
                 }
             }
 
-            val hasSession = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
             val readPlan = resolveCommentReadPlan(hasSession = hasSession)
             val primaryMode = readPlan.primary
             val primaryResponse = fetchCommentsByApi(
@@ -860,11 +862,16 @@ object CommentRepository {
     }
 
     internal fun shouldTryGrpcMainList(
+        hasSession: Boolean,
         type: Int,
         page: Int,
         mode: Int,
         paginationOffset: String?
     ): Boolean {
+        // The documented public web flow is x/v2/reply/wbi/main + pagination_str.
+        // Guest gRPC can return a successful but restricted slice, which prevents the
+        // REST fallback and makes the comment section appear complete prematurely.
+        if (!hasSession) return false
         if (type == 17) return false
         val supportedMode = mode == CommentGrpcRepository.MODE_HOT || mode == CommentGrpcRepository.MODE_TIME
         if (!supportedMode) return false
@@ -876,10 +883,7 @@ object CommentRepository {
         paginationOffset: String?
     ): Map<String, String> {
         if (page <= 1) {
-            return mapOf(
-                "seek_rpid" to "0",
-                "pagination_str" to """{"offset":""}"""
-            )
+            return mapOf("pagination_str" to """{"offset":""}""")
         }
         if (!paginationOffset.isNullOrBlank()) {
             return mapOf(
@@ -887,6 +891,14 @@ object CommentRepository {
             )
         }
         return mapOf("next" to page.toString())
+    }
+
+    internal fun resolveCommentMainListMode(mode: Int): Int {
+        return if (mode == CommentGrpcRepository.MODE_TIME) {
+            CommentGrpcRepository.MODE_TIME
+        } else {
+            CommentGrpcRepository.MODE_HOT
+        }
     }
 
     internal fun shouldTryGrpcPagedRequest(
@@ -964,7 +976,14 @@ object CommentRepository {
     /**
      * [新增] 删除评论
      */
-    suspend fun deleteComment(aid: Long, rpid: Long): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun deleteComment(aid: Long, rpid: Long): Result<Unit> =
+        deleteCommentForSubject(oid = aid, type = 1, rpid = rpid)
+
+    suspend fun deleteCommentForSubject(
+        oid: Long,
+        type: Int,
+        rpid: Long,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
             if (csrf.isNullOrEmpty()) {
@@ -972,8 +991,8 @@ object CommentRepository {
             }
             
             val response = api.deleteReply(
-                oid = aid,
-                type = 1,
+                oid = oid,
+                type = type,
                 rpid = rpid,
                 csrf = csrf
             )
@@ -997,6 +1016,18 @@ object CommentRepository {
         aid: Long,
         rpid: Long,
         isCurrentlyTop: Boolean
+    ): Result<Unit> = setCommentTopForSubject(
+        oid = aid,
+        type = 1,
+        rpid = rpid,
+        isCurrentlyTop = isCurrentlyTop,
+    )
+
+    suspend fun setCommentTopForSubject(
+        oid: Long,
+        type: Int,
+        rpid: Long,
+        isCurrentlyTop: Boolean,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
@@ -1005,8 +1036,8 @@ object CommentRepository {
             }
 
             val response = api.setReplyTop(
-                oid = aid,
-                type = 1,
+                oid = oid,
+                type = type,
                 rpid = rpid,
                 action = resolveReplyTopActionField(isCurrentlyTop),
                 csrf = csrf
@@ -1030,7 +1061,16 @@ object CommentRepository {
      * [新增] 举报评论
      * @param reason 举报原因: 0=其他, 1=垃圾广告, 2=色情, 3=刷屏, 4=引战, 5=剧透, 6=政治, 7=人身攻击
      */
-    suspend fun reportComment(aid: Long, rpid: Long, reason: Int, content: String = ""): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun reportComment(aid: Long, rpid: Long, reason: Int, content: String = ""): Result<Unit> =
+        reportCommentForSubject(oid = aid, type = 1, rpid = rpid, reason = reason, content = content)
+
+    suspend fun reportCommentForSubject(
+        oid: Long,
+        type: Int,
+        rpid: Long,
+        reason: Int,
+        content: String = "",
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
             if (csrf.isNullOrEmpty()) {
@@ -1038,8 +1078,8 @@ object CommentRepository {
             }
             
             val response = api.reportReply(
-                oid = aid,
-                type = 1,
+                oid = oid,
+                type = type,
                 rpid = rpid,
                 reason = reason,
                 content = content,

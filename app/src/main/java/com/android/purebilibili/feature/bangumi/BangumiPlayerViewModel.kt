@@ -165,6 +165,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
     private var currentSeasonId: Long = 0
     private var currentEpId: Long = 0
     private var bangumiHeartbeatJob: Job? = null
+    private var openingSkippedEpisodeId: Long = 0L
+    private var endingSkippedEpisodeId: Long = 0L
     private var progressManager: PlaybackProgressManager? = null
 
     //  [修复] 与详情页保持一致的追番状态缓存
@@ -228,6 +230,25 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 _toastEvent.send("已是最后一集")
             }
         }
+    }
+
+    fun checkAndSkipEpisodeOpEd() {
+        val currentState = _uiState.value as? BangumiPlayerState.Success ?: return
+        val player = exoPlayer ?: return
+        val episode = currentState.currentEpisode
+        val action = resolveBangumiEpisodeSkipAction(
+            currentPositionMs = player.currentPosition,
+            durationMs = player.duration.takeIf { it > 0L } ?: episode.duration,
+            skip = episode.skip,
+            openingAlreadySkipped = openingSkippedEpisodeId == episode.id,
+            endingAlreadySkipped = endingSkippedEpisodeId == episode.id
+        ) ?: return
+        when (action.kind) {
+            BangumiEpisodeSkipKind.OPENING -> openingSkippedEpisodeId = episode.id
+            BangumiEpisodeSkipKind.ENDING -> endingSkippedEpisodeId = episode.id
+        }
+        player.seekTo(action.seekToMs)
+        _toastEvent.trySend("已跳过${action.kind.label}")
     }
     
     /**
@@ -509,6 +530,7 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 cachedIsVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip(),
                 seasonUserVip = detail.userStatus?.vip == 1
             )
+            val qualityOptions = resolveBangumiQualityOptions(playData)
 
             _uiState.value = BangumiPlayerState.Success(
                 seasonDetail = correctedDetail,
@@ -517,8 +539,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 playUrl = videoUrl,
                 audioUrl = audioUrl,
                 quality = playData.quality,
-                acceptQuality = playData.acceptQuality ?: emptyList(),
-                acceptDescription = playData.acceptDescription ?: emptyList(),
+                acceptQuality = qualityOptions.ids,
+                acceptDescription = qualityOptions.labels,
                 cachedDash = playData.dash,
                 requestedAudioQuality = audioSelection?.requestedPreferenceId ?: requestedAudioQuality,
                 selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,
@@ -660,11 +682,14 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 }
                 
                 if (videoUrl.isNullOrEmpty()) return@onSuccess
+                val qualityOptions = resolveBangumiQualityOptions(playData)
                 
                 _uiState.value = currentState.copy(
                     playUrl = videoUrl,
                     audioUrl = audioUrl,
                     quality = playData.quality,
+                    acceptQuality = qualityOptions.ids.ifEmpty { currentState.acceptQuality },
+                    acceptDescription = qualityOptions.labels.ifEmpty { currentState.acceptDescription },
                     cachedDash = dash,
                     requestedAudioQuality = currentState.requestedAudioQuality,
                     selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,

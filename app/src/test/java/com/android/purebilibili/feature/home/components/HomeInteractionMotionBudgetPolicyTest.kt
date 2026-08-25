@@ -358,6 +358,36 @@ class HomeInteractionMotionBudgetPolicyTest {
     }
 
     @Test
+    fun md3NativeUnderline_stretchesBetweenTabCentersThenSettles() {
+        assertEquals(
+            Md3TopTabUnderlineBounds(36f, 28f),
+            resolveMd3TopTabUnderlineBounds(
+                absolutePagerPosition = 0f,
+                itemWidthPx = 100f,
+                rowScrollOffsetPx = 0f,
+                indicatorWidthPx = 28f,
+            ),
+        )
+        val midpoint = resolveMd3TopTabUnderlineBounds(
+                absolutePagerPosition = 0.5f,
+                itemWidthPx = 100f,
+                rowScrollOffsetPx = 0f,
+                indicatorWidthPx = 28f,
+            )
+        assertEquals(65.289f, midpoint.translationXPx, 0.001f)
+        assertEquals(69.421f, midpoint.widthPx, 0.001f)
+        assertEquals(
+            Md3TopTabUnderlineBounds(136f, 28f),
+            resolveMd3TopTabUnderlineBounds(
+                absolutePagerPosition = 1f,
+                itemWidthPx = 100f,
+                rowScrollOffsetPx = 0f,
+                indicatorWidthPx = 28f,
+            ),
+        )
+    }
+
+    @Test
     fun iosTopTabCapsuleTranslation_prefersMeasuredSelectedItemLeft() {
         assertEquals(
             184f,

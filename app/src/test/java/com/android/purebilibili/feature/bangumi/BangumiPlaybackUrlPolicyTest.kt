@@ -55,7 +55,7 @@ class BangumiPlaybackUrlPolicyTest {
         assertEquals("2002", params["cid"])
         assertEquals("3003", params["season_id"])
         assertEquals("80", params["qn"])
-        assertEquals("4048", params["fnval"])
+        assertEquals("12240", params["fnval"])
         assertEquals("0", params["fnver"])
         assertEquals("1", params["fourk"])
         assertEquals("1", params["voice_balance"])

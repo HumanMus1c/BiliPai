@@ -30,6 +30,9 @@ internal data class SpaceContributionToolbarSpec(
 
 private const val SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP = 16
 private const val SPACE_SCROLLABLE_CONTRIBUTION_ITEM_MIN_WIDTH_DP = 104
+private const val SPACE_SCROLLABLE_CONTRIBUTION_ITEM_MAX_WIDTH_DP = 176
+private const val SPACE_SCROLLABLE_CONTRIBUTION_ITEM_EMERGENCY_MIN_WIDTH_DP = 72
+private const val SPACE_SECONDARY_MIN_VISIBLE_ITEM_COUNT = 3
 private const val SPACE_SCROLLABLE_CONTRIBUTION_ITEM_TEXT_PADDING_DP = 44
 private const val SPACE_SCROLLABLE_CONTRIBUTION_CJK_CHAR_WIDTH_DP = 15
 private const val SPACE_SCROLLABLE_CONTRIBUTION_ASCII_CHAR_WIDTH_DP = 8
@@ -73,6 +76,23 @@ internal fun resolveSpaceContributionTabChromeSpec(
         scrollable = scrollable,
         liquidGlassEffectsEnabled = false,
         dragSelectionEnabled = false
+    )
+}
+
+internal fun resolveSpaceSecondarySwitchChromeSpec(
+    items: List<SpaceSecondarySwitchItem>,
+    selectedId: String
+): SpaceSegmentedTabChromeSpec {
+    val itemWidthDp = resolveSpaceContributionTabItemWidthDpFromTitles(items.map { it.title })
+    return SpaceSegmentedTabChromeSpec(
+        selectedIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
+        heightDp = AppChromeSizeTokens.MinimumTouchTarget.value.roundToInt(),
+        indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
+        horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
+        itemWidthDp = itemWidthDp,
+        scrollable = items.size > 3,
+        liquidGlassEffectsEnabled = true,
+        dragSelectionEnabled = items.size in 2..4
     )
 }
 
@@ -128,8 +148,40 @@ private fun shouldScrollSpaceContributionTabs(tabs: List<SpaceContributionTab>):
 }
 
 internal fun resolveSpaceContributionTabItemWidthDp(tabs: List<SpaceContributionTab>): Int {
-    val widestTitle = tabs.maxOfOrNull { estimateSpaceContributionTabTitleWidthDp(it.title) } ?: 0
-    return widestTitle.coerceAtLeast(SPACE_SCROLLABLE_CONTRIBUTION_ITEM_MIN_WIDTH_DP)
+    return resolveSpaceContributionTabItemWidthDpFromTitles(tabs.map { it.title })
+}
+
+private fun resolveSpaceContributionTabItemWidthDpFromTitles(titles: List<String>): Int {
+    val widestTitle = titles.maxOfOrNull(::estimateSpaceContributionTabTitleWidthDp) ?: 0
+    return widestTitle.coerceIn(
+        SPACE_SCROLLABLE_CONTRIBUTION_ITEM_MIN_WIDTH_DP,
+        SPACE_SCROLLABLE_CONTRIBUTION_ITEM_MAX_WIDTH_DP
+    )
+}
+
+internal fun shouldScrollSpaceSecondarySwitch(
+    itemCount: Int,
+    itemWidthDp: Int,
+    viewportWidthDp: Int,
+    containerHorizontalPaddingDp: Int
+): Boolean {
+    val contentWidthDp = itemCount * itemWidthDp + containerHorizontalPaddingDp * 2
+    return itemCount > 1 && contentWidthDp > viewportWidthDp
+}
+
+internal fun resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
+    preferredItemWidthDp: Int,
+    itemCount: Int,
+    viewportWidthDp: Int,
+    containerHorizontalPaddingDp: Int
+): Int {
+    if (itemCount <= 0 || viewportWidthDp <= 0) return preferredItemWidthDp
+    val visibleItemCount = minOf(itemCount, SPACE_SECONDARY_MIN_VISIBLE_ITEM_COUNT)
+    val availableWidthDp =
+        (viewportWidthDp - containerHorizontalPaddingDp * 2).coerceAtLeast(0)
+    val widthForVisibleItemsDp = availableWidthDp / visibleItemCount
+    return minOf(preferredItemWidthDp, widthForVisibleItemsDp)
+        .coerceAtLeast(SPACE_SCROLLABLE_CONTRIBUTION_ITEM_EMERGENCY_MIN_WIDTH_DP)
 }
 
 internal fun resolveSpaceContributionTabCenteredScrollOffsetPx(
@@ -142,6 +194,26 @@ internal fun resolveSpaceContributionTabCenteredScrollOffsetPx(
     return (itemStartPx - (viewportWidthPx - itemWidthPx) / 2f)
         .roundToInt()
         .coerceAtLeast(0)
+}
+
+internal fun resolveSpaceSecondarySwitchDragScrollDeltaPx(
+    indicatorPosition: Float,
+    itemWidthPx: Float,
+    viewportWidthPx: Float,
+    currentScrollPx: Float,
+    containerHorizontalPaddingPx: Float,
+    edgePaddingPx: Float
+): Float {
+    if (itemWidthPx <= 0f || viewportWidthPx <= 0f) return 0f
+    val indicatorLeftPx =
+        containerHorizontalPaddingPx + indicatorPosition * itemWidthPx - currentScrollPx
+    val indicatorRightPx = indicatorLeftPx + itemWidthPx
+    return when {
+        indicatorLeftPx < edgePaddingPx -> indicatorLeftPx - edgePaddingPx
+        indicatorRightPx > viewportWidthPx - edgePaddingPx ->
+            indicatorRightPx - (viewportWidthPx - edgePaddingPx)
+        else -> 0f
+    }
 }
 
 private fun estimateSpaceContributionTabTitleWidthDp(title: String): Int {

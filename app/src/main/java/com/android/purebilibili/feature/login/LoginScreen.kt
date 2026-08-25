@@ -31,7 +31,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
-import androidx.compose.material3.CardDefaults
+import com.android.purebilibili.core.ui.components.AppCardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.AppScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -360,7 +360,7 @@ private fun LoginStateMessage(state: LoginState, modifier: Modifier = Modifier) 
     val message = (state as? LoginState.Error)?.msg ?: return
     AppCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer)
     ) {
         AppText(
             text = message,
@@ -379,7 +379,7 @@ private fun HighQualityAuthorizationCard(
 ) {
     AppCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

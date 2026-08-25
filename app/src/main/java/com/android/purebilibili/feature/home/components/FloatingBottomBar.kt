@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -109,6 +108,16 @@ val LocalFloatingBottomBarContentColor = staticCompositionLocalOf { Color.Unspec
 
 val LocalFloatingBottomBarTabScale = staticCompositionLocalOf { { 1f } }
 
+internal val LocalFloatingBottomBarIndicatorPosition = staticCompositionLocalOf { { 0f } }
+
+internal val LocalFloatingBottomBarItemSelectionScale = staticCompositionLocalOf { { 1f } }
+
+internal val LocalFloatingBottomBarItemAlignmentOffset =
+    staticCompositionLocalOf<(Int) -> Float> { { 0f } }
+
+internal val LocalFloatingBottomBarBaseContentAlpha =
+    staticCompositionLocalOf<(Int) -> Float> { { 1f } }
+
 /** 激活内容捕获层会为指示器提供每个槽位的选中态图标。 */
 internal val LocalFloatingBottomBarActiveContent = staticCompositionLocalOf { false }
 
@@ -141,12 +150,13 @@ enum class FloatingBottomBarMode {
     None
 }
 
-/** Keep the Miuix upstream resting indicator height for the standard bottom dock. */
-val FloatingBottomBarIndicatorHeight: Dp = 56.dp
+/** Flatter resting indicator; the shell and indicator retain the same capsule shape. */
+val FloatingBottomBarIndicatorHeight: Dp = 52.dp
 
-val FloatingBottomBarDefaultShellHeight: Dp = 64.dp
+val FloatingBottomBarDefaultShellHeight: Dp = 56.dp
 
-const val FloatingBottomBarPressedScale: Float = 78f / 56f
+const val FloatingBottomBarPressedScale: Float =
+    com.android.purebilibili.core.ui.BottomBarReferencePressedScale
 
 private val iosIndicatorSpecular: Highlight = Highlight(
     width = 1.dp,
@@ -285,10 +295,30 @@ fun RowScope.FloatingBottomBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
+    itemIndex: Int? = null,
+    iconCrossScaleEnabled: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scale = LocalFloatingBottomBarTabScale.current
+    val indicatorPosition = LocalFloatingBottomBarIndicatorPosition.current
+    val alignmentOffset = LocalFloatingBottomBarItemAlignmentOffset.current
+    val baseContentAlpha = LocalFloatingBottomBarBaseContentAlpha.current
+    val activeContent = LocalFloatingBottomBarActiveContent.current
     val contentColor = LocalFloatingBottomBarContentColor.current
+    val selectionScale = remember(itemIndex, indicatorPosition) {
+        {
+            if (!iconCrossScaleEnabled || itemIndex == null) {
+                1f
+            } else {
+                val coverage = (1f - abs(itemIndex.toFloat() - indicatorPosition()))
+                    .coerceIn(0f, 1f)
+                resolveNavigationIconCrossScale(
+                    enabled = true,
+                    coverage = coverage,
+                )
+            }
+        }
+    }
 
     // Do not clip(CircleShape): BiliPai reminder badges offset outside the icon and would be
     // cropped (BiliPai items are icon-only and can clip safely).
@@ -309,6 +339,12 @@ fun RowScope.FloatingBottomBarItem(
                 val s = scale()
                 scaleX = s
                 scaleY = s
+                translationX = itemIndex?.let(alignmentOffset) ?: 0f
+                alpha = if (!activeContent && itemIndex != null) {
+                    baseContentAlpha(itemIndex)
+                } else {
+                    1f
+                }
                 // Keep badge pixels outside the item bounds.
                 clip = false
             },
@@ -318,7 +354,8 @@ fun RowScope.FloatingBottomBarItem(
         val columnScope = this
         CompositionLocalProvider(
             MiuixLocalContentColor provides contentColor,
-            M3LocalContentColor provides contentColor
+            M3LocalContentColor provides contentColor,
+            LocalFloatingBottomBarItemSelectionScale provides selectionScale,
         ) {
             content(columnScope)
         }
@@ -337,15 +374,19 @@ fun FloatingBottomBar(
     colors: FloatingBottomBarColors = FloatingBottomBarDefaults.colors(),
     shellHeight: Dp = FloatingBottomBarDefaultShellHeight,
     indicatorHeight: Dp = FloatingBottomBarIndicatorHeight,
+    indicatorWidth: Dp? = null,
+    minimumIndicatorWidth: Dp = 0.dp,
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
     dragSelectionEnabled: Boolean = true,
+    longPressDragSelectionEnabled: Boolean = false,
     dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING,
+    onIndicatorPositionChanged: ((Float) -> Unit)? = null,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     content: @Composable RowScope.() -> Unit
 ) {
     val isInDark = isSystemInDarkTheme()
-    val pillShape = remember { CircleShape }
+    val pillShape = remember { resolveSharedBottomBarCapsuleShape() }
     val isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass
     val isBlurMode = mode == FloatingBottomBarMode.Blur
     val adaptiveReadabilityEnabled = isLiquidGlassMode &&
@@ -409,9 +450,16 @@ fun FloatingBottomBar(
 
     var tabWidthPx by remember { mutableFloatStateOf(0f) }
     var totalWidthPx by remember { mutableFloatStateOf(0f) }
+    val tabWidth = with(density) { tabWidthPx.toDp() }
+    val fittedIndicatorWidth = if (indicatorWidth != null) {
+        minOf(indicatorWidth, tabWidth).coerceAtLeast(minimumIndicatorWidth)
+    } else {
+        maxOf(tabWidth, minimumIndicatorWidth)
+    }
+    val fittedIndicatorWidthPx = with(density) { fittedIndicatorWidth.toPx() }
     val fittedIndicatorHeight = resolveFloatingDockIndicatorHeightDp(
         requestedHeightDp = indicatorHeight.value,
-        tabWidthDp = with(density) { tabWidthPx.toDp().value },
+        tabWidthDp = fittedIndicatorWidth.value,
     ).dp
     val matchedGeometry = remember(shellHeight, fittedIndicatorHeight) {
         resolveMatchedLiquidIndicatorGeometry(
@@ -419,7 +467,6 @@ fun FloatingBottomBar(
             indicatorHeightDp = fittedIndicatorHeight.value,
         )
     }
-
     class DockDragHitTest {
         var dockWindowLeftPx = 0f
         var screenWidthPx = 0f
@@ -461,6 +508,7 @@ fun FloatingBottomBar(
     val maxTabIndex = (safeTabsCount - 1).coerceAtLeast(0)
     val selectedIndexLatest = rememberUpdatedState(selectedIndex)
     val onSelectedLatest = rememberUpdatedState(onSelected)
+    val onIndicatorPositionChangedLatest = rememberUpdatedState(onIndicatorPositionChanged)
     val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
     val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
     val pagerFollowGate = remember { ExternalPagerIndicatorFollowGate() }
@@ -531,10 +579,10 @@ fun FloatingBottomBar(
             },
             onDrag = { _, dragAmount ->
                 if (tabWidthPx > 0f) {
-                    updateValue(
+                    val nextPosition =
                         (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
                             .fastCoerceIn(0f, maxTabIndex.toFloat())
-                    )
+                    updateValue(nextPosition)
                     animationScope.launch {
                         offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                     }
@@ -542,13 +590,47 @@ fun FloatingBottomBar(
             }
         ).also { holder.instance = it }
     }
+    LaunchedEffect(dampedDragAnimation) {
+        snapshotFlow { dampedDragAnimation.value }
+            .collect { position -> onIndicatorPositionChangedLatest.value?.invoke(position) }
+    }
+    val itemAlignmentOffsetProvider: (Int) -> Float = { itemIndex ->
+        if (tabWidthPx <= 0f) {
+            0f
+        } else {
+            val position = dampedDragAnimation.value
+            if (itemIndex != position.fastRoundToInt().fastCoerceIn(0, maxTabIndex)) {
+                0f
+            } else {
+                val alignmentPx = resolveFloatingDockIndicatorContentAlignmentPx(
+                    position = position,
+                    tabWidthPx = tabWidthPx,
+                    tabsCount = safeTabsCount,
+                    indicatorWidthPx = fittedIndicatorWidthPx,
+                )
+                if (isLtr) alignmentPx else -alignmentPx
+            }
+        }
+    }
+    val baseContentAlphaProvider: (Int) -> Float = { itemIndex ->
+        if (isLiquidGlassMode) {
+            1f
+        } else {
+            val coverage = (1f - abs(itemIndex.toFloat() - dampedDragAnimation.value))
+                .coerceIn(0f, 1f)
+            1f - coverage
+        }
+    }
 
     LaunchedEffect(dampedDragAnimation, maxTabIndex) {
-        snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }
-            .collectLatest { index ->
+        snapshotFlow {
+            selectedIndexLatest.value().coerceIn(0, maxTabIndex) to
+                dampedDragAnimation.isDragging
+        }
+            .collectLatest { (index, isDragging) ->
                 if (
                     shouldAnimateIndicatorToSelectedIndex(
-                        isDragging = dampedDragAnimation.isDragging,
+                        isDragging = isDragging,
                         indicatorTarget = dampedDragAnimation.targetValue,
                         selectedIndex = index,
                         ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
@@ -639,7 +721,10 @@ fun FloatingBottomBar(
         contentAlignment = Alignment.CenterStart
     ) {
         CompositionLocalProvider(
-            LocalFloatingBottomBarContentColor provides resolvedContentColor
+            LocalFloatingBottomBarContentColor provides resolvedContentColor,
+            LocalFloatingBottomBarIndicatorPosition provides { dampedDragAnimation.value },
+            LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider,
+            LocalFloatingBottomBarBaseContentAlpha provides baseContentAlphaProvider,
         ) {
             Row(
                 Modifier
@@ -749,7 +834,9 @@ fun FloatingBottomBar(
                     lerp(1f, tabPressScale, dampedDragAnimation.pressProgress)
                 },
                 LocalFloatingBottomBarContentColor provides colors.activeContentColor,
-                LocalFloatingBottomBarActiveContent provides true
+                LocalFloatingBottomBarActiveContent provides true,
+                LocalFloatingBottomBarIndicatorPosition provides { dampedDragAnimation.value },
+                LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider,
             ) {
                 Row(
                     Modifier
@@ -799,36 +886,26 @@ fun FloatingBottomBar(
 
         if (tabWidthPx > 0f) {
             val tabWidthDp = with(density) { tabWidthPx.toDp() }
+            val tabsContentStartPx = with(density) { 4.dp.toPx() }
+
             if (isLiquidGlassMode && combinedBackdrop != null) {
                 Box(
                     Modifier
                         .padding(horizontal = 4.dp)
                         .graphicsLayer {
-                            val progressOffset = dampedDragAnimation.value * tabWidthPx
+                            val indicatorOffsetPx = resolveFloatingDockIndicatorOffsetPx(
+                                position = dampedDragAnimation.value,
+                                tabWidthPx = tabWidthPx,
+                                tabsCount = safeTabsCount,
+                                indicatorWidthPx = fittedIndicatorWidthPx,
+                            )
                             translationX = if (isLtr) {
-                                progressOffset + panelOffset
+                                indicatorOffsetPx + panelOffset
                             } else {
-                                -progressOffset + panelOffset
+                                -indicatorOffsetPx + panelOffset
                             }
                             clip = false
                         }
-                        .then(interactiveHighlight?.gestureModifier ?: Modifier)
-                        .then(
-                            if (dragSelectionEnabled && safeTabsCount > 1) {
-                                dampedDragAnimation.modifier
-                            } else {
-                                Modifier
-                            }
-                        )
-                        // The indicator is the topmost hit target over the selected tab. Forward
-                        // taps so reselect and double-tap actions are not swallowed. Compose's
-                        // clickable cancels itself when the same pointer gesture becomes a drag.
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = onReselected,
-                        )
                         .clearAndSetSemantics {}
                         .drawBackdrop(
                             backdrop = combinedBackdrop,
@@ -880,37 +957,37 @@ fun FloatingBottomBar(
                             )
                         }
                         .height(fittedIndicatorHeight)
-                        .width(tabWidthDp)
+                        .width(fittedIndicatorWidth)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 4.dp)
                         .graphicsLayer {
-                            val progressOffset = dampedDragAnimation.value * tabWidthPx
+                            val indicatorOffsetPx = resolveFloatingDockIndicatorOffsetPx(
+                                position = dampedDragAnimation.value,
+                                tabWidthPx = tabWidthPx,
+                                tabsCount = safeTabsCount,
+                                indicatorWidthPx = fittedIndicatorWidthPx,
+                            )
                             translationX = if (isLtr) {
-                                progressOffset + panelOffset
+                                indicatorOffsetPx + panelOffset
                             } else {
-                                -progressOffset + panelOffset
+                                -indicatorOffsetPx + panelOffset
                             }
                             clip = false
                         }
-                        .then(
-                            if (dragSelectionEnabled && safeTabsCount > 1) {
-                                dampedDragAnimation.modifier
-                            } else {
-                                Modifier
-                            }
-                        )
                         .clip(pillShape)
                         .background(colors.indicatorColor.copy(alpha = 0.15f), pillShape)
                         .height(fittedIndicatorHeight)
-                        .width(tabWidthDp),
+                        .width(fittedIndicatorWidth),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     CompositionLocalProvider(
                         LocalFloatingBottomBarContentColor provides colors.activeContentColor,
-                        LocalFloatingBottomBarActiveContent provides true
+                        LocalFloatingBottomBarActiveContent provides true,
+                        LocalFloatingBottomBarIndicatorPosition provides { dampedDragAnimation.value },
+                        LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider,
                     ) {
                         Row(
                             Modifier
@@ -923,8 +1000,18 @@ fun FloatingBottomBar(
                                 )
                                 .height(fittedIndicatorHeight)
                                 .graphicsLayer {
-                                    val progressOffset = dampedDragAnimation.value * tabWidthPx
-                                    translationX = if (isLtr) -progressOffset else progressOffset
+                                    val contentTranslationPx =
+                                        resolveFloatingDockClippedContentTranslationPx(
+                                            position = dampedDragAnimation.value,
+                                            tabWidthPx = tabWidthPx,
+                                            tabsCount = safeTabsCount,
+                                            indicatorWidthPx = fittedIndicatorWidthPx,
+                                        )
+                                    translationX = if (isLtr) {
+                                        contentTranslationPx
+                                    } else {
+                                        -contentTranslationPx
+                                    }
                                 },
                             verticalAlignment = Alignment.CenterVertically,
                             content = { content(this) }
@@ -932,6 +1019,41 @@ fun FloatingBottomBar(
                     }
                 }
             }
+
+            // The selected capsule can be wider than its tab when the adjacent search button
+            // compresses the dock. Keep pointer input in the logical tab slot so the visual
+            // overflow cannot steal taps from neighbouring destinations.
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        val slotOffsetPx = dampedDragAnimation.value * tabWidthPx
+                        translationX = if (isLtr) {
+                            tabsContentStartPx + slotOffsetPx + panelOffset
+                        } else {
+                            -tabsContentStartPx - slotOffsetPx + panelOffset
+                        }
+                        clip = false
+                    }
+                    .then(interactiveHighlight?.gestureModifier ?: Modifier)
+                    .then(
+                        when {
+                            longPressDragSelectionEnabled && safeTabsCount > 1 ->
+                                dampedDragAnimation.longPressModifier
+                            dragSelectionEnabled && safeTabsCount > 1 ->
+                                dampedDragAnimation.modifier
+                            else -> Modifier
+                        }
+                    )
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        role = Role.Tab,
+                        onClick = onReselected,
+                    )
+                    .clearAndSetSemantics {}
+                    .height(fittedIndicatorHeight)
+                    .width(tabWidthDp),
+            )
         }
     }
 }

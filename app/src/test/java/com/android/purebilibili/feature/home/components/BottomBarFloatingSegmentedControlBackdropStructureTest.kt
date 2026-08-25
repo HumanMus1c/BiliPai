@@ -23,6 +23,16 @@ class BottomBarFloatingSegmentedControlBackdropStructureTest {
         assertTrue(source.contains("backdrop = effectiveBackdrop"))
     }
 
+    @Test
+    fun `reused liquid dock applies caller sizing to its direct layout root`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
+
+        assertTrue(source.contains("modifier = rootModifier.height(height)"))
+        assertTrue(source.contains("modifier = Modifier.matchParentSize()"))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(File(path), File(normalizedPath)).firstOrNull { it.exists() }

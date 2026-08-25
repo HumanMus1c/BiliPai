@@ -12,6 +12,56 @@ import kotlin.test.assertTrue
 class BottomBarColorBindingPolicyTest {
 
     @Test
+    fun `docked skin suppresses material selected indicator`() {
+        val defaultColor = Color(0xFF765432)
+
+        assertEquals(
+            Color.Transparent,
+            resolveDockedBottomBarIndicatorColor(
+                defaultColor = defaultColor,
+                hasUiSkinDecoration = true,
+            ),
+        )
+        assertEquals(
+            defaultColor,
+            resolveDockedBottomBarIndicatorColor(
+                defaultColor = defaultColor,
+                hasUiSkinDecoration = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `plain floating bar reveals skin background while material modes keep their surface`() {
+        val defaultColor = Color(0xFF765432)
+
+        assertEquals(
+            Color.Transparent,
+            resolveFloatingBottomBarContainerColor(
+                defaultColor = defaultColor,
+                mode = FloatingBottomBarMode.None,
+                hasUiSkinDecoration = true,
+            ),
+        )
+        assertEquals(
+            defaultColor,
+            resolveFloatingBottomBarContainerColor(
+                defaultColor = defaultColor,
+                mode = FloatingBottomBarMode.Blur,
+                hasUiSkinDecoration = true,
+            ),
+        )
+        assertEquals(
+            defaultColor,
+            resolveFloatingBottomBarContainerColor(
+                defaultColor = defaultColor,
+                mode = FloatingBottomBarMode.None,
+                hasUiSkinDecoration = false,
+            ),
+        )
+    }
+
+    @Test
     fun `resolves custom color by enum name`() {
         val binding = resolveBottomBarItemColorBinding(
             item = BottomNavItem.DYNAMIC,

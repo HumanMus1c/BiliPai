@@ -574,11 +574,9 @@ class ProfileSpacePolicyTest {
         assertTrue(spec.selectedTextAlpha >= 0.95f)
         assertTrue(spec.unselectedTextAlpha >= 0.65f)
         assertTrue(spec.selectedIndicatorAlpha in 0.12f..0.22f)
-        assertTrue(spec.rowCornerRadiusDp >= 20)
         assertEquals(2, spec.rowHorizontalInsetDp)
         assertEquals(2, spec.controlHorizontalInsetDp)
         assertEquals(0, spec.rowVerticalInsetDp)
-        assertTrue(panelSpec.topCornerRadiusDp >= 24)
         assertTrue(panelSpec.topOverlapDp >= 20)
     }
 

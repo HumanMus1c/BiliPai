@@ -74,6 +74,7 @@ internal enum class SettingsIconRole {
     WALLPAPER_EFFECT,
     HOME_UP_BADGES,
     HOME_UP_AVATAR,
+    FULL_VIDEO_CARD_CONTENT,
     ONLINE_COUNT,
     GRID_COLUMNS,
     HOME_CARD_WIDTH,
@@ -314,6 +315,7 @@ private fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVecto
     SettingsIconRole.WALLPAPER_EFFECT -> MiuixIcons.Layers
     SettingsIconRole.HOME_UP_BADGES -> MiuixIcons.Promotions
     SettingsIconRole.HOME_UP_AVATAR -> MiuixIcons.ContactsCircle
+    SettingsIconRole.FULL_VIDEO_CARD_CONTENT -> MiuixIcons.ListView
     SettingsIconRole.ONLINE_COUNT -> MiuixIcons.Contacts
     SettingsIconRole.GRID_COLUMNS -> MiuixIcons.GridView
     SettingsIconRole.HOME_CARD_WIDTH -> MiuixIcons.HorizontalSplit
@@ -467,6 +469,7 @@ private fun resolveMd3SettingsSemanticIcon(role: SettingsIconRole): ImageVector 
     SettingsIconRole.WALLPAPER_EFFECT -> Icons.Outlined.BlurOn
     SettingsIconRole.HOME_UP_BADGES -> Icons.Outlined.WorkspacePremium
     SettingsIconRole.HOME_UP_AVATAR -> Icons.Outlined.AccountCircle
+    SettingsIconRole.FULL_VIDEO_CARD_CONTENT -> Icons.Outlined.Notes
     SettingsIconRole.ONLINE_COUNT -> Icons.Outlined.OnlinePrediction
     SettingsIconRole.GRID_COLUMNS -> Icons.Outlined.GridView
     SettingsIconRole.HOME_CARD_WIDTH -> Icons.Outlined.WidthNormal

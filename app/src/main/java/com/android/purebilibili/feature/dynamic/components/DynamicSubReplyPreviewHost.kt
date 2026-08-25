@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -19,7 +20,16 @@ fun DynamicSubReplyPreviewHost(
     onUserClick: (Long) -> Unit,
     onReplyClick: ((ReplyItem) -> Unit)? = null,
     onCommentLike: ((Long) -> Unit)? = null,
+    currentMid: Long = 0L,
+    onDeleteComment: ((Long) -> Unit)? = null,
 ) {
+    val emoteCatalogSessionKey = DynamicEmoteCatalog.currentSessionKey()
+    var emoteMap by remember(emoteCatalogSessionKey) {
+        mutableStateOf(DynamicEmoteCatalog.snapshot())
+    }
+    LaunchedEffect(emoteCatalogSessionKey) {
+        emoteMap = DynamicEmoteCatalog.ensureLoaded()
+    }
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
@@ -41,12 +51,14 @@ fun DynamicSubReplyPreviewHost(
 
     SubReplySheet(
         state = state,
-        emoteMap = emptyMap(),
+        emoteMap = emoteMap,
         onDismiss = onDismiss,
         onLoadMore = onLoadMore,
         onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
         onReplyClick = onReplyClick,
         onCommentLike = onCommentLike,
+        currentMid = currentMid,
+        onDeleteComment = onDeleteComment,
         onImagePreview = { images, index, rect, textContent ->
             previewImages = images
             previewInitialIndex = index

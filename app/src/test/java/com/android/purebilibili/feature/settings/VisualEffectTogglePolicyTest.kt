@@ -3,8 +3,6 @@ package com.android.purebilibili.feature.settings
 import java.io.File
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.resolveEffectiveHomeSettings
-import com.android.purebilibili.core.store.resolveEffectiveLiquidGlassEnabled
-import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -101,27 +99,7 @@ class VisualEffectTogglePolicyTest {
     }
 
     @Test
-    fun `miuix style also preserves the stored liquid glass preference`() {
-        assertEquals(
-            true,
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiStyle = AppUiStyle.MIUIX,
-                androidNativeLiquidGlassEnabled = false
-            )
-        )
-        assertEquals(
-            false,
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = false,
-                uiStyle = AppUiStyle.MIUIX,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
-    }
-
-    @Test
-    fun `animation settings exposes independent top dock liquid glass entry`() {
+    fun `animation settings no longer exposes per-surface liquid glass entries`() {
         val sourceFile = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt")
@@ -129,12 +107,12 @@ class VisualEffectTogglePolicyTest {
         requireNotNull(sourceFile)
         val source = sourceFile.readText()
 
-        assertTrue(source.contains("顶部标签栏液态玻璃"))
-        assertTrue(source.contains("toggleTopBarLiquidGlass"))
-        assertTrue(source.contains("首页搜索框液态玻璃"))
-        assertTrue(source.contains("toggleHomeSearchLiquidGlass"))
+        assertFalse(source.contains("title = \"顶部标签栏液态玻璃\""))
+        assertFalse(source.contains("toggleTopBarLiquidGlass"))
+        assertFalse(source.contains("title = \"首页搜索框液态玻璃\""))
+        assertFalse(source.contains("toggleHomeSearchLiquidGlass"))
         assertTrue(source.contains("顶部栏磨砂"))
-        assertTrue(source.contains("底栏液态玻璃"))
+        assertFalse(source.contains("title = \"底部导航栏液态玻璃\""))
     }
 
     @Test

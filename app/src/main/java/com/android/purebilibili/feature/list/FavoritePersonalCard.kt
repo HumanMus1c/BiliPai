@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -36,6 +34,7 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -47,6 +46,7 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
+import kotlin.math.roundToInt
 
 internal fun resolveFavoriteDateLabel(
     timestampSeconds: Long,
@@ -76,13 +76,20 @@ internal fun FavoritePersonalCard(
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val speedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val sharedElementReady = transitionEnabled &&
         item.bvid.isNotBlank() &&
         sourceRoute != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
-    val motionSpec = remember(sourceRoute, transitionEnabled, speedSettings) {
-        resolveVideoCardSharedTransitionMotionSpec(sourceRoute, transitionEnabled, speedSettings)
+    val motionSpec = remember(sourceRoute, transitionEnabled, speedSettings, transitionAdaptiveInfo) {
+        resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute,
+            transitionEnabled,
+            speedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
+        )
     }
     val useSharedBounds = shouldUseVideoCardShellSharedBounds(sourceRoute, sharedElementReady)
     val cardBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
@@ -103,6 +110,7 @@ internal fun FavoritePersonalCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val triggerClick = {
         if (!batchMode) {
             cardBounds.value?.let { bounds ->
@@ -112,7 +120,7 @@ internal fun FavoritePersonalCard(
                     bounds = bounds,
                     screenWidth = configuration.screenWidthDp * density.density,
                     screenHeight = configuration.screenHeightDp * density.density,
-                    sourceCornerDp = 12,
+                    sourceCornerDp = cardCornerRadiusDp,
                     coverBounds = coverBounds.value,
                     sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
@@ -157,18 +165,16 @@ internal fun FavoritePersonalCard(
                 text = item.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
             )
         },
         supportingContent = {
             Column {
-                AppText(
-                    text = item.owner.name.ifBlank { "未知UP主" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                UpBadgeName(
+                    name = item.owner.name.ifBlank { "未知UP主" },
+                    nameStyle = MaterialTheme.typography.bodySmall,
+                    nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    overflow = TextOverflow.Visible,
                 )
                 val dateLabel = resolveFavoriteDateLabel(item.view_at)
                 val stats = "${FormatUtils.formatStat(item.stat.view.toLong())}播放 · ${FormatUtils.formatStat(item.stat.danmaku.toLong())}弹幕"
@@ -176,8 +182,7 @@ internal fun FavoritePersonalCard(
                     text = listOf(dateLabel, stats).filter(String::isNotBlank).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
             }
         },
@@ -225,7 +230,6 @@ internal fun FavoritePersonalCard(
             {
                 AppIconButton(
                     onClick = onRemove,
-                    modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
                 ) {
                     AppIcon(
                         imageVector = Icons.Rounded.Close,

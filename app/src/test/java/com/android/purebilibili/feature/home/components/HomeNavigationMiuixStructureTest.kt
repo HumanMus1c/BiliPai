@@ -64,6 +64,8 @@ class HomeNavigationMiuixStructureTest {
             )
         )
         assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_dynamic_filled"))
+        assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_history_filled"))
+        assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_profile_filled"))
         assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_story_filled"))
         assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_live_filled"))
         assertTrue(iconPolicySource.contains("R.drawable.ic_home_nav_game_filled"))

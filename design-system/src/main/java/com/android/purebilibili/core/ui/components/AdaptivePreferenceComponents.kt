@@ -49,11 +49,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.theme.LocalDynamicColorActive
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
-import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.ui.LocalAppIconStyle
 import com.android.purebilibili.core.ui.LocalAppListItemStyle
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
@@ -1486,7 +1486,6 @@ fun AdaptivePreferenceGridItemRenderer(
         visualSpec.iconBackgroundAlpha,
         iconStyle,
     )
-    val cornerRadiusScale = LocalCornerRadiusScale.current
     val itemCornerRadius = visualSpec.gridCornerRadiusDp.dp
     val resolvedContainerColor = resolveGlobalWallpaperListContainerColor(
         containerColor = containerColor,
@@ -1509,7 +1508,7 @@ fun AdaptivePreferenceGridItemRenderer(
                 .size(48.dp)
                 .adaptiveSquircleBackground(
                     color = effectiveIconTint.copy(alpha = iconBackgroundAlpha),
-                    cornerRadius = iOSCornerRadius.Small * cornerRadiusScale,
+                    cornerRadius = AppShapes.containerCornerDp(ContainerLevel.Field),
                 ),
             contentAlignment = Alignment.Center
         ) {

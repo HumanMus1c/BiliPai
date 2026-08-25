@@ -21,7 +21,7 @@ internal fun resolveVideoCardScrollLiteVisualPolicy(
     if (scrollLiteModeEnabled) {
         return VideoCardScrollLiteVisualPolicy(
             coverShadowElevationDp = 0f,
-            showCoverGradientMask = false,
+            showCoverGradientMask = compactStatsOnCover,
             showHistoryProgressBar = false,
             showCompactStatsOnCover = compactStatsOnCover,
             showSecondaryStatsRow = !compactStatsOnCover
@@ -30,8 +30,8 @@ internal fun resolveVideoCardScrollLiteVisualPolicy(
 
     return VideoCardScrollLiteVisualPolicy(
         coverShadowElevationDp = 0f,
-        // 统计信息移到封面外时也不需要暗渐变；保持静止和滚动状态一致，避免整批封面明暗闪烁。
-        showCoverGradientMask = false,
+        // 仅贴封面统计需要暗渐变；信息移到封面外时保持原图亮度。
+        showCoverGradientMask = compactStatsOnCover,
         showHistoryProgressBar = true,
         showCompactStatsOnCover = compactStatsOnCover,
         showSecondaryStatsRow = !compactStatsOnCover
@@ -319,6 +319,16 @@ internal fun isVideoCardSharedReturnTarget(
     val key = resolveVideoCardSharedReturnTargetKey(bvid, sourceRoute) ?: return false
     return key == lastClickedVideoSourceKey
 }
+
+/**
+ * Disambiguates duplicate videos that are simultaneously visible in large-screen grids.
+ * Route + bvid alone is insufficient when a hero card and a feed card show the same video.
+ */
+internal fun isVideoCardSharedSourceInstanceOwner(
+    sourceInstanceId: Long,
+    lastClickedSourceInstanceId: Long?,
+): Boolean = lastClickedSourceInstanceId == null ||
+    sourceInstanceId == lastClickedSourceInstanceId
 
 internal data class StoryVideoCardScrollLiteVisualPolicy(
     val coverShadowElevationDp: Float,

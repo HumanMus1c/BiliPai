@@ -30,9 +30,9 @@ class ProfileWallpaperPolicyTest {
     }
 
     @Test
-    fun profileImmersiveBackground_isDeferredOnlyDuringBottomPagerTransition() {
+    fun profileStaticBackground_isRetainedDuringBottomPagerTransition() {
         assertEquals(
-            false,
+            true,
             shouldRenderProfileImmersiveBackground(
                 hasTopPhoto = true,
                 deferImmersiveRenderBudget = true

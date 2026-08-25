@@ -19,10 +19,45 @@ class ContentLoadingSkeletonStructureTest {
         assertTrue(source.contains("fun CommentListSkeleton("))
         assertTrue(source.contains("fun CommentListColumnSkeleton("))
         assertTrue(source.contains("fun ContentMediaListSkeleton("))
+        assertTrue(source.contains("fun ArticleDetailSkeleton("))
+        assertTrue(source.contains("fun PosterDetailSkeleton("))
+        assertTrue(source.contains("fun ContentCategoryGridSkeleton("))
+        assertTrue(source.contains("fun TrendingListSkeleton("))
         assertTrue(source.contains("rememberContentSkeletonPulse("))
         // Home-style soft pulse; no left-right shimmer sweep flicker.
         assertTrue(source.contains("RepeatMode.Reverse"))
         assertFalse(source.contains("shimmerEffect()"))
+    }
+
+    @Test
+    fun detailCatalogAndSpaceInitialLoads_matchTheirRealContentShape() {
+        val space = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt"
+        )
+        val spaceSkeleton = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/space/SpaceLoadingSkeleton.kt"
+        )
+        val article = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/article/ArticleDetailScreen.kt"
+        )
+        val bangumiDetail = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/bangumi/BangumiDetailScreen.kt"
+        )
+        val liveArea = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt"
+        )
+        val trending = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/search/SearchTrendingScreen.kt"
+        )
+
+        assertTrue(space.contains("SpaceLoadingSkeleton("))
+        assertFalse(space.contains("SpaceUiState.Loading -> {\n                        com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton("))
+        assertTrue(spaceSkeleton.contains("resolveSpaceContentGridColumnCount("))
+        assertTrue(spaceSkeleton.contains("GridItemSpan(maxLineSpan)"))
+        assertTrue(article.contains("ArticleDetailSkeleton("))
+        assertTrue(bangumiDetail.contains("PosterDetailSkeleton("))
+        assertTrue(liveArea.contains("ContentCategoryGridSkeleton("))
+        assertTrue(trending.contains("TrendingListSkeleton("))
     }
 
     @Test

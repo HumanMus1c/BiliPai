@@ -15,7 +15,9 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     entry<BiliPaiNavKey.Home>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.ListenVideo>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.Dynamic>(swipeDismiss = NavSwipeDirection.None, content = content)
-    entry<BiliPaiNavKey.Search>(swipeDismiss = swipeBackDirection, content = content)
+    // Search owns a bottom-search-slot morph. A generic horizontal swipe would turn the whole
+    // destination into a shrinking card and conflict with that spatial relationship.
+    entry<BiliPaiNavKey.Search>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.SearchTrending>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.TopicDetail>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Settings>(swipeDismiss = swipeBackDirection, content = content)

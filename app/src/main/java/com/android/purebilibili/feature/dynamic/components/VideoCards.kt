@@ -148,15 +148,19 @@ fun VideoCardLarge(
         sourceRoute != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val sharedTransitionMotionSpec = remember(
         sourceRoute,
         sharedTransitionEnabled,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = sharedTransitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val videoSharedPlaybackIntent = remember(context) {
@@ -164,11 +168,16 @@ fun VideoCardLarge(
             clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
         )
     }
-    val sharedTransitionVisualSpec = remember(sourceRoute, videoSharedPlaybackIntent) {
+    val sharedTransitionVisualSpec = remember(
+        sourceRoute,
+        videoSharedPlaybackIntent,
+        transitionAdaptiveInfo,
+    ) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRoute,
             sourceCornerDp = 10,
-            playbackIntent = videoSharedPlaybackIntent
+            playbackIntent = videoSharedPlaybackIntent,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val coverShape = RoundedCornerShape(sharedTransitionVisualSpec.sourceCornerDp.dp)
@@ -338,16 +347,14 @@ private fun VideoCardLargeInfo(
             text = collectionTitle,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(AppSpacingTokens.Micro))
         AppText(
             text = archive.title,
             fontSize = MaterialTheme.typography.labelMedium.fontSize,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = titleModifier
         )
@@ -356,8 +363,7 @@ private fun VideoCardLargeInfo(
             text = archive.title,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = titleModifier

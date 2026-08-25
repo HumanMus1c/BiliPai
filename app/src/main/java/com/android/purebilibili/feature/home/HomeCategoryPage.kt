@@ -18,7 +18,7 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppCard
-import androidx.compose.material3.CardDefaults
+import com.android.purebilibili.core.ui.components.AppCardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -188,10 +188,25 @@ internal fun HomeCategoryPageContent(
     val sourceRoute = remember(category) {
         resolveHomeCategoryVideoSourceRoute(category)
     }
-    val cardLayout = remember(homeFeedCardStyle, gridColumns) {
+    val widthSizeClass = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
+        .windowSizeClass.widthSizeClass
+    val cardLayout = remember(homeFeedCardStyle, gridColumns, widthSizeClass) {
         resolveHomeFeedCardLayout(
             style = homeFeedCardStyle,
             gridColumns = gridColumns,
+            widthSizeClass = widthSizeClass,
+        )
+    }
+    val adaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val hingeGridSpec = remember(adaptiveInfo, density.density) {
+        resolveHomeFeedBookHingeGridSpec(adaptiveInfo, density.density)
+    }
+    val horizontalArrangement = remember(gridColumns, cardLayout.itemSpacingDp, hingeGridSpec) {
+        resolveHomeFeedHorizontalArrangement(
+            columns = gridColumns,
+            baseSpacing = cardLayout.itemSpacingDp.dp,
+            hingeSpec = hingeGridSpec,
         )
     }
     TrackScrollJank(
@@ -228,7 +243,7 @@ internal fun HomeCategoryPageContent(
                 state = gridState,
                 columns = GridCells.Fixed(gridColumns),
                 contentPadding = contentPadding,
-                horizontalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp),
+                horizontalArrangement = horizontalArrangement,
                 verticalArrangement = Arrangement.spacedBy(cardLayout.verticalItemSpacingDp.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -409,6 +424,8 @@ internal fun HomeCategoryPageContent(
                                         coverAspectRatio = cardLayout.coverAspectRatio,
                                         cardHorizontalPadding = cardLayout.storyCardHorizontalPaddingDp.dp,
                                         compactMetadata = cardLayout.compactMetadata,
+                                        titleMinLines = cardLayout.titleMinLines,
+                                        titleMaxLines = cardLayout.titleMaxLines,
                                         showOnlineCount = showOnlineCount,
                                         onUpClick = onUpClick,
                                         showPublishTime = true,
@@ -445,7 +462,7 @@ internal fun HomeCategoryPageContent(
                                         isDataSaverActive = isDataSaverActive,
                                         preferLowQualityCover = preferLowQualityCover,
                                         coverRequestSpec = coverRequestSpec,
-                                        compactStatsOnCover = compactStatsOnCover,
+                                        compactStatsOnCover = compactStatsOnCover || cardLayout.compactStatsOnCover,
                                         showCoverGlassBadges = showCoverGlassBadges,
                                         showInfoGlassBadges = showInfoGlassBadges,
                                         badgeEffectMode = badgeEffectMode,
@@ -457,6 +474,8 @@ internal fun HomeCategoryPageContent(
                                         homeDurationStyle = homeDurationStyle,
                                         coverAspectRatio = cardLayout.coverAspectRatio,
                                         compactMetadata = cardLayout.compactMetadata,
+                                        titleMinLines = cardLayout.titleMinLines,
+                                        titleMaxLines = cardLayout.titleMaxLines,
                                         showOnlineCount = showOnlineCount,
                                         onUpClick = onUpClick,
                                         onDismiss = { onDismissVideo(video) },
@@ -624,7 +643,7 @@ private fun TodayWatchPlanCard(
     }
 
     AppCard(
-        colors = CardDefaults.cardColors(
+        colors = AppCardDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         ),
         modifier = Modifier

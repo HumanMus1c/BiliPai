@@ -56,7 +56,7 @@ class DynamicLayoutPolicyTest {
         assertEquals(0, spec.topPaddingDp)
         assertEquals(0, spec.bottomPaddingDp)
         assertEquals(50, spec.heightDp)
-        assertEquals(44, spec.indicatorHeightDp)
+        assertEquals(38, spec.indicatorHeightDp)
         assertEquals(13, spec.labelFontSizeSp)
     }
 

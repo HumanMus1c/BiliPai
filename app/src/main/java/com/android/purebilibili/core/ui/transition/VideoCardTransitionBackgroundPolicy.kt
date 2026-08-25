@@ -45,7 +45,8 @@ private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
 internal const val VIDEO_CARD_TRANSITION_RETURN_BLUR_QUANTUM_PX = 4f
 // 页面整体只后退 1.5%；被点击卡片由 shared overlay 自己放大，避免双重缩放。
 internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0.015f
-private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION = 0.009f
+private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION =
+    VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION
 private const val VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION = 0.012f
 // 保持遮罩克制，让页面后退与 shared 卡片放大承担主要层级对比。
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
@@ -75,7 +76,7 @@ internal enum class VideoCardTransitionBackgroundPhase {
     RETURNING
 }
 
-/** 不同来源页的景深范围：详情内相关推荐更克制，首页内嵌分区介于两者之间。 */
+/** 来源页类型：详情相关推荐复用首页景深，内嵌分区保留独立预算。 */
 internal enum class VideoCardTransitionBackgroundSource {
     Home,
     RelatedVideo,

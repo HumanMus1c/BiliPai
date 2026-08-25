@@ -1,6 +1,5 @@
 package com.android.purebilibili.feature.video.ui.pager
 
-import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.Page
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.UgcEpisode
@@ -36,7 +35,7 @@ class PortraitCollectionPolicyTest {
     }
 
     @Test
-    fun seasonFollowUps_returnLaterEpisodes() {
+    fun seasonEpisodes_areNotInjectedIntoPortraitRecommendations() {
         val info = ViewInfo(
             bvid = "BV_EP1",
             aid = 11L,
@@ -58,9 +57,9 @@ class PortraitCollectionPolicyTest {
             )
         )
 
-        val followUps = resolvePortraitSeasonFollowUps(info)
+        val followUps = resolvePortraitCollectionFollowUps(info)
 
-        assertEquals(listOf("BV_EP2", "BV_EP3"), followUps.map { it.bvid })
+        assertTrue(followUps.isEmpty())
     }
 
     @Test

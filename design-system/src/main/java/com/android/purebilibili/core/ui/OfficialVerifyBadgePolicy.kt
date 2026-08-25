@@ -1,7 +1,13 @@
 package com.android.purebilibili.core.ui
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,6 +101,10 @@ fun OfficialVerifyBadge(
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
+    if (compact) {
+        OfficialVerifyAvatarBadge(badge = badge, modifier = modifier)
+        return
+    }
     val containerColor = when (badge.tone) {
         OfficialVerifyBadgeTone.PERSONAL -> Color(0xFFFFF3CD)
         OfficialVerifyBadgeTone.ORGANIZATION -> Color(0xFFDCEBFF)
@@ -104,22 +114,44 @@ fun OfficialVerifyBadge(
         OfficialVerifyBadgeTone.ORGANIZATION -> Color(0xFF174EA6)
     }
     Surface(
-        modifier = modifier.widthIn(max = if (compact) 48.dp else 120.dp),
+        modifier = modifier.widthIn(max = 120.dp),
         color = containerColor,
         contentColor = contentColor,
         shape = AppShapes.container(ContainerLevel.Tag)
     ) {
         Text(
             text = badge.text,
-            fontSize = if (compact) 9.sp else 10.sp,
-            lineHeight = if (compact) 10.sp else 12.sp,
+            fontSize = 10.sp,
+            lineHeight = 12.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(
-                horizontal = if (compact) 4.dp else 6.dp,
-                vertical = if (compact) 1.dp else 2.dp
+                horizontal = 6.dp,
+                vertical = 2.dp
             )
+        )
+    }
+}
+
+@Composable
+fun OfficialVerifyAvatarBadge(
+    badge: OfficialVerifyBadgeSpec,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.size(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shape = CircleShape,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Bolt,
+            contentDescription = badge.contentDescription,
+            tint = when (badge.tone) {
+                OfficialVerifyBadgeTone.PERSONAL -> Color(0xFFFFCC00)
+                OfficialVerifyBadgeTone.ORGANIZATION -> Color(0xFF40C4FF)
+            },
+            modifier = Modifier.size(14.dp),
         )
     }
 }

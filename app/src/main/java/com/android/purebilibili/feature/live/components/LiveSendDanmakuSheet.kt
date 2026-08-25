@@ -19,11 +19,12 @@ import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
-import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -248,7 +249,6 @@ private fun DanmakuColorSelector(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DanmakuModeSelector(
     options: List<com.android.purebilibili.data.repository.LiveDanmakuModeOption>,
@@ -261,19 +261,13 @@ private fun DanmakuModeSelector(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium
         )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)
-        ) {
-            options.forEach { option ->
-                AppFilterChip(
-                    selected = selectedMode == option.mode,
-                    onClick = { onModeSelected(option.mode) },
-                    label = {
-                        AppText(option.name, style = MaterialTheme.typography.labelMedium)
-                    }
-                )
-            }
-        }
+        AppThemeAdaptiveTabRow(
+            options = options.map { option -> AppSegmentOption(option.mode, option.name) },
+            selectedValue = selectedMode,
+            onSelectionChange = onModeSelected,
+            scrollable = true,
+            minTabWidth = 72.dp,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

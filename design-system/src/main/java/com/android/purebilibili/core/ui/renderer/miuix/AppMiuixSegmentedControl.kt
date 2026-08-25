@@ -3,7 +3,10 @@ package com.android.purebilibili.core.ui.renderer.miuix
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,6 +85,7 @@ internal fun <T> AppMiuixTabRow(
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
+    val scrollState = rememberLazyListState()
     val tabColors = resolveAppMiuixSegmentedColors(colors)
     val geometry = resolveRoundedControlVisualGeometry(
         preferredCornerRadius = preferredCornerRadius,
@@ -107,5 +111,16 @@ internal fun <T> AppMiuixTabRow(
         height = geometry.height,
         cornerRadius = geometry.cornerRadius,
         itemSpacing = 8.dp,
+        listState = if (scrollable) scrollState else null,
     )
+    // Upstream centers every selected item, including the first and last. At a non-zero parent
+    // x-position that places the boundary item outside LazyRow's viewport and desynchronizes the
+    // selected squircle from its label. Let the upstream positioning settle, then pin boundaries.
+    LaunchedEffect(scrollable, selectedIndex, options.size) {
+        if (!scrollable || options.isEmpty()) return@LaunchedEffect
+        if (selectedIndex == 0 || selectedIndex == options.lastIndex) {
+            withFrameNanos { }
+            scrollState.scrollToItem(selectedIndex)
+        }
+    }
 }

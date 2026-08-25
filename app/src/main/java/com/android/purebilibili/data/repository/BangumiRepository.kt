@@ -39,7 +39,8 @@ internal fun buildBangumiPlayUrlParams(
         "ep_id" to epId.toString(),
         "cid" to cid.toString(),
         "qn" to qn.toString(),
-        "fnval" to "4048",
+        // DASH + HDR + 4K + Dolby + 8K + AV1 + smart-repair capabilities.
+        "fnval" to "12240",
         "fnver" to "0",
         "fourk" to "1",
         "voice_balance" to "1",
@@ -90,6 +91,69 @@ internal fun decodeBangumiPlayUrlPayload(
     )
 }
 
+internal fun shouldLoadBangumiSections(detail: BangumiDetail): Boolean {
+    return detail.episodes.isNullOrEmpty() || detail.section == null
+}
+
+internal fun mergeBangumiDetailSections(
+    detail: BangumiDetail,
+    sections: BangumiSectionResult
+): BangumiDetail {
+    val mainEpisodes = mergeBangumiEpisodes(
+        primary = detail.episodes.orEmpty(),
+        fallback = sections.mainSection?.episodes.orEmpty()
+    )
+    val mergedSections = mergeBangumiSections(
+        primary = detail.section.orEmpty(),
+        fallback = sections.section.orEmpty()
+    )
+    return detail.copy(
+        episodes = mainEpisodes.takeIf { it.isNotEmpty() },
+        section = mergedSections.takeIf { it.isNotEmpty() }
+    )
+}
+
+private fun mergeBangumiEpisodes(
+    primary: List<BangumiEpisode>,
+    fallback: List<BangumiEpisode>
+): List<BangumiEpisode> {
+    return (primary + fallback).distinctBy { episode ->
+        when {
+            episode.id > 0L -> "ep:${episode.id}"
+            episode.cid > 0L -> "cid:${episode.cid}"
+            episode.bvid.isNotBlank() -> "bvid:${episode.bvid}"
+            else -> "title:${episode.title}:${episode.longTitle}"
+        }
+    }
+}
+
+private fun mergeBangumiSections(
+    primary: List<BangumiSection>,
+    fallback: List<BangumiSection>
+): List<BangumiSection> {
+    val merged = linkedMapOf<String, BangumiSection>()
+    (primary + fallback).forEach { section ->
+        val key = when {
+            section.id > 0L -> "id:${section.id}"
+            section.title.isNotBlank() -> "title:${section.type}:${section.title}"
+            else -> "type:${section.type}"
+        }
+        val previous = merged[key]
+        merged[key] = if (previous == null) {
+            section
+        } else {
+            previous.copy(
+                title = previous.title.ifBlank { section.title },
+                episodes = mergeBangumiEpisodes(
+                    primary = previous.episodes.orEmpty(),
+                    fallback = section.episodes.orEmpty()
+                ).takeIf { it.isNotEmpty() }
+            )
+        }
+    }
+    return merged.values.toList()
+}
+
 /**
  * 番剧/影视 Repository
  * 处理番剧、电影、电视剧、纪录片等 PGC 内容
@@ -99,7 +163,7 @@ object BangumiRepository {
     
     /**
      * 获取番剧时间表
-     * @param type 1=番剧 4=国创
+     * @param type 1=番剧 3=电影 4=国创
      */
     suspend fun getTimeline(type: Int = 1): Result<List<TimelineDay>> = withContext(Dispatchers.IO) {
         try {
@@ -188,18 +252,29 @@ object BangumiRepository {
             val response = json.decodeFromString<BangumiDetailResponse>(jsonString)
             
             if (response.code == 0 && response.result != null) {
+                val rawDetail = response.result
+                val resolvedDetail = if (rawDetail.seasonId > 0L && shouldLoadBangumiSections(rawDetail)) {
+                    runCatching { api.getSeasonSections(rawDetail.seasonId) }
+                        .getOrNull()
+                        ?.takeIf { it.code == 0 }
+                        ?.result
+                        ?.let { mergeBangumiDetailSections(rawDetail, it) }
+                        ?: rawDetail
+                } else {
+                    rawDetail
+                }
                 //  [调试] 打印追番状态和认证信息
-                val userStatus = response.result.userStatus
+                val userStatus = resolvedDetail.userStatus
                 android.util.Log.w("BangumiRepo", """
                      getSeasonDetail 结果:
                     - request seasonId: $seasonId, epId: $epId
-                    - result seasonId: ${response.result.seasonId}
-                    - title: ${response.result.title}
+                    - result seasonId: ${resolvedDetail.seasonId}
+                    - title: ${resolvedDetail.title}
                     - userStatus: $userStatus
                     - follow: ${userStatus?.follow} (1=已追番, 0=未追番)
                     - SESSDATA存在: ${com.android.purebilibili.core.store.TokenManager.sessDataCache?.isNotEmpty() == true}
                 """.trimIndent())
-                Result.success(response.result)
+                Result.success(resolvedDetail)
             } else {
                 Result.failure(Exception("获取番剧详情失败: ${response.message}"))
             }
@@ -212,6 +287,45 @@ object BangumiRepository {
             android.util.Log.e("BangumiRepo", "getSeasonDetail error: ${e.message}")
             Result.failure(e)
         }
+    }
+
+    suspend fun getBangumiMediaInfo(mediaId: Long): Result<BangumiMediaInfo> = withContext(Dispatchers.IO) {
+        if (mediaId <= 0L) {
+            return@withContext Result.failure(IllegalArgumentException("mediaId 必须大于 0"))
+        }
+        runCatching {
+            val response = api.getBangumiMediaInfo(mediaId)
+            if (response.code != 0) {
+                error("获取剧集基本信息失败: ${response.message}")
+            }
+            response.result?.media ?: error("剧集基本信息为空")
+        }
+    }
+
+    suspend fun getSeasonSections(seasonId: Long): Result<BangumiSectionResult> = withContext(Dispatchers.IO) {
+        if (seasonId <= 0L) {
+            return@withContext Result.failure(IllegalArgumentException("seasonId 必须大于 0"))
+        }
+        runCatching {
+            val response = api.getSeasonSections(seasonId)
+            if (response.code != 0) {
+                error("获取剧集分集失败: ${response.message}")
+            }
+            response.result ?: error("剧集分集为空")
+        }
+    }
+
+    suspend fun getSeasonDetailByMediaId(mediaId: Long): Result<BangumiDetail> {
+        return getBangumiMediaInfo(mediaId).fold(
+            onSuccess = { media ->
+                if (media.seasonId <= 0L) {
+                    Result.failure(IllegalStateException("基本信息未返回 seasonId"))
+                } else {
+                    getSeasonDetail(seasonId = media.seasonId)
+                }
+            },
+            onFailure = { Result.failure(it) }
+        )
     }
     
     /**

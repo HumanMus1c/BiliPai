@@ -6,7 +6,7 @@ import com.android.purebilibili.data.model.response.VideoItem
 
 internal data class HistoryCardPresentation(
     val videoItem: VideoItem,
-    val showUpBadge: Boolean
+    val showUpBadge: Boolean?
 )
 
 internal enum class HistoryNavigationKind {
@@ -45,7 +45,7 @@ internal fun resolveHistoryCardPresentation(
         }
         else -> HistoryCardPresentation(
             videoItem = historyItem.videoItem,
-            showUpBadge = true
+            showUpBadge = null
         )
     }
 }

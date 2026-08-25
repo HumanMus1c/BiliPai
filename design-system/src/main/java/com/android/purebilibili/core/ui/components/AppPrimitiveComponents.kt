@@ -1,83 +1,52 @@
 package com.android.purebilibili.core.ui.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.os.Build
-import android.widget.Toast
-
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgeDefaults
 import androidx.compose.material3.ChipColors
 import androidx.compose.material3.ChipElevation
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxColors
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.SelectableChipElevation
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonColors
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ProgressIndicatorDefaults
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonColors
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderColors
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.ModalNavigationDrawer
@@ -87,145 +56,93 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchColors
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorProducer
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
-import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
-import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private object AppPrimitiveNoOpHapticFeedback : HapticFeedback {
-    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
+private const val APP_TAB_INDICATOR_DURATION_MILLIS = 300
+private val flutterEase = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+private val PiliPlusIndicatorDecelerate = Easing { fraction ->
+    kotlin.math.sin(flutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
 }
-
-internal fun shouldCopyGlobalTextTap(
-    text: String,
-    globalCopyEnabled: Boolean,
-    gestureCanceled: Boolean,
-    pressDurationMillis: Long,
-    longPressTimeoutMillis: Long,
-): Boolean = globalCopyEnabled &&
-    text.isNotBlank() &&
-    !gestureCanceled &&
-    pressDurationMillis in 0 until longPressTimeoutMillis.coerceAtLeast(1L)
-
-private fun Modifier.globalTextTapCopy(text: String): Modifier = composed {
-    if (text.isBlank() || !LocalAppThemeConfig.current.globalTextTapCopyEnabled) {
-        return@composed this
-    }
-    val context = LocalContext.current
-    val hapticFeedback = LocalHapticFeedback.current
-    pointerInput(text, context) {
-        awaitEachGesture {
-            val down = awaitFirstDown(
-                requireUnconsumed = false,
-                pass = PointerEventPass.Final,
-            )
-            val startPosition = down.position
-            var gestureCanceled = down.isConsumed
-            var upTimeMillis: Long? = null
-            while (upTimeMillis == null && !gestureCanceled) {
-                val event = awaitPointerEvent(PointerEventPass.Final)
-                val change = event.changes.firstOrNull { it.id == down.id }
-                if (change == null) {
-                    gestureCanceled = true
-                    break
-                }
-                if (
-                    change.isConsumed ||
-                    (change.position - startPosition).getDistance() > viewConfiguration.touchSlop
-                ) {
-                    gestureCanceled = true
-                }
-                if (!change.pressed) {
-                    upTimeMillis = change.uptimeMillis
-                }
-            }
-            val pressDurationMillis = (upTimeMillis ?: down.uptimeMillis) - down.uptimeMillis
-            if (
-                shouldCopyGlobalTextTap(
-                    text = text,
-                    globalCopyEnabled = true,
-                    gestureCanceled = gestureCanceled,
-                    pressDurationMillis = pressDurationMillis,
-                    longPressTimeoutMillis = viewConfiguration.longPressTimeoutMillis,
-                )
-            ) {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("BiliPai 文本", text.trim()))
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-                    Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+private val PiliPlusIndicatorAccelerate = Easing { fraction ->
+    1f - kotlin.math.cos(flutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
 }
 
 @Composable
-fun AppListItem(
-    headlineContent: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    overlineContent: (@Composable () -> Unit)? = null,
-    supportingContent: (@Composable () -> Unit)? = null,
-    leadingContent: (@Composable () -> Unit)? = null,
-    trailingContent: (@Composable () -> Unit)? = null,
-) = ListItem(
-    headlineContent = headlineContent,
-    modifier = modifier,
-    overlineContent = overlineContent,
-    supportingContent = supportingContent,
-    leadingContent = leadingContent,
-    trailingContent = trailingContent,
-)
+private fun AppElasticTabIndicator(
+    selectedTabIndex: Int,
+    tabPositions: List<TabPosition>,
+    matchContentSize: Boolean,
+    primary: Boolean,
+) {
+    if (tabPositions.isEmpty()) return
+    val safeIndex = selectedTabIndex.coerceIn(tabPositions.indices)
+    val previousIndex = remember { mutableIntStateOf(selectedTabIndex) }
+    val movingRight = remember(safeIndex) { safeIndex >= previousIndex.intValue }
+    val target = tabPositions[safeIndex]
+    val targetWidth = if (matchContentSize) target.contentWidth else target.width
+    val targetLeft = target.left + (target.width - targetWidth) / 2f
+    val targetRight = targetLeft + targetWidth
+    val left by animateDpAsState(
+        targetValue = targetLeft,
+        animationSpec = tween(
+            durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
+            easing = if (movingRight) PiliPlusIndicatorAccelerate else PiliPlusIndicatorDecelerate,
+        ),
+        label = "appTabIndicatorLeft",
+    )
+    val right by animateDpAsState(
+        targetValue = targetRight,
+        animationSpec = tween(
+            durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
+            easing = if (movingRight) PiliPlusIndicatorDecelerate else PiliPlusIndicatorAccelerate,
+        ),
+        label = "appTabIndicatorRight",
+    )
+    SideEffect {
+        previousIndex.intValue = safeIndex
+    }
+    val indicatorModifier = Modifier
+        // Legacy TabRow measures the indicator slot to the full row. Recreate Material's
+        // indicator host contract so the elastic line stays pinned above the bottom divider.
+        .fillMaxWidth()
+        .wrapContentSize(Alignment.BottomStart)
+        .offset(x = left)
+        .width((right - left).coerceAtLeast(0.dp))
+    if (primary) {
+        TabRowDefaults.PrimaryIndicator(
+            modifier = indicatorModifier,
+            width = Dp.Unspecified,
+        )
+    } else {
+        TabRowDefaults.SecondaryIndicator(modifier = indicatorModifier)
+    }
+}
 
 @Composable
 fun AppSnackbar(
@@ -247,230 +164,6 @@ fun AppSnackbarHost(
     modifier = modifier,
 )
 
-@Composable
-fun AppText(
-    text: String,
-    modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
-    autoSize: TextAutoSize? = null,
-    fontSize: TextUnit = TextUnit.Unspecified,
-    fontStyle: FontStyle? = null,
-    fontWeight: FontWeight? = null,
-    fontFamily: FontFamily? = null,
-    letterSpacing: TextUnit = TextUnit.Unspecified,
-    textDecoration: TextDecoration? = null,
-    textAlign: TextAlign? = null,
-    lineHeight: TextUnit = TextUnit.Unspecified,
-    overflow: TextOverflow = TextOverflow.Clip,
-    softWrap: Boolean = true,
-    maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1,
-    onTextLayout: ((TextLayoutResult) -> Unit)? = null,
-    style: TextStyle = LocalTextStyle.current,
-    tapToCopyEnabled: Boolean = true,
-) = Text(
-    text = text,
-    modifier = if (tapToCopyEnabled) modifier.globalTextTapCopy(text) else modifier,
-    color = color,
-    autoSize = autoSize,
-    fontSize = fontSize,
-    fontStyle = fontStyle,
-    fontWeight = fontWeight,
-    fontFamily = fontFamily,
-    letterSpacing = letterSpacing,
-    textDecoration = textDecoration,
-    textAlign = textAlign,
-    lineHeight = lineHeight,
-    overflow = overflow,
-    softWrap = softWrap,
-    maxLines = maxLines,
-    minLines = minLines,
-    onTextLayout = onTextLayout,
-    style = style,
-)
-
-@Composable
-fun AppText(
-    text: String,
-    color: ColorProducer,
-    modifier: Modifier = Modifier,
-    autoSize: TextAutoSize? = null,
-    fontSize: TextUnit = TextUnit.Unspecified,
-    fontStyle: FontStyle? = null,
-    fontWeight: FontWeight? = null,
-    fontFamily: FontFamily? = null,
-    letterSpacing: TextUnit = TextUnit.Unspecified,
-    textDecoration: TextDecoration? = null,
-    textAlign: TextAlign? = null,
-    lineHeight: TextUnit = TextUnit.Unspecified,
-    overflow: TextOverflow = TextOverflow.Clip,
-    softWrap: Boolean = true,
-    maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1,
-    onTextLayout: ((TextLayoutResult) -> Unit)? = null,
-    style: TextStyle = LocalTextStyle.current,
-    tapToCopyEnabled: Boolean = true,
-) = Text(
-    text = text,
-    color = color,
-    modifier = if (tapToCopyEnabled) modifier.globalTextTapCopy(text) else modifier,
-    autoSize = autoSize,
-    fontSize = fontSize,
-    fontStyle = fontStyle,
-    fontWeight = fontWeight,
-    fontFamily = fontFamily,
-    letterSpacing = letterSpacing,
-    textDecoration = textDecoration,
-    textAlign = textAlign,
-    lineHeight = lineHeight,
-    overflow = overflow,
-    softWrap = softWrap,
-    maxLines = maxLines,
-    minLines = minLines,
-    onTextLayout = onTextLayout,
-    style = style,
-)
-
-@Composable
-fun AppText(
-    text: AnnotatedString,
-    modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
-    autoSize: TextAutoSize? = null,
-    fontSize: TextUnit = TextUnit.Unspecified,
-    fontStyle: FontStyle? = null,
-    fontWeight: FontWeight? = null,
-    fontFamily: FontFamily? = null,
-    letterSpacing: TextUnit = TextUnit.Unspecified,
-    textDecoration: TextDecoration? = null,
-    textAlign: TextAlign? = null,
-    lineHeight: TextUnit = TextUnit.Unspecified,
-    overflow: TextOverflow = TextOverflow.Clip,
-    softWrap: Boolean = true,
-    maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1,
-    inlineContent: Map<String, InlineTextContent> = mapOf(),
-    onTextLayout: (TextLayoutResult) -> Unit = {},
-    style: TextStyle = LocalTextStyle.current,
-    tapToCopyEnabled: Boolean = true,
-) = Text(
-    text = text,
-    modifier = if (tapToCopyEnabled) modifier.globalTextTapCopy(text.text) else modifier,
-    color = color,
-    autoSize = autoSize,
-    fontSize = fontSize,
-    fontStyle = fontStyle,
-    fontWeight = fontWeight,
-    fontFamily = fontFamily,
-    letterSpacing = letterSpacing,
-    textDecoration = textDecoration,
-    textAlign = textAlign,
-    lineHeight = lineHeight,
-    overflow = overflow,
-    softWrap = softWrap,
-    maxLines = maxLines,
-    minLines = minLines,
-    inlineContent = inlineContent,
-    onTextLayout = onTextLayout,
-    style = style,
-)
-
-@Composable
-fun AppText(
-    text: AnnotatedString,
-    color: ColorProducer,
-    modifier: Modifier = Modifier,
-    autoSize: TextAutoSize? = null,
-    fontSize: TextUnit = TextUnit.Unspecified,
-    fontStyle: FontStyle? = null,
-    fontWeight: FontWeight? = null,
-    fontFamily: FontFamily? = null,
-    letterSpacing: TextUnit = TextUnit.Unspecified,
-    textDecoration: TextDecoration? = null,
-    textAlign: TextAlign? = null,
-    lineHeight: TextUnit = TextUnit.Unspecified,
-    overflow: TextOverflow = TextOverflow.Clip,
-    softWrap: Boolean = true,
-    maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1,
-    inlineContent: Map<String, InlineTextContent> = mapOf(),
-    onTextLayout: (TextLayoutResult) -> Unit = {},
-    style: TextStyle = LocalTextStyle.current,
-    tapToCopyEnabled: Boolean = true,
-) = Text(
-    text = text,
-    color = color,
-    modifier = if (tapToCopyEnabled) modifier.globalTextTapCopy(text.text) else modifier,
-    autoSize = autoSize,
-    fontSize = fontSize,
-    fontStyle = fontStyle,
-    fontWeight = fontWeight,
-    fontFamily = fontFamily,
-    letterSpacing = letterSpacing,
-    textDecoration = textDecoration,
-    textAlign = textAlign,
-    lineHeight = lineHeight,
-    overflow = overflow,
-    softWrap = softWrap,
-    maxLines = maxLines,
-    minLines = minLines,
-    inlineContent = inlineContent,
-    onTextLayout = onTextLayout,
-    style = style,
-)
-
-@Composable
-fun AppIcon(
-    imageVector: ImageVector,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current,
-) = Icon(
-    imageVector = imageVector,
-    contentDescription = contentDescription,
-    modifier = modifier,
-    tint = tint,
-)
-
-@Composable
-fun AppIcon(
-    bitmap: ImageBitmap,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current,
-) = Icon(
-    bitmap = bitmap,
-    contentDescription = contentDescription,
-    modifier = modifier,
-    tint = tint,
-)
-
-@Composable
-fun AppIcon(
-    painter: Painter,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    tint: Color = LocalContentColor.current,
-) = Icon(
-    painter = painter,
-    contentDescription = contentDescription,
-    modifier = modifier,
-    tint = tint,
-)
-
-@Composable
-fun AppIcon(
-    painter: Painter,
-    tint: ColorProducer?,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-) = Icon(
-    painter = painter,
-    tint = tint,
-    contentDescription = contentDescription,
-    modifier = modifier,
-)
-
 @Suppress("DEPRECATION")
 @Composable
 fun AppScrollableTabRow(
@@ -480,8 +173,11 @@ fun AppScrollableTabRow(
     contentColor: Color = TabRowDefaults.primaryContentColor,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
     indicator: @Composable (tabPositions: List<TabPosition>) -> Unit = @Composable { tabPositions ->
-        TabRowDefaults.SecondaryIndicator(
-            Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+        AppElasticTabIndicator(
+            selectedTabIndex = selectedTabIndex,
+            tabPositions = tabPositions,
+            matchContentSize = true,
+            primary = false,
         )
     },
     divider: @Composable () -> Unit = @Composable { HorizontalDivider() },
@@ -587,54 +283,6 @@ fun AppTextButton(
         shape = shape,
         colors = colors,
         contentPadding = contentPadding,
-        interactionSource = resolvedInteractionSource,
-        content = content,
-    )
-}
-
-@Composable
-fun AppIconButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
-    interactionSource: MutableInteractionSource? = null,
-    content: @Composable () -> Unit,
-) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .minimumInteractiveComponentSize()
-            .then(modifier)
-            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
-        enabled = enabled,
-        colors = colors,
-        interactionSource = resolvedInteractionSource,
-        content = content,
-    )
-}
-
-@Composable
-fun AppFilledIconButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    shape: Shape = IconButtonDefaults.filledShape,
-    colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(),
-    interactionSource: MutableInteractionSource? = null,
-    content: @Composable () -> Unit,
-) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    FilledIconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .minimumInteractiveComponentSize()
-            .then(modifier)
-            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
-        enabled = enabled,
-        shape = shape,
-        colors = colors,
         interactionSource = resolvedInteractionSource,
         content = content,
     )
@@ -819,205 +467,6 @@ fun AppNavigationDrawerItem(
 }
 
 @Composable
-fun AppCircularProgressIndicator(
-    progress: () -> Float,
-    modifier: Modifier = Modifier,
-    color: Color = ProgressIndicatorDefaults.circularColor,
-    strokeWidth: Dp = ProgressIndicatorDefaults.CircularStrokeWidth,
-    trackColor: Color = ProgressIndicatorDefaults.circularDeterminateTrackColor,
-    strokeCap: StrokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap,
-) = CircularProgressIndicator(
-    progress = progress,
-    modifier = modifier,
-    color = color,
-    strokeWidth = strokeWidth,
-    trackColor = trackColor,
-    strokeCap = strokeCap,
-)
-
-@Composable
-fun AppCircularProgressIndicator(
-    modifier: Modifier = Modifier,
-    color: Color = ProgressIndicatorDefaults.circularColor,
-    strokeWidth: Dp = ProgressIndicatorDefaults.CircularStrokeWidth,
-    trackColor: Color = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
-    strokeCap: StrokeCap = ProgressIndicatorDefaults.CircularIndeterminateStrokeCap,
-) = CircularProgressIndicator(
-    modifier = modifier,
-    color = color,
-    strokeWidth = strokeWidth,
-    trackColor = trackColor,
-    strokeCap = strokeCap,
-)
-
-@Composable
-fun AppLinearProgressIndicator(
-    modifier: Modifier = Modifier,
-    color: Color = ProgressIndicatorDefaults.linearColor,
-    trackColor: Color = ProgressIndicatorDefaults.linearTrackColor,
-    strokeCap: StrokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-) = LinearProgressIndicator(
-    modifier = modifier,
-    color = color,
-    trackColor = trackColor,
-    strokeCap = strokeCap,
-)
-
-@Composable
-fun AppLinearProgressIndicator(
-    progress: () -> Float,
-    modifier: Modifier = Modifier,
-    color: Color = ProgressIndicatorDefaults.linearColor,
-    trackColor: Color = ProgressIndicatorDefaults.linearTrackColor,
-    strokeCap: StrokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-) = LinearProgressIndicator(
-    progress = progress,
-    modifier = modifier,
-    color = color,
-    trackColor = trackColor,
-    strokeCap = strokeCap,
-)
-
-@Composable
-fun AppCheckbox(
-    checked: Boolean,
-    onCheckedChange: ((Boolean) -> Unit)?,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    colors: CheckboxColors = CheckboxDefaults.colors(),
-    interactionSource: MutableInteractionSource? = null,
-) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    Checkbox(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier.appDesktopInteractionVisuals(
-            resolvedInteractionSource,
-            enabled && onCheckedChange != null,
-        ),
-        enabled = enabled,
-        colors = colors,
-        interactionSource = resolvedInteractionSource,
-    )
-}
-
-@Composable
-fun AppSwitch(
-    checked: Boolean,
-    onCheckedChange: ((Boolean) -> Unit)?,
-    modifier: Modifier = Modifier,
-    thumbContent: (@Composable () -> Unit)? = null,
-    enabled: Boolean = true,
-    colors: SwitchColors = SwitchDefaults.colors(),
-    interactionSource: MutableInteractionSource? = null,
-    showThumbIcon: Boolean = true,
-) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val interactive = enabled && onCheckedChange != null
-    when (resolveAppAdaptiveSwitchTreatment(LocalAppUiStyle.current)) {
-        AppAdaptiveSwitchTreatment.MIUIX -> {
-            val platformHaptic = LocalHapticFeedback.current
-            val effectiveHaptic = if (LocalAppThemeConfig.current.hapticFeedbackEnabled) {
-                platformHaptic
-            } else {
-                AppPrimitiveNoOpHapticFeedback
-            }
-            CompositionLocalProvider(LocalHapticFeedback provides effectiveHaptic) {
-                MiuixSwitch(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange,
-                    enabled = enabled,
-                    modifier = modifier.appDesktopFocusableItemVisuals(interactive),
-                )
-            }
-        }
-        AppAdaptiveSwitchTreatment.MATERIAL -> Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, interactive),
-            thumbContent = thumbContent ?: if (showThumbIcon) {
-                {
-                    Icon(
-                        imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
-                        contentDescription = null,
-                        tint = if (checked) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        },
-                        modifier = Modifier.size(SwitchDefaults.IconSize),
-                    )
-                }
-            } else {
-                null
-            },
-            enabled = enabled,
-            colors = colors,
-            interactionSource = resolvedInteractionSource,
-        )
-    }
-}
-
-@Composable
-fun AppRadioButton(
-    selected: Boolean,
-    onClick: (() -> Unit)?,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    colors: RadioButtonColors = RadioButtonDefaults.colors(),
-    interactionSource: MutableInteractionSource? = null,
-) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    RadioButton(
-        selected = selected,
-        onClick = onClick,
-        modifier = modifier.appDesktopInteractionVisuals(
-            resolvedInteractionSource,
-            enabled && onClick != null,
-        ),
-        enabled = enabled,
-        colors = colors,
-        interactionSource = resolvedInteractionSource,
-    )
-}
-
-@Composable
-fun AppSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    steps: Int = 0,
-    onValueChangeFinished: (() -> Unit)? = null,
-    colors: SliderColors = SliderDefaults.colors(),
-    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-) {
-    when (resolveAppSliderRenderer(LocalAppUiStyle.current)) {
-        AppPrimitiveRenderer.MIUIX -> MiuixSlider(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = modifier.appDesktopFocusableItemVisuals(enabled),
-            enabled = enabled,
-            valueRange = valueRange,
-            steps = steps,
-            onValueChangeFinished = onValueChangeFinished,
-        )
-        AppPrimitiveRenderer.MATERIAL -> Slider(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = modifier.appDesktopInteractionVisuals(interactionSource, enabled),
-            enabled = enabled,
-            valueRange = valueRange,
-            steps = steps,
-            onValueChangeFinished = onValueChangeFinished,
-            colors = colors,
-            interactionSource = interactionSource,
-        )
-    }
-}
-
-@Composable
 fun AppOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1044,23 +493,6 @@ fun AppOutlinedButton(
         content = content,
     )
 }
-
-@Composable
-fun AppCard(
-    modifier: Modifier = Modifier,
-    shape: Shape = CardDefaults.shape,
-    colors: CardColors = CardDefaults.cardColors(),
-    elevation: CardElevation = CardDefaults.cardElevation(),
-    border: BorderStroke? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) = Card(
-    modifier = modifier,
-    shape = shape,
-    colors = colors,
-    elevation = elevation,
-    border = border,
-    content = content,
-)
 
 @Composable
 fun AppAssistChip(
@@ -1143,19 +575,6 @@ fun AppInputChip(
     enabled = enabled,
     leadingIcon = leadingIcon,
     trailingIcon = trailingIcon,
-)
-
-@Composable
-fun AppBadge(
-    modifier: Modifier = Modifier,
-    containerColor: Color = BadgeDefaults.containerColor,
-    contentColor: Color = contentColorFor(containerColor),
-    content: @Composable (androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
-) = Badge(
-    modifier = modifier,
-    containerColor = containerColor,
-    contentColor = contentColor,
-    content = content,
 )
 
 @Composable
@@ -1251,13 +670,24 @@ fun AppPrimaryTabRow(
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = TabRowDefaults.primaryContentColor,
     tabs: @Composable () -> Unit,
-) = PrimaryTabRow(
-    selectedTabIndex = selectedTabIndex,
-    modifier = modifier,
-    containerColor = containerColor,
-    contentColor = contentColor,
-    tabs = tabs,
-)
+) {
+    @Suppress("DEPRECATION")
+    TabRow(
+        selectedTabIndex = selectedTabIndex,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        indicator = { tabPositions ->
+            AppElasticTabIndicator(
+                selectedTabIndex = selectedTabIndex,
+                tabPositions = tabPositions,
+                matchContentSize = true,
+                primary = true,
+            )
+        },
+        tabs = tabs,
+    )
+}
 
 @Composable
 fun AppPrimaryScrollableTabRow(
@@ -1269,16 +699,25 @@ fun AppPrimaryScrollableTabRow(
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
     minTabWidth: Dp = TabRowDefaults.ScrollableTabRowMinTabWidth,
     tabs: @Composable () -> Unit,
-) = PrimaryScrollableTabRow(
-    selectedTabIndex = selectedTabIndex,
-    modifier = modifier,
-    scrollState = scrollState,
-    containerColor = containerColor,
-    contentColor = contentColor,
-    edgePadding = edgePadding,
-    minTabWidth = minTabWidth,
-    tabs = tabs,
-)
+) {
+    @Suppress("DEPRECATION")
+    ScrollableTabRow(
+        selectedTabIndex = selectedTabIndex,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        edgePadding = edgePadding,
+        indicator = { tabPositions ->
+            AppElasticTabIndicator(
+                selectedTabIndex = selectedTabIndex,
+                tabPositions = tabPositions,
+                matchContentSize = true,
+                primary = true,
+            )
+        },
+        tabs = tabs,
+    )
+}
 
 @Composable
 fun AppSuggestionChip(

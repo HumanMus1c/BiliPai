@@ -92,6 +92,9 @@ fun BangumiPlayerScreen(
     val sponsorBlockEnabled by com.android.purebilibili.core.store.SettingsManager
         .getSponsorBlockEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val autoSkipOpEd by com.android.purebilibili.core.store.SettingsManager
+        .getAutoSkipOpEd(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTablet = configuration.smallestScreenWidthDp >= 600
@@ -238,6 +241,18 @@ fun BangumiPlayerScreen(
             }
         }
     }
+    LaunchedEffect(
+        autoSkipOpEd,
+        successState?.currentEpisode?.id,
+        successState?.currentEpisode?.skip
+    ) {
+        if (autoSkipOpEd && successState?.currentEpisode?.skip != null) {
+            while (true) {
+                kotlinx.coroutines.delay(250)
+                viewModel.checkAndSkipEpisodeOpEd()
+            }
+        }
+    }
     
     // 横竖屏复用当前播放身份的 Session，换集时旧 Session 自动释放。
     val danmakuManager = rememberDanmakuManager("bangumi:$seasonId:$currentEpisodeIdForDebug")
@@ -250,7 +265,8 @@ fun BangumiPlayerScreen(
     val danmakuSettings by com.android.purebilibili.core.store.SettingsManager
         .getDanmakuSettings(context, activeDanmakuScope)
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.DanmakuSettings())
-    val danmakuEnabled = danmakuSettings.enabled
+    val danmakuAllowed = canShowBangumiDanmaku(successState?.seasonDetail?.rights)
+    val danmakuEnabled = danmakuSettings.enabled && danmakuAllowed
     
     //  倍速状态
     var currentSpeed by remember { mutableFloatStateOf(1.0f) }
@@ -477,12 +493,16 @@ fun BangumiPlayerScreen(
                     danmakuManager = danmakuManager,
                     danmakuEnabled = danmakuEnabled,
                     onDanmakuToggle = {
-                        scope.launch {
-                            com.android.purebilibili.core.store.SettingsManager.setDanmakuEnabled(
-                                context,
-                                !danmakuEnabled,
-                                activeDanmakuScope
-                            )
+                        if (!danmakuAllowed) {
+                            Toast.makeText(context, "该剧集不支持弹幕", Toast.LENGTH_SHORT).show()
+                        } else {
+                            scope.launch {
+                                com.android.purebilibili.core.store.SettingsManager.setDanmakuEnabled(
+                                    context,
+                                    !danmakuEnabled,
+                                    activeDanmakuScope
+                                )
+                            }
                         }
                     },
                     seasonId = successState?.seasonDetail?.seasonId ?: 0L,

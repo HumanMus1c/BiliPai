@@ -243,6 +243,8 @@ object VideoRepository {
                     buvidInitialized = true
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("VideoRepo", " Failed to get buvid3 from SPI: ${e.message}")
         }
@@ -376,19 +378,12 @@ object VideoRepository {
         } catch (e: Exception) {
             true
         }
-        val preferFastStartOnMobile = try {
-            val context = NetworkModule.appContext
-            context != null && com.android.purebilibili.core.util.NetworkUtils.isMobileData(context)
-        } catch (_: Exception) {
-            false
-        }
         val startQuality = resolveInitialStartQuality(
             targetQuality = targetQuality,
             isAutoHighestQuality = isAutoHighestQuality,
             isLogin = isLogin,
             isVip = isVip,
-            auto1080pEnabled = auto1080pEnabled,
-            preferFastStartOnMobile = preferFastStartOnMobile
+            auto1080pEnabled = auto1080pEnabled
         )
 
         if (!shouldSkipPlayUrlCache(isAutoHighestQuality, isVip, audioLang)) {
@@ -1183,20 +1178,12 @@ object VideoRepository {
                 true // 出错时默认开启
             }
             
-            // 自动最高画质在非大会员场景先走稳定首播档；蜂窝网再降一档以加快出画。
-            val preferFastStartOnMobile = try {
-                val context = com.android.purebilibili.core.network.NetworkModule.appContext
-                context != null && com.android.purebilibili.core.util.NetworkUtils.isMobileData(context)
-            } catch (_: Exception) {
-                false
-            }
             val startQuality = resolveInitialStartQuality(
                 targetQuality = targetQuality,
                 isAutoHighestQuality = isAutoHighestQuality,
                 isLogin = isLogin,
                 isVip = isVip,
-                auto1080pEnabled = auto1080pEnabled,
-                preferFastStartOnMobile = preferFastStartOnMobile
+                auto1080pEnabled = auto1080pEnabled
             )
             com.android.purebilibili.core.util.Logger.d(
                 "VideoRepo",
@@ -1317,66 +1304,45 @@ object VideoRepository {
             upMid = upMid
         )
 
-        var attempt = 1
-        var lastError: Throwable? = null
+        try {
+            val (imgKey, subKey) = getWbiKeys()
+            val params = buildAiSummaryParams(
+                bvid = bvid,
+                cid = cid,
+                upMid = upMid
+            )
+            val signedParams = WbiUtils.sign(params, imgKey, subKey)
 
-        while (attempt <= 2) {
-            try {
-                if (attempt > 1) {
-                    wbiKeysCache = null
-                    wbiKeysTimestamp = 0
-                    kotlinx.coroutines.delay(350L)
-                }
+            com.android.purebilibili.core.util.Logger.d(
+                "VideoRepo",
+                "🤖 AI Summary request: bvid=$bvid cid=$cid upMidPresent=${upMid > 0L}"
+            )
+            val response = api.getAiConclusion(signedParams)
+            val diagnosis = diagnoseAiSummaryResponse(response)
+            logAiSummaryResponse(
+                bvid = bvid,
+                cid = cid,
+                diagnosis = diagnosis,
+                hasModelResult = response.data?.modelResult != null,
+                summaryLength = response.data?.modelResult?.summary?.length ?: 0,
+                outlineCount = response.data?.modelResult?.outline?.size ?: 0
+            )
 
-                val (imgKey, subKey) = getWbiKeys()
-                val params = buildAiSummaryParams(
-                    bvid = bvid,
-                    cid = cid,
-                    upMid = upMid
-                )
-                val signedParams = WbiUtils.sign(params, imgKey, subKey)
-
-                com.android.purebilibili.core.util.Logger.d(
-                    "VideoRepo",
-                    "🤖 AI Summary request: attempt=$attempt bvid=$bvid cid=$cid upMidPresent=${upMid > 0L}"
-                )
-                val response = api.getAiConclusion(signedParams)
-                val diagnosis = diagnoseAiSummaryResponse(response)
-                logAiSummaryResponse(
-                    bvid = bvid,
-                    cid = cid,
-                    attempt = attempt,
-                    diagnosis = diagnosis,
-                    hasModelResult = response.data?.modelResult != null,
-                    summaryLength = response.data?.modelResult?.summary?.length ?: 0,
-                    outlineCount = response.data?.modelResult?.outline?.size ?: 0
-                )
-
-                return@withContext if (response.code == 0) {
-                    Result.success(response)
-                } else {
-                    Result.failure(Exception("AI Summary API error: code=${response.code}, msg=${response.message}"))
-                }
-            } catch (e: Exception) {
-                lastError = e
-                val diagnosis = diagnoseAiSummaryFailure(e)
-                com.android.purebilibili.core.util.Logger.w(
-                    "VideoRepo",
-                    "🤖 AI Summary request failed: attempt=$attempt bvid=$bvid cid=$cid status=${diagnosis.status} reason=${diagnosis.reason} retryable=${diagnosis.shouldRetryRequest}"
-                )
-                if (attempt == 1 && diagnosis.shouldRetryRequest) {
-                    com.android.purebilibili.core.util.Logger.i(
-                        "VideoRepo",
-                        "🤖 AI Summary retry scheduled: bvid=$bvid cid=$cid reason=${diagnosis.reason}"
-                    )
-                    attempt++
-                    continue
-                }
-                return@withContext Result.failure(e)
+            Result.success(response)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val diagnosis = diagnoseAiSummaryFailure(e)
+            if ((e as? retrofit2.HttpException)?.code() == 412 || e.message.orEmpty().contains("412")) {
+                wbiKeysCache = null
+                wbiKeysTimestamp = 0L
             }
+            com.android.purebilibili.core.util.Logger.w(
+                "VideoRepo",
+                "🤖 AI Summary request failed: bvid=$bvid cid=$cid status=${diagnosis.status} reason=${diagnosis.reason} retryable=${diagnosis.shouldRetryRequest}"
+            )
+            Result.failure(e)
         }
-
-        Result.failure(lastError ?: IllegalStateException("AI Summary unknown failure"))
     }
 
     private fun buildAiSummaryParams(
@@ -1412,7 +1378,6 @@ object VideoRepository {
     private fun logAiSummaryResponse(
         bvid: String,
         cid: Long,
-        attempt: Int,
         diagnosis: AiSummaryFetchDiagnosis,
         hasModelResult: Boolean,
         summaryLength: Int,
@@ -1420,7 +1385,7 @@ object VideoRepository {
     ) {
         com.android.purebilibili.core.util.Logger.i(
             "VideoRepo",
-            "🤖 AI Summary response: attempt=$attempt bvid=$bvid cid=$cid status=${diagnosis.status} reason=${diagnosis.reason} rootCode=${diagnosis.rootCode} dataCode=${diagnosis.dataCode} stid=${diagnosis.stid ?: ""} hasModelResult=$hasModelResult summaryLength=$summaryLength outlineCount=$outlineCount retryLater=${diagnosis.shouldRetryLater}"
+            "🤖 AI Summary response: bvid=$bvid cid=$cid status=${diagnosis.status} reason=${diagnosis.reason} rootCode=${diagnosis.rootCode} dataCode=${diagnosis.dataCode} stid=${diagnosis.stid ?: ""} hasModelResult=$hasModelResult summaryLength=$summaryLength outlineCount=$outlineCount retryLater=${diagnosis.shouldRetryLater}"
         )
     }
 
@@ -1458,6 +1423,8 @@ object VideoRepository {
                     com.android.purebilibili.core.util.Logger.d("VideoRepo", " WBI Keys obtained successfully (attempt $attempt)")
                     return wbiKeysCache!!
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 lastError = e
                 android.util.Log.w("VideoRepo", "getWbiKeys attempt $attempt failed: ${e.message}")
@@ -1652,9 +1619,16 @@ object VideoRepository {
         } else {
             buildDashAttemptQualities(targetQn)
         }
-        for (dashQn in dashQualities) {
-            val retryDelays = resolveDashRetryDelays(dashQn)
-            for ((attempt, delayMs) in retryDelays.withIndex()) {
+        for ((qualityIndex, dashQn) in dashQualities.withIndex()) {
+            val retryDelays = resolveDashRetryDelays(
+                targetQn = dashQn,
+                isPrimaryAttempt = qualityIndex == 0
+            )
+            val retryOnlyTransientEmptyResponse = shouldRetryOnlyTransientEmptyDashResponse(
+                targetQn = dashQn,
+                isPrimaryAttempt = qualityIndex == 0,
+            )
+            dashRetry@ for ((attempt, delayMs) in retryDelays.withIndex()) {
                 if (delayMs > 0L) {
                     com.android.purebilibili.core.util.Logger.d(
                         "VideoRepo",
@@ -1701,7 +1675,10 @@ object VideoRepository {
                                 "VideoRepo",
                                 " [LoggedIn] Reject downgraded result for explicit quality request: requestedQn=$dashQn, quality=${payload.quality}, dashIds=$dashVideoIds"
                             )
-                            continue
+                            if (retryOnlyTransientEmptyResponse) {
+                                break@dashRetry
+                            }
+                            continue@dashRetry
                         }
                         com.android.purebilibili.core.util.Logger.d(
                             "VideoRepo",
@@ -1724,6 +1701,9 @@ object VideoRepository {
                             wbiKeysCache = null
                             wbiKeysTimestamp = 0L
                         }
+                    }
+                    if (retryOnlyTransientEmptyResponse) {
+                        break@dashRetry
                     }
                 }
             }
@@ -2045,7 +2025,8 @@ object VideoRepository {
             "bvid" to bvid,
             "cid" to cid.toString(),
             "qn" to qn.toString(),
-            "fnval" to "4048",  // All DASH formats
+            // 4048 (Web DASH formats) + 16384 (APP-only HDR Vivid, qn=129).
+            "fnval" to "20432",
             "fnver" to "0",
             "fourk" to "1",
             "access_key" to accessToken,

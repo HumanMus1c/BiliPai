@@ -34,14 +34,12 @@ data class ProfileSpaceTabChromeSpec(
     val selectedIndicatorAlpha: Float,
     val selectedTextAlpha: Float,
     val unselectedTextAlpha: Float,
-    val rowCornerRadiusDp: Int,
     val rowHorizontalInsetDp: Int,
     val controlHorizontalInsetDp: Int,
     val rowVerticalInsetDp: Int
 )
 
 data class ProfileSpaceContentPanelSpec(
-    val topCornerRadiusDp: Int,
     val horizontalInsetDp: Int,
     val topOverlapDp: Int,
     val topPaddingDp: Int,
@@ -146,7 +144,6 @@ fun resolveProfileSpaceTabChromeSpec(): ProfileSpaceTabChromeSpec {
         selectedIndicatorAlpha = 0.18f,
         selectedTextAlpha = 1f,
         unselectedTextAlpha = 0.72f,
-        rowCornerRadiusDp = 22,
         rowHorizontalInsetDp = 2,
         controlHorizontalInsetDp = 2,
         rowVerticalInsetDp = 0
@@ -155,7 +152,6 @@ fun resolveProfileSpaceTabChromeSpec(): ProfileSpaceTabChromeSpec {
 
 fun resolveProfileSpaceContentPanelSpec(): ProfileSpaceContentPanelSpec {
     return ProfileSpaceContentPanelSpec(
-        topCornerRadiusDp = 28,
         horizontalInsetDp = 12,
         topOverlapDp = 28,
         topPaddingDp = 14,

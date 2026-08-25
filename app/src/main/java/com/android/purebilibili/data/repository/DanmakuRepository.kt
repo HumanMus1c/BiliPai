@@ -218,15 +218,18 @@ internal fun resolveDanmakuSegmentCount(
     durationMs: Long,
     metadataSegmentCount: Int?
 ): Int {
+    // dmSge belongs to the requested cid and is therefore authoritative. During an in-place
+    // page switch ExoPlayer can still expose the previous page's positive duration; preferring
+    // that stale value truncates/extends the new cid's segment window until danmaku is toggled.
+    val fromMetadata = metadataSegmentCount?.coerceAtLeast(0) ?: 0
+    if (fromMetadata > 0) return fromMetadata
+
     val fromDuration = if (durationMs > 0) {
         ((durationMs + DANMAKU_SEGMENT_DURATION_MS - 1) / DANMAKU_SEGMENT_DURATION_MS).toInt()
     } else {
         0
     }
     if (fromDuration > 0) return fromDuration
-
-    val fromMetadata = metadataSegmentCount?.coerceAtLeast(0) ?: 0
-    if (fromMetadata > 0) return fromMetadata
 
     // duration 与 metadata 同时缺失时，默认预取 3 段，避免从非首段位置进入时“无弹幕”
     return DANMAKU_SEGMENT_SAFE_FALLBACK_COUNT

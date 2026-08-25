@@ -107,6 +107,9 @@ class MiuixV2MigrationStructureTest {
         assertTrue(componentSource.contains("resolveAppSegmentedRenderer(policy.usesNativeTabRow)"))
         assertTrue(componentSource.contains("AppMiuixSegmentedControl("))
         assertTrue(source.contains("TabRow("))
+        assertTrue(source.contains("rememberLazyListState()"))
+        assertTrue(source.contains("selectedIndex == 0 || selectedIndex == options.lastIndex"))
+        assertTrue(source.contains("scrollState.scrollToItem(selectedIndex)"))
     }
 
     @Test

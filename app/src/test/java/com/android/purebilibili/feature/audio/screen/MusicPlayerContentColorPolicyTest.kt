@@ -1,8 +1,11 @@
 package com.android.purebilibili.feature.audio.screen
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import com.android.purebilibili.core.theme.calculateContrastRatio
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MusicPlayerContentColorPolicyTest {
 
@@ -61,5 +64,28 @@ class MusicPlayerContentColorPolicyTest {
                 onDarkBackground = Color.White,
             )
         )
+    }
+
+    @Test
+    fun immersivePanelKeepsArtworkHueOnADarkReadableFloor() {
+        val artworkColor = Color(0xFF9CA9F5)
+        val panelColor = resolveMusicImmersivePanelColor(artworkColor)
+
+        assertTrue(panelColor.luminance() < 0.45f)
+        assertEquals(
+            Color.White,
+            resolveMusicPlayerContentColor(
+                backgroundColor = panelColor,
+                onLightBackground = onLight,
+                onDarkBackground = Color.White,
+            ),
+        )
+    }
+
+    @Test
+    fun immersivePanelKeepsWhiteTextReadableForTheBrightestArtwork() {
+        val panelColor = resolveMusicImmersivePanelColor(Color.White)
+
+        assertTrue(calculateContrastRatio(Color.White, panelColor) >= 4.5f)
     }
 }

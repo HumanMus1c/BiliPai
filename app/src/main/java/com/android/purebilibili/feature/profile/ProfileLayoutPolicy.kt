@@ -6,19 +6,16 @@ data class ProfileLayoutTokens(
     val heroHeightFraction: Float = 0.36f,
     val heroMinHeightDp: Int = 336,
     val heroMaxHeightDp: Int = 360,
-    val contentSheetTopRadiusDp: Int = 20,
     val contentSheetTopOverlapDp: Int = 20,
     val contentSheetTopPaddingDp: Int = 8,
     val contentSheetBottomPaddingDp: Int = 24,
     val heroBottomInsetDp: Int = 24,
-    val sectionSpacingDp: Int = 20,
-    val tabHeightDp: Int = 48
+    val sectionSpacingDp: Int = 20
 )
 
 data class ProfileCardTokens(
     val widthDp: Int = 148,
     val coverAspectRatio: Float = 3f / 4f,
-    val cornerRadiusDp: Int = 12,
     val metadataHeightDp: Int = 56,
     val gapDp: Int = 12
 )

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
+import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppScaffold
@@ -62,6 +63,7 @@ import com.android.purebilibili.feature.bangumi.ui.detail.SeasonSelector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.skeleton.PosterDetailSkeleton
 
 /**
  * 番剧详情页面
@@ -71,6 +73,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 fun BangumiDetailScreen(
     seasonId: Long,
     epId: Long = 0,
+    mediaId: Long = 0,
     onBack: () -> Unit,
     onEpisodeClick: (Long, BangumiEpisode) -> Unit,  // 点击剧集播放
     onSeasonClick: (Long) -> Unit = {},        //  点击切换季度
@@ -80,8 +83,8 @@ fun BangumiDetailScreen(
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
     
     // 加载详情
-    LaunchedEffect(seasonId, epId) {
-        viewModel.loadSeasonDetail(seasonId, epId)
+    LaunchedEffect(seasonId, epId, mediaId) {
+        viewModel.loadSeasonDetail(seasonId = seasonId, epId = epId, mediaId = mediaId)
     }
     
     AppScaffold(
@@ -102,14 +105,11 @@ fun BangumiDetailScreen(
     ) { paddingValues ->
         when (val state = detailState) {
             is BangumiDetailState.Loading -> {
-                Box(
+                PosterDetailSkeleton(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
-                }
+                )
             }
             is BangumiDetailState.Error -> {
                 Box(
@@ -124,7 +124,15 @@ fun BangumiDetailScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        AppButton(onClick = { viewModel.loadSeasonDetail(seasonId) }) {
+                        AppButton(
+                            onClick = {
+                                viewModel.loadSeasonDetail(
+                                    seasonId = seasonId,
+                                    epId = epId,
+                                    mediaId = mediaId
+                                )
+                            }
+                        ) {
                             AppText("重试")
                         }
                     }
@@ -315,7 +323,7 @@ private fun TabletBangumiDetailContent(
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
                         }
-                        if (detail.mediaId > 0L) {
+                        if (canReviewBangumi(detail.mediaId, detail.rights)) {
                             AppOutlinedButton(
                                 onClick = { onReviewsClick(detail.mediaId, detail.title) },
                                 modifier = Modifier.weight(1f),
@@ -348,6 +356,14 @@ private fun TabletBangumiDetailContent(
                                 lineHeight = 22.sp
                             )
                         }
+                    }
+                }
+                if (detail.actors.isNotBlank() || detail.staff.isNotBlank()) {
+                    item {
+                        BangumiCreditsSection(
+                            detail = detail,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
@@ -750,7 +766,7 @@ private fun MobileBangumiDetailContent(
                             AppText("追番")
                         }
                     }
-                    if (detail.mediaId > 0L) {
+                    if (canReviewBangumi(detail.mediaId, detail.rights)) {
                         AppOutlinedButton(
                             onClick = { onReviewsClick(detail.mediaId, detail.title) },
                             modifier = Modifier.weight(1f)
@@ -787,6 +803,16 @@ private fun MobileBangumiDetailContent(
                             lineHeight = 20.sp
                         )
                     }
+                }
+            }
+            if (detail.actors.isNotBlank() || detail.staff.isNotBlank()) {
+                item {
+                    BangumiCreditsSection(
+                        detail = detail,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
                 }
             }
             
@@ -1083,7 +1109,14 @@ private fun BangumiDetailMetaSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val restrictionColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
+        val colorScheme = MaterialTheme.colorScheme
+        val adaptiveRestrictionColors = resolveAdaptivePrimaryAccentColors(colorScheme)
+        val restrictionColors = resolveAccessibleContainerColors(
+            containerColor = adaptiveRestrictionColors.backgroundColor,
+            contentColor = adaptiveRestrictionColors.contentColor,
+            backgroundColor = colorScheme.surface,
+            fallbackContentColors = listOf(colorScheme.onSurface, Color.White, Color.Black),
+        )
         if (metaChips.isNotEmpty()) {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1114,18 +1147,73 @@ private fun BangumiDetailMetaSection(
                         label = {
                             AppText(
                                 text = label,
+                                color = restrictionColors.contentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         },
                         colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = restrictionColors.backgroundColor,
+                            containerColor = restrictionColors.containerColor,
                             labelColor = restrictionColors.contentColor
                         )
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BangumiCreditsSection(
+    detail: BangumiDetail,
+    modifier: Modifier = Modifier
+) {
+    AppSurface(
+        modifier = modifier,
+        shape = AppShapes.container(ContainerLevel.Card),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AppText(
+                text = "演职人员",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            detail.actors.takeIf { it.isNotBlank() }?.let { actors ->
+                BangumiCreditRow(label = "声优 / 演员", value = actors)
+            }
+            detail.staff.takeIf { it.isNotBlank() }?.let { staff ->
+                BangumiCreditRow(label = "制作人员", value = staff)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BangumiCreditRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        AppText(
+            text = label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium
+        )
+        AppText(
+            text = value,
+            fontSize = 14.sp,
+            lineHeight = 21.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

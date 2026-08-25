@@ -729,4 +729,38 @@ class SpaceLoadPolicyTest {
 
         assertEquals(listOf("BV1", "BV2", "BV3"), merged.map { it.bvid })
     }
+
+    @Test
+    fun `bangumi pagination stops when api page adds no unique items`() {
+        assertFalse(
+            shouldContinueSpaceBangumiPagination(
+                previousItemCount = 30,
+                mergedItemCount = 30,
+                incomingItemCount = 30,
+                responsePage = 2,
+                pageSize = 30,
+                total = 91,
+            ),
+        )
+        assertTrue(
+            shouldContinueSpaceBangumiPagination(
+                previousItemCount = 30,
+                mergedItemCount = 60,
+                incomingItemCount = 30,
+                responsePage = 2,
+                pageSize = 30,
+                total = 91,
+            ),
+        )
+        assertFalse(
+            shouldContinueSpaceBangumiPagination(
+                previousItemCount = 60,
+                mergedItemCount = 91,
+                incomingItemCount = 31,
+                responsePage = 3,
+                pageSize = 30,
+                total = 91,
+            ),
+        )
+    }
 }

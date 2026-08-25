@@ -38,7 +38,7 @@ class ImagePreviewVisualPolicyTest {
         )
 
         assertEquals(24f, start.blurRadiusPx)
-        assertTrue(middle.blurRadiusPx in 11f..13f)
+        assertEquals(6f, middle.blurRadiusPx)
         assertEquals(0f, end.blurRadiusPx)
 
         assertTrue(start.contentAlpha < middle.contentAlpha)

@@ -21,13 +21,13 @@ class HomeScrollCoordinatorTest {
     @Test
     fun otherListHeaderModes_preserveHomeRecommendationHeaderPreference() {
         assertEquals(
-            HomeHeaderCollapseMode.BOTH,
+            HomeHeaderCollapseMode.SEARCH_ONLY,
             resolveHomeRecommendationHeaderCollapseMode(
                 homeHeaderCollapseMode = HomeHeaderCollapseMode.SEARCH_ONLY
             )
         )
         assertEquals(
-            HomeHeaderCollapseMode.BOTH,
+            HomeHeaderCollapseMode.TABS_ONLY,
             resolveHomeRecommendationHeaderCollapseMode(
                 homeHeaderCollapseMode = HomeHeaderCollapseMode.TABS_ONLY
             )

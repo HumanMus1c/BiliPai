@@ -487,6 +487,13 @@ class VideoPlayerCoverPolicyTest {
                 forceCoverDuringReturnAnimation = true,
             )
         )
+        assertFalse(
+            shouldLoadVideoPlayerCoverImage(
+                isVerticalVideo = true,
+                shouldKeepCoverForManualStart = false,
+                forceCoverDuringReturnAnimation = false,
+            )
+        )
         assertTrue(
             shouldLoadVideoPlayerCoverImage(
                 isVerticalVideo = false,
@@ -494,5 +501,25 @@ class VideoPlayerCoverPolicyTest {
                 forceCoverDuringReturnAnimation = false,
             )
         )
+    }
+
+    @Test
+    fun manualStartPlaybackButton_usesThemeNativeTvIcon() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"),
+            File("src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"),
+        ).first(File::exists).readText()
+        val buttonSource = source
+            .substringAfter("if (entryPresentationSpec.showManualStartPlayButton)")
+            .substringBefore("// 2. DanmakuView")
+
+        assertTrue(buttonSource.contains("AppIconButton("))
+        assertFalse(buttonSource.contains("AppFilledIconButton("))
+        assertTrue(buttonSource.contains("imageVector = manualStartPlayIcon"))
+        assertTrue(source.contains("val manualStartPlayIcon = resolveAppTvIcon()"))
+        assertTrue(buttonSource.contains("tint = MaterialTheme.colorScheme.onPrimaryContainer"))
+        assertTrue(buttonSource.contains("Modifier.size(32.dp)"))
+        assertFalse(buttonSource.contains("Color(0xFF4D5160)"))
+        assertFalse(buttonSource.contains("Color.White.copy(alpha = 0.96f)"))
     }
 }

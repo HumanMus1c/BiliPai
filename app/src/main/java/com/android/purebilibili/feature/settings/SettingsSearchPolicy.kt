@@ -67,9 +67,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与推荐",
-        subtitle = "首页展示、推荐流、刷新数量、动态栏位、追番时间表、首页顶栏显示与首页壁纸",
+        subtitle = "首页展示、推荐流、刷新数量、动态栏位、番剧影视时间表、首页顶栏显示与首页壁纸",
         section = "设置",
-        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "追番时间表", "展示追番时间表", "首页顶栏收起")
+        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "追番时间表", "影视时间表", "电影时间线", "展示番剧影视时间表", "首页顶栏收起")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.NAVIGATION,
@@ -494,10 +494,21 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
-        title = "安卓原生液态玻璃",
+        title = "安卓液态玻璃",
         subtitle = "统一应用到首页顶部标签栏、搜索框、底部导航栏和评论区底栏",
         section = "外观设置",
-        aliases = listOf("全局液态玻璃", "评论区液态玻璃", "Android Native 液态玻璃"),
+        aliases = listOf(
+            "安卓原生液态玻璃",
+            "全局液态玻璃",
+            "评论区液态玻璃",
+            "Android Native 液态玻璃",
+            "顶部标签栏液态玻璃",
+            "顶部 Dock 液态玻璃",
+            "顶部dock栏液态玻璃",
+            "首页搜索框液态玻璃",
+            "底部导航栏液态玻璃",
+            "底栏液态玻璃",
+        ),
         focusId = SettingsSearchFocusIds.APPEARANCE_THEME
     ),
     SettingsSearchEntry(
@@ -530,6 +541,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "动画设置",
             "页面动画",
             "玻璃效果",
+            "返回过渡模糊",
             "Miuix 过渡模糊",
             "miuix模糊",
             "返回动画模糊",
@@ -539,9 +551,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与列表",
-        subtitle = "展示样式、列表顶部栏、一键回顶、首页壁纸效果、推荐流卡片宽度",
+        subtitle = "展示样式、列表顶部栏、视频卡片排版、首页壁纸效果、推荐流卡片宽度",
         section = "首页设置",
-        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "首页顶栏仅回顶显示", "仅回顶显示", "展示追番时间表", "追番时间表", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
+        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "首页顶栏仅回顶显示", "仅回顶显示", "展示番剧影视时间表", "追番时间表", "影视时间表", "电影时间线", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "完整卡片", "完整标题", "完整内容", "PiliPlus排版", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
         focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     ),
     SettingsSearchEntry(
@@ -578,10 +590,10 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
-        title = "自动连播 / 双击点赞 / 双击跳转 / 弹幕屏蔽 / 字幕 / 笔记",
+        title = "自动连播 / 跳过片头片尾 / 双击操作 / 弹幕 / 字幕 / 笔记",
         subtitle = "管理视频播放中的快捷操作、字幕、弹幕和内容辅助功能",
         section = "播放设置",
-        aliases = listOf("自动连播", "自动播放下一个", "进入视频自动播放", "进入视频不要自动播放", "不要自动播放", "双击点赞", "双击跳转", "取消双击跳转", "关闭双击跳转", "双击快进", "双击后退", "快进秒数", "后退秒数", "关注点赞弹幕", "关注弹幕", "点赞弹幕", "三连弹幕", "弹幕屏蔽", "弹幕同步", "弹幕云同步", "同步弹幕设置", "弹幕设置同步", "网页版弹幕", "字幕", "自动启用字幕", "ai总结", "视频简介", "默认展开视频简介", "简介默认展开", "视频笔记", "显示视频笔记", "默认折叠视频笔记", "笔记折叠", "播放器缩小策略", "竖屏视频缩小", "竖屏评论区缩小", "评论上滑缩小播放器", "横屏视频缩小", "上滑隐藏播放器", "暂停时缩小", "暂停评论缩小", "缩小后自动暂停", "自动暂停", "相关推荐暂停", "点击视频直接播放"),
+        aliases = listOf("自动连播", "自动播放下一个", "进入视频自动播放", "进入视频不要自动播放", "不要自动播放", "自动跳过片头片尾", "跳过片头", "跳过片尾", "跳过op", "跳过ed", "双击点赞", "双击跳转", "取消双击跳转", "关闭双击跳转", "双击快进", "双击后退", "快进秒数", "后退秒数", "关注点赞弹幕", "关注弹幕", "点赞弹幕", "三连弹幕", "弹幕屏蔽", "弹幕同步", "弹幕云同步", "同步弹幕设置", "弹幕设置同步", "网页版弹幕", "字幕", "自动启用字幕", "ai总结", "视频简介", "默认展开视频简介", "简介默认展开", "视频笔记", "显示视频笔记", "默认折叠视频笔记", "笔记折叠", "播放器缩小策略", "竖屏视频缩小", "竖屏评论区缩小", "评论上滑缩小播放器", "横屏视频缩小", "上滑隐藏播放器", "暂停时缩小", "暂停评论缩小", "缩小后自动暂停", "自动暂停", "相关推荐暂停", "点击视频直接播放"),
         focusId = SettingsSearchFocusIds.PLAYBACK_INTERACTION
     ),
     SettingsSearchEntry(
@@ -589,7 +601,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         title = "自动横竖屏 / 全屏方向 / 平板布局",
         subtitle = "设置进入和退出全屏的方式，以及平板播放页布局",
         section = "播放设置",
-        aliases = listOf("自动横竖屏", "自动旋转", "全屏方向", "固定全屏比例", "全屏手势反向", "自动进入全屏", "自动退出全屏", "横屏适配", "平板评论区宽度", "评论区宽度", "评论折叠数量", "评论回复预览", "评论预览数量", "楼中楼", "评论楼中楼", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "评论区个性装扮", "图片长按保存", "长按保存图片", "查看图片保存", "播放页隐藏状态栏", "隐藏状态栏", "状态栏", "进度条峰值弹幕", "峰值弹幕", "弹幕热度曲线"),
+        aliases = listOf("自动横竖屏", "自动旋转", "全屏方向", "固定全屏比例", "全屏手势反向", "自动进入全屏", "自动退出全屏", "横屏适配", "平板评论区宽度", "评论区宽度", "评论折叠数量", "评论回复预览", "评论预览数量", "楼中楼", "评论楼中楼", "楼中楼已加载数量", "已加载条数", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "评论区个性装扮", "图片长按保存", "长按保存图片", "查看图片保存", "播放页隐藏状态栏", "隐藏状态栏", "状态栏", "进度条峰值弹幕", "峰值弹幕", "弹幕热度曲线"),
         focusId = SettingsSearchFocusIds.PLAYBACK_FULLSCREEN
     ),
     SettingsSearchEntry(
@@ -618,8 +630,8 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,
-        title = "悬浮底栏 / 底栏搜索入口",
-        subtitle = "底栏形态、搜索入口、搜索布局与自动展开",
+        title = "悬浮底栏 / 导航图标动效",
+        subtitle = "底栏形态、图标交叉缩放、搜索入口与自动展开",
         section = "导航设置",
         aliases = listOf(
             "悬浮底栏",
@@ -627,6 +639,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "底栏搜索入口",
             "搜索入口",
             "悬浮搜索",
+            "导航图标交叉缩放",
+            "图标放大缩小",
+            "选中图标 1.10 倍",
             "底栏搜索布局",
             "搜索框自动展开",
         ),
@@ -644,24 +659,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "底栏标签样式"
         ),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_DISPLAY
-    ),
-    SettingsSearchEntry(
-        target = SettingsSearchTarget.ANIMATION,
-        title = "标签栏 / 搜索框 / 底栏液态玻璃",
-        subtitle = "分别控制首页顶部、搜索框和底部导航栏的玻璃效果",
-        section = "动画与效果",
-        aliases = listOf(
-            "顶部 Dock 液态玻璃",
-            "顶部dock栏液态玻璃",
-            "顶部玻璃效果",
-            "首页搜索框液态玻璃",
-            "首页搜索液态玻璃",
-            "搜索框玻璃效果",
-            "底栏玻璃效果",
-            "底栏液态玻璃",
-            "BiliPai 调校"
-        ),
-        focusId = SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,

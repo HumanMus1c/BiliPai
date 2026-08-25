@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.bangumi
 import androidx.compose.runtime.Immutable
 import com.android.purebilibili.data.model.response.BangumiIndexConditionData
 import com.android.purebilibili.data.model.response.TimelineDay
+import com.android.purebilibili.data.model.response.TimelineEpisode
 
 enum class BangumiChannel(val followType: Int, val label: String) {
     BANGUMI(MY_FOLLOW_TYPE_BANGUMI, "番剧"),
@@ -194,6 +195,33 @@ fun resolveBangumiTimelineDayLabel(day: TimelineDay): String {
             .orEmpty()
     }
     return listOf(dateLabel, weekday).filter(String::isNotBlank).joinToString(" ")
+}
+
+fun resolveTimelineEpisodeCover(episode: TimelineEpisode, preferEpisodeCover: Boolean): String {
+    val candidates = if (preferEpisodeCover) {
+        listOf(episode.episodeCover, episode.cover, episode.squareCover)
+    } else {
+        listOf(episode.cover, episode.squareCover, episode.episodeCover)
+    }
+    return candidates.firstOrNull(String::isNotBlank).orEmpty()
+}
+
+fun resolveTimelineEpisodeUpdateLabel(episode: TimelineEpisode): String {
+    return when {
+        episode.delay == 1 && episode.delayIndex.isNotBlank() -> episode.delayIndex
+        episode.pubIndex.isNotBlank() -> episode.pubIndex
+        episode.published == 0 -> "待更新"
+        else -> ""
+    }
+}
+
+fun resolveTimelineEpisodeScheduleLabel(episode: TimelineEpisode): String {
+    return when {
+        episode.delay == 1 && episode.delayReason.isNotBlank() -> episode.delayReason
+        episode.delay == 1 -> "延期"
+        episode.published == 0 && episode.pubTime.isNotBlank() -> "预计 ${episode.pubTime}"
+        else -> episode.pubTime
+    }
 }
 
 fun updateBangumiSelection(

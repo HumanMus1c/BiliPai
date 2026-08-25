@@ -6,12 +6,12 @@ import kotlin.math.roundToInt
 const val BottomBarReferenceShellHeightDp = 64f
 
 /** Home floating bottom-bar rest indicator height. */
-const val BottomBarReferenceIndicatorHeightDp = 56f
+const val BottomBarReferenceIndicatorHeightDp = 48f
 
 /** Home floating bottom-bar pressed / drag height. */
 const val BottomBarReferencePressedHeightDp = 78f
 
-/** 78/56 bloom used by the home floating bottom bar itself. */
+/** Shared compact bloom used by the home floating bottom bar itself. */
 const val BottomBarReferencePressedScale = BottomBarReferencePressedHeightDp /
     BottomBarReferenceIndicatorHeightDp
 

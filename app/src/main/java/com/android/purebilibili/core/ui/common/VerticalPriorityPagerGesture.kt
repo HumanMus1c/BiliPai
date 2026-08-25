@@ -38,6 +38,7 @@ internal enum class PagerGestureDirection {
 
 internal const val PAGER_HORIZONTAL_DOMINANCE_RATIO = 1.5f
 internal const val PAGER_AMBIGUOUS_DIRECTION_SLOP_MULTIPLIER = 1.5f
+internal const val HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER = 2f
 internal const val PAGER_RELEASE_POSITION_THRESHOLD = 0.2f
 internal const val PAGER_RELEASE_MIN_FLING_VELOCITY_DP = 300f
 
@@ -47,6 +48,7 @@ internal fun resolveVerticalPriorityPagerGestureDirection(
     touchSlop: Float,
     horizontalDominanceRatio: Float = PAGER_HORIZONTAL_DOMINANCE_RATIO,
     ambiguousDirectionSlopMultiplier: Float = PAGER_AMBIGUOUS_DIRECTION_SLOP_MULTIPLIER,
+    horizontalLockSlopMultiplier: Float = 1f,
 ): PagerGestureDirection {
     val systemTouchSlop = touchSlop.coerceAtLeast(0f)
     val totalDistanceSquared = totalX * totalX + totalY * totalY
@@ -57,7 +59,12 @@ internal fun resolveVerticalPriorityPagerGestureDirection(
     val horizontalDistance = abs(totalX)
     val verticalDistance = abs(totalY)
     if (horizontalDistance >= verticalDistance * horizontalDominanceRatio.coerceAtLeast(1f)) {
-        return PagerGestureDirection.HORIZONTAL
+        val horizontalLockSlop = systemTouchSlop * horizontalLockSlopMultiplier.coerceAtLeast(1f)
+        return if (horizontalDistance >= horizontalLockSlop) {
+            PagerGestureDirection.HORIZONTAL
+        } else {
+            PagerGestureDirection.UNDECIDED
+        }
     }
     if (verticalDistance >= horizontalDistance) return PagerGestureDirection.VERTICAL
 
@@ -119,6 +126,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
     state: PagerState,
     enabled: Boolean,
     reverseLayout: Boolean = false,
+    horizontalLockSlopMultiplier: Float = 1f,
 ): Modifier = composed {
     if (!enabled) return@composed this
 
@@ -135,7 +143,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
         )
     }
 
-    pointerInput(state, reverseDirection, minimumFlingVelocityPx) {
+    pointerInput(state, reverseDirection, minimumFlingVelocityPx, horizontalLockSlopMultiplier) {
         val dragCoroutineScope = CoroutineScope(currentCoroutineContext())
         val velocityTracker = VelocityTracker()
         awaitEachGesture gesture@{
@@ -173,6 +181,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                     totalX = totalDrag.x,
                     totalY = totalDrag.y,
                     touchSlop = viewConfiguration.touchSlop,
+                    horizontalLockSlopMultiplier = horizontalLockSlopMultiplier,
                 )
                 if (direction == PagerGestureDirection.HORIZONTAL) {
                     horizontalLockChange = change

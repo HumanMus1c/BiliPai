@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.11-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.11" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.12-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.12" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -189,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.11-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.11.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.12-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.12.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -210,14 +210,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.11 / versionCode 301`；最新完整发布记录为 `v0.2.3-beta.11`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.12 / versionCode 304`；最新完整发布记录为 `v0.2.3-beta.12`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 完成归档主题皮肤适配，顶部装饰可延伸到标题区和状态栏，并兼容旧版频道图标与原生标签图标。
-- 新增发评反诈历史中心，支持重新检测、删除和 JSON 导入导出，同时修正评论分页与子回复检测算法。
-- 更换系统壁纸后会及时刷新 Monet 配色；液态玻璃预览新增他人设置导入，并完成全局设置文案优化。
-- 关闭液态玻璃后，共用分段控件统一使用 Material 3 下划线，动态顶部栏保留纯色 Dock；历史页折叠顶栏同步修正。
-- 修复播放器退出后的窗口亮度恢复，并减少收藏歌单的重复请求。
-- 完整 beta.10 → beta.11 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 完成手机、平板、折叠屏、桌面与电视多级适配，并统一 Material 3/Miuix 原生控件渲染。
+- 视频详情新增手势跟随共享转场，可关闭相关推荐转场并恢复默认效果；导航与液态玻璃指示器同步完善。
+- 动态发布与评论、番剧媒体和播放能力、皮肤目录搜索及大屏内容布局得到补全。
+- 播放器新增全局具名 CDN 选择；画质取流严格按实际 DASH 轨道判断并补齐智能修复、HDR Vivid。
+- 修复高画质误弹窗、“仅提示一次”失效、弹幕分段、字幕位置及多项导航和界面稳定性问题。
+- 完整 beta.11 → beta.12 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

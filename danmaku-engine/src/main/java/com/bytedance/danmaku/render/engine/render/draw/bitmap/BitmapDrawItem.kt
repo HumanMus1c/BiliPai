@@ -50,6 +50,9 @@ open class BitmapDrawItem: DrawItem<BitmapData>() {
 
     override fun onDraw(canvas: Canvas, config: DanmakuConfig) {
         data?.bitmap?.let { bitmap ->
+            // A caller can release externally owned bitmap data while a previously prepared
+            // draw item is still buffered by the renderer. Never pass that stale bitmap to Canvas.
+            if (bitmap.isRecycled) return@let
             mRectF.set(x, y, x + width, y + height)
             val tint = data?.tintColor
             mBitmapPaint.colorFilter = if (tint == null) null else PorterDuffColorFilter(tint, PorterDuff.Mode.SRC_IN)

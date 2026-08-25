@@ -64,8 +64,8 @@ fun QualitySelectionMenu(
 ) {
     fun getQualityTag(qualityId: Int): String? {
         return when (qualityId) {
-            127, 126, 125, 120 -> if (!isVip) "大会员" else null
-            116, 112 -> if (!isVip) "大会员" else null
+            129, 127, 126, 125, 120 -> if (!isVip) "大会员" else null
+            116, 112, 100 -> if (!isVip) "大会员" else null
             80 -> if (!isLoggedIn) "登录" else null
             else -> null
         }
@@ -73,7 +73,7 @@ fun QualitySelectionMenu(
 
     fun isQualityAvailable(qualityId: Int): Boolean {
         return when {
-            qualityId >= 112 -> isVip
+            qualityId == 100 || qualityId >= 112 -> isVip
             qualityId >= 80 -> isLoggedIn
             else -> true
         }

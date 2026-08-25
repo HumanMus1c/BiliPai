@@ -10,9 +10,57 @@ sealed interface DynamicManageAction {
     data class ToggleTop(val dynamicId: String, val isCurrentlyTop: Boolean) : DynamicManageAction
     data class SetVisibility(val dynamicId: String, val dynType: Int, val isPrivate: Boolean) : DynamicManageAction
     data class SetReplySubject(val oid: Long, val replyType: Int, val action: Int) : DynamicManageAction
-    data class TempBlock(val dynamicId: String) : DynamicManageAction
+    data class BlockAuthor(
+        val authorMid: Long,
+        val authorName: String,
+        val authorFace: String,
+    ) : DynamicManageAction
     data class Report(val dynamicId: String, val authorMid: Long) : DynamicManageAction
     data class Edit(val dynamicId: String, val initialText: String) : DynamicManageAction
+}
+
+internal data class DynamicMenuCapabilities(
+    val isOwnDynamic: Boolean,
+    val canToggleTop: Boolean,
+    val canSetVisibility: Boolean,
+    val canManageComments: Boolean,
+    val canEdit: Boolean,
+    val canBlockAuthor: Boolean,
+    val canReport: Boolean,
+    val isPrivate: Boolean,
+)
+
+internal fun resolveDynamicMenuCapabilities(
+    item: DynamicItem,
+    currentUserMid: Long?,
+): DynamicMenuCapabilities {
+    val menuItems = item.modules.module_more?.three_point_items.orEmpty()
+    val types = menuItems.mapTo(mutableSetOf()) { it.type }
+    val authorMid = item.modules.module_author?.mid ?: 0L
+    val hasAuthorOnlyServerAction = types.any {
+        it == "THREE_POINT_EDIT" ||
+            it == "THREE_POINT_PRIVATE" ||
+            it == "THREE_POINT_DELETE" ||
+            it == "THREE_POINT_TOP"
+    }
+    val isOwnDynamic = currentUserMid != null && currentUserMid > 0L && authorMid == currentUserMid ||
+        hasAuthorOnlyServerAction
+    val privateStatus = menuItems
+        .firstOrNull { it.type == "THREE_POINT_PRIVATE" }
+        ?.params
+        ?.status
+        ?: 0
+
+    return DynamicMenuCapabilities(
+        isOwnDynamic = isOwnDynamic,
+        canToggleTop = isOwnDynamic,
+        canSetVisibility = isOwnDynamic && types.contains("THREE_POINT_PRIVATE"),
+        canManageComments = isOwnDynamic,
+        canEdit = isOwnDynamic && types.contains("THREE_POINT_EDIT"),
+        canBlockAuthor = !isOwnDynamic && authorMid > 0L,
+        canReport = !isOwnDynamic && (types.isEmpty() || types.contains("THREE_POINT_REPORT")),
+        isPrivate = privateStatus == 1,
+    )
 }
 
 internal data class DynamicReportReason(

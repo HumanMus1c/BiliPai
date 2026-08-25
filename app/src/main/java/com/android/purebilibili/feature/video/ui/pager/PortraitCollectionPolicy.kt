@@ -1,27 +1,19 @@
 package com.android.purebilibili.feature.video.ui.pager
 
-import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.RelatedVideo
-import com.android.purebilibili.data.model.response.Stat
-import com.android.purebilibili.data.model.response.UgcEpisode
 import com.android.purebilibili.data.model.response.ViewInfo
 
 /**
- * Follow-up segments for multi-P and UGC season inside portrait immersive.
- * These are injected after the current video so swipe / auto-continue stays in-collection.
+ * Follow-up segments for a single multi-P video inside portrait immersive.
+ * UGC season episodes deliberately stay out of the recommendation queue: inserting the whole
+ * season makes normal swiping cluster videos from the same uploader. Explicit season selection
+ * remains available through the detail sheet.
  */
 internal fun resolvePortraitCollectionFollowUps(
     info: ViewInfo,
     currentCid: Long = info.cid
 ): List<RelatedVideo> {
-    val multiPageFollowUps = resolvePortraitMultiPageFollowUps(
-        info = info,
-        currentCid = currentCid
-    )
-    if (multiPageFollowUps.isNotEmpty()) {
-        return multiPageFollowUps
-    }
-    return resolvePortraitSeasonFollowUps(
+    return resolvePortraitMultiPageFollowUps(
         info = info,
         currentCid = currentCid
     )
@@ -47,58 +39,16 @@ internal fun resolvePortraitMultiPageFollowUps(
             pic = info.pic,
             owner = info.owner,
             stat = info.stat,
-            duration = page.duration.toInt().coerceAtLeast(0)
+            duration = page.duration.toInt().coerceAtLeast(0),
+            pubdate = info.pubdate,
         )
     }
-}
-
-internal fun resolvePortraitSeasonFollowUps(
-    info: ViewInfo,
-    currentCid: Long = info.cid
-): List<RelatedVideo> {
-    val season = info.ugc_season ?: return emptyList()
-    val episodes = season.sections.flatMap { section -> section.episodes }
-        .filter { episode ->
-            episode.cid > 0L || episode.bvid.isNotBlank() || episode.aid > 0L
-        }
-    if (episodes.size <= 1) return emptyList()
-
-    val currentIndex = resolvePortraitSeasonEpisodeIndex(
-        episodes = episodes,
-        currentBvid = info.bvid,
-        currentCid = currentCid.takeIf { it > 0L } ?: info.cid
-    )
-    if (currentIndex < 0) return emptyList()
-
-    return episodes.drop(currentIndex + 1).map { episode ->
-        toRelatedVideoFromUgcEpisode(
-            episode = episode,
-            fallbackOwner = info.owner,
-            fallbackCover = season.cover.ifBlank { info.pic }
-        )
-    }
-}
-
-internal fun resolvePortraitSeasonEpisodeIndex(
-    episodes: List<UgcEpisode>,
-    currentBvid: String,
-    currentCid: Long
-): Int {
-    val normalizedBvid = currentBvid.trim()
-    if (currentCid > 0L) {
-        val byCid = episodes.indexOfFirst { it.cid == currentCid }
-        if (byCid >= 0) return byCid
-    }
-    if (normalizedBvid.isNotEmpty()) {
-        val byBvid = episodes.indexOfFirst { it.bvid.trim() == normalizedBvid }
-        if (byBvid >= 0) return byBvid
-    }
-    return -1
 }
 
 /**
  * Whether auto-continue (CONTINUE_CURRENT_LOGIC) should advance to [nextItem].
- * True for multi-P (same bvid) or season episode follow-ups; false for plain related feed.
+ * True for multi-P or an explicitly selected season episode already present in the pager;
+ * false for the normal related feed.
  */
 internal fun shouldPortraitAutoContinueToNextItem(
     currentItem: Any?,
@@ -181,28 +131,4 @@ internal fun resolvePortraitCollectionPageIndex(
         val identity = resolvePortraitPagePlaybackIdentity(candidate) ?: return@indexOfFirst false
         identity.bvid == normalizedBvid
     }
-}
-
-private fun toRelatedVideoFromUgcEpisode(
-    episode: UgcEpisode,
-    fallbackOwner: Owner,
-    fallbackCover: String
-): RelatedVideo {
-    val bvid = episode.bvid.trim().ifBlank {
-        if (episode.aid > 0L) "av${episode.aid}" else ""
-    }
-    val title = episode.title.ifBlank { episode.arc?.title.orEmpty() }
-    val cover = episode.arc?.pic?.takeIf { it.isNotBlank() } ?: fallbackCover
-    val duration = episode.arc?.duration?.coerceAtLeast(0) ?: 0
-    val stat = episode.arc?.stat ?: Stat()
-    return RelatedVideo(
-        aid = episode.aid.takeIf { it > 0L } ?: episode.arc?.aid ?: 0L,
-        bvid = bvid,
-        cid = episode.cid,
-        title = title,
-        pic = cover,
-        owner = fallbackOwner,
-        stat = stat,
-        duration = duration
-    )
 }

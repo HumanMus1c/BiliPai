@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -438,6 +440,9 @@ fun AppearanceSettingsContent(
     val homeUpAvatarsVisible by SettingsManager
         .getHomeUpAvatarsVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val fullVideoCardContentVisible by SettingsManager
+        .getFullVideoCardContentVisible(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val homeDurationStyle by SettingsManager
         .getHomeDurationStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
@@ -540,7 +545,7 @@ fun AppearanceSettingsContent(
                             Spacer(modifier = Modifier.height(8.dp))
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
-                                title = "安卓原生液态玻璃",
+                                title = "安卓液态玻璃",
                                 subtitle = if (isLiquidGlassAvailable) {
                                     "开启后，首页顶部标签栏、搜索框、底部导航栏和评论区底栏统一使用液态玻璃"
                                 } else {
@@ -1529,8 +1534,8 @@ fun AppearanceSettingsContent(
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_FEED),
-                            title = "展示追番时间表",
-                            subtitle = "番剧页显示最近更新时间表",
+                            title = "展示番剧影视时间表",
+                            subtitle = "番剧与影视页显示最近更新时间表",
                             checked = showPgcTimeline,
                             onCheckedChange = { value ->
                                 scope.launch {
@@ -1553,6 +1558,24 @@ fun AppearanceSettingsContent(
                             onCheckedChange = {
                                 scope.launch {
                                     SettingsManager.setHomeUpBadgesVisible(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULL_VIDEO_CARD_CONTENT),
+                            title = "完整卡片展示",
+                            subtitle = if (fullVideoCardContentVisible) {
+                                "完整显示视频标题，卡片高度可能不同"
+                            } else {
+                                "标题最多显示两行；发布时间等卡片信息始终完整显示"
+                            },
+                            checked = fullVideoCardContentVisible,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setFullVideoCardContentVisible(context, it)
                                 }
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue
@@ -1876,7 +1899,10 @@ private fun Md3CustomColorPickerDialog(
         },
         title = { AppText("自定义 MD3 颜色") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -231,11 +231,16 @@ private fun StringBuilder.appendDynamicContentSearchText(content: DynamicContent
         opus.contentBlocks.forEach { block ->
             when (block) {
                 is OpusContentBlock.Text -> appendLineIfNotBlank(block.text)
+                is OpusContentBlock.Heading -> appendLineIfNotBlank(block.text)
+                is OpusContentBlock.Quote -> appendLineIfNotBlank(block.text)
+                is OpusContentBlock.ListBlock -> block.items.forEach(::appendLineIfNotBlank)
+                is OpusContentBlock.Code -> appendLineIfNotBlank(block.text)
                 is OpusContentBlock.LinkCard -> {
                     appendLineIfNotBlank(block.card.title)
                     appendLineIfNotBlank(block.card.description)
                     appendLineIfNotBlank(block.card.label)
                 }
+                is OpusContentBlock.Divider,
                 is OpusContentBlock.Image -> Unit
             }
         }

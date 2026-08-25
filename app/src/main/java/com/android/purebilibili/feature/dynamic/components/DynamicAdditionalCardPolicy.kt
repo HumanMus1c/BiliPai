@@ -8,12 +8,24 @@ internal data class DynamicAdditionalCardModel(
     val cover: String,
     val jumpUrl: String,
     val kindLabel: String,
-    val voteId: Long = 0L
+    val voteId: Long = 0L,
+    val actionLabel: String = "",
+    val enabled: Boolean = true,
 )
 
 internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): DynamicAdditionalCardModel? {
     if (additional == null) return null
     return when (additional.type) {
+        "ADDITIONAL_TYPE_COMMON" -> additional.common?.takeIf { it.title.isNotBlank() }?.let {
+            DynamicAdditionalCardModel(
+                title = it.title,
+                subtitle = listOf(it.desc1, it.desc2).filter(String::isNotBlank).joinToString(" · "),
+                cover = it.cover,
+                jumpUrl = it.jump_url.ifBlank { it.button?.jump_url.orEmpty() },
+                kindLabel = it.head_text.ifBlank { "相关内容" },
+                actionLabel = resolveDynamicCardButtonLabel(it.button),
+            )
+        }
         "ADDITIONAL_TYPE_UGC" -> additional.ugc?.takeIf { it.title.isNotBlank() }?.let {
             DynamicAdditionalCardModel(
                 title = it.title,
@@ -30,8 +42,9 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
                     .filter { text -> text.isNotBlank() }
                     .joinToString("  "),
                 cover = "",
-                jumpUrl = "",
-                kindLabel = "预约"
+                jumpUrl = it.jump_url.ifBlank { it.button?.jump_url.orEmpty() },
+                kindLabel = "预约",
+                actionLabel = resolveDynamicCardButtonLabel(it.button),
             )
         }
         "ADDITIONAL_TYPE_GOODS" -> additional.goods?.items?.firstOrNull()?.let { goods ->
@@ -62,6 +75,20 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
                 kindLabel = "赛事"
             )
         }
+        "ADDITIONAL_TYPE_UPOWER_LOTTERY" -> additional.upower_lottery
+            ?.takeIf { it.title.isNotBlank() }
+            ?.let {
+                DynamicAdditionalCardModel(
+                    title = it.title,
+                    subtitle = listOfNotNull(it.desc?.text, it.hint?.text)
+                        .filter(String::isNotBlank)
+                        .joinToString(" · "),
+                    cover = "",
+                    jumpUrl = it.jump_url.ifBlank { it.button?.jump_url.orEmpty() },
+                    kindLabel = "充电专属抽奖",
+                    actionLabel = resolveDynamicCardButtonLabel(it.button),
+                )
+            }
         else -> null
     }
 }

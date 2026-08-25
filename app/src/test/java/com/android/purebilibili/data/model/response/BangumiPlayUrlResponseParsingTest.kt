@@ -19,11 +19,28 @@ class BangumiPlayUrlResponseParsingTest {
               "message": "0",
               "result": {
                 "video_info": {
+                  "fnver": 0,
+                  "fnval": 12240,
+                  "type": "DASH",
                   "quality": 80,
                   "format": "hdflv2",
                   "timelength": 123456,
                   "accept_quality": [80, 64, 32],
                   "accept_description": ["1080P", "720P", "480P"],
+                  "support_formats": [
+                    {
+                      "quality": 127,
+                      "format": "dash",
+                      "display_desc": "8K",
+                      "codecs": ["av01.0.08M.08"],
+                      "need_login": true,
+                      "need_vip": true
+                    }
+                  ],
+                  "record_info": {
+                    "record_icon": "",
+                    "record": "登记号：TEST"
+                  },
                   "dash": {
                     "duration": 123,
                     "video": [
@@ -46,8 +63,12 @@ class BangumiPlayUrlResponseParsingTest {
         assertEquals("0", payload.message)
         val videoInfo = assertNotNull(payload.videoInfo)
         assertEquals(80, videoInfo.quality)
+        assertEquals(12240, videoInfo.fnval)
         assertEquals(listOf(80, 64, 32), videoInfo.acceptQuality)
         assertEquals(80, videoInfo.dash?.video?.firstOrNull()?.id)
+        assertEquals(listOf("av01.0.08M.08"), videoInfo.supportFormats?.single()?.codecs)
+        assertEquals(true, videoInfo.supportFormats?.single()?.needVip)
+        assertEquals("登记号：TEST", videoInfo.recordInfo?.record)
     }
 
     @Test

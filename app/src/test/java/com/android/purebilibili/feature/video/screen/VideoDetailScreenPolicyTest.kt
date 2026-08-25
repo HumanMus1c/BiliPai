@@ -306,12 +306,12 @@ class VideoDetailScreenPolicyTest {
         )
         assertTrue(
             stateHolderSource.contains(
-                ".sourceChromeSnapshot\n            .takeIf { entryOwnsMiuixCardTransition }"
+                ".sourceChromeSnapshot\n            .takeIf { miuixVisualAssetsActive }"
             )
         )
         assertTrue(
             stateHolderSource.contains(
-                "entryOwnsMiuixCardTransition &&\n                        shouldDrawFlyingReturnSourceCardChrome()"
+                "shouldConsumeMiuixTransitionVisualAssets("
             )
         )
     }

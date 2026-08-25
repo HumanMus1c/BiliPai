@@ -33,6 +33,7 @@ class AppNavigationSettingsMappingPolicyTest {
         assertEquals("scale", result.predictiveBackAnimationStyle)
         assertEquals("auto", result.predictiveBackExitDirection)
         assertTrue(result.miuixTransitionBlurEnabled)
+        assertTrue(result.videoSharedReturnGestureFollowEnabled)
     }
 
     @Test
@@ -61,6 +62,7 @@ class AppNavigationSettingsMappingPolicyTest {
             booleanPreferencesKey("tablet_use_sidebar") to true,
             booleanPreferencesKey("sidebar_account_switcher_enabled") to false,
             booleanPreferencesKey("miuix_transition_blur_enabled") to false,
+            booleanPreferencesKey("video_shared_return_gesture_follow_enabled") to false,
         )
 
         val result = mapAppNavigationSettingsFromPreferences(prefs)
@@ -72,6 +74,7 @@ class AppNavigationSettingsMappingPolicyTest {
         assertTrue(result.tabletUseSidebar)
         assertFalse(result.sidebarAccountSwitcherEnabled)
         assertFalse(result.miuixTransitionBlurEnabled)
+        assertFalse(result.videoSharedReturnGestureFollowEnabled)
     }
 
     @Test

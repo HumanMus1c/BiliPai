@@ -12,7 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -28,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.database.entity.CommentFraudRecord
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
 import com.android.purebilibili.core.ui.components.*
@@ -271,12 +272,12 @@ private fun CommentFraudItemCard(
         }
     }
 
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(), // 👈 手风琴平滑展开折叠动画
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = AppCardShape.Semantic(ContainerLevel.Card),
+        colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             
@@ -306,7 +307,7 @@ private fun CommentFraudItemCard(
                 // 状态标签
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(AppShapes.container(ContainerLevel.Tag))
                         .background(statusColor.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {

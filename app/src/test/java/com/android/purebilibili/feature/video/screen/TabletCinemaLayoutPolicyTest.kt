@@ -1,11 +1,29 @@
 package com.android.purebilibili.feature.video.screen
 
 import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TabletCinemaLayoutPolicyTest {
+
+    @Test
+    fun cinemaCommentsReuseTheFullCommentAndEngagementDock() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/TabletCinemaLayout.kt"
+        ).readText()
+        val commentsPane = source
+            .substringAfter("private fun CinemaCommentsPane(")
+            .substringBefore("private fun CinemaRelatedPane(")
+
+        assertTrue(commentsPane.contains("BottomInputBar("))
+        assertTrue(commentsPane.contains("engagementActions.toggleLike"))
+        assertTrue(commentsPane.contains("engagementActions.openCoinDialog"))
+        assertTrue(commentsPane.contains("playbackActions.openRootCommentComposer"))
+        assertFalse(commentsPane.contains("写评论，直接和 UP 主交流"))
+    }
 
     @Test
     fun largeTabletGetsWiderCurtainAndPlayerCap() {

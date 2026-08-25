@@ -142,27 +142,27 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
-    fun queryByBottomBarLiquidGlass_stillFocusesVisualEffects() {
+    fun queryByBottomBarLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("底栏液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
-        assertEquals(SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS, result?.focusId)
+        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
+        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
     }
 
     @Test
-    fun queryByTopDockLiquidGlass_focusesVisualEffects() {
+    fun queryByTopDockLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("顶部dock栏液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
-        assertEquals(SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS, result?.focusId)
+        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
+        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
     }
 
     @Test
-    fun queryByHomeSearchLiquidGlass_focusesVisualEffects() {
+    fun queryByHomeSearchLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("首页搜索框液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
-        assertEquals(SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS, result?.focusId)
+        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
+        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
     }
 
     @Test

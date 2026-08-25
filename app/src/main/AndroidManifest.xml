@@ -272,7 +272,7 @@
             android:exported="false"
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_3d"
-            android:roundIcon="@mipmap/ic_launcher_3d"
+            android:roundIcon="@mipmap/ic_launcher_3d_round"
             android:theme="@style/Theme.PureBiliBili.Splash.Icon3D"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true" />
@@ -282,7 +282,7 @@
             android:exported="false"
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_bilipai"
-            android:roundIcon="@mipmap/ic_launcher_bilipai"
+            android:roundIcon="@mipmap/ic_launcher_bilipai_round"
             android:theme="@style/Theme.PureBiliBili.Splash.BiliPai"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true" />
@@ -292,7 +292,7 @@
             android:exported="false"
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_bilipai_pink"
-            android:roundIcon="@mipmap/ic_launcher_bilipai_pink"
+            android:roundIcon="@mipmap/ic_launcher_bilipai_pink_round"
             android:theme="@style/Theme.PureBiliBili.Splash.BiliPaiPink"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true" />
@@ -302,7 +302,7 @@
             android:exported="false"
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_bilipai_white"
-            android:roundIcon="@mipmap/ic_launcher_bilipai_white"
+            android:roundIcon="@mipmap/ic_launcher_bilipai_white_round"
             android:theme="@style/Theme.PureBiliBili.Splash.BiliPaiWhite"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true" />
@@ -312,7 +312,7 @@
             android:exported="false"
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_bilipai_monet"
-            android:roundIcon="@mipmap/ic_launcher_bilipai_monet"
+            android:roundIcon="@mipmap/ic_launcher_bilipai_monet_round"
             android:theme="@style/Theme.PureBiliBili.Splash.BiliPaiMonet"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true" />

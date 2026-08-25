@@ -58,6 +58,8 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
@@ -889,40 +891,45 @@ private fun LiveAreaHomeChipRow(
     onAreaListClick: () -> Unit,
     onMatchClick: () -> Unit,
 ) {
-    // BiliPai: 横向分区 chip + 右侧工具（封面/首帧、赛事、全部分区）
+    val categoryOptions = remember(areaEntries) {
+        buildList {
+            add(AppSegmentOption(LIVE_HOME_RECOMMEND_INDEX, "推荐"))
+            add(AppSegmentOption(LIVE_HOME_FOLLOWED_INDEX, "已关注"))
+            areaEntries.forEachIndexed { index, entry ->
+                add(
+                    AppSegmentOption(
+                        value = resolveLiveHomeSelectedIndexForArea(index),
+                        label = entry.title,
+                    ),
+                )
+            }
+        }
+    }
+    val selectedCategory = categoryOptions
+        .firstOrNull { it.value == selectedAreaIndex }
+        ?.value
+        ?: LIVE_HOME_RECOMMEND_INDEX
+    val categoryMinWidth = rememberAppTopChromePolicy()
+        .compactChromeSpec
+        .let(::resolveLiveHomeCategorySegmentedControlSpec)
+        .itemWidthDp
+        ?.dp
+        ?: 82.dp
+
+    // MD3 follows the app-wide animated underline. Miuix uses the shared moving
+    // capsule, which automatically opts into global liquid-glass reuse when enabled.
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LazyRow(
+        AppThemeAdaptiveTabRow(
+            options = categoryOptions,
+            selectedValue = selectedCategory,
+            onSelectionChange = onAreaSelected,
+            scrollable = true,
+            minTabWidth = categoryMinWidth,
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            item(key = "recommend") {
-                LiveHomeSelectableChip(
-                    label = "推荐",
-                    selected = selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX,
-                    onClick = { onAreaSelected(LIVE_HOME_RECOMMEND_INDEX) },
-                )
-            }
-            item(key = "followed") {
-                LiveHomeSelectableChip(
-                    label = "已关注",
-                    selected = isLiveHomeFollowedTab(selectedAreaIndex),
-                    onClick = { onAreaSelected(LIVE_HOME_FOLLOWED_INDEX) },
-                )
-            }
-            items(areaEntries.size, key = { index -> "${areaEntries[index].parentAreaId}_${areaEntries[index].areaId}_$index" }) { index ->
-                val entry = areaEntries[index]
-                val chipIndex = resolveLiveHomeSelectedIndexForArea(index)
-                LiveHomeSelectableChip(
-                    label = entry.title,
-                    selected = selectedAreaIndex == chipIndex,
-                    onClick = { onAreaSelected(chipIndex) },
-                )
-            }
-        }
+        )
         AppIconButton(
             onClick = onToggleFirstFrame,
             modifier = Modifier.size(40.dp),
@@ -966,18 +973,28 @@ private fun LiveSortTagChipRow(
     selectedSortType: String?,
     onSortTagSelected: (String?) -> Unit,
 ) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-        items(tags, key = { it.sortType.ifBlank { it.name } }) { tag ->
-            val selected = selectedSortType == tag.sortType ||
-                (selectedSortType.isNullOrBlank() && tags.firstOrNull() == tag)
-            LiveHomeSelectableChip(
+    if (tags.isEmpty()) return
+    val options = remember(tags) {
+        tags.map { tag ->
+            AppSegmentOption(
+                value = tag.sortType,
                 label = tag.name.ifBlank { tag.sortType },
-                selected = selected,
-                compact = true,
-                onClick = { onSortTagSelected(tag.sortType.takeIf { it.isNotBlank() }) },
             )
         }
     }
+    val selectedValue = selectedSortType
+        ?.takeIf { selected -> options.any { it.value == selected } }
+        ?: options.first().value
+    AppThemeAdaptiveTabRow(
+        options = options,
+        selectedValue = selectedValue,
+        onSelectionChange = { value ->
+            onSortTagSelected(value.takeIf { it.isNotBlank() })
+        },
+        scrollable = true,
+        minTabWidth = 72.dp,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

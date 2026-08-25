@@ -71,7 +71,6 @@ class FeedLayoutTokenAdoptionTest {
             "src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",
         ).readText()
         assertTrue(commonListSource.contains("resolveFavoriteSubscribedFolderPreviewWidth()"))
-        assertTrue(commonListSource.contains("resolveFavoriteProgressBadgeWidthSpec()"))
     }
 
     private fun locate(path: String): File = listOf(File(path), File("app/$path"))

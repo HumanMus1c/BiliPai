@@ -1,12 +1,15 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.data.model.response.DynamicAdditional
+import com.android.purebilibili.data.model.response.DynamicAdditionalCommon
 import com.android.purebilibili.data.model.response.DynamicAdditionalGoods
 import com.android.purebilibili.data.model.response.DynamicAdditionalGoodsItem
 import com.android.purebilibili.data.model.response.DynamicAdditionalReserve
 import com.android.purebilibili.data.model.response.DynamicAdditionalText
 import com.android.purebilibili.data.model.response.DynamicAdditionalUgc
 import com.android.purebilibili.data.model.response.DynamicAdditionalVote
+import com.android.purebilibili.data.model.response.DynamicCardButton
+import com.android.purebilibili.data.model.response.DynamicCardButtonStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -64,5 +67,27 @@ class DynamicAdditionalCardPolicyTest {
         assertEquals("商品", goods?.kindLabel)
         assertEquals("预约", reserve?.kindLabel)
         assertNull(resolveDynamicAdditionalCard(null))
+    }
+
+    @Test
+    fun commonAdditionalUsesServerButtonAndFallbackUrl() {
+        val card = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_COMMON",
+                common = DynamicAdditionalCommon(
+                    title = "游戏中心",
+                    desc1 = "新活动",
+                    head_text = "游戏",
+                    button = DynamicCardButton(
+                        jump_url = "https://www.bilibili.com/blackboard/game",
+                        jump_style = DynamicCardButtonStyle(text = "进入"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals("游戏", card?.kindLabel)
+        assertEquals("进入", card?.actionLabel)
+        assertEquals("https://www.bilibili.com/blackboard/game", card?.jumpUrl)
     }
 }

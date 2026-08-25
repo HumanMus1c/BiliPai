@@ -11,13 +11,14 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -70,8 +71,8 @@ fun LiveCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onLiveClick(roomId, title, "") },  //  点击跳转直播
-            shape = AppShapes.container(ContainerLevel.Card),
-            colors = CardDefaults.cardColors(
+            shape = AppCardShape.Semantic(ContainerLevel.Card),
+            colors = AppCardDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
         ) {
@@ -151,8 +152,8 @@ fun LiveCard(
         // 无法解析时显示占位
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            shape = AppShapes.container(ContainerLevel.Card),
-            colors = CardDefaults.cardColors(
+            shape = AppCardShape.Semantic(ContainerLevel.Card),
+            colors = AppCardDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
         ) {
@@ -193,8 +194,8 @@ fun LiveMajorCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onLiveClick(roomId, title, "") },
-        shape = AppShapes.container(ContainerLevel.Card),
-        colors = CardDefaults.cardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Card),
+        colors = AppCardDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {

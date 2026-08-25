@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -33,13 +33,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -405,23 +405,18 @@ private fun FavoriteCategoryFilterRow(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
 ) {
-    FlowRow(
+    val options = remember(labels) {
+        labels.mapIndexed { index, label -> AppSegmentOption(index, label) }
+    }
+    AppThemeAdaptiveTabRow(
+        options = options,
+        selectedValue = selectedIndex.coerceIn(0, labels.lastIndex.coerceAtLeast(0)),
+        onSelectionChange = onSelected,
+        scrollable = labels.size > 4,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = AppSpacingTokens.Medium),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-    ) {
-        labels.forEach { label ->
-            val index = labels.indexOf(label)
-            AppFilterChip(
-                selected = index == selectedIndex,
-                onClick = { onSelected(index) },
-                label = { AppText(label) },
-                leadingIcon = null,
-            )
-        }
-    }
+    )
 }
 
 @Composable
@@ -535,7 +530,7 @@ private fun FavoritePgcCard(
                 if (!batchMode) {
                     AppIconButton(
                         onClick = onRemove,
-                        modifier = Modifier.align(Alignment.TopEnd).size(AppChromeSizeTokens.MinimumTouchTarget),
+                        modifier = Modifier.align(Alignment.TopEnd),
                     ) {
                         AppIcon(Icons.Rounded.Close, contentDescription = "取消收藏")
                     }
@@ -610,7 +605,7 @@ private fun FavoriteGenericCategoryCard(
         },
         trailingContent = if (batchMode) null else {
             {
-                AppIconButton(onClick = onRemove, modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)) {
+                AppIconButton(onClick = onRemove) {
                     AppIcon(Icons.Rounded.Close, contentDescription = "移除收藏")
                 }
             }

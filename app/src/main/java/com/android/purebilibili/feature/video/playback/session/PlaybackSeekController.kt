@@ -121,7 +121,8 @@ internal fun updatePlaybackSeekInteraction(
 }
 
 internal fun finishPlaybackSeekInteraction(
-    state: PlaybackSeekSessionState
+    state: PlaybackSeekSessionState,
+    nowMs: Long = currentMonotonicMs(),
 ): PlaybackSeekSessionCommitResult {
     val committedPositionMs = state.sliderPositionMs.coerceAtLeast(0L)
     return PlaybackSeekSessionCommitResult(
@@ -130,12 +131,24 @@ internal fun finishPlaybackSeekInteraction(
             isSliderMoving = false,
             pendingSeekPositionMs = committedPositionMs,
             pendingSeekOriginPositionMs = state.playbackPositionMs.coerceAtLeast(0L),
-            sliderInteractionUpdatedAtMs = 0L
+            sliderInteractionUpdatedAtMs = nowMs
         ),
         committedPositionMs = committedPositionMs,
         shouldResumePlayback = state.shouldResumePlayback
     )
 }
+
+internal fun expirePendingPlaybackSeek(
+    state: PlaybackSeekSessionState,
+    playbackPositionMs: Long,
+): PlaybackSeekSessionState = state.copy(
+    playbackPositionMs = playbackPositionMs.coerceAtLeast(0L),
+    sliderPositionMs = playbackPositionMs.coerceAtLeast(0L),
+    pendingSeekPositionMs = null,
+    pendingSeekOriginPositionMs = null,
+    shouldResumePlayback = null,
+    sliderInteractionUpdatedAtMs = 0L,
+)
 
 internal fun commitPlaybackSeekInteraction(
     state: PlaybackSeekSessionState,

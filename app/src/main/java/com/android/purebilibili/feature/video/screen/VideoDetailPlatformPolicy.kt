@@ -22,6 +22,12 @@ import kotlin.math.abs
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.core.ui.setWindowNavigationBarColor
 import com.android.purebilibili.core.ui.setWindowStatusBarColor
+import com.android.purebilibili.core.ui.adaptive.AdaptiveFoldPosture
+
+internal fun shouldUseVideoDetailSharedElementMorph(
+    foldPosture: AdaptiveFoldPosture,
+): Boolean = foldPosture != AdaptiveFoldPosture.Book &&
+    foldPosture != AdaptiveFoldPosture.Tabletop
 
 internal data class VideoDetailSystemBarsSnapshot(
     val statusBarColor: Int,

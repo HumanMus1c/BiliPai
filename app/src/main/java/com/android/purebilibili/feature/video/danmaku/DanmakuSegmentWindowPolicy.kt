@@ -16,3 +16,15 @@ internal fun shouldReplaceDanmakuWindow(
     positionMs: Long,
     totalSegments: Int
 ): Boolean = activeSegments.toSet() != segmentWindowForPosition(positionMs, totalSegments).toSet()
+
+internal fun shouldRequestDanmakuWindow(
+    activeSegments: Collection<Int>,
+    pendingSegments: Collection<Int>,
+    requestInFlight: Boolean,
+    positionMs: Long,
+    totalSegments: Int
+): Boolean {
+    val requestedSegments = segmentWindowForPosition(positionMs, totalSegments).toSet()
+    if (activeSegments.toSet() == requestedSegments) return false
+    return !requestInFlight || pendingSegments.toSet() != requestedSegments
+}

@@ -14,6 +14,15 @@ class CategoryScreenStructureTest {
         assertTrue(source.contains("onVideoClick(bvid, video.cid, video.pic, video.isVertical)"))
         assertFalse(source.contains("onVideoClick(bvid, video.id, video.pic, video.isVertical)"))
     }
+
+    @Test
+    fun categoryCardsFollowHomeMetadataVisibilitySettings() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/category/CategoryScreen.kt")
+
+        assertTrue(source.contains("homeDurationStyle = homeSettings.homeDurationStyle"))
+        assertTrue(source.contains("compactStatsOnCover = homeSettings.compactVideoStatsOnCover ||"))
+        assertTrue(source.contains("showOnlineCount = showOnlineCount"))
+    }
 }
 
 private fun loadSource(path: String): String {

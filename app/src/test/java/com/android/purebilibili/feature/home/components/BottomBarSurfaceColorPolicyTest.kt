@@ -1,9 +1,11 @@
 package com.android.purebilibili.feature.home.components
 
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.theme.AppUiStyle
 import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -304,10 +306,11 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `segmented controls use md3 underline whenever global liquid glass is disabled`() {
+    fun `segmented controls route non glass indicator by ui theme`() {
         assertEquals(
             SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
+                uiStyle = AppUiStyle.MATERIAL3,
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = false
             )
@@ -316,14 +319,16 @@ class BottomBarSurfaceColorPolicyTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
+                uiStyle = AppUiStyle.MATERIAL3,
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true
             )
         )
 
         assertEquals(
-            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
+            SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
+                uiStyle = AppUiStyle.MIUIX,
                 prefersNativeChrome = false,
                 androidNativeLiquidGlassEnabled = false
             )
@@ -425,7 +430,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `light skin trim keeps themed bottom bar text foreground`() {
+    fun `light skin trim replaces low contrast themed foreground`() {
         val themedUnselectedColor = Color.White.copy(alpha = 0.78f)
         val colors = resolveBottomBarSkinContentColors(
             selectedColor = Color(0xFFFFA000),
@@ -433,13 +438,14 @@ class BottomBarSurfaceColorPolicyTest {
             skinTrimTint = Color(0xFFF3CF87)
         )
 
-        assertEquals(Color(0xFFFFA000), colors.selectedColor)
-        assertEquals(themedUnselectedColor, colors.unselectedColor)
+        assertEquals(OpticalContrastPalette.Shadow, colors.selectedColor)
+        assertEquals(OpticalContrastPalette.Shadow, colors.unselectedColor)
+        assertEquals(OpticalContrastPalette.Highlight, colors.labelScrimColor)
         assertEquals(0f, colors.labelScrimAlpha, 0.0001f)
     }
 
     @Test
-    fun `dark skin trim keeps themed bottom bar foreground unchanged`() {
+    fun `dark skin trim keeps readable foreground without a label capsule`() {
         val colors = resolveBottomBarSkinContentColors(
             selectedColor = Color(0xFFFFA000),
             unselectedColor = Color.White,
@@ -447,6 +453,7 @@ class BottomBarSurfaceColorPolicyTest {
         )
 
         assertEquals(Color.White, colors.unselectedColor)
+        assertEquals(OpticalContrastPalette.Shadow, colors.labelScrimColor)
         assertEquals(0f, colors.labelScrimAlpha, 0.0001f)
     }
 

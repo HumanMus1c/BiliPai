@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,15 +104,6 @@ fun EmotePanelSheet(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
                     edgePadding = 8.dp,
-                    indicator = { tabPositions ->
-                        if (tabPositions.isNotEmpty() && selectedPackageIndex < tabPositions.size) {
-                            TabRowDefaults.SecondaryIndicator(
-                                modifier = Modifier
-                                    .tabIndicatorOffset(tabPositions[selectedPackageIndex]),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    },
                     divider = {}
                 ) {
                     packages.forEachIndexed { index, pkg ->

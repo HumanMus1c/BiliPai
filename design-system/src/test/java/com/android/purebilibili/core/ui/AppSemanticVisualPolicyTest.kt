@@ -39,27 +39,15 @@ class AppSemanticVisualPolicyTest {
     }
 
     @Test
-    fun chromeLiquidGlassHonorsIndependentAndGlobalCapabilities() {
+    fun chromeLiquidGlassOnlyHonorsGlobalEntry() {
         assertFalse(
             resolveAppChromeLiquidGlassEnabled(
-                supportsIndependentLiquidGlass = false,
-                individualEnabled = true,
                 androidNativeEnabled = false,
             )
         )
         assertEquals(
             true,
             resolveAppChromeLiquidGlassEnabled(
-                supportsIndependentLiquidGlass = true,
-                individualEnabled = true,
-                androidNativeEnabled = false,
-            )
-        )
-        assertEquals(
-            true,
-            resolveAppChromeLiquidGlassEnabled(
-                supportsIndependentLiquidGlass = false,
-                individualEnabled = false,
                 androidNativeEnabled = true,
             )
         )

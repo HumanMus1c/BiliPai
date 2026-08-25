@@ -68,6 +68,28 @@ class VerticalPriorityPagerGestureTest {
     }
 
     @Test
+    fun `home pager waits through a short horizontal arc before taking the gesture`() {
+        assertEquals(
+            PagerGestureDirection.UNDECIDED,
+            resolveVerticalPriorityPagerGestureDirection(
+                totalX = 12f,
+                totalY = 2f,
+                touchSlop = 8f,
+                horizontalLockSlopMultiplier = HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
+            ),
+        )
+        assertEquals(
+            PagerGestureDirection.HORIZONTAL,
+            resolveVerticalPriorityPagerGestureDirection(
+                totalX = 17f,
+                totalY = 3f,
+                touchSlop = 8f,
+                horizontalLockSlopMultiplier = HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
+            ),
+        )
+    }
+
+    @Test
     fun `initial pager delta consumes one touch slop without reversing direction`() {
         assertEquals(
             1f,
@@ -154,6 +176,7 @@ class VerticalPriorityPagerGestureTest {
             .substringBefore(") { page ->")
         assertTrue(homePager.contains("userScrollEnabled = false"))
         assertTrue(homePager.contains(".verticalPriorityHorizontalPagerSwipe("))
+        assertTrue(homePager.contains("HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER"))
 
         val commentPager = videoContentSource
             .substringAfter("HorizontalPager(")

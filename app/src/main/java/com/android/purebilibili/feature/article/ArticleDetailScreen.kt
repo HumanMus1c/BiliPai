@@ -14,7 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.ArticleDetailSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -126,14 +126,11 @@ fun ArticleDetailScreen(
     ) { paddingValues ->
         when (val state = uiState) {
             ArticleDetailUiState.Loading -> {
-                Box(
+                ArticleDetailSkeleton(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AdaptiveLoadingIndicator()
-                }
+                )
             }
 
             is ArticleDetailUiState.Error -> {

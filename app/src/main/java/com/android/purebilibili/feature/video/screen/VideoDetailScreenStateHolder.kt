@@ -4,6 +4,7 @@ import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.refresh.HistoryRefreshSuppression
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -189,6 +190,7 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.LocalVideoTransitionAdaptiveInfo
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoDetailShellOverlayCornerDp
@@ -271,7 +273,7 @@ private fun CollapsedPlayerPlayAction(
         enter = fadeIn(animationSpec = tween(durationMillis = 120)),
         exit = fadeOut(animationSpec = tween(durationMillis = 90)),
     ) {
-        TextButton(
+        AppTextButton(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxHeight()
@@ -370,11 +372,14 @@ internal fun VideoDetailScreenStateHolder(
             liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
         )
     }
+    val videoTransitionAdaptiveInfo = LocalVideoTransitionAdaptiveInfo.current
     val allowLivePlayerSharedElement = remember(
         transitionEnabled,
         liveSurfaceCardTransitionEnabled,
+        videoTransitionAdaptiveInfo.foldPosture,
     ) {
-        resolveAllowLivePlayerSharedElementForMorph(
+        shouldUseVideoDetailSharedElementMorph(videoTransitionAdaptiveInfo.foldPosture) &&
+            resolveAllowLivePlayerSharedElementForMorph(
             cardTransitionEnabled = transitionEnabled,
             liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
         )
@@ -388,12 +393,14 @@ internal fun VideoDetailScreenStateHolder(
         transitionEnabled,
         sharedTransitionSpeedSettings,
         isQuickReturningFromDetail,
+        videoTransitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRouteForSharedElement,
             transitionEnabled = transitionEnabled,
             speedSettings = sharedTransitionSpeedSettings,
             isQuickReturn = isQuickReturningFromDetail,
+            adaptiveInfo = videoTransitionAdaptiveInfo,
         )
     }
     val videoCardDepthBackgroundState = LocalVideoCardTransitionBackgroundState.current
@@ -1343,13 +1350,21 @@ internal fun VideoDetailScreenStateHolder(
         isActuallyLeaving = isActuallyLeaving,
         isSessionReturningToCard = isSessionReturningToCard,
     )
+    val miuixVisualAssetsActive = shouldConsumeMiuixTransitionVisualAssets(
+        entryOwnsMiuixCardTransition = entryOwnsMiuixCardTransition,
+        phase = videoCardDepthBackgroundState.phaseProvider(),
+        isReturnGestureInProgress =
+            videoCardDepthBackgroundState.isReturnGestureInProgressProvider(),
+        isGestureRestoreInProgress =
+            videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
+    )
     val miuixCoverSnapshot =
         com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState.current
             .sourceChromeSnapshot
-            .takeIf { entryOwnsMiuixCardTransition }
+            .takeIf { miuixVisualAssetsActive }
     val clickCoverSnapshot =
         com.android.purebilibili.core.util.CardPositionManager.lastClickedVideoSourceChromeSnapshot
-            .takeIf { entryOwnsMiuixCardTransition }
+            .takeIf { miuixVisualAssetsActive }
     val homePrefetchCover = remember(bvid) {
         com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry.snapshot()
             .firstOrNull { it.bvid == bvid.trim() }
@@ -2174,7 +2189,8 @@ internal fun VideoDetailScreenStateHolder(
         autoEnterPortraitFromRoute,
         initialVerticalFromRoute,
         isVerticalVideo,
-        useReturningVideoDetailVisualState
+        useReturningVideoDetailVisualState,
+        videoTransitionAdaptiveInfo,
     ) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRouteForSharedElement,
@@ -2184,7 +2200,8 @@ internal fun VideoDetailScreenStateHolder(
             autoPortrait = autoEnterPortraitFromRoute,
             initialVertical = initialVerticalFromRoute,
             isVerticalVideo = isVerticalVideo,
-            isReturning = useReturningVideoDetailVisualState
+            isReturning = useReturningVideoDetailVisualState,
+            adaptiveInfo = videoTransitionAdaptiveInfo,
         )
     }
     LaunchedEffect(
@@ -3267,8 +3284,64 @@ internal fun VideoDetailScreenStateHolder(
                     Box(modifier = Modifier.fillMaxSize()) {
                     //  📐 [大屏适配] 根据设备类型选择布局
                     if (useTabletLayout) {
-                        // 🖥️ 平板：左右分栏布局（视频+信息 | 评论/推荐）
-                        TabletCinemaLayout(
+                        if (
+                            appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book ||
+                            appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Tabletop
+                        ) {
+                            // Book/Tabletop：由 AppSplitLayout 按真实铰链位置切分窗格。
+                            TabletVideoLayout(
+                                playerState = playerState,
+                                uiState = uiState,
+                                commentState = commentState,
+                                engagementState = engagementState,
+                                subReplyState = subReplyState,
+                                downloadProgress = downloadProgress,
+                                commentMemberDecorationsEnabled = commentMemberDecorationsEnabled,
+                                playbackActions = playbackActions,
+                                engagementActions = engagementActions,
+                                commentActions = commentActions,
+                                configuration = configuration,
+                                isVerticalVideo = isVerticalVideo,
+                                sleepTimerMinutes = sleepTimerMinutes,
+                                viewPoints = viewPoints,
+                                bvid = bvid,
+                                coverUrl = coverUrl,
+                                onBack = { handleBack() },
+                                onUpClick = navigateToUserSpaceFromVideo,
+                                onNavigateToAudioMode = {
+                                    presentationState.markNavigatingToAudioMode()
+                                    onNavigateToAudioMode()
+                                },
+                                onToggleFullscreen = { toggleFullscreen() },
+                                isInPipMode = isPipMode,
+                                onPipClick = handlePipClick,
+                                isPortraitFullscreen = isPortraitFullscreen,
+                                onHomeClick = {
+                                    handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
+                                },
+                                currentCodec = codecPreference,
+                                onCodecChange = { viewModel.setVideoCodec(it) },
+                                currentSecondCodec = secondCodecPreference,
+                                onSecondCodecChange = { viewModel.setVideoSecondCodec(it) },
+                                currentAudioQuality = audioQualityPreference,
+                                onAudioQualityChange = { viewModel.setAudioQuality(it) },
+                                transitionEnabled = detailChildTransitionEnabled,
+                                onRelatedVideoClick = navigateToRelatedVideo,
+                                onBgmClick = onBgmClick,
+                                showUpBadge = homeUpBadgesVisible,
+                                onSearchKeywordClick = navigateToSearchKeywordFromVideo,
+                                onOpenBilibiliLink = onOpenBilibiliLink,
+                                currentPlayMode = currentPlayMode,
+                                onPlayModeClick = {
+                                    com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode()
+                                },
+                                forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
+                                predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
+                                liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                            )
+                        } else {
+                            // 🖥️ 平板：左右分栏布局（视频+信息 | 评论/推荐）
+                            TabletCinemaLayout(
                             playerState = playerState,
                             uiState = uiState,
                             commentState = commentState,
@@ -3331,7 +3404,8 @@ internal fun VideoDetailScreenStateHolder(
                             forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
                             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                             sponsorContributionState = sponsorContributionState,
-                        )
+                            )
+                        }
                     } else {
                         // 📱 手机竖屏：原有单列布局
                         val stableStatusBarHeight = resolveVideoDetailStableStatusBarHeightDp(
@@ -4379,7 +4453,14 @@ internal fun VideoDetailScreenStateHolder(
                     // 返回信息区必须画在飞行壳上：sharedBounds 遮罩盖住列表，真卡露不出来。
                     // 文案用点击快照 + ViewInfo，尽量对齐列表；卸层后再露列表真卡。
                     if (
-                        entryOwnsMiuixCardTransition &&
+                        shouldConsumeMiuixTransitionVisualAssets(
+                            entryOwnsMiuixCardTransition = entryOwnsMiuixCardTransition,
+                            phase = videoCardDepthBackgroundState.phaseProvider(),
+                            isReturnGestureInProgress = videoCardDepthBackgroundState
+                                .isReturnGestureInProgressProvider(),
+                            isGestureRestoreInProgress = videoCardDepthBackgroundState
+                                .isGestureRestoreInProgressProvider(),
+                        ) &&
                         shouldDrawFlyingReturnSourceCardChrome() &&
                         !suppressPhoneDetailBodyForDirectPortrait
                     ) {

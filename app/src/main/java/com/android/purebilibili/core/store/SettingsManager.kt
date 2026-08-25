@@ -568,6 +568,7 @@ enum class BottomBarLiquidGlassPreset(
 data class HomeSettings(
     val displayMode: Int = 0,              // 展示模式 (0=网格, 1=故事卡片)
     val isBottomBarFloating: Boolean = true,
+    val navigationIconCrossScaleEnabled: Boolean = false,
     val bottomBarLabelMode: Int = 0,       // (0=图标+文字, 1=仅图标, 2=仅文字)
     val topTabLabelMode: Int = 2,          // (0=图标+文字, 1=仅图标, 2=仅文字)
     val homeTopRightAction: HomeTopRightAction = HomeTopRightAction.SETTINGS,
@@ -626,6 +627,7 @@ data class HomeSettings(
     val homeWallpaperEffectScope: HomeWallpaperEffectScope = HomeWallpaperEffectScope.HOME_ONLY,
     val showHomeUpBadges: Boolean = false, // 首页和相关推荐 UP 主标识显示(默认关闭,设置后全局生效)
     val showHomeUpAvatars: Boolean = false, // 首页视频卡片 UP 主头像显示(默认关闭,设置后全局生效)
+    val showFullVideoCardContent: Boolean = false, // 视频卡片标题完整展示(默认关闭,设置后全局生效)
     val homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     val easterEggEnabled: Boolean = false, // 下拉刷新趣味提示开关
     //  [修复] 默认值改为 true，避免在 Flow 加载实际值之前错误触发弹窗
@@ -633,7 +635,7 @@ data class HomeSettings(
     val crashTrackingConsentShown: Boolean = true
 ) {
     val isLiquidGlassEnabled: Boolean
-        get() = isBottomBarLiquidGlassEnabled
+        get() = androidNativeLiquidGlassEnabled
 }
 
 data class AppThemeSettings(
@@ -933,11 +935,13 @@ data class AppNavigationSettings(
     val bottomBarItemColors: Map<String, Int> = emptyMap(),
     val bottomBarItemLabels: Map<String, String> = emptyMap(),
     val tabletUseSidebar: Boolean = false,
+    val sidebarExpanded: Boolean = true,
     val sidebarAccountSwitcherEnabled: Boolean = true,
     val predictiveBackEnabled: Boolean = true,
     val predictiveBackAnimationStyle: String = "miuix",
     val predictiveBackExitDirection: String = "always_right",
     val miuixTransitionBlurEnabled: Boolean = true,
+    val videoSharedReturnGestureFollowEnabled: Boolean = true,
 )
 
 internal data class BottomTabMigrationResult(
@@ -1045,6 +1049,8 @@ data class PlayerInteractionSettings(
     val subtitleVerticalOffsetFraction: Float = 0.0f,
     /** Vertical offset for portrait immersive / story subtitles (independent of landscape). */
     val subtitlePortraitVerticalOffsetFraction: Float = 0.0f,
+    /** Prevent player gestures from accidentally moving subtitle overlays. */
+    val subtitlePositionLocked: Boolean = true,
     val twoFingerVerticalSpeedEnabled: Boolean = false,
     val twoFingerHorizontalSpeedEnabled: Boolean = false,
     val hiResLongPressCompatHintShown: Boolean = false,
@@ -1326,6 +1332,8 @@ object SettingsManager {
         floatPreferencesKey("subtitle_vertical_offset_fraction")
     private val KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION =
         floatPreferencesKey("subtitle_portrait_vertical_offset_fraction")
+    private val KEY_SUBTITLE_POSITION_LOCKED =
+        booleanPreferencesKey("subtitle_position_locked")
     //  [新增] 默认播放速度/记忆上次播放速度
     private val KEY_DEFAULT_PLAYBACK_SPEED = floatPreferencesKey("default_playback_speed")
     private val KEY_REMEMBER_LAST_PLAYBACK_SPEED = booleanPreferencesKey("remember_last_playback_speed")
@@ -1343,6 +1351,8 @@ object SettingsManager {
     private val KEY_APP_LIST_ITEM_STYLE = stringPreferencesKey("app_list_item_style")
     //  [新增] 底部栏样式 (true=悬浮, false=贴底)
     private val KEY_BOTTOM_BAR_FLOATING = booleanPreferencesKey("bottom_bar_floating")
+    private val KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED =
+        booleanPreferencesKey("navigation_icon_cross_scale_enabled")
     //  [新增] 底栏显示模式 (0=图标+文字, 1=仅图标, 2=仅文字)
     private val KEY_BOTTOM_BAR_LABEL_MODE = intPreferencesKey("bottom_bar_label_mode")
     //  [新增] 顶部标签显示模式 (0=图标+文字, 1=仅图标, 2=仅文字)
@@ -1448,6 +1458,8 @@ object SettingsManager {
     private val KEY_CARD_ANIMATION_ENABLED = booleanPreferencesKey("card_animation_enabled")
     //  [新增] 卡片过渡动画开关
     private val KEY_CARD_TRANSITION_ENABLED = booleanPreferencesKey("card_transition_enabled")
+    private val KEY_RELATED_VIDEO_TRANSITION_ENABLED =
+        booleanPreferencesKey("related_video_transition_enabled")
     // 实时画面转场：SDR 用 TextureView 一镜到底；HDR 仍 SurfaceView（不降画质），morph 走封面
     private val KEY_LIVE_SURFACE_CARD_TRANSITION_ENABLED =
         booleanPreferencesKey("live_surface_card_transition_enabled")
@@ -1478,6 +1490,8 @@ object SettingsManager {
     private val KEY_HOME_WALLPAPER_EFFECT_SCOPE = intPreferencesKey("home_wallpaper_effect_scope")
     private val KEY_HOME_UP_BADGES_VISIBLE = booleanPreferencesKey("home_up_badges_visible")
     private val KEY_HOME_UP_AVATARS_VISIBLE = booleanPreferencesKey("home_up_avatars_visible")
+    private val KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE =
+        booleanPreferencesKey("full_video_card_content_visible")
     private val KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE =
         booleanPreferencesKey("home_video_duration_badges_visible")
     private val KEY_HOME_DURATION_STYLE = intPreferencesKey("home_duration_style")
@@ -1513,6 +1527,8 @@ object SettingsManager {
     private val KEY_LAST_AUTO_CACHE_CLEAR_AT = longPreferencesKey("last_auto_cache_clear_at")
     private val KEY_COMMENT_MEMBER_DECORATIONS_ENABLED =
         booleanPreferencesKey("comment_member_decorations_enabled")
+    private val KEY_SUB_REPLY_LOADED_COUNT_ENABLED =
+        booleanPreferencesKey("sub_reply_loaded_count_enabled")
     private val KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED =
         booleanPreferencesKey("image_preview_long_press_save_enabled")
     private val KEY_IMAGE_PREVIEW_3D_PAGE_ENABLED =
@@ -1574,6 +1590,8 @@ object SettingsManager {
         return HomeSettings(
             displayMode = preferences[KEY_DISPLAY_MODE] ?: 0,
             isBottomBarFloating = preferences[KEY_BOTTOM_BAR_FLOATING] ?: true,
+            navigationIconCrossScaleEnabled =
+                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] ?: false,
             bottomBarLabelMode = preferences[KEY_BOTTOM_BAR_LABEL_MODE] ?: BottomBarLabelMode.ICON_AND_TEXT,
             topTabLabelMode = preferences[KEY_TOP_TAB_LABEL_MODE] ?: TopTabLabelMode.TEXT_ONLY,
             homeTopRightAction = HomeTopRightAction.fromValue(
@@ -1658,6 +1676,7 @@ object SettingsManager {
             ),
             showHomeUpBadges = preferences[KEY_HOME_UP_BADGES_VISIBLE] ?: false,
             showHomeUpAvatars = preferences[KEY_HOME_UP_AVATARS_VISIBLE] ?: false,
+            showFullVideoCardContent = preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false,
             homeDurationStyle = preferences[KEY_HOME_DURATION_STYLE]
                 ?.let(HomeDurationStyle::fromValue)
                 ?: if (preferences[KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE] ?: true) {
@@ -1761,6 +1780,7 @@ object SettingsManager {
             subtitlePortraitVerticalOffsetFraction = normalizeSubtitleVerticalOffsetFraction(
                 preferences[KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION] ?: 0.0f
             ),
+            subtitlePositionLocked = preferences[KEY_SUBTITLE_POSITION_LOCKED] ?: true,
             twoFingerVerticalSpeedEnabled = preferences[KEY_TWO_FINGER_VERTICAL_SPEED_ENABLED] ?: false,
             twoFingerHorizontalSpeedEnabled = preferences[KEY_TWO_FINGER_HORIZONTAL_SPEED_ENABLED] ?: false,
             hiResLongPressCompatHintShown = preferences[KEY_HI_RES_LONG_PRESS_COMPAT_HINT_SHOWN] ?: false,
@@ -2704,6 +2724,17 @@ object SettingsManager {
         }
     }
 
+    fun getSubtitlePositionLocked(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_SUBTITLE_POSITION_LOCKED] ?: true
+        }
+
+    suspend fun setSubtitlePositionLocked(context: Context, locked: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SUBTITLE_POSITION_LOCKED] = locked
+        }
+    }
+
     fun getTwoFingerVerticalSpeedEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_TWO_FINGER_VERTICAL_SPEED_ENABLED] ?: false }
@@ -2917,6 +2948,18 @@ object SettingsManager {
 
     suspend fun setCardTransitionEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_CARD_TRANSITION_ENABLED] = value }
+    }
+
+    /** 相关推荐进入下一层详情时是否复用卡片 Morph；关闭后交给默认导航过渡。 */
+    fun getRelatedVideoTransitionEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_RELATED_VIDEO_TRANSITION_ENABLED] ?: true
+        }
+
+    suspend fun setRelatedVideoTransitionEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_RELATED_VIDEO_TRANSITION_ENABLED] = value
+        }
     }
 
     /** 默认关闭：稳妥封面过渡；开启后 SDR 可用实时画面双向 morph，HDR 仍不强制 TextureView。 */
@@ -3149,6 +3192,15 @@ object SettingsManager {
         }
     }
 
+    fun getFullVideoCardContentVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false }
+
+    suspend fun setFullVideoCardContentVisible(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] = value
+        }
+    }
+
     fun getHomeDurationStyle(context: Context): Flow<HomeDurationStyle> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_HOME_DURATION_STYLE]
@@ -3364,6 +3416,17 @@ object SettingsManager {
 
     suspend fun setBottomBarFloating(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_BOTTOM_BAR_FLOATING] = value }
+    }
+
+    fun getNavigationIconCrossScaleEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] ?: false
+        }
+
+    suspend fun setNavigationIconCrossScaleEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] = value
+        }
     }
 
     fun getSearchHotSectionEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
@@ -4974,6 +5037,7 @@ object SettingsManager {
             val currentVersion = preferences[KEY_HOME_VISUAL_DEFAULTS_VERSION] ?: 0
             if (currentVersion < HOME_VISUAL_DEFAULTS_VERSION) {
                 preferences[KEY_BOTTOM_BAR_FLOATING] = true
+                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] = false
                 preferences[KEY_LIQUID_GLASS_ENABLED] = true
                 preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = true
                 preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] = true
@@ -5487,6 +5551,16 @@ object SettingsManager {
         }
     }
 
+    fun getSubReplyLoadedCountEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_SUB_REPLY_LOADED_COUNT_ENABLED] ?: false }
+
+    suspend fun setSubReplyLoadedCountEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SUB_REPLY_LOADED_COUNT_ENABLED] = enabled
+        }
+    }
+
     fun getImagePreviewLongPressSaveEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED] ?: true }
@@ -5845,12 +5919,12 @@ object SettingsManager {
     
     /**
      *  底栏显示模式
-     * - SCROLL_HIDE: 上滑隐藏，下滑显示
+     * - SCROLL_HIDE: 向下浏览时隐藏，向上返回时显示
      * - ALWAYS_VISIBLE: 始终显示（默认）
      * - ALWAYS_HIDDEN: 永久隐藏
      */
     enum class BottomBarVisibilityMode(val value: Int, val label: String, val description: String) {
-        SCROLL_HIDE(0, "上滑隐藏", "上滑时隐藏底栏，下滑时显示"),
+        SCROLL_HIDE(0, "向下浏览时隐藏", "浏览更下方内容时隐藏，向上返回时显示"),
         ALWAYS_VISIBLE(1, "始终显示", "底栏始终可见"),
         ALWAYS_HIDDEN(2, "永久隐藏", "完全隐藏底栏");
         
@@ -6148,6 +6222,7 @@ object SettingsManager {
         booleanPreferencesKey("player_diagnostic_logging_enabled")
     private val KEY_DASH_SEGMENT_REQUESTS_ENABLED =
         booleanPreferencesKey("dash_segment_requests_enabled")
+    private val KEY_PLAYBACK_CDN_PREFERENCE = stringPreferencesKey("playback_cdn_preference")
     private val KEY_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED =
         booleanPreferencesKey("quality_switch_failure_dialog_enabled")
     private val KEY_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED =
@@ -6557,6 +6632,17 @@ object SettingsManager {
         PlayerSettingsCache.setDashSegmentRequestsEnabled(context, enabled)
     }
 
+    fun getPlaybackCdnPreference(context: Context): Flow<String> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_PLAYBACK_CDN_PREFERENCE] ?: "base_url"
+        }
+
+    suspend fun setPlaybackCdnPreference(context: Context, preference: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_PLAYBACK_CDN_PREFERENCE] = preference
+        }
+    }
+
     fun getQualitySwitchFailureDialogEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED]
@@ -6679,6 +6765,7 @@ object SettingsManager {
     // ========== 📱 平板导航模式 ==========
     
     private val KEY_TABLET_NAVIGATION_MODE = booleanPreferencesKey("tablet_use_sidebar")
+    private val KEY_SIDEBAR_EXPANDED = booleanPreferencesKey("sidebar_expanded")
     private val KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED =
         booleanPreferencesKey("sidebar_account_switcher_enabled")
     private val KEY_PREDICTIVE_BACK_ENABLED = booleanPreferencesKey("predictive_back_enabled")
@@ -6686,6 +6773,8 @@ object SettingsManager {
     private val KEY_PREDICTIVE_BACK_EXIT_DIRECTION = stringPreferencesKey("predictive_back_exit_direction")
     private val KEY_MIUIX_TRANSITION_BLUR_ENABLED =
         booleanPreferencesKey("miuix_transition_blur_enabled")
+    private val KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED =
+        booleanPreferencesKey("video_shared_return_gesture_follow_enabled")
     
     /**
      *  平板导航模式
@@ -6722,6 +6811,7 @@ object SettingsManager {
                 preferences[bottomBarItemLabelsPreferencesKey].orEmpty()
             ),
             tabletUseSidebar = preferences[KEY_TABLET_NAVIGATION_MODE] ?: defaultTabletUseSidebar,
+            sidebarExpanded = preferences[KEY_SIDEBAR_EXPANDED] ?: true,
             sidebarAccountSwitcherEnabled =
                 preferences[KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED] ?: true,
             predictiveBackEnabled = preferences[KEY_PREDICTIVE_BACK_ENABLED] ?: true,
@@ -6729,6 +6819,8 @@ object SettingsManager {
             predictiveBackExitDirection =
                 preferences[KEY_PREDICTIVE_BACK_EXIT_DIRECTION] ?: "always_right",
             miuixTransitionBlurEnabled = preferences[KEY_MIUIX_TRANSITION_BLUR_ENABLED] ?: true,
+            videoSharedReturnGestureFollowEnabled =
+                preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED] ?: true,
         )
     }
 
@@ -6750,6 +6842,10 @@ object SettingsManager {
         NavigationSettingsStore.setTabletUseSidebar(context, useSidebar)
     }
 
+    suspend fun setSidebarExpanded(context: Context, expanded: Boolean) {
+        NavigationSettingsStore.setSidebarExpanded(context, expanded)
+    }
+
     suspend fun setSidebarAccountSwitcherEnabled(context: Context, enabled: Boolean) {
         NavigationSettingsStore.setSidebarAccountSwitcherEnabled(context, enabled)
     }
@@ -6768,6 +6864,10 @@ object SettingsManager {
 
     suspend fun setMiuixTransitionBlurEnabled(context: Context, enabled: Boolean) {
         NavigationSettingsStore.setMiuixTransitionBlurEnabled(context, enabled)
+    }
+
+    suspend fun setVideoSharedReturnGestureFollowEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setVideoSharedReturnGestureFollowEnabled(context, enabled)
     }
 
     fun getFullScreenSwipeBackEnabled(context: Context): Flow<Boolean> =
@@ -7003,6 +7103,10 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_APP_ICON_STYLE, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_APP_LIST_ITEM_STYLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_FLOATING, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
             IntShareablePreferenceDefinition(KEY_BOTTOM_BAR_LABEL_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_TOP_TAB_LABEL_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_TOP_RIGHT_ACTION, SettingsShareSection.APPEARANCE),
@@ -7081,6 +7185,10 @@ object SettingsManager {
                 KEY_MIUIX_TRANSITION_BLUR_ENABLED,
                 SettingsShareSection.APPEARANCE,
             ),
+            BooleanShareablePreferenceDefinition(
+                KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
             IntShareablePreferenceDefinition(KEY_VIDEO_SHARED_TRANSITION_SPEED, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(
                 KEY_VIDEO_SHARED_TRANSITION_CUSTOM_DURATION_MILLIS,
@@ -7091,6 +7199,7 @@ object SettingsManager {
             IntShareablePreferenceDefinition(KEY_HOME_WALLPAPER_EFFECT_MODE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_AVATARS_VISIBLE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_DURATION_STYLE, SettingsShareSection.APPEARANCE),
 
@@ -7168,6 +7277,10 @@ object SettingsManager {
                 KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION,
                 SettingsShareSection.GESTURE
             ),
+            BooleanShareablePreferenceDefinition(
+                KEY_SUBTITLE_POSITION_LOCKED,
+                SettingsShareSection.GESTURE
+            ),
             BooleanShareablePreferenceDefinition(KEY_PIP_NO_DANMAKU, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_DOUBLE_TAP_LIKE, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_SWIPE_HIDE_PLAYER, SettingsShareSection.GESTURE),
@@ -7240,6 +7353,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_HEADER_COLLAPSE_ENABLED, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_SHOW_PGC_TIMELINE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_TABLET_NAVIGATION_MODE, SettingsShareSection.NAVIGATION),
+            BooleanShareablePreferenceDefinition(KEY_SIDEBAR_EXPANDED, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(
                 KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED,
                 SettingsShareSection.NAVIGATION

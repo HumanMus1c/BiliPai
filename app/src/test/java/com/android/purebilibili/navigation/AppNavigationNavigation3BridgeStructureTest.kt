@@ -181,6 +181,12 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(source.contains("previewNativeVideoBackProgress("))
         assertFalse(source.contains("nativeVideoBackPreviewVideoKey"))
         assertFalse(navHostCall.contains("onNativeVideoBackProgress = ::previewNativeVideoBackProgress"))
+        assertTrue(
+            navHostCall.contains(
+                "videoSharedReturnGestureFollowEnabled =\n" +
+                    "                        appNavigationSettings.videoSharedReturnGestureFollowEnabled"
+            )
+        )
     }
 
     @Test
@@ -476,7 +482,11 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("val bottomBarMountRoute = if (isVideoDetailDestination)"))
         assertTrue(source.contains("activeRoute = bottomBarMountRoute"))
         assertTrue(source.contains("!isVideoDetailDestination"))
-        assertTrue(source.contains("val bottomBarCanMount = bottomBarMountGate"))
+        assertTrue(source.contains("bottomBarMountGate ||"))
+        assertTrue(source.contains("bottomBarVisibilityState.currentState ||"))
+        assertTrue(source.contains("val sideBarRouteGate = shouldShowBottomBarForNavigation("))
+        assertTrue(source.contains("windowSizeClass.shouldUseSideNavigation && sideBarMountGate"))
+        assertTrue(source.contains(".relativeToHost(navigationHostOriginInRoot)"))
         assertTrue(source.contains("val bottomBarReservesSpace = bottomBarCanMount"))
         assertTrue(bottomBarOverlay.contains("visibleState = bottomBarVisibilityState"))
         assertTrue(bottomBarOverlay.contains("BottomBarMatchedDockVisibility("))
@@ -511,6 +521,19 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("scrollToTopChannel = profileScrollChannel"))
         assertTrue(source.contains("scrollToTopChannel = liveScrollChannel"))
         assertTrue(source.contains("scrollToTopChannel = watchLaterScrollChannel"))
+    }
+
+    @Test
+    fun navigationBackStackReplacementIsAtomicForNavDisplay() {
+        val source = appNavigationSource()
+        val replacement = source
+            .substringAfter("fun replaceNavigation3BackStack(keys: List<BiliPaiNavKey>)")
+            .substringBefore("val navigation3ProgrammaticBackDispatcher")
+
+        assertTrue(replacement.contains("Snapshot.withMutableSnapshot"))
+        assertTrue(replacement.contains("if (navigation3BackStack == replacementStack) return"))
+        assertTrue(replacement.contains("navigation3BackStack.clear()"))
+        assertTrue(replacement.contains("navigation3BackStack.addAll(replacementStack)"))
     }
 
     private fun appNavigationSource(): String {

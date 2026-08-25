@@ -39,9 +39,9 @@ internal fun resolveDynamicPagePresentation(
             items = items,
             isLoading = state.userIsLoading,
             error = state.userError,
-            hasMore = state.hasUserMore && (
-                state.userItems.isNotEmpty() || state.userIsLoading || !state.userError.isNullOrBlank()
-            ),
+            // Local timeline matches are provisional. Keep pagination available while
+            // the authoritative user-space feed reports more pages.
+            hasMore = state.hasUserMore,
             isSelectedUserFeed = true,
             incrementalRefreshBoundaryKey = null,
             incrementalPrependedCount = 0
@@ -162,7 +162,10 @@ internal fun resolveDynamicSelectedUserIdAfterClick(
     clickedUserId: Long?
 ): Long? {
     if (clickedUserId == null || isDynamicUpPanelAllShortcut(clickedUserId)) return null
-    return if (selectedUserId == clickedUserId) null else clickedUserId
+    // UP selection behaves like a filter/indicator, not a toggle. Re-selecting the
+    // active author must keep the scoped feed intact; the top-level “全部” tab is the
+    // explicit way back to the mixed timeline.
+    return selectedUserId.takeIf { it == clickedUserId } ?: clickedUserId
 }
 
 internal fun shouldUseSelectedUserDynamicFeed(

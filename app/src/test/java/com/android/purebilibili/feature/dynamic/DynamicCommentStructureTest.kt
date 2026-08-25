@@ -55,6 +55,39 @@ class DynamicCommentStructureTest {
     }
 
     @Test
+    fun `dynamic detail comment composer becomes a liquid dock when enabled`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicDetailScreen.kt")
+            .readText()
+        val composer = source
+            .substringAfter("val commentComposer:")
+            .substringBefore("if (useSplitLayout)")
+
+        assertTrue(!source.contains("detailDockBackdrop"))
+        assertTrue(!composer.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(composer.contains("liquidGlassEnabled = liquidGlassEnabled"))
+        assertTrue(source.contains("shouldUseFloatingLiquidBottomInputBar("))
+        assertTrue(source.contains("resolveBottomInputBarContentBottomPadding("))
+        assertTrue(source.contains("val detailCommentBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains(".layerBackdrop(detailCommentBackdrop)"))
+        assertTrue(source.contains("contentPadding = PaddingValues(bottom = commentContentBottomPadding)"))
+        assertTrue(source.contains("widthIn(max = 360.dp)"))
+        assertTrue(!source.contains(".weight(1f)"))
+
+        val componentSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val inputComposer = componentSource
+            .substringAfter("private fun DynamicCommentComposer(")
+            .substringBefore("/**\n *  单条评论项")
+        assertTrue(inputComposer.split("BottomBarMatchedReusableLiquidDock(").size - 1 == 2)
+        assertTrue(inputComposer.contains("reuseEnabled = liquidGlassEnabled"))
+        assertTrue(inputComposer.contains("backdrop = backdrop"))
+        assertTrue(inputComposer.contains("resolveSharedBottomBarCapsuleShape()"))
+        assertTrue(inputComposer.contains("containerColor = Color.Transparent"))
+        assertTrue(inputComposer.contains("AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small"))
+    }
+
+    @Test
     fun `dynamic comment reload cancels and ignores the previous request`() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt")
             .readText()
@@ -84,6 +117,9 @@ class DynamicCommentStructureTest {
         assertTrue(sheetSource.contains("content = subReply.content"))
         assertTrue(sheetSource.contains("onUserClick = onUserClick"))
         assertTrue(subReplySource.contains("onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) }"))
+        assertTrue(subReplySource.contains("DynamicEmoteCatalog.ensureLoaded()"))
+        assertTrue(subReplySource.contains("emoteMap = emoteMap"))
+        assertTrue(!subReplySource.contains("emoteMap = emptyMap()"))
         assertTrue(screenSource.contains("DynamicCommentOverlayHost("))
         assertTrue(screenSource.contains("onUserClick = onUserClick"))
         assertTrue(detailSource.contains("dynamicInlineCommentItems("))

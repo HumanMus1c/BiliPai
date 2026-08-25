@@ -11,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
@@ -179,10 +178,9 @@ fun MineSideDrawer(
     val itemBorderColor = colorScheme.outlineVariant.copy(alpha = palette.itemBorderAlpha)
     val chevronColor = secondaryContentColor.copy(alpha = if (isDark) 0.92f else 0.84f)
 
-    val drawerShape = RoundedCornerShape(
-        topEnd = layoutPolicy.drawerEdgeRadiusDp.dp,
-        bottomEnd = layoutPolicy.drawerEdgeRadiusDp.dp
-    )
+    val drawerShape = AppShapes.endRounded(layoutPolicy.drawerEdgeRadiusDp.dp)
+    val profileCardShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    val sectionShape = AppShapes.borderedContainer(ContainerLevel.Card)
 
     // 使用 Surface 替代 ModalDrawerSheet 以绕过最小宽度限制 (240dp)
     AppSurface(
@@ -294,11 +292,11 @@ fun MineSideDrawer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = layoutPolicy.sectionHorizontalPaddingDp.dp)
-                    .clip(RoundedCornerShape(layoutPolicy.profileCardCornerRadiusDp.dp))
+                    .clip(profileCardShape)
                     .background(itemSurfaceColor)
                     .border(
                         BorderStroke(AppSpacingTokens.Micro * 0.4f, itemBorderColor),
-                        RoundedCornerShape(layoutPolicy.profileCardCornerRadiusDp.dp)
+                        profileCardShape
                     )
                     .clickable { closeAndRun(onProfileClick) }
                     // 背景完全透明，依靠下方毛玻璃效果
@@ -369,7 +367,7 @@ fun MineSideDrawer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = layoutPolicy.sectionHorizontalPaddingDp.dp),
-                    shape = RoundedCornerShape(layoutPolicy.sectionCornerRadiusDp.dp),
+                    shape = sectionShape,
                     color = itemSurfaceColor,
                     border = BorderStroke(AppSpacingTokens.Micro * 0.4f, itemBorderColor)
                 ) {
@@ -403,7 +401,7 @@ fun MineSideDrawer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = layoutPolicy.sectionHorizontalPaddingDp.dp),
-                shape = RoundedCornerShape(layoutPolicy.sectionCornerRadiusDp.dp),
+                shape = sectionShape,
                 color = itemSurfaceColor,
                 border = BorderStroke(AppSpacingTokens.Micro * 0.4f, itemBorderColor)
             ) {
@@ -498,7 +496,7 @@ fun MineSideDrawer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = layoutPolicy.sectionHorizontalPaddingDp.dp),
-                    shape = RoundedCornerShape(layoutPolicy.sectionCornerRadiusDp.dp),
+                    shape = sectionShape,
                     color = itemSurfaceColor,
                     border = BorderStroke(AppSpacingTokens.Micro * 0.4f, itemBorderColor)
                 ) {

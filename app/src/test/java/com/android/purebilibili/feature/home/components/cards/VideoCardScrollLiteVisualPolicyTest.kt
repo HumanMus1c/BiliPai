@@ -11,14 +11,14 @@ import org.junit.Test
 class VideoCardScrollLiteVisualPolicyTest {
 
     @Test
-    fun `normal mode removes cover gradient behind compact stats`() {
+    fun `normal mode adds cover gradient behind compact stats`() {
         val policy = resolveVideoCardScrollLiteVisualPolicy(
             scrollLiteModeEnabled = false,
             compactStatsOnCover = true
         )
 
         assertEquals(0f, policy.coverShadowElevationDp, 0.0001f)
-        assertFalse(policy.showCoverGradientMask)
+        assertTrue(policy.showCoverGradientMask)
         assertTrue(policy.showHistoryProgressBar)
         assertTrue(policy.showCompactStatsOnCover)
         assertFalse(policy.showSecondaryStatsRow)
@@ -46,7 +46,7 @@ class VideoCardScrollLiteVisualPolicyTest {
         )
 
         assertEquals(0f, policy.coverShadowElevationDp, 0.0001f)
-        assertFalse(policy.showCoverGradientMask)
+        assertTrue(policy.showCoverGradientMask)
         assertFalse(policy.showHistoryProgressBar)
         assertTrue(policy.showCompactStatsOnCover)
         assertFalse(policy.showSecondaryStatsRow)
@@ -126,7 +126,7 @@ class VideoCardScrollLiteVisualPolicyTest {
         // 内层 Column 才挂 sharedBounds（封面/标题，无 solid fill）。
         // 若把 cardContainer 画进 sharedBounds，预测返回时会盖住详情壳实时视频。
         val cardShellBlock = source
-            .substringAfter("val cardShellShape = remember(cardCornerRadius)")
+            .substringAfter("val cardShellShape = AppShapes.container(ContainerLevel.Card)")
             .substringBefore("//  [性能优化] 封面圆角形状缓存")
         assertTrue(cardShellBlock.contains("Box(modifier = Modifier.fillMaxWidth())"))
         assertTrue(cardShellBlock.contains(".matchParentSize()"))
@@ -141,8 +141,7 @@ class VideoCardScrollLiteVisualPolicyTest {
         val coverShapeBlock = source
             .substringAfter("val coverShape = remember(cardCornerRadius)")
             .substringBefore("val coverSharedBoundsEnabled")
-        assertTrue(coverShapeBlock.contains("bottomStart = AppSpacingTokens.None"))
-        assertTrue(coverShapeBlock.contains("bottomEnd = AppSpacingTokens.None"))
+        assertTrue(coverShapeBlock.contains("AppShapes.topRounded(cardCornerRadius)"))
     }
 
     @Test
@@ -537,6 +536,13 @@ class VideoCardScrollLiteVisualPolicyTest {
                 lastClickedVideoSourceKey = "home?category=1:BV1xx",
             )
         )
+    }
+
+    @Test
+    fun duplicateLargeScreenCards_onlyClickedInstanceOwnsSharedReturn() {
+        assertTrue(isVideoCardSharedSourceInstanceOwner(12L, null))
+        assertTrue(isVideoCardSharedSourceInstanceOwner(12L, 12L))
+        assertFalse(isVideoCardSharedSourceInstanceOwner(13L, 12L))
     }
 
     @Test

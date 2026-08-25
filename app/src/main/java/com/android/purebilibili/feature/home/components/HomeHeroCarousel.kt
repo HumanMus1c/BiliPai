@@ -81,6 +81,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
+import com.android.purebilibili.feature.home.components.cards.isVideoCardSharedSourceInstanceOwner
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
@@ -206,20 +207,30 @@ private fun HomeHeroCarouselCard(
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
-    val useCardShellSharedBounds = LocalSharedTransitionEnabled.current &&
+    val sharedSourceInstanceId = remember { CardPositionManager.newVideoCardSourceInstanceId() }
+    val ownsSharedTransitionSource = isVideoCardSharedSourceInstanceOwner(
+        sourceInstanceId = sharedSourceInstanceId,
+        lastClickedSourceInstanceId = CardPositionManager.lastClickedVideoSourceInstanceId,
+    )
+    val useCardShellSharedBounds = ownsSharedTransitionSource &&
+        LocalSharedTransitionEnabled.current &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null &&
         video.bvid.isNotBlank() &&
         !sourceRoute.isNullOrBlank()
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardShellMotionSpec = remember(
         sourceRoute,
         useCardShellSharedBounds,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = useCardShellSharedBounds,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
 
@@ -283,6 +294,7 @@ private fun HomeHeroCarouselCard(
                     coverUrl = normalizedCoverUrl,
                     coverCacheKey = normalizedCoverUrl,
                 ),
+                sourceInstanceId = sharedSourceInstanceId,
             )
         }
         onVideoClick()
@@ -402,8 +414,7 @@ private fun HomeHeroCarouselCard(
                         color = MediaContrastPalette.Foreground,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Visible
                     )
                 }
                 // 统计信息：时长 · 播放量 · 弹幕

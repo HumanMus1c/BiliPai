@@ -455,9 +455,16 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                 !(qualitySwitchFailureDialogOnceEnabled && qualitySwitchFailureDialogShown)
         }
         ?.let { dialog ->
+            var onceForCurrentDialog by remember(dialog) {
+                mutableStateOf(qualitySwitchFailureDialogOnceEnabled)
+            }
+            LaunchedEffect(qualitySwitchFailureDialogOnceEnabled) {
+                onceForCurrentDialog = qualitySwitchFailureDialogOnceEnabled
+            }
+
             fun dismissQualitySwitchFailureDialogAfterUserChoice() {
                 qualitySwitchDialogScope.launch {
-                    if (qualitySwitchFailureDialogOnceEnabled) {
+                    if (onceForCurrentDialog) {
                         com.android.purebilibili.core.store.SettingsManager
                             .markQualitySwitchFailureDialogShown(context)
                     }
@@ -495,8 +502,9 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
+                                    val nextValue = !onceForCurrentDialog
+                                    onceForCurrentDialog = nextValue
                                     qualitySwitchDialogScope.launch {
-                                        val nextValue = !qualitySwitchFailureDialogOnceEnabled
                                         com.android.purebilibili.core.store.SettingsManager
                                             .setQualitySwitchFailureDialogOnceEnabled(context, nextValue)
                                     }
@@ -504,8 +512,9 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppCheckbox(
-                                checked = qualitySwitchFailureDialogOnceEnabled,
+                                checked = onceForCurrentDialog,
                                 onCheckedChange = { checked ->
+                                    onceForCurrentDialog = checked
                                     qualitySwitchDialogScope.launch {
                                         com.android.purebilibili.core.store.SettingsManager
                                             .setQualitySwitchFailureDialogOnceEnabled(context, checked)

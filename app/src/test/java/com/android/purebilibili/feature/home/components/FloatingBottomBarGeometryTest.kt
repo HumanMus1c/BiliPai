@@ -40,6 +40,70 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
+    fun `wider search-mode indicator stays inside first and last dock edges`() {
+        assertEquals(
+            0f,
+            resolveFloatingDockIndicatorOffsetPx(
+                position = 0f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            202f,
+            resolveFloatingDockIndicatorOffsetPx(
+                position = 4f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            7.4f,
+            resolveFloatingDockIndicatorContentAlignmentPx(
+                position = 0f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            -7.4f,
+            resolveFloatingDockIndicatorContentAlignmentPx(
+                position = 4f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveFloatingDockClippedContentTranslationPx(
+                position = 0f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            -(54.2f * 5f - 69f),
+            resolveFloatingDockClippedContentTranslationPx(
+                position = 4f,
+                tabWidthPx = 54.2f,
+                tabsCount = 5,
+                indicatorWidthPx = 69f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
     fun `drag is rejected in the predictive-back edge bands`() {
         assertFalse(
             shouldAcceptFloatingDockDragAtWindowX(
@@ -146,11 +210,11 @@ class FloatingBottomBarGeometryTest {
     fun `pressed indicator overflow is reserved so compact docks are not clipped`() {
         val homeOverflow = resolveCompactDockScaleOverflowDp(
             shellHeightDp = 64f,
-            indicatorHeightDp = 56f,
+            indicatorHeightDp = 48f,
         )
         val compactOverflow = resolveCompactDockScaleOverflowDp(
             shellHeightDp = 40f,
-            indicatorHeightDp = 35f,
+            indicatorHeightDp = 30f,
         )
         assertEquals((78f - 64f) / 2f, homeOverflow, 0.001f)
         assertEquals((40f * 78f / 64f - 40f) / 2f, compactOverflow, 0.001f)

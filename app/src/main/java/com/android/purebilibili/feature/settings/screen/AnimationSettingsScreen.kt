@@ -162,7 +162,6 @@ fun AnimationSettingsContent(
         }
     }
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
-    val bottomBarLiquidGlassEnabled = state.bottomBarLiquidGlassEnabled
     val liquidGlassPreviewImageUri by SettingsManager
         .getLiquidGlassPreviewImageUri(context)
         .collectAsStateWithLifecycle(initialValue = null)
@@ -200,6 +199,9 @@ fun AnimationSettingsContent(
     val liveSurfaceCardTransitionEnabled by SettingsManager
         .getLiveSurfaceCardTransitionEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val relatedVideoTransitionEnabled by SettingsManager
+        .getRelatedVideoTransitionEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val fullScreenSwipeBackEnabled by SettingsManager
         .getFullScreenSwipeBackEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -357,6 +359,24 @@ fun AnimationSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            title = "相关推荐过渡动画",
+                            subtitle = if (relatedVideoTransitionEnabled) {
+                                "点击相关推荐时使用卡片变形过渡"
+                            } else {
+                                "点击相关推荐时使用默认页面过渡"
+                            },
+                            checked = relatedVideoTransitionEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    SettingsManager.setRelatedVideoTransitionEnabled(context, enabled)
+                                }
+                            },
+                            enabled = state.cardTransitionEnabled,
+                            iconTint = iOSTeal
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.LIVE_SURFACE_TRANSITION),
                             title = "实时画面转场",
                             subtitle = "进出详情用播放器当前画面做双向变形；HDR/杜比仍走高质量输出，不降画质",
@@ -364,6 +384,27 @@ fun AnimationSettingsContent(
                             onCheckedChange = { viewModel.toggleLiveSurfaceCardTransition(it) },
                             enabled = state.cardTransitionEnabled,
                             iconTint = iOSTeal
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            title = "视频返回跟手姿态",
+                            subtitle = if (appNavigationSettings.videoSharedReturnGestureFollowEnabled) {
+                                "侧滑返回时共享卡片跟随手指移动和轻微旋转，落点保持不变"
+                            } else {
+                                "共享卡片仅按固定路径返回原位置"
+                            },
+                            checked = appNavigationSettings.videoSharedReturnGestureFollowEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    SettingsManager.setVideoSharedReturnGestureFollowEnabled(
+                                        context,
+                                        enabled,
+                                    )
+                                }
+                            },
+                            enabled = state.cardTransitionEnabled,
+                            iconTint = iOSTeal,
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
@@ -392,17 +433,17 @@ fun AnimationSettingsContent(
                             },
                             iconTint = iOSTeal
                         )
-                        if (predictiveBackStyle == BiliPaiPredictiveBackAnimationStyle.MIUIX) {
+                        if (predictiveBackStyle != BiliPaiPredictiveBackAnimationStyle.NONE) {
                             AppPreferenceDivider()
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(
                                     SettingsIconRole.MIUIX_TRANSITION_BLUR
                                 ),
-                                title = "Miuix 过渡模糊",
+                                title = "返回过渡模糊",
                                 subtitle = if (appNavigationSettings.miuixTransitionBlurEnabled) {
-                                    "页面返回时为下层页面添加实时景深模糊"
+                                    "四种返回动画均为下层页面添加 Miuix 同款实时景深模糊"
                                 } else {
-                                    "保留 Miuix 位移与层级动画，不使用实时模糊"
+                                    "保留当前返回动画，不使用实时景深模糊"
                                 },
                                 checked = appNavigationSettings.miuixTransitionBlurEnabled,
                                 onCheckedChange = { enabled ->
@@ -522,119 +563,80 @@ fun AnimationSettingsContent(
             item {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        if (isLiquidGlassAvailable) {
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_DOCK_GLASS),
-                                title = "顶部标签栏液态玻璃",
-                                subtitle = "让首页顶部标签栏呈现通透、折射和高光效果",
-                                checked = state.topBarLiquidGlassEnabled,
-                                onCheckedChange = { viewModel.toggleTopBarLiquidGlass(it) },
-                                iconTint = iOSBlue
-                            )
-                            AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_SEARCH_GLASS),
-                                title = "首页搜索框液态玻璃",
-                                subtitle = "让搜索框在滑动时呈现玻璃折射和光泽",
-                                checked = state.homeSearchLiquidGlassEnabled,
-                                onCheckedChange = { viewModel.toggleHomeSearchLiquidGlass(it) },
-                                iconTint = iOSBlue
-                            )
-                            AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_GLASS),
-                                title = "底部导航栏液态玻璃",
-                                subtitle = "让首页底部导航栏呈现通透、折射和高光效果",
-                                checked = bottomBarLiquidGlassEnabled,
-                                onCheckedChange = { viewModel.toggleBottomBarLiquidGlass(it) },
-                                iconTint = iOSBlue
-                            )
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = state.topBarLiquidGlassEnabled ||
-                                    state.homeSearchLiquidGlassEnabled ||
-                                    bottomBarLiquidGlassEnabled,
-                                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
-                            ) {
-                                Column {
-                                    AppPreferenceDivider()
-                                    LiquidGlassAdjustmentPanel(
-                                        persistedProgress = state.liquidGlassProgress,
-                                        previewImageUri = liquidGlassPreviewImageUri,
-                                        persistedAdvancedSettings = liquidGlassAdvancedSettings,
-                                        persistedReadabilityMode = liquidGlassReadabilityMode,
-                                        bottomBarItems = previewBottomBarItems,
-                                        bottomBarSearchEnabled = state.bottomBarSearchEnabled,
-                                        onProgressCommitted = viewModel::setLiquidGlassProgress,
-                                        onPreviewImageChanged = viewModel::setLiquidGlassPreviewImageUri,
-                                        onAdvancedSettingsCommitted =
-                                            viewModel::setLiquidGlassAdvancedSettings,
-                                        onReadabilityModeChanged =
-                                            viewModel::setLiquidGlassReadabilityMode,
-                                        onImportSettings = {
-                                            liquidGlassImportLauncher.launch(
-                                                arrayOf(
-                                                    "application/json",
-                                                    "text/json",
-                                                    "text/plain",
-                                                )
-                                            )
-                                        },
-                                        isImportingSettings = isLiquidGlassImporting,
-                                        onShareSettings = {
-                                            scope.launch {
-                                                liquidGlassShareService
-                                                    .createLiquidGlassShareUri()
-                                                    .onSuccess { shareUri ->
-                                                        runCatching {
-                                                            val shareIntent = Intent(
-                                                                Intent.ACTION_SEND
-                                                            ).apply {
-                                                                type = "application/json"
-                                                                putExtra(
-                                                                    Intent.EXTRA_STREAM,
-                                                                    shareUri,
-                                                                )
-                                                                putExtra(
-                                                                    Intent.EXTRA_TEXT,
-                                                                    "BiliPai 液态玻璃设置，可在“动画与效果 > 液态玻璃与磨砂”中导入。",
-                                                                )
-                                                                addFlags(
-                                                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                                                )
-                                                            }
-                                                            context.startActivity(
-                                                                Intent.createChooser(
-                                                                    shareIntent,
-                                                                    "分享液态玻璃设置",
-                                                                )
-                                                            )
-                                                        }.onFailure { error ->
-                                                            Toast.makeText(
-                                                                context,
-                                                                error.message
-                                                                    ?: "无法打开系统分享",
-                                                                Toast.LENGTH_SHORT,
-                                                            ).show()
-                                                        }
-                                                    }
-                                                    .onFailure { error ->
-                                                        Toast.makeText(
-                                                            context,
-                                                            error.message
-                                                                ?: "液态玻璃设置导出失败",
-                                                            Toast.LENGTH_SHORT,
-                                                        ).show()
-                                                    }
-                                            }
-                                        },
+                        if (isLiquidGlassAvailable && state.androidNativeLiquidGlassEnabled) {
+                            LiquidGlassAdjustmentPanel(
+                                persistedProgress = state.liquidGlassProgress,
+                                previewImageUri = liquidGlassPreviewImageUri,
+                                persistedAdvancedSettings = liquidGlassAdvancedSettings,
+                                persistedReadabilityMode = liquidGlassReadabilityMode,
+                                bottomBarItems = previewBottomBarItems,
+                                bottomBarSearchEnabled = state.bottomBarSearchEnabled,
+                                onProgressCommitted = viewModel::setLiquidGlassProgress,
+                                onPreviewImageChanged = viewModel::setLiquidGlassPreviewImageUri,
+                                onAdvancedSettingsCommitted =
+                                    viewModel::setLiquidGlassAdvancedSettings,
+                                onReadabilityModeChanged =
+                                    viewModel::setLiquidGlassReadabilityMode,
+                                onImportSettings = {
+                                    liquidGlassImportLauncher.launch(
+                                        arrayOf(
+                                            "application/json",
+                                            "text/json",
+                                            "text/plain",
+                                        )
                                     )
-                                }
-                            }
+                                },
+                                isImportingSettings = isLiquidGlassImporting,
+                                onShareSettings = {
+                                    scope.launch {
+                                        liquidGlassShareService
+                                            .createLiquidGlassShareUri()
+                                            .onSuccess { shareUri ->
+                                                runCatching {
+                                                    val shareIntent = Intent(
+                                                        Intent.ACTION_SEND
+                                                    ).apply {
+                                                        type = "application/json"
+                                                        putExtra(
+                                                            Intent.EXTRA_STREAM,
+                                                            shareUri,
+                                                        )
+                                                        putExtra(
+                                                            Intent.EXTRA_TEXT,
+                                                            "BiliPai 液态玻璃设置，可在“动画与效果 > 液态玻璃与磨砂”中导入。",
+                                                        )
+                                                        addFlags(
+                                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                        )
+                                                    }
+                                                    context.startActivity(
+                                                        Intent.createChooser(
+                                                            shareIntent,
+                                                            "分享液态玻璃设置",
+                                                        )
+                                                    )
+                                                }.onFailure { error ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        error.message ?: "无法打开系统分享",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                }
+                                            }
+                                            .onFailure { error ->
+                                                Toast.makeText(
+                                                    context,
+                                                    error.message ?: "液态玻璃设置导出失败",
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            }
+                                    }
+                                },
+                            )
                             AppPreferenceDivider()
                         }
                         // 磨砂效果 (始终显示)
-	                        AppSwitchPreference(
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
                             title = "顶部栏磨砂",
                             subtitle = "只模糊顶部栏背后的内容，不启用折射和彩光",
@@ -643,7 +645,7 @@ fun AnimationSettingsContent(
                             iconTint = iOSBlue
                         )
                         AppPreferenceDivider()
-	                        AppSwitchPreference(
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
                             title = "底栏磨砂",
                             subtitle = "只模糊底部栏背后的内容，不启用折射和彩光",
@@ -721,7 +723,7 @@ fun AnimationSettingsContent(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     AppText(
-                        text = "将替换 $importCount 项液态玻璃参数，包括启用区域、质感强度、预设、图标与文字颜色以及高级调节。",
+                        text = "将替换 $importCount 项液态玻璃参数，包括质感强度、预设、图标与文字颜色以及高级调节。",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     AppText(

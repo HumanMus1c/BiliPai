@@ -20,7 +20,7 @@ internal fun isStrictPremiumQualityRequest(
     requestKind: PlayUrlRequestKind,
     targetQn: Int
 ): Boolean {
-    return requestKind == PlayUrlRequestKind.EXPLICIT && targetQn in 125..127
+    return requestKind == PlayUrlRequestKind.EXPLICIT && (targetQn == 100 || targetQn >= 112)
 }
 
 internal data class VideoInfoLookupInput(
@@ -71,20 +71,12 @@ internal fun resolveInitialStartQuality(
     isAutoHighestQuality: Boolean,
     isLogin: Boolean,
     isVip: Boolean,
-    auto1080pEnabled: Boolean,
-    /**
-     * Cellular / constrained network: prefer a slightly lower first hop so the first
-     * frame arrives sooner; Wi‑Fi keeps the premium first request.
-     */
-    preferFastStartOnMobile: Boolean = false
+    auto1080pEnabled: Boolean
 ): Int {
     return when {
-        // VIP auto-highest must request HDR-capable qn first on Wi‑Fi; bilibili often
-        // omits 125 tracks when the first playurl call only asks for 4K (120).
-        // On mobile, start at 1080P+ for faster TTFF; UI can still switch up later.
-        isAutoHighestQuality && isVip && preferFastStartOnMobile -> 112
-        isAutoHighestQuality && isVip -> 125
-        isAutoHighestQuality && isLogin && preferFastStartOnMobile -> 64
+        // The API documents 127 as the highest qn and 126/125 as separate Dolby/HDR
+        // tiers. Requesting 125 here can omit the Dolby track until a manual switch.
+        isAutoHighestQuality && isVip -> 127
         isAutoHighestQuality && isLogin -> 80
         isAutoHighestQuality -> 64
         targetQuality != null -> targetQuality
@@ -137,16 +129,26 @@ internal fun shouldAcceptCachedPlayUrlForAutoHighest(
 internal fun buildDashAttemptQualities(targetQn: Int): List<Int> {
     if (targetQn <= 80) return listOf(targetQn)
 
-    val premiumQualities = listOf(127, 126, 125, 120, 116, 112)
+    val premiumQualities = listOf(129, 127, 126, 125, 120, 116, 112, 100)
     val lowerFallbacks = premiumQualities.filter { quality -> quality < targetQn }
 
     return (listOf(targetQn) + lowerFallbacks + 80).distinct()
 }
 
-internal fun resolveDashRetryDelays(targetQn: Int): List<Long> {
-    // 标准画质（80/64 等）偶发返回空流时，给一次短重试窗口，避免误降级到游客 720。
-    return if (targetQn <= 80) listOf(0L, 450L) else listOf(0L)
+internal fun resolveDashRetryDelays(
+    targetQn: Int,
+    isPrimaryAttempt: Boolean = false
+): List<Long> {
+    // 播放接口偶发以 code=0 返回空流。首次目标画质应先原档重试，避免自动最高模式
+    // 立即逐档降级，最终只保留 Legacy/Guest 返回的 720P、360P 轨道。
+    // 后续高级画质 fallback 不重复重试，防止短时间内放大请求并触发接口风控。
+    return if (isPrimaryAttempt || targetQn <= 80) listOf(0L, 450L) else listOf(0L)
 }
+
+internal fun shouldRetryOnlyTransientEmptyDashResponse(
+    targetQn: Int,
+    isPrimaryAttempt: Boolean,
+): Boolean = isPrimaryAttempt && targetQn > 80
 
 internal fun shouldRetryDashTrackRecovery(
     targetQn: Int,
@@ -307,8 +309,10 @@ internal fun shouldAcceptAppApiResultForTargetQuality(
     // and non-VIP users; otherwise the UI reports a successful switch while the
     // backend silently returns a lower tier.
     if (targetQn < 80) return true
-    if (dashVideoIds.distinct().contains(targetQn)) return true
-    return returnedQuality >= targetQn && returnedQuality > 0
+    // In DASH responses `quality` is response metadata, not proof that the
+    // requested representation is playable. Only an exact playable track may
+    // finish an explicit high-quality request; otherwise continue to APP fallback.
+    return targetQn in dashVideoIds
 }
 
 internal fun buildGuestFallbackQualities(): List<Int> {
@@ -341,8 +345,7 @@ internal fun isRequestedQualitySatisfied(
     dashVideoIds: List<Int>
 ): Boolean {
     if (requestedQuality < 80) return true
-    if (requestedQuality in dashVideoIds) return true
-    return returnedQuality >= requestedQuality && returnedQuality > 0
+    return requestedQuality in dashVideoIds
 }
 
 /**

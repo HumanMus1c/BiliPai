@@ -60,6 +60,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.util.CardPositionManager
@@ -71,6 +72,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.PlayArrow
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -106,16 +108,25 @@ internal fun HomeStyleSingleColumnVideoCard(
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
     val motionSettings = LocalVideoSharedTransitionSpeedSettings.current
-    val motionSpec = remember(sourceRoute, effectiveTransitionEnabled, motionSettings) {
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
+    val motionSpec = remember(
+        sourceRoute,
+        effectiveTransitionEnabled,
+        motionSettings,
+        transitionAdaptiveInfo,
+    ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = effectiveTransitionEnabled,
             speedSettings = motionSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val cardBounds = remember { object { var value: Rect? = null } }
     val coverBounds = remember { object { var value: Rect? = null } }
     val cardShape = AppShapes.container(ContainerLevel.Card)
+    val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
     val coverShape = AppShapes.container(ContainerLevel.Field)
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
@@ -141,7 +152,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 screenWidth = screenWidthPx,
                 screenHeight = screenHeightPx,
                 density = density.density,
-                sourceCornerDp = 12,
+                sourceCornerDp = cardCornerDp.value.roundToInt(),
                 coverBounds = coverBounds.value,
                 sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
                 sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
@@ -179,6 +190,7 @@ internal fun HomeStyleSingleColumnVideoCard(
 
     Row(
         modifier = modifier
+            .adaptiveCardHoverEffect(shape = cardShape)
             .onGloballyPositioned { coordinates ->
                 cardBounds.value = coordinates.boundsInRoot()
             }
@@ -240,8 +252,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 text = video.title,
                 modifier = Modifier.fillMaxWidth(),
                 style = contentTypography.title,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
@@ -263,6 +274,8 @@ internal fun HomeStyleSingleColumnVideoCard(
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                 showUpBadge = showUpBadge,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Visible,
                 modifier = Modifier.fillMaxWidth(),
             )
 

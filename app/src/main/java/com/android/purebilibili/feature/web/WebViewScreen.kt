@@ -43,7 +43,7 @@ fun WebViewScreen(
     onSpaceClick: ((mid: Long) -> Unit)? = null,
     onLiveClick: ((roomId: Long) -> Unit)? = null,
     onDynamicClick: ((dynamicId: String) -> Unit)? = null,
-    onBangumiClick: ((seasonId: Long, epId: Long) -> Unit)? = null,
+    onBangumiClick: ((seasonId: Long, epId: Long, mediaId: Long) -> Unit)? = null,
     onMusicClick: ((musicId: String) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
@@ -141,12 +141,12 @@ fun WebViewScreen(
                                             }
 
                                             is BilibiliNavigationTarget.BangumiSeason -> {
-                                                onBangumiClick?.invoke(target.seasonId, 0)
+                                                onBangumiClick?.invoke(target.seasonId, 0, target.mediaId)
                                                 onBangumiClick != null
                                             }
 
                                             is BilibiliNavigationTarget.BangumiEpisode -> {
-                                                onBangumiClick?.invoke(0, target.epId)
+                                                onBangumiClick?.invoke(0, target.epId, 0)
                                                 onBangumiClick != null
                                             }
 

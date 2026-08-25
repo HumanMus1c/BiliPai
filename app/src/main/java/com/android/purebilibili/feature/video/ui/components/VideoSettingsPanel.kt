@@ -847,8 +847,8 @@ fun VideoSettingsPanel(
                 }
             }
 
-            //  播放线路 (CDN) - 仅在有多个线路时显示
-            if (cdnCount > 1) {
+            // CDN 设置始终可见；候选线路由当前 playurl 会话提供。
+            if (cdnCount > 0) {
                 item {
                     val diagnosticsByIndex = cdnLineDiagnostics.associateBy { it.index }
                     Column(
@@ -867,16 +867,20 @@ fun VideoSettingsPanel(
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             AppText(
-                                text = "播放线路",
+                                text = "CDN 设置",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText(
-                                text = "当前 线路${currentCdnIndex + 1}",
+                                text = diagnosticsByIndex[currentCdnIndex]?.displayName
+                                    ?: "当前线路${currentCdnIndex + 1}",
                                 fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1215,6 +1219,7 @@ private fun CdnLineRow(
     val status = listOfNotNull(diagnostic?.sourceLabel, diagnostic?.statusLabel ?: "未检测")
         .joinToString(" · ")
     val host = diagnostic?.host ?: "线路${index + 1}"
+    val displayName = diagnostic?.displayName ?: "线路${index + 1}"
     val metric = buildString {
         diagnostic?.latencyMs?.let { append("${it}ms") }
         diagnostic?.speedKbps?.let {
@@ -1247,13 +1252,13 @@ private fun CdnLineRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
-                    text = "线路${index + 1} · $status",
+                    text = displayName,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 AppText(
-                    text = host,
+                    text = "$status · $host",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

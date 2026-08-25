@@ -67,6 +67,8 @@ internal fun resolvePortraitPlaybackTargetQuality(
  */
 internal fun resolvePortraitQualityLabel(qualityId: Int): String {
     return when {
+        qualityId == 129 -> "HDR Vivid"
+        qualityId == 100 -> "智能修复"
         qualityId >= 127 -> "自动"
         qualityId >= 126 -> "杜比"
         qualityId >= 125 -> "HDR"

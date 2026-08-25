@@ -2,12 +2,13 @@
 //  [重构] 简化版 VideoPlaybackViewModel - 使用 UseCase 层
 package com.android.purebilibili.feature.video.viewmodel
 
+import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.annotation.SuppressLint
 import com.android.purebilibili.feature.video.usecase.*
 
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
@@ -24,6 +25,7 @@ import com.android.purebilibili.core.plugin.SkipAction
 import com.android.purebilibili.core.store.TodayWatchFeedbackSnapshot
 import com.android.purebilibili.core.store.TodayWatchFeedbackStore
 import com.android.purebilibili.core.store.TodayWatchProfileStore
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.AnalyticsHelper
 import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.util.Logger
@@ -42,6 +44,10 @@ import com.android.purebilibili.feature.plugin.CdnDashPrefetchRequest
 import com.android.purebilibili.feature.plugin.CdnDashSegmentPrefetcher
 import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
 import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
+import com.android.purebilibili.feature.plugin.PlaybackCdnPreference
+import com.android.purebilibili.feature.plugin.applyPlaybackCdnPreference
+import com.android.purebilibili.feature.plugin.buildPlaybackCdnCacheKeys
+import com.android.purebilibili.feature.plugin.buildCdnLineDiagnostics
 import com.android.purebilibili.feature.plugin.buildCdnTrackCacheKey
 import com.android.purebilibili.feature.plugin.parseCdnByteRange
 import com.android.purebilibili.feature.plugin.SponsorBlockInsightStore
@@ -835,6 +841,11 @@ internal fun resolveInitialQualityWarningTarget(
     }
 }
 
+internal fun shouldShowInitialQualityUnavailableDialog(
+    unavailableReason: InitialQualityUnavailableReason?,
+    premiumAutoUpgradeScheduled: Boolean
+): Boolean = unavailableReason != null && !premiumAutoUpgradeScheduled
+
 
 internal fun shouldBlockPremiumQualitySwitchDuringCooldown(
     requestedQualityId: Int,
@@ -1308,7 +1319,7 @@ internal fun shouldReplacePlaybackSourceForQualityChange(
 }
 
 // ========== ViewModel ==========
-class VideoPlaybackViewModel : ViewModel() {
+class VideoPlaybackViewModel(application: Application) : AndroidViewModel(application) {
     // UseCases
     private val playbackUseCase = VideoPlaybackUseCase()
     private val playbackLoader = PlaybackLoader.from(playbackUseCase)
@@ -1316,6 +1327,10 @@ class VideoPlaybackViewModel : ViewModel() {
     private val playbackCoordinator = PlaybackCoordinator(playbackSessionStore)
     private val interactionUseCase = VideoInteractionUseCase()
     private val qualityManager = QualityManager()
+    private val playbackCdnPreference = SettingsManager
+        .getPlaybackCdnPreference(application.applicationContext)
+        .map { PlaybackCdnPreference.fromStorageValue(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, PlaybackCdnPreference.BASE_URL)
 
     // HDR auto-upgrade state
     private val attemptedUpgradeKeys = mutableSetOf<String>()
@@ -1717,6 +1732,9 @@ class VideoPlaybackViewModel : ViewModel() {
         }
 
     private var activeLoadJob: Job? = null
+    private var pageSwitchJob: Job? = null
+    private var pageSwitchGeneration: Long = 0L
+    private var pendingPageSwitchCid: Long? = null
     private var playerInfoJob: Job? = null
     private var aiSummaryJob: Job? = null
     private var videoNoteJob: Job? = null
@@ -2913,6 +2931,12 @@ class VideoPlaybackViewModel : ViewModel() {
         fallbackResumePositionMs: Long = 0L
     ) {
         if (bvid.isBlank()) return
+        // A full media load supersedes an in-place page switch. Without this, a slow page request
+        // can replace the player after navigation has already started loading another subject.
+        pageSwitchJob?.cancel()
+        pageSwitchJob = null
+        pendingPageSwitchCid = null
+        pageSwitchGeneration += 1L
         if (bvid != currentBvid || (cid > 0L && cid != currentCid)) {
             cancelPlaybackStallRecovery()
             playbackStallRecoveryFirstFrameRendered = false
@@ -3379,7 +3403,7 @@ class VideoPlaybackViewModel : ViewModel() {
                             .map { it.id }
                             .distinct()
                         val hasToken = !com.android.purebilibili.core.store.TokenManager.accessTokenCache.isNullOrEmpty()
-                        scheduleHdrAutoUpgradeIfNeeded(
+                        val premiumAutoUpgradeScheduled = scheduleHdrAutoUpgradeIfNeeded(
                             bvid = result.info.bvid,
                             cid = result.info.cid,
                             audioLang = result.curAudioLang,
@@ -3410,7 +3434,13 @@ class VideoPlaybackViewModel : ViewModel() {
                             isVip = result.isVip,
                             dataSaverLimited = dataSaverLimitedQuality
                         )
-                        if (initialQualityUnavailableReason != null) {
+                        // A fast-start payload may legitimately be upgraded in the background.
+                        // Do not report it as a terminal failure before that exact-track request finishes.
+                        if (shouldShowInitialQualityUnavailableDialog(
+                                unavailableReason = initialQualityUnavailableReason,
+                                premiumAutoUpgradeScheduled = premiumAutoUpgradeScheduled
+                            )
+                        ) {
                             showQualitySwitchFailureDialog(
                                 requestedQualityId = initialQualityWarningTarget,
                                 hasCachedDashTracks = result.cachedDashVideos.isNotEmpty(),
@@ -3528,7 +3558,7 @@ class VideoPlaybackViewModel : ViewModel() {
         isMobileData: Boolean,
         hasAccessToken: Boolean,
         initialQuality: Int
-    ) {
+    ): Boolean {
         val playbackKey = buildPremiumAutoUpgradePlaybackKey(bvid, cid, audioLang)
         hdrAutoUpgradeJob?.cancel()
         hdrAutoUpgradeJob = null
@@ -3547,7 +3577,7 @@ class VideoPlaybackViewModel : ViewModel() {
                 upgradeAlreadyAttempted = attemptedUpgradeKeys.contains(playbackKey)
             )
         ) {
-            return
+            return false
         }
 
         attemptedUpgradeKeys.add(playbackKey)
@@ -3595,6 +3625,7 @@ class VideoPlaybackViewModel : ViewModel() {
 
             applyHdrUpgrade(playbackKey, hdrData)
         }
+        return true
     }
 
     /**
@@ -6236,6 +6267,8 @@ class VideoPlaybackViewModel : ViewModel() {
                     val result = VideoRepository.getAiSummary(bvid, cid, upMid)
                     var shouldPollAgain = false
                     var nextDelayMs = 0L
+                    var completedQueuedRetry = false
+                    var completedRequestRetry = false
 
                     result.onSuccess { response ->
                         val diagnosis =
@@ -6273,6 +6306,7 @@ class VideoPlaybackViewModel : ViewModel() {
                                     isInBackground = BackgroundManager.isInBackground
                                 )
                                 shouldPollAgain = true
+                                completedQueuedRetry = true
                                 Logger.i(
                                     "PlayerVM",
                                     "🤖 AI Summary queued, retry later: bvid=$bvid cid=$cid stid=${diagnosis.stid ?: ""} retryInMs=$nextDelayMs retryCount=$queuedRetryCount"
@@ -6310,12 +6344,12 @@ class VideoPlaybackViewModel : ViewModel() {
                         val diagnosis =
                             com.android.purebilibili.data.repository.diagnoseAiSummaryFailure(throwable)
                         if (shouldRetryAiSummaryRequestFailure(diagnosis.status, requestRetryCount)) {
-                            requestRetryCount += 1
                             nextDelayMs = resolveAiSummaryRetryDelayMs(
                                 queuedRetryCount = requestRetryCount,
                                 isInBackground = BackgroundManager.isInBackground
                             )
                             shouldPollAgain = true
+                            completedRequestRetry = true
                             Logger.i(
                                 "PlayerVM",
                                 "🤖 AI Summary retryable failure, retry scheduled: bvid=$bvid cid=$cid retryInMs=$nextDelayMs retryCount=$requestRetryCount"
@@ -6338,7 +6372,8 @@ class VideoPlaybackViewModel : ViewModel() {
                         return@launch
                     }
 
-                    queuedRetryCount += 1
+                    if (completedQueuedRetry) queuedRetryCount += 1
+                    if (completedRequestRetry) requestRetryCount += 1
                     delay(nextDelayMs)
                     val currentSuccess = _uiState.value as? VideoPlaybackUiState.Success
                     if (
@@ -6348,6 +6383,8 @@ class VideoPlaybackViewModel : ViewModel() {
                     ) {
                         return@launch
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Logger.d("PlayerVM", "🤖 Failed to load AI Summary: ${e.message}")
                     return@launch
@@ -6995,7 +7032,11 @@ class VideoPlaybackViewModel : ViewModel() {
             isVip = current.isVip,
             isHdrSupported = isHdrSupported,
             isDolbyVisionSupported = isDolbyVisionSupported,
-            serverAdvertisedQualities = current.qualityIds
+            serverAdvertisedQualities = current.qualityIds,
+            serverPlayableQualities = current.cachedDashVideos
+                .filter { it.getValidUrl().isNotEmpty() }
+                .map { it.id }
+                .distinct()
         )
 
         val currentPos = playbackUseCase.getCurrentPosition().coerceAtLeast(0L)
@@ -7194,7 +7235,17 @@ class VideoPlaybackViewModel : ViewModel() {
     fun switchPage(pageIndex: Int, ignoreSavedProgress: Boolean = false) {
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
         val page = current.info.pages.getOrNull(pageIndex) ?: return
-        if (page.cid == currentCid) { toast("\u5df2\u662f\u5f53\u524d\u5206P"); return }
+        // currentCid used to be changed before the play-url request completed. A second tap was
+        // then mistaken for the current page, while concurrent requests could commit/rollback in
+        // any order. Keep the committed identity unchanged and allow only the latest request to win.
+        if (page.cid == current.info.cid && pendingPageSwitchCid == null) {
+            toast("\u5df2\u662f\u5f53\u524d\u5206P")
+            return
+        }
+        if (page.cid == pendingPageSwitchCid && pageSwitchJob?.isActive == true) return
+        pageSwitchJob?.cancel()
+        val switchGeneration = ++pageSwitchGeneration
+        pendingPageSwitchCid = page.cid
         playbackCoordinator.dismissResumeSuggestion()
         subtitleLoadToken += 1
         val subtitleClearedState = clearTransientPlaybackPreviewData(clearSubtitleFields(current))
@@ -7203,13 +7254,12 @@ class VideoPlaybackViewModel : ViewModel() {
             flushPlaybackHeartbeatSnapshot(reason = "switch_page")
             playbackUseCase.savePosition(currentBvid, previousCid)
         }
-        currentCid = page.cid
         _uiState.value = subtitleClearedState.copy(
             isQualitySwitching = true,
             pendingPlaybackTransitionPositionMs = 0L
         )
         
-        viewModelScope.launch {
+        pageSwitchJob = viewModelScope.launch {
             try {
                 val playUrlData = VideoRepository.getPlayUrlData(currentBvid, page.cid, current.currentQuality)
                 if (playUrlData != null) {
@@ -7258,6 +7308,7 @@ class VideoPlaybackViewModel : ViewModel() {
                     )
                     
                     if (selection != null) {
+                        if (switchGeneration != pageSwitchGeneration) return@launch
                         val cdnSelection = resolvePlaybackCdnCandidateSelection(
                             videoUrl = selection.videoUrl,
                             audioUrl = selection.audioUrl,
@@ -7266,6 +7317,9 @@ class VideoPlaybackViewModel : ViewModel() {
                             cachedDashAudios = selection.cachedDashAudios,
                             adaptiveDashSource = selection.adaptiveDashSource
                         )
+                        // Commit the media identity immediately before replacing the player source.
+                        // The UI cid change then starts a danmaku request for exactly this source.
+                        currentCid = page.cid
                         playResolvedPlayback(
                             videoUrl = cdnSelection.playUrl,
                             audioUrl = cdnSelection.audioUrl,
@@ -7307,18 +7361,26 @@ class VideoPlaybackViewModel : ViewModel() {
                         return@launch
                     }
                 }
-                currentCid = previousCid
+                if (switchGeneration != pageSwitchGeneration) return@launch
                 _uiState.value = current.copy(
                     isQualitySwitching = false,
                     pendingPlaybackTransitionPositionMs = null
                 )
                 toast("\u5206P\u5207\u6362\u5931\u8d25")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                currentCid = previousCid
+                if (switchGeneration != pageSwitchGeneration) return@launch
                 _uiState.value = current.copy(
                     isQualitySwitching = false,
                     pendingPlaybackTransitionPositionMs = null
                 )
+                toast("\u5206P\u5207\u6362\u5931\u8d25")
+            } finally {
+                if (switchGeneration == pageSwitchGeneration) {
+                    pendingPageSwitchCid = null
+                    pageSwitchJob = null
+                }
             }
         }
     }
@@ -7908,6 +7970,10 @@ class VideoPlaybackViewModel : ViewModel() {
 
     fun cancelSponsorContribution() {
         sponsorContributionRequest = null
+        // REVIEW/SUCCESS are intentionally ignored by the availability refresher.
+        // Reset the dialog phase first so both the “完成” button and outside dismiss
+        // can close it, then restore the contribution marker when it is still available.
+        _sponsorContributionUiState.value = SponsorContributionUiState()
         refreshSponsorContributionAvailability()
     }
 
@@ -8130,11 +8196,12 @@ class VideoPlaybackViewModel : ViewModel() {
             .firstOrNull()
         val cdnRewrite = cdnPlugin?.rewritePlaybackCandidates(rawVideoUrls, rawAudioUrls)
 
-        val allVideoUrls = cdnRewrite?.videoUrls ?: rawVideoUrls
-        val allAudioUrls = cdnRewrite?.audioUrls ?: buildPlaybackAudioUrlCandidates(
-            audioUrl = audioUrl,
-            cachedDashAudios = cachedDashAudios
-        ).let { urls -> List(allVideoUrls.size) { index -> urls.getOrNull(index).orEmpty() } }
+        val preferredCandidates = applyPlaybackCdnPreference(
+            candidates = cdnRewrite?.candidates ?: originalCandidates,
+            preference = playbackCdnPreference.value,
+        )
+        val allVideoUrls = preferredCandidates.map { it.videoUrl }
+        val allAudioUrls = preferredCandidates.map { it.audioUrl.orEmpty() }
         val selectedVideoUrl = allVideoUrls.firstOrNull() ?: videoUrl
         val selectedAudioUrl = allAudioUrls.firstOrNull()?.takeIf { it.isNotBlank() } ?: audioUrl
         val selectedAdaptiveDashSource =
@@ -8150,13 +8217,19 @@ class VideoPlaybackViewModel : ViewModel() {
             adaptiveDashSource = selectedAdaptiveDashSource,
             allVideoUrls = allVideoUrls,
             allAudioUrls = allAudioUrls,
-            cdnCacheKeysByUrl = cdnRewrite?.cacheKeysByUrl.orEmpty(),
-            candidateSources = cdnRewrite?.sources.orEmpty(),
+            cdnCacheKeysByUrl = buildPlaybackCdnCacheKeys(preferredCandidates),
+            candidateSources = preferredCandidates.map { it.source },
             regionLabel = cdnRewrite?.regionLabel,
             lineDiagnostics = cdnPlugin?.buildPlaybackCdnDiagnostics(
                 videoUrls = allVideoUrls,
-                sources = cdnRewrite?.sources.orEmpty()
-            ).orEmpty(),
+                sources = preferredCandidates.map { it.source }
+            ).orEmpty().ifEmpty {
+                buildCdnLineDiagnostics(
+                    urls = allVideoUrls,
+                    healthByHost = emptyMap(),
+                    sources = preferredCandidates.map { it.source }
+                )
+            },
             fallbackState = buildPlaybackCdnFallbackState(
                 selectedVideoUrl = selectedVideoUrl,
                 selectedAudioUrl = selectedAudioUrl,

@@ -43,6 +43,8 @@ fun UpBadgeName(
     inlineTrailingContent: (@Composable () -> Unit)? = null,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Ellipsis,
+    metaMaxLines: Int = 1,
+    metaOverflow: TextOverflow = TextOverflow.Ellipsis,
     // 名称右侧留白：名称占满可用宽度后，省略号与后续元素之间保留的空隙。
     // 默认 0 不影响未显式传入的调用方。
     nameEndPadding: Dp = 0.dp
@@ -114,8 +116,8 @@ fun UpBadgeName(
                         text = metaText.orEmpty(),
                         style = metaStyle,
                         color = metaColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = metaMaxLines,
+                        overflow = metaOverflow
                     )
                 }
             }

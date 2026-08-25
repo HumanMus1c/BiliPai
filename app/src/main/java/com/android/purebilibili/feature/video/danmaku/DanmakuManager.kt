@@ -133,6 +133,7 @@ class DanmakuManager private constructor(
     private var totalSegmentCount: Int = 1
     private val parsedSegments = LinkedHashMap<Int, ParsedDanmaku>()
     private var activeSegmentIndices: List<Int> = emptyList()
+    private var pendingSegmentIndices: List<Int> = emptyList()
     private var specialDanmaku: ParsedDanmaku = ParsedDanmaku(emptyList(), emptyList())
     private var localSegmentPaths: List<String> = emptyList()
     private var isLocalSegmentSession: Boolean = false
@@ -1315,6 +1316,7 @@ class DanmakuManager private constructor(
                             DanmakuSyncAction.None,
                             DanmakuSyncAction.PauseOnly -> Unit
                         }
+                        requestSegmentWindow(playerPos, "playback_progress")
                         requestWebMaskWindow(playerPos)
                         Log.d(
                             TAG,
@@ -1644,6 +1646,7 @@ class DanmakuManager private constructor(
         sourceCommandDanmakuList = emptyList()
         parsedSegments.clear()
         activeSegmentIndices = emptyList()
+        pendingSegmentIndices = emptyList()
         specialDanmaku = ParsedDanmaku(emptyList(), emptyList())
         localSegmentPaths = emptyList()
         isLocalSegmentSession = false
@@ -1871,10 +1874,20 @@ class DanmakuManager private constructor(
     ) && requestWindowGeneration == windowGeneration
 
     private fun requestSegmentWindow(positionMs: Long, reason: String) {
-        if (cachedCid <= 0L || !shouldReplaceDanmakuWindow(activeSegmentIndices, positionMs, totalSegmentCount)) {
+        if (
+            cachedCid <= 0L ||
+            !shouldRequestDanmakuWindow(
+                activeSegments = activeSegmentIndices,
+                pendingSegments = pendingSegmentIndices,
+                requestInFlight = windowLoadJob?.isActive == true,
+                positionMs = positionMs,
+                totalSegments = totalSegmentCount
+            )
+        ) {
             return
         }
         windowLoadJob?.cancel()
+        pendingSegmentIndices = segmentWindowForPosition(positionMs, totalSegmentCount)
         val requestCid = cachedCid
         val requestGeneration = loadGeneration
         val requestWindowGeneration = ++windowGeneration
@@ -1899,6 +1912,10 @@ class DanmakuManager private constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to replace danmaku segment window", e)
+            } finally {
+                if (requestWindowGeneration == windowGeneration) {
+                    pendingSegmentIndices = emptyList()
+                }
             }
         }
     }
@@ -1982,6 +1999,7 @@ class DanmakuManager private constructor(
         _commandDanmakuFlow.value = emptyList()
         parsedSegments.clear()
         activeSegmentIndices = emptyList()
+        pendingSegmentIndices = emptyList()
         specialDanmaku = ParsedDanmaku(emptyList(), emptyList())
         controller?.stop()
 
@@ -2080,6 +2098,7 @@ class DanmakuManager private constructor(
         cachedDurationMs = 0L
         parsedSegments.clear()
         activeSegmentIndices = emptyList()
+        pendingSegmentIndices = emptyList()
         specialDanmaku = ParsedDanmaku(emptyList(), emptyList())
         localSegmentPaths = emptyList()
         isLocalSegmentSession = false
@@ -2423,6 +2442,7 @@ class DanmakuManager private constructor(
         cachedDurationMs = 0L
         parsedSegments.clear()
         activeSegmentIndices = emptyList()
+        pendingSegmentIndices = emptyList()
         specialDanmaku = ParsedDanmaku(emptyList(), emptyList())
         localSegmentPaths = emptyList()
         isLocalSegmentSession = false

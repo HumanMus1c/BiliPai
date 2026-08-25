@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -95,16 +93,19 @@ internal fun HistoryPersonalCard(
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val speedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val sharedElementReady = transitionEnabled &&
         video.bvid.isNotBlank() &&
         sourceRoute != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
-    val motionSpec = remember(sourceRoute, transitionEnabled, speedSettings) {
+    val motionSpec = remember(sourceRoute, transitionEnabled, speedSettings, transitionAdaptiveInfo) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = transitionEnabled,
             speedSettings = speedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val useSharedBounds = shouldUseVideoCardShellSharedBounds(
@@ -187,8 +188,7 @@ internal fun HistoryPersonalCard(
                 text = video.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
             )
         },
         overlineContent = {
@@ -206,8 +206,7 @@ internal fun HistoryPersonalCard(
                     text = owner,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
                 FormatUtils.formatPublishTime(video.view_at).takeIf { it.isNotBlank() }?.let { viewedAt ->
                     AppText(
@@ -258,7 +257,6 @@ internal fun HistoryPersonalCard(
                 Box {
                     AppIconButton(
                         onClick = { menuExpanded = true },
-                        modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
                     ) {
                         AppIcon(Icons.Filled.MoreVert, contentDescription = "历史记录操作")
                     }

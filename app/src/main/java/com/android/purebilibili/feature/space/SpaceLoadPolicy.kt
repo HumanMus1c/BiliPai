@@ -1,6 +1,9 @@
 package com.android.purebilibili.feature.space
 
+import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
+import com.android.purebilibili.core.util.WindowWidthSizeClass
+import com.android.purebilibili.core.util.resolveWindowWidthSizeClass
 import com.android.purebilibili.feature.home.resolveHomeFeedGridColumns
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.SeasonArchiveItem
@@ -281,14 +284,16 @@ internal fun resolveSpaceContentGridColumnCount(
     widthDp: Int,
     fixedColumnCount: Int = 0,
     cardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
-    contentMaxWidthDp: Int = SPACE_CONTENT_MAX_WIDTH_DP
+    contentMaxWidthDp: Int = SPACE_CONTENT_MAX_WIDTH_DP,
+    widthSizeClass: WindowWidthSizeClass = resolveWindowWidthSizeClass(widthDp.dp)
 ): Int {
     val contentWidthDp = minOf(widthDp, contentMaxWidthDp)
     return resolveHomeFeedGridColumns(
         contentWidthDp = contentWidthDp,
         displayMode = 0,
         fixedColumnCount = fixedColumnCount,
-        cardWidthPreset = cardWidthPreset
+        cardWidthPreset = cardWidthPreset,
+        widthSizeClass = widthSizeClass
     )
 }
 
@@ -575,6 +580,19 @@ internal fun mergeSpaceVideoPages(
     addAll(existing)
     addAll(incoming)
     return merged
+}
+
+internal fun shouldContinueSpaceBangumiPagination(
+    previousItemCount: Int,
+    mergedItemCount: Int,
+    incomingItemCount: Int,
+    responsePage: Int,
+    pageSize: Int,
+    total: Int,
+): Boolean {
+    if (incomingItemCount <= 0 || mergedItemCount <= previousItemCount) return false
+    if (mergedItemCount >= total.coerceAtLeast(0)) return false
+    return responsePage.coerceAtLeast(1) * pageSize.coerceAtLeast(1) < total
 }
 
 private fun mapSpaceAggregateVideoItem(item: SpaceAggregateArchiveItem): SpaceVideoItem {

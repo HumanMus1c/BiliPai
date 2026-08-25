@@ -7,6 +7,8 @@ internal const val HOME_HERO_CAROUSEL_TABLET_ASPECT_RATIO = 2f
 internal const val HOME_HERO_CAROUSEL_WIDE_ASPECT_RATIO = 21f / 9f
 internal const val HOME_HERO_CAROUSEL_TABLET_BREAKPOINT_DP = 600f
 internal const val HOME_HERO_CAROUSEL_WIDE_BREAKPOINT_DP = 840f
+internal const val HOME_HERO_CAROUSEL_TABLET_MAX_WIDTH_DP = 760f
+internal const val HOME_HERO_CAROUSEL_WIDE_MAX_WIDTH_DP = 980f
 private const val HOME_HERO_CAROUSEL_TOP_GAP_REDUCTION_DP = 12f
 
 internal data class HomeHeroCarouselCardTransform(
@@ -84,7 +86,14 @@ internal fun resolveHomeHeroCarouselAspectRatio(containerWidthDp: Float): Float 
 }
 
 internal fun resolveHomeHeroCarouselWidthDp(containerWidthDp: Float): Float {
-    return containerWidthDp.coerceAtLeast(0f)
+    val availableWidthDp = containerWidthDp.coerceAtLeast(0f)
+    return when {
+        availableWidthDp >= HOME_HERO_CAROUSEL_WIDE_BREAKPOINT_DP ->
+            availableWidthDp.coerceAtMost(HOME_HERO_CAROUSEL_WIDE_MAX_WIDTH_DP)
+        availableWidthDp >= HOME_HERO_CAROUSEL_TABLET_BREAKPOINT_DP ->
+            availableWidthDp.coerceAtMost(HOME_HERO_CAROUSEL_TABLET_MAX_WIDTH_DP)
+        else -> availableWidthDp
+    }
 }
 
 internal fun resolveHomeHeroCarouselCardTransform(

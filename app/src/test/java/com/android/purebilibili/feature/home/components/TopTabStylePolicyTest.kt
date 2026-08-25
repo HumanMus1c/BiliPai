@@ -180,8 +180,8 @@ class TopTabStylePolicyTest {
         val iconAndText = topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX, labelMode = 0)
 
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, iconAndText.presentation)
-        assertEquals(36.dp, iconAndText.tabRowHeightDocked)
-        assertEquals(40.dp, iconAndText.tabRowHeightFloating)
+        assertEquals(56.dp, iconAndText.tabRowHeightDocked)
+        assertEquals(60.dp, iconAndText.tabRowHeightFloating)
         assertEquals(30.dp, iconAndText.md3VisualSpec.selectedCapsuleHeight)
         assertEquals(44.dp, iconAndText.actionButtonSizeDocked)
     }
@@ -272,12 +272,12 @@ class TopTabStylePolicyTest {
     fun `ios top tab tuning uses the compact shared top tab footprint`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MOVING_CAPSULE)
 
-        assertEquals(35f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
         assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
         assertEquals(1.18f, tuning.nonFloatingIndicatorWidthRatio, 0.001f)
         assertEquals(84f, tuning.nonFloatingIndicatorMinWidthDp, 0.001f)
         assertEquals(0f, tuning.nonFloatingIndicatorHorizontalInsetDp, 0.001f)
-        assertEquals(35f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
         assertEquals(20f, tuning.tabTextLineHeightSp, 0.001f)
         assertEquals(30f, tuning.tabContentMinHeightDp, 0.001f)
@@ -289,9 +289,9 @@ class TopTabStylePolicyTest {
     fun `md3 top tab tuning uses the compact shared top tab shape`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MATERIAL_UNDERLINE)
 
-        assertEquals(35f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
         assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
-        assertEquals(35f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
     }
 
@@ -390,7 +390,16 @@ class TopTabStylePolicyTest {
 
         assertTrue(source.contains("val topTabVisibleContentZIndex = if (useTopTabGlassColorPath) 0f else 2f"))
         assertTrue(visibleTabsBlock.contains(".zIndex(topTabVisibleContentZIndex)"))
+        assertTrue(visibleTabsBlock.contains("resolveTopTabVisibleContentAlpha("))
         assertTrue(indicatorLayerBlock.contains(".zIndex(1f)"))
+    }
+
+    @Test
+    fun `liquid top tab visible glyph fades as export coverage increases`() {
+        assertEquals(1f, resolveTopTabVisibleContentAlpha(false, 1f), 0.001f)
+        assertEquals(1f, resolveTopTabVisibleContentAlpha(true, 0f), 0.001f)
+        assertEquals(0.5f, resolveTopTabVisibleContentAlpha(true, 0.5f), 0.001f)
+        assertEquals(0f, resolveTopTabVisibleContentAlpha(true, 1f), 0.001f)
     }
 
     @Test
@@ -503,7 +512,7 @@ class TopTabStylePolicyTest {
             labelMode = 0
         )
 
-        assertEquals(36.dp, spec.rowHeight)
+        assertEquals(56.dp, spec.rowHeight)
         assertEquals(10.dp, spec.itemHorizontalPadding)
         assertEquals(6.dp, spec.iconLabelSpacing)
         assertEquals(18.dp, spec.iconSize)
@@ -528,8 +537,8 @@ class TopTabStylePolicyTest {
 
 
     @Test
-    fun `android native miuix top tabs skip outer chrome surface`() {
-        assertFalse(
+    fun `top tabs only draw outer dock for liquid glass`() {
+        assertTrue(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.TONAL_CAPSULE,
                 materialMode = TopTabMaterialMode.LIQUID_GLASS
@@ -553,15 +562,13 @@ class TopTabStylePolicyTest {
                 materialMode = TopTabMaterialMode.LIQUID_GLASS
             )
         )
-        // md3 下划线 tab 也统一绘制长胶囊背景（普通/模糊模式同样绘制），
-        // 避免滚动时 tab 文字直接浮现在信息流上方。
-        assertTrue(
+        assertFalse(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.PLAIN
             )
         )
-        assertTrue(
+        assertFalse(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.BLUR
@@ -657,15 +664,14 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `md3 top tabs keep outer dock in every material mode`() {
-        // md3 下划线 tab 统一绘制长胶囊背景（BLUR/PLAIN/LIQUID_GLASS 均绘制）。
-        assertTrue(
+    fun `md3 top tabs only keep outer dock in liquid glass mode`() {
+        assertFalse(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.BLUR
             )
         )
-        assertTrue(
+        assertFalse(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.PLAIN

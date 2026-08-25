@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
+import java.util.concurrent.atomic.AtomicLong
 
 private const val QUICK_RETURN_THRESHOLD_MS = 500L
 private const val HOME_CATEGORY_SOURCE_PREFIX = "home?category="
@@ -25,6 +26,7 @@ internal fun shouldUseQuickReturnSharedTransitionPolicy(
  * 将缩放动画指向正确的卡片位置
  */
 object CardPositionManager {
+    private val videoCardSourceInstanceSequence = AtomicLong(0L)
     
     /**
      * 最后点击的卡片边界（在 Root 坐标系中）
@@ -44,6 +46,12 @@ object CardPositionManager {
 
     var lastClickedVideoSourceKey: String? = null
         private set
+
+    internal var lastClickedVideoSourceInstanceId: Long? = null
+        private set
+
+    internal fun newVideoCardSourceInstanceId(): Long =
+        videoCardSourceInstanceSequence.incrementAndGet()
 
     var lastClickedVideoSourceCornerDp: Int? = null
         private set
@@ -94,6 +102,7 @@ object CardPositionManager {
         bottomBarHeightDp: Float = 80f  //  底部导航栏默认高度
     ) {
         lastClickedVideoSourceKey = null
+        lastClickedVideoSourceInstanceId = null
         lastClickedVideoSourceCornerDp = null
         lastClickedCoverBounds = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
@@ -135,6 +144,7 @@ object CardPositionManager {
         coverBounds: Rect? = null,
         sourceLayout: VideoCardSourceLayout? = null,
         sourceChromeSnapshot: VideoCardSourceChromeSnapshot? = null,
+        sourceInstanceId: Long? = null,
     ) {
         recordCardPosition(
             bounds = bounds,
@@ -151,6 +161,7 @@ object CardPositionManager {
         } else {
             null
         }
+        lastClickedVideoSourceInstanceId = sourceInstanceId
         lastClickedVideoSourceCornerDp = sourceCornerDp?.coerceAtLeast(0)
         lastClickedCoverBounds = coverBounds
             ?.takeIf { it.width > 1f && it.height > 1f }
@@ -170,6 +181,7 @@ object CardPositionManager {
         lastClickedCoverBounds = null
         lastClickedCardCenter = null
         lastClickedVideoSourceKey = null
+        lastClickedVideoSourceInstanceId = null
         lastClickedVideoSourceCornerDp = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null

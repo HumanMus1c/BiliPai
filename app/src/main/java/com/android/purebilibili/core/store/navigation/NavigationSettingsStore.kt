@@ -60,6 +60,7 @@ internal fun parseBottomBarItemLabels(raw: String): Map<String, String> {
 
 object NavigationSettingsStore {
     private val keyTabletUseSidebar = booleanPreferencesKey("tablet_use_sidebar")
+    private val keySidebarExpanded = booleanPreferencesKey("sidebar_expanded")
     private val keySidebarAccountSwitcherEnabled =
         booleanPreferencesKey("sidebar_account_switcher_enabled")
     private val keyPredictiveBackEnabled = booleanPreferencesKey("predictive_back_enabled")
@@ -67,6 +68,8 @@ object NavigationSettingsStore {
     private val keyPredictiveBackExitDirection = stringPreferencesKey("predictive_back_exit_direction")
     private val keyMiuixTransitionBlurEnabled =
         booleanPreferencesKey("miuix_transition_blur_enabled")
+    private val keyVideoSharedReturnGestureFollowEnabled =
+        booleanPreferencesKey("video_shared_return_gesture_follow_enabled")
     private val keyFullScreenSwipeBackEnabled =
         booleanPreferencesKey("full_screen_swipe_back_enabled")
     private val keyBottomBarOrder = stringPreferencesKey("bottom_bar_order")
@@ -167,6 +170,12 @@ object NavigationSettingsStore {
         }
     }
 
+    suspend fun setSidebarExpanded(context: Context, expanded: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[keySidebarExpanded] = expanded
+        }
+    }
+
     suspend fun setSidebarAccountSwitcherEnabled(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[keySidebarAccountSwitcherEnabled] = enabled
@@ -194,6 +203,12 @@ object NavigationSettingsStore {
     suspend fun setMiuixTransitionBlurEnabled(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[keyMiuixTransitionBlurEnabled] = enabled
+        }
+    }
+
+    suspend fun setVideoSharedReturnGestureFollowEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[keyVideoSharedReturnGestureFollowEnabled] = enabled
         }
     }
 

@@ -25,10 +25,10 @@ class LiveDanmakuBitmapLifecyclePolicyTest {
     }
 
     @Test
-    fun `trimmed live danmaku bitmaps can be manually recycled`() {
-        assertTrue(
+    fun `timeline discarded live danmaku bitmaps remain renderer owned`() {
+        assertFalse(
             shouldManuallyRecycleLiveDanmakuBitmap(
-                ownership = LiveDanmakuBitmapOwnership.RELEASED_FROM_ENGINE
+                ownership = LiveDanmakuBitmapOwnership.TIMELINE_DISCARDED
             )
         )
     }

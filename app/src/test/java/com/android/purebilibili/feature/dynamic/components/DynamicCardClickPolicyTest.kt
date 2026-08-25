@@ -100,6 +100,31 @@ class DynamicCardClickPolicyTest {
     }
 
     @Test
+    fun resolveDynamicCardPrimaryAction_usesLegacyArticleJumpUrlWhenPayloadIdIsMissing() {
+        val item = DynamicItem(
+            id_str = "dynamic-article",
+            type = "DYNAMIC_TYPE_ARTICLE",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        type = "MAJOR_TYPE_ARTICLE",
+                        article = ArticleMajor(
+                            id = 0L,
+                            title = "旧版专栏",
+                            jump_url = "https://www.bilibili.com/read/cv123456",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            DynamicCardPrimaryAction.OpenArticle(123456L, "旧版专栏"),
+            resolveDynamicCardPrimaryAction(item),
+        )
+    }
+
+    @Test
     fun resolveDynamicCardPrimaryAction_returnsNoneWhenNoVideoAndNoId() {
         val item = DynamicItem(id_str = "  ")
 

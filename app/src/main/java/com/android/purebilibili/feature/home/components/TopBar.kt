@@ -7,6 +7,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.feature.home.HomeVisualPalette
@@ -78,6 +79,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -286,6 +289,24 @@ internal fun resolveTopTabDockIndicatorOffsetPx(
     slotTranslationPx: Float,
     horizontalGapPx: Float
 ): Float = slotTranslationPx + horizontalGapPx.coerceAtLeast(0f)
+
+internal fun resolveTopTabEdgeAwarePanelOffsetPx(
+    position: Float,
+    lastIndex: Int,
+    panelOffsetPx: Float,
+): Float {
+    if (lastIndex <= 0 || panelOffsetPx == 0f) return 0f
+    val clampedPosition = position.coerceIn(0f, lastIndex.toFloat())
+    val outwardDistance = if (panelOffsetPx > 0f) {
+        lastIndex - clampedPosition
+    } else {
+        clampedPosition
+    }
+    // Fade only the outward inertia during the final quarter-slot. At the hard edge the
+    // indicator stays inside the dock, avoiding a second outline from the shell end-cap.
+    val edgeFactor = (outwardDistance / 0.25f).coerceIn(0f, 1f)
+    return panelOffsetPx * edgeFactor
+}
 
 internal fun resolveTopTabVisibleSlots(
     categoryCount: Int,
@@ -592,6 +613,8 @@ internal fun resolveMd3TopTabRowVerticalTranslationDp(
 
 internal fun resolveMd3TopTabIndicatorBottomPadding(): Dp = AppSpacingTokens.Small
 
+internal fun resolveIconOnlyTopTabIndicatorWidth(): Dp = AppSpacingTokens.ExtraLarge
+
 internal fun resolveHomeSkinTopTabActionButtonSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium
 
 internal fun resolveHomeSkinTopTabActionIconSize(): Dp = AppSpacingTokens.ExtraLarge
@@ -622,19 +645,18 @@ internal fun resolveTopTabSkinStickerItemVerticalPadding(showText: Boolean): Dp 
     if (showText) AppSpacingTokens.Micro else AppSpacingTokens.ExtraSmall
 
 /**
- * iOS top-tab track must match [resolveHomeTopPresetStyle] chrome height (36/40).
- * Taller content rows get clipped by HomeTopTabChrome and collapse labels to "...".
+ * Keep this in sync with [resolveHomeTopPresetStyle]. Icon+text uses a taller track
+ * because its content is stacked vertically like the bottom navigation bar.
  */
 internal fun resolveIosTopTabRowHeight(
     isFloatingStyle: Boolean,
     labelMode: Int = SettingsManager.TopTabLabelMode.TEXT_ONLY
 ): Dp {
-    @Suppress("UNUSED_PARAMETER")
-    val ignoredLabelMode = labelMode
+    val iconAndText = normalizeTopTabLabelMode(labelMode) == 0
     return if (isFloatingStyle) {
-        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+        if (iconAndText) 60.dp else AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
     } else {
-        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
+        if (iconAndText) 56.dp else AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
     }
 }
 
@@ -784,8 +806,7 @@ fun FluidHomeTopBar(
                 
                 //  右侧：设置按钮
                 AppIconButton(
-                    onClick = onSettingsClick,
-                    modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
+                    onClick = onSettingsClick
                 ) {
                     AppIcon(
                         Icons.Outlined.Settings,
@@ -1152,7 +1173,34 @@ private fun LightweightHomeTopTabs(
                 IOS_TOP_TAB_CONTENT_PADDING_DP.dp
             else -> md3ContentPadding
         }
-        val md3IndicatorWidth = if (skinPlainStyle) AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro else AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall
+        val textMeasurer = rememberTextMeasurer()
+        val md3ContentWidths = remember(categories, normalizedLabelMode, density, textMeasurer) {
+            categories.map { category ->
+                val textWidth = if (showText) {
+                    with(density) {
+                        textMeasurer.measure(
+                            text = category,
+                            style = TextStyle(
+                                fontSize = resolveTopTabLabelTextSizeSp(normalizedLabelMode).sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            maxLines = 1
+                        ).size.width.toDp()
+                    }
+                } else {
+                    0.dp
+                }
+                val iconWidth = if (showIcon) {
+                    resolveTopTabIconSizeDp(normalizedLabelMode).dp
+                } else {
+                    0.dp
+                }
+                maxOf(textWidth, iconWidth) + AppSpacingTokens.ExtraSmall * 2
+            }
+        }
+        val md3IndicatorWidth = md3ContentWidths.getOrElse(selectedIndex) {
+            AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall
+        }
         val dockIndicatorHorizontalGap = resolveTopTabDockIndicatorHorizontalGapDp(
             hasOuterChromeSurface = hasOuterChromeSurface,
             isLiquidGlassReuseEnabled = isLiquidGlassEnabled
@@ -1273,11 +1321,16 @@ private fun LightweightHomeTopTabs(
             isDragging = indicatorIsInteracting,
             motionSpec = topTabMotionSpec
         )
-        val topTabPanelOffsetPx = resolveTopTabMatchedPanelOffsetPx(
+        val rawTopTabPanelOffsetPx = resolveTopTabMatchedPanelOffsetPx(
             dragPanelOffsetPx = 0f,
             pagerPanelOffsetFraction = topTabRefractionMotionProfile.indicatorPanelOffsetFraction,
             maxOffsetPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() },
             dragActive = false
+        )
+        val topTabPanelOffsetPx = resolveTopTabEdgeAwarePanelOffsetPx(
+            position = topTabIndicatorPosition,
+            lastIndex = categories.lastIndex,
+            panelOffsetPx = rawTopTabPanelOffsetPx,
         )
         // Pager swipes have no direct press event. Reuse the bottom-bar drag-scale animation
         // as their effective press so the indicator surface fades and lens ramps identically.
@@ -1334,16 +1387,27 @@ private fun LightweightHomeTopTabs(
         val shouldUseLiquidGlassIndicator = isLiquidGlassEnabled &&
             !skinPlainStyle &&
             !hasSkinStickerIcons
-        // 移动胶囊本体与玻璃状态解耦：顶部只保留 BiliPai 指示器；
-        // 液态玻璃只切换材质，关闭时回退半透明 wash。
+        val homeSelectionIndicatorStyle = resolveHomeSelectionIndicatorStyle(
+            uiStyle = LocalAppUiStyle.current,
+            liquidGlassEnabled = isLiquidGlassEnabled,
+        )
+        val shouldUseHomeCapsule =
+            homeSelectionIndicatorStyle == HomeSelectionIndicatorStyle.CAPSULE
+        // 玻璃开启或 Miuix 主题使用胶囊；仅 Material3 的非玻璃路径使用短下划线。
         val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
             !skinPlainStyle &&
             !hasSkinStickerIcons &&
+            shouldUseHomeCapsule &&
             !hasOuterChromeSurface
         val shouldUseMd3DockBackedCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
             !skinPlainStyle &&
             !hasSkinStickerIcons &&
+            shouldUseHomeCapsule &&
             hasOuterChromeSurface
+        val shouldUseMd3NativeUnderline = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
+            !hasSkinStickerIcons &&
+            !shouldUseMd3DockBackedCapsule &&
+            !shouldUseMd3LiquidCapsule
         val shouldPrimeTopTabLiquidGlassCapture =
             isLiquidGlassEnabled &&
                 !skinPlainStyle &&
@@ -1624,7 +1688,12 @@ private fun LightweightHomeTopTabs(
                             },
                             adaptiveContentColorOverride = adaptiveTopTabContentColor
                                 .takeIf { adaptiveReadabilityEnabled },
-                            modifier = measuredItemModifier,
+                            modifier = measuredItemModifier.graphicsLayer {
+                                alpha = resolveTopTabVisibleContentAlpha(
+                                    useGlassColorPath = useTopTabGlassColorPath,
+                                    selectionFraction = selectionFraction,
+                                )
+                            },
                             onClick = {
                                 performHomeTopBarTap(haptic = haptic, onClick = {
                                     when (resolveTopTabClickAction(index, selectedIndex)) {
@@ -1795,32 +1864,48 @@ private fun LightweightHomeTopTabs(
                 }
                 } // stable export + visible content with indicator-only motion
 
-                // 皮肤自带顶栏画面时只绘制短下划线，避免选中胶囊遮挡原始美术；
-                // 常规主题仍由移动胶囊负责，玻璃只切换胶囊材质。
-                if (effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE && !hasSkinStickerIcons && skinPlainStyle) {
+                // 非玻璃 MD3 与皮肤顶栏使用单层短指示线，始终位于内容底部居中。
+                if (shouldUseMd3NativeUnderline) {
                     val indicatorColor = if (skinPlainContentColor != null) {
                         resolveHomeSkinTopTabIndicatorColor(skinPlainContentColor)
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
-                    if (!shouldUseMd3DockBackedCapsule && !shouldUseMd3LiquidCapsule) {
-                        val skinUnderlineTranslationXPx = md3IndicatorTranslationXPx +
-                            with(density) {
-                                ((md3LiquidCapsuleWidth - md3IndicatorWidth) / 2).toPx()
-                            }
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .graphicsLayer {
-                                    translationX = skinUnderlineTranslationXPx
-                                }
-                                .offset(y = -AppSpacingTokens.ExtraSmall)
-                                .width(md3IndicatorWidth)
-                                .height(AppSpacingTokens.Micro * 1.5f)
-                                .clip(RoundedCornerShape(percent = 50))
-                                .background(indicatorColor)
+                    val iconOnlyIndicator = showIcon && !showText
+                    val nativeIndicatorWidth = if (iconOnlyIndicator) {
+                        resolveIconOnlyTopTabIndicatorWidth()
+                    } else {
+                        val clampedPosition = topTabIndicatorPosition
+                            .coerceIn(0f, categories.lastIndex.toFloat())
+                        val startIndex = clampedPosition.toInt()
+                        val endIndex = (startIndex + 1).coerceAtMost(categories.lastIndex)
+                        lerp(
+                            md3ContentWidths.getOrElse(startIndex) { md3IndicatorWidth }.value,
+                            md3ContentWidths.getOrElse(endIndex) { md3IndicatorWidth }.value,
+                            clampedPosition - startIndex
+                        ).dp
+                    }
+                    val nativeUnderlineBounds = with(density) {
+                        resolveMd3TopTabUnderlineBounds(
+                            absolutePagerPosition = topTabIndicatorPosition,
+                            itemWidthPx = itemWidth.toPx(),
+                            rowScrollOffsetPx = rowScrollOffsetPx,
+                            indicatorWidthPx = nativeIndicatorWidth.toPx(),
+                            contentPaddingPx = md3ContentPadding.toPx(),
                         )
                     }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .graphicsLayer {
+                                translationX = nativeUnderlineBounds.translationXPx
+                            }
+                            .offset(y = -AppSpacingTokens.ExtraSmall)
+                            .width(with(density) { nativeUnderlineBounds.widthPx.toDp() })
+                            .height(AppSpacingTokens.Micro * 1.5f)
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(indicatorColor)
+                    )
                 }
             }
 
@@ -1883,6 +1968,15 @@ internal enum class TopTabLiquidColorMode {
     GLASS_VISIBLE,
     /** Hidden export layer monochrome glyphs before theme ColorFilter.tint. */
     GLASS_EXPORT
+}
+
+internal fun resolveTopTabVisibleContentAlpha(
+    useGlassColorPath: Boolean,
+    selectionFraction: Float,
+): Float = if (useGlassColorPath) {
+    1f - selectionFraction.coerceIn(0f, 1f)
+} else {
+    1f
 }
 
 @Composable
@@ -1999,12 +2093,12 @@ private fun LightweightTopTabItem(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .wrapContentWidth()
                 .padding(horizontal = itemContentHorizontalPadding),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             if (showIcon) {
                 if (!skinIconPath.isNullOrBlank()) {
@@ -2027,7 +2121,7 @@ private fun LightweightTopTabItem(
                 }
             }
             if (showIcon && showText) {
-                Spacer(modifier = Modifier.width(resolveTopTabIconTextSpacingDp(0).dp))
+                Spacer(modifier = Modifier.height(resolveTopTabIconTextSpacingDp(0).dp))
             }
             if (showText) {
                 val labelMode = when {
@@ -2563,9 +2657,9 @@ fun CategoryTabItem(
          contentAlignment = Alignment.Center
      ) {
          if (showIcon && showText) {
-             Row(
-                 horizontalArrangement = Arrangement.Center,
-                 verticalAlignment = Alignment.CenterVertically,
+             Column(
+                 horizontalAlignment = Alignment.CenterHorizontally,
+                 verticalArrangement = Arrangement.Center,
                  modifier = Modifier.graphicsLayer {
                      scaleX = targetScale
                      scaleY = targetScale
@@ -2579,7 +2673,7 @@ fun CategoryTabItem(
                      tint = contentColor,
                      modifier = Modifier.size(iconSize)
                  )
-                 Spacer(modifier = Modifier.width(iconTextSpacing))
+                 Spacer(modifier = Modifier.height(iconTextSpacing))
                  AppText(
                      text = category,
                      color = contentColor,

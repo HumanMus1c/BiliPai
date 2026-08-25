@@ -169,6 +169,11 @@ internal fun shouldReuseVideoContentTabBarLiquidGlassDock(
     hasBackdrop: Boolean,
 ): Boolean = androidNativeLiquidGlassEnabled && hasBackdrop
 
+internal fun resolveVideoContentTabBarStartPaddingDp(
+    reusesLiquidGlassDock: Boolean,
+    containerHorizontalPaddingDp: Int,
+): Int = if (reusesLiquidGlassDock) 0 else containerHorizontalPaddingDp
+
 internal fun resolveVideoContentTabBarLiquidChromeSpec(
     androidNativeLiquidGlassEnabled: Boolean,
     hasBackdrop: Boolean,
@@ -207,7 +212,7 @@ internal fun resolveVideoContentTabBarLayoutSpec(widthDp: Int): VideoContentTabB
             unselectedTabFontSizeSp = 15,
             indicatorWidthDp = 28,
             segmentedControlHeightDp = 40,
-            segmentedControlIndicatorHeightDp = 35
+            segmentedControlIndicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp
         )
     } else {
         VideoContentTabBarLayoutSpec(
@@ -221,7 +226,7 @@ internal fun resolveVideoContentTabBarLayoutSpec(widthDp: Int): VideoContentTabB
             unselectedTabFontSizeSp = 16,
             indicatorWidthDp = 32,
             segmentedControlHeightDp = 40,
-            segmentedControlIndicatorHeightDp = 35
+            segmentedControlIndicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp
         )
     }
 }
@@ -1719,7 +1724,13 @@ private fun VideoContentTabBar(
                         Modifier.background(MaterialTheme.colorScheme.surface)
                     }
                 )
-                .padding(horizontal = layoutSpec.containerHorizontalPaddingDp.dp),
+                .padding(
+                    start = resolveVideoContentTabBarStartPaddingDp(
+                        reusesLiquidGlassDock = liquidChromeSpec.reusesLiquidGlassDock,
+                        containerHorizontalPaddingDp = layoutSpec.containerHorizontalPaddingDp,
+                    ).dp,
+                    end = layoutSpec.containerHorizontalPaddingDp.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (liquidChromeSpec.reusesLiquidGlassDock) {
                 Arrangement.spacedBy(8.dp)
@@ -1748,7 +1759,11 @@ private fun VideoContentTabBar(
             } else {
                 AppPrimaryTabRow(
                     selectedTabIndex = selectedTabIndex,
-                    modifier = Modifier.weight(layoutSpec.tabsRowWeight),
+                    modifier = Modifier.width(
+                        (resolveVideoContentTabBarDockItemWidthDp(
+                            layoutSpec.unselectedTabFontSizeSp,
+                        ) * tabs.size).dp,
+                    ),
                 ) {
                     tabs.forEachIndexed { index, label ->
                         AppTab(

@@ -84,14 +84,14 @@ fun PortraitBottomInputBar(
             horizontalArrangement = Arrangement.spacedBy(layoutPolicy.actionSpacingDp.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
+            PortraitInputIconButton(
                 icon = if (danmakuEnabled) Icons.Rounded.ChatBubble else Icons.Rounded.ChatBubbleOutline,
                 desc = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
                 layoutPolicy = layoutPolicy,
                 selected = danmakuEnabled,
                 onClick = onDanmakuToggle
             )
-            IconButton(
+            PortraitInputIconButton(
                 icon = Icons.Rounded.ScreenRotation,
                 desc = "切换横屏",
                 layoutPolicy = layoutPolicy,
@@ -102,7 +102,7 @@ fun PortraitBottomInputBar(
 }
 
 @Composable
-private fun IconButton(
+private fun PortraitInputIconButton(
     icon: ImageVector,
     desc: String,
     layoutPolicy: PortraitBottomInputBarLayoutPolicy,

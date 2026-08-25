@@ -189,9 +189,7 @@ internal fun resolveDynamicCardPrimaryAction(item: DynamicItem): DynamicCardPrim
         return DynamicCardPrimaryAction.OpenVideo(bvid)
     }
 
-    major?.article
-        ?.takeIf { it.id > 0L }
-        ?.let { article ->
+    major?.article?.let { article ->
             when (val target = BilibiliNavigationTargetParser.parse(article.jump_url)) {
                 is BilibiliNavigationTarget.Dynamic -> {
                     return DynamicCardPrimaryAction.OpenDynamicDetail(target.dynamicId)
@@ -204,10 +202,12 @@ internal fun resolveDynamicCardPrimaryAction(item: DynamicItem): DynamicCardPrim
                 }
                 else -> Unit
             }
-            return DynamicCardPrimaryAction.OpenArticle(
-                articleId = article.id,
-                title = article.title.ifBlank { article.desc }
-            )
+            if (article.id > 0L) {
+                return DynamicCardPrimaryAction.OpenArticle(
+                    articleId = article.id,
+                    title = article.title.ifBlank { article.desc }
+                )
+            }
         }
 
     major?.live_rcmd?.let { live ->

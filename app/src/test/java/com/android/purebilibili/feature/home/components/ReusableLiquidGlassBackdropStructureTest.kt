@@ -87,9 +87,9 @@ class ReusableLiquidGlassBackdropStructureTest {
         )
 
         assertTrue(source.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
-        assertTrue(source.contains("miuixBackdrop = commentChromeBackdrop"))
+        assertTrue(source.contains("backdrop = commentChromeBackdrop"))
         assertTrue(source.contains(".layerBackdrop(commentChromeBackdrop)"))
-        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(source.contains("DynamicAdaptiveSegmentedControl("))
         assertFalse(source.contains("CommentSegmentedControl("))
     }
 

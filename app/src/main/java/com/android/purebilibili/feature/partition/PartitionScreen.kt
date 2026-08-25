@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.partition
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 import android.os.Build
 import androidx.compose.animation.core.Animatable
@@ -146,6 +147,8 @@ import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry
 import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.feature.home.components.shouldShowTopTabIcon
 import com.android.purebilibili.feature.home.components.shouldShowTopTabText
+import com.android.purebilibili.feature.home.components.HomeSelectionIndicatorStyle
+import com.android.purebilibili.feature.home.components.resolveHomeSelectionIndicatorStyle
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import dev.chrisbanes.haze.HazeState
@@ -209,6 +212,9 @@ private val PartitionSideRailItemHeight = 48.dp
 private val PartitionSideRailIndicatorHeight =
     resolveMatchedLiquidIndicatorHeightDp(PartitionSideRailItemHeight.value).dp
 private val PartitionSideRailItemSpacing = 4.dp
+private val PartitionSideRailMd3UnderlineWidth = 3.dp
+private val PartitionSideRailMd3UnderlineHeight = 28.dp
+private val PartitionSideRailMd3UnderlineStartPadding = 3.dp
 private val PartitionVideoListMaxPush = 20.dp
 
 internal fun resolvePartitionBangumiType(partitionId: Int): Int? = when (partitionId) {
@@ -432,7 +438,8 @@ fun PartitionScreen(
                     scrolledContainerColor = Color.Transparent
                 ),
                 modifier = Modifier.unifiedBlur(
-                    hazeState = hazeState
+                    hazeState = hazeState,
+                    surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
                 )
             )
         }
@@ -473,7 +480,6 @@ fun PartitionContent(
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = HomeSettings())
     val topChromeIconFamily = rememberAppTopChromePolicy().effectiveIconFamily
     val liquidGlassIndicatorEnabled = rememberAppChromeLiquidGlassEnabled(
-        individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
         androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
     )
     val liquidGlassTuning = remember(
@@ -900,6 +906,41 @@ private fun PartitionSideRailMovingIndicator(
     highlightModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val selectionIndicatorStyle = resolveHomeSelectionIndicatorStyle(
+        uiStyle = LocalAppUiStyle.current,
+        liquidGlassEnabled = liquidGlassIndicatorEnabled,
+    )
+    if (selectionIndicatorStyle == HomeSelectionIndicatorStyle.MD3_UNDERLINE) {
+        SideEffect {
+            onVideoListPushChanged(0f)
+        }
+        Box(modifier = modifier.then(highlightModifier)) {
+            val indicatorTopPx = indicatorOffsetPxProvider()
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationX = with(density) { horizontalPadding.start.toPx() }
+                        translationY = indicatorTopPx
+                    }
+                    .width(indicatorWidth)
+                    .height(with(density) { itemHeightPx.toDp() })
+                    .then(interactionModifier),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = PartitionSideRailMd3UnderlineStartPadding)
+                        .width(PartitionSideRailMd3UnderlineWidth)
+                        .height(PartitionSideRailMd3UnderlineHeight)
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
+        }
+        return
+    }
+
     val shape = resolveSharedBottomBarCapsuleShape()
     val isDarkTheme = isSystemInDarkTheme()
     val motionSpec = remember { resolveSegmentedControlMotionSpec() }
@@ -933,7 +974,6 @@ private fun PartitionSideRailMovingIndicator(
     )
 
     Box(modifier = modifier.then(highlightModifier)) {
-        val density = LocalDensity.current
         val indicatorHeightPx = with(density) { indicatorHeight.toPx() }
         val centeredIndicatorOffsetPx = indicatorOffsetPxProvider() +
             ((itemHeightPx - indicatorHeightPx) / 2f).coerceAtLeast(0f)

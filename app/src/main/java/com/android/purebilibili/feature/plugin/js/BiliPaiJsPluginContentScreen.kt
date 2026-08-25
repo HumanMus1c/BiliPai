@@ -20,7 +20,8 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
@@ -202,14 +203,15 @@ private fun PluginContent(
             )
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                installed.manifest.modules.forEach { module ->
-                    AppFilterChip(
-                        selected = module == selectedModule,
-                        onClick = { onSelectModule(module) },
-                        label = { AppText(module.title) }
-                    )
-                }
+            val modules = installed.manifest.modules
+            if (modules.isNotEmpty() && selectedModule != null) {
+                AppThemeAdaptiveTabRow(
+                    options = modules.map { module -> AppSegmentOption(module, module.title) },
+                    selectedValue = selectedModule,
+                    onSelectionChange = onSelectModule,
+                    scrollable = modules.size > 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         selectedModule?.params?.takeIf { it.isNotEmpty() }?.let { params ->

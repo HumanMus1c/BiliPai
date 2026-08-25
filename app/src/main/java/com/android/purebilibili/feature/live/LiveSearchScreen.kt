@@ -31,6 +31,8 @@ import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppBackToTopButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -267,37 +269,39 @@ fun LiveSearchScreen(
                 if (!hasSubmitted) {
                     LiveSearchState("输入关键词后搜索直播间或主播")
                 } else {
-                    // BiliPai TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
-                    Row(
-                    modifier = Modifier
-                        .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = metrics.safeSpaceDp.dp),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                ) {
-                    LiveHomeSelectableChip(
-                        label = buildString {
-                            append("正在直播")
-                            if (liveResults.isNotEmpty()) {
-                                append(' ')
-                                append(liveResults.size)
-                            }
-                        },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                    )
-                    LiveHomeSelectableChip(
-                        label = buildString {
-                            append("主播")
-                            if (userResults.isNotEmpty()) {
-                                append(' ')
-                                append(userResults.size)
-                            }
-                        },
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                    )
+                    val searchTabs = remember(liveResults.size, userResults.size) {
+                        listOf(
+                            AppSegmentOption(
+                                value = 0,
+                                label = buildString {
+                                    append("正在直播")
+                                    if (liveResults.isNotEmpty()) {
+                                        append(' ')
+                                        append(liveResults.size)
+                                    }
+                                },
+                            ),
+                            AppSegmentOption(
+                                value = 1,
+                                label = buildString {
+                                    append("主播")
+                                    if (userResults.isNotEmpty()) {
+                                        append(' ')
+                                        append(userResults.size)
+                                    }
+                                },
+                            ),
+                        )
                     }
+                    AppThemeAdaptiveTabRow(
+                        options = searchTabs,
+                        selectedValue = selectedTab,
+                        onSelectionChange = { selectedTab = it },
+                        modifier = Modifier
+                            .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = metrics.safeSpaceDp.dp),
+                    )
                     when {
                     isLoading -> if (selectedTab == 0) {
                         ContentVideoGridSkeletonFixedColumns(

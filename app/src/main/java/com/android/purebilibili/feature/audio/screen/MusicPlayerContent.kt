@@ -11,12 +11,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +46,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -57,7 +60,8 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSlider
-import androidx.compose.material3.SliderDefaults
+import com.android.purebilibili.core.ui.components.AppSliderDefaults
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
@@ -83,10 +87,13 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -170,6 +177,16 @@ internal fun resolveMusicPlayerContentColor(
         onDarkBackground
     }
 }
+
+/** Bottom controls inherit the artwork palette while staying on the dark immersive floor. */
+internal fun resolveMusicImmersivePanelColor(
+    backgroundColor: Color,
+    darkOverlayFraction: Float = 0.62f,
+): Color = lerp(
+    start = backgroundColor,
+    stop = Color.Black,
+    fraction = darkOverlayFraction.coerceIn(0f, 1f),
+)
 
 /** 听视频强调色：直接使用应用主题 primary，与播放器一致。 */
 internal fun resolveMusicPlayerAccentColor(primary: Color): Color = primary
@@ -352,6 +369,7 @@ internal fun MusicPlayerContent(
                                 blurEffectsEnabled = lyricsBlurEffectsEnabled,
                                 reduceMotion = effectiveReduceMotion,
                                 glassTintColor = backgroundColor,
+                                liquidGlassTuning = liquidGlassTuning,
                                 miuixBackdrop = musicBackdrop,
                                 progressSeekRevision = progressSeekRevision,
                                 controlsVisible = lyricsControlsVisible,
@@ -442,6 +460,7 @@ internal fun MusicPlayerContent(
                     blurEffectsEnabled = lyricsBlurEffectsEnabled,
                     reduceMotion = effectiveReduceMotion,
                     glassTintColor = backgroundColor,
+                    liquidGlassTuning = liquidGlassTuning,
                     miuixBackdrop = musicBackdrop,
                     progressSeekRevision = progressSeekRevision,
                     controlsVisible = lyricsControlsVisible,
@@ -907,7 +926,7 @@ private fun MusicProgress(state: MusicPlayerUiState, onSeek: (Long) -> Unit) {
             draggedPosition = null
         },
         valueRange = 0f..duration.toFloat(),
-        colors = SliderDefaults.colors(
+        colors = AppSliderDefaults.colors(
             thumbColor = MusicAccentColor,
             activeTrackColor = MusicAccentColor,
             inactiveTrackColor = MusicContentColor.copy(alpha = 0.28f)
@@ -986,6 +1005,7 @@ private fun LyricsPage(
     blurEffectsEnabled: Boolean,
     reduceMotion: Boolean,
     glassTintColor: Color,
+    liquidGlassTuning: LiquidGlassTuning,
     miuixBackdrop: MiuixBackdrop?,
     progressSeekRevision: Int,
     controlsVisible: Boolean,
@@ -1104,6 +1124,8 @@ private fun LyricsPage(
                 state = state,
                 glassEnabled = glassEnabled,
                 miuixBackdrop = miuixBackdrop,
+                glassTintColor = glassTintColor,
+                liquidGlassTuning = liquidGlassTuning,
                 onPlayPause = onPlayPause,
                 onSeek = onSeek,
                 onPrevious = onPrevious,
@@ -1164,6 +1186,8 @@ private fun LyricsPrimaryControls(
     state: MusicPlayerUiState,
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
+    glassTintColor: Color,
+    liquidGlassTuning: LiquidGlassTuning,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onPrevious: (() -> Unit)?,
@@ -1171,26 +1195,46 @@ private fun LyricsPrimaryControls(
     onOpenSettings: () -> Unit,
     onHideControls: () -> Unit
 ) {
-    // Miuix 玻璃高光会描边；iOS 连续圆角的 Generic outline 在该路径会退化成倒角。
-    val shape = AppShapes.borderedContainer(ContainerLevel.Floating)
-    Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(AppSurfaceTokens.cardContainer(), shape)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            MusicProgress(state, onSeek)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PlaybackControls(state, onPlayPause, onPrevious, onNext, modifier = Modifier.weight(1f))
-                AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
-                    AppText("歌词设置", color = MusicContentColor, fontSize = 12.sp)
-                }
-                AppTextButton(onClick = onHideControls, modifier = Modifier.height(48.dp)) {
-                    AppText("收起", color = MusicContentColor, fontSize = 12.sp)
+    val panelColor = resolveMusicImmersivePanelColor(glassTintColor)
+    val panelContentColor = resolveMusicPlayerContentColor(
+        backgroundColor = panelColor,
+        onLightBackground = MaterialTheme.colorScheme.onSurface,
+        onDarkBackground = Color.White,
+    )
+    val panelShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    AppSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .biliPaiFloatingDockShell(
+                backdrop = miuixBackdrop,
+                containerColor = panelColor,
+                pressProgress = 0f,
+                shape = panelShape,
+                enabled = glassEnabled,
+                liquidGlassTuning = liquidGlassTuning,
+            ),
+        shape = panelShape,
+        color = Color.Transparent,
+        contentColor = panelContentColor,
+    ) {
+        CompositionLocalProvider(LocalMusicContentColor provides panelContentColor) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MusicProgress(state, onSeek)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PlaybackControls(state, onPlayPause, onPrevious, onNext, modifier = Modifier.weight(1f))
+                    AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
+                        AppText("歌词设置", color = MusicContentColor, fontSize = 12.sp)
+                    }
+                    AppTextButton(onClick = onHideControls, modifier = Modifier.height(48.dp)) {
+                        AppText("收起", color = MusicContentColor, fontSize = 12.sp)
+                    }
                 }
             }
         }
+    }
 }
 
 private fun formatLyricsOffset(offsetMs: Long): String {
@@ -1379,10 +1423,54 @@ private fun GlassIconButton(
     liquidGlassTuning: LiquidGlassTuning,
     onClick: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    val dragX = remember { Animatable(0f) }
+    val dragY = remember { Animatable(0f) }
+    val maxDragPx = with(LocalDensity.current) { 18.dp.toPx() }
+    val releaseSpec = remember {
+        spring<Float>(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        )
+    }
+
     AppIconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(48.dp)
+            .graphicsLayer {
+                val transform = resolveMusicTopControlTransform(
+                    dragX = dragX.value,
+                    dragY = dragY.value,
+                    maxDragPx = maxDragPx,
+                )
+                translationX = transform.translationX
+                translationY = transform.translationY
+                scaleX = transform.scaleX
+                scaleY = transform.scaleY
+                rotationZ = transform.rotationZ
+            }
+            .pointerInput(maxDragPx) {
+                detectDragGestures(
+                    onDragCancel = {
+                        scope.launch {
+                            launch { dragX.animateTo(0f, releaseSpec) }
+                            launch { dragY.animateTo(0f, releaseSpec) }
+                        }
+                    },
+                    onDragEnd = {
+                        scope.launch {
+                            launch { dragX.animateTo(0f, releaseSpec) }
+                            launch { dragY.animateTo(0f, releaseSpec) }
+                        }
+                    },
+                ) { change, dragAmount ->
+                    change.consume()
+                    scope.launch {
+                        dragX.snapTo((dragX.value + dragAmount.x).coerceIn(-maxDragPx, maxDragPx))
+                        dragY.snapTo((dragY.value + dragAmount.y).coerceIn(-maxDragPx, maxDragPx))
+                    }
+                }
+            }
             .biliPaiFloatingDockShell(
                 backdrop = miuixBackdrop,
                 containerColor = AppSurfaceTokens.cardContainer(),

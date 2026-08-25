@@ -20,10 +20,21 @@ class MineSideDrawerVisualPolicyTest {
 
         assertTrue(drawerSource.contains("Modifier.biliPaiFloatingDockShell("))
         assertTrue(drawerSource.contains("liquidGlassTuning = liquidGlassTuning"))
-        assertTrue(homeSource.contains("miuixBackdrop = homeMiuixBackdrop"))
+        assertTrue(homeSource.contains("miuixBackdrop = readyHomeMiuixBackdrop"))
         assertTrue(homeSource.contains("homeSettings.liquidGlassProgress"))
         assertTrue(homeSource.contains("homeSettings.liquidGlassAdvancedSettings"))
         assertTrue(homeSource.contains("homeSettings.liquidGlassReadabilityMode"))
+    }
+
+    @Test
+    fun `drawer uses semantic shapes for its edge and grouped surfaces`() {
+        val drawerSource = File(
+            "src/main/java/com/android/purebilibili/feature/home/components/MineSideDrawer.kt"
+        ).readText()
+
+        assertTrue(drawerSource.contains("AppShapes.endRounded(layoutPolicy.drawerEdgeRadiusDp.dp)"))
+        assertTrue(drawerSource.contains("AppShapes.borderedContainer(ContainerLevel.Card)"))
+        assertTrue(!drawerSource.contains("RoundedCornerShape("))
     }
 
     @Test

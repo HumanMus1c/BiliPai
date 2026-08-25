@@ -175,9 +175,9 @@ sealed class ScreenRoutes(val route: String) {
         }
     }
     
-    object BangumiDetail : ScreenRoutes("bangumi/{seasonId}?epId={epId}") {
-        fun createRoute(seasonId: Long, epId: Long = 0): String {
-            return "bangumi/$seasonId?epId=$epId"
+    object BangumiDetail : ScreenRoutes("bangumi/{seasonId}?epId={epId}&mediaId={mediaId}") {
+        fun createRoute(seasonId: Long, epId: Long = 0, mediaId: Long = 0): String {
+            return "bangumi/$seasonId?epId=$epId&mediaId=$mediaId"
         }
     }
 

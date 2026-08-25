@@ -44,7 +44,7 @@ class VideoLoadPolicyTest {
     }
 
     @Test
-    fun `resolveInitialStartQuality requests HDR capable qn for vip auto highest`() {
+    fun `resolveInitialStartQuality requests documented highest qn for vip auto highest`() {
         val quality = resolveInitialStartQuality(
             targetQuality = 127,
             isAutoHighestQuality = true,
@@ -53,31 +53,29 @@ class VideoLoadPolicyTest {
             auto1080pEnabled = true
         )
 
-        assertEquals(125, quality)
+        assertEquals(127, quality)
     }
 
     @Test
-    fun `resolveInitialStartQuality prefers faster mobile start for auto highest`() {
+    fun `resolveInitialStartQuality keeps auto highest at entitlement ceiling`() {
         assertEquals(
-            112,
+            127,
             resolveInitialStartQuality(
                 targetQuality = 127,
                 isAutoHighestQuality = true,
                 isLogin = true,
                 isVip = true,
-                auto1080pEnabled = true,
-                preferFastStartOnMobile = true
+                auto1080pEnabled = true
             )
         )
         assertEquals(
-            64,
+            80,
             resolveInitialStartQuality(
                 targetQuality = 127,
                 isAutoHighestQuality = true,
                 isLogin = true,
                 isVip = false,
-                auto1080pEnabled = true,
-                preferFastStartOnMobile = true
+                auto1080pEnabled = true
             )
         )
     }
@@ -153,27 +151,36 @@ class VideoLoadPolicyTest {
 
     @Test
     fun `buildDashAttemptQualities includes premium fallbacks for high target`() {
-        assertEquals(listOf(120, 116, 112, 80), buildDashAttemptQualities(120))
+        assertEquals(listOf(120, 116, 112, 100, 80), buildDashAttemptQualities(120))
         assertEquals(listOf(80), buildDashAttemptQualities(80))
     }
 
     @Test
     fun `buildDashAttemptQualities walks premium 1080p tiers before plain 1080p`() {
-        assertEquals(listOf(120, 116, 112, 80), buildDashAttemptQualities(120))
-        assertEquals(listOf(116, 112, 80), buildDashAttemptQualities(116))
-        assertEquals(listOf(112, 80), buildDashAttemptQualities(112))
+        assertEquals(listOf(120, 116, 112, 100, 80), buildDashAttemptQualities(120))
+        assertEquals(listOf(116, 112, 100, 80), buildDashAttemptQualities(116))
+        assertEquals(listOf(112, 100, 80), buildDashAttemptQualities(112))
     }
 
     @Test
     fun `buildDashAttemptQualities leads with requested HDR Dolby and 8K targets`() {
-        assertEquals(listOf(125, 120, 116, 112, 80), buildDashAttemptQualities(125))
-        assertEquals(listOf(126, 125, 120, 116, 112, 80), buildDashAttemptQualities(126))
-        assertEquals(listOf(127, 126, 125, 120, 116, 112, 80), buildDashAttemptQualities(127))
+        assertEquals(listOf(125, 120, 116, 112, 100, 80), buildDashAttemptQualities(125))
+        assertEquals(listOf(126, 125, 120, 116, 112, 100, 80), buildDashAttemptQualities(126))
+        assertEquals(listOf(127, 126, 125, 120, 116, 112, 100, 80), buildDashAttemptQualities(127))
+        assertEquals(listOf(129, 127, 126, 125, 120, 116, 112, 100, 80), buildDashAttemptQualities(129))
+    }
+
+    @Test
+    fun `resolveDashRetryDelays retries the primary premium quality once`() {
+        assertEquals(listOf(0L, 450L), resolveDashRetryDelays(125, isPrimaryAttempt = true))
+        assertEquals(listOf(0L), resolveDashRetryDelays(120, isPrimaryAttempt = false))
+        assertTrue(shouldRetryOnlyTransientEmptyDashResponse(125, isPrimaryAttempt = true))
+        assertFalse(shouldRetryOnlyTransientEmptyDashResponse(80, isPrimaryAttempt = true))
+        assertFalse(shouldRetryOnlyTransientEmptyDashResponse(125, isPrimaryAttempt = false))
     }
 
     @Test
     fun `resolveDashRetryDelays allows one retry for standard qualities`() {
-        assertEquals(listOf(0L), resolveDashRetryDelays(120))
         assertEquals(listOf(0L, 450L), resolveDashRetryDelays(80))
         assertEquals(listOf(0L, 450L), resolveDashRetryDelays(64))
     }
@@ -439,6 +446,18 @@ class VideoLoadPolicyTest {
     }
 
     @Test
+    fun `explicit 4K does not trust response quality without exact playable dash track`() {
+        assertFalse(
+            shouldAcceptAppApiResultForTargetQuality(
+                requestKind = PlayUrlRequestKind.EXPLICIT,
+                targetQn = 120,
+                returnedQuality = 120,
+                dashVideoIds = listOf(116, 112, 80)
+            )
+        )
+    }
+
+    @Test
     fun `shouldAcceptAppApiResultForTargetQuality accepts when target exists in dash list`() {
         assertTrue(
             shouldAcceptAppApiResultForTargetQuality(
@@ -538,7 +557,9 @@ class VideoLoadPolicyTest {
         assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 125))
         assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 126))
         assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 127))
-        assertFalse(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 120))
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 120))
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 100))
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 129))
         assertFalse(isStrictPremiumQualityRequest(PlayUrlRequestKind.INITIAL, 125))
     }
 

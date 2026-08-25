@@ -553,11 +553,11 @@ class TopTabLayoutPolicyTest {
 
     @Test
     fun `ios top tabs reserve enough height for icon label modes`() {
-        // Compact chrome track: all label modes share 36/40 so content is not clipped.
+        // Stacked icon+text needs the same taller track reserved by HomeTopPresetStyle.
         assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 2).value, 0.001f)
         assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 1).value, 0.001f)
-        assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 0).value, 0.001f)
-        assertEquals(36f, resolveIosTopTabRowHeight(isFloatingStyle = false, labelMode = 0).value, 0.001f)
+        assertEquals(60f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 0).value, 0.001f)
+        assertEquals(56f, resolveIosTopTabRowHeight(isFloatingStyle = false, labelMode = 0).value, 0.001f)
     }
 
     @Test

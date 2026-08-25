@@ -29,9 +29,11 @@ class BottomBarUiSkinDecorationTest {
         assertTrue(trimSource.contains("clipShape?.let { Modifier.clip(it) } ?: Modifier"))
         assertTrue(trimSource.contains(".clearAndSetSemantics {}"))
         assertTrue(trimSource.contains(".drawBehind {"))
-        // trim 改为 FillWidth + 底部对齐，避免 FillBounds 拉伸变形与液态玻璃折射层叠加冲突
-        assertTrue(trimSource.contains("ContentScale.FillWidth"))
+        assertTrue(trimSource.contains("drawRect(decoration.bottomTrimTint)"))
+        // Crop + 底部对齐可覆盖手势导航区，同时保持素材主体沉底。
+        assertTrue(trimSource.contains("ContentScale.Crop"))
         assertTrue(trimSource.contains("Alignment.BottomCenter"))
+        assertTrue(!trimSource.contains(".alpha(0.82f)"))
     }
 
     @Test
@@ -169,13 +171,13 @@ class BottomBarUiSkinDecorationTest {
             decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO, selected = true)
         )
         assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.PROFILE))
-        assertNull(decoration?.iconPathFor(BottomNavItem.SETTINGS))
-        assertNull(decoration?.iconPathFor(BottomNavItem.STORY))
-        assertNull(decoration?.iconPathFor(BottomNavItem.LIVE))
+        assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.SETTINGS))
+        assertEquals("/tmp/tail_icon_shop.png", decoration?.iconPathFor(BottomNavItem.STORY))
+        assertEquals("/tmp/tail_icon_channel.png", decoration?.iconPathFor(BottomNavItem.LIVE))
     }
 
     @Test
-    fun unsupportedBottomDestinationsDoNotBorrowUnrelatedSkinIcons() {
+    fun customBottomDestinationsAlwaysUseAnAvailableSkinIcon() {
         val installed = InstalledUiSkinPackage(
             manifest = UiSkinManifest(
                 formatVersion = 1,
@@ -210,8 +212,9 @@ class BottomBarUiSkinDecorationTest {
             UiSkinState(enabled = true, activeSkin = installed)
         )
 
-        assertNull(decoration?.iconPathFor(BottomNavItem.SETTINGS))
-        assertNull(decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO))
+        assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.SETTINGS))
+        assertEquals("/tmp/tail_icon_main.png", decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO))
+        assertTrue(BottomNavItem.entries.all { decoration?.iconPathFor(it) != null })
     }
 
     @Test

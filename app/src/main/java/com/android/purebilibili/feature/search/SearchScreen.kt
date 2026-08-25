@@ -25,6 +25,7 @@ import androidx.compose.animation.core.Animatable
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -111,7 +112,7 @@ import com.android.purebilibili.core.database.entity.SearchHistory
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton
-import com.android.purebilibili.core.ui.OfficialVerifyBadge
+import com.android.purebilibili.core.ui.OfficialVerifyAvatarBadge
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
@@ -128,6 +129,7 @@ import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.rememberAppHistoryIcon
 import com.android.purebilibili.core.ui.rememberAppSearchIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
+import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
@@ -703,12 +705,10 @@ fun SearchScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val hotSearchEnabled by SettingsManager.getSearchHotSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val discoverSectionEnabled by SettingsManager.getSearchDiscoverSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
-    val liquidGlassEnabled by SettingsManager.getLiquidGlassEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val androidNativeLiquidGlassEnabled by SettingsManager
         .getAndroidNativeLiquidGlassEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
     val effectiveLiquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
-        individualEnabled = liquidGlassEnabled,
         androidNativeEnabled = androidNativeLiquidGlassEnabled,
     )
     val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
@@ -780,6 +780,25 @@ fun SearchScreen(
         source = entryMotionSource,
         reducedMotionBudget = searchMotionBudget == SearchMotionBudget.REDUCED
     )
+    val exitMotionSpec = remember(entryMotionKey, configuration.screenHeightDp) {
+        resolveSearchExitMotionSpec(
+            entrySpec = entryMotionSpec,
+            screenHeightDp = configuration.screenHeightDp,
+        )
+    }
+    var exitMotionKey by remember { mutableIntStateOf(0) }
+    var exitMotionInProgress by remember { mutableStateOf(false) }
+    val exitContentAlpha by animateFloatAsState(
+        // Keep the destination visibly populated until navigation hands off to Home. Fading to
+        // zero here leaves only Search's opaque scaffold background for the remainder of the
+        // search-field morph, which reads as a white flash.
+        targetValue = if (exitMotionInProgress) 0.72f else 1f,
+        animationSpec = tween(
+            durationMillis = 220,
+            easing = AppMotionEasing.Continuity,
+        ),
+        label = "searchExitContentAlpha",
+    )
     val searchHazeEnabled = shouldEnableSearchHazeSource(
         isSearching = state.isSearching,
         startupSettled = startupSettled
@@ -844,7 +863,12 @@ fun SearchScreen(
         ) {
             SearchBackAction.LEAVE_SEARCH -> {
                 dismissSearchKeyboardAndFocus()
-                onBack()
+                if (exitMotionSpec != null && !exitMotionInProgress) {
+                    exitMotionInProgress = true
+                    exitMotionKey += 1
+                } else if (!exitMotionInProgress) {
+                    onBack()
+                }
             }
         }
     }
@@ -932,6 +956,7 @@ fun SearchScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer { alpha = exitContentAlpha }
                     ) {
                             val searchChromeBackdrop = rememberLayerBackdrop()
                             Spacer(modifier = Modifier.height(contentTopPadding + 8.dp))
@@ -1211,7 +1236,11 @@ fun SearchScreen(
                                             homeDurationStyle = homeDurationStyle,
                                             highlightedTitle = highlightedTitle,
                                             showOnlineCount = showOnlineCount,
-                                            modifier = Modifier,
+                                            modifier = if (cardAnimationEnabled) {
+                                                Modifier.animateItem()
+                                            } else {
+                                                Modifier
+                                            },
                                             //  [交互优化] 传递 onWatchLater 用于显示菜单选项
                                             onWatchLater = if (video.bvid.isNotBlank()) {
                                                 { viewModel.addToWatchLater(video.bvid, video.id) }
@@ -1814,9 +1843,11 @@ fun SearchScreen(
                     },
                     onClearHistory = viewModel::clearHistory,
                     onDeleteHistory = viewModel::deleteHistory,
-                    modifier = Modifier.then(
-                        if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier
-                    )
+                    modifier = Modifier
+                        .graphicsLayer { alpha = exitContentAlpha }
+                        .then(
+                            if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier
+                        )
                 )
             }
 
@@ -1850,6 +1881,13 @@ fun SearchScreen(
                 entryMotionSpec = entryMotionSpec,
                 entryMotionKey = entryMotionKey,
                 onEntryMotionFinished = onEntryMotionConsumed,
+                exitMotionSpec = exitMotionSpec,
+                exitMotionKey = exitMotionKey,
+                onExitMotionFinished = { completedKey ->
+                    if (exitMotionInProgress && completedKey == exitMotionKey) {
+                        onBack()
+                    }
+                },
                 isScrollInProgressProvider = { isSearchResultsScrolling },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -1925,6 +1963,9 @@ fun SearchTopBar(
     entryMotionSpec: SearchEntryMotionSpec? = null,
     entryMotionKey: Int = 0,
     onEntryMotionFinished: (Int) -> Unit = {},
+    exitMotionSpec: SearchEntryMotionSpec? = null,
+    exitMotionKey: Int = 0,
+    onExitMotionFinished: (Int) -> Unit = {},
     isScrollInProgressProvider: () -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
@@ -1940,6 +1981,8 @@ fun SearchTopBar(
     val clearIcon = rememberAppClearIcon()
     val density = LocalDensity.current
     val entryMotionProgress = remember { Animatable(1f) }
+    val latestOnEntryMotionFinished by rememberUpdatedState(onEntryMotionFinished)
+    val latestOnExitMotionFinished by rememberUpdatedState(onExitMotionFinished)
     val searchIconColor by animateColorAsState(
         targetValue = if (isSearchFieldFocused) {
             MaterialTheme.colorScheme.primary
@@ -1997,7 +2040,23 @@ fun SearchTopBar(
                 )
             )
         }
-        onEntryMotionFinished(entryMotionKey)
+        latestOnEntryMotionFinished(entryMotionKey)
+    }
+    LaunchedEffect(exitMotionKey, exitMotionSpec) {
+        val spec = exitMotionSpec
+        if (exitMotionKey <= 0 || spec == null) return@LaunchedEffect
+        if (spec.durationMillis <= 0) {
+            entryMotionProgress.snapTo(0f)
+        } else {
+            entryMotionProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = spec.durationMillis,
+                    easing = AppMotionEasing.Continuity
+                )
+            )
+        }
+        latestOnExitMotionFinished(exitMotionKey)
     }
     LaunchedEffect(autoFocusEnabled, focusRequester) {
         if (autoFocusEnabled) {
@@ -2005,10 +2064,11 @@ fun SearchTopBar(
             runCatching { focusRequester.requestFocus() }
         }
     }
-    val entryMotionModifier = if (entryMotionSpec != null) {
+    val activeMotionSpec = entryMotionSpec ?: exitMotionSpec
+    val entryMotionModifier = if (activeMotionSpec != null) {
         Modifier.graphicsLayer {
             val progress = entryMotionProgress.value
-            val spec = entryMotionSpec
+            val spec = activeMotionSpec
             alpha = lerp(spec.initialAlpha, 1f, progress)
             scaleX = lerp(spec.initialScale, 1f, progress)
             scaleY = lerp(spec.initialScale, 1f, progress)
@@ -2026,8 +2086,7 @@ fun SearchTopBar(
 
     AppSurface(
         modifier = modifier
-            .fillMaxWidth()
-            .then(entryMotionModifier),
+            .fillMaxWidth(),
         color = Color.Transparent,
         shadowElevation = 0.dp
     ) {
@@ -2039,7 +2098,8 @@ fun SearchTopBar(
                     .responsiveContentWidth()
                     .heightIn(min = topBarRowMinHeightDp.dp)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .padding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal).asPaddingValues()),
+                    .padding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal).asPaddingValues())
+                    .then(entryMotionModifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SearchTopBarIconButton(
@@ -2884,6 +2944,7 @@ private fun SearchResultCardSurface(
  *  搜索结果卡片 (显示发布时间)
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun SearchResultCard(
     video: VideoItem,
     index: Int,
@@ -2978,9 +3039,8 @@ fun SearchResultCard(
         // 标题
         AppText(
             text = video.title,
-            maxLines = 2,
             minLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             lineHeight = 18.sp,
@@ -2991,9 +3051,11 @@ fun SearchResultCard(
         Spacer(modifier = Modifier.height(6.dp))
         
         // UP主 + 发布时间
-        Row(
+        FlowRow(
             modifier = Modifier.padding(horizontal = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
+            itemVerticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             UpBadgeName(
                 name = video.owner.name,
@@ -3019,13 +3081,15 @@ fun SearchResultCard(
                 nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                modifier = Modifier.weight(1f, fill = false)
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.wrapContentWidth()
             )
             
             //  显示发布时间
             if (video.pubdate > 0) {
                 AppText(
-                    text = " · ${FormatUtils.formatPublishTime(video.pubdate)}",
+                    text = "· ${FormatUtils.formatPublishTime(video.pubdate)}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -3071,79 +3135,74 @@ internal fun UpSearchResultCard(
                 }
             } else Modifier
 
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(cleanedItem.upic)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = cleanedItem.uname,
-                modifier = Modifier
-                    .then(avatarModifier)
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
-            )
+            val verifyBadge = cleanedItem.official_verify?.let { verify ->
+                resolveOfficialVerifyBadge(type = verify.type, desc = verify.desc)
+            }
+            Box(modifier = avatarModifier.size(42.dp)) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(cleanedItem.upic)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = cleanedItem.uname,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+                if (verifyBadge != null) {
+                    OfficialVerifyAvatarBadge(
+                        badge = verifyBadge,
+                        modifier = Modifier.align(Alignment.BottomEnd)
+                    )
+                }
+            }
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             
             // UP主信息
             Column(modifier = Modifier.weight(1f)) {
-                // 名称 + 认证标志
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // 名称 + 官方等级标志
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     AppText(
                         text = cleanedItem.uname,
-                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f, fill = false),
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     
-                    val verifyBadge = cleanedItem.official_verify?.let { verify ->
-                        resolveOfficialVerifyBadge(
-                            type = verify.type,
-                            desc = verify.desc,
-                            compact = true
-                        )
-                    }
-                    if (verifyBadge != null) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        OfficialVerifyBadge(
-                            badge = verifyBadge,
-                            compact = true
-                        )
-                    }
+                    UserLevelBadge(
+                        level = cleanedItem.level,
+                        isSeniorMember = cleanedItem.is_senior_member == 1
+                    )
                 }
-                
-                // 个性签名
-                if (cleanedItem.usign.isNotBlank()) {
+
+                Spacer(modifier = Modifier.height(2.dp))
+                AppText(
+                    text = "粉丝：${FormatUtils.formatStat(cleanedItem.fans.toLong())}  " +
+                        "视频：${cleanedItem.videos}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                if (verifyBadge != null && verifyBadge.text.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     AppText(
-                        text = cleanedItem.usign,
+                        text = verifyBadge.text,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // 粉丝数 + 视频数
-                Row {
-                    AppText(
-                        text = "粉丝 ${FormatUtils.formatStat(cleanedItem.fans.toLong())}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    AppText(
-                        text = "视频 ${cleanedItem.videos}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
+
             }
         }
     }

@@ -25,7 +25,8 @@ class StoryVideoCardStructureTest {
             .substringAfter("// 卡片容器 (封面)")
             .substringBefore("// 封面比例由首页卡片样式统一配置。")
 
-        assertTrue(source.contains("val coverShape = RoundedCornerShape(cardCornerRadius)"))
+        assertTrue(source.contains("val cardShape = AppShapes.container(ContainerLevel.ProminentCard)"))
+        assertTrue(source.contains("val coverShape = cardShape"))
         assertTrue(coverContainerSource.contains(".testTag(\"home_story_video_cover\")"))
         assertTrue(coverContainerSource.contains(".aspectRatio(coverAspectRatio)"))
         assertTrue(coverContainerSource.contains(".clip(coverShape)"))

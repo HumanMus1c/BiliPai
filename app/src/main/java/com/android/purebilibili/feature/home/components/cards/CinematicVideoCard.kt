@@ -1,6 +1,8 @@
 package com.android.purebilibili.feature.home.components.cards
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
@@ -21,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -54,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
@@ -63,6 +63,7 @@ import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
@@ -123,9 +124,8 @@ fun CinematicVideoCard(
     val haptic = rememberHapticFeedback()
     val contentTypography = feedContentTypography(FeedTitleHierarchy.Prominent)
     
-    // 动态圆角 - 略大一点的圆角以适配大图卡片
-    val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = AppSpacingTokens.Large * cornerRadiusScale
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.ProminentCard)
+    val cardShape = AppShapes.container(ContainerLevel.ProminentCard)
 
     var showDismissMenu by remember { mutableStateOf(false) }
 
@@ -152,15 +152,19 @@ fun CinematicVideoCard(
     }
     val effectiveTransitionEnabled = transitionEnabled && LocalSharedTransitionEnabled.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         effectiveSharedElementSourceRoute,
         effectiveTransitionEnabled,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = effectiveSharedElementSourceRoute,
             transitionEnabled = effectiveTransitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val coverCacheKey = remember(video.bvid, useLowQualityCover) {
@@ -228,7 +232,7 @@ fun CinematicVideoCard(
         useCoverSharedBounds = useCardShellSharedBounds,
         isSharedReturnTarget = isSharedReturnTarget,
     )
-    val cardShellShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
+    val cardShellShape = cardShape
     val enterAnimationEnabledAtMount = remember(video.bvid) {
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
@@ -244,6 +248,7 @@ fun CinematicVideoCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .adaptiveCardHoverEffect(shape = cardShellShape)
             .padding(bottom = AppSpacingTokens.ExtraLarge, start = AppSpacingTokens.Large, end = AppSpacingTokens.Large) // 增加间距
             .animateEnter(
                 index = index,
@@ -269,7 +274,7 @@ fun CinematicVideoCard(
                     motionSpec = cardSharedTransitionMotionSpec,
                     clipShape = cardShellShape
                 )
-                .clip(RoundedCornerShape(cardCornerRadius))
+                .clip(cardShape)
                 .background(MediaContrastPalette.Scrim) // 纯黑底色
                 .pointerInput(Unit) {
                     detectTapGestures(
@@ -298,7 +303,7 @@ fun CinematicVideoCard(
                     isReturningFromDetail = isReturningFromVideoDetail,
                 )
             
-            Box(modifier = Modifier.clip(RoundedCornerShape(cardCornerRadius))) {
+            Box(modifier = Modifier.clip(cardShape)) {
                  AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(coverUrl)
@@ -352,8 +357,7 @@ fun CinematicVideoCard(
             ) {
                 AppText(
                     text = video.title,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                     style = contentTypography.title.copy(color = MediaContrastPalette.Foreground),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -391,6 +395,8 @@ fun CinematicVideoCard(
                          badgeTextColor = MediaContrastPalette.Foreground.copy(alpha = 0.92f),
                          badgeBorderColor = MediaContrastPalette.Foreground.copy(alpha = 0.45f),
                          showUpBadge = showUpBadge,
+                         maxLines = Int.MAX_VALUE,
+                         overflow = TextOverflow.Visible,
                          modifier = Modifier.weight(1f)
                      )
                      

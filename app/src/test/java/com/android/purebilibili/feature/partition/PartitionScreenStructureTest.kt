@@ -89,6 +89,28 @@ class PartitionScreenStructureTest {
     }
 
     @Test
+    fun `side rail uses md3 underline when liquid glass is disabled`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/partition/PartitionScreen.kt")
+        val indicator = source
+            .substringAfter("private fun PartitionSideRailMovingIndicator(")
+            .substringBefore("private fun PartitionSideRailItem(")
+
+        assertTrue(indicator.contains("resolveHomeSelectionIndicatorStyle("))
+        assertTrue(
+            indicator.contains(
+                "selectionIndicatorStyle == HomeSelectionIndicatorStyle.MD3_UNDERLINE"
+            )
+        )
+        assertTrue(indicator.contains("PartitionSideRailMd3UnderlineWidth"))
+        assertTrue(indicator.contains("PartitionSideRailMd3UnderlineHeight"))
+        assertTrue(indicator.contains("indicatorOffsetPxProvider()"))
+        assertTrue(indicator.contains("contentAlignment = Alignment.CenterStart"))
+        assertTrue(indicator.contains("PartitionSideRailMd3UnderlineStartPadding"))
+        assertTrue(indicator.contains("onVideoListPushChanged(0f)"))
+        assertTrue(indicator.indexOf("return") < indicator.indexOf("BottomBarMatchedLiquidIndicator("))
+    }
+
+    @Test
     fun `side rail drag starts only from current indicator bounds`() {
         assertTrue(
             shouldStartPartitionSideRailIndicatorDrag(

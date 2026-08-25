@@ -19,11 +19,13 @@ import com.android.purebilibili.feature.video.danmaku.mergeDanmakuBlockRuleSecti
 import com.android.purebilibili.feature.video.danmaku.parseDanmakuBlockRules
 import com.android.purebilibili.feature.video.danmaku.partitionDanmakuBlockRules
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSlider
+import com.android.purebilibili.core.ui.components.AppSliderDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -37,7 +39,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.Icons
@@ -45,7 +46,6 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SliderDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -476,7 +476,7 @@ fun DanmakuSettingsPanel(
                         interactionSource = remember { MutableInteractionSource() }
                     ) { },
                 color = panelColors.panelColor,
-                shape = RoundedCornerShape(if (isFullscreenStyle) 16.dp else 20.dp),
+                shape = AppShapes.container(ContainerLevel.Dialog),
                 tonalElevation = if (isFullscreenStyle) 6.dp else 16.dp,
                 shadowElevation = if (isFullscreenStyle) 8.dp else 24.dp
             ) {
@@ -548,17 +548,14 @@ fun DanmakuSettingsPanel(
 
                     if (isFullscreenStyle) {
                         // 横屏分区 Tab：基础 / 高级 / 屏蔽，避免窄侧栏长滚动。
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("基础", "高级", "屏蔽").forEachIndexed { index, label ->
-                                AppFilterChip(
-                                    selected = fullscreenActiveSection == index,
-                                    onClick = { fullscreenActiveSection = index },
-                                    label = {
-                                        AppText(label, fontSize = 13.sp)
-                                    }
-                                )
-                            }
-                        }
+                        AppThemeAdaptiveTabRow(
+                            options = listOf("基础", "高级", "屏蔽").mapIndexed { index, label ->
+                                AppSegmentOption(index, label)
+                            },
+                            selectedValue = fullscreenActiveSection,
+                            onSelectionChange = { fullscreenActiveSection = it },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
@@ -1347,20 +1344,17 @@ private fun DanmakuBlockManagerDialog(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("关键词", "正则", "UID(hash)").forEachIndexed { index, label ->
-                        AppFilterChip(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
-                            label = {
-                                AppText(
-                                    resolveDanmakuBlockManagerTabLabel(label, tabCounts[index]),
-                                    fontSize = 12.sp
-                                )
-                            }
+                AppThemeAdaptiveTabRow(
+                    options = listOf("关键词", "正则", "UID(hash)").mapIndexed { index, label ->
+                        AppSegmentOption(
+                            index,
+                            resolveDanmakuBlockManagerTabLabel(label, tabCounts[index]),
                         )
-                    }
-                }
+                    },
+                    selectedValue = selectedTabIndex,
+                    onSelectionChange = { selectedTabIndex = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
                 AppOutlinedTextField(
                     value = inputValue,
@@ -1801,7 +1795,7 @@ private fun DanmakuSliderItem(
                 valueRange = valueRange,
                 steps = steps,
                 // 横竖屏统一使用面板调色板（主题色 thumb + 轨道），不再用白色 thumb。
-                colors = SliderDefaults.colors(
+                colors = AppSliderDefaults.colors(
                     thumbColor = colors.sliderThumbColor,
                     activeTrackColor = colors.sliderActiveTrackColor,
                     inactiveTrackColor = colors.sliderInactiveTrackColor

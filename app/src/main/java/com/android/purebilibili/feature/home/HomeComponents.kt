@@ -2,7 +2,6 @@
 // 此文件包含对话框和错误状态展示
 // UserState 定义在 HomeViewModel.kt 中
 package com.android.purebilibili.feature.home
-import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppText
@@ -21,7 +20,8 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppTextButton
 
 // ==========================================
@@ -90,24 +90,18 @@ fun LiveSubCategoryRow(
     selectedSubCategory: LiveSubCategory,
     onSubCategorySelected: (LiveSubCategory) -> Unit
 ) {
-    Row(
+    val options = LiveSubCategory.entries.map { subCategory ->
+        AppSegmentOption(
+            value = subCategory,
+            label = stringResource(resolveLiveSubCategoryLabelRes(subCategory)),
+        )
+    }
+    AppThemeAdaptiveTabRow(
+        options = options,
+        selectedValue = selectedSubCategory,
+        onSelectionChange = onSubCategorySelected,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = AppSpacingTokens.Small),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
-    ) {
-        LiveSubCategory.entries.forEach { subCategory ->
-            val isSelected = selectedSubCategory == subCategory
-            val selectionColors = resolveFilledSelectionAccentColors(MaterialTheme.colorScheme)
-            AppFilterChip(
-                selected = isSelected,
-                onClick = { onSubCategorySelected(subCategory) },
-                label = { AppText(stringResource(resolveLiveSubCategoryLabelRes(subCategory))) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = selectionColors.backgroundColor,
-                    selectedLabelColor = selectionColors.contentColor,
-                )
-            )
-        }
-    }
+    )
 }

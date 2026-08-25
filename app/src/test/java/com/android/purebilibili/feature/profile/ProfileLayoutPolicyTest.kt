@@ -42,7 +42,6 @@ class ProfileLayoutPolicyTest {
         val tokens = resolveProfileCardTokens()
 
         assertEquals(148, tokens.widthDp)
-        assertEquals(12, tokens.cornerRadiusDp)
         assertEquals(56, tokens.metadataHeightDp)
         assertTrue(resolveProfileCardHeightDp(tokens) > resolveProfileCardCoverHeightDp(tokens))
     }

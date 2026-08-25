@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
@@ -78,8 +79,8 @@ fun DirectorySelectionDialog(
             modifier = Modifier
                 .appContentDialogWidth(policy = dialogLayout, wrapHeight = false)
                 .height(500.dp),
-            shape = AppShapes.container(ContainerLevel.Card),
-            colors = CardDefaults.cardColors(
+            shape = AppCardShape.Semantic(ContainerLevel.Card),
+            colors = AppCardDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
         ) {

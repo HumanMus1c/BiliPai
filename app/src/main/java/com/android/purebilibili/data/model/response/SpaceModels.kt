@@ -44,6 +44,8 @@ data class SpaceUserInfo(
 data class SpaceOfficial(
     val role: Int = 0,
     val title: String = "",
+    @SerialName("splice_title")
+    val spliceTitle: String = "",
     val desc: String = "",
     val type: Int = -1  // -1无认证 0个人认证 1机构认证
 )

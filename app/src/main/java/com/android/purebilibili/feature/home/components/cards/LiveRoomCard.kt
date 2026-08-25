@@ -17,7 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,9 +57,8 @@ fun LiveRoomCard(
 ) {
     val haptic = rememberHapticFeedback()
     
-    // [新增] 获取圆角缩放比例
-    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Dialog)
-    val tagCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Tag)
+    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val tagShape = AppShapes.container(ContainerLevel.Tag)
     
     // Shared Element Transition Scopes
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -97,7 +95,7 @@ fun LiveRoomCard(
                 .aspectRatio(16f / 10f)
                 .shadow(
                     elevation = AppSpacingTokens.Micro,
-                    shape = RoundedCornerShape(cardCornerRadius),
+                    shape = cardShape,
                     ambientColor = MediaContrastPalette.Scrim.copy(alpha = 0.08f),
                     spotColor = MediaContrastPalette.Scrim.copy(alpha = 0.12f),
                     clip = true // [Optimization] Combine shadow and clip
@@ -147,7 +145,7 @@ fun LiveRoomCard(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(AppSpacingTokens.Small),
-                shape = RoundedCornerShape(tagCornerRadius),
+                shape = tagShape,
                 color = MaterialTheme.colorScheme.error
             ) {
                 AppText(
@@ -165,7 +163,7 @@ fun LiveRoomCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(AppSpacingTokens.Small),
-                    shape = RoundedCornerShape(tagCornerRadius),
+                    shape = tagShape,
                     color = MediaContrastPalette.Scrim.copy(alpha = 0.5f)
                 ) {
                     AppText(

@@ -3,6 +3,7 @@ package com.android.purebilibili.navigation3.predictiveback
 import androidx.compose.ui.graphics.TransformOrigin
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import java.io.File
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -98,5 +99,72 @@ class MiuixVideoCardNavTransitionTest {
                 fullscreen = true,
             ),
         )
+    }
+
+    @Test
+    fun gestureFollowPeaksMidFlightAndKeepsBothLandingEndpointsExact() {
+        val fullscreen = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 1f,
+            touchY = 900f,
+            initialTouchY = 500f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+        val midFlight = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0.5f,
+            touchY = 900f,
+            initialTouchY = 500f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+        val landed = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0f,
+            touchY = 900f,
+            initialTouchY = 500f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+
+        assertEquals(0f, fullscreen.translationX)
+        assertEquals(0f, fullscreen.translationY)
+        assertEquals(0f, fullscreen.rotationZ)
+        assertEquals(0f, landed.translationX)
+        assertEquals(0f, landed.translationY)
+        assertEquals(0f, landed.rotationZ)
+        assertEquals(true, abs(midFlight.translationX) > 0f)
+        assertEquals(true, abs(midFlight.translationY) > 0f)
+        assertEquals(true, abs(midFlight.rotationZ) > 0f)
+    }
+
+    @Test
+    fun gestureFollowMirrorsAcrossScreenEdgesWithoutChangingVerticalLanding() {
+        val left = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0.5f,
+            touchY = 800f,
+            initialTouchY = 500f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+        val right = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0.5f,
+            touchY = 800f,
+            initialTouchY = 500f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = false,
+            maxVerticalTravelPx = 72f,
+        )
+
+        assertEquals(-left.translationX, right.translationX, absoluteTolerance = 0.001f)
+        assertEquals(left.translationY, right.translationY, absoluteTolerance = 0.001f)
+        assertEquals(-left.rotationZ, right.rotationZ, absoluteTolerance = 0.001f)
     }
 }

@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.dynamic.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -132,7 +133,21 @@ fun DynamicVoteDialog(
                                         )
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = canVote) {
+                                        selectedIndexes = if (multiSelect) {
+                                            if (selected) {
+                                                selectedIndexes - option.opt_idx
+                                            } else if (selectedIndexes.size < maxChoices) {
+                                                selectedIndexes + option.opt_idx
+                                            } else {
+                                                selectedIndexes
+                                            }
+                                        } else {
+                                            setOf(option.opt_idx)
+                                        }
+                                    }
                             )
                         }
                     }

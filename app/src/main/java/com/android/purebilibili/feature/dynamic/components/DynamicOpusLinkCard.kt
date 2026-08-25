@@ -37,13 +37,14 @@ import com.android.purebilibili.data.model.response.OpusLinkCard
 internal fun DynamicOpusLinkCard(
     card: OpusLinkCard,
     modifier: Modifier = Modifier,
+    enabled: Boolean = card.jumpUrl.isNotBlank(),
     onClick: () -> Unit = {}
 ) {
     AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .clip(AppShapes.container(ContainerLevel.Card))
-            .clickable(enabled = card.jumpUrl.isNotBlank(), onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = AppSpacingTokens.None,
         shape = AppShapes.container(ContainerLevel.Card)
@@ -137,6 +138,9 @@ private fun resolveOpusLinkCardFallbackTitle(type: String): String {
         "LINK_CARD_TYPE_MUSIC" -> "音乐"
         "LINK_CARD_TYPE_GOODS" -> "商品"
         "LINK_CARD_TYPE_VOTE" -> "投票"
+        "LINK_CARD_TYPE_RESERVE" -> "预约"
+        "LINK_CARD_TYPE_MATCH" -> "赛事"
+        "LINK_CARD_TYPE_UPOWER_LOTTERY" -> "充电专属抽奖"
         "LINK_CARD_TYPE_ITEM_NULL" -> "内容已失效"
         else -> "链接"
     }

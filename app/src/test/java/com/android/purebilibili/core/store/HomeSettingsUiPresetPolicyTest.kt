@@ -43,24 +43,6 @@ class HomeSettingsUiPresetPolicyTest {
     }
 
     @Test
-    fun effectiveLiquidGlass_material3RequiresAndroidNativeToggle() {
-        assertFalse(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiStyle = AppUiStyle.MATERIAL3,
-                androidNativeLiquidGlassEnabled = false
-            )
-        )
-        assertTrue(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiStyle = AppUiStyle.MATERIAL3,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
-    }
-
-    @Test
     fun sharedLiquidGlass_globalMasterEnablesReusableChrome() {
         assertTrue(
             resolveSharedLiquidGlassChromeEnabled(
@@ -120,8 +102,8 @@ class HomeSettingsUiPresetPolicyTest {
     }
 
     @Test
-    fun sharedLiquidGlass_miuixAllowsIndividualWithoutGlobal() {
-        assertTrue(
+    fun sharedLiquidGlass_miuixAlsoRequiresGlobalEntry() {
+        assertFalse(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = true,
                 uiStyle = AppUiStyle.MIUIX,

@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.rememberAppCheckCircleIcon
@@ -28,10 +30,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.BangumiDetail
 import com.android.purebilibili.data.model.response.BangumiEpisode
@@ -68,6 +75,14 @@ fun BangumiPlayerContent(
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
     val selectionBackdrop = rememberLayerBackdrop()
+    val context = LocalContext.current
+    val homeSettings by SettingsManager.getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val useCapsuleTabs = LocalAppUiStyle.current == AppUiStyle.MIUIX ||
+        homeSettings.androidNativeLiquidGlassEnabled
+    val indicatorPositionProvider = remember(pagerState) {
+        { pagerState.currentPage + pagerState.currentPageOffsetFraction }
+    }
     val subReplyState by commentViewModel.subReplyState.collectAsStateWithLifecycle()
     val commentState by commentViewModel.commentState.collectAsStateWithLifecycle()
 
@@ -78,20 +93,39 @@ fun BangumiPlayerContent(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomBarLiquidSegmentedControl(
-                items = tabs,
-                selectedIndex = pagerState.currentPage,
-                onSelected = { index ->
-                    scope.launch { pagerState.animateScrollToPage(index) }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                height = 44.dp,
-                indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(44f).dp,
-                labelFontSize = 15.sp,
-                miuixBackdrop = selectionBackdrop,
-                tapPressRefractionEnabled = false,
-                isScrollInProgressProvider = { pagerState.isScrollInProgress },
-            )
+            if (useCapsuleTabs) {
+                BottomBarLiquidSegmentedControl(
+                    items = tabs,
+                    selectedIndex = pagerState.currentPage,
+                    onSelected = { index ->
+                        scope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                    itemWidth = 72.dp,
+                    height = 44.dp,
+                    indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(44f).dp,
+                    labelFontSize = 15.sp,
+                    miuixBackdrop = selectionBackdrop,
+                    forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
+                    liquidGlassEffectsEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+                    tapPressRefractionEnabled = false,
+                    indicatorPositionProvider = indicatorPositionProvider,
+                    isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                )
+            } else {
+                AppPrimaryTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    modifier = Modifier.fillMaxWidth(0.4f),
+                ) {
+                    tabs.forEachIndexed { index, label ->
+                        AppTab(
+                            selected = pagerState.currentPage == index,
+                            onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                        ) {
+                            AppText(text = label, tapToCopyEnabled = false)
+                        }
+                    }
+                }
+            }
         }
 
         HorizontalPager(

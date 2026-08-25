@@ -65,6 +65,8 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP"))
         assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
         assertTrue(source.contains("HorizontalVideoStatRow("))
+        assertTrue(source.contains(".align(Alignment.BottomEnd)"))
+        assertTrue(source.contains(".size(32.dp)"))
         assertTrue(source.contains("resolveHomeFeedCardLayout(homeFeedCardStyle)"))
         assertTrue(source.contains("RELATED_VIDEO_GRID_COLUMNS = 1"))
         assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))

@@ -2,6 +2,8 @@ package com.android.purebilibili.navigation3.predictiveback
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import java.io.File
 
 class BiliPaiMiuixNavTransitionTest {
 
@@ -13,5 +15,17 @@ class BiliPaiMiuixNavTransitionTest {
         assertEquals(0.25f, resolveMiuixNavCoveredBlurProgress(0.5f))
         assertEquals(1f, resolveMiuixNavCoveredBlurProgress(1f))
         assertEquals(1f, resolveMiuixNavCoveredBlurProgress(2f))
+    }
+
+    @Test
+    fun allAnimatedStylesShareTheRealtimeCoveredBlurWrapper() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiMiuixNavTransition.kt"),
+            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiMiuixNavTransition.kt"),
+        ).first(File::exists).readText()
+
+        assertTrue(source.contains("NONE -> return NoPredictiveBackTransition"))
+        assertTrue(source.contains("return realtimeCoveredBlurTransition("))
+        assertTrue(source.contains("baseTransition = baseTransition"))
     }
 }

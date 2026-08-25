@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home
 
 import com.android.purebilibili.core.store.HomeFeedCardStyle
+import com.android.purebilibili.core.util.WindowWidthSizeClass
 
 internal data class HomeFeedCardLayout(
     val coverAspectRatio: Float,
@@ -8,8 +9,13 @@ internal data class HomeFeedCardLayout(
     val itemSpacingDp: Int,
     val verticalItemSpacingDp: Int = itemSpacingDp,
     val storyCardHorizontalPaddingDp: Int,
-    val compactMetadata: Boolean
-)
+    val density: HomeFeedCardDensityPolicy,
+) {
+    val compactMetadata: Boolean get() = density.compactMetadata
+    val titleMinLines: Int get() = density.titleMinLines
+    val titleMaxLines: Int get() = density.titleMaxLines
+    val compactStatsOnCover: Boolean get() = density.compactStatsOnCover
+}
 
 /** 4:3 更高列表框。CDN 16:9 源图会左右裁。 */
 internal const val HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO = 4f / 3f
@@ -29,7 +35,13 @@ internal const val HOME_FEED_CURRENT_COVER_ASPECT_RATIO = HOME_FEED_FULL_COVER_A
 internal fun resolveHomeFeedCoverAspectRatio(
     style: HomeFeedCardStyle,
     gridColumns: Int = 2,
+    widthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
 ): Float {
+    if (widthSizeClass >= WindowWidthSizeClass.Expanded &&
+        (gridColumns <= 1 || style == HomeFeedCardStyle.BILIPAI)
+    ) {
+        return HOME_FEED_FULL_COVER_ASPECT_RATIO
+    }
     // 单列横卡封面固定为 16:10；双列及以上继续尊重用户选择。
     if (gridColumns <= 1) return HOME_FEED_BILIPAI_COVER_ASPECT_RATIO
     return when (style) {
@@ -42,10 +54,17 @@ internal fun resolveHomeFeedCoverAspectRatio(
 internal fun resolveHomeFeedCardLayout(
     style: HomeFeedCardStyle,
     gridColumns: Int = 2,
+    widthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
 ): HomeFeedCardLayout {
     val coverAspectRatio = resolveHomeFeedCoverAspectRatio(
         style = style,
         gridColumns = gridColumns,
+        widthSizeClass = widthSizeClass,
+    )
+    val density = resolveHomeFeedCardDensityPolicy(
+        style = style,
+        gridColumns = gridColumns,
+        widthSizeClass = widthSizeClass,
     )
     return when (style) {
         HomeFeedCardStyle.CURRENT -> HomeFeedCardLayout(
@@ -54,7 +73,7 @@ internal fun resolveHomeFeedCardLayout(
             itemSpacingDp = 6,
             verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 16,
-            compactMetadata = false
+            density = density,
         )
 
         HomeFeedCardStyle.OFFICIAL -> HomeFeedCardLayout(
@@ -64,7 +83,7 @@ internal fun resolveHomeFeedCardLayout(
             itemSpacingDp = 6,
             verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 0,
-            compactMetadata = true
+            density = density,
         )
 
         HomeFeedCardStyle.BILIPAI -> HomeFeedCardLayout(
@@ -74,7 +93,7 @@ internal fun resolveHomeFeedCardLayout(
             itemSpacingDp = 6,
             verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 8,
-            compactMetadata = true
+            density = density,
         )
     }
 }

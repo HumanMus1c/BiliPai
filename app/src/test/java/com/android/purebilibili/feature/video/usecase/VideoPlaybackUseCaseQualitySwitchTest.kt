@@ -299,7 +299,7 @@ class VideoPlaybackUseCaseQualitySwitchTest {
     }
 
     @Test
-    fun `resolveAutoHighestTargetQuality caps vip auto highest at hdr before 8k`() {
+    fun `resolveAutoHighestTargetQuality selects documented highest vip tier`() {
         val useCase = VideoPlaybackUseCase()
 
         val result = useCase.resolveAutoHighestTargetQuality(
@@ -310,7 +310,22 @@ class VideoPlaybackUseCaseQualitySwitchTest {
             isDolbyVisionSupported = false
         )
 
-        assertEquals(125, result)
+        assertEquals(127, result)
+    }
+
+    @Test
+    fun `resolveAutoHighestTargetQuality includes app only HDR Vivid tier`() {
+        val useCase = VideoPlaybackUseCase()
+
+        val result = useCase.resolveAutoHighestTargetQuality(
+            acceptQualities = listOf(129, 127, 125, 120, 80),
+            isLoggedIn = true,
+            isVip = true,
+            isHdrSupported = true,
+            isDolbyVisionSupported = true
+        )
+
+        assertEquals(129, result)
     }
 
     @Test

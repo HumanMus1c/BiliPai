@@ -4,7 +4,6 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -34,13 +33,9 @@ import com.android.purebilibili.core.ui.components.AppPlatformNavigationRailItem
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,14 +58,15 @@ import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.rememberAppNavigationCapabilities
 import com.android.purebilibili.core.util.HapticType
+import com.android.purebilibili.core.util.AppFoldPosture
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.LocalWindowSizeClass
-import com.android.purebilibili.core.util.WindowWidthSizeClass
+import com.android.purebilibili.core.util.shouldUseExpandedNavigationRailForLayout
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import dev.chrisbanes.haze.HazeState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.ViewSidebar
-import kotlinx.coroutines.launch
 
 /**
  * 平板端侧边导航栏 - 垂直版本的 FrostedBottomBar
@@ -100,9 +96,15 @@ fun FrostedSideBar(
     itemColorIndices: Map<String, Int> = emptyMap(),
     itemLabels: Map<String, String> = emptyMap(),
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
+    sidebarExpanded: Boolean = true,
+    onSidebarExpandedChange: (Boolean) -> Unit = {},
     onToggleSidebar: (() -> Unit)? = null,
     onAccountSwitchClick: (() -> Unit)? = null,
 ) {
+    val foldPosture = LocalAppWindowAdaptiveInfo.current.posture
+    if (foldPosture == AppFoldPosture.Book || foldPosture == AppFoldPosture.Tabletop) {
+        return
+    }
     ProvideBottomBarSkinMotion(uiSkinDecoration) {
         if (rememberAppNavigationCapabilities().usePlatformSideRail) {
             MiuixSideBar(
@@ -115,6 +117,8 @@ fun FrostedSideBar(
                 visibleItems = visibleItems,
                 itemLabels = itemLabels,
                 uiSkinDecoration = uiSkinDecoration,
+                sidebarExpanded = sidebarExpanded,
+                onSidebarExpandedChange = onSidebarExpandedChange,
                 onToggleSidebar = onToggleSidebar,
                 onAccountSwitchClick = onAccountSwitchClick,
             )
@@ -147,13 +151,18 @@ private fun MiuixSideBar(
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
+    sidebarExpanded: Boolean,
+    onSidebarExpandedChange: (Boolean) -> Unit,
     onToggleSidebar: (() -> Unit)?,
     onAccountSwitchClick: (() -> Unit)?,
 ) {
     val haptic = rememberHapticFeedback()
-    val isExpandedWidthClass =
-        LocalWindowSizeClass.current.widthSizeClass >= WindowWidthSizeClass.Expanded
-    val expandable = shouldUseExpandableMiuixSideBar(isExpandedWidthClass)
+    val expandable = shouldUseExpandableMiuixSideBar(
+        shouldUseExpandedNavigationRailForLayout(
+            windowSizeClass = LocalWindowSizeClass.current,
+            foldPosture = LocalAppWindowAdaptiveInfo.current.posture,
+        ),
+    )
     val chromeBackground = AppSurfaceTokens.surface()
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val blurIntensity = com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity()
@@ -177,6 +186,8 @@ private fun MiuixSideBar(
 
     AppPlatformNavigationRail(
         expanded = expandable,
+        initiallyExpanded = sidebarExpanded,
+        onExpandedChange = onSidebarExpandedChange,
         modifier = modifier
             .fillMaxHeight()
             .then(
@@ -194,6 +205,15 @@ private fun MiuixSideBar(
             val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
             val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = isSelected)
             val itemModifier = if (itemIndex == 0) firstItemModifier else Modifier
+            val selectionTransform = rememberNavigationSelectionTransform(
+                selected = isSelected,
+                label = "${item.name}_miuix_side_bar",
+            )
+            val animatedItemModifier = itemModifier.graphicsLayer {
+                scaleX = selectionTransform.scale()
+                scaleY = selectionTransform.scale()
+                rotationZ = selectionTransform.rotationDegrees()
+            }
             val onItemTap = {
                 val nowMs = SystemClock.elapsedRealtime()
                 when (
@@ -225,7 +245,7 @@ private fun MiuixSideBar(
                     onClick = onItemTap,
                     icon = resolveHomeNavigationBarIcon(item, isSelected),
                     label = itemLabel,
-                    modifier = itemModifier
+                    modifier = animatedItemModifier
                 )
             } else {
                 MiuixSideBarSkinItem(
@@ -233,7 +253,7 @@ private fun MiuixSideBar(
                     label = itemLabel,
                     skinIconPath = skinIconPath,
                     onClick = onItemTap,
-                    modifier = itemModifier
+                    modifier = animatedItemModifier
                 )
             }
         }
@@ -329,8 +349,6 @@ private fun FrostedSideBarContent(
     onAccountSwitchClick: (() -> Unit)?,
 ) {
     val haptic = rememberHapticFeedback()
-    val scope = rememberCoroutineScope()
-
     val blurIntensity = com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity()
     val backgroundAlpha = com.android.purebilibili.core.ui.blur.BlurStyles.getBackgroundAlpha(blurIntensity)
     val chromeBackground = AppSurfaceTokens.chromeBackground()
@@ -395,48 +413,24 @@ private fun FrostedSideBarContent(
                 val isSelected = item == currentItem
                 val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
 
-                var isPending by remember { mutableStateOf(false) }
-                var wobbleAngle by remember { mutableFloatStateOf(0f) }
-
                 val primaryColor = MaterialTheme.colorScheme.primary
                 val unselectedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = isSelected)
+                val selectionTransform = rememberNavigationSelectionTransform(
+                    selected = isSelected,
+                    label = "${item.name}_md3_side_bar",
+                )
 
                 val iconColor by animateColorAsState(
-                    targetValue = if (isSelected || isPending) primaryColor else unselectedColor,
+                    targetValue = if (isSelected) primaryColor else unselectedColor,
                     animationSpec = AppMotionTokens.standardSpec(),
                     label = "iconColor"
                 )
-
-                val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.15f else 1.0f,
-                    animationSpec = sideBarSelectionScaleMotionSpec(),
-                    label = "scale"
-                )
-
-                val animatedWobble by animateFloatAsState(
-                    targetValue = wobbleAngle,
-                    animationSpec = sideBarWobbleMotionSpec(),
-                    label = "wobble"
-                )
-
-                LaunchedEffect(wobbleAngle) {
-                    if (wobbleAngle != 0f) {
-                        kotlinx.coroutines.delay(50)
-                        wobbleAngle = 0f
-                    }
-                }
                 val triggerItemClick = {
-                    isPending = true
                     performHomeSideBarItemTap(
                         haptic = haptic,
                         onClick = { onItemClick(item) }
                     )
-                    wobbleAngle = 8f
-                    scope.launch {
-                        kotlinx.coroutines.delay(90)
-                        isPending = false
-                    }
                 }
 
                 Column(
@@ -469,12 +463,11 @@ private fun FrostedSideBarContent(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Box(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                rotationZ = animatedWobble
-                            }
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = selectionTransform.scale()
+                            scaleY = selectionTransform.scale()
+                            rotationZ = selectionTransform.rotationDegrees()
+                        }
                     ) {
                         CompositionLocalProvider(LocalContentColor provides iconColor) {
                             if (skinIconPath != null) {
@@ -486,7 +479,7 @@ private fun FrostedSideBarContent(
                                 )
                             } else {
                                 AppIcon(
-                                    imageVector = resolveHomeNavigationBarIcon(
+                                    imageVector = resolveMaterialBottomBarIcon(
                                         item = item,
                                         selected = isSelected
                                     ),

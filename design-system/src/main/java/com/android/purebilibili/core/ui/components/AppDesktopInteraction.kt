@@ -12,6 +12,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -24,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 fun Modifier.appDesktopInteractionVisuals(
     interactionSource: MutableInteractionSource,
     enabled: Boolean = true,
+    shape: Shape? = null,
 ): Modifier {
     if (!enabled) return this
     val focused by interactionSource.collectIsFocusedAsState()
@@ -34,26 +37,38 @@ fun Modifier.appDesktopInteractionVisuals(
         .pointerHoverIcon(PointerIcon.Hand)
         .drawWithContent {
             drawContent()
-            val cornerRadius = CornerRadius(12.dp.toPx())
+            val outline = shape?.createOutline(size, layoutDirection, this)
             if (hovered) {
-                drawRoundRect(
-                    color = hoverColor.copy(alpha = 0.06f),
-                    cornerRadius = cornerRadius,
-                )
+                if (outline != null) {
+                    drawOutline(outline, hoverColor.copy(alpha = 0.06f))
+                } else {
+                    drawRoundRect(
+                        color = hoverColor.copy(alpha = 0.06f),
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                    )
+                }
             }
             if (focused) {
-                drawRoundRect(
-                    color = focusColor,
-                    cornerRadius = cornerRadius,
-                    style = Stroke(width = 2.dp.toPx()),
-                )
+                val stroke = Stroke(width = 2.dp.toPx())
+                if (outline != null) {
+                    drawOutline(outline, focusColor, style = stroke)
+                } else {
+                    drawRoundRect(
+                        color = focusColor,
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                        style = stroke,
+                    )
+                }
             }
         }
 }
 
 /** Focus/hover visuals for controls whose implementation does not expose its interaction source. */
 @Composable
-fun Modifier.appDesktopFocusableItemVisuals(enabled: Boolean = true): Modifier {
+fun Modifier.appDesktopFocusableItemVisuals(
+    enabled: Boolean = true,
+    shape: Shape? = null,
+): Modifier {
     if (!enabled) return this
     val hoverInteractionSource = remember { MutableInteractionSource() }
     val hovered by hoverInteractionSource.collectIsHoveredAsState()
@@ -66,16 +81,28 @@ fun Modifier.appDesktopFocusableItemVisuals(enabled: Boolean = true): Modifier {
         .onFocusChanged { focused = it.isFocused }
         .drawWithContent {
             drawContent()
-            val cornerRadius = CornerRadius(12.dp.toPx())
+            val outline = shape?.createOutline(size, layoutDirection, this)
             if (hovered) {
-                drawRoundRect(hoverColor.copy(alpha = 0.06f), cornerRadius = cornerRadius)
+                if (outline != null) {
+                    drawOutline(outline, hoverColor.copy(alpha = 0.06f))
+                } else {
+                    drawRoundRect(
+                        color = hoverColor.copy(alpha = 0.06f),
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                    )
+                }
             }
             if (focused) {
-                drawRoundRect(
-                    color = focusColor,
-                    cornerRadius = cornerRadius,
-                    style = Stroke(width = 2.dp.toPx()),
-                )
+                val stroke = Stroke(width = 2.dp.toPx())
+                if (outline != null) {
+                    drawOutline(outline, focusColor, style = stroke)
+                } else {
+                    drawRoundRect(
+                        color = focusColor,
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                        style = stroke,
+                    )
+                }
             }
         }
 }

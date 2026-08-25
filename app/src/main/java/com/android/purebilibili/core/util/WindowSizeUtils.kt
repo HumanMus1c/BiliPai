@@ -118,10 +118,10 @@ data class WindowSizeClass(
     
     /** 是否应该使用侧边导航栏（仅大屏） */
     val shouldUseSideNavigation: Boolean
-        get() = isTablet
+        get() = widthSizeClass >= WindowWidthSizeClass.Expanded
 
     val shouldUseExpandedNavigationRail: Boolean
-        get() = widthSizeClass >= WindowWidthSizeClass.Expanded
+        get() = widthSizeClass >= WindowWidthSizeClass.Large
 
     val shouldUseThreePaneLayout: Boolean
         get() = isExtraLargeScreen && heightSizeClass != WindowHeightSizeClass.Compact

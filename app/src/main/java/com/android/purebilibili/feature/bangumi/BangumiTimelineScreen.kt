@@ -228,7 +228,9 @@ private fun TimelineEpisodeCard(
                     .clip(AppShapes.container(ContainerLevel.Field))
             ) {
                 AsyncImage(
-                    model = FormatUtils.fixImageUrl(episode.cover.ifEmpty { episode.squareCover }),
+                    model = FormatUtils.fixImageUrl(
+                        resolveTimelineEpisodeCover(episode, preferEpisodeCover = true)
+                    ),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -273,7 +275,7 @@ private fun TimelineEpisodeCard(
                 ) {
                     // 更新集数
                     AppText(
-                        text = episode.pubIndex,
+                        text = resolveTimelineEpisodeUpdateLabel(episode),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -289,10 +291,11 @@ private fun TimelineEpisodeCard(
                 }
                 
                 // 延迟信息
-                if (isDelayed && episode.delayReason.isNotEmpty()) {
+                val scheduleLabel = resolveTimelineEpisodeScheduleLabel(episode)
+                if (isDelayed && scheduleLabel.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
-                        text = " ${episode.delayReason}",
+                        text = scheduleLabel,
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.error
                     )

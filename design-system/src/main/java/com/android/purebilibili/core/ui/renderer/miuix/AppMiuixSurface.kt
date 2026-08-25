@@ -80,7 +80,7 @@ internal fun AppMiuixHorizontalDivider(
 )
 
 @Composable
-private fun miuixContentColorFor(backgroundColor: Color): Color {
+internal fun miuixContentColorFor(backgroundColor: Color): Color {
     val colors = MiuixTheme.colorScheme
     return when (backgroundColor) {
         colors.primary -> colors.onPrimary

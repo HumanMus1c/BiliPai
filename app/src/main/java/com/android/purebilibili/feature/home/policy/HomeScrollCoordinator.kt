@@ -27,12 +27,7 @@ internal data class HomeHeaderSettleTransition(
 internal fun resolveHomeRecommendationHeaderCollapseMode(
     homeHeaderCollapseMode: HomeHeaderCollapseMode
 ): HomeHeaderCollapseMode {
-    // 搜索框和标签页一起：始终显示，或离开顶部后收起、回顶再出现。
-    return if (homeHeaderCollapseMode.hasAnyCollapse) {
-        HomeHeaderCollapseMode.BOTH
-    } else {
-        HomeHeaderCollapseMode.OFF
-    }
+    return homeHeaderCollapseMode
 }
 
 internal fun quantizeHomeHeaderOffset(

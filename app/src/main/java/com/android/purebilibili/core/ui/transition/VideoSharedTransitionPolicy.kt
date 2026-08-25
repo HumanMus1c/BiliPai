@@ -6,10 +6,26 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.geometry.Rect
+import com.android.purebilibili.core.ui.adaptive.AdaptiveFoldPosture
+import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfileSpec
+import com.android.purebilibili.core.ui.adaptive.toAdaptiveWidthClass
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
+
+/** 设备自适应信息，用于视频卡片过渡差异化。 */
+internal data class VideoTransitionAdaptiveInfo(
+    val widthSizeClass: com.android.purebilibili.core.util.WindowWidthSizeClass =
+        com.android.purebilibili.core.util.WindowWidthSizeClass.Compact,
+    val foldPosture: AdaptiveFoldPosture = AdaptiveFoldPosture.None,
+)
+
+internal val LocalVideoTransitionAdaptiveInfo = compositionLocalOf {
+    VideoTransitionAdaptiveInfo()
+}
 
 internal enum class VideoSharedTransitionProfile {
     COVER_ONLY,
@@ -233,15 +249,29 @@ internal fun normalizeVideoSharedTransitionCustomDurationMillis(durationMillis: 
 }
 
 internal fun resolveVideoSharedTransitionDurationMillis(
-    speedSettings: VideoSharedTransitionSpeedSettings
+    speedSettings: VideoSharedTransitionSpeedSettings,
+    adaptiveInfo: VideoTransitionAdaptiveInfo = VideoTransitionAdaptiveInfo()
 ): Int {
-    return when (speedSettings.speed) {
+    val baseMillis = when (speedSettings.speed) {
         VideoSharedTransitionSpeed.FAST -> VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS
         VideoSharedTransitionSpeed.STANDARD -> VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS
         VideoSharedTransitionSpeed.SLOW -> VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS
         VideoSharedTransitionSpeed.CUSTOM ->
             normalizeVideoSharedTransitionCustomDurationMillis(speedSettings.customDurationMillis)
     }
+    val widthFactor = when (adaptiveInfo.widthSizeClass) {
+        com.android.purebilibili.core.util.WindowWidthSizeClass.Compact -> 1.0f
+        com.android.purebilibili.core.util.WindowWidthSizeClass.Medium -> 1.1f
+        com.android.purebilibili.core.util.WindowWidthSizeClass.Expanded -> 1.15f
+        com.android.purebilibili.core.util.WindowWidthSizeClass.Large -> 1.25f
+        com.android.purebilibili.core.util.WindowWidthSizeClass.ExtraLarge -> 1.3f
+    }
+    val deviceProfile = resolveDeviceUiProfileSpec(
+        widthClass = adaptiveInfo.widthSizeClass.toAdaptiveWidthClass(),
+        foldPosture = adaptiveInfo.foldPosture,
+    )
+    val postureFactor = if (deviceProfile.motionTier == MotionTier.Reduced) 0.85f else 1.0f
+    return (baseMillis * widthFactor * postureFactor).roundToInt().coerceAtLeast(0)
 }
 
 internal fun resolveVideoSharedTransitionFullscreenDurationMillis(durationMillis: Int): Int {
@@ -281,7 +311,8 @@ internal fun resolveVideoSharedTransitionVisualSpec(
     initialVertical: Boolean = false,
     isVerticalVideo: Boolean = false,
     isReturning: Boolean = false,
-    playerCornerDp: Int = DEFAULT_VIDEO_PLAYER_CORNER_DP
+    playerCornerDp: Int = DEFAULT_VIDEO_PLAYER_CORNER_DP,
+    adaptiveInfo: VideoTransitionAdaptiveInfo = VideoTransitionAdaptiveInfo(),
 ): VideoSharedTransitionVisualSpec {
     val normalizedSourceRoute = sourceRoute?.substringBefore("?")?.takeIf { it.isNotBlank() }
     val safeSourceCornerDp = sourceCornerDp.coerceAtLeast(0)
@@ -301,6 +332,12 @@ internal fun resolveVideoSharedTransitionVisualSpec(
         targetMode == VideoSharedTransitionTargetMode.PortraitFullscreen -> 0
         else -> playerCornerDp.coerceAtLeast(0)
     }
+    val shouldUseCoverSharedBounds = when (adaptiveInfo.foldPosture) {
+        AdaptiveFoldPosture.Book, AdaptiveFoldPosture.Tabletop -> false
+        AdaptiveFoldPosture.None, AdaptiveFoldPosture.Flat ->
+            normalizedSourceRoute != null &&
+                !shouldSkipVideoCardSharedBoundsMorph(normalizedSourceRoute)
+    }
 
     return VideoSharedTransitionVisualSpec(
         targetMode = targetMode,
@@ -308,8 +345,7 @@ internal fun resolveVideoSharedTransitionVisualSpec(
         targetCornerDp = targetCornerDp,
         fillTargetViewport = targetMode == VideoSharedTransitionTargetMode.LandscapeFullscreen ||
             targetMode == VideoSharedTransitionTargetMode.PortraitFullscreen,
-        useCoverSharedBounds = normalizedSourceRoute != null &&
-            !shouldSkipVideoCardSharedBoundsMorph(normalizedSourceRoute),
+        useCoverSharedBounds = shouldUseCoverSharedBounds,
         suppressCoverFade = isReturning
     )
 }
@@ -469,6 +505,7 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
     transitionEnabled: Boolean,
     speedSettings: VideoSharedTransitionSpeedSettings = VideoSharedTransitionSpeedSettings(),
     isQuickReturn: Boolean = false,
+    adaptiveInfo: VideoTransitionAdaptiveInfo = VideoTransitionAdaptiveInfo(),
 ): VideoSharedTransitionMotionSpec {
     val enabled = transitionEnabled &&
         !sourceRoute?.substringBefore("?").isNullOrBlank()
@@ -488,7 +525,7 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
             returnAlphaEasing = VIDEO_CARD_ALPHA_EASING
         )
     }
-    val durationMillis = resolveVideoSharedTransitionDurationMillis(speedSettings)
+    val durationMillis = resolveVideoSharedTransitionDurationMillis(speedSettings, adaptiveInfo)
 
     return VideoSharedTransitionMotionSpec(
         enabled = true,
@@ -512,10 +549,11 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
 
 internal fun resolveVideoMetadataSharedTransitionMotionSpec(
     transitionEnabled: Boolean,
-    speedSettings: VideoSharedTransitionSpeedSettings = VideoSharedTransitionSpeedSettings()
+    speedSettings: VideoSharedTransitionSpeedSettings = VideoSharedTransitionSpeedSettings(),
+    adaptiveInfo: VideoTransitionAdaptiveInfo = VideoTransitionAdaptiveInfo(),
 ): VideoSharedTransitionMotionSpec {
     val durationMillis = if (transitionEnabled) {
-        resolveVideoSharedTransitionDurationMillis(speedSettings)
+        resolveVideoSharedTransitionDurationMillis(speedSettings, adaptiveInfo)
     } else {
         0
     }

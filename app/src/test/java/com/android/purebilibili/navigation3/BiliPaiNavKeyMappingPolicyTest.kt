@@ -140,6 +140,13 @@ class BiliPaiNavKeyMappingPolicyTest {
     }
 
     @Test
+    fun bangumiMediaRoute_roundTripsMediaId() {
+        val key = BiliPaiNavKey.BangumiDetail(seasonId = 0L, mediaId = 28237119L)
+
+        assertEquals(key, legacyRouteToBiliPaiNavKey(key.toLegacyRoute()))
+    }
+
+    @Test
     fun spaceRoute_preservesVideoLocateTarget() {
         val key = BiliPaiNavKey.Space(mid = 42L, targetBvid = "BV1abc?x")
 

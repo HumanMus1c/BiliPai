@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.feature.download.DownloadManager
 import kotlinx.coroutines.launch
@@ -62,7 +63,7 @@ fun HomeBangumiTabPage(
                 end = contentPadding.calculateEndPadding(layoutDirection),
             )
     ) {
-        BangumiLiquidAwareTabRow(
+        AppLiquidAwareTabRow(
             options = channelOptions,
             selectedValue = state.channel,
             onSelectionChange = viewModel::selectChannel,

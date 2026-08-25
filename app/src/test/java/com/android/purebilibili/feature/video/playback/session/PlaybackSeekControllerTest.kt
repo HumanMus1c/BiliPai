@@ -380,6 +380,24 @@ class PlaybackSeekControllerTest {
     }
 
     @Test
+    fun expiredPendingSeek_releasesFrozenSliderPosition() {
+        val expired = expirePendingPlaybackSeek(
+            state = PlaybackSeekSessionState(
+                playbackPositionMs = 10_000L,
+                sliderPositionMs = 24_000L,
+                pendingSeekPositionMs = 24_000L,
+                pendingSeekOriginPositionMs = 10_000L,
+                shouldResumePlayback = true,
+            ),
+            playbackPositionMs = 11_000L,
+        )
+
+        assertEquals(11_000L, expired.sliderPositionMs)
+        assertNull(expired.pendingSeekPositionMs)
+        assertNull(expired.shouldResumePlayback)
+    }
+
+    @Test
     fun pendingSeekRecovery_clearsOncePlaybackActuallyRuns() {
         val state = PlaybackSeekSessionState(
             playbackPositionMs = 10_000L,

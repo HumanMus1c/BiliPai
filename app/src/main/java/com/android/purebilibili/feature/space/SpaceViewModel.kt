@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiUtils
+import com.android.purebilibili.core.network.getSpaceAggregate
 import com.android.purebilibili.data.model.response.*
 import com.android.purebilibili.data.repository.BangumiRepository
 import com.android.purebilibili.data.repository.ActionRepository
@@ -1311,17 +1312,26 @@ class SpaceViewModel(
             ).fold(
                 onSuccess = { data ->
                     val latest = _uiState.value as? SpaceUiState.Success ?: return@fold
+                    val incomingItems = data.list.orEmpty()
+                    val previousItems = if (refresh) emptyList() else latest.bangumiItems
                     val mergedItems = if (refresh) {
-                        data.list.orEmpty()
+                        incomingItems
                     } else {
-                        mergeSpaceBangumiItems(latest.bangumiItems, data.list.orEmpty())
+                        mergeSpaceBangumiItems(previousItems, incomingItems)
                     }
                     _uiState.value = latest.copy(
                         bangumiItems = mergedItems,
                         bangumiTotal = data.total,
-                        bangumiPage = page,
+                        bangumiPage = data.pn.coerceAtLeast(page),
                         isLoadingBangumi = false,
-                        hasMoreBangumi = mergedItems.size < data.total.coerceAtLeast(mergedItems.size)
+                        hasMoreBangumi = shouldContinueSpaceBangumiPagination(
+                            previousItemCount = previousItems.size,
+                            mergedItemCount = mergedItems.size,
+                            incomingItemCount = incomingItems.size,
+                            responsePage = data.pn,
+                            pageSize = data.ps,
+                            total = data.total,
+                        ),
                     ).markTabResult(SpaceMainTab.BANGUMI)
                 },
                 onFailure = { error ->
@@ -1329,7 +1339,9 @@ class SpaceViewModel(
                     _uiState.value = latest.copy(isLoadingBangumi = false).markTabResult(
                         SpaceMainTab.BANGUMI,
                         error = error.message ?: "追番加载失败",
-                        hasLoaded = latest.bangumiItems.isNotEmpty()
+                        // An automatic initial request must settle even on privacy/network errors;
+                        // otherwise the keyed screen effect immediately retries forever.
+                        hasLoaded = true,
                     )
                 }
             )

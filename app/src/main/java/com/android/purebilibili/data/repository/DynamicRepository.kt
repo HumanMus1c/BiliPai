@@ -515,7 +515,7 @@ object DynamicRepository {
         return mapOf(
             "host_mid" to hostMid.toString(),
             "offset" to offset,
-            "features" to "itemOpusStyle,listOnlyfans",
+            "features" to com.android.purebilibili.core.network.SPACE_DYNAMIC_FEATURES,
             "timezone_offset" to "-480",
             "platform" to "web",
             "web_location" to "333.1387"

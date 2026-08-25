@@ -48,6 +48,7 @@ internal fun resolveHomeCoverPreloadRange(
     return preloadStart until preloadEndExclusive
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveHomePerformanceConfig(
     supportsIndependentLiquidGlass: Boolean = true,
     headerBlurEnabled: Boolean,
@@ -65,12 +66,11 @@ internal fun resolveHomePerformanceConfig(
     // Feature retired: keep parameter for compatibility, but never apply runtime smoothness downgrade.
     val shouldPrioritizeSmoothness = false
     val effectiveDataSaver = isDataSaverActive
-    fun resolveLiquidGlass(individualEnabled: Boolean): Boolean =
-        androidNativeLiquidGlassEnabled ||
-            (supportsIndependentLiquidGlass && individualEnabled)
-    val effectiveTopBarLiquidGlass = resolveLiquidGlass(topBarLiquidGlassEnabled)
-    val effectiveHomeSearchLiquidGlass = resolveLiquidGlass(homeSearchLiquidGlassEnabled)
-    val effectiveBottomBarLiquidGlass = resolveLiquidGlass(bottomBarLiquidGlassEnabled)
+    // The legacy per-surface values remain readable for settings migration/import compatibility,
+    // but the Android liquid-glass switch is now the only runtime enablement source.
+    val effectiveTopBarLiquidGlass = androidNativeLiquidGlassEnabled
+    val effectiveHomeSearchLiquidGlass = androidNativeLiquidGlassEnabled
+    val effectiveBottomBarLiquidGlass = androidNativeLiquidGlassEnabled
     val effectivePreloadAheadCount = when {
         shouldPrioritizeSmoothness -> normalPreloadAheadCount.coerceAtLeast(0).coerceAtMost(2)
         else -> resolveHomePreloadAheadCount(

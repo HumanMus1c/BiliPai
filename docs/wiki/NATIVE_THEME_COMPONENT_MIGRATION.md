@@ -1,7 +1,7 @@
 # 双主题原生组件迁移
 
 最后更新：2026-08-24  
-状态：实施中（阶段 0）
+状态：实施中（阶段 1；基础视觉、选择与反馈控件并行推进）
 
 ## 目标合同
 
@@ -32,6 +32,8 @@ feature UI
 2. `BiliPaiNavDisplayHost` 继续使用 Miuix `NavDisplay`，相关 back stack、transition 与手势桥接
    作为 MD3 与 MIUIX 共用的导航子系统；当前 12 个源码文件以精确集合冻结。
 3. `AndroidView`、Media3 播放表面、系统 UI 与第三方插件内部 UI 不属于本次组件迁移。
+4. `AppearanceSettingsScreen.Md3ThemeColorPreview` 是 Material 3 配色生成器的原生预览，固定保留
+   一处 `ElevatedCard`。门禁按“文件 + 函数 + 组件”精确校验，不作为普通 feature Card 的数量预算。
 
 ## 尺寸与圆角合同
 
@@ -67,6 +69,65 @@ feature UI
 - MD3 renderer 禁止导入 Miuix；Miuix renderer 禁止导入 Material 3。
 - 液态玻璃文件集合使用路径摘要冻结。
 - Miuix navigation 只能出现在已冻结的共享导航子系统文件集合。
+- app 生产源码不得直接调用原生 `Slider`，必须通过 `AppSlider` 分发。
+- app 生产源码不得直接调用原生 `Button` / `TextButton` / `OutlinedButton`，必须通过对应
+  `App*Button` 分发。
+- `AppIconButton` 调用不得把 `48.dp` 或最小触控 token 写成根视觉尺寸；使用原生视觉几何，
+  触控命中由 Compose 的系统最小触控目标扩展机制独立保证。
+- app 生产源码不得直接调用原生 IconButton 家族或 Material `IconButtonDefaults`，必须通过
+  `AppIconButton` / `AppFilledIconButton` 与 `AppIconButtonDefaults` 分发。
+- app 生产源码不得直接调用 Material 3 `Card` / `ElevatedCard` / `OutlinedCard`；只允许上述
+  `Md3ThemeColorPreview` 精确例外。
+
+## 当前实施进度（2026-08-24）
+
+阶段 0 已完成，renderer 骨架已经投入使用：
+
+| 状态 | 中性入口 | 说明 |
+|---|---|---|
+| 已双原生化 | `AppText` / `AppIcon` | facade 保留全部重载与文本点击复制；默认样式、内容色来自当前原生主题 |
+| 已双原生化 | `AppSurface` / `AppHorizontalDivider` | 两个主题分别调用原生 Surface / Divider |
+| 已双原生化 | `AppBadge` | 未显式传色时分别解析原生 Badge token |
+| 已双原生化 | `AppListItem` | MD3 使用 `ListItem`，MIUIX 使用官方 `BasicComponent` slot API |
+| 已双原生化 | `AppCheckbox` / `AppRadioButton` / `AppSwitch` | facade 不再暴露 MD3 colors；MIUIX 原生触觉受应用总开关约束 |
+| 已双原生化 | `AppSlider` | 自定义颜色通过 `AppSliderColors` 映射到两套原生 defaults；app 生产源码直调归零 |
+| 已双原生化 | `AppCircularProgressIndicator` / `AppLinearProgressIndicator` | 颜色与线宽默认使用中立 sentinel；MD3 保留 provider 延迟读取，MIUIX 在最终 renderer 边界求值；feature 直调归零 |
+| 已双原生化 | `AppCard` | `AppCardShape` 仅接受语义层级或显式均匀半径；MD3 使用原生 `Card` / `ElevatedCard`，MIUIX 使用原生 `Card`；21 个既有调用、反诈历史与启动壁纸裸 Card 已收口 |
+| 已双原生化 | `AppIconButton` / `AppFilledIconButton` | 190 个标准与 4 个 Filled 调用按主题进入原生组件；7 处自定义颜色改用中立 colors，app 原生直调与厂商 defaults 引用归零 |
+| 已完成几何收敛 | 分段控制 | 视觉高度与圆角共同解析，不再把 48dp 触控下限写成固定视觉高度 |
+| 已完成几何收敛 | `AppIconButton` | 22 处固定 48dp / 最小触控 token 根尺寸已移除；保留 55 处角色或策略尺寸，默认视觉尺寸与圆角交还原生组件 |
+
+`AppPrimitiveComponents.kt` 的 Material 3 import 棘轮已由 78 降至 47。已迁移 facade
+均不导入 Material 3 或 Miuix 可见组件；厂商 import 只存在于对应 renderer。
+
+Card 圆角不会从任意 Compose `Shape` 反推：语义层级在 MD3 renderer 中解析为 MD3 对应
+`Shape`，在 MIUIX renderer 中解析为 MIUIX 对应 `cornerRadius`；显式均匀圆角则直接映射。
+`ContainerLevel.Sheet` 在 MD3 保留顶部圆角，MIUIX 受官方 Card 单一半径参数约束，受控映射为
+四角统一圆角。默认形状与颜色始终由各自原生 defaults 提供。
+
+IconButton facade 不暴露厂商 `Shape`、尺寸或圆角。MD3 使用原生 Standard / Filled
+IconButton，MIUIX 使用官方 IconButton；默认几何均来自锁定版本的 native defaults。唯一观察
+`MutableInteractionSource` 按压态的动态发布皮肤，在 MIUIX renderer 中只镜像且不消费 pointer
+Press / Release / Cancel，原生 IconButton 仍是唯一点击与语义来源。受 MIUIX 当前 API 限制，
+键盘、D-pad 与语义点击照常由原生处理，但不会向调用方外送 pressed interaction。
+
+## 当前完成度与工期估算（2026-08-24）
+
+完整迁移不能只看已经建立的 facade，也不能只看 feature import，因此采用三段工作量模型：
+
+| 工作面 | 总权重 | 当前进度 | 对总进度贡献 |
+|---|---:|---:|---:|
+| 中立 facade 与双原生 renderer | 40% | 13 / 29 个组件族，44.8% | 17.9% |
+| feature 调用、import 与主题分支清理 | 45% | Material3 import 由 341 降至 332，2.6% | 1.2% |
+| 编译、双主题设备矩阵与回归验收 | 15% | 尚未完成完整验收 | 0% |
+
+按工作量加权的整体完成度约 **19%**，剩余约 **81%**。其中 renderer 基础设施已经接近一半，
+但 89 个 Material3 通配 import、34 行 feature 主题分支以及 Button、输入、菜单、弹层、导航和
+长尾页面仍是主要工作量，因此不能用 44.8% 直接代表全仓完成度。
+
+按当前小批次迁移、每批独立修复与验收的节奏，剩余约 18～22 个原子批次；单人全职预计还需
+**25～35 个工程日（约 5～7 周）**。其中纯代码迁移约 18～25 日，完整编译、MD3/MIUIX 双主题
+与多尺寸设备回归约 7～10 日。若迁移期间继续扩展组件范围或调整视觉规范，工期需要重新估算。
 
 ## 组件映射
 

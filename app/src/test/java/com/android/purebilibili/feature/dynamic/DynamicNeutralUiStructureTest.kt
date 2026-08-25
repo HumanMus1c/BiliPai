@@ -43,7 +43,9 @@ class DynamicNeutralUiStructureTest {
         assertTrue(commentSource.contains("AppModalBottomSheet("))
         assertFalse(commentSource.contains("IOSModalBottomSheet("))
         assertTrue(commentSource.contains("AppTextField("))
-        assertFalse(commentSource.contains("OutlinedTextField("))
+        assertTrue(commentSource.contains("val commentFieldContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh"))
+        assertTrue(commentSource.contains("focusedContainerColor = commentFieldContainerColor"))
+        assertTrue(commentSource.contains("focusedBorderColor = Color.Transparent"))
         assertTrue(commentSource.contains("shape = AppShapes.container(ContainerLevel.Pill)"))
         assertFalse(commentSource.contains("shape = AppShapes.container(ContainerLevel.Sheet)"))
     }
@@ -70,13 +72,23 @@ class DynamicNeutralUiStructureTest {
     }
 
     @Test
+    fun `dynamic native action buttons reserve width for complete labels`() {
+        val actionSource = File(sourceRoot, "components/ActionButton.kt").readText()
+
+        assertTrue(actionSource.contains("contentPadding = PaddingValues("))
+        assertTrue(actionSource.contains("insideMargin = PaddingValues("))
+        assertTrue(actionSource.contains("horizontal = AppSpacingTokens.Small"))
+        assertTrue(actionSource.contains("shape = AppShapes.container(ContainerLevel.Card)"))
+    }
+
+    @Test
     fun `dynamic segmented controls do not depend on another feature renderer`() {
         val commentSource = File(sourceRoot, "components/DynamicCommentSheet.kt").readText()
         val topBarSource = File(sourceRoot, "components/DynamicTopBar.kt").readText()
 
-        assertTrue(commentSource.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(commentSource.contains("DynamicAdaptiveSegmentedControl("))
         assertTrue(commentSource.contains("rememberLayerBackdrop()"))
-        assertTrue(commentSource.contains("miuixBackdrop = commentChromeBackdrop"))
+        assertTrue(commentSource.contains("backdrop = commentChromeBackdrop"))
         assertFalse(commentSource.contains("CommentSegmentedControl("))
         assertFalse(commentSource.contains("feature.video.ui.components.CommentSegmentedControl"))
         assertFalse(topBarSource.contains("AndroidNativeUnderlinedSegmentedControl("))

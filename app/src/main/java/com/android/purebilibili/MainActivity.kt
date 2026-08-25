@@ -47,6 +47,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -70,6 +71,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.Density
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.metrics.performance.JankStats
 import androidx.window.layout.WindowMetrics
@@ -109,6 +111,8 @@ import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppThemeConfig
 import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.ProvideAppThemeConfig
+import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.LocalAppSingleChoicePresentation
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity
@@ -357,7 +361,8 @@ internal fun resolveMainActivityLinkNavigation(
 
         is BilibiliNavigationTarget.BangumiSeason -> MainActivityLinkNavigation(
             pendingNavigationRoute = ScreenRoutes.BangumiDetail.createRoute(
-                seasonId = target.seasonId
+                seasonId = target.seasonId,
+                mediaId = target.mediaId
             )
         )
 
@@ -1254,6 +1259,8 @@ open class MainActivity : AppCompatActivity() {
             val appScreenshotCaptureMode = appThemeSettings.appScreenshotCaptureMode
             val blurIntensity by SettingsManager.getBlurIntensity(context)
                 .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
+            val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context)
+                .collectAsStateWithLifecycle(initialValue = true)
             val hapticFeedbackEnabled by SettingsManager.getHapticFeedbackEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = true)
             val globalTextTapCopyEnabled by SettingsManager
@@ -1267,6 +1274,7 @@ open class MainActivity : AppCompatActivity() {
                 .collectAsStateWithLifecycle(initialValue = true)
             val appThemeConfig = remember(
                 blurIntensity,
+                headerBlurEnabled,
                 hapticFeedbackEnabled,
                 globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
@@ -1274,6 +1282,7 @@ open class MainActivity : AppCompatActivity() {
             ) {
                 AppThemeConfig(
                     blurIntensity = blurIntensity,
+                    headerBlurEnabled = headerBlurEnabled,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
                     globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
@@ -1559,6 +1568,7 @@ open class MainActivity : AppCompatActivity() {
                                     PlayerView(viewContext).apply {
                                         player = pipPlayer
                                         useController = false
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                         setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                                     }
                                 },
@@ -1761,9 +1771,10 @@ open class MainActivity : AppCompatActivity() {
                                                 )
                                             )
                                     )
-                                    Card(
-                                        shape = AppShapes.container(ContainerLevel.Floating),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                                    val posterCardCornerRadius =
+                                        AppShapes.containerCornerDp(ContainerLevel.Floating)
+                                    AppCard(
+                                        shape = AppCardShape.Semantic(ContainerLevel.Floating),
                                         modifier = Modifier
                                             .align(Alignment.Center)
                                             .graphicsLayer(
@@ -1779,6 +1790,10 @@ open class MainActivity : AppCompatActivity() {
                                             )
                                             .widthIn(min = 190.dp, max = 340.dp)
                                             .aspectRatio(9f / 16f)
+                                            .shadow(
+                                                elevation = 16.dp,
+                                                shape = RoundedCornerShape(posterCardCornerRadius),
+                                            )
                                     ) {
                                         AsyncImage(
                                             model = splashUri,

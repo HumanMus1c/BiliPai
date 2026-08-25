@@ -133,7 +133,7 @@ data class SettingsUiState(
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO
 ) {
     val isLiquidGlassEnabled: Boolean
-        get() = bottomBarLiquidGlassEnabled
+        get() = androidNativeLiquidGlassEnabled
 }
 
 // 内部数据类，用于分批合并流
@@ -1019,33 +1019,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     // [New] 触感反馈
     fun toggleHapticFeedback(value: Boolean) { viewModelScope.launch { SettingsManager.setHapticFeedbackEnabled(context, value) } }
     
-    // [New] Liquid Glass
-    fun toggleTopBarLiquidGlass(enabled: Boolean) {
-        viewModelScope.launch {
-            SettingsManager.setTopBarLiquidGlassEnabled(context, enabled)
-        }
-    }
-
-    fun toggleHomeSearchLiquidGlass(enabled: Boolean) {
-        viewModelScope.launch {
-            SettingsManager.setHomeSearchLiquidGlassEnabled(context, enabled)
-        }
-    }
-
-    fun toggleBottomBarLiquidGlass(enabled: Boolean) {
-        viewModelScope.launch {
-            val resolved = resolveLiquidGlassToggleState(
-                enableLiquidGlass = enabled,
-                currentBottomBarBlurEnabled = state.value.bottomBarBlurEnabled
-            )
-            SettingsManager.setBottomBarVisualEffects(
-                context = context,
-                blurEnabled = resolved.bottomBarBlurEnabled,
-                liquidGlassEnabled = resolved.liquidGlassEnabled
-            )
-        }
-    }
-
     fun toggleBottomBarSearch(enabled: Boolean) {
         viewModelScope.launch {
             SettingsManager.setBottomBarSearchEnabled(context, enabled)
@@ -1068,25 +1041,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             SettingsManager.setAndroidNativeLiquidGlassEnabled(context, enabled)
             if (enabled) {
-                val bottomBarResolved = resolveLiquidGlassToggleState(
-                    enableLiquidGlass = true,
-                    currentBottomBarBlurEnabled = state.value.bottomBarBlurEnabled
-                )
-                SettingsManager.setBottomBarVisualEffects(
-                    context = context,
-                    blurEnabled = bottomBarResolved.bottomBarBlurEnabled,
-                    liquidGlassEnabled = bottomBarResolved.liquidGlassEnabled
-                )
+                SettingsManager.setBottomBarBlurEnabled(context, false)
             }
         }
     }
 
-    fun toggleLiquidGlass(enabled: Boolean) {
-        viewModelScope.launch {
-            SettingsManager.setLiquidGlassEnabled(context, enabled)
-        }
-    }
-    
     fun setLiquidGlassStyle(style: com.android.purebilibili.core.store.LiquidGlassStyle) {
         viewModelScope.launch {
             SettingsManager.setLiquidGlassStyle(context, style)

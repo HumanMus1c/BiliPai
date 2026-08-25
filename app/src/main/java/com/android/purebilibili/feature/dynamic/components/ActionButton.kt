@@ -26,7 +26,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,12 +39,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.rememberAppShareIcon
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonText
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 /**
  *  iOS 风格操作按钮 - 现代化胶囊设计
  * 
@@ -111,6 +112,56 @@ fun ActionButton(
             )
         }
 
+        if (isForward || isComment) {
+            when (LocalAppUiStyle.current) {
+                AppUiStyle.MATERIAL3 -> FilledTonalButton(
+                    onClick = onClick,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = AppShapes.container(ContainerLevel.Card),
+                    contentPadding = PaddingValues(
+                        horizontal = AppSpacingTokens.Small,
+                        vertical = AppSpacingTokens.Small
+                    )
+                ) {
+                    Icon(
+                        imageVector = buttonIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize)
+                    )
+                    DynamicNativeActionText(
+                        actionText = actionText,
+                        countFadeAnimationSpec = countFadeAnimationSpec,
+                        countSlideAnimationSpec = countSlideAnimationSpec,
+                        spacing = ButtonDefaults.IconSpacing
+                    )
+                }
+
+                AppUiStyle.MIUIX -> MiuixButton(
+                    onClick = onClick,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    insideMargin = PaddingValues(
+                        horizontal = AppSpacingTokens.Small,
+                        vertical = AppSpacingTokens.Medium
+                    )
+                ) {
+                    AppIcon(
+                        imageVector = buttonIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                    )
+                    DynamicNativeActionText(
+                        actionText = actionText,
+                        countFadeAnimationSpec = countFadeAnimationSpec,
+                        countSlideAnimationSpec = countSlideAnimationSpec,
+                        spacing = AppSpacingTokens.ExtraSmall
+                    )
+                }
+            }
+            return@BoxWithConstraints
+        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -164,5 +215,35 @@ fun ActionButton(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DynamicNativeActionText(
+    actionText: String?,
+    countFadeAnimationSpec: androidx.compose.animation.core.FiniteAnimationSpec<Float>,
+    countSlideAnimationSpec: androidx.compose.animation.core.FiniteAnimationSpec<IntOffset>,
+    spacing: androidx.compose.ui.unit.Dp
+) {
+    if (actionText == null) return
+    Spacer(modifier = Modifier.width(spacing))
+    AnimatedContent(
+        targetState = actionText,
+        transitionSpec = {
+            (fadeIn(animationSpec = countFadeAnimationSpec) +
+                slideInVertically(animationSpec = countSlideAnimationSpec) { it / 3 })
+                .togetherWith(
+                    fadeOut(animationSpec = countFadeAnimationSpec) +
+                        slideOutVertically(animationSpec = countSlideAnimationSpec) { -it / 3 }
+                )
+        },
+        label = "nativeActionButtonCount"
+    ) { text ->
+        AppText(
+            text = text,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

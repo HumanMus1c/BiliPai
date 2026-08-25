@@ -27,6 +27,10 @@ internal fun resolveSettingsSearchNavigation(result: SettingsSearchResult): Bili
         SettingsSearchTarget.WEBDAV_BACKUP -> BiliPaiNavKey.WebDavBackup
         SettingsSearchTarget.OPEN_SOURCE_LICENSES -> BiliPaiNavKey.OpenSourceLicenses
         SettingsSearchTarget.TIPS -> BiliPaiNavKey.TipsSettings
-        else -> null
+        // Leaf entries such as GitHub, update check and Telegram are actions hosted by their
+        // root category. They used to resolve to null, so tapping a valid search result did
+        // nothing. Open the owning category; the normal settings callbacks remain authoritative.
+        else -> resolveSettingsRootCategoryForSearchTarget(result.target)
+            ?.let { category -> BiliPaiNavKey.SettingsCategory(category) }
     }
 }

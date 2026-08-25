@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -136,16 +135,13 @@ import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.ui.components.AppPreference
 import com.android.purebilibili.core.ui.components.AppPreferenceGridItem
 import com.android.purebilibili.core.store.StoredAccountSession
-import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.FollowBangumiItem
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceDynamicItem
 import com.android.purebilibili.data.model.response.SpaceVideoItem
 import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.settings.AppThemeMode
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
@@ -172,6 +168,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 
 
 internal fun shouldEnableProfileHeaderLoginClick(isLogin: Boolean): Boolean = !isLogin
@@ -228,7 +225,10 @@ internal fun shouldRenderProfileImmersiveBackground(
     hasTopPhoto: Boolean,
     deferImmersiveRenderBudget: Boolean
 ): Boolean {
-    return hasTopPhoto && !deferImmersiveRenderBudget
+    // A decoded static wallpaper is cheap to retain and is part of the persistent profile
+    // chrome. Dropping it during a bottom-tab transition produces a visible blank flash.
+    // The transition budget still applies to the skin video layer below.
+    return hasTopPhoto
 }
 
 internal fun resolveProfileTopBarScrimAlpha(
@@ -295,10 +295,13 @@ fun ProfileScreen(
     // [注意] 移除了 globalHazeState - 双 hazeSource 模式与 Haze 库冲突
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val headerBlurEnabled by SettingsManager
+        .getHeaderBlurEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val activeAccountMid by viewModel.activeAccountMid.collectAsStateWithLifecycle()
     val playbackAccountMid by viewModel.playbackAccountMid.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val view = LocalView.current
     var showAccountSwitchDialog by remember { mutableStateOf(false) }
     val windowSizeClass = LocalWindowSizeClass.current
@@ -646,7 +649,7 @@ fun ProfileScreen(
                                 surfaceColor = MaterialTheme.colorScheme.background,
                                 surfaceAlpha = 0.82f,
                                 hazeState = hazeState,
-                                hazeEnabled = true
+                                hazeEnabled = headerBlurEnabled
                             )
                             AppTopBar(
                                 title = "我的",
@@ -801,7 +804,7 @@ private fun BoxScope.ProfileBackground(
             .height(heroHeight)
             .align(Alignment.TopCenter)
     ) {
-        if (shouldRenderProfileImmersiveBackground(hasWallpaper, deferImmersiveRenderBudget)) {
+        if (shouldRenderProfileImmersiveBackground(user.topPhoto.isNotEmpty(), deferImmersiveRenderBudget)) {
             if (user.topPhoto.isNotEmpty()) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -824,7 +827,7 @@ private fun BoxScope.ProfileBackground(
                         )
                 )
             }
-            if (hasSkinVideo) {
+            if (hasSkinVideo && !deferImmersiveRenderBudget) {
                 ProfileSkinVideoBackground(
                     videoPath = requireNotNull(skinVideoBackgroundPath),
                     playMode = skinVideoPlayMode,
@@ -832,6 +835,13 @@ private fun BoxScope.ProfileBackground(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        } else if (hasSkinVideo && !deferImmersiveRenderBudget) {
+            ProfileSkinVideoBackground(
+                videoPath = requireNotNull(skinVideoBackgroundPath),
+                playMode = skinVideoPlayMode,
+                playbackEnabled = playSkinVideo,
+                modifier = Modifier.fillMaxSize(),
+            )
         } else if (heroFallbackGradient != null) {
             Box(
                 modifier = Modifier
@@ -1158,7 +1168,7 @@ private fun ProfileSpaceContent(
                     contentChrome = contentChrome,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(bottom = 48.dp),
-                    listState = tabletFeedListState
+                    listState = tabletFeedListState,
                 )
             }
         } else {
@@ -1197,8 +1207,6 @@ private fun ProfileSpaceContent(
                         ProfileSpaceTabs(
                             selectedTab = space.selectedTab,
                             onTabSelected = onTabSelected,
-                            contentChrome = contentChrome,
-                            embeddedInPanel = true
                         )
                         ProfileSpaceTabBody(
                             user = user,
@@ -1279,7 +1287,7 @@ private fun ProfileSpaceFeedColumn(
     contentChrome: ProfileContentChrome,
     modifier: Modifier,
     contentPadding: PaddingValues,
-    listState: LazyListState
+    listState: LazyListState,
 ) {
     LazyColumn(
         state = listState,
@@ -1290,7 +1298,6 @@ private fun ProfileSpaceFeedColumn(
             ProfileSpaceTabs(
                 selectedTab = space.selectedTab,
                 onTabSelected = onTabSelected,
-                contentChrome = contentChrome
             )
         }
         item {
@@ -1510,12 +1517,7 @@ private fun ProfileContentSheet(
     layoutTokens: ProfileLayoutTokens,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = remember(layoutTokens.contentSheetTopRadiusDp) {
-        RoundedCornerShape(
-            topStart = layoutTokens.contentSheetTopRadiusDp.dp,
-            topEnd = layoutTokens.contentSheetTopRadiusDp.dp
-        )
-    }
+    val shape = AppShapes.borderedContainer(ContainerLevel.Sheet)
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1625,8 +1627,7 @@ private fun ProfileSpaceHeader(
                 }
             }
             AppIconButton(
-                onClick = { identityExpanded = !identityExpanded },
-                modifier = Modifier.size(48.dp)
+                onClick = { identityExpanded = !identityExpanded }
             ) {
                 AppIcon(
                     imageVector = if (identityExpanded) rememberAppChevronUpIcon() else rememberAppChevronDownIcon(),
@@ -1816,81 +1817,19 @@ private fun ProfileSpaceStat(label: String, value: Int, color: Color, onClick: (
 private fun ProfileSpaceTabs(
     selectedTab: ProfileSpaceMainTab,
     onTabSelected: (ProfileSpaceMainTab) -> Unit,
-    contentChrome: ProfileContentChrome,
-    embeddedInPanel: Boolean = false
 ) {
     val tabs = remember { defaultProfileSpaceTabs() }
-    val context = LocalContext.current
-    val layoutTokens = remember { resolveProfileLayoutTokens() }
     val chromeSpec = remember { resolveProfileSpaceTabChromeSpec() }
-    val rowContainerShape = remember(chromeSpec.rowCornerRadiusDp) {
-        RoundedCornerShape(chromeSpec.rowCornerRadiusDp.dp)
-    }
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
-    val sharedLiquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
-        individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
-        androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
-    )
     val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
-    val tabModifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = chromeSpec.rowHorizontalInsetDp.dp)
-    val useUnderlineTabs = embeddedInPanel || !sharedLiquidGlassEnabled
-    if (!useUnderlineTabs) {
-        BottomBarLiquidSegmentedControl(
-            items = tabs.map { it.title },
-            selectedIndex = selectedIndex,
-            onSelected = { index -> tabs.getOrNull(index)?.let { onTabSelected(it.tab) } },
-            modifier = tabModifier
-                .padding(vertical = 6.dp)
-                .background(contentChrome.cardContainerColor, rowContainerShape)
-                .padding(horizontal = chromeSpec.controlHorizontalInsetDp.dp, vertical = 8.dp),
-            height = 46.dp,
-            indicatorHeight = 40.dp,
-            labelFontSize = 16.sp,
-            forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-            dragSelectionEnabled = true,
-            containerColorOverride = contentChrome.surfaceColor,
-            selectedTextColorOverride = contentChrome.onSurfaceColor,
-            unselectedTextColorOverride = contentChrome.onSurfaceVariantColor,
-            indicatorIdleSurfaceColorOverride = contentChrome.primaryColor.copy(alpha = 0.14f)
-        )
-        return
-    }
-
-    Row(
-        modifier = tabModifier
-            .height(layoutTokens.tabHeightDp.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        tabs.forEach { item ->
-            val selected = item.tab == selectedTab
-            Column(
-                modifier = Modifier
-                    .clickable { onTabSelected(item.tab) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                AppText(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (selected) contentChrome.onSurfaceColor else contentChrome.onSurfaceVariantColor,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .width(24.dp)
-                        .height(3.dp)
-                        .clip(AppShapes.container(ContainerLevel.Pill))
-                        .background(if (selected) contentChrome.primaryColor else Color.Transparent)
-                )
-            }
-        }
-    }
+    BottomBarLiquidSegmentedControl(
+        items = tabs.map { it.title },
+        selectedIndex = selectedIndex,
+        onSelected = { index -> tabs.getOrNull(index)?.tab?.let(onTabSelected) },
+        forceLiquidChrome = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = chromeSpec.rowHorizontalInsetDp.dp, vertical = 6.dp),
+    )
 }
 
 @Composable
@@ -2247,7 +2186,7 @@ private fun ProfileSpacePosterCard(
     onClick: () -> Unit
 ) {
     val cardTokens = remember { resolveProfileCardTokens() }
-    val cardShape = RoundedCornerShape(cardTokens.cornerRadiusDp.dp)
+    val cardShape = AppShapes.borderedContainer(ContainerLevel.Card)
     val cardWidth = cardTokens.widthDp.dp
     val coverHeight = resolveProfileCardCoverHeightDp(cardTokens).dp
     val cardHeight = resolveProfileCardHeightDp(cardTokens).dp
@@ -4404,7 +4343,7 @@ private fun ProfileFavoriteFolderShortcutChip(
     Row(
         modifier = modifier
             .heightIn(min = if (compact) 42.dp else 48.dp)
-            .clip(AppShapes.container(ContainerLevel.Dialog))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = if (compact) 0.22f else 0.28f))
             .clickable(onClick = onClick)
             .padding(horizontal = if (compact) 9.dp else 10.dp, vertical = if (compact) 7.dp else 8.dp),
@@ -4446,7 +4385,7 @@ private fun ProfileFavoriteFolderMoreChip(
     Box(
         modifier = modifier
             .heightIn(min = 42.dp)
-            .clip(AppShapes.container(ContainerLevel.Dialog))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),

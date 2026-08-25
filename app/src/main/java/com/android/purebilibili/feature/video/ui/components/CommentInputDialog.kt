@@ -74,7 +74,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import com.android.purebilibili.core.ui.motion.resolveCommentVerticalContentRevealMotionSpec
 import com.android.purebilibili.core.ui.motion.verticalContentRevealEnterTransition
 import com.android.purebilibili.core.ui.motion.verticalContentRevealExitTransition
@@ -688,14 +687,6 @@ fun CommentInputDialog(
                                     edgePadding = 16.dp,
                                     containerColor = MaterialTheme.colorScheme.surface,
                                     contentColor = MaterialTheme.colorScheme.primary,
-                                    indicator = { tabPositions ->
-                                        if (currentTab < tabPositions.size) {
-                                            TabRowDefaults.SecondaryIndicator(
-                                                Modifier.tabIndicatorOffset(tabPositions[currentTab]),
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
                                     divider = { AppHorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) },
                                     modifier = Modifier.height(48.dp)
                                 ) {

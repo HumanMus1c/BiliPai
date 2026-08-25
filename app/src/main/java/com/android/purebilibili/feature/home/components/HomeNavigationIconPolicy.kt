@@ -48,6 +48,8 @@ private enum class HomeNavigationIconRole {
 internal enum class HomeNavigationIconSource {
     MIUIX,
     LOCAL_DYNAMIC,
+    LOCAL_HISTORY,
+    LOCAL_PROFILE,
     LOCAL_STORY,
     LOCAL_LIVE,
     LOCAL_GAME,
@@ -79,10 +81,11 @@ internal fun resolveMiuixPreferredHomeNavigationIconSource(
     tabId: String,
 ): HomeNavigationIconSource = when (resolveHomeNavigationIconRole(tabId)) {
     HomeNavigationIconRole.DYNAMIC -> HomeNavigationIconSource.LOCAL_DYNAMIC
+    HomeNavigationIconRole.HISTORY -> HomeNavigationIconSource.LOCAL_HISTORY
+    HomeNavigationIconRole.PROFILE -> HomeNavigationIconSource.LOCAL_PROFILE
     HomeNavigationIconRole.STORY -> HomeNavigationIconSource.LOCAL_STORY
     HomeNavigationIconRole.LIVE -> HomeNavigationIconSource.LOCAL_LIVE
     HomeNavigationIconRole.GAME -> HomeNavigationIconSource.LOCAL_GAME
-    HomeNavigationIconRole.PROFILE,
     HomeNavigationIconRole.PLUGINS,
     HomeNavigationIconRole.FOLLOW,
     HomeNavigationIconRole.POPULAR,
@@ -90,7 +93,6 @@ internal fun resolveMiuixPreferredHomeNavigationIconSource(
     HomeNavigationIconRole.KNOWLEDGE,
     HomeNavigationIconRole.TECH,
     HomeNavigationIconRole.HOME,
-    HomeNavigationIconRole.HISTORY,
     HomeNavigationIconRole.LISTEN_VIDEO,
     HomeNavigationIconRole.FAVORITE,
     HomeNavigationIconRole.WATCH_LATER,
@@ -111,6 +113,12 @@ internal fun resolveMiuixPreferredHomeNavigationIcon(
         HomeNavigationIconSource.MIUIX -> resolveMiuixHomeNavigationIcon(role, selected)
         HomeNavigationIconSource.LOCAL_DYNAMIC -> ImageVector.vectorResource(
             if (selected) R.drawable.ic_home_nav_dynamic_filled else R.drawable.ic_home_nav_dynamic
+        )
+        HomeNavigationIconSource.LOCAL_HISTORY -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_history_filled else R.drawable.ic_home_nav_history
+        )
+        HomeNavigationIconSource.LOCAL_PROFILE -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_profile_filled else R.drawable.ic_home_nav_profile
         )
         HomeNavigationIconSource.LOCAL_STORY -> ImageVector.vectorResource(
             if (selected) R.drawable.ic_home_nav_story_filled else R.drawable.ic_home_nav_story

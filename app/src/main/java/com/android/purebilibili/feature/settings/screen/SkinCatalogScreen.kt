@@ -32,10 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,9 +54,11 @@ import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppSearchField
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import kotlinx.coroutines.Dispatchers
@@ -195,7 +195,7 @@ fun SkinCatalogScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                AppCircularProgressIndicator()
             }
             return@SettingsPageScaffold
         }
@@ -213,24 +213,43 @@ fun SkinCatalogScreen(
             return@SettingsPageScaffold
         }
 
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 160.dp),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(
-                items = state.filteredThemes,
-                key = { it.id }
-            ) { entry ->
-                SkinCatalogCard(
-                    entry = entry,
-                    onClick = {
-                        stateHolder.openPreview(entry)
-                        preparePreview(entry)
+        Column(modifier = Modifier.fillMaxSize()) {
+            AppSearchField(
+                query = state.searchQuery,
+                onQueryChange = stateHolder::setSearchQuery,
+                placeholder = "搜索装扮名称",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            if (state.filteredThemes.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppText(
+                        text = "没有找到相关装扮",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(items = state.filteredThemes, key = { it.id }) { entry ->
+                        SkinCatalogCard(
+                            entry = entry,
+                            onClick = {
+                                stateHolder.openPreview(entry)
+                                preparePreview(entry)
+                            }
+                        )
                     }
-                )
+                }
             }
         }
     }
@@ -294,7 +313,7 @@ private fun SkinCatalogCard(
                 // 能力位标签（左下角）
                 if (!entry.capabilities.isEmpty) {
                     AppSurface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = AppShapes.container(ContainerLevel.Chip),
                         color = Color.Black.copy(alpha = 0.45f),
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -327,7 +346,7 @@ private fun ColorChip(colorHex: String) {
     Box(
         modifier = Modifier
             .size(12.dp)
-            .clip(RoundedCornerShape(3.dp))
+            .clip(AppShapes.container(ContainerLevel.Tag))
             .background(color)
     )
 }
@@ -352,7 +371,7 @@ private fun SkinCatalogPreviewDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (loading) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        AppCircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         AppText("正在下载并生成真实预览...", style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (error != null) {
@@ -437,6 +456,10 @@ private class SkinCatalogStateHolder(context: Context) {
 
     fun setInstalling() {
         _state.value = _state.value.copy(installing = true, installError = null, installed = false)
+    }
+
+    fun setSearchQuery(query: String) {
+        _state.value = _state.value.copy(searchQuery = query)
     }
 
     fun setInstallResult(result: Result<com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage>) {

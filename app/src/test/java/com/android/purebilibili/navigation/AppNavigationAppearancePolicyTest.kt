@@ -104,7 +104,8 @@ class AppNavigationAppearancePolicyTest {
         assertTrue(capturedLayerSource.contains("depthProgressProvider"))
         assertTrue(capturedLayerSource.contains("videoCardTransitionClock.depthProgress()"))
         assertFalse(capturedLayerSource.contains("onVideoCardDepthFrame"))
-        assertTrue(capturedLayerSource.contains(".then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)"))
+        assertTrue(capturedLayerSource.contains("if (isBottomBarBlurEnabled && mainHazeState != null)"))
+        assertTrue(capturedLayerSource.contains("Modifier.hazeSourceCompat(mainHazeState)"))
     }
 
     @Test
@@ -161,6 +162,19 @@ class AppNavigationAppearancePolicyTest {
         assertTrue(source.contains("realtimeBlurEnabledProvider"))
         assertFalse(source.contains("video_source_background_blur"))
         assertFalse(source.contains("RenderEffect.createBlurEffect"))
+    }
+
+    @Test
+    fun tabletSidebarReservesSpaceWithoutCoveringVideoCards() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
+        val navigationRow = source
+            .substringAfter("Box(modifier = Modifier.fillMaxSize()) {\n            Row(modifier = Modifier.fillMaxSize()) {")
+            .substringBefore("// End of navigation content row")
+
+        assertTrue(navigationRow.contains("AnimatedVisibility("))
+        assertTrue(navigationRow.contains("FrostedSideBar("))
+        assertFalse(navigationRow.contains(".align(Alignment.CenterStart)"))
+        assertFalse(navigationRow.contains(".zIndex(2f)"))
     }
 
     @Test

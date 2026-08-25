@@ -21,11 +21,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -102,7 +106,7 @@ internal fun SettingsPageScaffold(
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
     scrollHost: SettingsPageScrollHost = SettingsPageScrollHost.LazyColumn,
-    topBarBlurEnabled: Boolean = true,
+    topBarBlurEnabled: Boolean? = null,
     actions: @Composable RowScope.() -> Unit = {},
     header: (@Composable () -> Unit)? = null,
     lazyListContent: (LazyListScope.() -> Unit)? = null,
@@ -115,9 +119,14 @@ internal fun SettingsPageScaffold(
         bottomContentPadding,
         LocalBottomBarContentPadding.current,
     )
+    val context = LocalContext.current
+    val globalTopBarBlurEnabled by SettingsManager
+        .getHeaderBlurEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    val effectiveTopBarBlurEnabled = topBarBlurEnabled ?: globalTopBarBlurEnabled
     val hazeState = rememberRecoverableHazeState()
     val blurIntensity = currentUnifiedBlurIntensity()
-    val topBarSurfaceAlpha = if (topBarBlurEnabled) {
+    val topBarSurfaceAlpha = if (effectiveTopBarBlurEnabled) {
         BlurStyles.getBackgroundAlpha(blurIntensity)
     } else {
         0.86f
@@ -139,7 +148,7 @@ internal fun SettingsPageScaffold(
                         surfaceColor = pageContainerColor,
                         surfaceAlpha = topBarSurfaceAlpha,
                         hazeState = hazeState,
-                        hazeEnabled = topBarBlurEnabled,
+                        hazeEnabled = effectiveTopBarBlurEnabled,
                     )
                     AppTopBar(
                         title = title,
@@ -167,7 +176,13 @@ internal fun SettingsPageScaffold(
             val scrollModifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .hazeSourceCompat(state = hazeState)
+                .then(
+                    if (effectiveTopBarBlurEnabled) {
+                        Modifier.hazeSourceCompat(state = hazeState)
+                    } else {
+                        Modifier
+                    }
+                )
 
             when (scrollHost) {
                 SettingsPageScrollHost.LazyColumn -> {

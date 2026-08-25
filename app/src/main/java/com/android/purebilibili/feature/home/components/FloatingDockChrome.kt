@@ -1,4 +1,4 @@
-// Shared BiliPai liquid-glass dock shell + moving indicator (Miuix only).
+// Shared BiliPai liquid-glass dock shell + moving indicator (theme-independent chrome).
 // Used by FloatingBottomBar (bottom) and home top tabs so both share one material stack —
 // no legacy backdrop / BottomBarGlassMaterialPreset / LiquidIndicator mix-ins.
 package com.android.purebilibili.feature.home.components

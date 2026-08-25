@@ -55,7 +55,7 @@ class DampedDragAnimationPolicyTest {
             .substringBefore("fun updateIndex(")
 
         // BiliPai 拖动手感保留
-        assertTrue(source.contains("private const val BILIPAI_PRESSED_SCALE = 78f / 56f"))
+        assertTrue(source.contains("BottomBarReferencePressedScale"))
         assertTrue(source.contains("pressedScale: Float = BILIPAI_PRESSED_SCALE"))
         assertTrue(source.contains("pressedScale = pressedScale.coerceAtLeast(1f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))

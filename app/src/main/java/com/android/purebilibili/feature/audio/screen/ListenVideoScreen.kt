@@ -732,7 +732,7 @@ private fun ListenVideoTrackSheet(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            AppIconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+            AppIconButton(onClick = onClose) {
                 AppIcon(Icons.Filled.Close, contentDescription = "关闭曲目列表")
             }
         }

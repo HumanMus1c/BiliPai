@@ -119,6 +119,59 @@ class DynamicRichTextPolicyTest {
     }
 
     @Test
+    fun buildDynamicRichTextAnnotatedString_marksStructuredBvTitleAsClickableLink() {
+        val annotated = buildDynamicRichTextAnnotatedString(
+            desc = DynamicDesc(
+                rich_text_nodes = listOf(
+                    RichTextNode(
+                        type = "RICH_TEXT_NODE_TYPE_BV",
+                        text = "视频标题",
+                        jump_url = "https://www.bilibili.com/video/BV1xx411c7mD/",
+                    )
+                )
+            ),
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+
+        val annotation = annotated.getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_URL_TAG,
+            start = 0,
+            end = annotated.length,
+        ).single()
+
+        assertEquals("https://www.bilibili.com/video/BV1xx411c7mD/", annotation.item)
+        assertEquals("视频标题", annotated.text)
+        assertEquals(Color.Blue, annotated.spanStyles.single().item.color)
+    }
+
+    @Test
+    fun buildDynamicRichTextAnnotatedString_usesVoteRidForClickableVote() {
+        val annotated = buildDynamicRichTextAnnotatedString(
+            desc = DynamicDesc(
+                rich_text_nodes = listOf(
+                    RichTextNode(
+                        type = "RICH_TEXT_NODE_TYPE_VOTE",
+                        text = "选择你支持的选项",
+                        rid = "3925886",
+                    )
+                )
+            ),
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+
+        val annotation = annotated.getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_VOTE_TAG,
+            start = 0,
+            end = annotated.length,
+        ).single()
+
+        assertEquals("3925886", annotation.item)
+        assertEquals(Color.Blue, annotated.spanStyles.single().item.color)
+    }
+
+    @Test
     fun buildDynamicRichTextAnnotatedString_detectsPlainTextUrlWhenNodesMissing() {
         val desc = DynamicDesc(
             text = "https://b23.tv/cm-yaoyue-0-3jgPM iPhone16系列至高直降千元起"
@@ -342,7 +395,26 @@ class DynamicRichTextPolicyTest {
     }
 
     @Test
-    fun shouldUseDynamicRichTextNodes_prefersNodesWhenTheyContainEmojiEvenIfShorter() {
+    fun buildDynamicRichText_expandsDecoratedDogeShortcodeFromCatalog() {
+        val token = "[doge_金饰]"
+        val result = buildDynamicRichText(
+            desc = DynamicDesc(text = "媒体会结束了$token"),
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+            extraEmoteUrlMap = mapOf(
+                token to "https://i0.hdslb.com/bfs/emote/doge_gold.png",
+            ),
+        )
+
+        assertEquals(
+            "https://i0.hdslb.com/bfs/emote/doge_gold.png",
+            result.emojiUrlById[token],
+        )
+        assertTrue(result.annotatedString.hasInlineContent())
+    }
+
+    @Test
+    fun buildDynamicRichText_keepsCompleteBodyWhenEmojiNodesAreShorter() {
         val desc = DynamicDesc(
             text = "第一段\n第二段\n第三段[豹富]",
             rich_text_nodes = listOf(
@@ -358,7 +430,84 @@ class DynamicRichTextPolicyTest {
             )
         )
 
-        assertTrue(shouldUseDynamicRichTextNodes(desc))
+        val result = buildDynamicRichText(
+            desc = desc,
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+
+        assertFalse(shouldUseDynamicRichTextNodes(desc))
+        assertTrue(result.annotatedString.text.startsWith("第一段\n第二段\n第三段"))
+        assertTrue(result.annotatedString.hasInlineContent())
+    }
+
+    @Test
+    fun resolveDynamicOpusTextBlockRichDesc_preservesFullBlockAndEmojiMetadata() {
+        val preferred = DynamicDesc(
+            text = "摘要[豹富]",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "TEXT", text = "摘要"),
+                RichTextNode(
+                    type = "EMOJI",
+                    text = "[豹富]",
+                    emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                        icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                        text = "[豹富]",
+                    ),
+                ),
+            ),
+        )
+
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "完整正文第一行\n完整正文第二行[豹富]",
+            preferredDesc = preferred,
+        )
+
+        assertEquals("完整正文第一行\n完整正文第二行[豹富]", resolved?.text)
+        assertEquals(preferred.rich_text_nodes, resolved?.rich_text_nodes)
+    }
+
+    @Test
+    fun resolveDynamicOpusTextBlockRichDesc_keepsPlainShortcodesForCatalogExpansion() {
+        val preferred = DynamicDesc(
+            text = "摘要",
+            rich_text_nodes = listOf(RichTextNode(type = "TEXT", text = "摘要")),
+        )
+
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "正文[UPOWER_3546635395139954_舔舔]",
+            preferredDesc = preferred,
+        )
+
+        assertEquals("正文[UPOWER_3546635395139954_舔舔]", resolved?.text)
+        assertEquals(preferred.rich_text_nodes, resolved?.rich_text_nodes)
+    }
+
+    @Test
+    fun buildDynamicRichText_usesMergedSummaryEmojiMetadataForFullBodyShortcode() {
+        val shortcode = "[UPOWER_3546635395139954_舔舔]"
+        val iconUrl = "https://i0.hdslb.com/bfs/garb/upower.png"
+        val result = buildDynamicRichText(
+            desc = DynamicDesc(
+                text = "完整正文$shortcode",
+                rich_text_nodes = listOf(
+                    RichTextNode(type = "TEXT", text = "完整正文$shortcode"),
+                    RichTextNode(
+                        type = "EMOJI",
+                        text = shortcode,
+                        emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                            icon_url = iconUrl,
+                            text = shortcode,
+                        ),
+                    ),
+                ),
+            ),
+            primaryColor = Color.Magenta,
+            textColor = Color.White,
+        )
+
+        assertEquals(iconUrl, result.emojiUrlById[shortcode])
+        assertEquals("完整正文$shortcode", result.annotatedString.text)
     }
 
     @Test

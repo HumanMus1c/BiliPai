@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,6 +32,7 @@ import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
 import com.android.purebilibili.core.ui.components.AppSearchField
 import com.android.purebilibili.core.ui.components.AppSearchFieldPresentation
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -109,7 +108,6 @@ fun BangumiScreen(
                     navigationIcon = {
                         AppIconButton(
                             onClick = handleBack,
-                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                         ) {
                             AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                         }
@@ -118,7 +116,6 @@ fun BangumiScreen(
                         AppIconButton(
                             onClick = viewModel::openSearch,
                             enabled = !selectionActive,
-                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                         ) {
                             AppIcon(rememberAppSearchIcon(), contentDescription = "搜索")
                         }
@@ -135,7 +132,7 @@ fun BangumiScreen(
                 .responsiveContentWidth(),
         ) {
             if (state.page != BangumiHubPage.SEARCH) {
-                BangumiLiquidAwareTabRow(
+                AppLiquidAwareTabRow(
                     options = BangumiChannel.entries.map { AppSegmentOption(it, it.label) },
                     selectedValue = state.channel,
                     enabled = !selectionActive,
@@ -227,7 +224,6 @@ private fun BangumiSearchTopBar(
     ) {
         AppIconButton(
             onClick = onBack,
-            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
         ) {
             AppIcon(rememberAppBackIcon(), contentDescription = "返回")
         }
@@ -244,9 +240,6 @@ private fun BangumiSearchTopBar(
         AppIconButton(
             onClick = onSearch,
             enabled = query.isNotBlank(),
-            modifier = Modifier
-                .width(48.dp)
-                .sizeIn(minHeight = 48.dp),
         ) {
             AppIcon(rememberAppSearchIcon(), contentDescription = "搜索")
         }

@@ -73,12 +73,8 @@ class CommonListAppearancePolicyTest {
     }
 
     @Test
-    fun favoritePreviewAndProgressBadgeWidths_areOwnedByLayoutPolicy() {
+    fun favoritePreviewWidth_isOwnedByLayoutPolicy() {
         assertEquals(112.dp, resolveFavoriteSubscribedFolderPreviewWidth())
-        assertEquals(
-            FavoriteProgressBadgeWidthSpec(minWidth = 104.dp, maxWidth = 150.dp),
-            resolveFavoriteProgressBadgeWidthSpec(),
-        )
     }
 
     @Test

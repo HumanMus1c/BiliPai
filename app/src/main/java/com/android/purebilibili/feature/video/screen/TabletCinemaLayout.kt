@@ -55,8 +55,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppTab
-import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.runtime.Composable
@@ -107,6 +105,7 @@ import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
 import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.ui.components.CommentSortHeader
+import com.android.purebilibili.feature.video.ui.components.BottomInputBar
 import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
@@ -196,10 +195,12 @@ internal fun TabletCinemaLayout(
     liveSurfaceCardTransitionEnabled: Boolean = true,
 ) {
     val appContext = LocalContext.current
-    val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset) {
+    val foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture
+    val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset, foldPosture) {
         resolveTabletCinemaLayoutPolicy(
             widthDp = configuration.screenWidthDp,
-            commentWidthPreset = tabletCommentPanelWidthPreset
+            commentWidthPreset = tabletCommentPanelWidthPreset,
+            foldPosture = foldPosture,
         )
     }
     val success = uiState as? VideoPlaybackUiState.Success
@@ -375,8 +376,10 @@ internal fun TabletCinemaLayout(
                 },
                 success = success,
                 commentState = commentState,
+                engagementState = engagementState,
                 subReplyState = subReplyState,
                 playbackActions = playbackActions,
+                engagementActions = engagementActions,
                 commentActions = commentActions,
                 playerState = playerState,
                 onUpClick = onUpClick,
@@ -955,8 +958,10 @@ private fun CinemaSideCurtain(
     onTabSelected: (Int) -> Unit,
     success: VideoPlaybackUiState.Success?,
     commentState: CommentUiState,
+    engagementState: VideoEngagementUiState,
     subReplyState: SubReplyUiState,
     playbackActions: VideoDetailPlaybackActions,
+    engagementActions: VideoDetailEngagementActions,
     commentActions: VideoDetailCommentActions,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
@@ -1045,29 +1050,18 @@ private fun CinemaSideCurtain(
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            AppPrimaryTabRow(
-                                selectedTabIndex = pagerState.currentPage,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                AppTab(
-                                    selected = pagerState.currentPage == 0,
-                                    onClick = {
-                                        onTabSelected(0)
-                                    },
-                                    text = {
-                                        AppText(
-                                            text = "评论"
-                                        )
-                                    }
-                                )
-                                AppTab(
-                                    selected = pagerState.currentPage == 1,
-                                    onClick = {
-                                        onTabSelected(1)
-                                    },
-                                    text = { AppText("相关推荐") }
-                                )
-                            }
+                            TabletSecondaryLiquidTabRow(
+                                labels = listOf("评论", "相关推荐"),
+                                selectedIndex = pagerState.currentPage,
+                                onSelected = onTabSelected,
+                                indicatorPositionProvider = {
+                                    pagerState.currentPage + pagerState.currentPageOffsetFraction
+                                },
+                                isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(vertical = 6.dp),
+                            )
 
                             HorizontalPager(
                                 state = pagerState,
@@ -1097,8 +1091,10 @@ private fun CinemaSideCurtain(
                                         CinemaCommentsPane(
                                             success = success,
                                             commentState = commentState,
+                                            engagementState = engagementState,
                                             subReplyState = subReplyState,
                                             playbackActions = playbackActions,
+                                            engagementActions = engagementActions,
                                             commentActions = commentActions,
                                             playerState = playerState,
                                             onUpClick = onUpClick,
@@ -1132,8 +1128,10 @@ private fun CinemaSideCurtain(
 private fun CinemaCommentsPane(
     success: VideoPlaybackUiState.Success,
     commentState: CommentUiState,
+    engagementState: VideoEngagementUiState,
     subReplyState: SubReplyUiState,
     playbackActions: VideoDetailPlaybackActions,
+    engagementActions: VideoDetailEngagementActions,
     commentActions: VideoDetailCommentActions,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
@@ -1256,27 +1254,8 @@ private fun CinemaCommentsPane(
                 modifier = Modifier
                     .fillMaxSize()
                     .layerBackdrop(commentChromeBackdrop),
-                contentPadding = PaddingValues(bottom = 74.dp)
+                contentPadding = PaddingValues(bottom = 112.dp)
             ) {
-            item {
-                AppSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = commentAppearance.composerHintBackgroundColor,
-                    shape = AppShapes.container(ContainerLevel.Dialog),
-                    onClick = {
-                        playbackActions.openRootCommentComposer()
-                    }
-                ) {
-                    AppText(
-                        text = "写评论，直接和 UP 主交流",
-                        color = commentAppearance.secondaryTextColor,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                    )
-                }
-            }
             items(
                 items = commentState.replies,
                 key = { "curtain_reply_${it.rpid}" },
@@ -1360,6 +1339,25 @@ private fun CinemaCommentsPane(
                 }
             }
             }
+
+            BottomInputBar(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                isLiked = engagementState.isLiked,
+                isFavorited = engagementState.isFavorited,
+                isCoined = engagementState.coinCount > 0,
+                onLikeClick = engagementActions.toggleLike,
+                onFavoriteClick = engagementActions.toggleFavorite,
+                onCoinClick = engagementActions.openCoinDialog,
+                onShareClick = {
+                    ShareUtils.shareVideo(context, success.info.title, success.info.bvid)
+                },
+                onCommentClick = playbackActions.openRootCommentComposer,
+                backdrop = commentChromeBackdrop,
+                isScrollInProgressProvider = { listState.isScrollInProgress },
+                scrollPositionProvider = {
+                    listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+                },
+            )
 
             }
         }

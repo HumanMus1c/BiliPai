@@ -13,6 +13,7 @@ class AppThemeConfigTest {
         val config = AppThemeConfig()
 
         assertEquals(BlurIntensity.THIN, config.blurIntensity)
+        assertTrue(config.headerBlurEnabled)
         assertTrue(config.hapticFeedbackEnabled)
         assertFalse(config.globalTextTapCopyEnabled)
         assertTrue(config.uiEntranceAnimationEnabled)

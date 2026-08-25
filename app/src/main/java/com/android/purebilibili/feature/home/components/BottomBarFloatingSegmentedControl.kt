@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -49,6 +50,7 @@ internal fun BottomBarFloatingSegmentedControl(
     containerVerticalPadding: Dp,
     liquidGlassEffectsEnabled: Boolean,
     dragSelectionEnabled: Boolean,
+    longPressDragSelectionEnabled: Boolean,
     forceLiquidChrome: Boolean,
     miuixBackdrop: Backdrop?,
     containerColorOverride: Color? = null,
@@ -118,7 +120,7 @@ internal fun BottomBarFloatingSegmentedControl(
     } else {
         FloatingBottomBarMode.None
     }
-    val dockModifier = if (itemWidth != null) {
+    val rootModifier = if (itemWidth != null) {
         modifier.width(itemWidth * itemCount + containerHorizontalPadding * 2)
     } else {
         modifier
@@ -127,17 +129,24 @@ internal fun BottomBarFloatingSegmentedControl(
     val onSelectedState = rememberUpdatedState(onSelected)
     val enabledState = rememberUpdatedState(enabled)
 
-    BoxWithConstraints {
+    BoxWithConstraints(
+        modifier = rootModifier.height(height)
+    ) {
         val indicatorWidthDp = when {
             itemWidth != null -> itemWidth.value
             constraints.hasBoundedWidth ->
                 ((maxWidth.value - 8f).coerceAtLeast(0f) / itemCount)
             else -> indicatorHeight.value * FLOATING_DOCK_MIN_INDICATOR_ASPECT
         }
+        val fittedSegmentedIndicatorWidth = resolveSegmentedControlIndicatorWidthDp(
+            slotWidthDp = indicatorWidthDp,
+            indicatorHeightDp = indicatorHeight.value,
+            itemCount = itemCount,
+        ).dp
         val captureInsets = resolveFloatingDockCaptureInsets(
             shellHeightDp = height.value,
             requestedIndicatorHeightDp = indicatorHeight.value,
-            indicatorWidthDp = indicatorWidthDp,
+            indicatorWidthDp = fittedSegmentedIndicatorWidth.value,
         )
         if (effectiveBackdrop != null) {
             Box(
@@ -162,7 +171,7 @@ internal fun BottomBarFloatingSegmentedControl(
             },
             backdrop = effectiveBackdrop,
             tabsCount = itemCount,
-            modifier = dockModifier,
+            modifier = Modifier.matchParentSize(),
             mode = floatingMode,
             colors = FloatingBottomBarColors(
                 containerColor = shellColor,
@@ -172,10 +181,14 @@ internal fun BottomBarFloatingSegmentedControl(
             ),
             shellHeight = height,
             indicatorHeight = indicatorHeight,
+            indicatorWidth = fittedSegmentedIndicatorWidth,
             indicatorPositionProvider = indicatorPositionProvider,
             isScrollInProgressProvider = isScrollInProgressProvider,
             dragSelectionEnabled = dragSelectionEnabled && enabled && itemCount > 1,
-            dragTrackingMode = DampedDragTrackingMode.DIRECT,
+            longPressDragSelectionEnabled =
+                longPressDragSelectionEnabled && enabled && itemCount > 1,
+            dragTrackingMode = DampedDragTrackingMode.SPRING,
+            onIndicatorPositionChanged = onIndicatorPositionChanged,
             liquidGlassTuning = liquidGlassTuning,
         ) {
             items.forEachIndexed { index, label ->

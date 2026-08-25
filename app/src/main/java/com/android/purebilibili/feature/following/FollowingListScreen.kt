@@ -48,7 +48,7 @@ import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
-import com.android.purebilibili.core.ui.OfficialVerifyBadge
+import com.android.purebilibili.core.ui.OfficialVerifyAvatarBadge
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
@@ -1247,18 +1247,26 @@ private fun FollowingUserItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(FormatUtils.fixImageUrl(user.face))
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(AppSpacingTokens.TripleExtraLarge)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        )
+        Box(modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(FormatUtils.fixImageUrl(user.face))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            )
+            if (officialBadge != null) {
+                OfficialVerifyAvatarBadge(
+                    badge = officialBadge,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                )
+            }
+        }
         
         Spacer(Modifier.width(AppSpacingTokens.Medium))
         
@@ -1277,10 +1285,6 @@ private fun FollowingUserItem(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                if (officialBadge != null) {
-                    Spacer(Modifier.width(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
-                    FollowingOfficialVerifyBadgeView(officialBadge)
-                }
             }
             if (followingSinceLabel.isNotEmpty()) {
                 Spacer(Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -1311,11 +1315,4 @@ private fun FollowingUserItem(
             )
         }
     }
-}
-
-@Composable
-private fun FollowingOfficialVerifyBadgeView(
-    badge: FollowingOfficialVerifyBadge
-) {
-    OfficialVerifyBadge(badge = badge)
 }

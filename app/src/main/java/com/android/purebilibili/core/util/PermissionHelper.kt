@@ -36,7 +36,7 @@ import com.android.purebilibili.core.ui.components.AppTextButton
  *     onPermissionResult = { granted -> if (granted) saveImage() }
  * )
  * 
- * Button(onClick = { storagePermission.request() }) { ... }
+ * AppButton(onClick = { storagePermission.request() }) { ... }
  * ```
  */
 @Composable

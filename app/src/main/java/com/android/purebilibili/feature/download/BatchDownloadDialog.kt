@@ -16,11 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
-import androidx.compose.material3.CardDefaults
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
@@ -80,8 +80,8 @@ internal fun BatchDownloadDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = dialogMaxHeight),
-                shape = AppShapes.container(ContainerLevel.Floating),
-                colors = CardDefaults.cardColors(
+                shape = AppCardShape.Semantic(ContainerLevel.Floating),
+                colors = AppCardDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {

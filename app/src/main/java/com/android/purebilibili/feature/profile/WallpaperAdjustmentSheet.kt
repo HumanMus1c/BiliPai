@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.outlined.TabletAndroid
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.AppShapes
@@ -145,12 +147,14 @@ fun WallpaperAdjustmentSheet(
                 val aspectRatio = if (selectedTab == 0) 9f / 18f else 16f / 10f
                 val width = if (selectedTab == 0) 140.dp else 280.dp
                 val height = width / aspectRatio
+                val previewCornerRadius = if (selectedTab == 0) 16.dp else 12.dp
                 
                 // Card simulating the device screen
                 AppCard(
-                    shape = RoundedCornerShape(if (selectedTab == 0) 16.dp else 12.dp),
-                    elevation = CardDefaults.cardElevation(8.dp),
-                    modifier = Modifier.size(width = width, height = height)
+                    shape = AppCardShape.Uniform(previewCornerRadius),
+                    modifier = Modifier
+                        .size(width = width, height = height)
+                        .shadow(8.dp, RoundedCornerShape(previewCornerRadius)),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
@@ -338,11 +342,13 @@ fun ProfileWallpaperAdjustmentSheet(
                 val aspectRatio = if (selectedTab == 0) 9f / 18f else 16f / 10f
                 val width = if (selectedTab == 0) 150.dp else 292.dp
                 val height = width / aspectRatio
+                val previewCornerRadius = if (selectedTab == 0) 16.dp else 12.dp
 
                 AppCard(
-                    shape = RoundedCornerShape(if (selectedTab == 0) 16.dp else 12.dp),
-                    elevation = CardDefaults.cardElevation(8.dp),
-                    modifier = Modifier.size(width = width, height = height)
+                    shape = AppCardShape.Uniform(previewCornerRadius),
+                    modifier = Modifier
+                        .size(width = width, height = height)
+                        .shadow(8.dp, RoundedCornerShape(previewCornerRadius)),
                 ) {
                     var previewSize by remember(selectedTab) { mutableStateOf(IntSize.Zero) }
                     Box(

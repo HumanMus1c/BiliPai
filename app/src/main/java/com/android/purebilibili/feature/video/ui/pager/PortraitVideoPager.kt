@@ -1089,8 +1089,8 @@ fun PortraitVideoPager(
                         currentPlayingCid = resolvedCid
                         currentPlayingAid = info.aid
 
-                        // Inject multi-P / season follow-ups right after this page so immersive
-                        // swipe (and auto-continue) stays in-collection before related feed.
+                        // Keep only parts of the same multi-P video adjacent. UGC season episodes
+                        // must not replace the diverse recommendation stream during normal swiping.
                         val currentPageIndex = pageItems.indexOfFirst { candidate ->
                             val identity = resolvePortraitPagePlaybackIdentity(candidate)
                             identity?.bvid == bvid &&

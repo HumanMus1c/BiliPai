@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -400,6 +401,165 @@ fun ContentMediaListSkeleton(
                 UserListRowSkeleton(blockColor = blockColor)
             } else {
                 MediaListRowSkeleton(blockColor = blockColor)
+            }
+        }
+    }
+}
+
+/** 文章详情首屏：标题、作者信息与正文段落，避免用居中转圈造成内容跳变。 */
+@Composable
+fun ArticleDetailSkeleton(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(20.dp),
+) {
+    val pulse = rememberContentSkeletonPulse()
+    val blockColor = rememberContentSkeletonBlockColor(pulse)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        userScrollEnabled = false,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.92f).height(28.dp))
+            Spacer(Modifier.height(10.dp))
+            ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.68f).height(28.dp))
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ContentSkeletonBlock(blockColor, Modifier.size(42.dp), CircleShape)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.36f).height(14.dp))
+                    Spacer(Modifier.height(7.dp))
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.52f).height(12.dp))
+                }
+            }
+        }
+        lazyListItems(List(7) { it }) { index ->
+            ContentSkeletonBlock(
+                blockColor,
+                Modifier
+                    .fillMaxWidth(if (index % 3 == 2) 0.72f else 1f)
+                    .height(16.dp),
+            )
+        }
+    }
+}
+
+/** 海报型详情首屏：番剧封面、标题资料、操作区与后续章节。 */
+@Composable
+fun PosterDetailSkeleton(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+) {
+    val pulse = rememberContentSkeletonPulse()
+    val blockColor = rememberContentSkeletonBlockColor(pulse)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        userScrollEnabled = false,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Row {
+                ContentSkeletonBlock(
+                    blockColor,
+                    Modifier.width(132.dp).aspectRatio(0.75f),
+                    AppShapes.container(ContainerLevel.Card),
+                )
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.9f).height(24.dp))
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.58f).height(14.dp))
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.72f).height(14.dp))
+                    ContentSkeletonBlock(blockColor, Modifier.widthIn(min = 96.dp).fillMaxWidth(0.48f).height(40.dp))
+                }
+            }
+        }
+        item { ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth().height(44.dp)) }
+        item { ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.34f).height(20.dp)) }
+        lazyListItems(List(4) { it }) { index ->
+            ContentSkeletonBlock(
+                blockColor,
+                Modifier.fillMaxWidth(if (index == 3) 0.66f else 1f).height(15.dp),
+            )
+        }
+    }
+}
+
+/** 分类入口网格：图标块 + 分类名，对齐直播“全部标签”等目录页。 */
+@Composable
+fun ContentCategoryGridSkeleton(
+    columns: Int,
+    modifier: Modifier = Modifier,
+    rows: Int = 4,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+    spacing: Dp = 16.dp,
+) {
+    val safeColumns = columns.coerceAtLeast(1)
+    val pulse = rememberContentSkeletonPulse()
+    val blockColor = rememberContentSkeletonBlockColor(pulse)
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(safeColumns),
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        userScrollEnabled = false,
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+        verticalArrangement = Arrangement.spacedBy(spacing),
+    ) {
+        lazyGridItems(List(safeColumns * rows.coerceAtLeast(1)) { it }) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ContentSkeletonBlock(
+                    blockColor,
+                    Modifier.fillMaxWidth().aspectRatio(1f),
+                    AppShapes.container(ContainerLevel.Card),
+                )
+                Spacer(Modifier.height(8.dp))
+                ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.62f).height(13.dp))
+            }
+        }
+    }
+}
+
+/** 热搜页首屏：顶部视觉横幅 + 排名文本行。 */
+@Composable
+fun TrendingListSkeleton(
+    modifier: Modifier = Modifier,
+    itemCount: Int = 10,
+    contentPadding: PaddingValues = PaddingValues(bottom = 24.dp),
+) {
+    val pulse = rememberContentSkeletonPulse()
+    val blockColor = rememberContentSkeletonBlockColor(pulse)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        userScrollEnabled = false,
+    ) {
+        item {
+            ContentSkeletonBlock(
+                blockColor,
+                Modifier.fillMaxWidth().height(240.dp),
+                AppShapes.container(ContainerLevel.Card),
+            )
+        }
+        lazyListItems(List(itemCount.coerceAtLeast(0)) { it }) { index ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ContentSkeletonBlock(blockColor, Modifier.width(24.dp).height(18.dp))
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    ContentSkeletonBlock(
+                        blockColor,
+                        Modifier.fillMaxWidth(if (index % 3 == 0) 0.82f else 0.64f).height(16.dp),
+                    )
+                    Spacer(Modifier.height(7.dp))
+                    ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.38f).height(11.dp))
+                }
             }
         }
     }

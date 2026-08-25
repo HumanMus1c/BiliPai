@@ -8,6 +8,8 @@ import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicMajor
 import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.DynamicStatModule
+import com.android.purebilibili.data.model.response.EmojiInfo
+import com.android.purebilibili.data.model.response.RichTextNode
 import com.android.purebilibili.data.model.response.StatItem
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusMajor
@@ -405,5 +407,112 @@ class DynamicDetailFallbackPolicyTest {
         assertEquals("326122895", merged.basic?.comment_id_str)
         assertEquals(11, merged.basic?.comment_type)
         assertEquals(17, merged.modules.module_stat?.comment?.count)
+    }
+
+    @Test
+    fun mergeInteractionMetadata_retainsFeedEmojiNodesForFullDetailBody() {
+        val detail = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(text = "完整正文[UPOWER_3546635395139954_舔舔]"),
+                ),
+            ),
+        )
+        val seed = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(
+                        text = "预览正文[UPOWER_3546635395139954_舔舔]",
+                        rich_text_nodes = listOf(
+                            RichTextNode(
+                                type = "EMOJI",
+                                text = "[UPOWER_3546635395139954_舔舔]",
+                                emoji = EmojiInfo(
+                                    icon_url = "https://i0.hdslb.com/bfs/emote/upower.png",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val merged = mergeDynamicDetailInteractionMetadata(detail, seed)
+
+        assertEquals(
+            "完整正文[UPOWER_3546635395139954_舔舔]",
+            merged.modules.module_dynamic?.desc?.text,
+        )
+        assertEquals(
+            seed.modules.module_dynamic?.desc?.rich_text_nodes,
+            merged.modules.module_dynamic?.desc?.rich_text_nodes,
+        )
+    }
+
+    @Test
+    fun mergeInteractionMetadata_readsEmojiNodesFromOpusSummary() {
+        val detailTextNode = RichTextNode(
+            type = "RICH_TEXT_NODE_TYPE_TEXT",
+            text = "完整正文[UPOWER_3546635395139954_舔舔]",
+        )
+        val detail = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(
+                        text = detailTextNode.text,
+                        rich_text_nodes = listOf(detailTextNode),
+                    ),
+                ),
+            ),
+        )
+        val summaryEmojiNode = RichTextNode(
+            type = "RICH_TEXT_NODE_TYPE_EMOJI",
+            text = "[UPOWER_3546635395139954_舔舔]",
+            emoji = EmojiInfo(
+                icon_url = "https://i0.hdslb.com/bfs/garb/upower.png",
+                text = "[UPOWER_3546635395139954_舔舔]",
+            ),
+        )
+        val seed = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        type = "MAJOR_TYPE_OPUS",
+                        opus = OpusMajor(
+                            summary = com.android.purebilibili.data.model.response.OpusSummary(
+                                text = "预览正文[UPOWER_3546635395139954_舔舔]",
+                                rich_text_nodes = listOf(summaryEmojiNode),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val merged = mergeDynamicDetailInteractionMetadata(detail, seed)
+        val mergedNodes = merged.modules.module_dynamic?.desc?.rich_text_nodes.orEmpty()
+
+        assertEquals(listOf(detailTextNode, summaryEmojiNode), mergedNodes)
+    }
+
+    @Test
+    fun mergeDetailRichTextNodes_doesNotDuplicateExistingEmojiMetadata() {
+        val emojiNode = RichTextNode(
+            type = "EMOJI",
+            text = "[UPOWER_3546635395139954_糖笑]",
+            emoji = EmojiInfo(icon_url = "https://i0.hdslb.com/bfs/garb/smile.png"),
+        )
+
+        assertEquals(
+            listOf(emojiNode),
+            mergeDynamicDetailRichTextNodes(
+                detailNodes = listOf(emojiNode),
+                seedEmojiNodes = listOf(emojiNode),
+            ),
+        )
     }
 }

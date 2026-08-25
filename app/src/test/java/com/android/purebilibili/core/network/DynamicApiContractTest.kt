@@ -185,6 +185,13 @@ class DynamicApiContractTest {
     }
 
     @Test
+    fun dynamicFeedFeatures_includeChargingVideoCardFromApiDocs() {
+        assertTrue(DYNAMIC_FEED_FEATURES.contains("listOnlyfans"))
+        assertTrue(DYNAMIC_FEED_FEATURES.contains("onlyfansAssetsV2"))
+        assertTrue(DYNAMIC_FEED_FEATURES.contains("onlyfansQaCard"))
+    }
+
+    @Test
     fun getDynamicDetailFallback_usesDesktopDetailEndpointAndIdQuery() {
         val method = DynamicApi::class.java.methods.first { it.name == "getDynamicDetailFallback" }
         val get = method.getAnnotation(GET::class.java)
@@ -231,13 +238,14 @@ class DynamicApiContractTest {
         assertTrue(SPACE_DYNAMIC_FEATURES.contains("itemOpusStyle"))
         assertTrue(SPACE_DYNAMIC_FEATURES.contains("opusBigCover"))
         assertTrue(SPACE_DYNAMIC_FEATURES.contains("commentsNewVersion"))
+        assertTrue(SPACE_DYNAMIC_FEATURES.contains("onlyfansQaCard"))
     }
 
     @Test
-    fun getUserDynamicFeed_usesDynamicFeedAllEndpointAndQueryMap() {
+    fun getUserDynamicFeed_usesDocumentedSpaceFeedEndpointAndQueryMap() {
         val method = DynamicApi::class.java.methods.first { it.name == "getUserDynamicFeed" }
         val get = method.getAnnotation(GET::class.java)
-        assertEquals("x/polymer/web-dynamic/v1/feed/all", get?.value)
+        assertEquals("x/polymer/web-dynamic/v1/feed/space", get?.value)
 
         val firstParamAnnotations = method.parameterAnnotations[0].toList()
         assertTrue(firstParamAnnotations.any { it is QueryMap })

@@ -17,6 +17,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import top.yukonga.miuix.kmp.nav.transition.NavMotion
 import top.yukonga.miuix.kmp.nav.transition.NavRole
 import top.yukonga.miuix.kmp.nav.transition.NavSettleSpec
+import top.yukonga.miuix.kmp.nav.transition.NavSwipeEdge
 import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.NavTransitionScope
 
@@ -58,6 +59,50 @@ internal data class MiuixVideoCardClipRadii(
     val radiusX: Float,
     val radiusY: Float,
 )
+
+internal data class MiuixVideoCardGestureTransform(
+    val translationX: Float,
+    val translationY: Float,
+    val rotationZ: Float,
+    val transformOrigin: TransformOrigin,
+)
+
+internal fun resolveMiuixVideoCardGestureTransform(
+    morphProgress: Float,
+    touchY: Float,
+    initialTouchY: Float,
+    widthPx: Float,
+    heightPx: Float,
+    isLeftEdge: Boolean,
+    maxVerticalTravelPx: Float,
+): MiuixVideoCardGestureTransform {
+    val morph = morphProgress.coerceIn(0f, 1f)
+    // Fullscreen (1) and exact card landing (0) must both be identity transforms.
+    val gestureWeight = 4f * morph * (1f - morph)
+    val edgeSign = if (isLeftEdge) 1f else -1f
+    val verticalDelta = touchY - initialTouchY
+    val normalizedVerticalDelta = if (heightPx > 0f) {
+        (verticalDelta / (heightPx * 0.5f)).coerceIn(-1f, 1f)
+    } else {
+        0f
+    }
+
+    return MiuixVideoCardGestureTransform(
+        translationX = edgeSign * widthPx.coerceAtLeast(0f) * 0.035f * gestureWeight,
+        translationY = (verticalDelta * 0.1f)
+            .coerceIn(-maxVerticalTravelPx.coerceAtLeast(0f), maxVerticalTravelPx.coerceAtLeast(0f)) *
+            gestureWeight,
+        rotationZ = edgeSign * normalizedVerticalDelta * 1.8f * gestureWeight,
+        transformOrigin = TransformOrigin(
+            pivotFractionX = if (isLeftEdge) 0.82f else 0.18f,
+            pivotFractionY = if (heightPx > 0f) {
+                (touchY / heightPx).coerceIn(0.1f, 0.9f)
+            } else {
+                0.5f
+            },
+        ),
+    )
+}
 
 /** Top entry depth is 0 at rest and moves toward -1 while returning. */
 internal fun resolveMiuixVideoCardDepthProgress(relativeDepth: Float): Float =
@@ -176,6 +221,7 @@ internal fun miuixVideoCardNavTransition(
     fallback: NavTransition,
     progress: MiuixVideoCardTransitionProgress,
     contentScale: MiuixVideoCardContentScale = MiuixVideoCardContentScale.FillWidthTop,
+    gestureFollowEnabled: Boolean = true,
 ): NavTransition {
     val bounds = sourceBounds?.takeIf { it.width > 1f && it.height > 1f }
         ?: return fallback
@@ -202,7 +248,31 @@ internal fun miuixVideoCardNavTransition(
 
         override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
             progress.bind(scope)
-            return graphicsLayer {
+            val gestureModifier = if (gestureFollowEnabled) {
+                graphicsLayer {
+                    val depth = scope.relativeDepth
+                    val gesture = scope.gesture
+                    if (depth <= 0f && gesture != null) {
+                        val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
+                        val transform = resolveMiuixVideoCardGestureTransform(
+                            morphProgress = resolveMiuixVideoCardDepthProgress(depth),
+                            touchY = gesture.touchY,
+                            initialTouchY = gesture.initialTouchY,
+                            widthPx = scope.layoutSize.width.toFloat().coerceAtLeast(1f),
+                            heightPx = height,
+                            isLeftEdge = gesture.swipeEdge == NavSwipeEdge.Left,
+                            maxVerticalTravelPx = 24.dp.toPx(),
+                        )
+                        translationX = transform.translationX
+                        translationY = transform.translationY
+                        rotationZ = transform.rotationZ
+                        transformOrigin = transform.transformOrigin
+                    }
+                }
+            } else {
+                this
+            }
+            return gestureModifier.graphicsLayer {
                 val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
                 val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
                 val depth = scope.relativeDepth

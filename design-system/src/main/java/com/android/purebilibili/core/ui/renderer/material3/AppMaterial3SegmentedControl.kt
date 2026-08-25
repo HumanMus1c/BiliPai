@@ -2,8 +2,6 @@ package com.android.purebilibili.core.ui.renderer.material3
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -20,6 +18,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSegmentedControlColors
+import com.android.purebilibili.core.ui.components.AppPrimaryScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedLabelFontSizeSp
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionIndex
 
@@ -105,7 +105,7 @@ internal fun <T> AppMaterial3TabRow(
         }
     }
     if (scrollable) {
-        PrimaryScrollableTabRow(
+        AppPrimaryScrollableTabRow(
             selectedTabIndex = selectedIndex,
             modifier = modifier.fillMaxWidth(),
             containerColor = Color.Transparent,
@@ -114,7 +114,7 @@ internal fun <T> AppMaterial3TabRow(
             tabs = tabs,
         )
     } else {
-        PrimaryTabRow(
+        AppPrimaryTabRow(
             selectedTabIndex = selectedIndex,
             modifier = modifier.fillMaxWidth(),
             containerColor = Color.Transparent,

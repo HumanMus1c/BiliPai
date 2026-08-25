@@ -56,7 +56,9 @@ class DynamicPagerPolicyTest {
         assertFalse(source.contains("activeListState?.scrollToItem(0)"))
         assertTrue(source.contains("snapshotFlow { pagerState.settledPage }"))
         assertTrue(source.contains("val dynamicTabIndicatorPositionProvider = remember(pagerState, visibleTabs)"))
+        assertTrue(source.contains("val dynamicTabScrollInProgressProvider = remember(pagerState)"))
         assertTrue(source.contains("currentPageOffsetFraction = pagerState.currentPageOffsetFraction"))
         assertTrue(source.contains("indicatorPositionProvider = dynamicTabIndicatorPositionProvider"))
+        assertTrue(source.contains("isScrollInProgressProvider = dynamicTabScrollInProgressProvider"))
     }
 }

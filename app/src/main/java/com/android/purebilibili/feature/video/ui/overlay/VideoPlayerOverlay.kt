@@ -2660,9 +2660,11 @@ fun LandscapeEndDrawer(
             configuration.screenWidthDp.dp
         )
     }
-    val deviceUiProfile = remember(widthSizeClass) {
+    val foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture
+    val deviceUiProfile = remember(widthSizeClass, foldPosture) {
         resolveDeviceUiProfile(
-            widthSizeClass = widthSizeClass
+            widthSizeClass = widthSizeClass,
+            foldPosture = foldPosture,
         )
     }
     val cardAnimationEnabled by SettingsManager

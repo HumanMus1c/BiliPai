@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -77,12 +76,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -97,7 +94,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
@@ -113,8 +109,8 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
-import com.android.purebilibili.core.ui.OfficialVerifyBadge
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeSpec
+import com.android.purebilibili.core.ui.OfficialVerifyBadgeTone
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
@@ -127,10 +123,10 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.feedContentTypography
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
@@ -163,9 +159,6 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
-import com.android.purebilibili.core.ui.components.AppFilterChip
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
@@ -572,10 +565,7 @@ fun SpaceScreen(
             ) {
                 when (val state = uiState) {
                     SpaceUiState.Loading -> {
-                        com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
-                            modifier = Modifier.fillMaxSize(),
-                            itemCount = 8,
-                        )
+                        SpaceLoadingSkeleton(modifier = Modifier.fillMaxSize())
                     }
 
                     is SpaceUiState.Error -> {
@@ -1219,15 +1209,15 @@ private fun SpaceContent(
         val gridColumns = resolveSpaceContentGridColumnCount(
             widthDp = LocalConfiguration.current.screenWidthDp,
             fixedColumnCount = homeSettings.gridColumnCount,
-            cardWidthPreset = homeSettings.homeFeedCardWidthPreset
+            cardWidthPreset = homeSettings.homeFeedCardWidthPreset,
+            widthSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current.widthSizeClass,
         )
         val spaceFeedCardLayout = resolveHomeFeedCardLayout(
             style = homeSettings.homeFeedCardStyle,
-            gridColumns = gridColumns
+            gridColumns = gridColumns,
+            widthSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current.widthSizeClass,
         )
         val spaceFeedCoverAspectRatio = spaceFeedCardLayout.coverAspectRatio
-        val spaceFeedCornerRadius = AppSpacingTokens.Small * LocalCornerRadiusScale.current
-
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridColumns),
             state = gridState,
@@ -1317,7 +1307,6 @@ private fun SpaceContent(
                                 syncedProgress = state.watchProgressByBvid[video.bvid]
                             ),
                             coverAspectRatio = spaceFeedCoverAspectRatio,
-                            cardCornerRadius = spaceFeedCornerRadius,
                             onClick = { playVideoFromSpace(video.bvid) },
                             sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
                             sharedTransitionScope = lazyGridSharedTransitionScope,
@@ -1719,7 +1708,6 @@ private fun SpaceContent(
                                             syncedProgress = state.watchProgressByBvid[video.bvid]
                                         ),
                                         coverAspectRatio = spaceFeedCoverAspectRatio,
-                                        cardCornerRadius = spaceFeedCornerRadius,
                                         badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
                                         isLocateHighlight = highlightedLocateBvid == video.bvid &&
                                             isLocateHighlightVisible,
@@ -2188,14 +2176,12 @@ private fun SpaceContent(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .shadow(elevation = 6.dp, shape = RectangleShape)
-                .background(MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SpaceMainTabRow(
                     tabs = displayedMainTabs,
                     selectedTab = resolveSpacePrimaryTab(selectedMainTab),
-                    onSelect = onMainTabSelected
+                    onSelect = onMainTabSelected,
                 )
                 if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
                     SpaceSecondarySwitchRow(
@@ -2235,7 +2221,7 @@ private fun SpaceHeader(
     val officialBadge = remember(userInfo.official) {
         resolveOfficialVerifyBadge(
             type = userInfo.official.type,
-            title = userInfo.official.title,
+            title = userInfo.official.spliceTitle.ifBlank { userInfo.official.title },
             desc = userInfo.official.desc
         )
     }
@@ -2593,22 +2579,82 @@ private fun SpaceSecondarySwitchRow(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    val spec = remember(items, selectedId) {
+        resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
+    }
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = spec.horizontalPaddingDp.dp, vertical = 6.dp),
     ) {
-        items.forEach { item ->
-            AppFilterChip(
-                selected = item.id == selectedId,
-                onClick = { onSelect(item.id) },
-                modifier = Modifier.heightIn(min = 36.dp),
-                label = { AppText(item.title, fontSize = 13.sp, maxLines = 1) },
-            )
+        val containerHorizontalPaddingDp = AppSpacingTokens.ExtraSmall.value.roundToInt()
+        val itemWidthDp = resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
+            preferredItemWidthDp = spec.itemWidthDp ?: 104,
+            itemCount = items.size,
+            viewportWidthDp = maxWidth.value.roundToInt(),
+            containerHorizontalPaddingDp = containerHorizontalPaddingDp
+        )
+        val useScrollableRail = shouldScrollSpaceSecondarySwitch(
+            itemCount = items.size,
+            itemWidthDp = itemWidthDp,
+            viewportWidthDp = maxWidth.value.roundToInt(),
+            containerHorizontalPaddingDp = containerHorizontalPaddingDp
+        )
+        val itemWidth = itemWidthDp.dp
+        val viewportWidthPx = with(density) { maxWidth.toPx() }
+        val itemWidthPx = with(density) { itemWidth.toPx() }
+        val containerHorizontalPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() }
+        val dragFollowEdgePaddingPx = with(density) { 12.dp.toPx() }
+
+        LaunchedEffect(spec.selectedIndex, useScrollableRail, itemWidthPx, viewportWidthPx) {
+            if (useScrollableRail) {
+                scrollState.animateScrollTo(
+                    resolveSpaceContributionTabCenteredScrollOffsetPx(
+                        selectedIndex = spec.selectedIndex,
+                        itemWidthPx = itemWidthPx,
+                        viewportWidthPx = viewportWidthPx
+                    )
+                )
+            } else {
+                scrollState.scrollTo(0)
+            }
         }
+
+        BottomBarLiquidSegmentedControl(
+            items = items.map { it.title },
+            selectedIndex = spec.selectedIndex,
+            onSelected = { index -> items.getOrNull(index)?.id?.let(onSelect) },
+            itemWidth = itemWidth.takeIf { useScrollableRail },
+            height = spec.heightDp.dp,
+            indicatorHeight = spec.indicatorHeightDp.dp,
+            labelFontSize = 14.sp,
+            forceLiquidChrome = true,
+            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
+            dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail,
+            longPressDragSelectionEnabled = useScrollableRail,
+            onIndicatorPositionChanged = { position ->
+                if (useScrollableRail) {
+                    scrollState.dispatchRawDelta(
+                        resolveSpaceSecondarySwitchDragScrollDeltaPx(
+                            indicatorPosition = position,
+                            itemWidthPx = itemWidthPx,
+                            viewportWidthPx = viewportWidthPx,
+                            currentScrollPx = scrollState.value.toFloat(),
+                            containerHorizontalPaddingPx = containerHorizontalPaddingPx,
+                            edgePaddingPx = dragFollowEdgePaddingPx
+                        )
+                    )
+                }
+            },
+            tapPressRefractionEnabled = !useScrollableRail,
+            modifier = if (useScrollableRail) {
+                Modifier.horizontalScroll(scrollState)
+            } else {
+                Modifier.fillMaxWidth()
+            }
+        )
     }
 }
 
@@ -2616,12 +2662,12 @@ private fun SpaceSecondarySwitchRow(
 private fun SpaceMainTabRow(
     tabs: List<SpaceMainTabItem>,
     selectedTab: SpaceMainTab,
-    onSelect: (SpaceMainTab) -> Unit
+    onSelect: (SpaceMainTab) -> Unit,
 ) {
     val spec = remember(tabs, selectedTab) {
         resolveSpaceMainTabChromeSpec(tabs = tabs, selectedTab = selectedTab)
     }
-    val tabBackdrop = rememberLayerBackdrop()
+    val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2629,21 +2675,17 @@ private fun SpaceMainTabRow(
     ) {
         BottomBarLiquidSegmentedControl(
             items = tabs.map { it.title },
-            selectedIndex = spec.selectedIndex,
-            onSelected = { index ->
-                tabs.getOrNull(index)?.tab?.let(onSelect)
-            },
+            selectedIndex = selectedIndex,
+            onSelected = { index -> tabs.getOrNull(index)?.tab?.let(onSelect) },
+            height = spec.heightDp.dp,
+            indicatorHeight = spec.indicatorHeightDp.dp,
+            labelFontSize = 14.sp,
+            forceLiquidChrome = true,
+            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
+            dragSelectionEnabled = spec.dragSelectionEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = spec.horizontalPaddingDp.dp),
-            height = spec.heightDp.dp,
-            indicatorHeight = spec.indicatorHeightDp.dp,
-            labelFontSize = 13.sp,
-            miuixBackdrop = tabBackdrop,
-            forceLiquidChrome = false,
-            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
-            tapPressRefractionEnabled = true,
-            dragSelectionEnabled = spec.dragSelectionEnabled,
         )
     }
 }
@@ -2692,15 +2734,19 @@ private fun Modifier.spaceVideoCoverSharedBounds(
 ): Modifier {
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         sourceRoute,
         sharedTransitionKey,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = sharedTransitionKey != null,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val sharedTransitionReady = sharedTransitionKey != null &&
@@ -2742,7 +2788,6 @@ private fun SpaceHomeVideoCard(
     badgeLabel: String? = null,
     isLocateHighlight: Boolean = false,
     coverAspectRatio: Float = 16f / 9f,
-    cardCornerRadius: Dp = 14.dp,
     onClick: () -> Unit,
     sharedTransitionKey: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -2782,20 +2827,25 @@ private fun SpaceHomeVideoCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = RoundedCornerShape(cardCornerRadius)
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
+    val coverShape = AppShapes.borderedContainer(ContainerLevel.Card)
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         sourceRoute,
         sharedTransitionKey,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = sharedTransitionReady,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
@@ -2838,7 +2888,7 @@ private fun SpaceHomeVideoCard(
                         screenWidth = screenWidthPx,
                         screenHeight = screenHeightPx,
                         density = densityValue,
-                        sourceCornerDp = cardCornerRadius.value.roundToInt(),
+                        sourceCornerDp = cardCornerRadiusDp,
                         coverBounds = coverBounds,
                         sourceLayout = VideoCardSourceLayout.STACKED,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
@@ -2938,8 +2988,7 @@ private fun SpaceHomeVideoCard(
                 style = feedContentTypography().title.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Visible
             )
             val metadata = remember(video.created, video.play, progressState.progressSec) {
                 buildList {
@@ -2954,8 +3003,7 @@ private fun SpaceHomeVideoCard(
                     text = metadata,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Visible
                 )
             }
         }
@@ -2994,7 +3042,8 @@ private fun SpaceAggregateMediaCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = AppShapes.container(ContainerLevel.Dialog)
+    val coverShape = AppShapes.container(ContainerLevel.Card)
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
         coverShape = coverShape,
@@ -3015,7 +3064,7 @@ private fun SpaceAggregateMediaCard(
                         screenWidth = screenWidthPx,
                         screenHeight = screenHeightPx,
                         density = densityValue,
-                        sourceCornerDp = 14,
+                        sourceCornerDp = cardCornerRadiusDp,
                         coverBounds = bounds,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                             title = item.title,
@@ -3078,8 +3127,7 @@ private fun SpaceAggregateMediaCard(
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
@@ -3093,14 +3141,14 @@ private fun SpaceAggregatePosterCard(
     Column(
         modifier = Modifier
             .padding(horizontal = 8.dp)
-            .clip(AppShapes.container(ContainerLevel.Dialog))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(196.dp)
-                .clip(AppShapes.container(ContainerLevel.Dialog))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3120,8 +3168,7 @@ private fun SpaceAggregatePosterCard(
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Visible
         )
         if (item.subtitle.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -3129,8 +3176,7 @@ private fun SpaceAggregatePosterCard(
                 text = item.subtitle,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Visible
             )
         }
     }
@@ -3169,6 +3215,7 @@ private fun SpaceTopVideoCard(
             .build()
     }
     val coverShape = AppShapes.container(ContainerLevel.Card)
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
         coverShape = coverShape,
@@ -3191,7 +3238,7 @@ private fun SpaceTopVideoCard(
                         screenWidth = screenWidthPx,
                         screenHeight = screenHeightPx,
                         density = densityValue,
-                        sourceCornerDp = 12,
+                        sourceCornerDp = cardCornerRadiusDp,
                         coverBounds = bounds,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                             title = video.title,
@@ -3240,9 +3287,7 @@ private fun SpaceTopVideoCard(
                 )
             }
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(90.dp),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 AppText(
@@ -3250,8 +3295,7 @@ private fun SpaceTopVideoCard(
                     fontSize = 15.sp,
                     lineHeight = 21.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Visible
                 )
                 AppText(
                     text = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
@@ -3343,21 +3387,26 @@ private fun SpaceArchiveListItemRow(
             .build()
     }
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         sourceRoute,
         sharedTransitionKey,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = sharedTransitionKey != null,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     val coverShape = AppShapes.container(ContainerLevel.Card)
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
@@ -3393,7 +3442,7 @@ private fun SpaceArchiveListItemRow(
                         screenWidth = screenWidthPx,
                         screenHeight = screenHeightPx,
                         density = densityValue,
-                        sourceCornerDp = 12,
+                        sourceCornerDp = cardCornerRadiusDp,
                         coverBounds = coverBounds,
                         sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
@@ -3501,8 +3550,7 @@ private fun SpaceArchiveListItemRow(
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 AppIcon(
@@ -3584,7 +3632,7 @@ private fun SpaceAudioListItem(
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .clip(AppShapes.container(ContainerLevel.Dialog))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3742,14 +3790,14 @@ private fun SpaceBangumiCard(
     Column(
         modifier = Modifier
             .padding(horizontal = 8.dp)
-            .clip(AppShapes.container(ContainerLevel.Dialog))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(196.dp)
-                .clip(AppShapes.container(ContainerLevel.Dialog))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3945,7 +3993,7 @@ private fun SpaceCollectionWithPreviewCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(70.dp)
-                                    .clip(AppShapes.container(ContainerLevel.Field))
+                                    .clip(AppShapes.container(ContainerLevel.Card))
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
@@ -3966,8 +4014,44 @@ private fun SpaceCollectionWithPreviewCard(
 }
 
 @Composable
-private fun SpaceOfficialTag(badge: OfficialVerifyBadgeSpec) {
-    OfficialVerifyBadge(badge = badge)
+private fun SpaceOfficialTag(
+    badge: OfficialVerifyBadgeSpec,
+    modifier: Modifier = Modifier,
+) {
+    AppSurface(
+        modifier = modifier,
+        shape = AppShapes.container(ContainerLevel.Pill),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AppSurface(
+                modifier = Modifier.size(18.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Bolt,
+                    contentDescription = null,
+                    tint = when (badge.tone) {
+                        OfficialVerifyBadgeTone.PERSONAL -> Color(0xFFFFCC00)
+                        OfficialVerifyBadgeTone.ORGANIZATION -> Color(0xFF40C4FF)
+                    },
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            AppText(
+                text = badge.text,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            )
+        }
+    }
 }
 
 @Composable

@@ -1,21 +1,47 @@
 package com.android.purebilibili.navigation3
 
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionExposure
+
 private const val QUICK_RETURN_THRESHOLD_MILLIS = 500L
-private const val RELATED_RETURN_SOURCE_RESTORE_SETTLE_BUFFER_MILLIS = 32L
+
+internal data class RelatedReturnSourceRestoreDecision(
+    val transitionObserved: Boolean,
+    val shouldRestore: Boolean,
+)
 
 /**
- * Related-video pop must keep its related-card geometry until Miuix finishes settling the entry.
- * Restoring the earlier list source sooner retargets the same outgoing transition mid-flight.
+ * Never swap nested source metadata by elapsed time. Predictive settle duration depends on the
+ * gesture release point and may outlive the configured tween. The older parent session becomes
+ * safe only after this return has entered a non-idle exposure and subsequently reached Idle.
  */
-internal fun resolveRelatedReturnSourceRestoreDelayMillis(
-    cardTransitionEnabled: Boolean,
-    reduceMotion: Boolean,
-    transitionDurationMillis: Int,
-): Long = if (cardTransitionEnabled && !reduceMotion) {
-    transitionDurationMillis.coerceAtLeast(0).toLong() +
-        RELATED_RETURN_SOURCE_RESTORE_SETTLE_BUFFER_MILLIS
-} else {
-    0L
+internal fun resolveRelatedReturnSourceRestoreDecision(
+    restorePending: Boolean,
+    transitionObserved: Boolean,
+    cardMorphAvailable: Boolean,
+    exposure: VideoCardTransitionExposure,
+): RelatedReturnSourceRestoreDecision {
+    if (!restorePending) {
+        return RelatedReturnSourceRestoreDecision(
+            transitionObserved = false,
+            shouldRestore = false,
+        )
+    }
+    if (!cardMorphAvailable) {
+        return RelatedReturnSourceRestoreDecision(
+            transitionObserved = false,
+            shouldRestore = true,
+        )
+    }
+    if (exposure != VideoCardTransitionExposure.Idle) {
+        return RelatedReturnSourceRestoreDecision(
+            transitionObserved = true,
+            shouldRestore = false,
+        )
+    }
+    return RelatedReturnSourceRestoreDecision(
+        transitionObserved = transitionObserved,
+        shouldRestore = transitionObserved,
+    )
 }
 
 internal data class BiliPaiReturnSessionState(

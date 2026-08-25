@@ -127,7 +127,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         is BiliPaiNavKey.Space -> ScreenRoutes.Space.createRoute(mid, targetBvid)
         is BiliPaiNavKey.Category -> ScreenRoutes.Category.createRoute(tid, name)
         is BiliPaiNavKey.Live -> ScreenRoutes.Live.createRoute(roomId, title, uname, siteId)
-        is BiliPaiNavKey.BangumiDetail -> ScreenRoutes.BangumiDetail.createRoute(seasonId, epId)
+        is BiliPaiNavKey.BangumiDetail -> ScreenRoutes.BangumiDetail.createRoute(seasonId, epId, mediaId)
         is BiliPaiNavKey.BangumiReview -> ScreenRoutes.BangumiReview.createRoute(mediaId, title)
         is BiliPaiNavKey.Web -> ScreenRoutes.Web.createRoute(url, title)
         is BiliPaiNavKey.Unknown -> route
@@ -317,7 +317,8 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         segments.firstOrNull() == "bangumi" && segments.size >= 2 -> {
             BiliPaiNavKey.BangumiDetail(
                 seasonId = segments[1].toLongOrNull() ?: 0L,
-                epId = query["epId"]?.toLongOrNull() ?: 0L
+                epId = query["epId"]?.toLongOrNull() ?: 0L,
+                mediaId = query["mediaId"]?.toLongOrNull() ?: 0L
             )
         }
         normalized.substringBefore("?") == "web" -> {

@@ -3,6 +3,7 @@ package com.android.purebilibili.navigation3
 import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionExposure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -11,23 +12,44 @@ import kotlin.test.assertTrue
 class BiliPaiReturnSessionStateTest {
 
     @Test
-    fun relatedSourceRestoreWaitsForMiuixSettle() {
-        assertEquals(
-            332L,
-            resolveRelatedReturnSourceRestoreDelayMillis(
-                cardTransitionEnabled = true,
-                reduceMotion = false,
-                transitionDurationMillis = 300,
-            ),
+    fun relatedSourceRestoreWaitsForObservedTransitionThenIdle() {
+        val beforeTransition = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = false,
+            cardMorphAvailable = true,
+            exposure = VideoCardTransitionExposure.Idle,
         )
-        assertEquals(
-            0L,
-            resolveRelatedReturnSourceRestoreDelayMillis(
-                cardTransitionEnabled = true,
-                reduceMotion = true,
-                transitionDurationMillis = 300,
-            ),
+        assertFalse(beforeTransition.transitionObserved)
+        assertFalse(beforeTransition.shouldRestore)
+
+        val returning = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = false,
+            cardMorphAvailable = true,
+            exposure = VideoCardTransitionExposure.Returning,
         )
+        assertTrue(returning.transitionObserved)
+        assertFalse(returning.shouldRestore)
+
+        val settled = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = returning.transitionObserved,
+            cardMorphAvailable = true,
+            exposure = VideoCardTransitionExposure.Idle,
+        )
+        assertTrue(settled.shouldRestore)
+    }
+
+    @Test
+    fun relatedSourceWithoutCardMorphRestoresImmediately() {
+        val decision = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = false,
+            cardMorphAvailable = false,
+            exposure = VideoCardTransitionExposure.Idle,
+        )
+
+        assertTrue(decision.shouldRestore)
     }
 
     private fun transitionSession(

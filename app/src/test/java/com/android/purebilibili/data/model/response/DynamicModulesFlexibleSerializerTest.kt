@@ -604,7 +604,7 @@ class DynamicModulesFlexibleSerializerTest {
         assertEquals(
             listOf(
                 OpusContentBlock.Text("开门见山介绍combo"),
-                OpusContentBlock.Text("新翼神龙卡组考卷，已快速公式答题"),
+                OpusContentBlock.Heading("新翼神龙卡组考卷，已快速公式答题"),
                 OpusContentBlock.Image(OpusPic(url = "https://i0.hdslb.com/card.jpg", width = 800, height = 600)),
                 OpusContentBlock.Text("ATK=3000 答题解析")
             ),
@@ -775,7 +775,7 @@ class DynamicModulesFlexibleSerializerTest {
             opus?.contentBlocks?.get(1)
         )
         assertEquals(
-            OpusContentBlock.Image(OpusPic(url = "https://i0.hdslb.com/line.jpg", width = 1000, height = 20)),
+            OpusContentBlock.Divider(OpusPic(url = "https://i0.hdslb.com/line.jpg", width = 1000, height = 20)),
             opus?.contentBlocks?.get(2)
         )
 
@@ -810,5 +810,62 @@ class DynamicModulesFlexibleSerializerTest {
         val invalid = (opus?.contentBlocks?.get(8) as? OpusContentBlock.LinkCard)?.card
         assertEquals("LINK_CARD_TYPE_ITEM_NULL", invalid?.type)
         assertEquals("内容已失效", invalid?.title)
+    }
+
+    @Test
+    fun opusDetailModules_preserveQuoteListCodeDividerAndAlignment() {
+        val payload = """
+            {
+              "code": 0,
+              "data": {
+                "item": {
+                  "id_str": "1",
+                  "modules": [
+                    {
+                      "module_type": "MODULE_TYPE_CONTENT",
+                      "module_content": {
+                        "paragraphs": [
+                          {
+                            "para_type": 4,
+                            "align": 1,
+                            "text": { "nodes": [{ "word": { "words": "引用" } }] }
+                          },
+                          {
+                            "para_type": 5,
+                            "list": {
+                              "style": 1,
+                              "items": [
+                                { "nodes": [{ "word": { "words": "第一项" } }] },
+                                { "nodes": [{ "word": { "words": "第二项" } }] }
+                              ]
+                            }
+                          },
+                          {
+                            "para_type": 7,
+                            "code": { "content": "if (a &lt; b) return a" }
+                          },
+                          {
+                            "para_type": 3,
+                            "line": {}
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val blocks = json.decodeFromString<DynamicDetailResponse>(payload)
+            .data?.item?.modules?.module_dynamic?.major?.opus?.contentBlocks
+
+        assertEquals(OpusContentBlock.Quote("引用", alignment = 1), blocks?.get(0))
+        assertEquals(
+            OpusContentBlock.ListBlock(listOf("第一项", "第二项"), ordered = true),
+            blocks?.get(1),
+        )
+        assertEquals(OpusContentBlock.Code("if (a < b) return a"), blocks?.get(2))
+        assertEquals(OpusContentBlock.Divider(), blocks?.get(3))
     }
 }

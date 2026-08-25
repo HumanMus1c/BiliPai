@@ -1,12 +1,14 @@
 package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.data.model.response.DynamicContentModule
+import com.android.purebilibili.data.model.response.DynamicDesc
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicMajor
 import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusMajor
 import com.android.purebilibili.data.model.response.OpusPic
+import com.android.purebilibili.data.model.response.RichTextNode
 import com.android.purebilibili.feature.article.ArticleContentBlock
 import com.android.purebilibili.feature.article.scoreOpusContentBlocks
 
@@ -117,7 +119,7 @@ internal fun mergeRicherOpusDetailContent(
     )
 }
 
-/** Retains feed-defined comment metadata when detail/opus responses omit it. */
+/** Retains feed-defined interaction and rich-text metadata when detail/opus responses omit it. */
 internal fun mergeDynamicDetailInteractionMetadata(
     detailItem: DynamicItem,
     seedItem: DynamicItem?
@@ -129,13 +131,69 @@ internal fun mergeDynamicDetailInteractionMetadata(
     val seedBasic = seedItem.basic?.takeIf {
         it.comment_type > 0 && it.comment_id_str.toLongOrNull()?.let { oid -> oid > 0L } == true
     }
+    val detailContent = detailItem.modules.module_dynamic
+    val seedEmojiNodes = collectDynamicDetailSeedEmojiNodes(seedItem)
+    val mergedContent = if (detailContent != null && seedEmojiNodes.isNotEmpty()) {
+        detailContent.copy(
+            desc = detailContent.desc?.copy(
+                rich_text_nodes = mergeDynamicDetailRichTextNodes(
+                    detailNodes = detailContent.desc.rich_text_nodes,
+                    seedEmojiNodes = seedEmojiNodes,
+                )
+            )
+                ?: DynamicDesc(rich_text_nodes = seedEmojiNodes),
+        )
+    } else {
+        detailContent
+    }
     return detailItem.copy(
         basic = detailBasic ?: seedBasic ?: detailItem.basic,
         modules = detailItem.modules.copy(
-            module_stat = detailItem.modules.module_stat ?: seedItem.modules.module_stat
+            module_dynamic = mergedContent,
+            module_stat = detailItem.modules.module_stat ?: seedItem.modules.module_stat,
         )
     )
 }
+
+/**
+ * Dynamic feed payloads may expose emoji metadata in either `desc.rich_text_nodes` or
+ * `major.opus.summary.rich_text_nodes`. The detail/opus body can retain only the shortcode,
+ * so both documented preview sources must be carried into the full-body renderer.
+ */
+internal fun collectDynamicDetailSeedEmojiNodes(item: DynamicItem): List<RichTextNode> {
+    val content = item.modules.module_dynamic ?: return emptyList()
+    return (content.desc?.rich_text_nodes.orEmpty() +
+        content.major?.opus?.summary?.rich_text_nodes.orEmpty())
+        .filter(::containsDynamicEmojiMetadata)
+        .distinctBy(::dynamicEmojiMetadataKey)
+}
+
+internal fun mergeDynamicDetailRichTextNodes(
+    detailNodes: List<RichTextNode>,
+    seedEmojiNodes: List<RichTextNode>,
+): List<RichTextNode> {
+    if (seedEmojiNodes.isEmpty()) return detailNodes
+    val existingEmojiKeys = detailNodes
+        .filter(::containsDynamicEmojiMetadata)
+        .mapTo(mutableSetOf(), ::dynamicEmojiMetadataKey)
+    return detailNodes + seedEmojiNodes
+        .distinctBy(::dynamicEmojiMetadataKey)
+        .filter { node -> dynamicEmojiMetadataKey(node) !in existingEmojiKeys }
+}
+
+private fun containsDynamicEmojiMetadata(node: RichTextNode): Boolean {
+    val type = node.type.removePrefix("RICH_TEXT_NODE_TYPE_")
+    return type.equals("EMOJI", ignoreCase = true) &&
+        node.emoji?.let { emoji ->
+            emoji.icon_url.isNotBlank() || emoji.webp_url.isNotBlank() || emoji.gif_url.isNotBlank()
+        } == true
+}
+
+private fun dynamicEmojiMetadataKey(node: RichTextNode): String = sequenceOf(
+    node.text,
+    node.orig_text,
+    node.emoji?.text.orEmpty(),
+).map { it.trim() }.firstOrNull { it.isNotEmpty() }.orEmpty()
 
 internal fun shouldFetchOpusDetailForDynamicDetail(item: DynamicItem): Boolean {
     val major = item.modules.module_dynamic?.major
@@ -162,15 +220,17 @@ internal fun articleContentBlocksToOpusBlocks(
 ): List<OpusContentBlock> {
     return blocks.map { block ->
         when (block) {
-            is ArticleContentBlock.Heading -> OpusContentBlock.Text(block.text)
+            is ArticleContentBlock.Heading -> OpusContentBlock.Heading(block.text)
             is ArticleContentBlock.Paragraph -> OpusContentBlock.Text(block.text)
-            is ArticleContentBlock.Quote -> OpusContentBlock.Text(block.text)
-            is ArticleContentBlock.ListBlock -> OpusContentBlock.Text(
-                block.items.mapIndexed { index, item ->
-                    if (block.ordered) "${index + 1}. $item" else "• $item"
-                }.joinToString("\n")
+            is ArticleContentBlock.Quote -> OpusContentBlock.Quote(block.text)
+            is ArticleContentBlock.ListBlock -> OpusContentBlock.ListBlock(
+                items = block.items,
+                ordered = block.ordered,
             )
-            is ArticleContentBlock.Code -> OpusContentBlock.Text(block.content)
+            is ArticleContentBlock.Code -> OpusContentBlock.Code(
+                text = block.content,
+                language = block.language,
+            )
             is ArticleContentBlock.Image -> OpusContentBlock.Image(
                 OpusPic(url = block.url, width = block.width, height = block.height)
             )

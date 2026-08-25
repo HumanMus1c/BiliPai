@@ -15,7 +15,7 @@ class DynamicCommentSortControlPolicyTest {
 
         assertEquals(66, spec.itemWidthDp)
         assertEquals(40, spec.heightDp)
-        assertEquals(35, spec.indicatorHeightDp)
+        assertEquals(30, spec.indicatorHeightDp)
         assertTrue(
             hasDynamicCommentSortIndicatorScaleClearance(
                 containerHeightDp = spec.heightDp,
@@ -48,9 +48,9 @@ class DynamicCommentSortControlPolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicPublishComposer.kt"
         )
 
-        assertTrue(voteSource.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(voteSource.contains("DynamicAdaptiveSegmentedControl("))
         assertTrue(voteSource.contains("listOf(\"单选\", \"多选\")"))
-        assertTrue(voteSource.contains("tapPressRefractionEnabled = true"))
+        assertTrue(voteSource.contains("backdrop = voteChromeBackdrop"))
         assertTrue(publishSource.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(publishSource.contains("listOf(\"公开\", \"仅自己可见\")"))
         assertTrue(publishSource.contains("tapPressRefractionEnabled = true"))
@@ -66,7 +66,7 @@ class DynamicCommentSortControlPolicyTest {
 
         assertTrue(source.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains(".layerBackdrop(commentChromeBackdrop)"))
-        assertTrue(source.contains("miuixBackdrop = commentChromeBackdrop"))
+        assertTrue(source.contains("backdrop = commentChromeBackdrop"))
     }
 
     private fun loadSource(path: String): String {

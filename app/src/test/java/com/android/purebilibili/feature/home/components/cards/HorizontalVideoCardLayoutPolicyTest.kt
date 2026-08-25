@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.components.cards
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class HorizontalVideoCardLayoutPolicyTest {
@@ -28,6 +29,42 @@ class HorizontalVideoCardLayoutPolicyTest {
         assertTrue(source.contains("HorizontalVideoStatRow("))
         assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
         assertTrue(!source.contains(".height(coverHeight)"))
+    }
+
+    @Test
+    fun gridCardOnlyTruncatesTitleWhileKeepingEnabledMetadataComplete() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt",
+        ).let { file ->
+            listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
+        }
+
+        assertTrue(
+            source.contains(
+                "durationText = durationText.takeIf { showDurationOutside }.orEmpty()"
+            )
+        )
+        assertFalse(
+            source.substringAfter("if (scrollLitePolicy.showSecondaryStatsRow)")
+                .substringBefore("VideoCardOwnerMetadata(")
+                .contains("overflow = TextOverflow.Ellipsis")
+        )
+        assertTrue(source.contains("maxLines = Int.MAX_VALUE"))
+        assertTrue(source.contains("metaMaxLines = Int.MAX_VALUE"))
+        assertTrue(
+            source.substringAfter("text = highlightedTitle ?: AnnotatedString(video.title)")
+                .substringBefore("style = contentTypography.title")
+                .contains(
+                    "overflow = if (showFullCardContent) " +
+                        "TextOverflow.Visible else TextOverflow.Ellipsis"
+                )
+        )
+        assertTrue(source.contains(".collectAsStateWithLifecycle(initialValue = false)"))
+        assertTrue(
+            source.substringAfter("internal fun VideoCardDurationPublishRow(")
+                .substringBefore("private fun VideoCardPublishTime(")
+                .contains("FlowRow(")
+        )
     }
 
     @Test

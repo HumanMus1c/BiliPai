@@ -168,8 +168,8 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     rowHeight = HomeTopDpPair(
-                        docked = 36.dp,
-                        floating = 40.dp
+                        docked = if (isIconAndText) 56.dp else 36.dp,
+                        floating = if (isIconAndText) 60.dp else 40.dp
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
@@ -229,8 +229,8 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     rowHeight = HomeTopDpPair(
-                        docked = 36.dp,
-                        floating = 40.dp
+                        docked = if (isIconAndText) 56.dp else 36.dp,
+                        floating = if (isIconAndText) 60.dp else 40.dp
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
@@ -288,7 +288,10 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     // Align with resolveMd3TopTabVisualSpec used by the tab row.
-                    rowHeight = HomeTopDpPair(docked = 36.dp, floating = 40.dp),
+                    rowHeight = HomeTopDpPair(
+                        docked = if (isIconAndText) 56.dp else 36.dp,
+                        floating = if (isIconAndText) 60.dp else 40.dp
+                    ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
                         AppTopTabPresentation.MATERIAL_UNDERLINE,
@@ -346,7 +349,7 @@ enum class TopTabIndicatorStyle {
 }
 
 // Compact top docks scale the 56/64 rest fill from the 64dp home bottom bar.
-internal const val CompactTopTabIndicatorHeightDp = 35f
+internal const val CompactTopTabIndicatorHeightDp = 30f
 internal const val CompactTopTabIndicatorCornerDp = 9f
 
 data class TopTabVisualTuning(
@@ -440,7 +443,7 @@ internal fun resolveMd3TopTabVisualSpec(
     if (presentation == AppTopTabPresentation.TONAL_CAPSULE) {
         return if (isFloatingStyle) {
             Md3TopTabVisualSpec(
-                rowHeight = 40.dp,
+                rowHeight = if (showIconAndText) 60.dp else 40.dp,
                 selectedCapsuleHeight = 30.dp,
                 selectedCapsuleCornerRadius = 9.dp,
                 selectedCapsuleTonalElevation = 0.dp,
@@ -453,7 +456,7 @@ internal fun resolveMd3TopTabVisualSpec(
             )
         } else {
             Md3TopTabVisualSpec(
-                rowHeight = 36.dp,
+                rowHeight = if (showIconAndText) 56.dp else 36.dp,
                 selectedCapsuleHeight = 30.dp,
                 selectedCapsuleCornerRadius = 9.dp,
                 selectedCapsuleTonalElevation = 0.dp,
@@ -471,7 +474,7 @@ internal fun resolveMd3TopTabVisualSpec(
     // Older 54–64dp Material TabRow heights clip inside the 36/40 chrome and collapse labels.
     return if (isFloatingStyle) {
         Md3TopTabVisualSpec(
-            rowHeight = 40.dp,
+            rowHeight = if (showIconAndText) 60.dp else 40.dp,
             selectedCapsuleHeight = CompactTopTabIndicatorHeightDp.dp,
             selectedCapsuleCornerRadius = CompactTopTabIndicatorCornerDp.dp,
             selectedCapsuleTonalElevation = 0.dp,
@@ -484,7 +487,7 @@ internal fun resolveMd3TopTabVisualSpec(
         )
     } else {
         Md3TopTabVisualSpec(
-            rowHeight = 36.dp,
+            rowHeight = if (showIconAndText) 56.dp else 36.dp,
             selectedCapsuleHeight = CompactTopTabIndicatorHeightDp.dp,
             selectedCapsuleCornerRadius = CompactTopTabIndicatorCornerDp.dp,
             selectedCapsuleTonalElevation = 0.dp,
@@ -647,16 +650,13 @@ internal fun resolveEffectiveTopTabLiquidGlassEnabled(
     return isLiquidGlassEnabled
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldDrawHomeTopTabOuterChromeSurface(
     presentation: AppTopTabPresentation,
     materialMode: TopTabMaterialMode
 ): Boolean {
-    // All presentations share the BiliPai floating dock shell so top tabs match
-    // bottom FloatingBottomBar (outer glass track + moving indicator). TONAL_CAPSULE
-    // no longer relies on per-item secondaryContainer fills.
-    return when (presentation) {
-        AppTopTabPresentation.TONAL_CAPSULE,
-        AppTopTabPresentation.MATERIAL_UNDERLINE,
-        AppTopTabPresentation.MOVING_CAPSULE -> true
-    }
+    // The full-width track is a liquid-glass affordance. In blur/plain modes it turns
+    // into a high-contrast white pill that competes with the search field, so let the
+    // tab row sit directly on the continuous top backdrop instead.
+    return materialMode == TopTabMaterialMode.LIQUID_GLASS
 }

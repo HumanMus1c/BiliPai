@@ -2,10 +2,14 @@ package com.android.purebilibili.feature.home.components
 
 import android.os.Build
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 import com.android.purebilibili.core.ui.OpticalContrastPalette
 
 import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +38,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -78,6 +85,7 @@ import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -107,8 +115,11 @@ internal val BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP =
         BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.toFloat()
     )
 private const val SEGMENTED_CONTROL_MIN_INDICATOR_ASPECT_RATIO = 1.6f
+private const val SEGMENTED_CONTROL_MAX_INDICATOR_ASPECT_RATIO = 3.2f
+private const val SEGMENTED_CONTROL_INDICATOR_HORIZONTAL_INSET_DP = 4f
 
 internal fun resolveSegmentedControlChromeStyle(
+    uiStyle: AppUiStyle,
     prefersNativeChrome: Boolean,
     androidNativeLiquidGlassEnabled: Boolean,
     preferInlineContentStyle: Boolean = false
@@ -117,10 +128,15 @@ internal fun resolveSegmentedControlChromeStyle(
     val ignoredNativeChrome = prefersNativeChrome
     @Suppress("UNUSED_PARAMETER")
     val ignoredInline = preferInlineContentStyle
-    return if (androidNativeLiquidGlassEnabled) {
-        SegmentedControlChromeStyle.LIQUID_PILL
-    } else {
-        SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
+    return when (
+        resolveHomeSelectionIndicatorStyle(
+            uiStyle = uiStyle,
+            liquidGlassEnabled = androidNativeLiquidGlassEnabled,
+        )
+    ) {
+        HomeSelectionIndicatorStyle.CAPSULE -> SegmentedControlChromeStyle.LIQUID_PILL
+        HomeSelectionIndicatorStyle.MD3_UNDERLINE ->
+            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
     }
 }
 
@@ -135,7 +151,15 @@ internal fun resolveSegmentedControlIndicatorWidthDp(
     itemCount: Int
 ): Float {
     if (slotWidthDp <= 0f || indicatorHeightDp <= 0f || itemCount <= 0) return 0f
-    return slotWidthDp
+    val insetWidth = (slotWidthDp - SEGMENTED_CONTROL_INDICATOR_HORIZONTAL_INSET_DP * 2f)
+        .coerceAtLeast(0f)
+    // Every selectable row follows the home dock exactly: the moving indicator owns
+    // the complete tab slot, so two-item rows do not accumulate an extra inner inset.
+    if (itemCount >= 2) return slotWidthDp
+    return min(
+        insetWidth,
+        indicatorHeightDp * SEGMENTED_CONTROL_MAX_INDICATOR_ASPECT_RATIO,
+    )
 }
 
 internal fun resolveSegmentedControlIndicatorHeightDp(
@@ -187,6 +211,53 @@ internal fun resolveSegmentedControlIndicatorPosition(
     if (itemCount <= 0) return 0f
     return (externalPosition ?: internalPosition)
         .coerceIn(0f, (itemCount - 1).toFloat())
+}
+
+internal data class NativeUnderlineGeometry(
+    val offsetDp: Float,
+    val widthDp: Float,
+)
+
+internal fun resolveNativeUnderlineGeometry(
+    indicatorPosition: Float,
+    segmentWidthDp: Float,
+    labelWidthsDp: List<Float>,
+    minimumWidthDp: Float = 24f,
+    fallbackWidthFraction: Float = 0.42f,
+): NativeUnderlineGeometry {
+    if (segmentWidthDp <= 0f || labelWidthsDp.isEmpty()) {
+        return NativeUnderlineGeometry(offsetDp = 0f, widthDp = 0f)
+    }
+
+    val lastIndex = labelWidthsDp.lastIndex
+    val safePosition = indicatorPosition.coerceIn(0f, lastIndex.toFloat())
+    val startIndex = floor(safePosition).toInt()
+    val endIndex = (startIndex + 1).coerceAtMost(lastIndex)
+    val fraction = safePosition - startIndex
+    val fallbackWidth = segmentWidthDp * fallbackWidthFraction
+    val effectiveMinimumWidth = minimumWidthDp.coerceAtMost(segmentWidthDp)
+
+    fun resolvedWidth(index: Int): Float = labelWidthsDp[index]
+        .takeIf { it > 0f }
+        ?.coerceIn(effectiveMinimumWidth, segmentWidthDp)
+        ?: fallbackWidth.coerceIn(effectiveMinimumWidth, segmentWidthDp)
+
+    val startWidth = resolvedWidth(startIndex)
+    val endWidth = resolvedWidth(endIndex)
+    // Flutter TabIndicatorAnimation.elastic: target-side edge decelerates with sine while
+    // the trailing edge accelerates with cosine, producing PiliPlus' fast-then-slow pull.
+    val trailingEdgeProgress = 1f - kotlin.math.cos(fraction * Math.PI.toFloat() / 2f)
+    val leadingEdgeProgress = kotlin.math.sin(fraction * Math.PI.toFloat() / 2f)
+    val startLeft = segmentWidthDp * (startIndex + 0.5f) - startWidth / 2f
+    val startRight = startLeft + startWidth
+    val endLeft = segmentWidthDp * (endIndex + 0.5f) - endWidth / 2f
+    val endRight = endLeft + endWidth
+    val left = startLeft + (endLeft - startLeft) * trailingEdgeProgress
+    val right = startRight + (endRight - startRight) * leadingEdgeProgress
+    return NativeUnderlineGeometry(
+        offsetDp = left,
+        widthDp = (right - left).coerceAtLeast(0f),
+    )
 }
 
 internal fun shouldDrawSegmentedControlIndicatorBackdrop(
@@ -316,10 +387,12 @@ fun BottomBarLiquidSegmentedControl(
     height: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.dp,
     indicatorHeight: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP.dp,
     labelFontSize: TextUnit = TextUnit.Unspecified,
+    allowNativeLabelOverflow: Boolean = false,
     containerHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
     containerVerticalPadding: Dp = AppSpacingTokens.ExtraSmall,
     liquidGlassEffectsEnabled: Boolean = true,
     dragSelectionEnabled: Boolean = true,
+    longPressDragSelectionEnabled: Boolean = false,
     preferInlineContentStyle: Boolean = false,
     forceLiquidChrome: Boolean = false,
     miuixBackdrop: MiuixBackdrop? = null,
@@ -339,7 +412,7 @@ fun BottomBarLiquidSegmentedControl(
     val effectiveLabelFontSize = if (labelFontSize.isSpecified) {
         labelFontSize
     } else {
-        MaterialTheme.typography.labelMedium.fontSize
+        MaterialTheme.typography.labelLarge.fontSize
     }
 
     val context = LocalContext.current
@@ -352,6 +425,7 @@ fun BottomBarLiquidSegmentedControl(
     val effectiveAndroidNativeLiquidGlassEnabled =
         forceLiquidChrome || homeSettings.androidNativeLiquidGlassEnabled
     val chromeStyle = resolveSegmentedControlChromeStyle(
+        uiStyle = LocalAppUiStyle.current,
         prefersNativeChrome = visualPolicy.prefersNativeChrome,
         androidNativeLiquidGlassEnabled = effectiveAndroidNativeLiquidGlassEnabled,
         preferInlineContentStyle = preferInlineContentStyle
@@ -366,6 +440,7 @@ fun BottomBarLiquidSegmentedControl(
             itemWidth = itemWidth,
             height = height,
             labelFontSize = effectiveLabelFontSize,
+            allowLabelOverflow = allowNativeLabelOverflow,
             selectedTextColorOverride = selectedTextColorOverride,
             unselectedTextColorOverride = unselectedTextColorOverride,
             indicatorPositionProvider = indicatorPositionProvider,
@@ -388,6 +463,7 @@ fun BottomBarLiquidSegmentedControl(
         containerVerticalPadding = containerVerticalPadding,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         dragSelectionEnabled = dragSelectionEnabled,
+        longPressDragSelectionEnabled = longPressDragSelectionEnabled,
         forceLiquidChrome = forceLiquidChrome,
         miuixBackdrop = miuixBackdrop,
         containerColorOverride = containerColorOverride,
@@ -410,6 +486,7 @@ internal fun AndroidNativeUnderlinedSegmentedControl(
     itemWidth: Dp? = null,
     height: Dp,
     labelFontSize: TextUnit,
+    allowLabelOverflow: Boolean = false,
     selectedTextColorOverride: Color? = null,
     unselectedTextColorOverride: Color? = null,
     indicatorPositionProvider: (() -> Float)? = null,
@@ -421,8 +498,17 @@ internal fun AndroidNativeUnderlinedSegmentedControl(
     val unselectedTextColor = unselectedTextColorOverride
         ?: MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.78f else 0.42f)
     val underlineShape = CircleShape
+    val density = LocalDensity.current
+    val measuredLabelWidths: SnapshotStateList<Float> = remember(items) {
+        List(itemCount) { 0f }.toMutableStateList()
+    }
+    val animatedSelectedIndex by animateFloatAsState(
+        targetValue = safeSelectedIndex.toFloat(),
+        animationSpec = tween(durationMillis = 250, easing = EaseOut),
+        label = "nativeUnderlinePosition",
+    )
     val indicatorPosition = resolveSegmentedControlIndicatorPosition(
-        internalPosition = safeSelectedIndex.toFloat(),
+        internalPosition = animatedSelectedIndex,
         externalPosition = indicatorPositionProvider?.invoke(),
         itemCount = itemCount
     )
@@ -443,10 +529,11 @@ internal fun AndroidNativeUnderlinedSegmentedControl(
             .height(height)
     ) {
         val segmentWidth = maxWidth / itemCount
-        val underlineWidth = (segmentWidth * 0.42f)
-            .coerceAtLeast(AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall)
-            .coerceAtMost(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
-        val underlineOffsetX = (segmentWidth * indicatorPosition) + ((segmentWidth - underlineWidth) / 2)
+        val underlineGeometry = resolveNativeUnderlineGeometry(
+            indicatorPosition = indicatorPosition,
+            segmentWidthDp = segmentWidth.value,
+            labelWidthsDp = measuredLabelWidths,
+        )
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
@@ -462,12 +549,25 @@ internal fun AndroidNativeUnderlinedSegmentedControl(
                 ) {
                     AppText(
                         text = label,
+                        modifier = Modifier.then(
+                            if (allowLabelOverflow) {
+                                Modifier.wrapContentWidth(unbounded = true)
+                            } else {
+                                Modifier
+                            }
+                        ),
                         tapToCopyEnabled = false,
                         color = if (selected) selectedTextColor else unselectedTextColor,
                         fontSize = labelFontSize,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            val measuredWidthDp = with(density) { result.size.width.toDp().value }
+                            if (measuredLabelWidths[index] != measuredWidthDp) {
+                                measuredLabelWidths[index] = measuredWidthDp
+                            }
+                        },
                     )
                 }
             }
@@ -475,8 +575,8 @@ internal fun AndroidNativeUnderlinedSegmentedControl(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = underlineOffsetX)
-                .width(underlineWidth)
+                .offset(x = underlineGeometry.offsetDp.dp)
+                .width(underlineGeometry.widthDp.dp)
                 .height(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
                 .clip(underlineShape)
                 .background(selectedTextColor)

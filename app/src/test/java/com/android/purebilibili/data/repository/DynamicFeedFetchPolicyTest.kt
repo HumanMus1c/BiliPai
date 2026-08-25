@@ -16,6 +16,9 @@ class DynamicFeedFetchPolicyTest {
 
         assertEquals("next-offset", params["offset"])
         assertFalse("page" in params)
+        assertTrue(params["features"].orEmpty().contains("opusBigCover"))
+        assertTrue(params["features"].orEmpty().contains("commentsNewVersion"))
+        assertEquals("333.1387", params["web_location"])
     }
 
     @Test

@@ -7,9 +7,14 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
+import com.android.purebilibili.core.ui.components.AppCardVariant
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -71,7 +76,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.DisposableEffect // [Fix] Missing import
 import kotlinx.coroutines.launch // [Fix] Import
 //  Material Icons
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChipDefaults
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -240,7 +244,6 @@ fun CommonListScreen(
     )
     val topChromePolicy = rememberAppTopChromePolicy()
     val liquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
-        individualEnabled = homeSettings.isLiquidGlassEnabled,
         androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
     )
     val windowSizeClass = LocalWindowSizeClass.current
@@ -385,10 +388,6 @@ fun CommonListScreen(
         ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val favoriteSearchUiState by favoriteViewModel?.searchUiState?.collectAsStateWithLifecycle()
         ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(ListUiState()) }
-    val favoriteDetailProgressState by seasonSeriesDetailViewModel?.favoriteDetailProgressState?.collectAsStateWithLifecycle()
-        ?: androidx.compose.runtime.remember {
-            androidx.compose.runtime.mutableStateOf(SeasonSeriesDetailViewModel.FavoriteDetailProgressState())
-        }
     var favoriteBrowseSection by rememberSaveable { androidx.compose.runtime.mutableStateOf(FavoriteBrowseSection.OWNED) }
     var showFavoriteManagementMenu by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     var showFavoriteCleanInvalidConfirm by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
@@ -466,27 +465,6 @@ fun CommonListScreen(
             selectedFavoriteResourceIds = selectedFavoriteResourceIds + resourceId
         }
     }
-    val progressBadge = remember(
-        favoriteDetailProgressState,
-        seasonSeriesDetailViewModel
-    ) {
-        if (
-            seasonSeriesDetailViewModel != null &&
-            (favoriteDetailProgressState.expectedCount > 0 || favoriteDetailProgressState.loadedCount > 0)
-        ) {
-            resolveFavoriteDetailProgressBadge(
-                loadedCount = favoriteDetailProgressState.loadedCount,
-                expectedCount = favoriteDetailProgressState.expectedCount,
-                currentPage = favoriteDetailProgressState.currentPage,
-                lastAddedCount = favoriteDetailProgressState.lastAddedCount,
-                invalidCount = favoriteDetailProgressState.invalidCount,
-                hasMore = favoriteDetailProgressState.hasMore
-            )
-        } else {
-            null
-        }
-    }
-
     // 返回收藏页时直接从已选文件夹恢复，避免先创建第 1 页再跨多页补间加载。
     val pagerState = rememberPagerState(
         initialPage = selectedFolderIndex.coerceIn(0, foldersState.lastIndex.coerceAtLeast(0))
@@ -625,7 +603,7 @@ fun CommonListScreen(
         if (isSearchDestination && favoriteViewModel != null) {
             kotlinx.coroutines.delay(350)
             favoriteViewModel.searchVideos(searchQuery, favoriteSearchScope)
-        } else if (isSearchDestination && historyViewModel != null) {
+        } else if (historyViewModel != null) {
             kotlinx.coroutines.delay(350)
             historyViewModel.searchHistory(searchQuery)
         }
@@ -1214,17 +1192,6 @@ fun CommonListScreen(
                 }
             }
 
-            progressBadge?.let { badge ->
-                FavoriteProgressBadgeCapsule(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = AppSpacingTokens.Medium)
-                        .zIndex(2f),
-                    title = "进度",
-                    badge = badge
-                )
-            }
-
             // 2. 顶层：悬浮顶栏 (使用 onGloballyPositioned 测量高度)
             Box(
                 modifier = Modifier
@@ -1249,9 +1216,17 @@ fun CommonListScreen(
                         modifier = Modifier.favoriteCollectionSharedBounds(
                             route = favoriteCollectionSharedElementRoute,
                             transitionEnabled = favoriteCollectionSharedTransitionEnabled
-                        ).onGloballyPositioned { coordinates ->
-                            fixedTopBarHeightPx = coordinates.size.height
-                        },
+                        )
+                            .then(
+                                if (historyViewModel != null) {
+                                    Modifier.background(AppSurfaceTokens.surface())
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .onGloballyPositioned { coordinates ->
+                                fixedTopBarHeightPx = coordinates.size.height
+                            },
                         navigationIcon = {
                             AppIconButton(onClick = onBack) {
                                 AppIcon(rememberAppBackIcon(), contentDescription = "Back")
@@ -1625,29 +1600,28 @@ fun CommonListScreen(
                     }
 
                     if (favoriteViewModel != null) {
-                        FlowRow(
+                        val favoriteSectionOptions = remember {
+                            FavoriteSection.entries.map { section ->
+                                AppSegmentOption(value = section, label = section.label)
+                            }
+                        }
+                        AppLiquidAwareTabRow(
+                            options = favoriteSectionOptions,
+                            selectedValue = favoriteSection,
+                            onSelectionChange = { section ->
+                                if (favoriteSection != section) {
+                                    favoriteSection = section
+                                    favoriteBrowseSection = FavoriteBrowseSection.OWNED
+                                    searchQuery = ""
+                                    isFavoriteBatchMode = false
+                                    selectedFavoriteResourceIds = emptySet()
+                                }
+                            },
+                            scrollable = FavoriteSection.entries.size > 4,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = AppSpacingTokens.Medium),
-                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-                        ) {
-                            FavoriteSection.entries.forEach { section ->
-                                AppFilterChip(
-                                    selected = favoriteSection == section,
-                                    onClick = {
-                                        if (favoriteSection != section) {
-                                            favoriteSection = section
-                                            favoriteBrowseSection = FavoriteBrowseSection.OWNED
-                                            searchQuery = ""
-                                            isFavoriteBatchMode = false
-                                            selectedFavoriteResourceIds = emptySet()
-                                        }
-                                    },
-                                    label = { AppText(section.label) },
-                                )
-                            }
-                        }
+                        )
                         Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                     }
 
@@ -1817,12 +1791,15 @@ fun CommonListScreen(
                         val height = (fixedHeight + collapsibleHeight + bodyOffset)
                             .coerceIn(constraints.minHeight, constraints.maxHeight)
                         layout(width, height) {
-                            placeables.first().placeRelative(0, 0)
                             var y = fixedHeight + bodyOffset
                             placeables.drop(1).forEach { placeable ->
                                 placeable.placeRelative(0, y)
                                 y += placeable.height
                             }
+                            // The pinned title bar is the foreground clipping cap. Collapsible
+                            // search/filter docks may move beneath it, but must never paint over
+                            // the title or actions while the history list is scrolled.
+                            placeables.first().placeRelative(0, 0)
                         }
                     } else {
                         val height = placeables.sumOf { it.height }
@@ -2640,7 +2617,7 @@ private fun CommonListContent(
                                     blurEnabled = videoCardAppearance.blurEnabled,
                                     showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
                                     showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
-                                    showUpBadge = historyCardPresentation?.showUpBadge ?: true,
+                                    showUpBadge = historyCardPresentation?.showUpBadge,
                                     coverAspectRatio = cardLayout.coverAspectRatio,
                                     compactMetadata = cardLayout.compactMetadata,
                                     homeDurationStyle = homeDurationStyle,
@@ -2791,11 +2768,11 @@ private fun HistoryArticleCard(
                 onClick = triggerArticleClick,
                 onLongClick = onLongClick
             ),
-        shape = AppShapes.container(ContainerLevel.Sheet),
-        colors = CardDefaults.elevatedCardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Sheet),
+        colors = AppCardDefaults.colors(
             containerColor = AppSurfaceTokens.cardContainer()
         ),
-        elevation = CardDefaults.elevatedCardElevation()
+        variant = AppCardVariant.Elevated,
     ) {
         Column {
             Box(
@@ -2928,7 +2905,7 @@ private fun FavoriteSubscribedFolderRow(
             )
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-        shape = AppShapes.container(ContainerLevel.Dialog)
+        shape = AppShapes.container(ContainerLevel.Card)
     ) {
         Row(
             modifier = Modifier
@@ -2969,7 +2946,7 @@ private fun FavoriteSubscribedFolderPreview(
     coverUrl: String?,
     title: String
 ) {
-    val shape = AppShapes.container(ContainerLevel.Field)
+    val shape = AppShapes.container(ContainerLevel.Card)
     Box(
         modifier = Modifier
             .width(resolveFavoriteSubscribedFolderPreviewWidth())
@@ -3026,57 +3003,8 @@ private fun Modifier.favoriteCollectionSharedBounds(
             sharedContentState = rememberSharedContentState(key = sharedElementKey),
             animatedVisibilityScope = animatedVisibilityScope,
             boundsTransform = { _, _ -> commonListSharedBoundsMotionSpec() },
-            clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Dialog))
+            clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Card))
         )
-    }
-}
-
-@Composable
-private fun FavoriteProgressBadgeCapsule(
-    modifier: Modifier = Modifier,
-    title: String,
-    badge: FavoriteProgressBadge
-) {
-    val widthSpec = resolveFavoriteProgressBadgeWidthSpec()
-    AppSurface(
-        modifier = modifier.widthIn(min = widthSpec.minWidth, max = widthSpec.maxWidth),
-        shape = AppShapes.container(ContainerLevel.Floating),
-        color = AppSurfaceTokens.cardContainer().copy(alpha = 0.9f),
-        tonalElevation = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
-        shadowElevation = AppSpacingTokens.Small
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro),
-            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
-        ) {
-            AppText(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            AppText(
-                text = badge.primaryText,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            AppText(
-                text = badge.secondaryText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-            badge.footnoteText?.let { footnote ->
-                AppHorizontalDivider(
-                    modifier = Modifier.padding(vertical = AppSpacingTokens.Micro),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                    thickness = AppSpacingTokens.Micro / 4
-                )
-                AppText(
-                    text = footnote,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }
 

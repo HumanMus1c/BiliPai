@@ -64,6 +64,7 @@ import com.android.purebilibili.feature.video.ui.components.SeekPreviewBubbleSim
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.DolbyBadge
 import com.android.purebilibili.feature.video.ui.components.HiResBadge
+import com.android.purebilibili.feature.video.ui.components.NativeDanmakuToggleButton
 import androidx.compose.ui.draw.clip
 import com.android.purebilibili.feature.video.subtitle.SubtitleDisplayMode
 import com.android.purebilibili.feature.video.subtitle.SubtitleTrackOption
@@ -451,9 +452,11 @@ fun BottomControlBar(
     val subtitleSecondaryLabel = subtitleControlState.secondaryLabel
     val subtitleTrackOptions = subtitleControlState.trackOptions
     val subtitleLargeTextEnabled = subtitleControlState.largeTextEnabled
+    val subtitlePositionLocked = subtitleControlState.positionLocked
     val onSubtitleDisplayModeChange = subtitleControlCallbacks.onDisplayModeChange
     val onSubtitleTrackSelected = subtitleControlCallbacks.onTrackSelected
     val onSubtitleLargeTextChange = subtitleControlCallbacks.onLargeTextChange
+    val onSubtitlePositionLockedChange = subtitleControlCallbacks.onPositionLockedChange
 
     val configuration = LocalConfiguration.current
     val layoutPolicy = remember(configuration.screenWidthDp) {
@@ -662,7 +665,9 @@ fun BottomControlBar(
             pbpRidgeSamples = pbpRidgeSamples,
             currentChapter = currentChapter,
             onChapterClick = onChapterClick,
-            modifier = Modifier.testTag("player_progress")
+            modifier = Modifier
+                .padding(horizontal = if (isFullscreen) 48.dp else 0.dp)
+                .testTag("player_progress")
         )
     }
 
@@ -719,41 +724,15 @@ fun BottomControlBar(
                 widthDp = configuration.screenWidthDp
             )
             if (showDanmakuToggle) {
-                val danmakuActiveColor = MaterialTheme.colorScheme.primary
+                val danmakuActiveColor = Color.White.copy(alpha = 0.96f)
                 val danmakuInactiveColor = Color.White.copy(alpha = 0.74f)
-                // Danmaku Switch
-                Row(
-                    modifier = Modifier
-                        .heightIn(min = 40.dp)
-                        .clip(AppShapes.container(ContainerLevel.Dialog))
-                        .background(
-                            if (danmakuEnabled) {
-                                danmakuActiveColor.copy(alpha = 0.22f)
-                            } else {
-                                danmakuInactiveColor.copy(alpha = 0.16f)
-                            }
-                        )
-                        .consumeTap(onDanmakuToggle)
-                        .padding(
-                            horizontal = layoutPolicy.danmakuSwitchHorizontalPaddingDp.dp,
-                            vertical = layoutPolicy.danmakuSwitchVerticalPaddingDp.dp
-                        ),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AppIcon(
-                        imageVector = if (danmakuEnabled) Icons.Filled.ChatBubble else Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
-                        tint = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
-                        modifier = Modifier.size(layoutPolicy.danmakuIconSizeDp.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    AppText(
-                        text = if (danmakuEnabled) "开" else "关",
-                        color = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                NativeDanmakuToggleButton(
+                    enabled = danmakuEnabled,
+                    onToggle = onDanmakuToggle,
+                    activeTint = danmakuActiveColor,
+                    inactiveTint = danmakuInactiveColor,
+                    iconSize = layoutPolicy.danmakuIconSizeDp.dp,
+                )
 
                 AppIconButton(onClick = onDanmakuSettingsClick) {
                     AppIcon(
@@ -1059,6 +1038,26 @@ fun BottomControlBar(
                                 modifier = Modifier.height(28.dp)
                             )
                         }
+                    }
+                    AppHorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                    ) {
+                        AppText(
+                            text = "锁定位置",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        AppSwitch(
+                            checked = subtitlePositionLocked,
+                            onCheckedChange = onSubtitlePositionLockedChange,
+                            modifier = Modifier.height(28.dp)
+                        )
                     }
                 }
             }

@@ -378,7 +378,8 @@ class DampedDragAnimationState internal constructor(
     }
 }
 
-private const val BILIPAI_PRESSED_SCALE = 78f / 56f
+private const val BILIPAI_PRESSED_SCALE =
+    com.android.purebilibili.core.ui.BottomBarReferencePressedScale
 
 @Composable
 fun rememberDampedDragAnimationState(

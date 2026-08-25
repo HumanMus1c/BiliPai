@@ -6,6 +6,8 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -25,11 +27,14 @@ import androidx.compose.material3.*
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +53,8 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicCommentLocationLab
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalCount
 import com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount
 import com.android.purebilibili.feature.dynamic.shouldOpenDynamicCommentThreadOnTap
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.ReplyMemberAvatar
@@ -71,6 +77,8 @@ import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import com.android.purebilibili.core.ui.rememberAppMoreIcon
+import com.android.purebilibili.core.store.TokenManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import com.android.purebilibili.core.ui.AppModalBottomSheet
@@ -131,6 +139,23 @@ fun DynamicCommentOverlayHost(
             onViewReplies = { reply -> viewModel.openSubReply(reply) },
             onReply = { reply -> viewModel.startCommentReply(reply) },
             onLike = { reply -> viewModel.likeComment(reply.rpid) },
+            dynamicAuthorMid = dynamicItem?.modules?.module_author?.mid ?: 0L,
+            currentUserMid = TokenManager.midCache,
+            onDelete = { reply ->
+                viewModel.deleteDynamicComment(reply.rpid) { _, message ->
+                    if (!inspectionMode) android.widget.Toast.makeText(toastContext, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+            onToggleTop = { reply ->
+                viewModel.toggleDynamicCommentTop(reply) { _, message ->
+                    if (!inspectionMode) android.widget.Toast.makeText(toastContext, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+            onReport = { reply, reason ->
+                viewModel.reportDynamicComment(reply.rpid, reason) { _, message ->
+                    if (!inspectionMode) android.widget.Toast.makeText(toastContext, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
             replyTargetUname = replyTarget?.uname,
             onClearReplyTarget = { viewModel.clearCommentReplyTarget() },
             onLoadMore = { viewModel.loadMoreComments() },
@@ -145,6 +170,18 @@ fun DynamicCommentOverlayHost(
         onUserClick = onUserClick,
         onReplyClick = { reply -> viewModel.startCommentReply(reply) },
         onCommentLike = { rpid -> viewModel.likeComment(rpid) },
+        currentMid = TokenManager.midCache ?: 0L,
+        onDeleteComment = { rpid ->
+            viewModel.deleteDynamicComment(rpid) { _, message ->
+                if (!inspectionMode) {
+                    android.widget.Toast.makeText(
+                        toastContext,
+                        message,
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+        },
     )
 }
 
@@ -165,6 +202,11 @@ fun DynamicCommentSheet(
     onViewReplies: (ReplyItem) -> Unit = {},
     onReply: (ReplyItem) -> Unit = {},
     onLike: (ReplyItem) -> Unit = {},
+    dynamicAuthorMid: Long = 0L,
+    currentUserMid: Long? = null,
+    onDelete: (ReplyItem) -> Unit = {},
+    onToggleTop: (ReplyItem) -> Unit = {},
+    onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     replyTargetUname: String? = null,
     onClearReplyTarget: () -> Unit = {},
     onLoadMore: () -> Unit = {},
@@ -340,6 +382,11 @@ fun DynamicCommentSheet(
                             onViewReplies = onViewReplies,
                             onReply = onReply,
                             onLike = onLike,
+                            dynamicAuthorMid = dynamicAuthorMid,
+                            currentUserMid = currentUserMid,
+                            onDelete = onDelete,
+                            onToggleTop = onToggleTop,
+                            onReport = onReport,
                             onUserClick = onUserClick,
                             onImagePreview = { images, index, rect, textContent ->
                                 previewImages = images
@@ -398,7 +445,7 @@ private fun DynamicCommentSortControl(
     val spec = remember(items.size) {
         resolveDynamicCommentSortControlSpec(itemCount = items.size)
     }
-    BottomBarLiquidSegmentedControl(
+    DynamicAdaptiveSegmentedControl(
         items = items,
         selectedIndex = selectedIndex,
         onSelected = onSelected,
@@ -406,11 +453,8 @@ private fun DynamicCommentSortControl(
         height = spec.heightDp.dp,
         indicatorHeight = spec.indicatorHeightDp.dp,
         labelFontSize = 13.sp,
-        modifier = modifier,
-        miuixBackdrop = miuixBackdrop,
-        forceLiquidChrome = false,
-        liquidGlassEffectsEnabled = true,
-        tapPressRefractionEnabled = true,
+        modifier = modifier.width((spec.itemWidthDp * items.size).dp),
+        backdrop = miuixBackdrop,
     )
 }
 
@@ -480,6 +524,11 @@ fun LazyListScope.dynamicInlineCommentItems(
     onViewReplies: (ReplyItem) -> Unit,
     onReply: (ReplyItem) -> Unit = {},
     onLike: (ReplyItem) -> Unit = {},
+    dynamicAuthorMid: Long = 0L,
+    currentUserMid: Long? = null,
+    onDelete: (ReplyItem) -> Unit = {},
+    onToggleTop: (ReplyItem) -> Unit = {},
+    onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
 ) {
@@ -508,6 +557,11 @@ fun LazyListScope.dynamicInlineCommentItems(
                 onViewReplies = onViewReplies,
                 onReply = onReply,
                 onLike = onLike,
+                dynamicAuthorMid = dynamicAuthorMid,
+                currentUserMid = currentUserMid,
+                onDelete = onDelete,
+                onToggleTop = onToggleTop,
+                onReport = onReport,
                 onUserClick = onUserClick,
                 onImagePreview = onImagePreview,
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
@@ -533,6 +587,8 @@ fun DynamicInlineCommentComposer(
     onPostComment: (String) -> Unit,
     replyTargetUname: String? = null,
     onClearReplyTarget: () -> Unit = {},
+    liquidGlassEnabled: Boolean = false,
+    backdrop: MiuixBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
     var commentText by remember { mutableStateOf("") }
@@ -545,9 +601,9 @@ fun DynamicInlineCommentComposer(
         },
         hint = resolveDynamicCommentComposerHint(replyTargetUname),
         onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(AppSpacingTokens.Large),
+        liquidGlassEnabled = liquidGlassEnabled,
+        backdrop = backdrop,
+        modifier = modifier,
     )
 }
 
@@ -558,20 +614,52 @@ private fun DynamicCommentComposer(
     onSubmit: (String) -> Unit,
     hint: String = resolveDynamicCommentComposerHint(),
     onClearReplyTarget: (() -> Unit)? = null,
+    liquidGlassEnabled: Boolean = false,
+    backdrop: MiuixBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
     val trimmedComment = value.trim()
+    val dockShape = resolveSharedBottomBarCapsuleShape()
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.weight(1f),
-            placeholder = hint,
-            singleLine = true,
-        )
+        val commentFieldContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        BottomBarMatchedReusableLiquidDock(
+            shape = dockShape,
+            modifier = Modifier
+                .weight(1f)
+                .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small),
+            reuseEnabled = liquidGlassEnabled,
+            backdrop = backdrop,
+            drawShellLens = true,
+        ) { liquidChromeActive ->
+            val fieldColor = if (liquidChromeActive) Color.Transparent else commentFieldContainerColor
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxSize(),
+                placeholder = {
+                    AppText(
+                        text = hint,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                singleLine = true,
+                shape = dockShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = fieldColor,
+                    unfocusedContainerColor = fieldColor,
+                    disabledContainerColor = fieldColor,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            )
+        }
         if (onClearReplyTarget != null) {
             AppIconButton(onClick = onClearReplyTarget) {
                 AppIcon(
@@ -582,14 +670,30 @@ private fun DynamicCommentComposer(
             }
         }
         Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-        AppButton(
-            onClick = { onSubmit(trimmedComment) },
-            enabled = trimmedComment.isNotEmpty(),
-            modifier = Modifier.height(AppSpacingTokens.TripleExtraLarge),
-            shape = AppShapes.container(ContainerLevel.Pill),
-            contentPadding = PaddingValues(horizontal = AppSpacingTokens.Large),
-        ) {
-            AppText("发送")
+        BottomBarMatchedReusableLiquidDock(
+            modifier = Modifier.height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small),
+            shape = dockShape,
+            reuseEnabled = liquidGlassEnabled,
+            backdrop = backdrop,
+            drawShellLens = true,
+        ) { liquidChromeActive ->
+            AppButton(
+                onClick = { onSubmit(trimmedComment) },
+                enabled = trimmedComment.isNotEmpty(),
+                modifier = Modifier.fillMaxHeight(),
+                shape = dockShape,
+                colors = if (liquidChromeActive) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                    )
+                } else {
+                    null
+                },
+                contentPadding = PaddingValues(horizontal = AppSpacingTokens.Large),
+            ) {
+                AppText("发送")
+            }
         }
     }
 }
@@ -603,11 +707,40 @@ private fun CommentItem(
     onViewReplies: (ReplyItem) -> Unit,
     onReply: (ReplyItem) -> Unit = {},
     onLike: (ReplyItem) -> Unit = {},
+    dynamicAuthorMid: Long = 0L,
+    currentUserMid: Long? = null,
+    onDelete: (ReplyItem) -> Unit = {},
+    onToggleTop: (ReplyItem) -> Unit = {},
+    onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val member = reply.member
+    val actionCapabilities = remember(reply, dynamicAuthorMid, currentUserMid) {
+        resolveDynamicCommentActionCapabilities(reply, dynamicAuthorMid, currentUserMid)
+    }
+    var showActions by remember(reply.rpid) { mutableStateOf(false) }
+    var showReportReasons by remember(reply.rpid) { mutableStateOf(false) }
+    var confirmDelete by remember(reply.rpid) { mutableStateOf(false) }
+    if (confirmDelete) {
+        AppAlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { AppText("删除评论") },
+            text = { AppText("删除后无法恢复，确定删除这条评论吗？") },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete(reply)
+                    },
+                ) { AppText("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { confirmDelete = false }) { AppText("取消") }
+            },
+        )
+    }
     var isSubPreviewExpanded by remember(reply.rpid) { mutableStateOf(false) }
     val visibleSubReplies = remember(reply.replies, isSubPreviewExpanded) {
         resolveVisibleSubReplies(
@@ -699,6 +832,69 @@ private fun CommentItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                if (
+                    actionCapabilities.canDelete ||
+                    actionCapabilities.canReport ||
+                    actionCapabilities.canToggleTop
+                ) {
+                    Box {
+                        AppIconButton(onClick = { showActions = true }) {
+                            AppIcon(
+                                rememberAppMoreIcon(),
+                                contentDescription = "评论操作",
+                                modifier = Modifier.size(AppSpacingTokens.Large),
+                            )
+                        }
+                        AppDropdownMenu(
+                            expanded = showActions,
+                            onDismissRequest = { showActions = false },
+                        ) {
+                            if (actionCapabilities.canToggleTop) {
+                                AppDropdownMenuItem(
+                                    text = {
+                                        AppText(if (actionCapabilities.isCurrentlyTop) "取消置顶" else "置顶评论")
+                                    },
+                                    onClick = {
+                                        showActions = false
+                                        onToggleTop(reply)
+                                    },
+                                )
+                            }
+                            if (actionCapabilities.canReport) {
+                                AppDropdownMenuItem(
+                                    text = { AppText("举报评论") },
+                                    onClick = {
+                                        showActions = false
+                                        showReportReasons = true
+                                    },
+                                )
+                            }
+                            if (actionCapabilities.canDelete) {
+                                AppDropdownMenuItem(
+                                    text = { AppText("删除评论", color = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showActions = false
+                                        confirmDelete = true
+                                    },
+                                )
+                            }
+                        }
+                        AppDropdownMenu(
+                            expanded = showReportReasons,
+                            onDismissRequest = { showReportReasons = false },
+                        ) {
+                            resolveDynamicCommentReportReasons().forEach { reason ->
+                                AppDropdownMenuItem(
+                                    text = { AppText(reason.label) },
+                                    onClick = {
+                                        showReportReasons = false
+                                        onReport(reply, reason.type)
+                                    },
+                                )
+                            }
+                        }
+                    }
                 }
             }
             

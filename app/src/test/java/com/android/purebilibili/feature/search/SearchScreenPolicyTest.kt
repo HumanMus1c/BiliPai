@@ -485,6 +485,26 @@ class SearchScreenPolicyTest {
         assertEquals(0f, reducedSpec.initialTranslationYDp)
     }
 
+    @Test
+    fun searchExitMotion_returnsControlTowardBottomSearchSlot() {
+        val entry = resolveSearchEntryMotionSpec(
+            source = SearchEntryMotionSource.BOTTOM_BAR,
+            reducedMotionBudget = false,
+        )
+
+        val exit = requireNotNull(
+            resolveSearchExitMotionSpec(
+                entrySpec = entry,
+                screenHeightDp = 900,
+            )
+        )
+
+        assertEquals(300, exit.durationMillis)
+        assertEquals(764f, exit.initialTranslationYDp)
+        assertEquals(0.74f, exit.initialScale)
+        assertEquals(0.88f, exit.transformOriginPivotX)
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

@@ -1,11 +1,24 @@
 package com.android.purebilibili.navigation3
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BiliPaiNavSourceMetadataPolicyTest {
+
+    @Test
+    fun rootBoundsAreTranslatedIntoNavigationHostCoordinates() {
+        val metadata = BiliPaiNavSourceMetadata(
+            sourceBounds = Rect(180f, 240f, 480f, 440f),
+            sourceCoverBounds = Rect(180f, 240f, 480f, 380f),
+        ).relativeToHost(Offset(120f, 40f))
+
+        assertEquals(Rect(60f, 200f, 360f, 400f), metadata.sourceBounds)
+        assertEquals(Rect(60f, 200f, 360f, 340f), metadata.sourceCoverBounds)
+    }
 
     @Test
     fun clickedVisibleCardIsSharedTransitionReady() {

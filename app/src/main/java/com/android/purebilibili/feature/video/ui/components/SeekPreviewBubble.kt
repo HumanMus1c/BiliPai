@@ -40,6 +40,8 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Size
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoshotData
@@ -363,6 +365,7 @@ internal fun CompactSeekPreview(
     val currentPreviewInfo = remember(videoshotData, previewAnchorPositionMs, durationMs) {
         videoshotData.getPreviewInfo(previewAnchorPositionMs, durationMs)
     }
+    val previewShape = AppShapes.container(ContainerLevel.Field)
 
     Column(
         modifier = modifier,
@@ -370,13 +373,13 @@ internal fun CompactSeekPreview(
     ) {
         AppSurface(
             color = Color.Black.copy(alpha = 0.9f),
-            shape = RoundedCornerShape(9.dp),
+            shape = previewShape,
             shadowElevation = 8.dp,
             modifier = Modifier
                 .width(previewSize.widthDp.dp)
                 .height(previewSize.heightDp.dp)
-                .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(9.dp))
-                .clip(RoundedCornerShape(9.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.78f), previewShape)
+                .clip(previewShape)
         ) {
             SeekPreviewImage(
                 videoshotData = videoshotData,

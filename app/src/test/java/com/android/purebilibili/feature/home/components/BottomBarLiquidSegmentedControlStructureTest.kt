@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.home.components
 import java.io.File
 import com.android.purebilibili.core.theme.UiPreset
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -49,14 +50,36 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `segmented indicator keeps slot width so content remains centered`() {
+    fun `two segment indicator reuses the full home dock slot`() {
         val width = resolveSegmentedControlIndicatorWidthDp(
-            slotWidthDp = 60f,
-            indicatorHeightDp = 56f,
-            itemCount = 5
+            slotWidthDp = 180f,
+            indicatorHeightDp = 30f,
+            itemCount = 2
         )
 
-        assertEquals(60f, width)
+        assertEquals(180f, width)
+    }
+
+    @Test
+    fun `multi segment indicator does not add inner edge insets`() {
+        val width = resolveSegmentedControlIndicatorWidthDp(
+            slotWidthDp = 66f,
+            indicatorHeightDp = 30f,
+            itemCount = 4,
+        )
+
+        assertEquals(66f, width)
+    }
+
+    @Test
+    fun `multi segment indicator reuses the full home dock slot`() {
+        val width = resolveSegmentedControlIndicatorWidthDp(
+            slotWidthDp = 180f,
+            indicatorHeightDp = 30f,
+            itemCount = 3,
+        )
+
+        assertEquals(180f, width)
     }
 
     @Test
@@ -215,6 +238,49 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
+    fun `native underline matches label width and remains centered in its segment`() {
+        assertEquals(
+            NativeUnderlineGeometry(offsetDp = 30f, widthDp = 40f),
+            resolveNativeUnderlineGeometry(
+                indicatorPosition = 0f,
+                segmentWidthDp = 100f,
+                labelWidthsDp = listOf(40f, 80f),
+            )
+        )
+        assertEquals(
+            NativeUnderlineGeometry(offsetDp = 110f, widthDp = 80f),
+            resolveNativeUnderlineGeometry(
+                indicatorPosition = 1f,
+                segmentWidthDp = 100f,
+                labelWidthsDp = listOf(40f, 80f),
+            )
+        )
+    }
+
+    @Test
+    fun `native underline fits segments narrower than its preferred minimum width`() {
+        assertEquals(
+            NativeUnderlineGeometry(offsetDp = 0f, widthDp = 19f),
+            resolveNativeUnderlineGeometry(
+                indicatorPosition = 0f,
+                segmentWidthDp = 19f,
+                labelWidthsDp = listOf(16f, 16f),
+            )
+        )
+    }
+
+    @Test
+    fun `native underline stretches between labels during page motion`() {
+        val midpoint = resolveNativeUnderlineGeometry(
+                indicatorPosition = 0.5f,
+                segmentWidthDp = 100f,
+                labelWidthsDp = listOf(40f, 80f),
+            )
+        assertEquals(53.431f, midpoint.offsetDp, 0.001f)
+        assertEquals(101.421f, midpoint.widthDp, 0.001f)
+    }
+
+    @Test
     fun `segmented indicator only samples hidden tab backdrop while sliding without external backdrop`() {
         assertFalse(
             shouldDrawSegmentedControlIndicatorBackdrop(
@@ -273,6 +339,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
+                uiStyle = AppUiStyle.MATERIAL3,
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
                 preferInlineContentStyle = true
@@ -285,6 +352,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
+                uiStyle = AppUiStyle.MIUIX,
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
                 preferInlineContentStyle = false
@@ -364,10 +432,15 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP = 58"))
         assertTrue(source.contains("liquidGlassEffectsEnabled: Boolean = true"))
         assertTrue(source.contains("dragSelectionEnabled: Boolean = true"))
+        assertTrue(source.contains("longPressDragSelectionEnabled: Boolean = false"))
         assertTrue(source.contains("resolveSegmentedControlChromeStyle("))
+        assertTrue(source.contains("uiStyle = LocalAppUiStyle.current"))
+        assertTrue(source.contains("resolveHomeSelectionIndicatorStyle("))
         assertTrue(source.contains("AndroidNativeUnderlinedSegmentedControl("))
         assertTrue(source.contains("indicatorPositionProvider: (() -> Float)? = null"))
-        assertTrue(source.contains("val underlineOffsetX = (segmentWidth * indicatorPosition) + ((segmentWidth - underlineWidth) / 2)"))
+        assertTrue(source.contains("resolveNativeUnderlineGeometry("))
+        assertTrue(source.contains("animateFloatAsState("))
+        assertTrue(source.contains("onTextLayout = { result ->"))
         assertTrue(floating.contains("FloatingBottomBarMode.LiquidGlass"))
         assertTrue(floating.contains("LocalFloatingBottomBarContentColor.current"))
         assertTrue(sharedChrome.contains("holdPressUntilReleaseTargetSettles = true"))
@@ -384,6 +457,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
         )
 
         assertTrue(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(dynamicTopBar.contains("AppNativeTabRow("))
+        assertTrue(dynamicTopBar.contains("forceLiquidChrome = liquidGlassEnabled"))
+        assertTrue(dynamicTopBar.contains("allowNativeLabelOverflow = true"))
         assertTrue(dynamicTopBar.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(dynamicTopBar.contains("isScrollInProgressProvider = isScrollInProgressProvider"))
         assertFalse(dynamicTopBar.contains("DynamicCompactTabRow("))
@@ -429,6 +505,10 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(
             floating.contains("dragSelectionEnabled && enabled && itemCount > 1"),
             "Scrollable contribution tabs disable drag selection, so the liquid indicator must not attach a competing drag gesture"
+        )
+        assertTrue(
+            floating.contains("longPressDragSelectionEnabled && enabled && itemCount > 1"),
+            "Scrollable segmented controls may opt into indicator dragging only after a long press"
         )
     }
 

@@ -61,13 +61,29 @@ internal fun scoreOpusContentBlocks(blocks: List<OpusContentBlock>): Int {
     val textLength = blocks.sumOf { block ->
         when (block) {
             is OpusContentBlock.Text -> block.text.length
+            is OpusContentBlock.Heading -> block.text.length
+            is OpusContentBlock.Quote -> block.text.length
+            is OpusContentBlock.ListBlock -> block.items.sumOf(String::length)
+            is OpusContentBlock.Code -> block.text.length
             is OpusContentBlock.LinkCard ->
                 block.card.title.length + block.card.description.length
+            is OpusContentBlock.Divider,
             is OpusContentBlock.Image -> 0
         }
     }
-    val imageCount = blocks.count { it is OpusContentBlock.Image }
-    return blocks.size * 100 + imageCount * 20 + textLength
+    val imageCount = blocks.count {
+        it is OpusContentBlock.Image || it is OpusContentBlock.Divider && it.pic != null
+    }
+    val semanticScore = blocks.sumOf { block ->
+        when (block) {
+            is OpusContentBlock.Heading -> 60
+            is OpusContentBlock.Quote -> 40
+            is OpusContentBlock.ListBlock -> 60 + block.items.size * 10
+            is OpusContentBlock.Code -> 80
+            else -> 0
+        }
+    }
+    return blocks.size * 100 + imageCount * 20 + textLength + semanticScore
 }
 
 internal fun shouldFetchArticleFallbackForOpus(
@@ -86,6 +102,21 @@ internal fun opusContentBlocksToArticleBlocks(
         when (block) {
             is OpusContentBlock.Text ->
                 block.text.takeIf { it.isNotBlank() }?.let(ArticleContentBlock::Paragraph)
+            is OpusContentBlock.Heading ->
+                block.text.takeIf { it.isNotBlank() }?.let(ArticleContentBlock::Heading)
+            is OpusContentBlock.Quote ->
+                block.text.takeIf { it.isNotBlank() }?.let(ArticleContentBlock::Quote)
+            is OpusContentBlock.ListBlock -> ArticleContentBlock.ListBlock(
+                items = block.items,
+                ordered = block.ordered,
+            )
+            is OpusContentBlock.Code -> ArticleContentBlock.Code(
+                content = block.text,
+                language = block.language,
+            )
+            is OpusContentBlock.Divider -> block.pic?.let { pic ->
+                ArticleContentBlock.Image(url = pic.url, width = pic.width, height = pic.height)
+            }
             is OpusContentBlock.Image -> {
                 val url = block.pic.url.trim()
                 if (url.isBlank()) {

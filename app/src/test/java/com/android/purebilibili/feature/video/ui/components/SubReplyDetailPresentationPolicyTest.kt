@@ -32,9 +32,36 @@ class SubReplyDetailPresentationPolicyTest {
     fun `section title should include current reply count`() {
         assertEquals("相关回复共14条", resolveSubReplyDetailSectionTitle(replyCount = 14))
         assertEquals(
-            "相关回复共200条（已加载40条）",
+            "相关回复共200条",
             resolveSubReplyDetailSectionTitle(replyCount = 200, loadedReplyCount = 40)
         )
+        assertEquals(
+            "相关回复共200条（已加载40条）",
+            resolveSubReplyDetailSectionTitle(
+                replyCount = 200,
+                loadedReplyCount = 40,
+                showLoadedReplyCount = true,
+            )
+        )
+    }
+
+    @Test
+    fun `sub reply sorting switches between newest and hottest`() {
+        val replies = listOf(
+            ReplyItem(rpid = 1, ctime = 100, like = 2),
+            ReplyItem(rpid = 2, ctime = 300, like = 1),
+            ReplyItem(rpid = 3, ctime = 200, like = 8),
+        )
+
+        assertEquals(
+            listOf(2L, 3L, 1L),
+            sortSubReplies(replies, SubReplySortMode.TIME).map { it.rpid },
+        )
+        assertEquals(
+            listOf(3L, 1L, 2L),
+            sortSubReplies(replies, SubReplySortMode.HOT).map { it.rpid },
+        )
+        assertEquals(SubReplySortMode.HOT, SubReplySortMode.TIME.toggled())
     }
 
     @Test

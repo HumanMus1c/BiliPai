@@ -72,7 +72,7 @@ internal fun shouldIncludeDynamicItemInArticleTab(item: DynamicItem): Boolean {
         "DYNAMIC_TYPE_WORD" -> true
         else -> {
             val major = item.modules.module_dynamic?.major
-            major?.opus != null || major?.draw != null
+            major?.opus != null || major?.draw != null || major?.article != null
         }
     }
 }

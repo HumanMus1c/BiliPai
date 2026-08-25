@@ -47,6 +47,7 @@ import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoshotData
@@ -558,7 +559,7 @@ private fun PortraitTopControlBar(
         ) {
             AppIconButton(
                 onClick = onBack,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent),
+                colors = AppIconButtonDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.size(layoutPolicy.topBackButtonSizeDp.dp)
             ) {
                 AppIcon(
@@ -570,7 +571,7 @@ private fun PortraitTopControlBar(
             }
             AppIconButton(
                 onClick = onHomeClick,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent),
+                colors = AppIconButtonDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.size(layoutPolicy.topBackButtonSizeDp.dp)
             ) {
                 AppIcon(

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,6 +64,8 @@ internal fun DynamicFeedSkeletonCard(
     modifier: Modifier = Modifier
 ) {
     val cardShape = AppShapes.container(ContainerLevel.Card)
+    val textPlaceholderShape = AppShapes.container(ContainerLevel.Tag)
+    val actionPlaceholderShape = AppShapes.container(ContainerLevel.Tag)
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val blockColor = remember(pulse, surfaceVariant, onSurfaceVariant) {
@@ -96,7 +97,7 @@ internal fun DynamicFeedSkeletonCard(
                     modifier = Modifier
                         .width(96.dp)
                         .height(AppSpacingTokens.Small + AppSpacingTokens.Micro)
-                        .clip(RoundedCornerShape(AppSpacingTokens.ExtraSmall))
+                        .clip(textPlaceholderShape)
                         .background(blockColor)
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -104,7 +105,7 @@ internal fun DynamicFeedSkeletonCard(
                     modifier = Modifier
                         .width(64.dp)
                         .height(AppSpacingTokens.ExtraSmall)
-                        .clip(RoundedCornerShape(AppSpacingTokens.ExtraSmall))
+                        .clip(textPlaceholderShape)
                         .background(blockColor)
                 )
             }
@@ -116,7 +117,7 @@ internal fun DynamicFeedSkeletonCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(AppSpacingTokens.Small + AppSpacingTokens.Micro)
-                .clip(RoundedCornerShape(AppSpacingTokens.ExtraSmall))
+                .clip(textPlaceholderShape)
                 .background(blockColor)
         )
         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -124,7 +125,7 @@ internal fun DynamicFeedSkeletonCard(
             modifier = Modifier
                 .fillMaxWidth(0.72f)
                 .height(AppSpacingTokens.Small + AppSpacingTokens.Micro)
-                .clip(RoundedCornerShape(AppSpacingTokens.ExtraSmall))
+                .clip(textPlaceholderShape)
                 .background(blockColor)
         )
 
@@ -149,7 +150,7 @@ internal fun DynamicFeedSkeletonCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro)
-                        .clip(RoundedCornerShape(AppShapes.containerCornerDp(ContainerLevel.Tag)))
+                        .clip(actionPlaceholderShape)
                         .background(blockColor)
                 )
             }

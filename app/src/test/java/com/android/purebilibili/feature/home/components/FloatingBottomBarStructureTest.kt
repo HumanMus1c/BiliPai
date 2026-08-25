@@ -30,20 +30,20 @@ class FloatingBottomBarStructureTest {
         assertTrue(source.contains("shellHeight: Dp = FloatingBottomBarDefaultShellHeight"))
         assertTrue(source.contains("indicatorHeight: Dp = FloatingBottomBarIndicatorHeight"))
         assertTrue(source.contains("dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING"))
-        assertTrue(source.contains("FloatingBottomBarDefaultShellHeight: Dp = 64.dp"))
-        assertTrue(source.contains("FloatingBottomBarIndicatorHeight: Dp = 56.dp"))
-        assertTrue(source.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
+        assertTrue(source.contains("FloatingBottomBarDefaultShellHeight: Dp = 56.dp"))
+        assertTrue(source.contains("FloatingBottomBarIndicatorHeight: Dp = 52.dp"))
+        assertTrue(source.contains("BottomBarReferencePressedScale"))
     }
 
     @Test
-    fun `compact segmented controls directly track drag while home keeps spring default`() {
+    fun `compact segmented controls share the home spring drag tracking`() {
         val source = loadFloatingBottomBarSource()
         val segmentedSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         )
 
         assertTrue(source.contains("dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING"))
-        assertTrue(segmentedSource.contains("dragTrackingMode = DampedDragTrackingMode.DIRECT"))
+        assertTrue(segmentedSource.contains("dragTrackingMode = DampedDragTrackingMode.SPRING"))
     }
 
     @Test
@@ -73,6 +73,9 @@ class FloatingBottomBarStructureTest {
         assertTrue(body.contains("trackLiquidGlassAdaptiveReadability("))
         assertTrue(body.contains("LocalFloatingBottomBarContentColor provides resolvedContentColor"))
         assertTrue(body.contains("LocalFloatingBottomBarContentColor provides colors.activeContentColor"))
+        assertTrue(body.contains("LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider"))
+        assertTrue(body.contains("translationX = itemIndex?.let(alignmentOffset) ?: 0f"))
+        assertFalse(body.contains("translationX = panelOffset + if (isLtr) alignmentPx"))
         assertFalse(body.contains("resolvedActiveContentColor"))
         assertTrue(body.contains(".innerShadow(shape = pillShape)"))
         assertTrue(body.contains("InnerShadow("))
@@ -106,7 +109,8 @@ class FloatingBottomBarStructureTest {
         assertTrue(body.contains("pagerFollowGate.ownedTargetIndex = null"))
         assertTrue(body.contains("onDragStopped = {"))
         assertTrue(body.contains("updateValue("))
-        assertTrue(body.contains("snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }"))
+        assertTrue(body.contains("selectedIndexLatest.value().coerceIn(0, maxTabIndex) to"))
+        assertTrue(body.contains("dampedDragAnimation.isDragging"))
         assertTrue(body.contains("shouldAnimateIndicatorToSelectedIndex("))
         assertTrue(body.contains("shouldSuppressExternalPagerIndicatorFollow("))
         assertTrue(body.contains("resolveIndicatorOwnedTargetOnDragStop("))
@@ -139,6 +143,16 @@ class FloatingBottomBarStructureTest {
         assertTrue(dragPort.contains("gestureAccepted = canDrag(down.position)"))
         assertTrue(dragPort.contains("if (!gestureAccepted) return@inspectDragGestures"))
         assertTrue(dragPort.contains("private var requestedValue = initialValue.coerceIn(valueRange)"))
+        assertTrue(dragPort.contains("private var valueTrackingJob: Job? = null"))
+        assertTrue(dragPort.contains("valueTrackingJob?.cancel()"))
+        assertTrue(dragPort.contains("private fun launchValueTracking("))
+        assertTrue(dragPort.contains("start = CoroutineStart.UNDISPATCHED"))
+        assertTrue(dragPort.contains("launchValueTracking { valueAnimation.snapTo(next) }"))
+        assertFalse(
+            dragPort.contains(
+                "launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) { updateVelocity() } }"
+            )
+        )
         assertTrue(dragPort.contains("val targetValue: Float get() = requestedValue"))
         assertTrue(dragPort.contains("requestedValue = targetValue"))
         assertTrue(dragPort.contains("trackingMode == DampedDragTrackingMode.DIRECT"))
@@ -169,7 +183,7 @@ class FloatingBottomBarStructureTest {
         assertTrue(source.contains("4.dp.toPx()"))
         assertTrue(source.contains("InteractiveHighlight("))
         assertTrue(source.contains("Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"))
-        assertTrue(source.contains("snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }"))
+        assertTrue(source.contains("selectedIndexLatest.value().coerceIn(0, maxTabIndex) to"))
         assertTrue(source.contains("onSelectedLatest.value(targetIndex)"))
         assertFalse(source.contains("pendingUserSelectedIndex"))
     }
@@ -202,6 +216,108 @@ class FloatingBottomBarStructureTest {
         assertTrue(indicatorSource.contains(".then(dampedDragAnimation.modifier)"))
         assertTrue(indicatorSource.contains("onClick = onReselected"))
         assertTrue(indicatorSource.contains(".clearAndSetSemantics {}"))
+    }
+
+    @Test
+    fun `selected indicator hit target stays inside logical tab slot`() {
+        val source = loadFloatingBottomBarSource()
+        val indicatorSource = source.substringAfter("if (tabWidthPx > 0f)")
+        val hitTarget = indicatorSource.substringAfter(
+            "Keep pointer input in the logical tab slot"
+        )
+
+        assertTrue(hitTarget.contains("val slotOffsetPx = dampedDragAnimation.value * tabWidthPx"))
+        assertTrue(hitTarget.contains(".width(tabWidthDp)"))
+        assertTrue(hitTarget.contains("onClick = onReselected"))
+        assertFalse(
+            indicatorSource
+                .substringBefore("Keep pointer input in the logical tab slot")
+                .contains("dampedDragAnimation.modifier")
+        )
+    }
+
+    @Test
+    fun `widened indicator centers item content in every visual mode`() {
+        val source = loadFloatingBottomBarSource()
+        val alignmentProvider = source
+            .substringAfter("val itemAlignmentOffsetProvider")
+            .substringBefore("LaunchedEffect(dampedDragAnimation, maxTabIndex, isLiquidGlassMode)")
+        val nonLiquidIndicator = source
+            .substringAfter("if (isLiquidGlassMode && combinedBackdrop != null)")
+            .substringBefore("// The selected capsule can be wider than its tab")
+            .substringAfterLast("} else {")
+
+        assertTrue(alignmentProvider.contains("resolveFloatingDockIndicatorContentAlignmentPx("))
+        assertFalse(alignmentProvider.contains("!isLiquidGlassMode"))
+        assertTrue(
+            nonLiquidIndicator.contains(
+                "LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider"
+            )
+        )
+    }
+
+    @Test
+    fun `non liquid capsule does not reuse liquid indicator movement deformation`() {
+        val source = loadFloatingBottomBarSource()
+        val nonLiquidIndicator = source
+            .substringAfter("if (isLiquidGlassMode && combinedBackdrop != null)")
+            .substringBefore("// The selected capsule can be wider than its tab")
+            .substringAfterLast("} else {")
+
+        assertFalse(nonLiquidIndicator.contains("scaleX = dampedDragAnimation.scaleX"))
+        assertFalse(nonLiquidIndicator.contains("scaleY = dampedDragAnimation.scaleY"))
+        assertFalse(nonLiquidIndicator.contains("val velocity = dampedDragAnimation.velocity / 10f"))
+    }
+
+    @Test
+    fun `all indicator materials keep animated settling`() {
+        val source = loadFloatingBottomBarSource()
+        val selectionSync = source
+            .substringAfter("shouldAnimateIndicatorToSelectedIndex(")
+            .substringBefore(
+                "LaunchedEffect(dampedDragAnimation, maxTabIndex)",
+                missingDelimiterValue = ""
+            )
+
+        assertTrue(selectionSync.contains("dampedDragAnimation.animateToValue(index.toFloat())"))
+        assertFalse(selectionSync.contains("dampedDragAnimation.snapTo(index.toFloat())"))
+        assertTrue(source.contains("dragSelectionEnabled && safeTabsCount > 1 ->"))
+        assertTrue(source.contains("dampedDragAnimation.longPressModifier"))
+        assertFalse(source.contains("if (isLiquidGlassMode && dragSelectionEnabled"))
+    }
+
+    @Test
+    fun `non liquid indicator hides the covered base content copy`() {
+        val source = loadFloatingBottomBarSource()
+
+        assertTrue(source.contains("LocalFloatingBottomBarBaseContentAlpha"))
+        assertTrue(source.contains("LocalFloatingBottomBarActiveContent.current"))
+        assertTrue(source.contains("baseContentAlpha(itemIndex)"))
+        assertTrue(source.contains("1f - coverage"))
+        assertTrue(
+            source.contains(
+                "LocalFloatingBottomBarBaseContentAlpha provides baseContentAlphaProvider"
+            )
+        )
+    }
+
+    @Test
+    fun `home icons scale continuously with indicator coverage without settle pulse`() {
+        val source = loadFloatingBottomBarSource()
+        val body = source.substringAfter("fun FloatingBottomBar(")
+
+        assertTrue(source.contains("LocalFloatingBottomBarIndicatorPosition"))
+        assertTrue(source.contains("LocalFloatingBottomBarItemSelectionScale"))
+        assertTrue(source.contains("itemIndex: Int? = null"))
+        assertTrue(source.contains("lerp(1f, NavigationSelectionScale, coverage)"))
+        assertFalse(body.contains("indicatorSettlePulseKey"))
+        assertFalse(body.contains("rememberNavigationIndicatorSettleTransform("))
+
+        val bottomBar = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"
+        )
+        assertTrue(bottomBar.contains("itemIndex = index"))
+        assertTrue(bottomBar.contains("LocalFloatingBottomBarItemSelectionScale.current"))
     }
 
     @Test

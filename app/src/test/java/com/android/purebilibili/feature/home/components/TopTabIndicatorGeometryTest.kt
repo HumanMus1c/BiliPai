@@ -1,9 +1,29 @@
 package com.android.purebilibili.feature.home.components
 
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TopTabIndicatorGeometryTest {
+
+    @Test
+    fun `icon only top tab uses a compact side indicator`() {
+        assertEquals(24.dp, resolveIconOnlyTopTabIndicatorWidth())
+    }
+
+    @Test
+    fun `top tab panel offset cannot travel outward past dock edges`() {
+        assertEquals(0f, resolveTopTabEdgeAwarePanelOffsetPx(4f, 4, 6f), 0.01f)
+        assertEquals(0f, resolveTopTabEdgeAwarePanelOffsetPx(0f, 4, -6f), 0.01f)
+        assertEquals(-6f, resolveTopTabEdgeAwarePanelOffsetPx(4f, 4, -6f), 0.01f)
+        assertEquals(6f, resolveTopTabEdgeAwarePanelOffsetPx(0f, 4, 6f), 0.01f)
+    }
+
+    @Test
+    fun `top tab outward panel offset fades during final quarter slot`() {
+        assertEquals(3f, resolveTopTabEdgeAwarePanelOffsetPx(3.875f, 4, 6f), 0.01f)
+        assertEquals(6f, resolveTopTabEdgeAwarePanelOffsetPx(2f, 4, 6f), 0.01f)
+    }
 
     @Test
     fun `indicator width follows ratio when within bounds`() {

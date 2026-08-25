@@ -23,6 +23,7 @@ import com.android.purebilibili.data.model.response.ReplyData
 import com.android.purebilibili.data.model.response.ReplyInteractionData
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.repository.ActionRepository
+import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.data.repository.DynamicCreateRepository
 import com.android.purebilibili.data.repository.DynamicFeedScope
@@ -87,6 +88,15 @@ internal fun resolveDynamicFollowingsPageLimit(isStartupHydration: Boolean): Int
     return if (isStartupHydration) 1 else 3
 }
 
+internal fun hasLoadedAllDynamicFollowings(
+    pageSize: Int,
+    accumulatedCount: Int,
+    reportedTotal: Int,
+): Boolean {
+    return pageSize < DYNAMIC_FOLLOWINGS_PAGE_SIZE ||
+        (reportedTotal > 0 && accumulatedCount >= reportedTotal)
+}
+
 /**
  *  动态页面 ViewModel
  * 支持：动态列表、侧边栏关注用户、在线状态
@@ -97,6 +107,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private val cachePrefs = appContext.getSharedPreferences(PREFS_DYNAMIC_CACHE, Context.MODE_PRIVATE)
     private val userPrefs = appContext.getSharedPreferences(PREFS_DYNAMIC_USERS, Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
+    private val blockedUpRepository = BlockedUpRepository(appContext)
 
     private var cachedLiveRooms: List<LiveRoom> = emptyList()
     
@@ -105,6 +116,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private var incrementalTimelineRefreshEnabled: Boolean = false
     private var lastFollowingsLoadMs: Long = 0L
     private var isFollowingsLoading: Boolean = false
+    private var followingsFullyLoaded: Boolean = false
+    private var completeFollowingsLoadRequested: Boolean = false
     private var cacheSaveJob: Job? = null
     private var startupFollowingsHydrationScheduled: Boolean = false
     private var startupLoadsActivated: Boolean = false
@@ -165,12 +178,17 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         if (startupLoadsActivated) return
         startupLoadsActivated = true
         refreshInBackground(resolveDynamicStartupLoadPlan())
+        if (_selectedTab.value == 4) {
+            requestCompleteFollowingsLoad()
+        }
     }
 
     private fun observeFollowStateChanges() {
         viewModelScope.launch {
             ActionRepository.followStateChanges.collect { change ->
                 if (change.isFollowing) {
+                    followingsFullyLoaded = false
+                    lastFollowingsLoadMs = 0L
                     requestFollowingsRefreshIfStale()
                 } else {
                     applyAuthorUnfollow(change.mid)
@@ -323,7 +341,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
      */
     private suspend fun loadAllFollowings(
         force: Boolean = false,
-        pageLimit: Int = resolveDynamicFollowingsPageLimit(isStartupHydration = false)
+        pageLimit: Int? = null,
     ) {
         if (isFollowingsLoading) return
         val now = System.currentTimeMillis()
@@ -336,23 +354,44 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             val navResponse = NetworkModule.api.getNavInfo()
             val myMid = navResponse.data?.mid ?: return
             
-            val maxPages = pageLimit.coerceAtLeast(1)
-            // 加载关注列表（首轮保守拉取，后续按需补齐）
+            val maxPages = pageLimit?.coerceAtLeast(1) ?: Int.MAX_VALUE
+            // 首轮可限制一页；进入 UP 模式后按接口 total 拉完整关注列表。
             val allFollowings = mutableListOf<FollowingUser>()
+            var reachedEnd = false
             for (page in 1..maxPages) {
-                val response = NetworkModule.api.getFollowings(vmid = myMid, pn = page, ps = 50)
-                val users = response.data?.list ?: break
+                val response = NetworkModule.api.getFollowings(
+                    vmid = myMid,
+                    pn = page,
+                    ps = DYNAMIC_FOLLOWINGS_PAGE_SIZE,
+                )
+                val responseData = response.data ?: break
+                val users = responseData.list ?: break
                 allFollowings.addAll(users)
-                if (users.size < 50) break // 没有更多了
+                if (hasLoadedAllDynamicFollowings(
+                        pageSize = users.size,
+                        accumulatedCount = allFollowings.size,
+                        reportedTotal = responseData.total,
+                    )
+                ) {
+                    reachedEnd = true
+                    break
+                }
             }
             
             cachedFollowings = allFollowings
+            followingsFullyLoaded = reachedEnd
             lastFollowingsLoadMs = now
             rebuildFollowedUsers()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             isFollowingsLoading = false
+            if (completeFollowingsLoadRequested && !followingsFullyLoaded) {
+                completeFollowingsLoadRequested = false
+                viewModelScope.launch {
+                    loadAllFollowings(force = true, pageLimit = null)
+                }
+            }
         }
     }
 
@@ -361,6 +400,18 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         if (!shouldReloadFollowings(nowMs = now, lastLoadMs = lastFollowingsLoadMs)) return
         viewModelScope.launch {
             loadAllFollowings(force = true)
+        }
+    }
+
+    private fun requestCompleteFollowingsLoad() {
+        if (followingsFullyLoaded) return
+        if (isFollowingsLoading) {
+            completeFollowingsLoadRequested = true
+            return
+        }
+        completeFollowingsLoadRequested = false
+        viewModelScope.launch {
+            loadAllFollowings(force = true, pageLimit = null)
         }
     }
 
@@ -510,25 +561,23 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         if (uid != null) {
             //  [新增] 点击 UP 后清除其未读红点
             clearUplistUpdate(uid)
-            val localMatchCount = _uiState.value.timelinePage("all").items.count { item ->
-                item.modules.module_author?.mid == uid
-            }
             val shouldReload = shouldReloadSelectedUserDynamics(
                 previousUid = previousUid,
                 nextUid = uid,
                 currentItems = _uiState.value.userItems,
                 userError = _uiState.value.userError,
-                localMatchCount = localMatchCount
             )
-            _uiState.value = _uiState.value.copy(
-                userItems = emptyList<DynamicItem>().toImmutableList(),
-                hasUserMore = true,
-                userIsLoading = false,
-                userError = null
-            )
+            if (previousUid != uid) {
+                _uiState.value = _uiState.value.copy(
+                    userItems = emptyList<DynamicItem>().toImmutableList(),
+                    hasUserMore = true,
+                    userIsLoading = false,
+                    userError = null
+                )
+            }
             if (!shouldReload) return
 
-            // 切换用户时废弃旧请求，仅在本地没有匹配时才补远端数据
+            // 切换用户时废弃旧请求；同一用户失败重试时保留当前可见内容。
             userDynamicsJob?.cancel()
             activeUserDynamicsRequestToken += 1L
             val requestToken = activeUserDynamicsRequestToken
@@ -697,6 +746,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             selectedTab = resolvedTab,
             selectedUserId = previousSelectedUserId
         )
+        if (resolvedTab == 4) {
+            requestCompleteFollowingsLoad()
+        }
         if (_selectedTab.value == resolvedTab && previousSelectedUserId == nextSelectedUserId) return
         if (previousSelectedUserId != nextSelectedUserId) {
             selectUser(nextSelectedUserId)
@@ -1520,6 +1572,98 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+    fun deleteDynamicComment(rpid: Long, onResult: (Boolean, String) -> Unit) {
+        val target = _selectedCommentTarget.value
+        if (target == null || rpid <= 0L) {
+            onResult(false, "无法确定评论参数")
+            return
+        }
+        viewModelScope.launch {
+            CommentRepository.deleteCommentForSubject(
+                oid = target.oid,
+                type = target.type,
+                rpid = rpid,
+            ).fold(
+                onSuccess = {
+                    _comments.value = removeDynamicCommentFromList(_comments.value, rpid)
+                    val subState = _subReplyState.value
+                    _subReplyState.value = if (subState.rootReply?.rpid == rpid) {
+                        SubReplyUiState()
+                    } else {
+                        subState.copy(
+                            items = subState.items.filterNot { it.rpid == rpid }.toImmutableList(),
+                            totalCount = (subState.totalCount - 1).coerceAtLeast(0),
+                        )
+                    }
+                    _commentTotalCount.value = (_commentTotalCount.value - 1).coerceAtLeast(0)
+                    onResult(true, "评论已删除")
+                },
+                onFailure = { onResult(false, it.message ?: "删除失败") },
+            )
+        }
+    }
+
+    fun toggleDynamicCommentTop(
+        reply: com.android.purebilibili.data.model.response.ReplyItem,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        val target = _selectedCommentTarget.value
+        if (target == null || reply.rpid <= 0L) {
+            onResult(false, "无法确定评论参数")
+            return
+        }
+        viewModelScope.launch {
+            CommentRepository.setCommentTopForSubject(
+                oid = target.oid,
+                type = target.type,
+                rpid = reply.rpid,
+                isCurrentlyTop = reply.replyControl?.isUpTop == true,
+            ).fold(
+                onSuccess = {
+                    _selectedDynamic.value?.id_str?.takeIf(String::isNotBlank)?.let(::loadComments)
+                    onResult(true, if (reply.replyControl?.isUpTop == true) "已取消置顶" else "已置顶")
+                },
+                onFailure = { onResult(false, it.message ?: "置顶操作失败") },
+            )
+        }
+    }
+
+    fun reportDynamicComment(
+        rpid: Long,
+        reason: Int,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        val target = _selectedCommentTarget.value
+        if (target == null || rpid <= 0L) {
+            onResult(false, "无法确定评论参数")
+            return
+        }
+        viewModelScope.launch {
+            CommentRepository.reportCommentForSubject(
+                oid = target.oid,
+                type = target.type,
+                rpid = rpid,
+                reason = reason,
+            ).fold(
+                onSuccess = { onResult(true, "举报成功") },
+                onFailure = { onResult(false, it.message ?: "举报失败") },
+            )
+        }
+    }
+
+    private fun removeDynamicCommentFromList(
+        comments: List<com.android.purebilibili.data.model.response.ReplyItem>,
+        rpid: Long,
+    ): List<com.android.purebilibili.data.model.response.ReplyItem> = comments.mapNotNull { reply ->
+        if (reply.rpid == rpid) {
+            null
+        } else {
+            reply.copy(
+                replies = reply.replies?.filterNot { child -> child.rpid == rpid },
+            )
+        }
+    }
     
     /**
      *  点赞动态
@@ -1744,7 +1888,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             is DynamicManageAction.ToggleTop -> toggleDynamicTop(action, onResult)
             is DynamicManageAction.SetVisibility -> setDynamicVisibility(action, onResult)
             is DynamicManageAction.SetReplySubject -> modifyReplySubject(action, onResult)
-            is DynamicManageAction.TempBlock -> tempBlockDynamic(action.dynamicId, onResult)
+            is DynamicManageAction.BlockAuthor -> blockDynamicAuthor(action, onResult)
             is DynamicManageAction.Report -> Unit
             is DynamicManageAction.Edit -> Unit
         }
@@ -1910,17 +2054,34 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun tempBlockDynamic(dynamicId: String, onResult: (Boolean, String) -> Unit) {
-        if (dynamicId.isBlank()) {
-            onResult(false, "无法屏蔽该动态")
+    private fun blockDynamicAuthor(
+        action: DynamicManageAction.BlockAuthor,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        if (action.authorMid <= 0L) {
+            onResult(false, "无法识别该用户")
             return
         }
-        _uiState.value = _uiState.value.copy(
-            tempBannedDynamicIds = (
-                _uiState.value.tempBannedDynamicIds + dynamicId
-            ).toImmutableSet()
-        )
-        onResult(true, "已临时屏蔽（重启后恢复）")
+        viewModelScope.launch {
+            val result = runCatching {
+                blockedUpRepository.blockUpWithBilibiliSync(
+                    mid = action.authorMid,
+                    name = action.authorName,
+                    face = action.authorFace,
+                )
+            }.getOrElse { error ->
+                onResult(false, error.message ?: "屏蔽失败")
+                return@launch
+            }
+            _uiState.value = mapDynamicTimelineItems(_uiState.value) { items ->
+                items.filterNot { it.modules.module_author?.mid == action.authorMid }
+            }.copy(
+                userItems = _uiState.value.userItems
+                    .filterNot { it.modules.module_author?.mid == action.authorMid }
+                    .toImmutableList(),
+            )
+            onResult(result.localChanged, result.message)
+        }
     }
 
     companion object {
@@ -1939,6 +2100,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         private const val MAX_CACHE_ITEMS = 100
     }
 }
+
+private const val DYNAMIC_FOLLOWINGS_PAGE_SIZE = 50
 
 /**
  *  侧边栏用户数据

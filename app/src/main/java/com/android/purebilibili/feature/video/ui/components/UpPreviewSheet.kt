@@ -491,8 +491,7 @@ private fun UpPreviewSheetHeader(
                     color = colors.titleColor,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
                 Spacer(Modifier.height(4.dp))
                 AppText(
@@ -503,8 +502,7 @@ private fun UpPreviewSheetHeader(
                     ).ifBlank { " " },
                     color = colors.supportingColor,
                     fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
             }
             Spacer(Modifier.width(8.dp))
@@ -614,8 +612,7 @@ private fun UpPreviewVideoCard(
             color = colors.titleColor,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Visible,
             lineHeight = 17.sp,
         )
         if (item.createdAtSeconds > 0L) {

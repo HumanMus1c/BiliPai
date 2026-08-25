@@ -16,6 +16,7 @@ class HomePerformancePolicyTest {
             bottomBarBlurEnabled = false,
             topBarLiquidGlassEnabled = true,
             bottomBarLiquidGlassEnabled = false,
+            androidNativeLiquidGlassEnabled = true,
             cardAnimationEnabled = false,
             cardTransitionEnabled = true,
             isDataSaverActive = false,
@@ -26,7 +27,7 @@ class HomePerformancePolicyTest {
         assertTrue(config.headerBlurEnabled)
         assertFalse(config.bottomBarBlurEnabled)
         assertTrue(config.topBarLiquidGlassEnabled)
-        assertFalse(config.bottomBarLiquidGlassEnabled)
+        assertTrue(config.bottomBarLiquidGlassEnabled)
         assertTrue(config.isAnyLiquidGlassEnabled)
         assertFalse(config.cardAnimationEnabled)
         assertTrue(config.cardTransitionEnabled)
@@ -42,6 +43,7 @@ class HomePerformancePolicyTest {
             bottomBarBlurEnabled = true,
             topBarLiquidGlassEnabled = true,
             bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = true,
             cardAnimationEnabled = true,
             cardTransitionEnabled = true,
             isDataSaverActive = true,
@@ -61,6 +63,7 @@ class HomePerformancePolicyTest {
             bottomBarBlurEnabled = true,
             topBarLiquidGlassEnabled = true,
             bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = true,
             cardAnimationEnabled = true,
             cardTransitionEnabled = true,
             isDataSaverActive = false,
@@ -152,6 +155,27 @@ class HomePerformancePolicyTest {
         assertFalse(config.homeSearchLiquidGlassEnabled)
         assertFalse(config.bottomBarLiquidGlassEnabled)
         assertFalse(config.isAnyLiquidGlassEnabled)
+    }
+
+    @Test
+    fun legacyIndependentValuesCannotEnableGlassWithoutGlobalEntry() {
+        val config = resolveHomePerformanceConfig(
+            supportsIndependentLiquidGlass = true,
+            headerBlurEnabled = false,
+            bottomBarBlurEnabled = false,
+            topBarLiquidGlassEnabled = true,
+            homeSearchLiquidGlassEnabled = true,
+            bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = false,
+            cardAnimationEnabled = false,
+            cardTransitionEnabled = false,
+            isDataSaverActive = false,
+            smartVisualGuardEnabled = false,
+        )
+
+        assertFalse(config.topBarLiquidGlassEnabled)
+        assertFalse(config.homeSearchLiquidGlassEnabled)
+        assertFalse(config.bottomBarLiquidGlassEnabled)
     }
 
     @Test

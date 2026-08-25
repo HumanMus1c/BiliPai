@@ -42,6 +42,7 @@ import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
+import com.android.purebilibili.core.ui.common.HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER
 import androidx.compose.material3.rememberDrawerState
 import com.android.purebilibili.feature.home.components.MineSideDrawer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -304,6 +305,7 @@ fun HomeScreen(
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     val homeMiuixBackdrop = rememberMiuixLayerBackdrop()
+    var homeMiuixBackdropReady by remember(homeMiuixBackdrop) { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
@@ -749,9 +751,6 @@ fun HomeScreen(
         .getHomeFeedCardStyle(context)
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeFeedCardStyle.BILIPAI,
             context = kotlin.coroutines.EmptyCoroutineContext)
-    val homeFeedCardLayout = remember(homeFeedCardStyle) {
-        resolveHomeFeedCardLayout(homeFeedCardStyle)
-    }
     val topChromePolicy = rememberAppTopChromePolicy()
     val pullRefreshProfile = rememberAppPullRefreshProfile()
     val semanticVisualPolicy = rememberAppSemanticVisualPolicy()
@@ -949,6 +948,17 @@ fun HomeScreen(
         )
     }
     val isLiquidGlassEnabled = homePerformanceConfig.isAnyLiquidGlassEnabled
+    // The layer source records during draw. On a cold launch the header can otherwise consume
+    // the backdrop before that first recording exists and stay blank until a lifecycle redraw.
+    LaunchedEffect(homeMiuixBackdrop, isLiquidGlassEnabled) {
+        homeMiuixBackdropReady = false
+        if (isLiquidGlassEnabled) {
+            withFrameNanos { }
+            withFrameNanos { }
+            homeMiuixBackdropReady = true
+        }
+    }
+    val readyHomeMiuixBackdrop = homeMiuixBackdrop.takeIf { homeMiuixBackdropReady }
     val isDataSaverActive = homePerformanceConfig.isDataSaverActive
     val preloadAheadCount = homePerformanceConfig.preloadAheadCount
     val configuredHomeWallpaperUri by SettingsManager.getHomeWallpaperUri(context).collectAsStateWithLifecycle(initialValue = ""
@@ -977,9 +987,11 @@ fun HomeScreen(
     //  📐 [平板适配] 根据屏幕尺寸和展示模式动态设置网格列数
     // 故事卡片(1)和沉浸模式(2)需要单列全宽，网格(0)使用双列
     val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
-    val deviceUiProfile = remember(windowSizeClass.widthSizeClass) {
+    val appWindowAdaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
+    val deviceUiProfile = remember(windowSizeClass.widthSizeClass, appWindowAdaptiveInfo.posture) {
         resolveDeviceUiProfile(
-            widthSizeClass = windowSizeClass.widthSizeClass
+            widthSizeClass = windowSizeClass.widthSizeClass,
+            foldPosture = appWindowAdaptiveInfo.posture,
         )
     }
     val cardMotionTier = resolveEffectiveMotionTier(
@@ -988,7 +1000,8 @@ fun HomeScreen(
     )
     val sharedTransitionDurationMillis =
         com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionDurationMillis(
-            com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings.current
+            com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings.current,
+            com.android.purebilibili.core.ui.transition.LocalVideoTransitionAdaptiveInfo.current,
         )
     val returnAnimationSuppressionDurationMs = resolveReturnAnimationSuppressionDurationMs(
         isTabletLayout = windowSizeClass.isTablet,
@@ -1083,19 +1096,42 @@ fun HomeScreen(
         contentWidth,
         displayMode,
         homeSettings.gridColumnCount,
-        homeSettings.homeFeedCardWidthPreset
+        homeSettings.homeFeedCardWidthPreset,
+        windowSizeClass.widthSizeClass
     ) {
         resolveHomeFeedGridColumns(
             contentWidthDp = contentWidth.value.toInt(),
             displayMode = displayMode,
             fixedColumnCount = homeSettings.gridColumnCount,
-            cardWidthPreset = homeSettings.homeFeedCardWidthPreset
+            cardWidthPreset = homeSettings.homeFeedCardWidthPreset,
+            widthSizeClass = windowSizeClass.widthSizeClass
         )
     }
-    val homeFeedCoverAspectRatio = remember(homeFeedCardStyle, gridColumns) {
-        resolveHomeFeedCoverAspectRatio(
+    val homeFeedCardLayout = remember(
+        homeFeedCardStyle,
+        gridColumns,
+        windowSizeClass.widthSizeClass,
+    ) {
+        resolveHomeFeedCardLayout(
             style = homeFeedCardStyle,
             gridColumns = gridColumns,
+            widthSizeClass = windowSizeClass.widthSizeClass,
+        )
+    }
+    val homeFeedCoverAspectRatio = homeFeedCardLayout.coverAspectRatio
+    val density = LocalDensity.current
+    val hingeGridSpec = remember(appWindowAdaptiveInfo, density.density) {
+        resolveHomeFeedBookHingeGridSpec(appWindowAdaptiveInfo, density.density)
+    }
+    val homeFeedHorizontalArrangement = remember(
+        gridColumns,
+        homeFeedCardLayout.itemSpacingDp,
+        hingeGridSpec,
+    ) {
+        resolveHomeFeedHorizontalArrangement(
+            columns = gridColumns,
+            baseSpacing = homeFeedCardLayout.itemSpacingDp.dp,
+            hingeSpec = hingeGridSpec,
         )
     }
     
@@ -1103,10 +1139,11 @@ fun HomeScreen(
     val tabletUseSidebar = appNavigationSettings.tabletUseSidebar
     
     //  📐 [大屏适配] 平板导航模式：根据用户偏好决定
-    // 仅在平板且用户选择了侧边栏时使用侧边导航
+    // 仅在 Expanded+ 且用户选择了侧边栏时使用侧边导航
     val useSideNavigation = com.android.purebilibili.core.util.shouldUseSidebarNavigationForLayout(
         windowSizeClass = windowSizeClass,
-        tabletUseSidebar = tabletUseSidebar
+        tabletUseSidebar = tabletUseSidebar,
+        foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture,
     )
     val isHomeDrawerEnabled = com.android.purebilibili.core.util.shouldEnableHomeDrawer(
         useSideNavigation = useSideNavigation
@@ -1162,7 +1199,6 @@ fun HomeScreen(
         }
     }
 
-    val density = LocalDensity.current
     val homeCoverRequestSpec = remember(
         contentWidth,
         gridColumns,
@@ -1271,7 +1307,7 @@ fun HomeScreen(
             return@LaunchedEffect
         }
         
-        // 上滑隐藏模式：监听滚动方向
+        // 向下浏览时隐藏模式：监听滚动方向
         val currentGridState = if (currentCategory == HomeCategory.POPULAR) {
             popularGridStates[popularSubCategory]
         } else {
@@ -1414,8 +1450,8 @@ fun HomeScreen(
         homeHeaderCollapseMode = homeSettings.homeHeaderCollapseMode
     )
     val homeBarHideType = homeSettings.homeBarHideType
-    val collapseSearchOnScroll = headerCollapseMode.hasAnyCollapse
-    val collapseTabsOnScroll = headerCollapseMode.hasAnyCollapse
+    val collapseSearchOnScroll = headerCollapseMode.collapseSearch
+    val collapseTabsOnScroll = headerCollapseMode.collapseTabs
     val isAnyHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse
     val headerAutoCollapseDistancePx = if (isAnyHeaderCollapseEnabled) {
         searchCollapseDistancePx
@@ -1648,6 +1684,8 @@ fun HomeScreen(
                                 .verticalPriorityHorizontalPagerSwipe(
                                     state = pagerState,
                                     enabled = homeTopPagerSwipeEnabled,
+                                    horizontalLockSlopMultiplier =
+                                        HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
                                 ),
                             key = { index -> resolveHomeTopTabEntryKey(topTabEntries, index) }
                         ) { page ->
@@ -1870,7 +1908,7 @@ fun HomeScreen(
                                          end = homeFeedCardLayout.outerPaddingDp.dp,
                                          top = listTopPadding
                                      ),
-                                     horizontalArrangement = Arrangement.spacedBy(homeFeedCardLayout.itemSpacingDp.dp),
+                                     horizontalArrangement = homeFeedHorizontalArrangement,
                                      verticalArrangement = Arrangement.spacedBy(homeFeedCardLayout.verticalItemSpacingDp.dp),
                                      modifier = Modifier.fillMaxSize()
                                  ) {
@@ -2196,7 +2234,7 @@ fun HomeScreen(
             isRefreshing = isRefreshing,
             pullProgress = 0f, // [Fix] Outer header doesn't track inner pull state
             pagerState = pagerState,
-            miuixBackdrop = homeMiuixBackdrop,
+            miuixBackdrop = readyHomeMiuixBackdrop,
             homeSettings = effectiveHomeSettings,
             topTabsVisible = resolveHomeTopTabsVisible(
                 isDelayedForCardSettle = delayTopTabsUntilCardSettled,
@@ -2438,7 +2476,7 @@ fun HomeScreen(
                         hazeState = hazeState,
                         isBlurEnabled = isHeaderBlurEnabled,
                         bottomOverlayHeight = drawerBottomOverlayHeight,
-                        miuixBackdrop = homeMiuixBackdrop,
+                        miuixBackdrop = readyHomeMiuixBackdrop,
                         liquidGlassEnabled = isLiquidGlassEnabled,
                         liquidGlassTuning = homeLiquidGlassTuning,
                         skinBackgroundImagePath = homeUiSkinDecoration?.sideBackgroundImagePath,

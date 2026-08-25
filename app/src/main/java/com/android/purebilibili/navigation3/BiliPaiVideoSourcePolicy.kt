@@ -41,13 +41,52 @@ internal fun normalizeBiliPaiVideoSourceRoute(route: String?): String? {
     }
 }
 
-/**
- * Related-detail hops use source route `video/{parentBvid}`.
- * They intentionally use the default Miuix page navigation instead of the whole-card morph.
- */
+/** Related-detail hops use source route `video/{parentBvid}`. */
 internal fun isRelatedVideoCardMorphSourceRoute(sourceRoute: String?): Boolean {
     val route = sourceRoute?.substringBefore('?')?.trim().orEmpty()
     return route.startsWith("video/")
+}
+
+internal fun resolveVideoCardTransitionEnabledForSource(
+    cardTransitionEnabled: Boolean,
+    relatedVideoTransitionEnabled: Boolean,
+    sourceRoute: String?,
+): Boolean = cardTransitionEnabled && (
+    relatedVideoTransitionEnabled || !isRelatedVideoCardMorphSourceRoute(sourceRoute)
+)
+
+/**
+ * Card morph depth is part of the navigation meaning, not a card-local animation choice.
+ *
+ * List -> detail owns the full first-level depth treatment. Detail -> related detail keeps the
+ * same frozen-card geometry and inverse return path, but uses a lighter nested depth treatment so
+ * the retained parent detail still reads as the immediate back destination.
+ */
+internal enum class BiliPaiVideoCardMorphMode {
+    NONE,
+    PRIMARY_WHOLE_CARD,
+    NESTED_RELATED,
+}
+
+internal fun resolveBiliPaiVideoCardMorphMode(
+    cardTransitionEnabled: Boolean,
+    reduceMotion: Boolean,
+    sourceRoute: String?,
+    hasUsableSourceBounds: Boolean,
+): BiliPaiVideoCardMorphMode {
+    if (
+        !cardTransitionEnabled ||
+        reduceMotion ||
+        sourceRoute?.substringBefore('?').isNullOrBlank() ||
+        !hasUsableSourceBounds
+    ) {
+        return BiliPaiVideoCardMorphMode.NONE
+    }
+    return if (isRelatedVideoCardMorphSourceRoute(sourceRoute)) {
+        BiliPaiVideoCardMorphMode.NESTED_RELATED
+    } else {
+        BiliPaiVideoCardMorphMode.PRIMARY_WHOLE_CARD
+    }
 }
 
 /**
@@ -62,16 +101,17 @@ internal fun isRelatedVideoCardMorphSourceRoute(sourceRoute: String?): Boolean {
  *    - STACKED (双列): live media top, info bottom
  *    - SIDE_BY_SIDE (分区横卡): live media left, info right
  *
- * Related-detail sources (`video/{parentBvid}`) bypass this gate and fall back to the default
- * Miuix navigation transition.
+ * Kept as the boolean compatibility gate for host call sites; use
+ * [resolveBiliPaiVideoCardMorphMode] when first-level and nested visuals need to diverge.
  */
 internal fun shouldUseMiuixVideoCardMorph(
     cardTransitionEnabled: Boolean,
     reduceMotion: Boolean,
     sourceRoute: String?,
     hasUsableSourceBounds: Boolean,
-): Boolean = cardTransitionEnabled &&
-    !reduceMotion &&
-    !isRelatedVideoCardMorphSourceRoute(sourceRoute) &&
-    !sourceRoute?.substringBefore('?').isNullOrBlank() &&
-    hasUsableSourceBounds
+): Boolean = resolveBiliPaiVideoCardMorphMode(
+    cardTransitionEnabled = cardTransitionEnabled,
+    reduceMotion = reduceMotion,
+    sourceRoute = sourceRoute,
+    hasUsableSourceBounds = hasUsableSourceBounds,
+) != BiliPaiVideoCardMorphMode.NONE

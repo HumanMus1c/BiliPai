@@ -94,15 +94,16 @@ internal fun resolveLongPressSpeedLockZoneVisualPolicy(): LongPressSpeedLockZone
 internal fun resolveSubtitleBottomOffsetPx(
     isFullscreen: Boolean,
     controlsVisible: Boolean,
+    positionLocked: Boolean = false,
     navigationInsetPx: Int,
     bottomControlsHeightPx: Int,
     density: Float
 ): Int {
     val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
     fun dp(value: Int): Int = (value * safeDensity).roundToInt()
-    if (!isFullscreen) return dp(48)
+    if (!isFullscreen) return dp(32)
     val safeInset = navigationInsetPx.coerceAtLeast(0)
-    return if (controlsVisible) {
+    return if (controlsVisible && !positionLocked) {
         maxOf(safeInset + bottomControlsHeightPx.coerceAtLeast(0) + dp(8), dp(56))
     } else {
         maxOf(safeInset + dp(16), dp(24))
@@ -173,6 +174,17 @@ internal fun shouldIgnoreVideoPlayerDragStart(
     val clampedBottomExclusionPx = bottomGestureExclusionPx.coerceIn(0f, containerHeightPx)
     return offsetY < clampedTopExclusionPx ||
         offsetY >= (containerHeightPx - clampedBottomExclusionPx)
+}
+
+internal fun shouldIgnoreVideoPlayerHorizontalEdgeDragStart(
+    offsetX: Float,
+    containerWidthPx: Float,
+    isFullscreen: Boolean,
+    edgeGestureExclusionPx: Float,
+): Boolean {
+    if (!isFullscreen || containerWidthPx <= 0f) return false
+    val exclusion = edgeGestureExclusionPx.coerceIn(0f, containerWidthPx / 2f)
+    return offsetX < exclusion || offsetX >= containerWidthPx - exclusion
 }
 
 internal data class VideoPlayerGestureVerticalExclusions(
@@ -315,11 +327,12 @@ internal fun shouldEnableLongPressSpeedGesture(
 }
 
 internal fun shouldEnableViewportTransformGesture(
-    isScreenLocked: Boolean
+    isScreenLocked: Boolean,
+    isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
+    isVerticalVideo: Boolean,
 ): Boolean {
-    // Disable pinch-to-zoom/pan during playback to avoid accidental viewport
-    // distortion while keeping aspect ratio changes inside the explicit menu.
-    return false
+    return !isScreenLocked && (isFullscreen || isPortraitFullscreen || isVerticalVideo)
 }
 
 fun resolveSystemStreamVolumeFromGesture(
@@ -1113,16 +1126,15 @@ internal fun shouldShowCoverImage(
 }
 
 /**
- * 竖屏视频手动起播时只保留黑色播放器与播放按钮，不请求详情封面。
+ * 竖屏视频进入播放页时只保留黑色播放器，不请求详情封面。
  * 返回共享转场仍允许封面承接，避免返回列表时媒体区域突然变黑。
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldLoadVideoPlayerCoverImage(
     isVerticalVideo: Boolean,
     shouldKeepCoverForManualStart: Boolean,
     forceCoverDuringReturnAnimation: Boolean,
-): Boolean = forceCoverDuringReturnAnimation ||
-    !isVerticalVideo ||
-    !shouldKeepCoverForManualStart
+): Boolean = forceCoverDuringReturnAnimation || !isVerticalVideo
 
 /**
  * 即播路径的封面是透明 TextureView 下的底图，不能持续压在视频帧上；

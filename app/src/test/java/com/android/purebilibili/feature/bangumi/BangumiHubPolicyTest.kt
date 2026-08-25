@@ -114,6 +114,31 @@ class BangumiHubPolicyTest {
     }
 
     @Test
+    fun `timeline episode metadata prefers the matching cover and update state`() {
+        val episode = TimelineEpisode(
+            cover = "season-cover",
+            squareCover = "square-cover",
+            episodeCover = "episode-cover",
+            pubIndex = "第 8 话",
+            pubTime = "20:00",
+            published = 0,
+        )
+
+        assertEquals("season-cover", resolveTimelineEpisodeCover(episode, preferEpisodeCover = false))
+        assertEquals("episode-cover", resolveTimelineEpisodeCover(episode, preferEpisodeCover = true))
+        assertEquals("第 8 话", resolveTimelineEpisodeUpdateLabel(episode))
+        assertEquals("预计 20:00", resolveTimelineEpisodeScheduleLabel(episode))
+
+        val delayed = episode.copy(
+            delay = 1,
+            delayIndex = "第 9 话",
+            delayReason = "本周停播",
+        )
+        assertEquals("第 9 话", resolveTimelineEpisodeUpdateLabel(delayed))
+        assertEquals("本周停播", resolveTimelineEpisodeScheduleLabel(delayed))
+    }
+
+    @Test
     fun `selection toggles valid ids only`() {
         assertEquals(setOf(9L), updateBangumiSelection(emptySet(), 9L))
         assertTrue(updateBangumiSelection(setOf(9L), 9L).isEmpty())

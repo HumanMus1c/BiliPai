@@ -19,6 +19,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
@@ -39,6 +40,8 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -49,6 +52,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.ui.common.CopySelectionDialog
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
@@ -142,7 +146,11 @@ fun DynamicCardV2(
     val cardClickAction = remember(item) { resolveDynamicCardPrimaryAction(item) }
     val watchLaterAid = remember(item) { resolveDynamicWatchLaterAid(item) }
     val deleteAction = remember(item) { resolveDynamicDeleteAction(item) }
+    val menuCapabilities = remember(item, TokenManager.midCache) {
+        resolveDynamicMenuCapabilities(item, TokenManager.midCache)
+    }
     var pendingDeleteAction by remember(item.id_str) { mutableStateOf<DynamicDeleteAction?>(null) }
+    var pendingBlockAuthor by remember(item.id_str) { mutableStateOf<DynamicManageAction.BlockAuthor?>(null) }
     var pendingVoteId by remember(item.id_str) { mutableStateOf<Long?>(null) }
     //  [新增] 评论互动设置弹窗状态
     var showReplyInteractionDialog by remember(item.id_str) { mutableStateOf<ReplyInteractionData?>(null) }
@@ -186,6 +194,25 @@ fun DynamicCardV2(
                     AppText(action.cancelText)
                 }
             }
+        )
+    }
+
+    pendingBlockAuthor?.let { action ->
+        AppAlertDialog(
+            onDismissRequest = { pendingBlockAuthor = null },
+            title = { AppText("屏蔽 UP 主") },
+            text = { AppText("屏蔽后将不再推荐 ${action.authorName} 的内容，并同步到哔哩哔哩黑名单。") },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        pendingBlockAuthor = null
+                        onManageAction(action)
+                    },
+                ) { AppText("屏蔽", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { pendingBlockAuthor = null }) { AppText("取消") }
+            },
         )
     }
 
@@ -486,7 +513,7 @@ fun DynamicCardV2(
                         }
 
                         // 不感兴趣
-                        AppDropdownMenuItem(
+                        if (!menuCapabilities.isOwnDynamic) AppDropdownMenuItem(
                             text = { AppText("不感兴趣", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = { 
                                 AppIcon(
@@ -503,7 +530,7 @@ fun DynamicCardV2(
                         )
 
                         //  [新增] 置顶 / 取消置顶（对齐 BiliPai morePanel）
-                        AppDropdownMenuItem(
+                        if (menuCapabilities.canToggleTop) AppDropdownMenuItem(
                             text = { AppText(resolveDynamicPinnedMenuLabel(isCurrentlyTop), color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 AppIcon(
@@ -520,8 +547,8 @@ fun DynamicCardV2(
                         )
 
                         //  [新增] 可见范围（公开 / 仅自己可见）
-                        AppDropdownMenuItem(
-                            text = { AppText(resolveDynamicVisibilityMenuLabel(isPrivate = false), color = MaterialTheme.colorScheme.onSurface) },
+                        if (menuCapabilities.canSetVisibility) AppDropdownMenuItem(
+                            text = { AppText(resolveDynamicVisibilityMenuLabel(isPrivate = menuCapabilities.isPrivate), color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 AppIcon(
                                     rememberAppVisibilityOnIcon(),
@@ -536,14 +563,14 @@ fun DynamicCardV2(
                                     DynamicManageAction.SetVisibility(
                                         dynamicId = item.id_str,
                                         dynType = resolveDynamicDynType(item),
-                                        isPrivate = true
+                                        isPrivate = !menuCapabilities.isPrivate
                                     )
                                 )
                             }
                         )
 
                         //  [新增] 评论互动设置（评论精选 / 评论开关）
-                        AppDropdownMenuItem(
+                        if (menuCapabilities.canManageComments) AppDropdownMenuItem(
                             text = { AppText("评论互动设置", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 AppIcon(
@@ -572,9 +599,8 @@ fun DynamicCardV2(
                             }
                         )
 
-                        //  [新增] 临时屏蔽（仅内存，重启恢复）
-                        AppDropdownMenuItem(
-                            text = { AppText("临时屏蔽", color = MaterialTheme.colorScheme.onSurface) },
+                        if (menuCapabilities.canBlockAuthor) AppDropdownMenuItem(
+                            text = { AppText("屏蔽该 UP 主", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 AppIcon(
                                     rememberAppVisibilityOffIcon(),
@@ -585,11 +611,15 @@ fun DynamicCardV2(
                             },
                             onClick = {
                                 showMoreMenu = false
-                                onManageAction(DynamicManageAction.TempBlock(item.id_str))
+                                pendingBlockAuthor = DynamicManageAction.BlockAuthor(
+                                    authorMid = author?.mid ?: 0L,
+                                    authorName = author?.name.orEmpty().ifBlank { "该用户" },
+                                    authorFace = author?.face.orEmpty(),
+                                )
                             }
                         )
 
-                        AppDropdownMenuItem(
+                        if (menuCapabilities.canEdit) AppDropdownMenuItem(
                             text = { AppText("编辑动态", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 showMoreMenu = false
@@ -602,7 +632,7 @@ fun DynamicCardV2(
                             }
                         )
 
-                        AppDropdownMenuItem(
+                        if (menuCapabilities.canReport) AppDropdownMenuItem(
                             text = { AppText("举报", color = MaterialTheme.colorScheme.error) },
                             onClick = {
                                 showMoreMenu = false
@@ -692,7 +722,8 @@ fun DynamicCardV2(
             if (shouldRenderDynamicRichText(desc)) {
                 RichTextContent(
                     desc = desc,
-                    onUserClick = onUserClick
+                    onUserClick = onUserClick,
+                    onVoteClick = { voteId -> pendingVoteId = voteId },
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             }
@@ -814,12 +845,133 @@ fun DynamicCardV2(
                 fullOpusContentBlocks.forEach { block ->
                     when (block) {
                         is OpusContentBlock.Text -> {
+                            val richBlockDesc = resolveDynamicOpusTextBlockRichDesc(
+                                blockText = block.text,
+                                preferredDesc = preferredBodyDesc,
+                            )
+                            if (richBlockDesc != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = AppSpacingTokens.Medium),
+                                ) {
+                                    RichTextContent(
+                                        desc = richBlockDesc,
+                                        onUserClick = onUserClick,
+                                        onVoteClick = { voteId -> pendingVoteId = voteId },
+                                    )
+                                }
+                            } else {
+                                AppText(
+                                    text = block.text,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = resolveOpusTextAlign(block.alignment),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = AppSpacingTokens.Medium)
+                                )
+                            }
+                        }
+                        is OpusContentBlock.Heading -> {
                             AppText(
                                 text = block.text,
+                                style = when (block.level) {
+                                    1 -> MaterialTheme.typography.headlineSmall
+                                    3 -> MaterialTheme.typography.titleMedium
+                                    else -> MaterialTheme.typography.titleLarge
+                                },
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = resolveOpusTextAlign(block.alignment),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        top = AppSpacingTokens.Small,
+                                        bottom = AppSpacingTokens.Medium,
+                                    ),
+                            )
+                        }
+                        is OpusContentBlock.Quote -> {
+                            AppContentCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = AppSpacingTokens.Medium),
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                                contentPadding = PaddingValues(AppSpacingTokens.Medium),
+                            ) {
+                                AppText(
+                                    text = block.text,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    textAlign = resolveOpusTextAlign(block.alignment),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                        is OpusContentBlock.ListBlock -> {
+                            AppText(
+                                text = block.items.mapIndexed { index, listItem ->
+                                    if (block.ordered) "${index + 1}. $listItem" else "• $listItem"
+                                }.joinToString("\n"),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(bottom = AppSpacingTokens.Medium)
+                                textAlign = resolveOpusTextAlign(block.alignment),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = AppSpacingTokens.Medium,
+                                        bottom = AppSpacingTokens.Medium,
+                                    ),
                             )
+                        }
+                        is OpusContentBlock.Code -> {
+                            AppContentCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = AppSpacingTokens.Medium),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentPadding = PaddingValues(AppSpacingTokens.Medium),
+                            ) {
+                                AppText(
+                                    text = block.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                        is OpusContentBlock.Divider -> {
+                            val dividerPic = block.pic
+                            if (dividerPic != null) {
+                                fullContentImageIndex += 1
+                                val dividerAspectRatio = if (dividerPic.width > 0 && dividerPic.height > 0) {
+                                    dividerPic.width.toFloat() / dividerPic.height.toFloat()
+                                } else {
+                                    null
+                                }
+                                AsyncImage(
+                                    model = dividerPic.url,
+                                    contentDescription = "分割线",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (dividerAspectRatio != null) {
+                                                Modifier.aspectRatio(dividerAspectRatio)
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
+                                        .padding(vertical = AppSpacingTokens.Small),
+                                    contentScale = ContentScale.FillWidth,
+                                )
+                            } else {
+                                AppHorizontalDivider(
+                                    modifier = Modifier.padding(vertical = AppSpacingTokens.Medium),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
                         }
                         is OpusContentBlock.Image -> {
                             val currentImageIndex = fullContentImageIndex
@@ -855,22 +1007,31 @@ fun DynamicCardV2(
                             DynamicOpusLinkCard(
                                 card = block.card,
                                 modifier = Modifier.padding(bottom = AppSpacingTokens.Medium),
+                                enabled = block.card.jumpUrl.isNotBlank() ||
+                                    (block.card.type == "LINK_CARD_TYPE_VOTE" && block.card.oid.toLongOrNull() != null),
                                 onClick = {
-                                    when (val action = resolveDynamicOpusLinkCardAction(block.card)) {
-                                        is DynamicOpusLinkCardAction.OpenVideo -> onVideoClick(action.videoId)
-                                        is DynamicOpusLinkCardAction.OpenDynamicDetail -> openDynamicDetail?.invoke(action.dynamicId)
-                                        is DynamicOpusLinkCardAction.OpenArticle -> onArticleClick?.invoke(action.articleId, action.title)
-                                        is DynamicOpusLinkCardAction.OpenLive -> onLiveClick(
-                                            action.roomId,
-                                            block.card.title.ifBlank { "直播间" },
-                                            author?.name.orEmpty()
-                                        )
-                                        is DynamicOpusLinkCardAction.OpenUser -> onUserClick(action.mid)
-                                        is DynamicOpusLinkCardAction.OpenBangumi -> onBangumiClick(action.seasonId, action.epId)
-                                        is DynamicOpusLinkCardAction.OpenExternalUrl -> runCatching {
-                                            uriHandler.openUri(action.url)
+                                    val opusVoteId = block.card.takeIf {
+                                        it.type == "LINK_CARD_TYPE_VOTE"
+                                    }?.oid?.toLongOrNull()?.takeIf { it > 0L }
+                                    if (opusVoteId != null) {
+                                        pendingVoteId = opusVoteId
+                                    } else {
+                                        when (val action = resolveDynamicOpusLinkCardAction(block.card)) {
+                                            is DynamicOpusLinkCardAction.OpenVideo -> onVideoClick(action.videoId)
+                                            is DynamicOpusLinkCardAction.OpenDynamicDetail -> openDynamicDetail?.invoke(action.dynamicId)
+                                            is DynamicOpusLinkCardAction.OpenArticle -> onArticleClick?.invoke(action.articleId, action.title)
+                                            is DynamicOpusLinkCardAction.OpenLive -> onLiveClick(
+                                                action.roomId,
+                                                block.card.title.ifBlank { "直播间" },
+                                                author?.name.orEmpty()
+                                            )
+                                            is DynamicOpusLinkCardAction.OpenUser -> onUserClick(action.mid)
+                                            is DynamicOpusLinkCardAction.OpenBangumi -> onBangumiClick(action.seasonId, action.epId)
+                                            is DynamicOpusLinkCardAction.OpenExternalUrl -> runCatching {
+                                                uriHandler.openUri(action.url)
+                                            }
+                                            DynamicOpusLinkCardAction.None -> Unit
                                         }
-                                        DynamicOpusLinkCardAction.None -> Unit
                                     }
                                 }
                             )
@@ -1035,6 +1196,22 @@ fun DynamicCardV2(
             )
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
+
+        resolveDynamicMajorCard(
+            major = content?.major,
+            darkTheme = isSystemInDarkTheme(),
+        )?.let { majorCard ->
+            DynamicNativeLinkCard(
+                title = majorCard.title,
+                subtitle = majorCard.subtitle,
+                cover = majorCard.cover,
+                kindLabel = majorCard.kindLabel,
+                actionLabel = majorCard.actionLabel,
+                enabled = majorCard.enabled && majorCard.jumpUrl.isNotBlank(),
+                onClick = { openDynamicUrl(uriHandler, majorCard.jumpUrl) },
+            )
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
+        }
         
         //  转发动态 - 嵌套显示原始内容
         if (type == DynamicType.FORWARD && item.orig != null) {
@@ -1057,7 +1234,7 @@ fun DynamicCardV2(
                     if (additionalCard.voteId > 0L) {
                         pendingVoteId = additionalCard.voteId
                     } else if (additionalCard.jumpUrl.isNotBlank()) {
-                        runCatching { uriHandler.openUri(additionalCard.jumpUrl) }
+                        openDynamicUrl(uriHandler, additionalCard.jumpUrl)
                     }
                 }
             )
@@ -1086,7 +1263,8 @@ fun DynamicCardV2(
             ActionButton(
                 count = statModule.comment.count,
                 label = "评论",
-                enabled = !statModule.comment.forbidden,
+                // forbidden 代表评论操作受限；仍允许进入详情查看已有评论。
+                enabled = item.id_str.isNotBlank(),
                 onClick = {
                     DynamicRepository.rememberDynamicDetailSeed(item)
                     onCommentClick(item.id_str)
@@ -1165,46 +1343,73 @@ fun DynamicCardV2(
     }
 }
 
+private fun resolveOpusTextAlign(alignment: Int): TextAlign = when (alignment) {
+    1 -> TextAlign.Center
+    2 -> TextAlign.End
+    else -> TextAlign.Start
+}
+
 @Composable
 private fun DynamicAdditionalCard(
     model: DynamicAdditionalCardModel,
     onClick: () -> Unit
 ) {
+    DynamicNativeLinkCard(
+        title = model.title,
+        subtitle = model.subtitle,
+        cover = model.cover,
+        kindLabel = model.kindLabel,
+        actionLabel = model.actionLabel,
+        enabled = model.enabled,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun DynamicNativeLinkCard(
+    title: String,
+    subtitle: String,
+    cover: String,
+    kindLabel: String,
+    actionLabel: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     AppContentCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentPadding = PaddingValues(horizontal = AppSpacingTokens.ExtraSmall)
     ) {
         AppListItem(
             overlineContent = {
                 AppText(
-                    text = model.kindLabel,
+                    text = kindLabel,
                     color = MaterialTheme.colorScheme.primary
                 )
             },
             headlineContent = {
                 AppText(
-                    text = model.title,
+                    text = title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     fontWeight = FontWeight.Medium
                 )
             },
-            supportingContent = model.subtitle.takeIf { it.isNotBlank() }?.let { subtitle ->
+            supportingContent = subtitle.takeIf { it.isNotBlank() }?.let { supportingText ->
                 {
                     AppText(
-                        text = subtitle,
+                        text = supportingText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
-            leadingContent = if (model.cover.isNotBlank()) {
+            leadingContent = if (cover.isNotBlank()) {
                 {
                     AsyncImage(
-                        model = model.cover,
+                        model = cover,
                         contentDescription = null,
                         modifier = Modifier
                             .size(width = 88.dp, height = 56.dp)
@@ -1214,9 +1419,30 @@ private fun DynamicAdditionalCard(
                 }
             } else {
                 null
-            }
+            },
+            trailingContent = actionLabel.takeIf(String::isNotBlank)?.let { label ->
+                {
+                    AppText(
+                        text = label,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            },
         )
     }
+}
+
+private fun openDynamicUrl(
+    uriHandler: androidx.compose.ui.platform.UriHandler,
+    rawUrl: String,
+) {
+    if (rawUrl.isBlank()) return
+    val target = when {
+        rawUrl.startsWith("//") -> "https:$rawUrl"
+        else -> rawUrl
+    }
+    runCatching { uriHandler.openUri(target) }
 }
 
 /**
@@ -1230,13 +1456,15 @@ private fun DynamicAdditionalCard(
 fun RichTextContent(
     desc: DynamicDesc,
     onUserClick: (Long) -> Unit,
+    onVoteClick: (Long) -> Unit = {},
     onBlankTap: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     var catalogEmoteMap by remember { mutableStateOf(DynamicEmoteCatalog.snapshot()) }
-    LaunchedEffect(Unit) {
+    val emoteCatalogSessionKey = DynamicEmoteCatalog.currentSessionKey()
+    LaunchedEffect(emoteCatalogSessionKey) {
         catalogEmoteMap = DynamicEmoteCatalog.ensureLoaded()
     }
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -1286,7 +1514,7 @@ fun RichTextContent(
         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
         color = textColor,
         onTextLayout = { textLayoutResult = it },
-        modifier = Modifier.pointerInput(copyText, annotatedText, onBlankTap) {
+        modifier = Modifier.pointerInput(copyText, annotatedText, onVoteClick, onBlankTap) {
             detectTapGestures(
                 onLongPress = {
                     if (copyText.isNotEmpty()) {
@@ -1309,6 +1537,18 @@ fun RichTextContent(
                             ?.let(onUserClick)
                         return@detectTapGestures
                     }
+
+                    annotatedText.getStringAnnotations(
+                        tag = DYNAMIC_RICH_TEXT_VOTE_TAG,
+                        start = searchStart,
+                        end = searchEnd
+                    ).firstOrNull()?.item
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0L }
+                        ?.let { voteId ->
+                            onVoteClick(voteId)
+                            return@detectTapGestures
+                        }
 
                     val urlAnnotation = annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_URL_TAG,

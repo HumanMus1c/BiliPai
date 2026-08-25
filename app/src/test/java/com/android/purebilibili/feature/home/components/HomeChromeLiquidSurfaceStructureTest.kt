@@ -25,6 +25,9 @@ class HomeChromeLiquidSurfaceStructureTest {
         val componentsDir = workspaceRoot.resolve(
             "app/src/main/java/com/android/purebilibili/feature/home/components"
         )
+        val homeScreenSource = workspaceRoot.resolve(
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt"
+        ).readText()
 
         val topHeader = componentsDir.resolve("HomeHeader.kt")
         val topTabChrome = componentsDir.resolve("HomeTopTabChrome.kt")
@@ -39,6 +42,19 @@ class HomeChromeLiquidSurfaceStructureTest {
         val topHeaderSource = topHeader.readText()
         val topBarSource = topBar.readText()
         val sharedChromeSource = sharedChrome.readText()
+        assertTrue(
+            "search-only collapse must keep the top dock visible",
+            homeScreenSource.contains("val collapseSearchOnScroll = headerCollapseMode.collapseSearch") &&
+                homeScreenSource.contains("val collapseTabsOnScroll = headerCollapseMode.collapseTabs")
+        )
+        assertTrue(
+            "cold start must wait until the shared layer backdrop has recorded before consumers sample it",
+            homeScreenSource.contains("var homeMiuixBackdropReady") &&
+                homeScreenSource.contains("withFrameNanos { }") &&
+                homeScreenSource.contains("val readyHomeMiuixBackdrop") &&
+                homeScreenSource.contains(".miuixLayerBackdrop(homeMiuixBackdrop)") &&
+                homeScreenSource.contains("miuixBackdrop = readyHomeMiuixBackdrop")
+        )
         assertTrue(
             "top header liquid chrome should route through the bottom-bar matched BiliPai surface",
             topHeaderSource.contains("return@composed this.homeTopBottomBarMatchedSurface(") &&
@@ -70,13 +86,14 @@ class HomeChromeLiquidSurfaceStructureTest {
             topHeaderSource.contains("hasOuterChromeSurface = drawTopTabDockChrome")
         )
         assertTrue(
-            "home header should draw a bottom-bar matched dock around top tabs inside the unified top panel",
-            topHeaderSource.contains("val topTabDockChromeRenderMode = if (") &&
-                topHeaderSource.contains("unifiedLocalTabChromeRenderMode == HomeTopChromeRenderMode.PLAIN") &&
+            "home header should only draw a matched dock for presentations that need an outer track",
+            topHeaderSource.contains("val topTabDockChromeRenderMode = resolveHomeTopTabDockChromeRenderMode(") &&
+                topHeaderSource.contains("val topTabDockHazeState = hazeState.takeIf") &&
+                topHeaderSource.contains("shouldApplyHomeTopTabDockHaze(") &&
+                topHeaderSource.contains("localTabChromeRenderMode = unifiedLocalTabChromeRenderMode") &&
                 topHeaderSource.contains("val topTabLiquidGlassEnabled =") &&
-                topHeaderSource.contains("val useTopTabBottomBarMatchedDock = true") &&
-                topHeaderSource.contains("topTabDockChromeRenderMode == HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP") &&
-                topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useDetachedTopTabDock") &&
+                topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface") &&
+                topHeaderSource.contains("val useTopTabBottomBarMatchedDock = drawTopTabDockChrome") &&
                 topHeaderSource.contains("drawChromeSurface = drawTopTabDockChrome") &&
                 topHeaderSource.contains("useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock") &&
                 topHeaderSource.contains("drawMatchedShellLens = topTabLiquidGlassEnabled") &&
@@ -84,6 +101,7 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topHeaderSource.contains("tabChromeRenderMode = if (useTopTabBottomBarMatchedDock)") &&
                 topHeaderSource.contains("val bottomBarLiquidGlassPreset = homeSettings?.bottomBarLiquidGlassPreset") &&
                 topHeaderSource.contains("liquidGlassPreset = bottomBarLiquidGlassPreset") &&
+                topHeaderSource.contains("hazeState = topTabDockHazeState") &&
                 topHeaderSource.contains("topTabDockChromeRenderMode") &&
                 topHeaderSource.contains("tabShape = if (useUnifiedTopPanel)") &&
                 topHeaderSource.contains("resolveSharedBottomBarCapsuleShape()") &&
@@ -111,6 +129,10 @@ class HomeChromeLiquidSurfaceStructureTest {
             "search-first mode should render top tabs after the search layer",
             searchLayerIndex in 0 until searchThenTabsIndex &&
                 topHeaderSource.indexOf("topTabsContent(", startIndex = searchThenTabsIndex) > searchThenTabsIndex
+        )
+        assertTrue(
+            "an independently rendered liquid dock must not inherit the collapsing search panel clip",
+            topHeaderSource.contains("if (drawUnifiedTopPanelChrome) {\n                                        Modifier.clip(unifiedPanelShape)")
         )
         assertTrue(
             "tabs-first mode should keep its explicit branch before the search layer",
@@ -188,6 +210,8 @@ class HomeChromeLiquidSurfaceStructureTest {
         assertTrue(
             "top tab indicator should reuse the bottom bar matched indicator and sibling capture topology",
             topBarSource.contains("val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE") &&
+                topBarSource.contains("resolveHomeSelectionIndicatorStyle(") &&
+                topBarSource.contains("shouldUseHomeCapsule") &&
                 topBarSource.contains("!hasOuterChromeSurface") &&
                 topBarSource.contains("val shouldUseMd3DockBackedCapsule =") &&
                 topBarSource.contains("BiliPaiFloatingDockIndicator(") &&

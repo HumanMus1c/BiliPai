@@ -227,7 +227,7 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `md3 home header expands top tab row for icon plus text`() {
         assertEquals(
-            36.dp,
+            56.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = false,
                 uiPreset = UiPreset.MD3,
@@ -235,7 +235,7 @@ class HomeHeaderVisualPolicyTest {
             )
         )
         assertEquals(
-            40.dp,
+            60.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = true,
                 uiPreset = UiPreset.MD3,
@@ -247,7 +247,7 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `ios home header expands docked top tab row for icon plus text`() {
         assertEquals(
-            36.dp,
+            56.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = false,
                 uiPreset = UiPreset.IOS,
@@ -255,7 +255,7 @@ class HomeHeaderVisualPolicyTest {
             )
         )
         assertEquals(
-            40.dp,
+            60.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = true,
                 uiPreset = UiPreset.IOS,
@@ -346,6 +346,21 @@ class HomeHeaderVisualPolicyTest {
         assertEquals(100.dp, collapsed.blurHeight)
         assertEquals(152.dp, expanded.blurHeight)
         assertEquals(0.dp, plain.blurHeight)
+    }
+
+    @Test
+    fun `detached tab dock is excluded from parent blur slab`() {
+        val layout = resolveHomeTopPinnedChromeLayout(
+            statusBarHeight = 44.dp,
+            visibleSearchHeight = 48.dp,
+            tabRowHeight = 56.dp,
+            searchToTabsSpacing = 4.dp,
+            renderMode = HomeTopChromeRenderMode.BLUR,
+            includeTabInBlur = false,
+        )
+
+        assertEquals(96.dp, layout.tabTop)
+        assertEquals(96.dp, layout.blurHeight)
     }
 
     @Test
@@ -1768,6 +1783,51 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
+    fun `embedded top tabs do not duplicate the unified header haze pass`() {
+        assertFalse(
+            shouldEnableTopTabSecondaryBlur(
+                hasHeaderBlur = true,
+                topTabMaterialMode = TopTabMaterialMode.BLUR,
+                isScrolling = false,
+                isTransitionRunning = false,
+                isEmbeddedInUnifiedPanel = true
+            )
+        )
+        assertEquals(
+            HomeTopChromeRenderMode.BLUR,
+            resolveHomeTopTabDockChromeRenderMode(
+                detachedTopTabDock = false,
+                localTabChromeRenderMode = HomeTopChromeRenderMode.BLUR,
+                hasHazeState = true,
+            )
+        )
+        assertFalse(
+            shouldApplyHomeTopTabDockHaze(
+                embeddedInUnifiedPanel = true,
+                continuousSlabRenderMode = HomeTopChromeRenderMode.BLUR,
+            )
+        )
+    }
+
+    @Test
+    fun `detached top tab dock keeps its own haze without a parent blur slab`() {
+        assertEquals(
+            HomeTopChromeRenderMode.BLUR,
+            resolveHomeTopTabDockChromeRenderMode(
+                detachedTopTabDock = true,
+                localTabChromeRenderMode = HomeTopChromeRenderMode.PLAIN,
+                hasHazeState = true,
+            )
+        )
+        assertTrue(
+            shouldApplyHomeTopTabDockHaze(
+                embeddedInUnifiedPanel = false,
+                continuousSlabRenderMode = HomeTopChromeRenderMode.PLAIN,
+            )
+        )
+    }
+
+    @Test
     fun `liquid glass top tab secondary blur disabled during motion to reduce duplicate blur passes`() {
         assertFalse(
             shouldEnableTopTabSecondaryBlur(
@@ -1904,8 +1964,8 @@ class HomeHeaderVisualPolicyTest {
         assertTrue(headerSource.contains("val topTrimImagePath = uiSkinDecoration?.topAtmosphereImagePath"))
         assertTrue(trimSource.contains("model = File(topTrimImagePath)"))
         assertTrue(trimSource.contains("contentScale = ContentScale.Crop"))
-        assertTrue(trimSource.contains(".height(continuousSlabHeight)"))
-        assertTrue(trimSource.contains("alpha = 0.76f"))
+        assertTrue(trimSource.contains(".height(pinnedChromeContentHeight)"))
+        assertFalse(trimSource.contains("alpha = 0.76f"))
         assertTrue(trimSource.contains("0.72f to Color.Transparent"))
         assertTrue(trimSource.contains("headerChromeColors.containerColor.copy(alpha = 0.42f)"))
         assertFalse(trimSource.contains("ContentScale.FillBounds"))

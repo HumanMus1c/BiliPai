@@ -159,7 +159,7 @@ class VideoContentTabBarPolicyTest {
         assertEquals(12, spec.containerHorizontalPaddingDp)
         assertEquals(12, spec.tabHorizontalPaddingDp)
         assertEquals(40, spec.segmentedControlHeightDp)
-        assertEquals(35, spec.segmentedControlIndicatorHeightDp)
+        assertEquals(30, spec.segmentedControlIndicatorHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
                 containerHeightDp = spec.segmentedControlHeightDp,
@@ -414,6 +414,20 @@ class VideoContentTabBarPolicyTest {
         assertEquals(70, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 15))
         assertEquals(72, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 16))
         assertEquals(66, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 13))
+        assertEquals(
+            0,
+            resolveVideoContentTabBarStartPaddingDp(
+                reusesLiquidGlassDock = true,
+                containerHorizontalPaddingDp = layoutSpec.containerHorizontalPaddingDp,
+            )
+        )
+        assertEquals(
+            layoutSpec.containerHorizontalPaddingDp,
+            resolveVideoContentTabBarStartPaddingDp(
+                reusesLiquidGlassDock = false,
+                containerHorizontalPaddingDp = layoutSpec.containerHorizontalPaddingDp,
+            )
+        )
         assertFalse(
             shouldReuseVideoContentTabBarLiquidGlassDock(
                 androidNativeLiquidGlassEnabled = true,

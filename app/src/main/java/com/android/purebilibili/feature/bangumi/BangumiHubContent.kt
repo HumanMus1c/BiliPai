@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
@@ -68,9 +67,10 @@ import com.android.purebilibili.core.ui.components.AppContentStateAction
 import com.android.purebilibili.core.ui.components.AppContentStatePresentation
 import com.android.purebilibili.core.ui.components.AppEmptyState
 import com.android.purebilibili.core.ui.components.AppErrorState
-import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -288,7 +288,7 @@ private fun BangumiHomeContent(
                 }
             }
 
-            if (channel == BangumiChannel.BANGUMI && showPgcTimeline) {
+            if (showPgcTimeline) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "timeline") {
                     TimelineSection(
                         state = state.timeline,
@@ -354,26 +354,20 @@ private fun TimelineSection(
             val today = state.days.indexOfFirst { it.isToday == 1 }.coerceAtLeast(0)
             var selectedDay by remember(state.days) { mutableIntStateOf(today) }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
+                AppText(
+                    text = "追番时间表",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                AppLiquidAwareTabRow(
+                    options = state.days.mapIndexed { index, item ->
+                        AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
+                    },
+                    selectedValue = selectedDay,
+                    onSelectionChange = { selectedDay = it },
+                    scrollable = true,
+                    minTabWidth = 112.dp,
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppText(
-                        text = "追番时间表",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(end = 12.dp),
-                    )
-                    BangumiLiquidAwareTabRow(
-                        options = state.days.mapIndexed { index, item ->
-                            AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
-                        },
-                        selectedValue = selectedDay,
-                        onSelectionChange = { selectedDay = it },
-                        scrollable = true,
-                        minTabWidth = 88.dp,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                )
                 AnimatedContent(
                     targetState = selectedDay,
                     transitionSpec = {
@@ -449,7 +443,7 @@ private fun BangumiIndexContent(
                 span = { GridItemSpan(maxLineSpan) },
                 key = "cinema_categories",
             ) {
-                BangumiLiquidAwareTabRow(
+                AppLiquidAwareTabRow(
                     options = CINEMA_INDEX_CATEGORIES.map { AppSegmentOption(it, it.label) },
                     selectedValue = category,
                     scrollable = true,
@@ -525,26 +519,33 @@ private fun IndexFilterPanel(
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         visibleGroups.forEach { group ->
+            val selectedChoice = group.choices.firstOrNull { choice ->
+                state.selectedParams[group.field] == choice.keyword
+            } ?: group.choices.firstOrNull()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .heightIn(min = 48.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AppText(
                     text = group.label,
-                    modifier = Modifier.widthIn(min = 42.dp),
+                    modifier = Modifier.width(56.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
+                    maxLines = 1,
                 )
-                group.choices.forEach { choice ->
-                    val selected = state.selectedParams[group.field] == choice.keyword
-                    AppFilterChip(
-                        selected = selected,
-                        onClick = { onFilterSelected(group, choice) },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        label = { AppText(choice.label, fontSize = 13.sp, maxLines = 1) },
+                if (selectedChoice != null) {
+                    AppThemeAdaptiveTabRow(
+                        options = group.choices.map { choice ->
+                            AppSegmentOption(choice, choice.label)
+                        },
+                        selectedValue = selectedChoice,
+                        scrollable = true,
+                        minTabWidth = 88.dp,
+                        onSelectionChange = { choice -> onFilterSelected(group, choice) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -589,7 +590,7 @@ private fun BangumiFollowContent(
     val followBackdrop = rememberLayerBackdrop()
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            BangumiLiquidAwareTabRow(
+            AppLiquidAwareTabRow(
                 options = BangumiFollowStatus.entries.map { AppSegmentOption(it, it.label) },
                 selectedValue = status,
                 enabled = !state.isMutating,
@@ -967,10 +968,10 @@ private fun TimelineEpisodeCard(episode: TimelineEpisode, onClick: () -> Unit) {
             .combinedClickable(onClick = onClick),
     ) {
         PosterImage(
-            cover = episode.cover,
+            cover = resolveTimelineEpisodeCover(episode, preferEpisodeCover = false),
             title = episode.title,
             badge = if (episode.follow == 1) "已追番" else "",
-            bottomBadge = episode.pubTime,
+            bottomBadge = resolveTimelineEpisodeScheduleLabel(episode),
         )
         AppText(
             episode.title,
@@ -979,9 +980,9 @@ private fun TimelineEpisodeCard(episode: TimelineEpisode, onClick: () -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (episode.pubIndex.isNotBlank()) {
+        resolveTimelineEpisodeUpdateLabel(episode).takeIf(String::isNotBlank)?.let { updateLabel ->
             AppText(
-                text = episode.pubIndex,
+                text = updateLabel,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -1058,7 +1059,6 @@ private fun FollowInfoCard(
             if (!selectionMode) {
                 AppIconButton(
                     onClick = onMore,
-                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) { AppIcon(rememberAppMoreIcon(), contentDescription = "更多") }
             }
         }
@@ -1082,7 +1082,7 @@ private fun SectionHeader(
             subtitle?.let { AppText(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
         }
         onRefresh?.let {
-            AppIconButton(onClick = it, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) {
+            AppIconButton(onClick = it) {
                 AppIcon(rememberAppRefreshIcon(), contentDescription = "刷新")
             }
         }

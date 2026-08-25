@@ -30,7 +30,7 @@ class CommentSortFilterBarPolicyTest {
 
         assertEquals(66, spec.itemWidthDp)
         assertEquals(40, spec.heightDp)
-        assertEquals(35, spec.indicatorHeightDp)
+        assertEquals(30, spec.indicatorHeightDp)
         assertTrue(
             hasCommentSortIndicatorScaleClearance(
                 containerHeightDp = spec.heightDp,

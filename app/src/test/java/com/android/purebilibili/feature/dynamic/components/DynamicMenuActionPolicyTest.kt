@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.data.model.response.DynamicBasic
+import com.android.purebilibili.data.model.response.DynamicAuthorModule
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.DynamicMoreModule
@@ -9,6 +10,8 @@ import com.android.purebilibili.data.model.response.DynamicThreePointParams
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DynamicMenuActionPolicyTest {
 
@@ -95,5 +98,53 @@ class DynamicMenuActionPolicyTest {
     @Test
     fun dynTypeDefaultsToZeroWhenUnavailable() {
         assertEquals(0, resolveDynamicDynType(DynamicItem()))
+    }
+
+    @Test
+    fun menuCapabilitiesHideAuthorActionsForOtherUsers() {
+        val item = DynamicItem(
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 22L),
+                module_more = DynamicMoreModule(
+                    three_point_items = listOf(
+                        DynamicThreePointItem(type = "THREE_POINT_REPORT"),
+                    ),
+                ),
+            ),
+        )
+
+        val capabilities = resolveDynamicMenuCapabilities(item, currentUserMid = 11L)
+
+        assertFalse(capabilities.isOwnDynamic)
+        assertFalse(capabilities.canEdit)
+        assertFalse(capabilities.canManageComments)
+        assertTrue(capabilities.canReport)
+        assertTrue(capabilities.canBlockAuthor)
+    }
+
+    @Test
+    fun menuCapabilitiesReadPrivateStatusFromAuthorMenu() {
+        val item = DynamicItem(
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 11L),
+                module_more = DynamicMoreModule(
+                    three_point_items = listOf(
+                        DynamicThreePointItem(type = "THREE_POINT_EDIT"),
+                        DynamicThreePointItem(
+                            type = "THREE_POINT_PRIVATE",
+                            params = DynamicThreePointParams(status = 1),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val capabilities = resolveDynamicMenuCapabilities(item, currentUserMid = 11L)
+
+        assertTrue(capabilities.isOwnDynamic)
+        assertTrue(capabilities.canEdit)
+        assertTrue(capabilities.canSetVisibility)
+        assertTrue(capabilities.isPrivate)
+        assertFalse(capabilities.canReport)
     }
 }

@@ -65,6 +65,8 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
@@ -1157,8 +1159,8 @@ fun ReleaseChannelPinnedCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = AppShapes.container(ContainerLevel.Dialog),
-        colors = CardDefaults.cardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Dialog),
+        colors = AppCardDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
         )
     ) {
@@ -2305,8 +2307,8 @@ private fun AboutProjectOverviewCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = AppShapes.container(ContainerLevel.Dialog),
-        colors = CardDefaults.cardColors(
+        shape = AppCardShape.Semantic(ContainerLevel.Dialog),
+        colors = AppCardDefaults.colors(
             containerColor = AppSurfaceTokens.cardContainer()
         )
     ) {

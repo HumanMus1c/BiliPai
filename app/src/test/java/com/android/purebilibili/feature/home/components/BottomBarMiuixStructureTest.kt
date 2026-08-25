@@ -23,6 +23,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(renderer.contains("FloatingBottomBarMode.LiquidGlass"))
         assertTrue(renderer.contains("FloatingBottomBarMode.Blur"))
         assertTrue(renderer.contains("FloatingBottomBarMode.None"))
+        assertTrue(renderer.contains("containerColor = floatingContainerColor"))
         assertTrue(
             renderer.contains("effectiveGlassEnabled && miuixBackdrop != null -> FloatingBottomBarMode.LiquidGlass")
         )
@@ -43,7 +44,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(renderer.contains("FloatingBottomBarTabVisual("))
         assertTrue(renderer.contains("FloatingBottomBarColors("))
         assertTrue(renderer.contains("shellHeight = dockHeight"))
-        assertTrue(renderer.contains("indicatorHeight = BOTTOM_BAR_INDICATOR_DOCK_BAND_HEIGHT_DP.dp"))
+        assertTrue(renderer.contains("indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight)"))
         assertTrue(renderer.contains("BiliPaiBottomBarSearchSlot("))
         assertTrue(renderer.contains("BottomBarSkinDecorativeTrim("))
         assertTrue(renderer.contains("uiSkinDecoration: BottomBarUiSkinDecoration? = null"))
@@ -53,7 +54,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(source.contains("resolveBiliPaiBottomBarSearchLayout("))
         assertTrue(source.contains("val shellHeight = if (dockHeight > searchHeight) dockHeight else searchHeight"))
         assertTrue(source.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET =") ||
-            floatingSource.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
+            floatingSource.contains("BottomBarReferencePressedScale"))
 
         // Old multi-layer path removed (no dual render).
         assertFalse(source.contains("private fun BiliPaiBottomBarShell("))
@@ -227,6 +228,20 @@ class BottomBarMiuixStructureTest {
     }
 
     @Test
+    fun `fold posture keeps large screen bottom dock geometry`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val bottomBarSource = source.substringAfter("fun FrostedBottomBar(")
+
+        assertTrue(
+            bottomBarSource.contains(
+                "val isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet"
+            )
+        )
+        assertFalse(bottomBarSource.contains("isTablet &&\n        !forceBottomNavigation"))
+        assertTrue(bottomBarSource.contains("onToggleSidebar.takeUnless { forceBottomNavigation }"))
+    }
+
+    @Test
     fun `bottom bar search click keeps capsule scale stable`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         val refractionProfileSource = source
@@ -390,10 +405,14 @@ class BottomBarMiuixStructureTest {
         assertTrue(materialRendererSource.contains("val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item)"))
         assertTrue(materialRendererSource.contains("if (skinIconPath != null)"))
         assertTrue(materialRendererSource.contains("BottomBarSkinIcon("))
+        assertTrue(materialRendererSource.contains("MaterialBottomBarAnimatedIcon("))
+        assertTrue(materialRendererSource.contains("indicatorColor = dockedIndicatorColor"))
+        assertTrue(materialRendererSource.contains("rememberNavigationSelectionTransform("))
         assertTrue(miuixRendererSource.contains("DockedBottomBarSkinContainer("))
         assertTrue(miuixRendererSource.contains("decoration = uiSkinDecoration"))
         assertTrue(miuixRendererSource.indexOf("DockedBottomBarSkinContainer(") < miuixRendererSource.indexOf("AppPlatformNavigationBar("))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBadge {"))
+        assertTrue(miuixRendererSource.contains("indicatorColor = dockedIndicatorColor"))
         assertTrue(miuixRendererSource.contains("modifier.height(resolveBottomBarSkinDockHeight())"))
         assertTrue(miuixDockedItemSource.contains("height(resolveMiuixDockedBottomBarItemHeight(skinIconPath != null))"))
         assertFalse(miuixDockedItemSource.contains("height(64.dp)"))

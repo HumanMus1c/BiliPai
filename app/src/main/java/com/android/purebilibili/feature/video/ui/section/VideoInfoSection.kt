@@ -920,15 +920,6 @@ fun UpInfoSection(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
-                        if (!isFollowing) {
-                            AppIcon(
-                                Icons.Outlined.Add,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(Modifier.width(2.dp))
-                        }
                         AppText(
                             text = if (isFollowing) "\u5df2\u5173\u6ce8" else "\u5173\u6ce8",
                             fontSize = 13.sp,

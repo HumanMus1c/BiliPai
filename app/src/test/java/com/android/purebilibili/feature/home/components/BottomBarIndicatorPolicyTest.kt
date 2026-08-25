@@ -573,7 +573,7 @@ class BottomBarIndicatorPolicyTest {
             )
         )
         assertTrue(floating.contains("isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass"))
-        assertTrue(floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
+        assertTrue(floating.contains("BottomBarReferencePressedScale"))
     }
 
     @Test
@@ -626,8 +626,8 @@ class BottomBarIndicatorPolicyTest {
             motionSpec = resolveBottomBarMotionSpec(BottomBarMotionProfile.ANDROID_NATIVE_FLOATING)
         )
 
-        assertEquals(78f / 56f, transform.scaleX, 0.001f)
-        assertEquals(78f / 56f, transform.scaleY, 0.001f)
+        assertEquals(78f / 48f, transform.scaleX, 0.001f)
+        assertEquals(78f / 48f, transform.scaleY, 0.001f)
     }
 
     @Test
@@ -684,8 +684,8 @@ class BottomBarIndicatorPolicyTest {
 
         assertEquals(full.scaleX, partial.scaleX, 0.001f)
         assertEquals(full.scaleY, partial.scaleY, 0.001f)
-        assertEquals(78f / 56f, partial.scaleX, 0.001f)
-        assertEquals(78f / 56f, partial.scaleY, 0.001f)
+        assertEquals(78f / 48f, partial.scaleX, 0.001f)
+        assertEquals(78f / 48f, partial.scaleY, 0.001f)
         assertTrue(deformed.scaleX > partial.scaleX)
         assertTrue(deformed.scaleY < partial.scaleY)
     }
@@ -736,7 +736,7 @@ class BottomBarIndicatorPolicyTest {
 
     @Test
     fun `indicator velocity deformation follows BiliPai constants without changing drag scale target`() {
-        val baseScale = 78f / 56f
+        val baseScale = 78f / 48f
         val transform = resolveBottomBarIndicatorLayerTransform(
             motionProgress = 1f,
             velocityItemsPerSecond = 2f,
@@ -757,7 +757,7 @@ class BottomBarIndicatorPolicyTest {
             java.io.File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
         ).first { it.exists() }.readText()
 
-        assertTrue(source.contains("private const val BILIPAI_PRESSED_SCALE = 78f / 56f"))
+        assertTrue(source.contains("BottomBarReferencePressedScale"))
         assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)"))
         assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))

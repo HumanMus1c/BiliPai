@@ -14,6 +14,7 @@ import com.android.purebilibili.data.model.response.DynamicCreatePic
 import com.android.purebilibili.data.model.response.DynamicCreateVoteInfo
 import com.android.purebilibili.data.model.response.DynamicCreateVoteOption
 import com.android.purebilibili.data.model.response.DynamicCreateVoteRequest
+import com.android.purebilibili.data.model.response.DynamicCreateTopic
 import com.android.purebilibili.data.model.response.DynamicCreatedReserve
 import com.android.purebilibili.data.model.response.DynamicCreatedVote
 import com.android.purebilibili.data.model.response.DynamicPublishDraft
@@ -39,7 +40,9 @@ object DynamicCreateRepository {
             val contents = buildDynamicCreateContents(
                 text = draft.text,
                 voteId = draft.voteId,
-                voteTitle = draft.voteTitle
+                voteTitle = draft.voteTitle,
+                mentions = draft.mentions,
+                emotes = draft.emotes,
             )
             if (contents.isEmpty() && pics.isEmpty()) {
                 error("内容不能为空")
@@ -56,6 +59,9 @@ object DynamicCreateRepository {
                     pics = pics.takeIf { it.isNotEmpty() },
                     attach_card = resolveReserveAttachCard(draft.reserveId),
                     option = if (draft.private) DynamicCreateOption(private_pub = 1) else null,
+                    topic = draft.topic?.takeIf { it.id > 0L }?.let {
+                        DynamicCreateTopic(id = it.id, name = it.name)
+                    },
                     upload_id = "${mid}_${System.currentTimeMillis() / 1000}_${Random.nextInt(1000, 10000)}"
                 )
             )
@@ -102,6 +108,19 @@ object DynamicCreateRepository {
             DynamicCreatedVote(voteId = voteId, title = title.trim())
         }
     }
+
+    suspend fun searchPublishTopics(keyword: String): Result<List<com.android.purebilibili.data.model.response.DynamicTopicSearchItem>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val response = NetworkModule.api.searchDynamicPublishTopics(
+                    keywords = keyword.trim().takeIf(String::isNotBlank),
+                )
+                if (response.code != 0) error(response.message.ifBlank { "搜索话题失败" })
+                response.data?.topic_items.orEmpty()
+                    .filter { it.id > 0L && it.name.isNotBlank() }
+                    .distinctBy { it.id }
+            }
+        }
 
     suspend fun createReserve(
         title: String,

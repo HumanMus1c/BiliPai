@@ -47,6 +47,8 @@ import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCardDefaults
+import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
@@ -402,6 +404,8 @@ fun MiniPlayerOverlay(
             )
         } else {
             // 正常播放器视图
+            val miniPlayerCornerRadius = shellVisual.cardCornerRadiusDp.dp
+            val miniPlayerShape = RoundedCornerShape(miniPlayerCornerRadius)
             AppCard(
                 modifier = Modifier
                     .offset { IntOffset(animatedOffsetX.roundToInt(), animatedOffsetY.roundToInt()) }
@@ -409,11 +413,18 @@ fun MiniPlayerOverlay(
                     .height(miniPlayerHeight)
                     .shadow(
                         shellVisual.cardShadowDp.dp,
-                        RoundedCornerShape(shellVisual.cardCornerRadiusDp.dp)
+                        miniPlayerShape,
+                    )
+                    .then(
+                        if (shellVisual.cardElevationDp > 0) {
+                            // MD3 keeps its existing card elevation; the MIUIX policy resolves to 0.
+                            Modifier.shadow(shellVisual.cardElevationDp.dp, miniPlayerShape)
+                        } else {
+                            Modifier
+                        },
                     ),
-                shape = RoundedCornerShape(shellVisual.cardCornerRadiusDp.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black),
-                elevation = CardDefaults.cardElevation(defaultElevation = shellVisual.cardElevationDp.dp)
+                shape = AppCardShape.Uniform(miniPlayerCornerRadius),
+                colors = AppCardDefaults.colors(containerColor = Color.Black),
             ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // 视频画面

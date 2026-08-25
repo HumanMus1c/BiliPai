@@ -352,11 +352,20 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
-    fun `clicking the selected user again should return to all followed dynamics`() {
-        assertNull(
+    fun `clicking the selected user again should keep the scoped feed selected`() {
+        assertEquals(
+            10001L,
             resolveDynamicSelectedUserIdAfterClick(
                 selectedUserId = 10001L,
                 clickedUserId = 10001L
+            )
+        )
+        assertEquals(
+            4,
+            resolveDynamicTabAfterUserSelection(
+                selectedUserId = 10001L,
+                clickedUserId = 10001L,
+                currentTab = 4,
             )
         )
     }
@@ -422,7 +431,7 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
-    fun `clicking user avatar switches to up tab and clearing returns to all`() {
+    fun `clicking user avatar always keeps or switches to the up tab`() {
         assertEquals(
             4,
             resolveDynamicTabAfterUserSelection(
@@ -432,7 +441,7 @@ class DynamicScreenStatePolicyTest {
             )
         )
         assertEquals(
-            0,
+            4,
             resolveDynamicTabAfterUserSelection(
                 selectedUserId = 10001L,
                 clickedUserId = 10001L,
@@ -440,7 +449,7 @@ class DynamicScreenStatePolicyTest {
             )
         )
         assertEquals(
-            2,
+            4,
             resolveDynamicTabAfterUserSelection(
                 selectedUserId = 10001L,
                 clickedUserId = 10001L,

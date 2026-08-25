@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: perfguard-${{ github.ref }}
@@ -31,10 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -46,6 +47,10 @@ jobs:
       # 逐条列出当前可通过的测试类；shape/motion/surface 三条历史债继续由 allowlist
       # 棘轮限制不能增长。颜色、间距、字号和已迁移模块检查在 PR 阶段直接执行。
       - name: 帧预算与稳定性棘轮
+        env:
+          # GitHub Packages 的 Maven 仓库即使公开也要求认证。GITHUB_TOKEN 不会自动
+          # 暴露给 Gradle，必须显式传入，settings.gradle.kts 才能读取它。
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           ./gradlew :app:testDebugUnitTest \
             --tests 'com.android.purebilibili.core.ui.perf.FrameBudgetLintTest' \
@@ -62,7 +67,7 @@ jobs:
 
       - name: 上传测试报告
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: perfguard-test-report
           path: app/build/reports/tests/testDebugUnitTest

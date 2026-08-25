@@ -8,8 +8,8 @@
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 当前构建 | `0.2.3-beta.11` / `versionCode 301` |
-| 最近完整发布记录 | `v0.2.3-beta.11`（2026-08-23） |
+| 当前构建 | `0.2.3-beta.12` / `versionCode 304` |
+| 最近完整发布记录 | `v0.2.3-beta.12`（2026-08-25） |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 构建工具 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | UI 与导航 | Compose BOM 2026.06.00、Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |

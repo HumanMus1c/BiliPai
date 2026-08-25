@@ -129,9 +129,13 @@ class HomeHeroCarouselPolicyTest {
     }
 
     @Test
-    fun `carousel fills its adaptive content width`() {
+    fun `carousel caps its adaptive content width on large screens`() {
         assertEquals(393f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 393f), 0.001f)
-        assertEquals(1200f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 1200f), 0.001f)
+        assertEquals(700f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 700f), 0.001f)
+        assertEquals(760f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 820f), 0.001f)
+        assertEquals(900f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 900f), 0.001f)
+        assertEquals(980f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 1200f), 0.001f)
+        assertEquals(980f, resolveHomeHeroCarouselWidthDp(containerWidthDp = 1600f), 0.001f)
     }
 
     @Test

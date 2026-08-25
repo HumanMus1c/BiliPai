@@ -293,6 +293,7 @@ fun CategoryScreen(
                                         coverAspectRatio = cardLayout.coverAspectRatio,
                                         cardHorizontalPadding = cardLayout.storyCardHorizontalPaddingDp.dp,
                                         compactMetadata = cardLayout.compactMetadata,
+                                        homeDurationStyle = homeSettings.homeDurationStyle,
                                         showOnlineCount = showOnlineCount,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
@@ -311,6 +312,9 @@ fun CategoryScreen(
                                         transitionEnabled = homeSettings.cardTransitionEnabled,
                                         coverAspectRatio = cardLayout.coverAspectRatio,
                                         compactMetadata = cardLayout.compactMetadata,
+                                        compactStatsOnCover = homeSettings.compactVideoStatsOnCover ||
+                                            cardLayout.compactStatsOnCover,
+                                        homeDurationStyle = homeSettings.homeDurationStyle,
                                         showOnlineCount = showOnlineCount,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,

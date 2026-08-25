@@ -17,7 +17,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -174,11 +173,6 @@ fun <T> AppSingleChoiceDialog(
     val dialogContainerColor = AppSurfaceTokens.cardContainer()
     val dialogContentColor = MaterialTheme.colorScheme.onSurface
     val dialogSecondaryContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val dialogRadioButtonColors = RadioButtonDefaults.colors(
-        selectedColor = MaterialTheme.colorScheme.primary,
-        unselectedColor = dialogSecondaryContentColor,
-    )
-
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = resolveAppContentDialogProperties(
@@ -225,8 +219,6 @@ fun <T> AppSingleChoiceDialog(
                             AppRadioButton(
                                 selected = selected,
                                 onClick = null,
-                                modifier = Modifier.size(48.dp),
-                                colors = dialogRadioButtonColors,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {

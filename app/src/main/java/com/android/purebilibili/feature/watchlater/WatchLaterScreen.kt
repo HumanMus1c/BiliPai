@@ -1,6 +1,7 @@
 // 文件路径: feature/watchlater/WatchLaterScreen.kt
 package com.android.purebilibili.feature.watchlater
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
 import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
@@ -54,13 +55,13 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
-import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppSearchField
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
@@ -682,7 +683,10 @@ fun WatchLaterScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .unifiedBlur(hazeState)
+                    .unifiedBlur(
+                        hazeState = hazeState,
+                        surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
+                    )
             ) {
                 Column {
                 AppTopBar(
@@ -904,27 +908,27 @@ fun WatchLaterScreen(
                         .fillMaxWidth()
                         .padding(horizontal = AppSpacingTokens.Medium),
                 )
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppSpacingTokens.Medium),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-                ) {
-                    WatchLaterFilter.entries.forEach { filter ->
-                        AppFilterChip(
-                            selected = state.filter == filter,
-                            enabled = !isBatchMode,
-                            onClick = { viewModel.selectFilter(filter) },
-                            label = {
-                                AppText(
-                                    if (filter == state.filter) "${filter.label}(${state.totalCount})"
-                                    else filter.label
-                                )
+                val watchLaterFilterOptions = remember(state.filter, state.totalCount) {
+                    WatchLaterFilter.entries.map { filter ->
+                        AppSegmentOption(
+                            value = filter,
+                            label = if (filter == state.filter) {
+                                "${filter.label}(${state.totalCount})"
+                            } else {
+                                filter.label
                             },
                         )
                     }
                 }
+                AppThemeAdaptiveTabRow(
+                    options = watchLaterFilterOptions,
+                    selectedValue = state.filter,
+                    onSelectionChange = viewModel::selectFilter,
+                    enabled = !isBatchMode,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppSpacingTokens.Medium),
+                )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 }
                 
@@ -1221,11 +1225,19 @@ private fun WatchLaterVideoCard(
         sourceRoute != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
-    val sharedTransitionMotionSpec = remember(sourceRoute, transitionEnabled, sharedTransitionSpeedSettings) {
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
+    val sharedTransitionMotionSpec = remember(
+        sourceRoute,
+        transitionEnabled,
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
+    ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRoute,
             transitionEnabled = transitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     val stationaryCoverUrl = remember(item.pic) { fixCoverUrl(item.pic) }
@@ -1301,8 +1313,7 @@ private fun WatchLaterVideoCard(
                 text = item.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         },
@@ -1312,8 +1323,7 @@ private fun WatchLaterVideoCard(
                     badges,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
             }
         },
@@ -1330,8 +1340,7 @@ private fun WatchLaterVideoCard(
                     text = item.owner.name,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                 )
                 AppText(
                     text = "${formatNumber(item.stat.view)}播放 · ${formatNumber(item.stat.danmaku)}弹幕",
@@ -1365,7 +1374,7 @@ private fun WatchLaterVideoCard(
                 )
             }
             if (item.duration > 0 && item.progress > 0) {
-                LinearProgressIndicator(
+                AppLinearProgressIndicator(
                     progress = { (item.progress.toFloat() / item.duration).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
                     color = MaterialTheme.colorScheme.primary,
@@ -1385,7 +1394,6 @@ private fun WatchLaterVideoCard(
             } else {
                 AppIconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
                 ) {
                     AppIcon(Icons.Rounded.Close, contentDescription = "删除")
                 }

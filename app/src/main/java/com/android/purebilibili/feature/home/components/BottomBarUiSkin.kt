@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
@@ -454,6 +453,9 @@ internal fun BottomBarSkinDecorativeTrim(
             .then(clipShape?.let { Modifier.clip(it) } ?: Modifier)
             .clearAndSetSemantics {}
             .drawBehind {
+                // Imported trims commonly keep transparent padding around the artwork.
+                // Paint the complete dock first so those pixels never expose the host surface.
+                drawRect(decoration.bottomTrimTint)
                 val trimHeight = size.height * 0.36f
                 val top = size.height - trimHeight
                 drawRoundRect(
@@ -487,13 +489,12 @@ internal fun BottomBarSkinDecorativeTrim(
             AsyncImage(
                 model = File(imagePath),
                 contentDescription = null,
-                // FillWidth + 底部对齐：trim 通常宽度铺满、高度自适应，
-                // 避免 FillBounds 拉伸变形与液态玻璃折射层叠加时产生视觉冲突。
-                contentScale = ContentScale.FillWidth,
+                // Cover the complete bar (including the gesture-navigation inset) while
+                // keeping the package artwork visually grounded like the reference skin.
+                contentScale = ContentScale.Crop,
                 alignment = Alignment.BottomCenter,
                 modifier = Modifier
                     .matchParentSize()
-                    .alpha(0.82f)
                     .clearAndSetSemantics {}
             )
         }
@@ -517,8 +518,8 @@ private fun resolveBottomBarSkinIconPaths(
     activeSkin: com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage
 ): Map<BottomNavItem, BottomBarSkinIconPaths> {
     val manifestIcons = activeSkin.manifest.assets.bottomBarIcons
-    return buildMap {
-        mapOf(
+    val roleIcons = buildMap {
+        linkedMapOf(
             "home" to ("home_selected" to BottomNavItem.HOME),
             "following" to ("following_selected" to BottomNavItem.DYNAMIC),
             "member" to ("member_selected" to BottomNavItem.HISTORY),
@@ -549,5 +550,27 @@ private fun resolveBottomBarSkinIconPaths(
                 )
             }
         }
+    }
+    if (roleIcons.isEmpty()) return emptyMap()
+
+    // Imported Bilibili skins expose five artwork roles while BiliPai lets users choose
+    // other destinations. Keep every visible slot themed by mapping those destinations
+    // to the closest artwork role and falling back to an available skin icon.
+    val preferredRole = mapOf(
+        BottomNavItem.HOME to BottomNavItem.HOME,
+        BottomNavItem.DYNAMIC to BottomNavItem.DYNAMIC,
+        BottomNavItem.STORY to BottomNavItem.HISTORY,
+        BottomNavItem.HISTORY to BottomNavItem.HISTORY,
+        BottomNavItem.LISTEN_VIDEO to BottomNavItem.LISTEN_VIDEO,
+        BottomNavItem.PROFILE to BottomNavItem.PROFILE,
+        BottomNavItem.FAVORITE to BottomNavItem.HISTORY,
+        BottomNavItem.LIVE to BottomNavItem.LISTEN_VIDEO,
+        BottomNavItem.WATCHLATER to BottomNavItem.HISTORY,
+        BottomNavItem.SETTINGS to BottomNavItem.PROFILE,
+        BottomNavItem.PLUGINS to BottomNavItem.PROFILE,
+    )
+    val fallback = roleIcons[BottomNavItem.HOME] ?: roleIcons.values.first()
+    return BottomNavItem.entries.associateWith { item ->
+        roleIcons[preferredRole.getValue(item)] ?: fallback
     }
 }

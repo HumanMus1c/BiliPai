@@ -359,7 +359,15 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     introListState.isScrollInProgress ||
                                         commentListState.isScrollInProgress ||
                                         videoContentPagerState.isScrollInProgress
-                                }
+                                },
+                                scrollPositionProvider = {
+                                    val state = if (videoContentPagerState.currentPage == 0) {
+                                        introListState
+                                    } else {
+                                        commentListState
+                                    }
+                                    state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+                                },
                             )
                         }
 

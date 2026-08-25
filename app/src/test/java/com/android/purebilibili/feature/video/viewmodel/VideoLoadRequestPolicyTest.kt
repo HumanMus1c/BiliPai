@@ -547,6 +547,22 @@ class VideoLoadRequestPolicyTest {
     }
 
     @Test
+    fun `initial premium downgrade dialog waits for scheduled exact track upgrade`() {
+        assertFalse(
+            shouldShowInitialQualityUnavailableDialog(
+                unavailableReason = InitialQualityUnavailableReason.SERVER_DOWNGRADED,
+                premiumAutoUpgradeScheduled = true
+            )
+        )
+        assertTrue(
+            shouldShowInitialQualityUnavailableDialog(
+                unavailableReason = InitialQualityUnavailableReason.SERVER_DOWNGRADED,
+                premiumAutoUpgradeScheduled = false
+            )
+        )
+    }
+
+    @Test
     fun `initial quality warning target normalizes auto highest by entitlement`() {
         assertEquals(
             80,

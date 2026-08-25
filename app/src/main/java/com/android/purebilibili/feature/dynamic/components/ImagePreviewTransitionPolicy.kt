@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private const val LAYOUT_PROGRESS_MIN = 0f
 private const val LAYOUT_PROGRESS_MAX = 1f
@@ -12,6 +13,7 @@ private const val FALLBACK_START_SCALE = 0.96f
 private const val IMAGE_PREVIEW_OPEN_DURATION_MS = 320
 private const val IMAGE_PREVIEW_DISMISS_DURATION_MS = 300
 private const val IMAGE_PREVIEW_CANCEL_RECOVER_DURATION_MS = 180
+private const val IMAGE_PREVIEW_BLUR_QUANTUM_PX = 2f
 
 internal data class ImagePreviewTransitionFrame(
     val layoutProgress: Float,
@@ -178,8 +180,22 @@ internal fun resolveImagePreviewVisualFrame(
     return ImagePreviewVisualFrame(
         contentAlpha = lerpFloat(0.9f, 1f, progress),
         backdropAlpha = progress,
-        blurRadiusPx = maxBlurRadiusPx.coerceAtLeast(0f) * (1f - progress)
+        blurRadiusPx = resolveImagePreviewBlurRadiusPx(
+            visualProgress = progress,
+            maxBlurRadiusPx = maxBlurRadiusPx,
+        )
     )
+}
+
+internal fun resolveImagePreviewBlurRadiusPx(
+    visualProgress: Float,
+    maxBlurRadiusPx: Float,
+): Float {
+    val returnProgress = 1f - visualProgress.coerceIn(0f, 1f)
+    val maxRadius = maxBlurRadiusPx.coerceAtLeast(0f)
+    val easedRadius = maxRadius * returnProgress * returnProgress
+    return ((easedRadius / IMAGE_PREVIEW_BLUR_QUANTUM_PX).roundToInt() *
+        IMAGE_PREVIEW_BLUR_QUANTUM_PX).coerceIn(0f, maxRadius)
 }
 
 internal fun imagePreviewDismissMotion(): ImagePreviewDismissMotion {

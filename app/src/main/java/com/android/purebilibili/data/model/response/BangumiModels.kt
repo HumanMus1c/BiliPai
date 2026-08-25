@@ -45,8 +45,17 @@ data class TimelineEpisode(
     @SerialName("pub_ts")
     val pubTs: Long = 0,              // 发布时间戳
     val delay: Int = 0,               // 是否延迟
+    @SerialName("delay_id")
+    val delayId: Long = 0,
+    @SerialName("delay_index")
+    val delayIndex: String = "",
     @SerialName("delay_reason")
     val delayReason: String = "",     // 延迟原因
+    @SerialName("ep_cover")
+    val episodeCover: String = "",
+    val published: Int? = null,
+    val follows: String = "",
+    val plays: String = "",
     val follow: Int = 0               // 是否追番
 )
 
@@ -160,6 +169,75 @@ data class BangumiDetailResponse(
     val code: Int = 0,
     val message: String = "",
     val result: BangumiDetail? = null
+)
+
+/**
+ * 通过 media_id 查询剧集基础信息。
+ * 对应 /pgc/review/user，主要用于 md 链接解析和仅持有 media_id 的入口。
+ */
+@Serializable
+data class BangumiMediaInfoResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val result: BangumiMediaInfoResult? = null
+)
+
+@Serializable
+data class BangumiMediaInfoResult(
+    val media: BangumiMediaInfo? = null,
+    val review: BangumiMediaReviewStatus? = null
+)
+
+@Serializable
+data class BangumiMediaInfo(
+    val areas: List<AreaInfo>? = null,
+    val cover: String = "",
+    @SerialName("horizontal_picture")
+    val horizontalPicture: String = "",
+    @SerialName("media_id")
+    val mediaId: Long = 0,
+    @SerialName("new_ep")
+    val newEpisode: BangumiMediaNewEpisode? = null,
+    val rating: BangumiRating? = null,
+    @SerialName("season_id")
+    val seasonId: Long = 0,
+    @SerialName("share_url")
+    val shareUrl: String = "",
+    val title: String = "",
+    val type: Int = 0,
+    @SerialName("type_name")
+    val typeName: String = ""
+)
+
+@Serializable
+data class BangumiMediaNewEpisode(
+    val id: Long = 0,
+    val index: String = "",
+    @SerialName("index_show")
+    val indexShow: String = ""
+)
+
+@Serializable
+data class BangumiMediaReviewStatus(
+    @SerialName("is_coin")
+    val isCoin: Int = 0,
+    @SerialName("is_open")
+    val isOpen: Int = 0
+)
+
+/** 独立分集接口响应，用于详情响应未携带完整分区时补全。 */
+@Serializable
+data class BangumiSectionResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val result: BangumiSectionResult? = null
+)
+
+@Serializable
+data class BangumiSectionResult(
+    @SerialName("main_section")
+    val mainSection: BangumiSection? = null,
+    val section: List<BangumiSection>? = null
 )
 
 @Serializable
@@ -287,9 +365,9 @@ data class StyleInfo(
 @Serializable
 data class BangumiRights(
     @SerialName("allow_download")
-    val allowDownload: Int = 0,
+    val allowDownload: Int? = null,
     @SerialName("allow_review")
-    val allowReview: Int = 0,
+    val allowReview: Int? = null,
     @SerialName("is_preview")
     val isPreview: Int = 0,           // 是否预告/预览
     @SerialName("watch_platform")
@@ -299,7 +377,7 @@ data class BangumiRights(
     @SerialName("area_limit")
     val areaLimit: Int = 0,
     @SerialName("allow_dm")
-    val allowDanmaku: Int = 1
+    val allowDanmaku: Int? = null
 )
 
 @Serializable
@@ -380,6 +458,18 @@ data class BangumiPlayUrlResponse(
  */
 @Serializable
 data class BangumiVideoInfo(
+    val fnver: Int = 0,
+    val fnval: Int = 0,
+    val type: String = "",
+    val bp: Int = 0,
+    @SerialName("vip_type")
+    val vipType: Int = 0,
+    @SerialName("vip_status")
+    val vipStatus: Int = 0,
+    @SerialName("is_drm")
+    val isDrm: Boolean = false,
+    @SerialName("no_rexcode")
+    val noRexcode: Int = 0,
     val quality: Int = 0,
     val format: String = "",
     val timelength: Long = 0,
@@ -391,14 +481,27 @@ data class BangumiVideoInfo(
     val acceptDescription: List<String>? = null,
     @SerialName("video_codecid")
     val videoCodecid: Int = 0,
+    @SerialName("seek_param")
+    val seekParam: String = "",
+    @SerialName("seek_type")
+    val seekType: String = "",
     //  关键：durl 和 dash 字段
     val durl: List<Durl>? = null,
     val durls: List<Durl>? = null,  // 某些情况下叫 durls
     val dash: Dash? = null,
     @SerialName("support_formats")
-    val supportFormats: List<FormatItem>? = null
+    val supportFormats: List<FormatItem>? = null,
+    @SerialName("record_info")
+    val recordInfo: BangumiRecordInfo? = null
     //  [修复] 移除类型不稳定的字段：has_paid, is_preview, status 等
     // 这些字段有时返回 Int (0/1)，有时返回 Boolean (true/false)，导致解析失败
+)
+
+@Serializable
+data class BangumiRecordInfo(
+    @SerialName("record_icon")
+    val recordIcon: String = "",
+    val record: String = ""
 )
 
 /**

@@ -455,7 +455,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun relatedAndPartitionSourcesUseTheirOwnDepthScaleBudget() {
+    fun relatedUsesHomeDepthWhilePartitionKeepsItsOwnScaleBudget() {
         val relatedReduction = resolveVideoCardTransitionBackgroundScaleReduction(
             resolveVideoCardTransitionBackgroundSource("video/BV_related"),
         )
@@ -463,7 +463,7 @@ class VideoCardTransitionBackgroundPolicyTest {
             resolveVideoCardTransitionBackgroundSource("partition"),
         )
 
-        assertEquals(0.009f, relatedReduction, 0.0001f)
+        assertEquals(0.015f, relatedReduction, 0.0001f)
         assertEquals(0.012f, partitionReduction, 0.0001f)
         assertTrue(
             shouldUseRealtimeVideoCardTransitionBackgroundBlur(
@@ -484,7 +484,7 @@ class VideoCardTransitionBackgroundPolicyTest {
             )
         )
         assertEquals(
-            0.991f,
+            0.985f,
             resolveVideoCardTransitionContentScale(
                 progress = 1f,
                 phase = VideoCardTransitionBackgroundPhase.OPENING,

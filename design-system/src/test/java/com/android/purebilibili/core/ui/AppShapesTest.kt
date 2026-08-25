@@ -43,6 +43,21 @@ class AppShapesTest {
     }
 
     @Test
+    fun prominentCard_isFullyRoundedWhileSheetIsTopRounded() {
+        val prominentCard = AppShapes.resolveContainerShape(
+            level = ContainerLevel.ProminentCard,
+            uiStyle = AppUiStyle.MATERIAL3
+        )
+        val sheet = AppShapes.resolveContainerShape(
+            level = ContainerLevel.Sheet,
+            uiStyle = AppUiStyle.MATERIAL3
+        )
+
+        assertEquals(RoundedCornerShape(18.dp), prominentCard)
+        assertEquals(RoundedCornerShape(18.dp, 18.dp, 0.dp, 0.dp), sheet)
+    }
+
+    @Test
     fun dialogRadius_scalesByStyle() {
         val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Dialog,

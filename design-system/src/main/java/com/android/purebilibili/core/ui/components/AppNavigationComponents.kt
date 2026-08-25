@@ -12,7 +12,10 @@ import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,6 +35,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.NavigationRailValue as MiuixNavigationRailValue
 import top.yukonga.miuix.kmp.basic.rememberNavigationRailState as rememberMiuixNavigationRailState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlinx.coroutines.flow.drop
 
 @Composable
 fun AppNavigationBar(
@@ -147,6 +151,8 @@ fun AppPlatformNavigationBadge(
 @Composable
 fun AppPlatformNavigationRail(
     expanded: Boolean,
+    initiallyExpanded: Boolean = expanded,
+    onExpandedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     color: Color = MiuixTheme.colorScheme.surface,
     showDivider: Boolean = true,
@@ -154,10 +160,26 @@ fun AppPlatformNavigationRail(
     expandedWidth: Dp = MiuixNavigationRailDefaults.ExpandedWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val latestOnExpandedChange = rememberUpdatedState(onExpandedChange)
     val state = if (expanded) {
-        rememberMiuixNavigationRailState(MiuixNavigationRailValue.Expanded)
+        rememberMiuixNavigationRailState(
+            if (initiallyExpanded) {
+                MiuixNavigationRailValue.Expanded
+            } else {
+                MiuixNavigationRailValue.Collapsed
+            }
+        )
     } else {
         null
+    }
+    LaunchedEffect(state) {
+        if (state != null) {
+            snapshotFlow { state.currentValue }
+                .drop(1)
+                .collect {
+                    latestOnExpandedChange.value(it == MiuixNavigationRailValue.Expanded)
+                }
+        }
     }
     MiuixNavigationRail(
         modifier = modifier.focusGroup(),

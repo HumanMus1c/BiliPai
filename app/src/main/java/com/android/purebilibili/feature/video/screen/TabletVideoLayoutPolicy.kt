@@ -1,19 +1,22 @@
 package com.android.purebilibili.feature.video.screen
 
 import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
+import com.android.purebilibili.core.util.AppFoldPosture
 import androidx.compose.ui.graphics.Color
 
 data class TabletVideoLayoutPolicy(
     val primaryRatio: Float,
     val playerMaxWidthDp: Int,
-    val infoMaxWidthDp: Int
+    val infoMaxWidthDp: Int,
+    val useTabletopLayout: Boolean = false
 )
 
 data class TabletCinemaLayoutPolicy(
     val curtainPeekWidthDp: Int,
     val curtainOpenWidthDp: Int,
     val horizontalPaddingDp: Int,
-    val playerMaxWidthDp: Int
+    val playerMaxWidthDp: Int,
+    val useTabletopLayout: Boolean = false
 )
 
 internal enum class CinemaMetaPanelBlock {
@@ -71,33 +74,34 @@ internal fun resolveTabletPrimaryRatio(
 }
 
 fun resolveTabletVideoLayoutPolicy(
-    widthDp: Int
+    widthDp: Int,
+    foldPosture: AppFoldPosture = AppFoldPosture.None
 ): TabletVideoLayoutPolicy {
+    val useTabletopLayout = foldPosture == AppFoldPosture.Tabletop
     return when {
         widthDp >= 1600 -> TabletVideoLayoutPolicy(
             primaryRatio = 0.66f,
             playerMaxWidthDp = 1240,
-            infoMaxWidthDp = 1160
+            infoMaxWidthDp = 1160,
+            useTabletopLayout = useTabletopLayout
         )
         else -> TabletVideoLayoutPolicy(
-            primaryRatio = 0.72f,
+            primaryRatio = if (useTabletopLayout) 0.55f else 0.72f,
             playerMaxWidthDp = 1080,
-            infoMaxWidthDp = 1000
+            infoMaxWidthDp = 1000,
+            useTabletopLayout = useTabletopLayout
         )
     }
 }
 
-internal fun resolveTabletSecondaryDefaultTab(
-    replyCount: Int,
-    hasRelatedVideos: Boolean
-): Int {
-    return if (replyCount == 0 && hasRelatedVideos) 1 else 0
-}
+internal fun resolveTabletSecondaryDefaultTab(): Int = 0
 
 fun resolveTabletCinemaLayoutPolicy(
     widthDp: Int,
-    commentWidthPreset: TabletCommentPanelWidthPreset = TabletCommentPanelWidthPreset.STANDARD
+    commentWidthPreset: TabletCommentPanelWidthPreset = TabletCommentPanelWidthPreset.STANDARD,
+    foldPosture: AppFoldPosture = AppFoldPosture.None
 ): TabletCinemaLayoutPolicy {
+    val useTabletopLayout = foldPosture == AppFoldPosture.Tabletop
     val normalizedWidth = widthDp.coerceIn(960, 1800)
     val baseCurtainOpenWidthDp = interpolateByWidth(
         widthDp = normalizedWidth,
@@ -142,15 +146,21 @@ fun resolveTabletCinemaLayoutPolicy(
     }
     val maxCurtainWidthWithPlayerGuard =
         widthDp - horizontalPaddingDp * 2 - minimumPlayerWidthDp - 4
-    val curtainOpenWidthDp = targetCurtainOpenWidthDp
-        .coerceIn(280, 560)
-        .coerceAtMost(maxCurtainWidthWithPlayerGuard.coerceAtLeast(280))
+    val curtainOpenWidthDp = if (useTabletopLayout) {
+        // Tabletop 模式下侧栏收起，避免铰链遮挡
+        0
+    } else {
+        targetCurtainOpenWidthDp
+            .coerceIn(280, 560)
+            .coerceAtMost(maxCurtainWidthWithPlayerGuard.coerceAtLeast(280))
+    }
 
     return TabletCinemaLayoutPolicy(
-        curtainPeekWidthDp = curtainPeekWidthDp,
+        curtainPeekWidthDp = if (useTabletopLayout) 0 else curtainPeekWidthDp,
         curtainOpenWidthDp = curtainOpenWidthDp,
         horizontalPaddingDp = horizontalPaddingDp,
-        playerMaxWidthDp = playerMaxWidthDp
+        playerMaxWidthDp = playerMaxWidthDp,
+        useTabletopLayout = useTabletopLayout
     )
 }
 

@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -128,12 +127,7 @@ private fun ProfilePhoneLoadingSkeleton(blockColor: Color) {
                 modifier = Modifier
                     .offset(y = (-layoutTokens.contentSheetTopOverlapDp).dp)
                     .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = layoutTokens.contentSheetTopRadiusDp.dp,
-                            topEnd = layoutTokens.contentSheetTopRadiusDp.dp,
-                        ),
-                    )
+                    .clip(AppShapes.container(ContainerLevel.Sheet))
                     .background(AppSurfaceTokens.surface())
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),

@@ -404,4 +404,59 @@ class CdnRegionPolicyTest {
         assertEquals(42L, diagnostics.single().latencyMs)
         assertEquals("延迟较低", diagnostics.single().statusLabel)
     }
+
+    @Test
+    fun `playback cdn names match PiliPlus provider labels`() {
+        assertEquals(
+            "ali（阿里云）",
+            resolvePlaybackCdnDisplayName("upos-sz-mirrorali.bilivideo.com", index = 0)
+        )
+        assertEquals(
+            "cosb（腾讯云，VOD加速类型）",
+            resolvePlaybackCdnDisplayName("upos-sz-mirrorcosb.bilivideo.com", index = 1)
+        )
+        assertEquals(
+            "hw（华为云，融合CDN）",
+            resolvePlaybackCdnDisplayName("upos-sz-mirrorhw.bilivideo.com", index = 2)
+        )
+    }
+
+    @Test
+    fun `unknown playback cdn names fall back to base and backup labels`() {
+        assertEquals("基础URL", resolvePlaybackCdnDisplayName("unknown.example.com", index = 0))
+        assertEquals("备用URL", resolvePlaybackCdnDisplayName("unknown.example.com", index = 1))
+    }
+
+    @Test
+    fun `global playback cdn preference rewrites paired tracks and preserves fallbacks`() {
+        val original = buildPlaybackCdnCandidates(
+            videoUrls = listOf(
+                "https://upos-sz-mirrorali.bilivideo.com/video.m4s?deadline=1",
+                "https://upos-sz-mirrorcos.bilivideo.com/video.m4s?deadline=1",
+            ),
+            audioUrls = listOf(
+                "https://upos-sz-mirrorali.bilivideo.com/audio.m4s?deadline=1",
+                "https://upos-sz-mirrorcos.bilivideo.com/audio.m4s?deadline=1",
+            ),
+        )
+
+        val preferred = applyPlaybackCdnPreference(original, PlaybackCdnPreference.HW)
+
+        assertEquals("upos-sz-mirrorhw.bilivideo.com", hostFromCdnUrl(preferred.first().videoUrl))
+        assertEquals("upos-sz-mirrorhw.bilivideo.com", hostFromCdnUrl(preferred.first().audioUrl.orEmpty()))
+        assertTrue(preferred.drop(1).any { it.videoUrl == original.first().videoUrl })
+    }
+
+    @Test
+    fun `backup preference promotes returned backup without discarding base`() {
+        val original = buildPlaybackCdnCandidates(
+            videoUrls = listOf("https://base.bilivideo.com/v", "https://backup.bilivideo.com/v"),
+            audioUrls = emptyList(),
+        )
+
+        val preferred = applyPlaybackCdnPreference(original, PlaybackCdnPreference.BACKUP_URL)
+
+        assertEquals("backup.bilivideo.com", hostFromCdnUrl(preferred.first().videoUrl))
+        assertEquals("base.bilivideo.com", hostFromCdnUrl(preferred.last().videoUrl))
+    }
 }

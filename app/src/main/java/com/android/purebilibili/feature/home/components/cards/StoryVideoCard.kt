@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,6 +57,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
@@ -84,8 +84,8 @@ import kotlin.math.roundToInt
  * - 标题叠加在封面底部
  * - 沉浸电影感
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalLayoutApi::class)
 internal fun StoryVideoCard(
     video: VideoItem,
     index: Int = 0,  //  [新增] 索引用于动画延迟
@@ -107,6 +107,8 @@ internal fun StoryVideoCard(
     coverAspectRatio: Float = 4f / 3f,
     cardHorizontalPadding: Dp = AppSpacingTokens.None,
     compactMetadata: Boolean = true,
+    titleMinLines: Int = 1,
+    titleMaxLines: Int = 2,
     showOnlineCount: Boolean = false,
     showPublishTime: Boolean = false,
     upFollowerCount: Int? = null,
@@ -125,10 +127,9 @@ internal fun StoryVideoCard(
     )
     val haptic = rememberHapticFeedback()
     
-    // [新增] 获取圆角缩放比例
-    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Sheet)
-    val coverShape = RoundedCornerShape(cardCornerRadius)
-    val smallCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Field)
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.ProminentCard)
+    val cardShape = AppShapes.container(ContainerLevel.ProminentCard)
+    val coverShape = cardShape
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val showDurationOnCover = homeDurationStyle == HomeDurationStyle.OVERLAY_TEXT_ONLY
     val coverOverlayTextStyle = remember {
@@ -254,19 +255,23 @@ internal fun StoryVideoCard(
         useCoverSharedBounds = useCardShellSharedBounds,
         isSharedReturnTarget = isSharedReturnTarget,
     )
+    val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
+        .LocalVideoTransitionAdaptiveInfo.current
     val cardSharedTransitionMotionSpec = remember(
         effectiveSharedElementSourceRoute,
         effectiveTransitionEnabled,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = effectiveSharedElementSourceRoute,
             transitionEnabled = effectiveTransitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
         )
     }
     
-    val cardShellShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
+    val cardShellShape = cardShape
     val enterAnimationEnabledAtMount = remember(video.bvid) {
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
@@ -282,6 +287,7 @@ internal fun StoryVideoCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .adaptiveCardHoverEffect(shape = cardShellShape)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -421,8 +427,8 @@ internal fun StoryVideoCard(
             text = video.title,
             color = MaterialTheme.colorScheme.onSurface,
             style = contentTypography.title,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            minLines = titleMinLines,
+            overflow = TextOverflow.Visible,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -432,9 +438,10 @@ internal fun StoryVideoCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             if (scrollLitePolicy.showSecondaryStatsRow && video.stat.view > 0) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                FlowRow(
+                    itemVerticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_ROW_SPACING_DP.dp),
+                    verticalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_WRAP_SPACING_DP.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     HorizontalVideoStatRow(
@@ -448,13 +455,11 @@ internal fun StoryVideoCard(
                         danmakuIcon = Icons.Outlined.ChatBubbleOutline,
                     )
                     if (publishTimeRowText.isNotBlank()) {
-                        Spacer(modifier = Modifier.weight(1f))
                         AppText(
                             text = publishTimeRowText,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                             style = contentTypography.statistic,
-                            maxLines = 1,
-                            softWrap = false,
+                            overflow = TextOverflow.Visible,
                         )
                     }
                 }
@@ -495,6 +500,10 @@ internal fun StoryVideoCard(
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBackgroundColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
                 showUpBadge = showUpBadge,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Visible,
+                metaMaxLines = Int.MAX_VALUE,
+                metaOverflow = TextOverflow.Visible,
                 modifier = upNameModifier
             )
 

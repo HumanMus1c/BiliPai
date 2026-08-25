@@ -21,51 +21,64 @@ internal fun biliPaiMiuixNavTransition(
     exitDirection: BiliPaiPredictiveBackExitDirection,
     isLightBackground: Boolean,
     miuixTransitionBlurEnabled: Boolean = true,
-): NavTransition = when (animation) {
-    BiliPaiPredictiveBackAnimationStyle.NONE -> NoPredictiveBackTransition
-    BiliPaiPredictiveBackAnimationStyle.MIUIX ->
-        miuixRealtimeCoveredBlurTransition(
-            isLightBackground = isLightBackground,
-            blurEnabled = miuixTransitionBlurEnabled,
-        )
-    BiliPaiPredictiveBackAnimationStyle.AOSP -> AospNavTransition
-    BiliPaiPredictiveBackAnimationStyle.SCALE -> scaleNavTransition(exitDirection)
-    BiliPaiPredictiveBackAnimationStyle.CLASSIC -> ClassicNavTransition
+): NavTransition {
+    val baseTransition = when (animation) {
+        BiliPaiPredictiveBackAnimationStyle.NONE -> return NoPredictiveBackTransition
+        BiliPaiPredictiveBackAnimationStyle.MIUIX -> miuixDepthNavTransition()
+        BiliPaiPredictiveBackAnimationStyle.AOSP -> AospNavTransition
+        BiliPaiPredictiveBackAnimationStyle.SCALE -> scaleNavTransition(exitDirection)
+        BiliPaiPredictiveBackAnimationStyle.CLASSIC -> ClassicNavTransition
+    }
+    return realtimeCoveredBlurTransition(
+        baseTransition = baseTransition,
+        isLightBackground = isLightBackground,
+        blurEnabled = miuixTransitionBlurEnabled,
+    )
 }
 
 /**
- * Adds MIUI-style depth blur to the retained page below the moving top entry.
+ * Adds MIUI-style depth blur to the retained page below every animated top entry.
  *
  * [NavTransitionScope.relativeDepth] is the shared Miuix driver for edge swipe, system predictive
  * back, and release settle. Reading it inside [graphicsLayer] keeps the effect draw-only while the
  * covered page moves from fully blurred at depth 1 to clear at depth 0.
  */
-private fun miuixRealtimeCoveredBlurTransition(
+private fun miuixDepthNavTransition(): NavTransition {
+    return object : NavTransition {
+        override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier = graphicsLayer {
+            val depth = scope.relativeDepth
+            val widthPx = scope.layoutSize.width.toFloat()
+            val isRtl = scope.layoutDirection == LayoutDirection.Rtl
+            if (depth <= 0f) {
+                val direction = if (isRtl) -1f else 1f
+                translationX = (direction * (-depth).coerceIn(0f, 1f) * widthPx)
+                    .fastRoundToInt()
+                    .toFloat()
+            } else {
+                val coveredDepth = depth.coerceIn(0f, 1f)
+                translationX = (if (isRtl) 1f else -1f) * coveredDepth * widthPx * 0.25f
+                alpha = 1f - 0.1f * coveredDepth
+            }
+        }
+    }
+}
+
+private fun realtimeCoveredBlurTransition(
+    baseTransition: NavTransition,
     isLightBackground: Boolean,
     blurEnabled: Boolean,
 ): NavTransition {
     return object : NavTransition {
         override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
             val renderEffectCache = MiuixCoveredBlurRenderEffectCache()
-            return graphicsLayer {
-                val depth = scope.relativeDepth
-                val widthPx = scope.layoutSize.width.toFloat()
-                val isRtl = scope.layoutDirection == LayoutDirection.Rtl
-                if (depth <= 0f) {
-                    val direction = if (isRtl) -1f else 1f
-                    translationX = (direction * (-depth).coerceIn(0f, 1f) * widthPx)
-                        .fastRoundToInt()
-                        .toFloat()
-                } else {
-                    val coveredDepth = depth.coerceIn(0f, 1f)
-                    translationX = (if (isRtl) 1f else -1f) * coveredDepth * widthPx * 0.25f
-                    alpha = 1f - 0.1f * coveredDepth
-                }
-
+            val transformed = with(baseTransition) {
+                this@transformEntry.transformEntry(scope)
+            }
+            return transformed.graphicsLayer {
                 renderEffect = if (blurEnabled) {
                     val blurFrame = resolvePredictiveBackBlurFrame(
                         progress = if (scope.gesture != null || scope.settle != null) {
-                            resolveMiuixNavCoveredBlurProgress(depth)
+                            resolveMiuixNavCoveredBlurProgress(scope.relativeDepth)
                         } else {
                             0f
                         },

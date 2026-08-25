@@ -62,7 +62,6 @@ fun LiveDanmakuOverlay(
     val activeItems = remember { ArrayDeque<DanmakuItem>() }
     val pendingItems = remember { ArrayDeque<DanmakuItem>() }
     val pendingItemsBeforeStart = remember { ArrayDeque<LiveDanmakuItem>() }
-    val retiredBitmapItems = remember { ArrayDeque<DanmakuItem>() }
 
     AndroidView(
         factory = { viewContext ->
@@ -156,18 +155,8 @@ fun LiveDanmakuOverlay(
                 ) {
                     val removed = activeItems.removeFirst()
                     trimBefore = maxOf(trimBefore, removed.showAtTime + 1L)
-                    if (removed.bitmap != null) retiredBitmapItems.addLast(removed)
                 }
                 currentEngine.trimBefore(trimBefore)
-
-                while (retiredBitmapItems.isNotEmpty() &&
-                    retiredBitmapItems.first.showAtTime < currentTime - LIVE_HISTORY_MS
-                ) {
-                    releaseLiveDanmakuItem(
-                        retiredBitmapItems.removeFirst(),
-                        LiveDanmakuBitmapOwnership.RELEASED_FROM_ENGINE
-                    )
-                }
             }
             delay(LIVE_BATCH_INTERVAL_MS)
         }
@@ -227,12 +216,14 @@ fun LiveDanmakuOverlay(
         onDispose {
             engine?.close()
             renderView?.releaseRenderer()
-            (activeItems + pendingItems + retiredBitmapItems).forEach { item ->
-                releaseLiveDanmakuItem(item, LiveDanmakuBitmapOwnership.RELEASED_FROM_ENGINE)
+            activeItems.forEach { item ->
+                releaseLiveDanmakuItem(item, LiveDanmakuBitmapOwnership.TIMELINE_DISCARDED)
+            }
+            pendingItems.forEach { item ->
+                releaseLiveDanmakuItem(item, LiveDanmakuBitmapOwnership.APP_QUEUE_ONLY)
             }
             activeItems.clear()
             pendingItems.clear()
-            retiredBitmapItems.clear()
             pendingItemsBeforeStart.clear()
             isStarted = false
             engine = null
