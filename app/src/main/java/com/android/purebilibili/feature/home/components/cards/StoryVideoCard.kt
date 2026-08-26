@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -52,6 +53,8 @@ import androidx.compose.animation.core.tween
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.BiliPink
@@ -428,7 +431,8 @@ internal fun StoryVideoCard(
             color = MaterialTheme.colorScheme.onSurface,
             style = contentTypography.title,
             minLines = titleMinLines,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(titleMaxLines),
+            overflow = videoCardTitleOverflow(),
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -444,15 +448,13 @@ internal fun StoryVideoCard(
                     verticalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_WRAP_SPACING_DP.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    HorizontalVideoStatRow(
+                    VideoStatRow(
                         playText = FormatUtils.formatStat(video.stat.view.toLong()),
                         danmakuText = if (video.stat.danmaku > 0) {
                             FormatUtils.formatStat(video.stat.danmaku.toLong())
                         } else {
                             ""
                         },
-                        playIcon = Icons.Outlined.PlayCircle,
-                        danmakuIcon = Icons.Outlined.ChatBubbleOutline,
                     )
                     if (publishTimeRowText.isNotBlank()) {
                         AppText(

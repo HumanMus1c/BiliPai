@@ -12,6 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.airbnb.lottie.compose.*
+import com.android.purebilibili.core.plugin.skin.LocalUiSkinState
+import com.android.purebilibili.core.plugin.skin.UiSkinAnimatedAsset
+import com.android.purebilibili.core.plugin.skin.UiSkinSurface
+import com.android.purebilibili.core.plugin.skin.assetPath
 
 /**
  *  Lottie 动画加载器
@@ -63,14 +67,26 @@ fun LoadingAnimation(
     size: Dp = 80.dp,
     text: String? = null
 ) {
+    val uiSkinState = LocalUiSkinState.current
+    val skinLoadingPath = uiSkinState.assetPath(UiSkinSurface.LOADING_INDICATOR) {
+        it.loadingAnimation ?: it.loadingFrame
+    }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AdaptiveLoadingIndicator(
-            size = size,
-            strokeWidth = 2.4.dp,
-        )
+        if (skinLoadingPath != null) {
+            UiSkinAnimatedAsset(
+                path = skinLoadingPath,
+                size = size,
+                contentDescription = "加载中",
+            )
+        } else {
+            AdaptiveLoadingIndicator(
+                size = size,
+                strokeWidth = 2.4.dp,
+            )
+        }
         if (text != null) {
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             Text(

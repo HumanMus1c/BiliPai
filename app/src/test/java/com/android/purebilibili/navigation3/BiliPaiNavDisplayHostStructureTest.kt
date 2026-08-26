@@ -333,6 +333,16 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun navDisplayHostDoesNotCoverGlobalHomeWallpaper() {
+        val source = navDisplayHostSource()
+
+        assertTrue(source.contains("LocalGlobalWallpaperBackdropVisible.current"))
+        assertTrue(source.contains("if (globalWallpaperVisible)"))
+        assertTrue(source.contains("Color.Transparent"))
+        assertTrue(source.contains("AppSurfaceTokens.groupedListContainer()"))
+    }
+
+    @Test
     fun navDisplayHostLayersVideoCardTransitionNavBackdropBehindNavDisplay() {
         val source = navDisplayHostSource()
 

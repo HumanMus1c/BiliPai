@@ -30,6 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppNativeTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -394,7 +396,6 @@ fun BottomBarLiquidSegmentedControl(
     dragSelectionEnabled: Boolean = true,
     longPressDragSelectionEnabled: Boolean = false,
     preferInlineContentStyle: Boolean = false,
-    forceLiquidChrome: Boolean = false,
     miuixBackdrop: MiuixBackdrop? = null,
     tapPressRefractionEnabled: Boolean = true,
     containerColorOverride: Color? = null,
@@ -419,15 +420,31 @@ fun BottomBarLiquidSegmentedControl(
     val visualPolicy = rememberAppSemanticVisualPolicy()
     val homeSettings by SettingsManager
         .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings(),
+        .collectAsStateWithLifecycle(
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = true),
             context = kotlin.coroutines.EmptyCoroutineContext
         )
-    val effectiveAndroidNativeLiquidGlassEnabled =
-        forceLiquidChrome || homeSettings.androidNativeLiquidGlassEnabled
+    if (!homeSettings.androidNativeLiquidGlassEnabled) {
+        val nativeOptions = remember(items) {
+            items.mapIndexed { index, label -> AppSegmentOption(index, label) }
+        }
+        AppNativeTabRow(
+            options = nativeOptions,
+            selectedValue = selectedIndex.coerceIn(0, items.lastIndex),
+            onSelectionChange = onSelected,
+            modifier = modifier,
+            enabled = enabled,
+            scrollable = itemWidth != null,
+            minTabWidth = itemWidth ?: 72.dp,
+            allowLabelOverflow = allowNativeLabelOverflow,
+            indicatorPositionProvider = indicatorPositionProvider,
+        )
+        return
+    }
     val chromeStyle = resolveSegmentedControlChromeStyle(
         uiStyle = LocalAppUiStyle.current,
         prefersNativeChrome = visualPolicy.prefersNativeChrome,
-        androidNativeLiquidGlassEnabled = effectiveAndroidNativeLiquidGlassEnabled,
+        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
         preferInlineContentStyle = preferInlineContentStyle
     )
     if (chromeStyle == SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE) {
@@ -464,7 +481,6 @@ fun BottomBarLiquidSegmentedControl(
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         dragSelectionEnabled = dragSelectionEnabled,
         longPressDragSelectionEnabled = longPressDragSelectionEnabled,
-        forceLiquidChrome = forceLiquidChrome,
         miuixBackdrop = miuixBackdrop,
         containerColorOverride = containerColorOverride,
         selectedTextColorOverride = selectedTextColorOverride,

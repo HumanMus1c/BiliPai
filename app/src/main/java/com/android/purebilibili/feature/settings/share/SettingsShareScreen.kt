@@ -15,16 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DataObject
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.UploadFile
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.R
+import com.android.purebilibili.feature.settings.rememberThemeAwareSettingsIcon
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Report
+import top.yukonga.miuix.kmp.icon.extended.Tasks
 import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.iOSOrange
@@ -131,7 +125,7 @@ fun SettingsShareScreen(
                 AppPreferenceGroup {
                     // 状态放 subtitle，避免右侧 value 窄列把长文案拆成「操作」单独一行。
                     AppPreference(
-                        icon = if (uiState.isBusy) Icons.Filled.Pending else Icons.Filled.History,
+                        icon = if (uiState.isBusy) com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_pending_fill_24) else com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_history_fill_24),
                         title = if (uiState.isBusy) "正在处理" else "最近状态",
                         subtitle = uiState.statusMessage ?: "尚未执行导入导出操作",
                         onClick = if (uiState.statusMessage != null) ({ viewModel.clearStatus() }) else null,
@@ -145,7 +139,10 @@ fun SettingsShareScreen(
                 AppPreferenceSectionTitle("说明")
                 AppPreferenceGroup {
                     AppPreference(
-                        icon = Icons.Filled.CheckCircle,
+                        icon = rememberThemeAwareSettingsIcon(
+                            materialSymbolResource = R.drawable.ms_task_alt_24,
+                            miuixIcon = MiuixIcons.Tasks,
+                        ),
                         title = "会一起分享的内容",
                         subtitle = "外观、播放、手势、弹幕和导航等不含隐私的设置",
                         onClick = null,
@@ -154,7 +151,7 @@ fun SettingsShareScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Lock,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lock_fill_24),
                         title = "会自动跳过的内容",
                         subtitle = "账号、保存路径、云备份账号、隐私和设备专属配置",
                         onClick = null,
@@ -172,7 +169,10 @@ fun SettingsShareScreen(
                         subtitle = "附带安卓版本、界面风格和屏幕信息，便于排查问题；导入时不会应用",
                         checked = uiState.includeDeviceDebug,
                         onCheckedChange = viewModel::setIncludeDeviceDebug,
-                        icon = Icons.Filled.BugReport,
+                        icon = rememberThemeAwareSettingsIcon(
+                            materialSymbolResource = R.drawable.ms_report_24,
+                            miuixIcon = MiuixIcons.Report,
+                        ),
                         iconTint = iOSOrange,
                     )
                 }
@@ -182,7 +182,7 @@ fun SettingsShareScreen(
                 AppPreferenceSectionTitle("操作")
                 AppPreferenceGroup {
                     AppPreference(
-                        icon = Icons.Filled.Download,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_download_fill_24),
                         title = "导出到文件",
                         subtitle = if (uiState.includeDeviceDebug) {
                             "保存设置文件，并附带设备排查信息"
@@ -201,7 +201,7 @@ fun SettingsShareScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Share,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_share_fill_24),
                         title = "分享导出文件",
                         subtitle = "生成设置文件后打开系统分享面板",
                         onClick = { viewModel.prepareShare() },
@@ -209,7 +209,7 @@ fun SettingsShareScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.UploadFile,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_upload_file_fill_24),
                         title = "从文件导入",
                         subtitle = "先查看会修改哪些内容，确认后再应用",
                         onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
@@ -222,7 +222,7 @@ fun SettingsShareScreen(
                 AppPreferenceSectionTitle("文件格式")
                 AppPreferenceGroup {
                     AppPreference(
-                        icon = Icons.Filled.DataObject,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_data_object_fill_24),
                         title = "设置包（JSON）",
                         subtitle = "通用文本格式，可直接查看，也可在 BiliPai 中导入",
                         value = "格式版本 v$SETTINGS_SHARE_SCHEMA_VERSION",

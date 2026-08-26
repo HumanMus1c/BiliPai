@@ -17,13 +17,14 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.SportsEsports
-import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Person
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.SportsEsports
-import androidx.compose.material.icons.outlined.Tv
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.EaseOut
@@ -548,7 +548,7 @@ internal fun resolveTopTabCategoryIcon(
                 Icons.AutoMirrored.Outlined.TrendingUp
             }
             HomeCategory.LIVE -> if (selected) Icons.Filled.LiveTv else Icons.Outlined.LiveTv
-            HomeCategory.ANIME -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv
+            HomeCategory.ANIME -> if (selected) Icons.Filled.CollectionsBookmark else Icons.Outlined.CollectionsBookmark
             HomeCategory.GAME -> if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
             HomeCategory.KNOWLEDGE -> if (selected) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb
             HomeCategory.TECH -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
@@ -918,7 +918,15 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
             isScrollInProgressProvider = { isScrolling },
             materialScrollProgressOverride = materialScrollProgress
         )
-    }
+    }.then(
+        // Miuix blur does not dim its sampled backdrop in dark mode. Add a
+        // restrained scrim above the material to reduce bright background bleed.
+        if (isDarkTheme) {
+            Modifier.background(Color.Black.copy(alpha = 0.10f), shape)
+        } else {
+            Modifier
+        }
+    )
 }
 
 @Composable
@@ -987,8 +995,21 @@ private fun LightweightHomeTopTabs(
             AppTopTabPresentation.MATERIAL_UNDERLINE
         else -> presentation
     }
+    val useFloatingBottomBarDock = shouldHomeTopTabUseFloatingBottomBarDock(
+        skinPlainStyle = skinPlainStyle,
+        hasSkinStickerIcons = topTabSkinIconPaths.isNotEmpty() ||
+            !partitionSkinIconPath.isNullOrBlank(),
+        presentation = effectivePresentation,
+        liquidGlassEnabled = isLiquidGlassEnabled,
+        selectionIndicatorStyle = resolveHomeSelectionIndicatorStyle(
+            uiStyle = LocalAppUiStyle.current,
+            liquidGlassEnabled = isLiquidGlassEnabled,
+        ),
+    )
     val topTabMotionSpec = remember { resolveSegmentedControlMotionSpec() }
-    val baseRowHeight = if (skinPlainStyle) {
+    val baseRowHeight = if (useFloatingBottomBarDock) {
+        resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
+    } else if (skinPlainStyle) {
         resolveHomeSkinTopTabRowHeight()
     } else when (effectivePresentation) {
         AppTopTabPresentation.MOVING_CAPSULE -> resolveIosTopTabRowHeight(isFloatingStyle, normalizedLabelMode)
@@ -1072,8 +1093,22 @@ private fun LightweightHomeTopTabs(
 
     LaunchedEffect(selectedIndex, categories.size) {
         selectedItemLeftInWindowPx = Float.NaN
-        if (categories.isNotEmpty()) {
-            val targetIndex = selectedIndex.coerceIn(0, categories.lastIndex)
+        if (categories.isEmpty()) return@LaunchedEffect
+        val targetIndex = selectedIndex.coerceIn(0, categories.lastIndex)
+        val info = snapshotFlow { listState.layoutInfo }
+            .first { it.visibleItemsInfo.isNotEmpty() }
+        val first = info.visibleItemsInfo.first()
+        val last = info.visibleItemsInfo.last()
+        if (
+            shouldAnimateTopTabViewportToSelection(
+                selectedIndex = targetIndex,
+                firstVisibleIndex = first.index,
+                firstVisibleOffset = first.offset,
+                lastVisibleIndex = last.index,
+                lastVisibleEndOffset = last.offset + last.size,
+                viewportEndOffset = info.viewportEndOffset,
+            )
+        ) {
             listState.animateScrollToItem(targetIndex)
         }
     }
@@ -1140,6 +1175,49 @@ private fun LightweightHomeTopTabs(
         } else {
             effectiveMaxDockWidth
         }
+        if (useFloatingBottomBarDock) {
+            val floatingDockHeight = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
+            val floatingDockWidth = resolveHomeTopTabFloatingDockWidth(
+                containerWidth = effectiveMaxDockWidth.dp,
+                itemCount = categories.size,
+                labelMode = normalizedLabelMode,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                HomeTopTabFloatingDock(
+                    categories = categories,
+                    categoryKeys = categoryKeys,
+                    selectedIndex = selectedIndex,
+                    onSelected = onCategorySelected,
+                    onReselected = {
+                        scrollChannel?.trySend(
+                            com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH
+                        )
+                    },
+                    showIcon = showIcon,
+                    showText = showText,
+                    iconFamily = topTabIconFamily,
+                    itemWidth = null,
+                    labelFontSize = resolveFloatingDockLabelFontSize(
+                        showIcon = showIcon,
+                        showText = showText,
+                    ),
+                    liquidGlassEffectsEnabled = isLiquidGlassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    liquidGlassPreset = liquidGlassPreset,
+                    liquidGlassTuning = resolvedLiquidGlassTuning,
+                    indicatorPositionProvider = currentPositionProvider,
+                    isScrollInProgressProvider = pagerScrollingProvider,
+                    modifier = Modifier
+                        .width(floatingDockWidth)
+                        .height(floatingDockHeight),
+                )
+            }
+        } else {
         // Match the bottom bar's actual app-surface luminance. The system theme can differ
         // from the active app theme and previously produced a dark gray capture on light pages.
         val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
@@ -1436,9 +1514,8 @@ private fun LightweightHomeTopTabs(
             }
         val topTabIndicatorCaptureSurfaceColor =
             resolveBiliPaiBottomBarContainerColor(darkTheme = isDarkTheme)
-        val useTopTabGlassColorPath = resolveSharedLiquidIndicatorUseGlassColorPath(
+        val useTopTabGlassColorPath = resolveTopTabUsesGlassExportForSelectedGlyphs(
             liquidGlassEnabled = shouldUseLiquidGlassIndicator,
-            lensProgress = topTabLensProgress
         )
         val topTabVisibleContentZIndex = if (useTopTabGlassColorPath) 0f else 2f
         val topTabThemeColor = MaterialTheme.colorScheme.primary
@@ -1951,6 +2028,7 @@ private fun LightweightHomeTopTabs(
             }
         }
         }
+        }
     }
 }
 
@@ -1977,6 +2055,30 @@ internal fun resolveTopTabVisibleContentAlpha(
     1f - selectionFraction.coerceIn(0f, 1f)
 } else {
     1f
+}
+
+/**
+ * Liquid glass keeps selected icon+text on the export/indicator layer. The visible
+ * row must fade that slot even at rest; otherwise the last tab's end-cap samples a
+ * second copy (文字和图标都会重影).
+ */
+internal fun resolveTopTabUsesGlassExportForSelectedGlyphs(
+    liquidGlassEnabled: Boolean,
+): Boolean = liquidGlassEnabled
+
+internal fun shouldAnimateTopTabViewportToSelection(
+    selectedIndex: Int,
+    firstVisibleIndex: Int,
+    firstVisibleOffset: Int,
+    lastVisibleIndex: Int,
+    lastVisibleEndOffset: Int,
+    viewportEndOffset: Int,
+): Boolean {
+    if (selectedIndex < firstVisibleIndex) return true
+    if (selectedIndex == firstVisibleIndex && firstVisibleOffset > 0) return true
+    if (selectedIndex > lastVisibleIndex) return true
+    if (selectedIndex == lastVisibleIndex && lastVisibleEndOffset > viewportEndOffset) return true
+    return false
 }
 
 @Composable
@@ -2153,7 +2255,6 @@ private fun LightweightTopTabItem(
                 )
             }
         }
-
     }
 }
 

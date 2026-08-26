@@ -67,8 +67,14 @@ internal fun resolveSettingsCategoryDirectTargetKey(
     category: SettingsRootCategory,
 ): BiliPaiNavKey? = when (canonicalSettingsRootCategory(category)) {
     SettingsRootCategory.APPEARANCE_THEME -> BiliPaiNavKey.AppearanceSettings
+    SettingsRootCategory.PLUGINS_EXTENSIONS -> BiliPaiNavKey.PluginsSettings()
     else -> null
 }
+
+internal fun resolveSettingsCategoryNavKey(
+    category: SettingsRootCategory,
+): BiliPaiNavKey = resolveSettingsCategoryDirectTargetKey(category)
+    ?: BiliPaiNavKey.SettingsCategory(canonicalSettingsRootCategory(category))
 
 private val ROUTE_TO_CATEGORY: Map<String, SettingsRootCategory> = mapOf(
     "appearance_settings" to SettingsRootCategory.APPEARANCE_THEME,

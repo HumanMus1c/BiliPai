@@ -402,6 +402,10 @@ class BottomBarLiquidSegmentedControlStructureTest {
 
         assertTrue(source.contains("BottomBarMotionProfile.ANDROID_NATIVE_FLOATING"))
         assertFalse(source.contains("BottomBarMotionProfile.IOS_FLOATING"))
+        assertTrue(source.contains("!homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("allowLabelOverflow = allowNativeLabelOverflow"))
+        assertTrue(source.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(source.contains("BottomBarFloatingSegmentedControl("))
         assertTrue(floating.contains("FloatingBottomBar("))
         assertTrue(floating.contains("FloatingBottomBarItem("))
@@ -458,7 +462,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
 
         assertTrue(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
         assertFalse(dynamicTopBar.contains("AppNativeTabRow("))
-        assertTrue(dynamicTopBar.contains("forceLiquidChrome = liquidGlassEnabled"))
+        assertFalse(dynamicTopBar.contains("forceLiquidChrome"))
         assertTrue(dynamicTopBar.contains("allowNativeLabelOverflow = true"))
         assertTrue(dynamicTopBar.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(dynamicTopBar.contains("isScrollInProgressProvider = isScrollInProgressProvider"))

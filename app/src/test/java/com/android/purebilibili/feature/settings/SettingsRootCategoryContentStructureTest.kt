@@ -239,6 +239,23 @@ class SettingsRootCategoryContentStructureTest {
     }
 
     @Test
+    fun tabletCategoryRail_skipsSingleEntryHubPages() {
+        val shellSource = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletRouteShell.kt"),
+            File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletRouteShell.kt")
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
+        val navigationSource = listOf(
+            File("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt"),
+            File("src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
+
+        assertTrue(shellSource.contains("resolveSettingsCategoryNavKey(category)"))
+        assertFalse(shellSource.contains("BiliPaiNavKey.SettingsCategory(category)"))
+        assertTrue(navigationSource.contains("pushNavigation3Key(resolveSettingsCategoryNavKey(category))"))
+        assertFalse(navigationSource.contains("resolveSettingsCategoryDirectTargetKey(category)"))
+    }
+
+    @Test
     fun appNavigation_wrapsSettingsSubtreeRoutesWithTabletShell() {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt"),

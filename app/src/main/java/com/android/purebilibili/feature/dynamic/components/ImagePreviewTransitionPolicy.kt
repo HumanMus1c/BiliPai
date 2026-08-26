@@ -166,7 +166,8 @@ internal fun resolveImagePreviewPresentedCornerRadiusDp(
 internal fun resolveImagePreviewVisualFrame(
     visualProgress: Float,
     transitionEnabled: Boolean,
-    maxBlurRadiusPx: Float
+    maxBlurRadiusPx: Float,
+    blurEnabled: Boolean = true,
 ): ImagePreviewVisualFrame {
     val progress = visualProgress.coerceIn(0f, 1f)
     if (!transitionEnabled) {
@@ -180,10 +181,14 @@ internal fun resolveImagePreviewVisualFrame(
     return ImagePreviewVisualFrame(
         contentAlpha = lerpFloat(0.9f, 1f, progress),
         backdropAlpha = progress,
-        blurRadiusPx = resolveImagePreviewBlurRadiusPx(
-            visualProgress = progress,
-            maxBlurRadiusPx = maxBlurRadiusPx,
-        )
+        blurRadiusPx = if (blurEnabled) {
+            resolveImagePreviewBlurRadiusPx(
+                visualProgress = progress,
+                maxBlurRadiusPx = maxBlurRadiusPx,
+            )
+        } else {
+            0f
+        }
     )
 }
 

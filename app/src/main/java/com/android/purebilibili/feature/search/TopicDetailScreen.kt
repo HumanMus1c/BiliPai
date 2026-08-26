@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -46,13 +47,16 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
-import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
+import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.TopicTopDetails
 import com.android.purebilibili.data.model.response.normalizeSearchImageUrl
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicFeedSkeletonCard
+import com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
@@ -92,10 +96,7 @@ fun TopicDetailScreen(
         ) {
             when {
                 state.isLoading -> {
-                    ContentMediaListSkeleton(
-                        modifier = Modifier.fillMaxSize(),
-                        itemCount = 6,
-                    )
+                    TopicDetailLoadingSkeleton(modifier = Modifier.fillMaxSize())
                 }
                 state.error != null && state.details == null && state.items.isEmpty() -> {
                     AppText(
@@ -157,6 +158,70 @@ fun TopicDetailScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TopicDetailLoadingSkeleton(modifier: Modifier = Modifier) {
+    val dynamicPulse = rememberDynamicFeedSkeletonPulse()
+    val headerBlockColor = rememberContentSkeletonBlockColor(dynamicPulse)
+    LazyColumn(
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        userScrollEnabled = false,
+        modifier = modifier,
+    ) {
+        item {
+            AppSurface(
+                shape = AppShapes.container(ContainerLevel.Chip),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContentSkeletonBlock(
+                        color = headerBlockColor,
+                        shape = AppShapes.container(ContainerLevel.Chip),
+                        modifier = Modifier.size(58.dp),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ContentSkeletonBlock(
+                            color = headerBlockColor,
+                            modifier = Modifier
+                                .fillMaxWidth(0.62f)
+                                .height(18.dp),
+                        )
+                        ContentSkeletonBlock(
+                            color = headerBlockColor,
+                            modifier = Modifier
+                                .fillMaxWidth(0.88f)
+                                .height(13.dp),
+                        )
+                        ContentSkeletonBlock(
+                            color = headerBlockColor,
+                            modifier = Modifier
+                                .fillMaxWidth(0.56f)
+                                .height(12.dp),
+                        )
+                    }
+                    ContentSkeletonBlock(
+                        color = headerBlockColor,
+                        shape = CircleShape,
+                        modifier = Modifier.size(34.dp),
+                    )
+                }
+            }
+        }
+        items(6) {
+            DynamicFeedSkeletonCard(pulse = dynamicPulse)
         }
     }
 }

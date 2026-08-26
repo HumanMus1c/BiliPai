@@ -20,8 +20,12 @@ class HistoryFilterTabChromePolicyTest {
         )
 
         assertTrue(spec.useLiquidDock)
-        assertEquals(HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP, spec.heightDp)
-        assertEquals(HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP, spec.indicatorHeightDp)
+        assertEquals(36, spec.heightDp)
+        assertEquals(14, spec.horizontalPaddingDp)
+        assertEquals(
+            com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(36f),
+            spec.indicatorHeightDp,
+        )
         assertTrue(spec.dragSelectionEnabled)
     }
 

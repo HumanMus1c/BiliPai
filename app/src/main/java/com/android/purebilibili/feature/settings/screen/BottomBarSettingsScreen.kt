@@ -25,9 +25,6 @@ import androidx.compose.ui.geometry.Offset // [New]
 import androidx.compose.ui.input.pointer.PointerInputChange // [New]
 import com.android.purebilibili.core.util.rememberHapticFeedback // [New]
 import com.android.purebilibili.core.util.HapticType // [New]
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,7 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.R
-import com.android.purebilibili.core.store.HomeHeaderBlurMode
 import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
 import com.android.purebilibili.core.store.HomeTopRightAction
@@ -86,11 +82,13 @@ data class TopTabConfig(
     val fixedVisible: Boolean = false
 )
 
+@Composable
 internal fun resolveBottomBarTabIcon(
     id: String,
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): ImageVector = resolveSettingsNavigationPreviewIcon(id, iconFamily, selected = false)
 
+@Composable
 internal fun resolveTopTabIcon(
     id: String,
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
@@ -99,6 +97,7 @@ internal fun resolveTopTabIcon(
 /**
  * 所有可用的底栏项目
  */
+@Composable
 internal fun resolveAllBottomBarTabs(
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): List<BottomBarTabConfig> = listOf(
@@ -117,6 +116,7 @@ internal fun resolveAllBottomBarTabs(
 
 private val defaultTopTabIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME")
 
+@Composable
 internal fun resolveAllTopTabs(
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): List<TopTabConfig> = listOf(
@@ -183,8 +183,8 @@ fun BottomBarSettingsContent(
         listState.animateScrollToItem(index)
         SettingsSearchFocusController.clear(request.token)
     }
-    val allBottomBarTabs = remember(iconFamily) { resolveAllBottomBarTabs(iconFamily) }
-    val allTopTabs = remember(iconFamily) { resolveAllTopTabs(iconFamily) }
+    val allBottomBarTabs = resolveAllBottomBarTabs(iconFamily)
+    val allTopTabs = resolveAllTopTabs(iconFamily)
 
     
     // 读取当前配置
@@ -194,8 +194,8 @@ fun BottomBarSettingsContent(
     val topTabVisible by SettingsManager.getTopTabVisibleTabs(context).collectAsStateWithLifecycle(initialValue = defaultTopTabIds.toSet())
     val topTabLabelMode by SettingsManager.getTopTabLabelMode(context)
         .collectAsStateWithLifecycle(initialValue = SettingsManager.TopTabLabelMode.TEXT_ONLY)
-    val headerBlurMode by SettingsManager.getHomeHeaderBlurMode(context)
-        .collectAsStateWithLifecycle(initialValue = HomeHeaderBlurMode.FOLLOW_PRESET)
+    val bottomBarLabelMode by SettingsManager.getBottomBarLabelMode(context)
+        .collectAsStateWithLifecycle(initialValue = 0)
     val homeTopLayoutOrder by SettingsManager.getHomeTopLayoutOrder(context)
         .collectAsStateWithLifecycle(initialValue = HomeTopLayoutOrder.SEARCH_THEN_TABS)
     val homeHeaderCollapseMode by SettingsManager.getHomeHeaderCollapseMode(context)
@@ -346,7 +346,7 @@ fun BottomBarSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.NAV_ICON_CROSS_SCALE),
                             title = "导航图标交叉缩放",
                             subtitle = "指示器滑动时旧图标缩小、新图标放大；选中后稳定在 1.10 倍",
                             checked = navigationIconCrossScaleEnabled,
@@ -359,7 +359,7 @@ fun BottomBarSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.OPEN_LINKS),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
                             title = "底栏搜索入口",
                             subtitle = "在底栏右侧增加可直接打开搜索的按钮",
                             checked = bottomBarSearchEnabled,
@@ -411,9 +411,8 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         val visibilityMode by SettingsManager.getBottomBarVisibilityMode(context).collectAsStateWithLifecycle(initialValue = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE)
-                        val labelMode by SettingsManager.getBottomBarLabelMode(context).collectAsStateWithLifecycle(initialValue = 0)
                         SettingsSingleChoicePreference(
-                            icon = Icons.Outlined.Visibility,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_24),
                             iconTint = com.android.purebilibili.core.theme.iOSOrange,
                             title = "显示模式",
                             subtitle = visibilityMode.description,
@@ -427,7 +426,7 @@ fun BottomBarSettingsContent(
                         )
                         AppPreferenceDivider()
                         SettingsSingleChoicePreference(
-                            icon = Icons.Outlined.Label,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_label_24),
                             iconTint = com.android.purebilibili.core.theme.iOSPurple,
                             title = "标签样式",
                             options = listOf(
@@ -435,7 +434,7 @@ fun BottomBarSettingsContent(
                                 AppSegmentOption(1, "仅图标"),
                                 AppSegmentOption(2, "仅文字"),
                             ),
-                            selectedValue = labelMode,
+                            selectedValue = bottomBarLabelMode,
                             onSelectionChange = { mode ->
                                 scope.launch { SettingsManager.setBottomBarLabelMode(context, mode) }
                             },
@@ -455,7 +454,7 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                             SettingsSingleChoicePreference(
-                                icon = Icons.Outlined.ViewList,
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_list_alt_24),
                                 iconTint = com.android.purebilibili.core.theme.iOSBlue,
                                 title = "顶部标签样式",
                                 options = listOf(
@@ -471,9 +470,9 @@ fun BottomBarSettingsContent(
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
                                 icon = if (homeTopRightAction == HomeTopRightAction.INBOX) {
-                                    Icons.Outlined.Mail
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_mail_24)
                                 } else {
-                                    Icons.Outlined.Settings
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_settings_24)
                                 },
                                 iconTint = com.android.purebilibili.core.theme.iOSOrange,
                                 title = "首页右上角入口",
@@ -487,22 +486,7 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = Icons.Outlined.WaterDrop,
-                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                                title = "顶部模糊",
-                                options = listOf(
-                                    AppSegmentOption(HomeHeaderBlurMode.FOLLOW_PRESET, "跟随预设"),
-                                    AppSegmentOption(HomeHeaderBlurMode.ALWAYS_ON, "始终开启"),
-                                    AppSegmentOption(HomeHeaderBlurMode.ALWAYS_OFF, "始终关闭"),
-                                ),
-                                selectedValue = headerBlurMode,
-                                onSelectionChange = { mode ->
-                                    scope.launch { SettingsManager.setHomeHeaderBlurMode(context, mode) }
-                                },
-                            )
-                            AppPreferenceDivider()
-                            SettingsSingleChoicePreference(
-                                icon = Icons.Outlined.Reorder,
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_reorder_24),
                                 iconTint = com.android.purebilibili.core.theme.iOSPurple,
                                 title = "首页顶部布局",
                                 options = HomeTopLayoutOrder.entries.map { order ->
@@ -515,13 +499,13 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = Icons.Outlined.Search,
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_troubleshoot_24),
                                 iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                                title = "首页顶栏显示",
+                                title = "全局顶栏显示",
                                 subtitle = if (homeHeaderCollapseMode.hasAnyCollapse) {
-                                    "离开顶部后收起搜索框和标签页，单击底栏首页回顶后再出现"
+                                    "首页、历史、收藏和稍后再看等页面离开顶部后收起沉浸顶栏，回顶后恢复"
                                 } else {
-                                    "搜索框和标签页始终固定在顶部"
+                                    "首页和二级列表的沉浸顶栏始终显示"
                                 },
                                 options = listOf(
                                     AppSegmentOption(false, "始终显示"),
@@ -552,6 +536,8 @@ fun BottomBarSettingsContent(
                             )
                             visibleTopOrder.forEachIndexed { index, id ->
                                 val tab = allTopTabs.firstOrNull { it.id == id } ?: return@forEachIndexed
+                                val showIcon = topTabLabelMode != SettingsManager.TopTabLabelMode.TEXT_ONLY
+                                val showText = topTabLabelMode != SettingsManager.TopTabLabelMode.ICON_ONLY
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -560,19 +546,25 @@ fun BottomBarSettingsContent(
                                         .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    AppIcon(
-                                        imageVector = tab.icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    AppText(
-                                        text = tab.label,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    if (showIcon) {
+                                        AppIcon(
+                                            imageVector = tab.icon,
+                                            contentDescription = if (showText) null else tab.label,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    if (showIcon && showText) Spacer(modifier = Modifier.width(10.dp))
+                                    if (showText) {
+                                        AppText(
+                                            text = tab.label,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
                                     if (tab.fixedVisible) {
                                         AppText(
                                             text = "固定",
@@ -585,7 +577,7 @@ fun BottomBarSettingsContent(
                                         enabled = !tab.fixedVisible && index > 0
                                     ) {
                                         AppIcon(
-                                            Icons.Outlined.KeyboardArrowUp,
+                                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_up_24),
                                             contentDescription = "上移",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -595,7 +587,7 @@ fun BottomBarSettingsContent(
                                         enabled = !tab.fixedVisible && index < visibleTopOrder.lastIndex
                                     ) {
                                         AppIcon(
-                                            Icons.Outlined.KeyboardArrowDown,
+                                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_down_24),
                                             contentDescription = "下移",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -664,7 +656,7 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         AppSwitchPreference(
-                            icon = Icons.Outlined.ViewSidebar,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_view_sidebar_24),
                             title = "侧边导航栏",
                             subtitle = if (isTabletDevice) {
                                 "平板/大屏建议开启：用侧边栏代替底部导航，充分利用横向空间（可随时关闭）"
@@ -680,7 +672,7 @@ fun BottomBarSettingsContent(
                             iconTint = com.android.purebilibili.core.theme.iOSBlue
                         )
                         AppSwitchPreference(
-                            icon = Icons.Outlined.SwapHoriz,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_swap_horiz_24),
                             title = "侧边栏账号切换",
                             subtitle = "在平板首页侧边栏底部显示切换账号按钮",
                             checked = sidebarAccountSwitcherEnabled,
@@ -708,6 +700,7 @@ fun BottomBarSettingsContent(
                         tabs = localOrder.filter { it in localVisibleTabs }
                             .mapNotNull { id -> allBottomBarTabs.find { it.id == id } }
                             .map { tab -> tab.copy(label = itemLabels[tab.id] ?: tab.label) },
+                        labelMode = bottomBarLabelMode,
                         onMove = { from, to -> onOrderChanged(from, to) },
                         onDragEnd = { saveConfig() }
                     )
@@ -797,7 +790,6 @@ fun BottomBarSettingsContent(
                                 saveConfig()
                                 saveTopTabConfig()
                                 scope.launch {
-                                    SettingsManager.setHomeHeaderBlurMode(context, HomeHeaderBlurMode.FOLLOW_PRESET)
                                     // 重置为设备类型默认：平板开侧栏，手机开底栏
                                     SettingsManager.setTabletUseSidebar(context, isTabletDevice)
                                     SettingsManager.clearBottomBarItemLabels(context)
@@ -808,7 +800,7 @@ fun BottomBarSettingsContent(
                                 contentColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            AppIcon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_refresh_24), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText("重置为默认")
                         }
@@ -826,6 +818,7 @@ fun BottomBarSettingsContent(
 @Composable
 private fun BottomBarPreview(
     tabs: List<BottomBarTabConfig>,
+    labelMode: Int,
     onMove: (Int, Int) -> Unit,
     onDragEnd: () -> Unit
 ) {
@@ -922,18 +915,24 @@ private fun BottomBarPreview(
                             .scale(scale)
                             // 移除单独的 pointerInput
                     ) {
-                        AppIcon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        AppText(
-                            text = tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        val showIcon = labelMode != 2
+                        val showText = labelMode != 1
+                        if (showIcon) {
+                            AppIcon(
+                                imageVector = tab.icon,
+                                contentDescription = if (showText) null else tab.label,
+                                tint = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        if (showIcon && showText) Spacer(modifier = Modifier.height(2.dp))
+                        if (showText) {
+                            AppText(
+                                text = tab.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -1122,7 +1121,7 @@ private fun BottomBarTabItem(
                             Spacer(modifier = Modifier.weight(1f))
                             if (index == colorIndex) {
                                 AppIcon(
-                                    Icons.Outlined.Check,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_24),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)

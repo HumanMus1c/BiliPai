@@ -67,7 +67,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与推荐",
-        subtitle = "首页展示、推荐流、刷新数量、动态栏位、番剧影视时间表、首页顶栏显示与首页壁纸",
+        subtitle = "首页展示、推荐流、刷新数量、动态栏位、番剧影视时间表、全局顶栏显示与首页壁纸",
         section = "设置",
         aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "追番时间表", "影视时间表", "电影时间线", "展示番剧影视时间表", "首页顶栏收起")
     ),
@@ -76,7 +76,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         title = "导航与标签",
         subtitle = "底栏、顶部标签、平板侧边栏与底栏项目顺序",
         section = "设置",
-        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "首页顶栏显示", "仅回顶显示", "始终显示", "首页顶栏收起", "顶栏收起", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
+        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "全局顶栏显示", "首页顶栏显示", "列表顶部栏", "历史记录顶部栏", "稍后再看顶部栏", "仅回顶显示", "始终显示", "首页顶栏收起", "顶栏收起", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK_QUALITY,
@@ -551,9 +551,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与列表",
-        subtitle = "展示样式、列表顶部栏、视频卡片排版、首页壁纸效果、推荐流卡片宽度",
+        subtitle = "展示样式、视频卡片排版、首页壁纸效果、推荐流卡片宽度",
         section = "首页设置",
-        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "首页顶栏仅回顶显示", "仅回顶显示", "展示番剧影视时间表", "追番时间表", "影视时间表", "电影时间线", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "完整卡片", "完整标题", "完整内容", "PiliPlus排版", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
+        aliases = listOf("首页展示", "首页与列表", "展示样式", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "展示番剧影视时间表", "追番时间表", "影视时间表", "电影时间线", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "完整卡片", "完整标题", "完整内容", "紧凑排版", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
         focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     ),
     SettingsSearchEntry(
@@ -668,7 +668,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         aliases = listOf(
             "顶部标签",
             "顶部标签样式",
-            "顶部模糊",
             "顶部标签管理",
             "标签排序",
             "标签显示",

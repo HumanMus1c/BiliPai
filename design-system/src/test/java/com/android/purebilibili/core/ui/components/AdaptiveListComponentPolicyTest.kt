@@ -208,6 +208,26 @@ class AdaptiveListComponentPolicyTest {
     }
 
     @Test
+    fun `md3 native preference rows keep the selected global icon treatment`() {
+        val source = listOf(
+            java.io.File("design-system/src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt"),
+        ).first { it.exists() }.readText()
+        val nativeItemBlock = source
+            .substringAfter("private fun Md3NativeListItemContent(")
+            .substringBefore("internal fun AdaptivePreferenceContent(")
+        val nativeSwitchBlock = source
+            .substringAfter("internal fun AdaptiveSwitchPreferenceContent(")
+            .substringBefore("fun AdaptivePreferenceSearchBarRenderer(")
+
+        assertTrue(nativeItemBlock.contains("iconContainerColor.copy(alpha = iconBackgroundAlpha)"))
+        assertTrue(nativeItemBlock.contains("tint = iconContentColor"))
+        assertTrue(nativeSwitchBlock.contains("effectiveIconTint.copy(alpha = iconBackgroundAlpha)"))
+        assertTrue(nativeSwitchBlock.contains("tint = iconContentColor"))
+        assertFalse(nativeSwitchBlock.contains("tint = MaterialTheme.colorScheme.onSurfaceVariant"))
+    }
+
+    @Test
     fun `material3 style without dynamic color should collapse legacy accent tints to primary`() {
         val colorScheme = darkColorScheme()
 
@@ -362,6 +382,7 @@ class AdaptiveListComponentPolicyTest {
         val miuixSearchBarEnd = text.indexOf("\n}", miuixSearchBarStart).let { if (it < 0) text.length else it + 2 }
         val miuixSearchBarBlock = text.substring(miuixSearchBarStart, miuixSearchBarEnd)
         assertTrue(miuixSearchBarBlock.contains("InputField("))
+        assertTrue(miuixSearchBarBlock.contains("color = containerColor"))
         assertFalse(miuixSearchBarBlock.contains("BasicTextField("))
     }
 

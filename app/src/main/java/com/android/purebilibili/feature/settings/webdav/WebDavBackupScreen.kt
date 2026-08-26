@@ -12,19 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.DriveFolderUpload
-import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Warning
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -51,6 +38,7 @@ import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPink
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
+import com.android.purebilibili.feature.settings.rememberThemeAwareSettingsIcon
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
@@ -60,6 +48,9 @@ import com.android.purebilibili.core.ui.components.AppPreferenceGroup
 import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.components.AppSwitchPreference
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Reset
+import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 
 private enum class WebDavEditMode {
     SERVER,
@@ -111,7 +102,7 @@ fun WebDavBackupScreen(
         actions = {
             AppIconButton(onClick = { viewModel.refreshRemoteBackups() }) {
                 AppIcon(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_refresh_fill_24),
                     contentDescription = refreshLabel,
                 )
             }
@@ -133,7 +124,7 @@ fun WebDavBackupScreen(
                         else -> "尚未执行操作"
                     }
                     AppPreference(
-                        icon = if (uiState.restoreRequiresRestart) Icons.Filled.Warning else Icons.Filled.Info,
+                        icon = if (uiState.restoreRequiresRestart) com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_warning_fill_24) else com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_info_fill_24),
                         title = if (uiState.restoreRequiresRestart) "需要重启应用" else "执行状态",
                         value = statusText,
                         onClick = if (uiState.statusMessage != null) ({ viewModel.clearStatus() }) else null,
@@ -148,7 +139,7 @@ fun WebDavBackupScreen(
                 AppPreferenceGroup {
                     // 配置项图标按“能力/服务器/账号/目录”映射，降低识别成本。
                     AppSwitchPreference(
-                        icon = Icons.Filled.Cloud,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cloud_fill_24),
                         title = "启用 WebDAV 云备份",
                         subtitle = "开启后每天自动备份，同时保留手动备份能力",
                         checked = uiState.config.enabled,
@@ -157,7 +148,7 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Storage,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_storage_fill_24),
                         title = "服务器",
                         value = uiState.config.baseUrl.ifBlank { "未配置" },
                         onClick = {
@@ -168,7 +159,7 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Person,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_person_fill_24),
                         title = "用户名",
                         value = uiState.config.username.ifBlank { "未配置" },
                         onClick = {
@@ -179,7 +170,7 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.DriveFolderUpload,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_drive_folder_upload_fill_24),
                         title = "远端目录",
                         value = uiState.config.remoteDir,
                         onClick = {
@@ -195,7 +186,10 @@ fun WebDavBackupScreen(
                 AppPreferenceSectionTitle("操作")
                 AppPreferenceGroup {
                     AppPreference(
-                        icon = Icons.Filled.CheckCircle,
+                        icon = rememberThemeAwareSettingsIcon(
+                            materialSymbolResource = R.drawable.ms_cloud_done_24,
+                            miuixIcon = MiuixIcons.UploadCloud,
+                        ),
                         title = "测试连接",
                         subtitle = "验证账号与目录可用性",
                         onClick = { viewModel.testConnection() },
@@ -203,7 +197,7 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Backup,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_backup_fill_24),
                         title = "立即备份",
                         subtitle = "上传当前设置与插件配置",
                         onClick = { viewModel.backupNow() },
@@ -211,7 +205,10 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Restore,
+                        icon = rememberThemeAwareSettingsIcon(
+                            materialSymbolResource = R.drawable.ms_settings_backup_restore_24,
+                            miuixIcon = MiuixIcons.Reset,
+                        ),
                         title = "恢复最新备份",
                         subtitle = "会覆盖本地设置，建议先手动备份",
                         onClick = { showRestoreConfirm = true },
@@ -219,7 +216,7 @@ fun WebDavBackupScreen(
                     )
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
-                        icon = Icons.Filled.Refresh,
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_refresh_fill_24),
                         title = "刷新远端列表",
                         subtitle = "读取 WebDAV 目录中的备份文件",
                         onClick = { viewModel.refreshRemoteBackups() },
@@ -233,7 +230,7 @@ fun WebDavBackupScreen(
                 AppPreferenceGroup {
                     if (uiState.remoteBackups.isEmpty()) {
                         AppPreference(
-                            icon = Icons.Filled.Inventory2,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_inventory2_fill_24),
                             title = "暂无备份",
                             value = "可先点击“立即备份”生成第一份快照",
                             onClick = null,
@@ -243,7 +240,7 @@ fun WebDavBackupScreen(
                     } else {
                         uiState.remoteBackups.take(10).forEachIndexed { index, entry ->
                             AppPreference(
-                                icon = Icons.Filled.FolderCopy,
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_folder_copy_fill_24),
                                 title = entry.fileName,
                                 value = "${entry.sizeBytes} B",
                                 onClick = null,

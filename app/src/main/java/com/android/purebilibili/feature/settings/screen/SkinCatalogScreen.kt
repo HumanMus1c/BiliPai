@@ -8,6 +8,7 @@ import com.android.purebilibili.core.plugin.skin.UiSkinInstallStore
 import com.android.purebilibili.core.plugin.skin.UiSkinPackagePreview
 import com.android.purebilibili.core.plugin.skin.UiSkinSelection
 import com.android.purebilibili.core.plugin.skin.UiSkinSettingsStore
+import com.android.purebilibili.core.plugin.skin.normalizeSkinPackageUrl
 import com.android.purebilibili.feature.settings.UiSkinCompositionPreview
 import com.android.purebilibili.feature.settings.UiSkinCompositionPreviewData
 import com.android.purebilibili.feature.settings.downloadUiSkinRemotePackage
@@ -32,8 +33,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +57,7 @@ import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
-import com.android.purebilibili.core.ui.components.AppSearchField
+import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import kotlinx.coroutines.Dispatchers
@@ -137,12 +136,17 @@ fun SkinCatalogScreen(
                             remotePackageFetcher = ::downloadUiSkinRemotePackage,
                         )
                     }.getOrThrow()
-                    val preview = uiSkinStore.previewPackage(importPackage.packageBytes).getOrThrow()
+                    val supplementalAssets = downloadCatalogEffectAssets(entry)
+                    val mergedPackageBytes = UiSkinImportPackageResolver.mergeSupplementalEffectAssets(
+                        packageBytes = importPackage.packageBytes,
+                        supplementalAssets = supplementalAssets,
+                    ).getOrThrow()
+                    val preview = uiSkinStore.previewPackage(mergedPackageBytes).getOrThrow()
                     val previewAssetFiles = uiSkinStore.extractPreviewAssetFiles(
                         preview = preview,
-                        packageBytes = importPackage.packageBytes
+                        packageBytes = mergedPackageBytes
                     ).getOrThrow()
-                    stateHolder.cachePendingInstall(importPackage.packageBytes, preview)
+                    stateHolder.cachePendingInstall(mergedPackageBytes, preview)
                     UiSkinCompositionPreviewData(
                         displayName = entry.displayName,
                         manifest = preview.manifest,
@@ -214,7 +218,7 @@ fun SkinCatalogScreen(
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            AppSearchField(
+            AppLiquidAwareSearchField(
                 query = state.searchQuery,
                 onQueryChange = stateHolder::setSearchQuery,
                 placeholder = "搜索装扮名称",
@@ -267,6 +271,36 @@ fun SkinCatalogScreen(
             onDismiss = { stateHolder.closePreview() },
             onInstall = { confirmInstall(entry, onInstalled) }
         )
+    }
+}
+
+private fun downloadCatalogEffectAssets(entry: SkinCatalogEntry): Map<String, ByteArray> {
+    val effects = entry.effectAssets
+    if (effects.isEmpty) return emptyMap()
+    return buildMap {
+        fun download(url: String?, targetPath: String) {
+            if (url.isNullOrBlank()) return
+            runCatching { downloadUiSkinRemotePackage(normalizeSkinPackageUrl(url)) }
+                .getOrNull()
+                ?.let { bytes -> put(targetPath, bytes) }
+        }
+        download(effects.loadingAnimationUrl, "assets/loading.webp")
+        download(effects.loadingFrameUrl, "assets/loading_frame.png")
+        effects.likeEffectAnimationUrl?.let { url ->
+            val path = url.substringBefore('?')
+            when {
+                path.endsWith(".json", true) -> download(url, "assets/like_effect.json")
+                path.endsWith(".webp", true) -> download(url, "assets/like_effect.webp")
+                path.endsWith(".png", true) -> download(url, "assets/like_effect.png")
+            }
+        }
+        effects.likeEffectPreviewUrl?.let { url ->
+            val extension = if (url.substringBefore('?').endsWith(".png", true)) "png" else "jpg"
+            download(url, "assets/like_effect_preview.$extension")
+        }
+        download(effects.playerProgressIconUrl, "assets/progress_icon.json")
+        download(effects.playerProgressDraggingIconUrl, "assets/progress_drag_icon.json")
+        download(effects.playerProgressStaticIconUrl, "assets/progress_static_icon.png")
     }
 }
 
@@ -365,7 +399,7 @@ private fun SkinCatalogPreviewDialog(
 ) {
     com.android.purebilibili.core.ui.AppAlertDialog(
         onDismissRequest = { if (!installing) onDismiss() },
-        icon = { AppIcon(Icons.Filled.Brush, contentDescription = null) },
+        icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_brush_fill_24), contentDescription = null) },
         title = { AppText(entry.displayName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

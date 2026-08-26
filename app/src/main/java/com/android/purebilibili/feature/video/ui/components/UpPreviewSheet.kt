@@ -61,6 +61,8 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -612,7 +614,8 @@ private fun UpPreviewVideoCard(
             color = colors.titleColor,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow(),
             lineHeight = 17.sp,
         )
         if (item.createdAtSeconds > 0L) {

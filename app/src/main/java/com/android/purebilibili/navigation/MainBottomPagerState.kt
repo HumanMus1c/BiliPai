@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,7 @@ import kotlin.math.abs
 /**
  * 底栏 HorizontalPager 状态。切页由 UserInput 优先级接管 Pager。
  */
+@Stable
 internal class MainBottomPagerState(
     val pagerState: PagerState,
     private val coroutineScope: CoroutineScope
@@ -33,6 +35,18 @@ internal class MainBottomPagerState(
 
     var navigationStartPage by mutableIntStateOf(pagerState.currentPage)
         private set
+
+    /** Continuous position shared by the pager and the bottom-bar indicator. */
+    val indicatorPosition: Float
+        get() = pagerState.currentPage + pagerState.currentPageOffsetFraction
+
+    /** True for both user-driven and programmatic pager movement. */
+    val isScrollInProgress: Boolean
+        get() = pagerState.isScrollInProgress
+
+    /** Stable adapters for UI components that observe values from snapshotFlow. */
+    val indicatorPositionProvider: () -> Float = { indicatorPosition }
+    val scrollInProgressProvider: () -> Boolean = { isScrollInProgress }
 
     private var navJob: Job? = null
 

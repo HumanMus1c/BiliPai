@@ -82,6 +82,7 @@ internal fun <T> AppMiuixTabRow(
     colors: AppSegmentedControlColors,
     preferredCornerRadius: Dp,
     modifier: Modifier,
+    indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)

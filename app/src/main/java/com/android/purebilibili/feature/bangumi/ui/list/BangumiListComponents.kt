@@ -29,6 +29,7 @@ import com.android.purebilibili.data.model.response.BangumiSearchItem
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.feature.bangumi.resolveBangumiCoverBadgeColors
 
 /**
  * 番剧卡片组件 - 用于列表/网格显示
@@ -331,15 +332,29 @@ fun BangumiBadge(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.primary
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val badgeColors = remember(
+        containerColor,
+        colorScheme.onPrimary,
+        colorScheme.surface,
+        colorScheme.onSurface,
+    ) {
+        resolveBangumiCoverBadgeColors(
+            primary = containerColor,
+            onPrimary = colorScheme.onPrimary,
+            surface = colorScheme.surface,
+            onSurface = colorScheme.onSurface,
+        )
+    }
     AppSurface(
         modifier = modifier,
-        color = containerColor,
+        color = badgeColors.containerColor,
         shape = AppShapes.container(ContainerLevel.Tag)
     ) {
         AppText(
             text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            color = Color.White,
+            color = badgeColors.contentColor,
             fontSize = 10.sp
         )
     }

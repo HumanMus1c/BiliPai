@@ -48,6 +48,8 @@ fun resolveSearchOrderChipLabel(order: SearchOrder): String {
         SearchOrder.PUBDATE -> "新发布"
         SearchOrder.DM -> "弹幕多"
         SearchOrder.STOW -> "收藏多"
+        SearchOrder.SCORES -> "评论多"
+        SearchOrder.ATTENTION -> "喜欢多"
     }
 }
 

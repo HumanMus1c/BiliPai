@@ -16,10 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +40,7 @@ import com.android.purebilibili.core.plugin.kotlinpkg.ExternalKotlinPluginInstal
 import com.android.purebilibili.core.plugin.kotlinpkg.ExternalKotlinPluginPackagePreview
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.plugin.skin.UiSkinImportPackageResolver
+import com.android.purebilibili.core.plugin.skin.UiSkinImportMode
 import com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage
 import com.android.purebilibili.core.plugin.skin.UiSkinInstallStore
 import com.android.purebilibili.core.plugin.skin.UiSkinPackagePreview
@@ -52,6 +49,7 @@ import com.android.purebilibili.core.plugin.skin.UiSkinSettingsStore
 import com.android.purebilibili.core.plugin.skin.rememberUiSkinState
 import com.android.purebilibili.core.plugin.PluginInfo
 import com.android.purebilibili.core.plugin.PluginManager
+import com.android.purebilibili.core.plugin.PluginStore
 import com.android.purebilibili.core.plugin.json.JsonPluginStatsNotificationConfig
 import com.android.purebilibili.core.plugin.json.persistJsonPluginStatsNotificationConfig
 import com.android.purebilibili.core.plugin.json.postJsonPluginStatsTestNotification
@@ -244,6 +242,11 @@ fun PluginsContent(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val effectMatchHintsEnabledFlow = remember(context) {
+        PluginStore.effectMatchHintsEnabledFlow(context)
+    }
+    val effectMatchHintsEnabled by effectMatchHintsEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
     val listState = rememberLazyListState()
     SettingsBottomBarScrollEffect(listState)
     val contentBottomPadding = LocalBottomBarContentPadding.current + 16.dp
@@ -318,6 +321,7 @@ fun PluginsContent(
     var uiSkinPreview by remember { mutableStateOf<UiSkinPackagePreview?>(null) }
     var uiSkinPackageBytes by remember { mutableStateOf<ByteArray?>(null) }
     var uiSkinPreviewAssetFiles by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var uiSkinImportMode by remember { mutableStateOf(UiSkinImportMode.FULL_SKIN) }
     var uiSkinInstalledPreview by remember { mutableStateOf<InstalledUiSkinPackage?>(null) }
     var uiSkinPendingDelete by remember { mutableStateOf<InstalledUiSkinPackage?>(null) }
     var uiSkinImportError by remember { mutableStateOf<String?>(null) }
@@ -350,6 +354,7 @@ fun PluginsContent(
                 uiSkinPreview = preview
                 uiSkinPackageBytes = bytes
                 uiSkinPreviewAssetFiles = previewAssetFiles
+                uiSkinImportMode = UiSkinImportMode.FULL_SKIN
             }.onFailure { error ->
                 uiSkinImportError = resolveUiSkinImportErrorMessage(error.message)
             }
@@ -582,6 +587,60 @@ fun PluginsContent(
                     modifier = Modifier.padding(start = 32.dp, top = 16.dp)
                 )
             }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                AppText(
+                    text = "提示设置",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)
+                )
+                AppSurface(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(AppShapes.container(ContainerLevel.Card)),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                scope.launch {
+                                    PluginStore.setEffectMatchHintsEnabled(
+                                        context,
+                                        !effectMatchHintsEnabled
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            AppText(
+                                text = "显示插件生效提示",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            AppText(
+                                text = "去广告或弹幕增强命中时显示顶部提示",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        AppAdaptiveSwitch(
+                            checked = effectMatchHintsEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    PluginStore.setEffectMatchHintsEnabled(context, enabled)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
             
             //  导入外部插件按钮
             item {
@@ -622,7 +681,7 @@ fun PluginsContent(
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
-                                imageVector = Icons.Outlined.CloudDownload,
+                                imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cloud_download_24),
                                 contentDescription = null,
                                 tint = importIconContentColor,
                                 modifier = Modifier.size(20.dp)
@@ -642,7 +701,7 @@ fun PluginsContent(
                             )
                         }
                         AppIcon(
-                            imageVector = Icons.Outlined.Add,
+                            imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_add_24),
                             contentDescription = null,
                             tint = importTint,
                             modifier = Modifier.size(24.dp)
@@ -674,7 +733,7 @@ fun PluginsContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 AppIcon(
-                                    imageVector = Icons.Outlined.Terminal,
+                                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_terminal_24),
                                     contentDescription = null,
                                     tint = jsImportIconContentColor,
                                     modifier = Modifier.size(20.dp)
@@ -791,7 +850,7 @@ fun PluginsContent(
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
-                                imageVector = Icons.Filled.Shield,
+                                imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_fill_24),
                                 contentDescription = null,
                                 tint = kotlinPackageIconContentColor,
                                 modifier = Modifier.size(20.dp)
@@ -903,116 +962,114 @@ fun PluginsContent(
             item {
                 AppSurface(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .clip(AppShapes.container(ContainerLevel.Card))
-                        .clickable { onOpenSkinCatalog() },
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                    tonalElevation = 0.dp
+                        .fillMaxWidth()
+                        .clip(AppShapes.container(ContainerLevel.Card)),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenSkinCatalog() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .adaptiveSquircleBackground(uiSkinTint, 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(
+                                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cloud_fill_24),
+                                    contentDescription = null,
+                                    tint = uiSkinIconContentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                AppText(
+                                    text = "在线装扮目录",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                AppText(
+                                    text = "浏览 Rovniced/bilibili-skin 主题存档，真实预览后一键导入",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AppSurface(
+                                shape = AppShapes.container(ContainerLevel.Chip),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                            ) {
+                                AppText(
+                                    text = "在线",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .adaptiveSquircleBackground(uiSkinTint, 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AppIcon(
-                                imageVector = Icons.Filled.Cloud,
-                                contentDescription = null,
-                                tint = uiSkinIconContentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            AppText(
-                                text = "在线装扮目录",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            AppText(
-                                text = "浏览 Rovniced/bilibili-skin 主题存档，真实预览后一键导入",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        AppSurface(
-                            shape = AppShapes.container(ContainerLevel.Chip),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-                        ) {
-                            AppText(
-                                text = "在线",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                AppSurface(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .clip(AppShapes.container(ContainerLevel.Card))
-                        .clickable(enabled = !isUiSkinPackageLoading) {
-                            uiSkinPackagePicker.launch("*/*")
-                        },
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                    tonalElevation = 0.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
+                                .fillMaxWidth()
+                                .height(0.5.dp)
+                                .padding(start = 16.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+                        Row(
                             modifier = Modifier
-                                .size(36.dp)
-                                .adaptiveSquircleBackground(uiSkinTint, 10.dp),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clickable(enabled = !isUiSkinPackageLoading) {
+                                    uiSkinPackagePicker.launch("*/*")
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AppIcon(
-                                imageVector = Icons.Filled.Brush,
-                                contentDescription = null,
-                                tint = uiSkinIconContentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            AppText(
-                                text = "导入界面皮肤包",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            AppText(
-                                text = if (isUiSkinPackageLoading) {
-                                    "正在读取 .bpskin..."
-                                } else {
-                                    "选择 .bpskin、主题目录 ZIP 或装扮 _package.zip，只保存资源和启用记录"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        AppSurface(
-                            shape = AppShapes.container(ContainerLevel.Chip),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-                        ) {
-                            AppText(
-                                text = "资源包",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .adaptiveSquircleBackground(uiSkinTint, 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(
+                                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_brush_fill_24),
+                                    contentDescription = null,
+                                    tint = uiSkinIconContentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                AppText(
+                                    text = "导入界面皮肤包",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                AppText(
+                                    text = if (isUiSkinPackageLoading) {
+                                        "正在读取 .bpskin..."
+                                    } else {
+                                        "选择 .bpskin、主题目录 ZIP 或装扮 _package.zip，只保存资源和启用记录"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AppSurface(
+                                shape = AppShapes.container(ContainerLevel.Chip),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                            ) {
+                                AppText(
+                                    text = "资源包",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1203,7 +1260,7 @@ fun PluginsContent(
                     jsImportError = null
                 }
             },
-            icon = { AppIcon(Icons.Outlined.Terminal, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_terminal_24), contentDescription = null) },
             title = { AppText("导入 JS 媒体插件") },
             text = {
                 Column {
@@ -1269,7 +1326,7 @@ fun PluginsContent(
                     jsPreview = null
                 }
             },
-            icon = { AppIcon(Icons.Filled.Shield, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_fill_24), contentDescription = null) },
             title = { AppText("JS 插件预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1366,7 +1423,7 @@ fun PluginsContent(
                 importUrl = ""
                 importError = null
             },
-            icon = { AppIcon(Icons.Outlined.CloudDownload, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cloud_download_24), contentDescription = null) },
             title = { AppText("导入外部插件") },
             text = {
                 Column {
@@ -1477,7 +1534,7 @@ fun PluginsContent(
                                 .clip(AppShapes.container(ContainerLevel.Chip))
                         )
                     } else {
-                        AppIcon(Icons.Outlined.Extension, contentDescription = null)
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_extension_24), contentDescription = null)
                     }
                 },
                 title = { AppText("安装插件预览") },
@@ -1571,7 +1628,7 @@ fun PluginsContent(
                     kotlinPackageBytes = null
                 }
             },
-            icon = { AppIcon(Icons.Filled.Shield, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_fill_24), contentDescription = null) },
             title = { AppText("Kotlin 插件包预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1660,7 +1717,7 @@ fun PluginsContent(
                     uiSkinPreviewAssetFiles = emptyMap()
                 }
             },
-            icon = { AppIcon(Icons.Filled.Brush, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_brush_fill_24), contentDescription = null) },
             title = { AppText("界面皮肤包预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1703,6 +1760,28 @@ fun PluginsContent(
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
+                    if (preview.manifest.assets.homeProfileBackground != null ||
+                        preview.manifest.assets.homeProfileSquaredBackground != null ||
+                        preview.manifest.assets.homeProfileVideoBackground != null
+                    ) {
+                        AppText("导入方式", style = MaterialTheme.typography.labelLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AppTextButton(onClick = { uiSkinImportMode = UiSkinImportMode.FULL_SKIN }) {
+                                AppText(if (uiSkinImportMode == UiSkinImportMode.FULL_SKIN) "✓ 完整皮肤" else "完整皮肤")
+                            }
+                            AppTextButton(onClick = {
+                                uiSkinImportMode = UiSkinImportMode.PERSONAL_BACKGROUND_ONLY
+                            }) {
+                                AppText(
+                                    if (uiSkinImportMode == UiSkinImportMode.PERSONAL_BACKGROUND_ONLY) {
+                                        "✓ 仅个人背景"
+                                    } else {
+                                        "仅个人背景"
+                                    }
+                                )
+                            }
+                        }
+                    }
                     UiSkinImagePreviewGrid(items = imagePreviewItems)
                     AppText(
                         text = "宿主只保存资源和启用记录，不执行代码；可替换首页皮肤图标和装饰层，不替换底栏液态玻璃链路。",
@@ -1715,7 +1794,15 @@ fun PluginsContent(
                 AppTextButton(
                     onClick = {
                         val bytes = uiSkinPackageBytes ?: return@AppTextButton
-                        val result = uiSkinStore.installPreview(preview, bytes)
+                        val result = runCatching {
+                            val packageToInstall = when (uiSkinImportMode) {
+                                UiSkinImportMode.FULL_SKIN -> bytes
+                                UiSkinImportMode.PERSONAL_BACKGROUND_ONLY ->
+                                    UiSkinImportPackageResolver.restrictToPersonalBackground(bytes).getOrThrow()
+                            }
+                            val installPreview = uiSkinStore.previewPackage(packageToInstall).getOrThrow()
+                            uiSkinStore.installPreview(installPreview, packageToInstall).getOrThrow()
+                        }
                         result.onSuccess { installed ->
                             installedUiSkins = uiSkinStore.listInstalledPackages()
                             UiSkinSettingsStore.setSelection(
@@ -1768,7 +1855,7 @@ fun PluginsContent(
         val imagePreviewItems = buildUiSkinImagePreviewItems(installed.assetFiles)
         AppAlertDialog(
             onDismissRequest = { uiSkinInstalledPreview = null },
-            icon = { AppIcon(Icons.Outlined.Visibility, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_24), contentDescription = null) },
             title = { AppText("皮肤预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1848,7 +1935,7 @@ fun PluginsContent(
     uiSkinPendingDelete?.let { skin ->
         AppAlertDialog(
             onDismissRequest = { uiSkinPendingDelete = null },
-            icon = { AppIcon(Icons.Outlined.Delete, contentDescription = null) },
+            icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_24), contentDescription = null) },
             title = { AppText("删除皮肤") },
             text = { AppText("确定要删除皮肤 \"${skin.displayName}\" 吗？删除后会清理本地包和已解压资源。") },
             confirmButton = {
@@ -1939,7 +2026,7 @@ private fun UiSkinImagePreviewGrid(
                         contentAlignment = Alignment.Center,
                     ) {
                         AppIcon(
-                            imageVector = Icons.Outlined.PlayCircle,
+                            imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_play_circle_24),
                             contentDescription = item.label,
                             tint = MaterialTheme.colorScheme.primary,
                         )
@@ -2012,7 +2099,7 @@ private fun InstalledUiSkinItem(
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 AppIconButton(onClick = onPreview) {
                     AppIcon(
-                        imageVector = Icons.Outlined.Visibility,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_24),
                         contentDescription = "预览皮肤",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -2023,7 +2110,7 @@ private fun InstalledUiSkinItem(
                     enabled = previewModel.canDelete
                 ) {
                     AppIcon(
-                        imageVector = Icons.Outlined.Delete,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_24),
                         contentDescription = "删除皮肤",
                         tint = if (previewModel.canDelete) {
                             MaterialTheme.colorScheme.error
@@ -2076,7 +2163,7 @@ private fun PluginItem(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    imageVector = plugin.icon ?: Icons.Outlined.Extension,
+                    imageVector = plugin.icon ?: com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_extension_24),
                     contentDescription = null,
                     tint = iconContentColor,
                     modifier = Modifier.size(20.dp)
@@ -2172,7 +2259,7 @@ private fun PluginItem(
             
             // 进入详情
             AppIcon(
-                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                 contentDescription = "打开插件详情",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -2435,7 +2522,7 @@ private fun JsonPluginStatsNotificationSection(
                     contentAlignment = Alignment.Center
                 ) {
                     AppIcon(
-                        imageVector = Icons.Outlined.Notifications,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_notifications_24),
                         contentDescription = null,
                         tint = notificationIconContentColor,
                         modifier = Modifier.size(20.dp)
@@ -2474,7 +2561,7 @@ private fun JsonPluginStatsNotificationSection(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 colors = ButtonDefaults.textButtonColors(contentColor = iOSPurple)
             ) {
-                AppIcon(Icons.Outlined.Notifications, null, modifier = Modifier.size(16.dp))
+                AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_notifications_24), null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 AppText("发送测试通知", style = MaterialTheme.typography.labelMedium)
             }
@@ -2526,7 +2613,7 @@ private fun JsonPluginItem(
                     )
                 } else {
                     AppIcon(
-                        imageVector = Icons.Outlined.Terminal,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_terminal_24),
                         contentDescription = null,
                         tint = jsonPluginIconContentColor,
                         modifier = Modifier.size(20.dp)
@@ -2598,7 +2685,7 @@ private fun JsonPluginItem(
             
             // 展开箭头
             AppIcon(
-                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                imageVector = if (isExpanded) com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_up_24) else com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_down_24),
                 contentDescription = if (isExpanded) "收起" else "展开",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -2633,7 +2720,7 @@ private fun JsonPluginItem(
                             contentColor = iOSBlue
                         )
                     ) {
-                        AppIcon(Icons.Outlined.Lightbulb, null, modifier = Modifier.size(16.dp))
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lightbulb_24), null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("测试规则", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2645,7 +2732,7 @@ private fun JsonPluginItem(
                             contentColor = iOSOrange
                         )
                     ) {
-                        AppIcon(Icons.Outlined.Refresh, null, modifier = Modifier.size(16.dp))
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_refresh_24), null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("重置统计", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2657,7 +2744,7 @@ private fun JsonPluginItem(
                             contentColor = iOSPurple
                         )
                     ) {
-                        AppIcon(Icons.Outlined.Terminal, null, modifier = Modifier.size(16.dp))
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_terminal_24), null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("编辑", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2669,7 +2756,7 @@ private fun JsonPluginItem(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        AppIcon(Icons.Outlined.Delete, null, modifier = Modifier.size(16.dp))
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_24), null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("删除", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2723,7 +2810,7 @@ private fun TestResultDialog(
         onDismissRequest = onDismiss,
         icon = {
             AppIcon(
-                Icons.Outlined.Lightbulb,
+                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lightbulb_24),
                 contentDescription = null,
                 tint = dialogIconTint
             )
@@ -2809,7 +2896,7 @@ private fun TestResultDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AppIcon(
-                                    Icons.Outlined.Delete,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_24),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                                     modifier = Modifier.size(14.dp)

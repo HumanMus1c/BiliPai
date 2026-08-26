@@ -43,14 +43,18 @@ class RelatedVideoItemPiliPlusStyleTest {
     @Test
     fun `related cards reuse PiliPlus horizontal presentation`() {
         val source = sourceOf("RelatedVideoItem.kt")
+        val statRow = File(
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/HorizontalVideoCardStats.kt"
+        ).let { file -> listOf(file, File("app/${file.path}")).first { it.exists() }.readText() }
         val model = File("src/main/java/com/android/purebilibili/data/model/response/RelatedResponse.kt")
             .readText()
 
         assertTrue(source.contains("RELATED_VIDEO_CARD_COVER_ASPECT_RATIO = 16f / 10f"))
         assertTrue(source.contains("FormatUtils.formatPublishTime(video.pubdate)"))
         assertTrue(source.indexOf("text = publishTime") < source.indexOf("name = video.owner.name"))
-        assertTrue(source.contains("Icons.Outlined.PlayCircleOutline"))
-        assertTrue(source.contains("Icons.Outlined.Subtitles"))
+        assertTrue(source.contains("HorizontalVideoStatRow("))
+        assertTrue(statRow.contains("Icons.Outlined.PlayCircleOutline"))
+        assertTrue(statRow.contains("Icons.Outlined.Subtitles"))
         assertFalse(source.contains("Icons.Filled.ChatBubble"))
         assertTrue(model.contains("val pubdate: Long = 0"))
     }

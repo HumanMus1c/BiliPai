@@ -106,6 +106,7 @@ class AppNavigationAppearancePolicyTest {
         assertFalse(capturedLayerSource.contains("onVideoCardDepthFrame"))
         assertTrue(capturedLayerSource.contains("if (isBottomBarBlurEnabled && mainHazeState != null)"))
         assertTrue(capturedLayerSource.contains("Modifier.hazeSourceCompat(mainHazeState)"))
+        assertTrue(source.contains("mainHostTabRoute = currentBottomNavItem.route"))
     }
 
     @Test

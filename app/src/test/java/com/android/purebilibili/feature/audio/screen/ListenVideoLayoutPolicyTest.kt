@@ -26,8 +26,7 @@ class ListenVideoLayoutPolicyTest {
         ).readText()
 
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(!source.contains("forceLiquidChrome = true"))
-        assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(!source.contains("forceLiquidChrome"))
         assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(source.contains("AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp"))
         assertTrue(source.contains("rememberLayerBackdrop()"))

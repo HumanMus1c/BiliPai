@@ -12,8 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,17 +99,17 @@ fun CommentFraudHistoryScreen(
             scrollHost = com.android.purebilibili.feature.settings.SettingsPageScrollHost.External,
             actions = {
                 AppIconButton(onClick = { importLauncher.launch("application/json") }) {
-                    AppIcon(Icons.Outlined.FileDownload, contentDescription = "导入备份", tint = MaterialTheme.colorScheme.onSurface)
+                    AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_file_download_24), contentDescription = "导入备份", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 AppIconButton(onClick = {
                     val fileName = "biliSendCheck_backup_${System.currentTimeMillis()}.json"
                     exportLauncher.launch(fileName)
                 }) {
-                    AppIcon(Icons.Outlined.FileUpload, contentDescription = "导出备份", tint = MaterialTheme.colorScheme.onSurface)
+                    AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_file_upload_24), contentDescription = "导出备份", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 if (records.isNotEmpty()) {
                     AppIconButton(onClick = { showClearDialog = true }) {
-                        AppIcon(Icons.Outlined.DeleteSweep, contentDescription = "清空全部", tint = iOSRed)
+                        AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_sweep_24), contentDescription = "清空全部", tint = iOSRed)
                     }
                 }
             }
@@ -123,7 +121,7 @@ fun CommentFraudHistoryScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         AppIcon(
-                            Icons.Outlined.Shield,
+                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_24),
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
@@ -415,7 +413,7 @@ private fun CommentFraudItemCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     AppIcon(
-                        imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                        imageVector = if (isExpanded) com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_up_24) else com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_down_24),
                         contentDescription = if (isExpanded) "收起" else "展开详情",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

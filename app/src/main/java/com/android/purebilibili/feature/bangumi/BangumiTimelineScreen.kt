@@ -15,7 +15,11 @@ import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,10 +49,7 @@ fun BangumiTimelineContent(
 ) {
     when (timelineState) {
         is TimelineState.Loading -> {
-            com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
-                modifier = modifier,
-                itemCount = 8,
-            )
+            BangumiTimelineScreenSkeleton(modifier = modifier)
         }
         is TimelineState.Error -> {
             Box(
@@ -73,6 +74,74 @@ fun BangumiTimelineContent(
                 onBangumiClick = onBangumiClick,
                 modifier = modifier
             )
+        }
+    }
+}
+
+@Composable
+private fun BangumiTimelineScreenSkeleton(modifier: Modifier = Modifier) {
+    val blockColor = rememberContentSkeletonBlockColor(rememberContentSkeletonPulse())
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            repeat(5) {
+                ContentSkeletonBlock(
+                    color = blockColor,
+                    shape = AppShapes.container(ContainerLevel.Pill),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                )
+            }
+        }
+        AppHorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            userScrollEnabled = false,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(7) {
+                AppSurface(
+                    shape = AppShapes.container(ContainerLevel.Card),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ContentSkeletonBlock(
+                            color = blockColor,
+                            shape = AppShapes.container(ContainerLevel.Field),
+                            modifier = Modifier.size(80.dp, 60.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ContentSkeletonBlock(
+                                color = blockColor,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.82f)
+                                    .height(15.dp),
+                            )
+                            ContentSkeletonBlock(
+                                color = blockColor,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.56f)
+                                    .height(12.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -166,41 +235,51 @@ private fun DayChip(
         day.date
     }
     
-    AppSurface(
+    AppFilterChip(
+        selected = isSelected,
         onClick = onClick,
         shape = AppShapes.container(ContainerLevel.Card),
-        color = when {
-            isSelected -> MaterialTheme.colorScheme.primary
-            isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        }
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
-            AppText(
-                text = if (isToday) "今天" else weekDay,
-                fontSize = 14.sp,
-                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    isSelected -> Color.White
-                    isToday -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            AppText(
-                text = displayDate,
-                fontSize = 11.sp,
-                color = when {
-                    isSelected -> Color.White.copy(alpha = 0.8f)
-                    isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-        }
-    }
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = if (isToday) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            },
+            labelColor = if (isToday) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        border = null,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        label = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AppText(
+                    text = if (isToday) "今天" else weekDay,
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = when {
+                        isSelected -> MaterialTheme.colorScheme.onPrimary
+                        isToday -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                AppText(
+                    text = displayDate,
+                    fontSize = 11.sp,
+                    color = when {
+                        isSelected -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        },
+    )
 }
 
 @Composable

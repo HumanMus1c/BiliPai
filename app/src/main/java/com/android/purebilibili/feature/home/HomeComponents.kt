@@ -100,6 +100,8 @@ fun LiveSubCategoryRow(
         options = options,
         selectedValue = selectedSubCategory,
         onSelectionChange = onSubCategorySelected,
+        dragSelectionEnabled = options.size > 1,
+        tapPressRefractionEnabled = true,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = AppSpacingTokens.Small),

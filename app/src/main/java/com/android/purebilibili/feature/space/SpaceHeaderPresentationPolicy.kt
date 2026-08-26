@@ -18,3 +18,16 @@ internal fun resolveSpaceHeaderMetricItems(
         SpaceHeaderMetricItem("获赞", upStat?.likes ?: 0L)
     )
 }
+
+internal const val SPACE_PINNED_TOP_CHROME_FADE_RANGE_PX = 120
+
+/** 0 at rest over the banner, 1 after the header has scrolled under the pinned chrome. */
+internal fun resolveSpacePinnedTopChromeScrim(
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    fadeRangePx: Int = SPACE_PINNED_TOP_CHROME_FADE_RANGE_PX,
+): Float {
+    if (firstVisibleItemIndex > 0) return 1f
+    if (fadeRangePx <= 0) return 0f
+    return (firstVisibleItemScrollOffset.toFloat() / fadeRangePx).coerceIn(0f, 1f)
+}

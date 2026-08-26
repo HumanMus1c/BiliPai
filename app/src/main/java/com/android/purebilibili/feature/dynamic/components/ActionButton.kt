@@ -26,6 +26,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,10 +42,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
-import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonText
@@ -96,9 +97,10 @@ fun ActionButton(
     val buttonIcon = when {
         isLike && isActive -> rememberAppLikeFilledIcon()
         isLike -> rememberAppLikeIcon()
-        isForward -> rememberAppShareIcon()
-        isComment -> rememberAppCommentIcon()
-        else -> rememberAppCommentIcon()
+        // 动态底栏采用 PiliPlus 的“方框箭头 / 方框气泡”线性图标，而不是节点式 Share。
+        isForward -> Icons.Outlined.IosShare
+        isComment -> Icons.Outlined.Sms
+        else -> Icons.Outlined.Sms
     }
     val countFadeAnimationSpec = AppMotionTokens.standardSpec<Float>()
     val countSlideAnimationSpec = AppMotionTokens.standardSpec<IntOffset>()
@@ -112,56 +114,70 @@ fun ActionButton(
             )
         }
 
-        if (isForward || isComment) {
-            when (LocalAppUiStyle.current) {
-                AppUiStyle.MATERIAL3 -> FilledTonalButton(
-                    onClick = onClick,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = AppShapes.container(ContainerLevel.Card),
-                    contentPadding = PaddingValues(
-                        horizontal = AppSpacingTokens.Small,
-                        vertical = AppSpacingTokens.Small
-                    )
-                ) {
-                    Icon(
-                        imageVector = buttonIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(ButtonDefaults.IconSize)
-                    )
-                    DynamicNativeActionText(
-                        actionText = actionText,
-                        countFadeAnimationSpec = countFadeAnimationSpec,
-                        countSlideAnimationSpec = countSlideAnimationSpec,
-                        spacing = ButtonDefaults.IconSpacing
-                    )
-                }
-
-                AppUiStyle.MIUIX -> MiuixButton(
-                    onClick = onClick,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),
-                    insideMargin = PaddingValues(
-                        horizontal = AppSpacingTokens.Small,
-                        vertical = AppSpacingTokens.Medium
-                    )
-                ) {
-                    AppIcon(
-                        imageVector = buttonIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
-                    )
-                    DynamicNativeActionText(
-                        actionText = actionText,
-                        countFadeAnimationSpec = countFadeAnimationSpec,
-                        countSlideAnimationSpec = countSlideAnimationSpec,
-                        spacing = AppSpacingTokens.ExtraSmall
-                    )
-                }
+        // Miuix 动态底栏统一使用原生 Button，保证图标、文字、触控区与桌面 PiliPlus 风格一致。
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            MiuixButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+                insideMargin = PaddingValues(
+                    horizontal = AppSpacingTokens.Small,
+                    vertical = AppSpacingTokens.Medium
+                )
+            ) {
+                AppIcon(
+                    imageVector = buttonIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                )
+                DynamicNativeActionText(
+                    actionText = actionText,
+                    countFadeAnimationSpec = countFadeAnimationSpec,
+                    countSlideAnimationSpec = countSlideAnimationSpec,
+                    spacing = AppSpacingTokens.ExtraSmall
+                )
             }
             return@BoxWithConstraints
         }
 
+        // Material 3 主题同样使用原生 Button，避免主题切换后退回自绘点击 Row。
+        if (LocalAppUiStyle.current == AppUiStyle.MATERIAL3) {
+            Button(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
+                    .scale(scale),
+                contentPadding = PaddingValues(
+                    horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                    vertical = AppSpacingTokens.Small
+                ),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = buttonColor,
+                    disabledContainerColor = Color.Transparent,
+                    disabledContentColor = buttonColor,
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+            ) {
+                AppIcon(
+                    imageVector = buttonIcon,
+                    contentDescription = label,
+                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro),
+                    tint = buttonColor,
+                )
+                DynamicNativeActionText(
+                    actionText = actionText,
+                    countFadeAnimationSpec = countFadeAnimationSpec,
+                    countSlideAnimationSpec = countSlideAnimationSpec,
+                    spacing = AppSpacingTokens.ExtraSmall,
+                )
+            }
+            return@BoxWithConstraints
+        }
+
+        val useFilledShell = !isComment && LocalAppUiStyle.current != AppUiStyle.MATERIAL3
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -169,9 +185,18 @@ fun ActionButton(
                 .fillMaxWidth()
                 .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
                 .scale(scale)
-                .clip(AppShapes.container(ContainerLevel.Pill))
-                .background(
-                    color = buttonColor.copy(alpha = if (isActive && isLike) 0.15f else 0.08f)
+                .then(
+                    if (useFilledShell) {
+                        Modifier
+                            .clip(AppShapes.container(ContainerLevel.Pill))
+                            .background(
+                                color = buttonColor.copy(
+                                    alpha = if (isActive && isLike) 0.15f else 0.08f
+                                )
+                            )
+                    } else {
+                        Modifier
+                    }
                 )
                 .clickable(
                     enabled = enabled,

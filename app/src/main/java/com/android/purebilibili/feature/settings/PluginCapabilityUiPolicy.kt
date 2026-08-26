@@ -252,6 +252,9 @@ private val UiSkinSurface.displayLabel: String
         UiSkinSurface.HOME_DRAWER -> "首页侧栏"
         UiSkinSurface.PROFILE -> "个人页"
         UiSkinSurface.DYNAMIC_PUBLISH -> "动态发布"
+        UiSkinSurface.LOADING_INDICATOR -> "加载动画"
+        UiSkinSurface.LIKE_EFFECT -> "点赞特效"
+        UiSkinSurface.PLAYER_PROGRESS -> "播放器进度条"
     }
 
 private val String.previewOrder: Int

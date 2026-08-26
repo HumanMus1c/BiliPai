@@ -297,6 +297,8 @@ fun LiveSearchScreen(
                         options = searchTabs,
                         selectedValue = selectedTab,
                         onSelectionChange = { selectedTab = it },
+                        dragSelectionEnabled = searchTabs.size > 1,
+                        tapPressRefractionEnabled = true,
                         modifier = Modifier
                             .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                             .fillMaxWidth()

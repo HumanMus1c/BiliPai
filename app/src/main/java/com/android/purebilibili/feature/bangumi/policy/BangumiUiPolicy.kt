@@ -1,5 +1,30 @@
 package com.android.purebilibili.feature.bangumi
 
+import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.theme.ACCESSIBLE_TEXT_MIN_CONTRAST
+import com.android.purebilibili.core.theme.AccessibleContainerColors
+import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
+
+/**
+ * Cover-corner badges (大会员 / 出品) sit on a small primary fill.
+ * Use onPrimary first so light-gold dark-theme skins get a dark label;
+ * fall back to black/white by contrast instead of hard-coding either.
+ */
+internal fun resolveBangumiCoverBadgeColors(
+    primary: Color,
+    onPrimary: Color,
+    surface: Color,
+    onSurface: Color,
+): AccessibleContainerColors {
+    return resolveAccessibleContainerColors(
+        containerColor = primary,
+        contentColor = onPrimary,
+        backgroundColor = surface,
+        fallbackContentColors = listOf(onSurface, Color.Black, Color.White),
+        minimumContrast = ACCESSIBLE_TEXT_MIN_CONTRAST,
+    )
+}
+
 internal fun resolveBangumiNavigationTitleFontSizeSp(screenWidthDp: Int): Float {
     return if (screenWidthDp >= 380) 22f else 20f
 }

@@ -41,6 +41,8 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.ViewAgenda
@@ -50,12 +52,11 @@ import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import com.android.purebilibili.core.ui.components.AppDropdownMenu
-import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppWindowAction
+import com.android.purebilibili.core.ui.components.AppWindowActionMenu
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -74,7 +75,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -97,7 +98,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.imageLoader
@@ -109,13 +109,19 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.MediaContrastPalette
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeSpec
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeTone
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
-import com.android.purebilibili.core.ui.components.AppSearchField
+import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
+import com.android.purebilibili.core.ui.components.AppNativeTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -123,9 +129,14 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
+import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
+import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
@@ -207,8 +218,6 @@ fun SpaceScreen(
     val isBlocked by blockedUpRepository.isBlocked(mid).collectAsStateWithLifecycle(initialValue = false)
     val coroutineScope = rememberCoroutineScope()
 
-    var showMenu by remember { mutableStateOf(false) }
-    var showVideoSortMenu by remember { mutableStateOf(false) }
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showTopPhotoPreview by remember(mid) { mutableStateOf(false) }
     var showAvatarPreview by remember(mid) { mutableStateOf(false) }
@@ -218,7 +227,14 @@ fun SpaceScreen(
     val isSpaceScrolling by remember {
         derivedStateOf { gridState.isScrollInProgress }
     }
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val pinnedTopChromeScrim by remember {
+        derivedStateOf {
+            resolveSpacePinnedTopChromeScrim(
+                firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
 
     LaunchedEffect(mid) {
         viewModel.loadSpaceInfo(mid)
@@ -299,7 +315,6 @@ fun SpaceScreen(
     val unblockUserLabel = stringResource(R.string.space_unblock_user)
 
     AppScaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             Box(
                 modifier = Modifier
@@ -321,10 +336,13 @@ fun SpaceScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
+                        containerColor = MaterialTheme.colorScheme.surface.copy(
+                            alpha = pinnedTopChromeScrim
+                        ),
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(
+                            alpha = pinnedTopChromeScrim
+                        )
                     ),
-                    scrollBehavior = scrollBehavior,
                     actions = {
                         if (canSearch) {
                             AppIconButton(onClick = { viewModel.setSearchMode(!isSearchMode) }) {
@@ -334,196 +352,111 @@ fun SpaceScreen(
                                 )
                             }
                         }
-                        Box {
-                            AppIconButton(onClick = { showMenu = true }) {
-                                AppIcon(
-                                    imageVector = Icons.Outlined.MoreVert,
-                                    contentDescription = moreLabel
-                                )
-                            }
-                            AppDropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                            ) {
+                        AppWindowActionMenu(
+                            groups = buildList {
                                 if (showContributionVideoMenuActions) {
-                                    AppDropdownMenuItem(
-                                        text = { AppText("播放全部") },
-                                        onClick = {
-                                            showMenu = false
-                                            playAllSpaceVideos()
-                                        },
-                                        leadingIcon = {
-                                            AppIcon(
-                                                imageVector = Icons.Outlined.PlayCircleOutline,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    )
-                                    AppDropdownMenuItem(
-                                        text = {
-                                            AppText(
-                                                if (contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN) {
+                                    add(
+                                        listOf(
+                                            AppWindowAction(
+                                                label = "播放全部",
+                                                icon = Icons.Outlined.PlayCircleOutline,
+                                                onClick = playAllSpaceVideos,
+                                            ),
+                                            AppWindowAction(
+                                                label = if (
+                                                    contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
+                                                ) {
                                                     "切换为双列"
                                                 } else {
                                                     "切换为单列"
-                                                }
-                                            )
-                                        },
-                                        onClick = {
-                                            showMenu = false
-                                            contributionVideoLayoutMode =
-                                                toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
-                                        },
-                                        leadingIcon = {
-                                            AppIcon(
-                                                imageVector = if (
+                                                },
+                                                icon = if (
                                                     contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
                                                 ) {
                                                     Icons.Outlined.GridView
                                                 } else {
                                                     Icons.Outlined.ViewAgenda
                                                 },
-                                                contentDescription = null
-                                            )
-                                        }
+                                                onClick = {
+                                                    contributionVideoLayoutMode =
+                                                        toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
+                                                },
+                                            ),
+                                            AppWindowAction(
+                                                label = "排序：${resolveSpaceVideoSortCompactLabel(currentSuccessState?.sortOrder ?: VideoSortOrder.PUBDATE)}",
+                                                icon = Icons.AutoMirrored.Outlined.Sort,
+                                                children = VideoSortOrder.entries.map { order ->
+                                                    AppWindowAction(
+                                                        label = order.displayName,
+                                                        selected = currentSuccessState?.sortOrder == order,
+                                                        onClick = { viewModel.selectSortOrder(order) },
+                                                    )
+                                                },
+                                            ),
+                                        )
                                     )
-                                    AppDropdownMenuItem(
-                                        text = {
-                                            AppText(
-                                                "排序：${resolveSpaceVideoSortCompactLabel(currentSuccessState?.sortOrder ?: VideoSortOrder.PUBDATE)}"
-                                            )
-                                        },
-                                        onClick = {
-                                            showMenu = false
-                                            showVideoSortMenu = true
-                                        },
-                                        leadingIcon = {
-                                            AppIcon(
-                                                imageVector = Icons.AutoMirrored.Outlined.Sort,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    )
-                                    AppHorizontalDivider()
                                 }
-                                AppDropdownMenuItem(
-                                    text = { AppText("复制空间链接") },
-                                    onClick = {
-                                        showMenu = false
-                                        copyToClipboard(
-                                            "https://space.bilibili.com/$mid",
-                                            "空间链接"
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        AppIcon(
-                                            imageVector = Icons.Outlined.ContentCopy,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-                                AppDropdownMenuItem(
-                                    text = { AppText("复制 UID") },
-                                    onClick = {
-                                        showMenu = false
-                                        copyToClipboard(mid.toString(), "UID")
-                                    },
-                                    leadingIcon = {
-                                        AppIcon(
-                                            imageVector = Icons.Outlined.ContentCopy,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-                                AppDropdownMenuItem(
-                                    text = { AppText("分享") },
-                                    onClick = {
-                                        showMenu = false
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, "https://space.bilibili.com/$mid")
-                                        }
-                                        context.startActivity(Intent.createChooser(shareIntent, "分享空间"))
-                                    },
-                                    leadingIcon = {
-                                        AppIcon(
-                                            imageVector = Icons.Outlined.ChatBubbleOutline,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-                                AppDropdownMenuItem(
-                                    text = { AppText("举报") },
-                                    onClick = {
-                                        showMenu = false
-                                        onWebClick(
-                                            "https://www.bilibili.com/appeal/?prefid=0&mid=$mid",
-                                            "举报"
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        AppIcon(
-                                            imageVector = Icons.Outlined.VisibilityOff,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    colors = MenuDefaults.itemColors(
-                                        textColor = MaterialTheme.colorScheme.error,
-                                        leadingIconColor = MaterialTheme.colorScheme.error
+                                add(
+                                    listOf(
+                                        AppWindowAction(
+                                            label = "复制空间链接",
+                                            icon = Icons.Outlined.ContentCopy,
+                                            onClick = {
+                                                copyToClipboard(
+                                                    "https://space.bilibili.com/$mid",
+                                                    "空间链接",
+                                                )
+                                            },
+                                        ),
+                                        AppWindowAction(
+                                            label = "复制 UID",
+                                            icon = Icons.Outlined.ContentCopy,
+                                            onClick = { copyToClipboard(mid.toString(), "UID") },
+                                        ),
+                                        AppWindowAction(
+                                            label = "分享",
+                                            icon = Icons.Outlined.Share,
+                                            onClick = {
+                                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = "text/plain"
+                                                    putExtra(Intent.EXTRA_TEXT, "https://space.bilibili.com/$mid")
+                                                }
+                                                context.startActivity(Intent.createChooser(shareIntent, "分享空间"))
+                                            },
+                                        ),
                                     )
                                 )
-                                AppDropdownMenuItem(
-                                    text = { AppText(if (isBlocked) unblockUserLabel else blockUserLabel) },
-                                    onClick = {
-                                        showMenu = false
-                                        showBlockConfirmDialog = true
-                                    },
-                                    leadingIcon = {
-                                        AppIcon(
-                                            imageVector = if (isBlocked) {
-                                                Icons.Outlined.Visibility
-                                            } else {
-                                                Icons.Outlined.VisibilityOff
+                                add(
+                                    listOf(
+                                        AppWindowAction(
+                                            label = "举报",
+                                            icon = Icons.Outlined.VisibilityOff,
+                                            iconTint = MaterialTheme.colorScheme.error,
+                                            onClick = {
+                                                onWebClick(
+                                                    "https://www.bilibili.com/appeal/?prefid=0&mid=$mid",
+                                                    "举报",
+                                                )
                                             },
-                                            contentDescription = null,
-                                            tint = if (isBlocked) {
+                                        ),
+                                        AppWindowAction(
+                                            label = if (isBlocked) unblockUserLabel else blockUserLabel,
+                                            icon = if (isBlocked) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                            iconTint = if (isBlocked) {
                                                 MaterialTheme.colorScheme.primary
                                             } else {
                                                 MaterialTheme.colorScheme.error
-                                            }
-                                        )
-                                    },
-                                    colors = MenuDefaults.itemColors(
-                                        textColor = if (isBlocked) {
-                                            MaterialTheme.colorScheme.onSurface
-                                        } else {
-                                            MaterialTheme.colorScheme.error
-                                        },
-                                        leadingIconColor = if (isBlocked) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.error
-                                        }
+                                            },
+                                            onClick = { showBlockConfirmDialog = true },
+                                        ),
                                     )
                                 )
-                            }
-                            AppDropdownMenu(
-                                expanded = showVideoSortMenu,
-                                onDismissRequest = { showVideoSortMenu = false },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                            ) {
-                                VideoSortOrder.entries.forEach { order ->
-                                    AppDropdownMenuItem(
-                                        text = { AppText(order.displayName) },
-                                        onClick = {
-                                            showVideoSortMenu = false
-                                            viewModel.selectSortOrder(order)
-                                        }
-                                    )
-                                }
-                            }
+                            },
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.MoreVert,
+                                contentDescription = moreLabel,
+                            )
                         }
                     }
                 )
@@ -1223,8 +1156,8 @@ private fun SpaceContent(
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = spaceFeedCardLayout.outerPaddingDp.dp,
-                end = spaceFeedCardLayout.outerPaddingDp.dp,
+                start = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
+                end = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
                 bottom = bottomInset + 24.dp
             ),
             horizontalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.itemSpacingDp.dp),
@@ -1544,7 +1477,7 @@ private fun SpaceContent(
                         LaunchedEffect(state.isSearchMode, currentSearchScope) {
                             searchFocusRequester.requestFocus()
                         }
-                        AppSearchField(
+                        AppLiquidAwareSearchField(
                             query = state.searchQuery,
                             onQueryChange = onSearchQueryChange,
                             placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
@@ -1657,7 +1590,7 @@ private fun SpaceContent(
                         LaunchedEffect(state.isSearchMode, currentSearchScope) {
                             searchFocusRequester.requestFocus()
                         }
-                        AppSearchField(
+                        AppLiquidAwareSearchField(
                             query = state.searchQuery,
                             onQueryChange = onSearchQueryChange,
                             placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
@@ -2242,22 +2175,19 @@ private fun SpaceHeader(
     // - 头像 80dp 左下，底部 32dp 伸出背景；stats 独占头像右侧
     // - 名字 + 等级 + 私信/关注同一行垂直居中对齐；名字可收缩，按钮固定在行尾
     // - 徽标 / sign / UID 继续在信息区下方
-    // - 滚动折叠：整体内容随 collapseFraction 上移 + 淡出（视差折叠）
+    // - 返回按钮和 UP 名由外层 AppTopBar 钉住，header 不再整块上移把名字带走
     val heroHeight = 156.dp
     val avatarSize = 80.dp
     val avatarOverlap = 32.dp
     val density = LocalDensity.current
-    val translateYPx = with(density) {
-        (heroHeight.value * collapseFraction * 1.15f).dp.roundToPx()
+    val bannerParallaxPx = with(density) {
+        (heroHeight.value * collapseFraction * 0.35f).dp.roundToPx()
     }
-    val contentAlpha = (1f - collapseFraction).coerceIn(0f, 1f)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .offset { IntOffset(0, -translateYPx) }
-            .alpha(contentAlpha)
     ) {
         Box(
             modifier = Modifier
@@ -2285,7 +2215,9 @@ private fun SpaceHeader(
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset { IntOffset(0, bannerParallaxPx) }
                     )
                 } else {
                     Box(
@@ -2579,6 +2511,10 @@ private fun SpaceSecondarySwitchRow(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val spec = remember(items, selectedId) {
         resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
     }
@@ -2622,39 +2558,51 @@ private fun SpaceSecondarySwitchRow(
             }
         }
 
-        BottomBarLiquidSegmentedControl(
-            items = items.map { it.title },
-            selectedIndex = spec.selectedIndex,
-            onSelected = { index -> items.getOrNull(index)?.id?.let(onSelect) },
-            itemWidth = itemWidth.takeIf { useScrollableRail },
-            height = spec.heightDp.dp,
-            indicatorHeight = spec.indicatorHeightDp.dp,
-            labelFontSize = 14.sp,
-            forceLiquidChrome = true,
-            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
-            dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail,
-            longPressDragSelectionEnabled = useScrollableRail,
-            onIndicatorPositionChanged = { position ->
-                if (useScrollableRail) {
-                    scrollState.dispatchRawDelta(
-                        resolveSpaceSecondarySwitchDragScrollDeltaPx(
-                            indicatorPosition = position,
-                            itemWidthPx = itemWidthPx,
-                            viewportWidthPx = viewportWidthPx,
-                            currentScrollPx = scrollState.value.toFloat(),
-                            containerHorizontalPaddingPx = containerHorizontalPaddingPx,
-                            edgePaddingPx = dragFollowEdgePaddingPx
+        if (homeSettings.androidNativeLiquidGlassEnabled) {
+            BottomBarLiquidSegmentedControl(
+                items = items.map { it.title },
+                selectedIndex = spec.selectedIndex,
+                onSelected = { index -> items.getOrNull(index)?.id?.let(onSelect) },
+                itemWidth = itemWidth.takeIf { useScrollableRail },
+                height = spec.heightDp.dp,
+                indicatorHeight = spec.indicatorHeightDp.dp,
+                labelFontSize = 14.sp,
+                liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
+                dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail,
+                longPressDragSelectionEnabled = useScrollableRail,
+                onIndicatorPositionChanged = { position ->
+                    if (useScrollableRail) {
+                        scrollState.dispatchRawDelta(
+                            resolveSpaceSecondarySwitchDragScrollDeltaPx(
+                                indicatorPosition = position,
+                                itemWidthPx = itemWidthPx,
+                                viewportWidthPx = viewportWidthPx,
+                                currentScrollPx = scrollState.value.toFloat(),
+                                containerHorizontalPaddingPx = containerHorizontalPaddingPx,
+                                edgePaddingPx = dragFollowEdgePaddingPx
+                            )
                         )
-                    )
+                    }
+                },
+                tapPressRefractionEnabled = !useScrollableRail,
+                modifier = if (useScrollableRail) {
+                    Modifier
+                        .clip(CircleShape)
+                        .horizontalScroll(scrollState)
+                } else {
+                    Modifier.fillMaxWidth()
                 }
-            },
-            tapPressRefractionEnabled = !useScrollableRail,
-            modifier = if (useScrollableRail) {
-                Modifier.horizontalScroll(scrollState)
-            } else {
-                Modifier.fillMaxWidth()
-            }
-        )
+            )
+        } else {
+            AppNativeTabRow(
+                options = items.map { AppSegmentOption(it.id, it.title) },
+                selectedValue = selectedId,
+                onSelectionChange = onSelect,
+                modifier = Modifier.fillMaxWidth(),
+                scrollable = useScrollableRail,
+                minTabWidth = itemWidth,
+            )
+        }
     }
 }
 
@@ -2673,16 +2621,14 @@ private fun SpaceMainTabRow(
             .fillMaxWidth()
             .padding(top = 6.dp, bottom = 2.dp)
     ) {
-        BottomBarLiquidSegmentedControl(
-            items = tabs.map { it.title },
-            selectedIndex = selectedIndex,
-            onSelected = { index -> tabs.getOrNull(index)?.tab?.let(onSelect) },
+        AppThemeAdaptiveTabRow(
+            options = tabs.map { AppSegmentOption(it.tab, it.title) },
+            selectedValue = tabs[selectedIndex].tab,
+            onSelectionChange = onSelect,
+            dragSelectionEnabled = spec.dragSelectionEnabled,
+            tapPressRefractionEnabled = true,
             height = spec.heightDp.dp,
             indicatorHeight = spec.indicatorHeightDp.dp,
-            labelFontSize = 14.sp,
-            forceLiquidChrome = true,
-            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
-            dragSelectionEnabled = spec.dragSelectionEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = spec.horizontalPaddingDp.dp),
@@ -2829,6 +2775,11 @@ private fun SpaceHomeVideoCard(
     }
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val coverShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    val coverOverlayTextStyle = remember {
+        androidx.compose.ui.text.TextStyle(
+            shadow = resolveVideoCardCoverOverlayTextShadow()
+        )
+    }
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
@@ -2947,18 +2898,33 @@ private fun SpaceHomeVideoCard(
                 }
             }
 
-            AppSurface(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
-                shape = AppShapes.container(ContainerLevel.Chip),
-                color = Color.Black.copy(alpha = 0.72f)
-            ) {
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MediaContrastPalette.Scrim.copy(alpha = 0.30f),
+                                MediaContrastPalette.Scrim.copy(alpha = 0.78f),
+                            )
+                        )
+                    )
+            )
+
+            if (video.length.isNotBlank()) {
                 AppText(
                     text = video.length,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     fontSize = 11.sp,
-                    color = Color.White
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    style = coverOverlayTextStyle,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
                 )
             }
 
@@ -2988,12 +2954,13 @@ private fun SpaceHomeVideoCard(
                 style = feedContentTypography().title.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
-                overflow = TextOverflow.Visible
+                minLines = 2,
+                maxLines = videoCardTitleMaxLines(),
+                overflow = videoCardTitleOverflow()
             )
-            val metadata = remember(video.created, video.play, progressState.progressSec) {
+            val metadata = remember(video.created, progressState.progressSec) {
                 buildList {
                     if (video.created > 0L) add(FormatUtils.formatPublishTime(video.created))
-                    if (video.play > 0) add("${FormatUtils.formatStat(video.play.toLong())}播放")
                     if (progressState.progressSec == -1) add("已看完")
                 }.joinToString(" · ")
             }
@@ -3006,6 +2973,12 @@ private fun SpaceHomeVideoCard(
                     overflow = TextOverflow.Visible
                 )
             }
+            Spacer(modifier = Modifier.height(4.dp))
+            VideoStatRow(
+                playText = FormatUtils.formatStat(video.play.toLong()),
+                danmakuText = FormatUtils.formatStat(video.comment.toLong()),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -3104,20 +3077,12 @@ private fun SpaceAggregateMediaCard(
             )
 
             if (item.length.isNotBlank()) {
-                AppSurface(
+                VideoCardCoverDurationText(
+                    text = item.length,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp),
-                    shape = AppShapes.container(ContainerLevel.Chip),
-                    color = Color.Black.copy(alpha = 0.72f)
-                ) {
-                    AppText(
-                        text = item.length,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 11.sp,
-                        color = Color.White
-                    )
-                }
+                )
             }
         }
 
@@ -3127,7 +3092,8 @@ private fun SpaceAggregateMediaCard(
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow(),
             color = MaterialTheme.colorScheme.onSurface
         )
     }
@@ -3168,7 +3134,8 @@ private fun SpaceAggregatePosterCard(
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            overflow = TextOverflow.Visible
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow()
         )
         if (item.subtitle.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -3295,7 +3262,8 @@ private fun SpaceTopVideoCard(
                     fontSize = 15.sp,
                     lineHeight = 21.sp,
                     fontWeight = FontWeight.Medium,
-                    overflow = TextOverflow.Visible
+                    maxLines = videoCardTitleMaxLines(),
+                    overflow = videoCardTitleOverflow()
                 )
                 AppText(
                     text = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
@@ -3501,20 +3469,12 @@ private fun SpaceArchiveListItemRow(
                 }
             }
             if (duration.isNotBlank()) {
-                AppSurface(
+                VideoCardCoverDurationText(
+                    text = duration,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp),
-                    shape = AppShapes.container(ContainerLevel.Chip),
-                    color = Color.Black.copy(alpha = 0.72f)
-                ) {
-                    AppText(
-                        text = duration,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 11.sp,
-                        color = Color.White
-                    )
-                }
+                )
             }
             if (progressState?.showProgressBar == true) {
                 AppLinearProgressIndicator(
@@ -3550,7 +3510,8 @@ private fun SpaceArchiveListItemRow(
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.Medium,
-                    overflow = TextOverflow.Visible,
+                    maxLines = videoCardTitleMaxLines(),
+                    overflow = videoCardTitleOverflow(),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 AppIcon(
@@ -3567,49 +3528,11 @@ private fun SpaceArchiveListItemRow(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier,
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.PlayCircleOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    AppText(
-                        text = FormatUtils.formatStat(play),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-                Row(
-                    modifier = Modifier,
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    AppText(
-                        text = FormatUtils.formatStat(secondaryCount),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-            }
+            VideoStatRow(
+                playText = FormatUtils.formatStat(play),
+                danmakuText = FormatUtils.formatStat(secondaryCount),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -3822,8 +3745,8 @@ private fun SpaceBangumiCard(
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow()
         )
         Spacer(modifier = Modifier.height(4.dp))
         AppText(

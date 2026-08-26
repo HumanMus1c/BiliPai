@@ -183,6 +183,9 @@ class VideoDetailReturnCoverPolicyTest {
             ),
             0.0001f,
         )
+        assertEquals(0f, resolveVideoDetailCollapseShadowAlpha(0f), 0.0001f)
+        assertEquals(0.08f, resolveVideoDetailCollapseShadowAlpha(0.5f), 0.0001f)
+        assertEquals(0.16f, resolveVideoDetailCollapseShadowAlpha(1f), 0.0001f)
     }
 
     @Test

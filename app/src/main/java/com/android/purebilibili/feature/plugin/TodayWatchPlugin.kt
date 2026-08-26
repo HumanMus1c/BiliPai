@@ -1,7 +1,9 @@
 package com.android.purebilibili.feature.plugin
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -300,13 +302,21 @@ class TodayWatchPlugin : RecommendationPluginApi {
         }
 
         val settingsBackdrop = rememberLayerBackdrop()
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .layerBackdrop(settingsBackdrop),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(16.dp),
         ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .layerBackdrop(settingsBackdrop)
+                    .background(MaterialTheme.colorScheme.background),
+            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             AppText(
                 text = "默认模式",
                 style = MaterialTheme.typography.titleSmall,
@@ -508,6 +518,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            }
         }
 
         if (showResetDialog) {
@@ -560,9 +571,6 @@ private fun TodayWatchPluginModeSegmentedControl(
     val labels = modes.map { mode ->
         if (mode == TodayWatchPluginMode.RELAX) "今晚轻松看" else "深度学习看"
     }
-    val fallbackBackdrop = rememberLayerBackdrop()
-    val backdrop = miuixBackdrop ?: fallbackBackdrop
-
     BottomBarLiquidSegmentedControl(
         items = labels,
         selectedIndex = selectedIndex,
@@ -575,8 +583,7 @@ private fun TodayWatchPluginModeSegmentedControl(
         labelFontSize = 13.sp,
         containerHorizontalPadding = 4.dp,
         containerVerticalPadding = 4.dp,
-        miuixBackdrop = backdrop,
-        forceLiquidChrome = false,
+        miuixBackdrop = miuixBackdrop,
         liquidGlassEffectsEnabled = true,
         tapPressRefractionEnabled = true,
         dragSelectionEnabled = true,

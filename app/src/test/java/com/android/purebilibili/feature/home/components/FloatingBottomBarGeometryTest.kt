@@ -142,6 +142,46 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
+    fun `interactive highlight radius covers long capsules without shrinking compact docks`() {
+        assertEquals(
+            64f * 1.2f,
+            resolveDockInteractiveHighlightRadiusPx(
+                shellMinDimensionPx = 64f,
+                tabWidthPx = 70f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            200f,
+            resolveDockInteractiveHighlightRadiusPx(
+                shellMinDimensionPx = 40f,
+                tabWidthPx = 400f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `pill highlight rim stays 1dp on home docks and thickens on long indicators`() {
+        assertEquals(
+            1f,
+            resolveDockPillHighlightWidthDp(
+                indicatorWidthDp = 70f,
+                indicatorHeightDp = 56f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            2f,
+            resolveDockPillHighlightWidthDp(
+                indicatorWidthDp = 400f,
+                indicatorHeightDp = 40f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
     fun `compact docks reuse bottom-bar highlight motion at scaled size`() {
         assertEquals(24f, resolveCompactDockLensDp(64f), 0.001f)
         assertEquals(16f, resolveCompactDockPressBloomDp(64f), 0.001f)

@@ -54,6 +54,23 @@ class BottomPagerStatePersistenceStructureTest {
     }
 
     @Test
+    fun `main bottom pager state coordinates page selection and indicator motion`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
+
+        assertTrue(source.contains("@Stable\ninternal class MainBottomPagerState("))
+        assertTrue(source.contains("val indicatorPosition: Float"))
+        assertTrue(
+            source.contains(
+                "pagerState.currentPage + pagerState.currentPageOffsetFraction"
+            )
+        )
+        assertTrue(source.contains("val isScrollInProgress: Boolean"))
+        assertTrue(source.contains("get() = pagerState.isScrollInProgress"))
+        assertTrue(source.contains("val indicatorPositionProvider: () -> Float"))
+        assertTrue(source.contains("val scrollInProgressProvider: () -> Boolean"))
+    }
+
+    @Test
     fun `main bottom pager reconciles stale switches`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
         val switchNavigationSource = source

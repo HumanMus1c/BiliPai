@@ -2,12 +2,12 @@ package com.android.purebilibili.feature.home.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.CollectionsBookmark
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.School
-import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,7 +29,7 @@ internal fun resolveTopTabMaterialIcon(categoryKey: String): ImageVector {
         HomeCategory.RECOMMEND -> Icons.Rounded.Home
         HomeCategory.FOLLOW -> Icons.Rounded.People
         HomeCategory.POPULAR -> Icons.Rounded.Whatshot
-        HomeCategory.ANIME -> Icons.Rounded.SmartDisplay
+        HomeCategory.ANIME -> Icons.Rounded.CollectionsBookmark
         HomeCategory.LIVE -> Icons.Rounded.LiveTv
         HomeCategory.GAME -> Icons.Rounded.SportsEsports
         HomeCategory.KNOWLEDGE -> Icons.Rounded.School

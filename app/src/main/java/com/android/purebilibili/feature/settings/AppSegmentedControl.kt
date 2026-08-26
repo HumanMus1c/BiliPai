@@ -28,7 +28,6 @@ internal fun <T> AppSegmentedControl(
     selectedValue: T,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    forceLiquidIndicator: Boolean = false,
     height: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.dp,
     indicatorHeight: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP.dp,
     labelFontSize: TextUnit = 14.sp,
@@ -44,13 +43,10 @@ internal fun <T> AppSegmentedControl(
     val homeSettings by SettingsManager
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
-    val nativeLiquidGlassEnabled =
-        forceLiquidIndicator || homeSettings.androidNativeLiquidGlassEnabled
-
     when (
         resolveAppSegmentedChrome(
             usesMaterialFallback = policy.usesMaterialFallback,
-            nativeLiquidGlassEnabled = nativeLiquidGlassEnabled,
+            nativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
         )
     ) {
         AppSegmentedChrome.NATIVE -> AppNativeSegmentedControl(
@@ -65,7 +61,6 @@ internal fun <T> AppSegmentedControl(
             selectedValue = selectedValue,
             modifier = modifier,
             enabled = enabled,
-            forceLiquidIndicator = forceLiquidIndicator,
             height = height,
             indicatorHeight = indicatorHeight,
             labelFontSize = labelFontSize,
@@ -84,7 +79,6 @@ private fun <T> AppLiquidSegmentedControlHost(
     selectedValue: T,
     modifier: Modifier,
     enabled: Boolean,
-    forceLiquidIndicator: Boolean,
     height: Dp,
     indicatorHeight: Dp,
     labelFontSize: TextUnit,
@@ -125,7 +119,6 @@ private fun <T> AppLiquidSegmentedControlHost(
         height = resolvedHeight,
         indicatorHeight = resolvedIndicatorHeight,
         labelFontSize = resolvedLabelFontSize,
-        forceLiquidChrome = forceLiquidIndicator,
         liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
         dragSelectionEnabled = dragSelectionEnabled,
         tapPressRefractionEnabled = resolvedTapPressRefractionEnabled,

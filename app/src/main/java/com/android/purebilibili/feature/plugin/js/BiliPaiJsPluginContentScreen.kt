@@ -210,6 +210,8 @@ private fun PluginContent(
                     selectedValue = selectedModule,
                     onSelectionChange = onSelectModule,
                     scrollable = modules.size > 4,
+                    dragSelectionEnabled = modules.size in 2..4,
+                    tapPressRefractionEnabled = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

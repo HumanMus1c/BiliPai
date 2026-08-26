@@ -453,8 +453,8 @@ data class BangumiPlayUrlResponse(
 )
 
 /**
- * 番剧播放视频信息（包含 DASH 等）
- * 注意：移除了类型不稳定的字段（has_paid, is_preview 等），它们有时返回 Int 有时返回 Boolean
+ * 番剧播放视频信息（包含 DASH 等）。
+ * 部分权限字段会在 Boolean、0/1 和字符串之间切换，统一使用宽容序列化器解析。
  */
 @Serializable
 data class BangumiVideoInfo(
@@ -466,8 +466,17 @@ data class BangumiVideoInfo(
     val vipType: Int = 0,
     @SerialName("vip_status")
     val vipStatus: Int = 0,
+    @Serializable(with = FlexibleBooleanSerializer::class)
     @SerialName("is_drm")
     val isDrm: Boolean = false,
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    @SerialName("has_paid")
+    val hasPaid: Boolean = false,
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    @SerialName("is_preview")
+    val isPreview: Boolean = false,
+    @Serializable(with = FlexibleFlagIntSerializer::class)
+    val status: Int = 0,
     @SerialName("no_rexcode")
     val noRexcode: Int = 0,
     val quality: Int = 0,
@@ -493,8 +502,6 @@ data class BangumiVideoInfo(
     val supportFormats: List<FormatItem>? = null,
     @SerialName("record_info")
     val recordInfo: BangumiRecordInfo? = null
-    //  [修复] 移除类型不稳定的字段：has_paid, is_preview, status 等
-    // 这些字段有时返回 Int (0/1)，有时返回 Boolean (true/false)，导致解析失败
 )
 
 @Serializable

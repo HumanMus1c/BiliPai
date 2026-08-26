@@ -178,6 +178,12 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
+    fun `danmaku send and toggle stay on intro and comments tabs`() {
+        assertTrue(shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex = 0))
+        assertTrue(shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex = 1))
+    }
+
+    @Test
     fun `danmaku input hidden when player is collapsed`() {
         assertFalse(
             shouldShowDanmakuSendInput(
@@ -191,8 +197,10 @@ class VideoContentTabBarPolicyTest {
         val policy = resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = 412)
 
         assertEquals("发弹幕", policy.sendLabel)
-        assertEquals(40, policy.secondaryControlHeightDp)
-        assertEquals(20, policy.secondaryControlCornerRadiusDp)
+        assertEquals(12, policy.sendTextSizeSp)
+        assertEquals(32, policy.sendMinHeightDp)
+        assertEquals(22, policy.toggleIconSizeDp)
+        assertEquals(38, policy.toggleButtonSizeDp)
     }
 
     @Test
@@ -212,20 +220,27 @@ class VideoContentTabBarPolicyTest {
             )
         )
         assertEquals("发弹幕", policy.sendLabel)
-        assertEquals(40, policy.secondaryControlHeightDp)
-        assertEquals(20, policy.secondaryControlCornerRadiusDp)
+        assertEquals(12, policy.sendTextSizeSp)
+        assertEquals(32, policy.sendMinHeightDp)
+        assertEquals(22, policy.toggleIconSizeDp)
+        assertEquals(38, policy.toggleButtonSizeDp)
+        assertEquals(4, policy.toggleTrailingPaddingDp)
     }
 
     @Test
-    fun `danmaku action controls share the tab bar visual grid`() {
+    fun `danmaku action controls share native PiliPlus sizes`() {
         val compact = resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = 393)
         val regular = resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = 412)
 
         listOf(compact, regular).forEach { policy ->
-            assertEquals(40, policy.secondaryControlHeightDp)
-            assertEquals(policy.toggleVerticalPaddingDp, policy.sendVerticalPaddingDp)
-            assertEquals(policy.toggleTextSizeSp, policy.sendTextSizeSp)
+            assertEquals(22, policy.toggleIconSizeDp)
+            assertEquals(38, policy.toggleButtonSizeDp)
+            assertEquals(32, policy.sendMinHeightDp)
+            assertEquals(12, policy.sendTextSizeSp)
+            assertEquals("发弹幕", policy.sendLabel)
         }
+        assertEquals(4, compact.toggleTrailingPaddingDp)
+        assertEquals(6, regular.toggleTrailingPaddingDp)
     }
 
     @Test
@@ -240,10 +255,18 @@ class VideoContentTabBarPolicyTest {
         assertTrue(tabBarBlock.contains("Spacer(modifier = Modifier.weight(1f))"))
         assertFalse(tabBarBlock.contains("onDanmakuSettingsClick"))
         assertFalse(tabBarBlock.contains("contentDescription = \"弹幕设置\""))
+        assertTrue(tabBarBlock.contains("NativeDanmakuToggleButton("))
+        assertTrue(tabBarBlock.contains("text = danmakuActionLayoutPolicy.sendLabel"))
+        assertTrue(tabBarBlock.contains("tapToCopyEnabled = false"))
+        assertTrue(tabBarBlock.contains(".clickable(onClick = onDanmakuSendClick)"))
+        assertFalse(tabBarBlock.contains("RoundedCornerShape("))
+        assertFalse(tabBarBlock.contains("\"开\""))
+        assertFalse(tabBarBlock.contains("\"关\""))
+        assertFalse(tabBarBlock.contains("rememberAppCommentIcon()"))
     }
 
     @Test
-    fun `info comment tab bar keeps bottom-bar press scale during pager motion`() {
+    fun `info comment tab bar uses theme adaptive chrome during pager motion`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
         )
@@ -252,13 +275,14 @@ class VideoContentTabBarPolicyTest {
             .substringBefore("// [新增] 恢复画面按钮")
 
         assertTrue(tabBarBlock.contains("tapPressRefractionEnabled = true"))
-        assertTrue(tabBarBlock.contains("itemWidth = liquidChromeSpec.itemWidthDp?.dp"))
+        assertTrue(tabBarBlock.contains("AppThemeAdaptiveTabRow("))
+        assertFalse(tabBarBlock.contains("AppPrimaryTabRow("))
+        assertTrue(tabBarBlock.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(tabBarBlock.contains("Arrangement.spacedBy(8.dp)"))
-        assertTrue(
-            tabBarBlock.contains(
-                "externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock"
-            )
-        )
+        assertTrue(tabBarBlock.contains("indicatorPositionProvider = indicatorPositionProvider"))
+        assertTrue(tabBarBlock.contains("dragSelectionEnabled = true"))
+        assertFalse(tabBarBlock.contains("tabSwipeModifier"))
+        assertTrue(tabBarBlock.contains("modifier = Modifier.width("))
         assertTrue(source.contains("clip = tabBarCollapseProgress > 0.001f"))
     }
 
@@ -288,8 +312,11 @@ class VideoContentTabBarPolicyTest {
             .substringBefore("internal fun LandscapeCommentPanel(")
         assertTrue(commentTabSource.contains("CommentSortHeader("))
         assertFalse(commentTabSource.contains("CommentSortFilterBar("))
-        assertTrue(source.contains("if (selectedTabIndex != 1)"))
-        assertTrue(source.contains("AppPrimaryTabRow("))
+        assertTrue(source.contains("shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex)"))
+        assertFalse(source.contains("if (selectedTabIndex != 1)"))
+        assertTrue(source.contains("AppThemeAdaptiveTabRow("))
+        assertFalse(source.contains("AppPrimaryTabRow("))
+        assertTrue(source.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(source.contains("showNativeSortHeader = !homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("showSortControlInHeader = true"))
         assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
@@ -303,8 +330,8 @@ class VideoContentTabBarPolicyTest {
             "Pager must not capture backdrop; segmented controls inside would self-sample and overflow RenderThread stack on MIUI"
         )
         assertTrue(source.contains("hasBackdrop = miuixBackdrop != null"))
-        assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
-        assertTrue(source.contains("liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled"))
+        assertFalse(source.contains("forceLiquidChrome"))
+        assertTrue(source.contains("labelFontSize = liquidChromeSpec.labelFontSizeSp.sp"))
     }
 
     @Test

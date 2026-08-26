@@ -54,12 +54,9 @@ class HorizontalVideoCardLayoutPolicyTest {
         assertTrue(
             source.substringAfter("text = highlightedTitle ?: AnnotatedString(video.title)")
                 .substringBefore("style = contentTypography.title")
-                .contains(
-                    "overflow = if (showFullCardContent) " +
-                        "TextOverflow.Visible else TextOverflow.Ellipsis"
-                )
+                .contains("overflow = videoCardTitleOverflow()")
         )
-        assertTrue(source.contains(".collectAsStateWithLifecycle(initialValue = false)"))
+        assertTrue(source.contains("maxLines = videoCardTitleMaxLines(titleMaxLines)"))
         assertTrue(
             source.substringAfter("internal fun VideoCardDurationPublishRow(")
                 .substringBefore("private fun VideoCardPublishTime(")
@@ -77,5 +74,35 @@ class HorizontalVideoCardLayoutPolicyTest {
 
         assertTrue(source.contains("FlowRow("))
         assertTrue(source.contains("HORIZONTAL_VIDEO_STAT_WRAP_SPACING_DP"))
+        assertTrue(source.contains("Icons.Outlined.PlayCircleOutline"))
+        assertTrue(source.contains("Icons.Outlined.Subtitles"))
+    }
+
+    @Test
+    fun videoCardSurfacesReuseTheRelatedVideoStatRow() {
+        val paths = listOf(
+            "feature/home/components/cards/VideoCard.kt",
+            "feature/home/components/cards/HomeStyleSingleColumnVideoCard.kt",
+            "feature/home/components/cards/StoryVideoCard.kt",
+            "feature/home/components/cards/CinematicVideoCard.kt",
+            "feature/home/components/cards/GlassVideoCard.kt",
+            "feature/video/ui/components/RelatedVideoItem.kt",
+            "feature/space/SpaceScreen.kt",
+            "feature/search/SearchScreen.kt",
+            "feature/dynamic/components/VideoCards.kt",
+            "feature/list/FavoritePersonalCard.kt",
+            "feature/watchlater/WatchLaterScreen.kt",
+        )
+
+        paths.forEach { relativePath ->
+            val source = java.io.File("src/main/java/com/android/purebilibili/$relativePath")
+                .let { file ->
+                    listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
+                }
+            assertTrue(
+                source.contains("HorizontalVideoStatRow("),
+                "$relativePath must reuse the related-video stat row",
+            )
+        }
     }
 }

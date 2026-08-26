@@ -178,6 +178,19 @@ class SettingsNavHierarchyPolicyTest {
             BiliPaiNavKey.AppearanceSettings,
             resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.APPEARANCE_THEME),
         )
+        assertEquals(
+            BiliPaiNavKey.AppearanceSettings,
+            resolveSettingsCategoryNavKey(SettingsRootCategory.APPEARANCE_THEME),
+        )
+        // 「插件与扩展」分类页只有一个「插件中心」入口 → 点击分类直接进插件中心
+        assertEquals(
+            BiliPaiNavKey.PluginsSettings(),
+            resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PLUGINS_EXTENSIONS),
+        )
+        assertEquals(
+            BiliPaiNavKey.PluginsSettings(),
+            resolveSettingsCategoryNavKey(SettingsRootCategory.PLUGINS_EXTENSIONS),
+        )
     }
 
     @Test
@@ -188,7 +201,10 @@ class SettingsNavHierarchyPolicyTest {
         assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.NAVIGATION_INTERACTION))
         assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PRIVACY_PERMISSION))
         assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.STORAGE_BACKUP))
-        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PLUGINS_EXTENSIONS))
         assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.SYSTEM_ABOUT))
+        assertEquals(
+            BiliPaiNavKey.SettingsCategory(SettingsRootCategory.PLAYBACK_QUALITY),
+            resolveSettingsCategoryNavKey(SettingsRootCategory.PLAYBACK_QUALITY),
+        )
     }
 }

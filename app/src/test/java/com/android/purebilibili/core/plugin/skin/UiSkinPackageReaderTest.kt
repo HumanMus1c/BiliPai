@@ -62,6 +62,29 @@ class UiSkinPackageReaderTest {
     }
 
     @Test
+    fun validPackage_acceptsDeclaredLottieJsonAssetsForLikeAndProgress() {
+        val manifest = sampleManifest(
+            assets = UiSkinAssets(
+                likeEffectAnimation = "assets/like_effect.json",
+                playerProgressIcon = "assets/progress_icon.json",
+            )
+        ).copy(
+            surfaces = setOf(UiSkinSurface.LIKE_EFFECT, UiSkinSurface.PLAYER_PROGRESS)
+        )
+        val lottieBytes = "{\"v\":\"5.7.0\",\"layers\":[]}".toByteArray()
+        val bytes = skinPackage(
+            "skin-manifest.json" to Json.encodeToString(manifest).toByteArray(),
+            "assets/like_effect.json" to lottieBytes,
+            "assets/progress_icon.json" to lottieBytes,
+        )
+
+        val preview = UiSkinPackageReader.preview(bytes).getOrThrow()
+
+        assertEquals(2, preview.assetEntries.size)
+        assertTrue(preview.assetEntries.all { it.type == UiSkinAssetType.JSON })
+    }
+
+    @Test
     fun legacyPackageWithoutCommunityMetadata_stillImports() {
         val manifestJson = """
             {
@@ -370,6 +393,98 @@ class UiSkinPackageReaderTest {
         assertEquals("萧逸", preview.manifest.displayName)
         assertEquals("#778899", preview.manifest.colors.bottomBarIconTint)
         assertEquals("once", preview.manifest.motion.bottomBarIconAnimationMode)
+    }
+
+    @Test
+    fun convertedArchiveKeepsSupportedLoadingLikeAndProgressAssets() {
+        val lottieBytes = "{\"v\":\"5.7.0\",\"layers\":[]}".toByteArray()
+        val packageBytes = skinPackage(
+            "tail_bg.png" to pngBytes(),
+            "loading.webp" to webpBytes(),
+            "loading_frame.png" to pngBytes(),
+            "like_effect.json" to lottieBytes,
+            "progress_icon.json" to lottieBytes,
+            "progress_drag_icon.json" to lottieBytes,
+            "progress_static_icon.png" to pngBytes(),
+        )
+
+        val importPackage = UiSkinImportPackageResolver.resolveBilibiliPackageWithMetadata(
+            packageBytes = packageBytes,
+            themeJsonBytes = convertedThemeJson().toByteArray(),
+        ).getOrThrow()
+        val preview = UiSkinPackageReader.preview(importPackage.packageBytes).getOrThrow()
+
+        assertTrue(UiSkinSurface.LOADING_INDICATOR in preview.manifest.surfaces)
+        assertTrue(UiSkinSurface.LIKE_EFFECT in preview.manifest.surfaces)
+        assertTrue(UiSkinSurface.PLAYER_PROGRESS in preview.manifest.surfaces)
+        assertEquals("assets/loading.webp", preview.manifest.assets.loadingAnimation)
+        assertEquals("assets/like_effect.json", preview.manifest.assets.likeEffectAnimation)
+        assertEquals("assets/progress_icon.json", preview.manifest.assets.playerProgressIcon)
+        assertEquals(
+            "assets/progress_drag_icon.json",
+            preview.manifest.assets.playerProgressDraggingIcon,
+        )
+    }
+
+    @Test
+    fun standaloneProgressSuitJsonDownloadsAndConvertsToEffectSkin() {
+        val progressJson = """
+            {
+              "item_id": 2449,
+              "name": "湊-阿库娅",
+              "part_id": 11,
+              "properties": {
+                "icon": "https://example.com/icon.json",
+                "drag_icon": "https://example.com/drag.json",
+                "static_icon_image": "https://example.com/static.png",
+                "ver": "1597737445"
+              }
+            }
+        """.trimIndent().toByteArray()
+        val lottieBytes = "{\"v\":\"5.7.0\",\"layers\":[]}".toByteArray()
+
+        val importPackage = UiSkinImportPackageResolver.resolve(
+            inputBytes = progressJson,
+            remotePackageFetcher = { url ->
+                when {
+                    url.endsWith(".json") -> lottieBytes
+                    else -> pngBytes()
+                }
+            },
+        ).getOrThrow()
+        val preview = UiSkinPackageReader.preview(importPackage.packageBytes).getOrThrow()
+
+        assertEquals(setOf(UiSkinSurface.PLAYER_PROGRESS), preview.manifest.surfaces)
+        assertEquals("湊-阿库娅", preview.manifest.displayName)
+        assertEquals("assets/progress_icon.json", preview.manifest.assets.playerProgressIcon)
+        assertEquals("assets/progress_drag_icon.json", preview.manifest.assets.playerProgressDraggingIcon)
+        assertEquals("assets/progress_static_icon.png", preview.manifest.assets.playerProgressStaticIcon)
+    }
+
+    @Test
+    fun onlineThemeMergeKeepsBaseThemeAndAddsSupplementalEffectSurfaces() {
+        val basePackage = skinPackage(
+            "skin-manifest.json" to Json.encodeToString(sampleManifest()).toByteArray(),
+            "assets/bottom_trim.png" to pngBytes(),
+            "assets/top_atmosphere.webp" to webpBytes(),
+        )
+        val lottieBytes = "{\"v\":\"5.7.0\",\"layers\":[]}".toByteArray()
+
+        val mergedBytes = UiSkinImportPackageResolver.mergeSupplementalEffectAssets(
+            packageBytes = basePackage,
+            supplementalAssets = mapOf(
+                "assets/loading.webp" to webpBytes(),
+                "assets/like_effect_preview.jpg" to jpegBytes(),
+                "assets/progress_icon.json" to lottieBytes,
+            ),
+        ).getOrThrow()
+        val preview = UiSkinPackageReader.preview(mergedBytes).getOrThrow()
+
+        assertTrue(UiSkinSurface.HOME_BOTTOM_BAR in preview.manifest.surfaces)
+        assertTrue(UiSkinSurface.LOADING_INDICATOR in preview.manifest.surfaces)
+        assertTrue(UiSkinSurface.LIKE_EFFECT in preview.manifest.surfaces)
+        assertTrue(UiSkinSurface.PLAYER_PROGRESS in preview.manifest.surfaces)
+        assertEquals("assets/bottom_trim.png", preview.manifest.assets.bottomBarTrim)
     }
 
     @Test

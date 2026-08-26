@@ -11,6 +11,12 @@ interface DanmakuEngine : AutoCloseable {
 
     fun replaceWindow(window: DanmakuWindow, currentPositionMs: Long = 0L)
 
+    /**
+     * Rolls an overlapping segment window forward without restarting the renderer.
+     * Returns false when the current engine state cannot be updated incrementally.
+     */
+    fun rollWindowForward(window: DanmakuWindow): Boolean
+
     fun replaceMaskFrames(frames: List<DanmakuMaskFrame>, currentPositionMs: Long)
 
     fun append(items: List<DanmakuItem>)

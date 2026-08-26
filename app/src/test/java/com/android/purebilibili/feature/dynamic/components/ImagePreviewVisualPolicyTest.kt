@@ -48,6 +48,20 @@ class ImagePreviewVisualPolicyTest {
     }
 
     @Test
+    fun `return transition keeps preview content sharp`() {
+        val frame = resolveImagePreviewVisualFrame(
+            visualProgress = 0.45f,
+            transitionEnabled = true,
+            maxBlurRadiusPx = 24f,
+            blurEnabled = false,
+        )
+
+        assertEquals(0f, frame.blurRadiusPx)
+        assertTrue(frame.contentAlpha < 1f)
+        assertEquals(0.45f, frame.backdropAlpha)
+    }
+
+    @Test
     fun `caption visibility should be shown by default and hide after toggle`() {
         assertTrue(shouldShowImagePreviewText(hasText = true, textVisible = true))
         assertEquals(false, resolveImagePreviewTextVisibilityAfterToggle(currentVisible = true))

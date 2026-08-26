@@ -24,9 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
 import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.components.AppDropdownMenu
-import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
-import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppWindowAction
+import com.android.purebilibili.core.ui.components.AppWindowActionMenu
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -328,8 +327,6 @@ fun DynamicCardV2(
                 .padding(horizontal = resolveDynamicCardContentPadding())
                 .padding(top = AppSpacingTokens.Medium, bottom = if (isDetail) AppSpacingTokens.None else AppSpacingTokens.Small + AppSpacingTokens.Micro)
         ) {
-        //  [新增] 更多菜单状态
-        var showMoreMenu by remember { mutableStateOf(false) }
         val context = LocalContext.current
         
         //  用户头部（头像 + 名称 + 时间 + 更多）
@@ -409,242 +406,223 @@ fun DynamicCardV2(
                     }
                 }
                 
-                //  [修复] 更多按钮 + 下拉菜单
-                Box {
-                    AppIconButton(onClick = { showMoreMenu = true }) {
-                        AppIcon(
-                            rememberAppMoreIcon(),
-                            contentDescription = "更多",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                        )
-                    }
-                    
-                    // 下拉菜单 - 自适应背景
-                    AppDropdownMenu(
-                        expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer) // 使用 surfaceContainer 获得微略不同的背景
-                    ) {
-                        // 复制链接
-                        AppDropdownMenuItem(
-                            text = { AppText("复制链接", color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = { 
-                                AppIcon(
-                                    rememberAppLinkIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                ) 
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                // 复制动态链接到剪贴板
-                                val dynamicUrl = "https://t.bilibili.com/${item.id_str}"
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("动态链接", dynamicUrl))
-                                android.widget.Toast.makeText(context, "已复制链接", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        )
-
-                        //  [新增] 分享动态（系统分享，对齐 BiliPai 分享面板）
-                        AppDropdownMenuItem(
-                            text = { AppText("分享动态", color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = {
-                                AppIcon(
-                                    rememberAppShareIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
+                val moreIcon = rememberAppMoreIcon()
+                val linkIcon = rememberAppLinkIcon()
+                val shareIcon = rememberAppShareIcon()
+                val historyIcon = rememberAppHistoryIcon()
+                val deleteIcon = rememberAppDeleteIcon()
+                val visibilityOffIcon = rememberAppVisibilityOffIcon()
+                val chevronUpIcon = rememberAppChevronUpIcon()
+                val visibilityOnIcon = rememberAppVisibilityOnIcon()
+                val commentIcon = rememberAppCommentIcon()
+                val warningIcon = rememberAppWarningIcon()
+                val errorTint = MaterialTheme.colorScheme.error
+                AppWindowActionMenu(
+                    groups = listOf(
+                        buildList {
+                            add(
+                                AppWindowAction(
+                                    label = "复制链接",
+                                    icon = linkIcon,
+                                    onClick = {
+                                        val dynamicUrl = "https://t.bilibili.com/${item.id_str}"
+                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                            as android.content.ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            android.content.ClipData.newPlainText("动态链接", dynamicUrl)
+                                        )
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "已复制链接",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
                                 )
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                val dynamicUrl = "https://t.bilibili.com/${item.id_str}"
-                                val descText = content?.desc?.text?.take(100).orEmpty()
-                                val shareText = if (descText.isNotBlank()) {
-                                    "$descText\n$dynamicUrl"
-                                } else {
-                                    "分享动态\n$dynamicUrl"
-                                }
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    this.type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                                }
-                                context.startActivity(
-                                    android.content.Intent.createChooser(shareIntent, "分享动态")
-                                )
-                            }
-                        )
-                        
-                        if (watchLaterAid != null && onWatchLaterClick != null) {
-                            AppDropdownMenuItem(
-                                text = { AppText("稍后再看", color = MaterialTheme.colorScheme.onSurface) },
-                                leadingIcon = {
-                                    AppIcon(
-                                        rememberAppHistoryIcon(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onWatchLaterClick(watchLaterAid)
-                                }
                             )
-                        }
-
-                        if (deleteAction != null && onDeleteClick != null) {
-                            AppDropdownMenuItem(
-                                text = { AppText(deleteAction.label, color = MaterialTheme.colorScheme.error) },
-                                leadingIcon = {
-                                    AppIcon(
-                                        rememberAppDeleteIcon(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                onClick = {
-                                    showMoreMenu = false
-                                    pendingDeleteAction = deleteAction
-                                }
-                            )
-                        }
-
-                        // 不感兴趣
-                        if (!menuCapabilities.isOwnDynamic) AppDropdownMenuItem(
-                            text = { AppText("不感兴趣", color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = { 
-                                AppIcon(
-                                    rememberAppVisibilityOffIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                ) 
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                android.widget.Toast.makeText(context, "已标记为不感兴趣", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        )
-
-                        //  [新增] 置顶 / 取消置顶（对齐 BiliPai morePanel）
-                        if (menuCapabilities.canToggleTop) AppDropdownMenuItem(
-                            text = { AppText(resolveDynamicPinnedMenuLabel(isCurrentlyTop), color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = {
-                                AppIcon(
-                                    rememberAppChevronUpIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                onManageAction(DynamicManageAction.ToggleTop(item.id_str, isCurrentlyTop))
-                            }
-                        )
-
-                        //  [新增] 可见范围（公开 / 仅自己可见）
-                        if (menuCapabilities.canSetVisibility) AppDropdownMenuItem(
-                            text = { AppText(resolveDynamicVisibilityMenuLabel(isPrivate = menuCapabilities.isPrivate), color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = {
-                                AppIcon(
-                                    rememberAppVisibilityOnIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                onManageAction(
-                                    DynamicManageAction.SetVisibility(
-                                        dynamicId = item.id_str,
-                                        dynType = resolveDynamicDynType(item),
-                                        isPrivate = !menuCapabilities.isPrivate
-                                    )
-                                )
-                            }
-                        )
-
-                        //  [新增] 评论互动设置（评论精选 / 评论开关）
-                        if (menuCapabilities.canManageComments) AppDropdownMenuItem(
-                            text = { AppText("评论互动设置", color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = {
-                                AppIcon(
-                                    rememberAppCommentIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                val oid = resolveDynamicReplySubjectOid(item)
-                                if (oid == null || onLoadReplyInteractionStatus == null) {
-                                    android.widget.Toast.makeText(context, "该动态暂不支持互动设置", android.widget.Toast.LENGTH_SHORT).show()
-                                } else {
-                                    onLoadReplyInteractionStatus(oid, resolveDynamicReplySubjectType(item)) { data ->
-                                        if (data == null) {
-                                            android.widget.Toast.makeText(context, "获取互动设置失败", android.widget.Toast.LENGTH_SHORT).show()
+                            add(
+                                AppWindowAction(
+                                    label = "分享动态",
+                                    icon = shareIcon,
+                                    onClick = {
+                                        val dynamicUrl = "https://t.bilibili.com/${item.id_str}"
+                                        val descText = content?.desc?.text?.take(100).orEmpty()
+                                        val shareText = if (descText.isNotBlank()) {
+                                            "$descText\n$dynamicUrl"
                                         } else {
-                                            replyInteractionOid = oid
-                                            replyInteractionType = resolveDynamicReplySubjectType(item)
-                                            showReplyInteractionDialog = data
+                                            "分享动态\n$dynamicUrl"
                                         }
-                                    }
-                                }
-                            }
-                        )
-
-                        if (menuCapabilities.canBlockAuthor) AppDropdownMenuItem(
-                            text = { AppText("屏蔽该 UP 主", color = MaterialTheme.colorScheme.onSurface) },
-                            leadingIcon = {
-                                AppIcon(
-                                    rememberAppVisibilityOffIcon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
-                                    tint = MaterialTheme.colorScheme.onSurface
+                                        val shareIntent = android.content.Intent(
+                                            android.content.Intent.ACTION_SEND
+                                        ).apply {
+                                            this.type = "text/plain"
+                                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                        }
+                                        context.startActivity(
+                                            android.content.Intent.createChooser(shareIntent, "分享动态")
+                                        )
+                                    },
                                 )
-                            },
-                            onClick = {
-                                showMoreMenu = false
-                                pendingBlockAuthor = DynamicManageAction.BlockAuthor(
-                                    authorMid = author?.mid ?: 0L,
-                                    authorName = author?.name.orEmpty().ifBlank { "该用户" },
-                                    authorFace = author?.face.orEmpty(),
-                                )
-                            }
-                        )
-
-                        if (menuCapabilities.canEdit) AppDropdownMenuItem(
-                            text = { AppText("编辑动态", color = MaterialTheme.colorScheme.onSurface) },
-                            onClick = {
-                                showMoreMenu = false
-                                onManageAction(
-                                    DynamicManageAction.Edit(
-                                        dynamicId = item.id_str,
-                                        initialText = resolveDynamicEditInitialText(item)
+                            )
+                            if (watchLaterAid != null && onWatchLaterClick != null) {
+                                add(
+                                    AppWindowAction(
+                                        label = "稍后再看",
+                                        icon = historyIcon,
+                                        onClick = { onWatchLaterClick(watchLaterAid) },
                                     )
                                 )
                             }
-                        )
-
-                        if (menuCapabilities.canReport) AppDropdownMenuItem(
-                            text = { AppText("举报", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                showMoreMenu = false
-                                onManageAction(
-                                    DynamicManageAction.Report(
-                                        dynamicId = item.id_str,
-                                        authorMid = author?.mid ?: 0L
+                        },
+                        buildList {
+                            if (!menuCapabilities.isOwnDynamic) {
+                                add(
+                                    AppWindowAction(
+                                        label = "不感兴趣",
+                                        icon = visibilityOffIcon,
+                                        onClick = {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "已标记为不感兴趣",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
                                     )
                                 )
                             }
-                        )
-                    }
+                            if (menuCapabilities.canToggleTop) {
+                                add(
+                                    AppWindowAction(
+                                        label = resolveDynamicPinnedMenuLabel(isCurrentlyTop),
+                                        icon = chevronUpIcon,
+                                        onClick = {
+                                            onManageAction(
+                                                DynamicManageAction.ToggleTop(item.id_str, isCurrentlyTop)
+                                            )
+                                        },
+                                    )
+                                )
+                            }
+                            if (menuCapabilities.canSetVisibility) {
+                                add(
+                                    AppWindowAction(
+                                        label = resolveDynamicVisibilityMenuLabel(
+                                            isPrivate = menuCapabilities.isPrivate
+                                        ),
+                                        icon = visibilityOnIcon,
+                                        onClick = {
+                                            onManageAction(
+                                                DynamicManageAction.SetVisibility(
+                                                    dynamicId = item.id_str,
+                                                    dynType = resolveDynamicDynType(item),
+                                                    isPrivate = !menuCapabilities.isPrivate
+                                                )
+                                            )
+                                        },
+                                    )
+                                )
+                            }
+                            if (menuCapabilities.canManageComments) {
+                                add(
+                                    AppWindowAction(
+                                        label = "评论互动设置",
+                                        icon = commentIcon,
+                                        onClick = {
+                                            val oid = resolveDynamicReplySubjectOid(item)
+                                            if (oid == null || onLoadReplyInteractionStatus == null) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "该动态暂不支持互动设置",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                onLoadReplyInteractionStatus(
+                                                    oid,
+                                                    resolveDynamicReplySubjectType(item)
+                                                ) { data ->
+                                                    if (data == null) {
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            "获取互动设置失败",
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    } else {
+                                                        replyInteractionOid = oid
+                                                        replyInteractionType = resolveDynamicReplySubjectType(item)
+                                                        showReplyInteractionDialog = data
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    )
+                                )
+                            }
+                            if (menuCapabilities.canBlockAuthor) {
+                                add(
+                                    AppWindowAction(
+                                        label = "屏蔽该 UP 主",
+                                        icon = visibilityOffIcon,
+                                        onClick = {
+                                            pendingBlockAuthor = DynamicManageAction.BlockAuthor(
+                                                authorMid = author?.mid ?: 0L,
+                                                authorName = author?.name.orEmpty().ifBlank { "该用户" },
+                                                authorFace = author?.face.orEmpty(),
+                                            )
+                                        },
+                                    )
+                                )
+                            }
+                        },
+                        buildList {
+                            if (menuCapabilities.canEdit) {
+                                add(
+                                    AppWindowAction(
+                                        label = "编辑动态",
+                                        onClick = {
+                                            onManageAction(
+                                                DynamicManageAction.Edit(
+                                                    dynamicId = item.id_str,
+                                                    initialText = resolveDynamicEditInitialText(item)
+                                                )
+                                            )
+                                        },
+                                    )
+                                )
+                            }
+                            if (deleteAction != null && onDeleteClick != null) {
+                                add(
+                                    AppWindowAction(
+                                        label = deleteAction.label,
+                                        icon = deleteIcon,
+                                        iconTint = errorTint,
+                                        onClick = { pendingDeleteAction = deleteAction },
+                                    )
+                                )
+                            }
+                            if (menuCapabilities.canReport) {
+                                add(
+                                    AppWindowAction(
+                                        label = "举报",
+                                        icon = warningIcon,
+                                        iconTint = errorTint,
+                                        onClick = {
+                                            onManageAction(
+                                                DynamicManageAction.Report(
+                                                    dynamicId = item.id_str,
+                                                    authorMid = author?.mid ?: 0L
+                                                )
+                                            )
+                                        },
+                                    )
+                                )
+                            }
+                        },
+                    ),
+                ) {
+                    AppIcon(
+                        moreIcon,
+                        contentDescription = "更多",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))

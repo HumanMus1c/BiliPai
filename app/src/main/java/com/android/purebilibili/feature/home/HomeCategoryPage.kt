@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppCard
@@ -113,7 +113,7 @@ internal fun shouldRequestHomeCategoryLoadMore(
 internal fun HomeCategoryPageContent(
     category: HomeCategory,
     categoryState: CategoryContent,
-    gridState: LazyGridState,
+    gridState: LazyStaggeredGridState,
     gridColumns: Int,
     contentPadding: PaddingValues,
     dissolvingVideos: Set<String>,
@@ -154,6 +154,7 @@ internal fun HomeCategoryPageContent(
     homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
     homeHeroCarouselEnabled: Boolean = true,
     homeHeroCarouselAutoplayEnabled: Boolean = false,
+    onHeroCarouselGestureActiveChange: (Boolean) -> Unit = {},
     onGetPreviewUrl: suspend (String, Long) -> String? = { _, _ -> null },
     oldContentAnchorBvid: String? = null,
     oldContentStartIndex: Int? = null,
@@ -219,7 +220,9 @@ internal fun HomeCategoryPageContent(
         derivedStateOf {
             val layoutInfo = gridState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            // Staggered lanes do not guarantee that the last visible entry has the greatest
+            // adapter index. Use the maximum across lanes so pagination cannot stall.
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.maxOfOrNull { it.index } ?: 0
             shouldRequestHomeCategoryLoadMore(
                 totalItems = totalItems,
                 lastVisibleItemIndex = lastVisibleItemIndex,
@@ -239,17 +242,17 @@ internal fun HomeCategoryPageContent(
         CompositionLocalProvider(
             LocalVideoCardSharedElementSourceRoute provides sourceRoute
         ) {
-            LazyVerticalGrid(
+            LazyVerticalStaggeredGrid(
                 state = gridState,
-                columns = GridCells.Fixed(gridColumns),
+                columns = StaggeredGridCells.Fixed(gridColumns),
                 contentPadding = contentPadding,
                 horizontalArrangement = horizontalArrangement,
-                verticalArrangement = Arrangement.spacedBy(cardLayout.verticalItemSpacingDp.dp),
+                verticalItemSpacing = cardLayout.verticalItemSpacingDp.dp,
                 modifier = Modifier.fillMaxSize()
             ) {
         if (category == HomeCategory.LIVE) {
             // 顶栏/侧滑偶发进入内嵌直播页时，引导到与底栏一致的 LiveList 首页。
-            item(span = { GridItemSpan(gridColumns) }) {
+            item(span = StaggeredGridItemSpan.FullLine) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -299,11 +302,12 @@ internal fun HomeCategoryPageContent(
                     item(
                         key = "home_hero_carousel",
                         contentType = "home_hero_carousel",
-                        span = { GridItemSpan(gridColumns) }
+                        span = StaggeredGridItemSpan.FullLine
                     ) {
                         HomeHeroCarousel(
                             videos = carouselVideos,
                             autoplayEnabled = homeHeroCarouselAutoplayEnabled,
+                            onGestureActiveChange = onHeroCarouselGestureActiveChange,
                             onVideoClick = { video ->
                                 onVideoClick(
                                     HomeVideoClickRequest(
@@ -322,7 +326,7 @@ internal fun HomeCategoryPageContent(
                     }
                 }
                 if (todayWatchEnabled) {
-                    item(span = { GridItemSpan(gridColumns) }) {
+                    item(span = StaggeredGridItemSpan.FullLine) {
                         TodayWatchPlanCard(
                             selectedMode = todayWatchMode,
                             plan = todayWatchPlan,
@@ -342,7 +346,7 @@ internal fun HomeCategoryPageContent(
                 }
             }
             if (category == HomeCategory.POPULAR) {
-                item(span = { GridItemSpan(gridColumns) }) {
+                item(span = StaggeredGridItemSpan.FullLine) {
                     PopularSubCategorySegmentedControl(
                         selectedSubCategory = popularSubCategory,
                         onSubCategoryChange = onPopularSubCategoryChange,
@@ -371,7 +375,7 @@ internal fun HomeCategoryPageContent(
                         item(
                             key = "old_content_divider_$index",
                             contentType = "home_old_content_divider",
-                            span = { GridItemSpan(gridColumns) }
+                            span = StaggeredGridItemSpan.FullLine
                         ) {
                             OldContentDivider()
                         }
@@ -507,7 +511,7 @@ internal fun HomeCategoryPageContent(
 
         // Loading Indicator at bottom
         if (categoryState.isLoading || categoryState.hasMore) {
-             item(span = { GridItemSpan(gridColumns) }) {
+             item(span = StaggeredGridItemSpan.FullLine) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -525,7 +529,7 @@ internal fun HomeCategoryPageContent(
         }
         
         // Spacer
-        item(span = { GridItemSpan(gridColumns) }) {
+        item(span = StaggeredGridItemSpan.FullLine) {
             Box(modifier = Modifier.fillMaxWidth().height(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall))
         }
         }
@@ -545,7 +549,6 @@ private fun PopularSubCategorySegmentedControl(
         stringResource(resolvePopularSubCategoryLabelRes(subCategory))
     }
 
-    val popularBackdrop = rememberLayerBackdrop()
     BottomBarLiquidSegmentedControl(
         items = labels,
         selectedIndex = selectedIndex,
@@ -560,8 +563,7 @@ private fun PopularSubCategorySegmentedControl(
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
-        miuixBackdrop = popularBackdrop,
-        forceLiquidChrome = false,
+        miuixBackdrop = null,
         liquidGlassEffectsEnabled = true,
         tapPressRefractionEnabled = true,
         dragSelectionEnabled = false,
@@ -582,9 +584,6 @@ private fun TodayWatchModeSegmentedControl(
     val labels = modes.map { mode ->
         stringResource(resolveTodayWatchModeLabelRes(mode))
     }
-    val fallbackBackdrop = rememberLayerBackdrop()
-    val backdrop = miuixBackdrop ?: fallbackBackdrop
-
     BottomBarLiquidSegmentedControl(
         items = labels,
         selectedIndex = selectedIndex,
@@ -598,8 +597,7 @@ private fun TodayWatchModeSegmentedControl(
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
-        miuixBackdrop = backdrop,
-        forceLiquidChrome = false,
+        miuixBackdrop = miuixBackdrop,
         liquidGlassEffectsEnabled = true,
         tapPressRefractionEnabled = true,
         dragSelectionEnabled = true,
@@ -650,10 +648,17 @@ private fun TodayWatchPlanCard(
             .fillMaxWidth()
             .padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.ExtraSmall)
     ) {
-        Column(
-            modifier = Modifier.padding(AppSpacingTokens.Medium),
-            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
-        ) cardBody@ {
+        Box(modifier = Modifier.padding(AppSpacingTokens.Medium)) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .layerBackdrop(todayWatchBackdrop)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
+            ) cardBody@ {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -717,8 +722,7 @@ private fun TodayWatchPlanCard(
             )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .layerBackdrop(todayWatchBackdrop),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
             ) {
             AppText(
@@ -902,6 +906,7 @@ private fun TodayWatchPlanCard(
                             }
                         }
                     }
+            }
             }
             }
         }

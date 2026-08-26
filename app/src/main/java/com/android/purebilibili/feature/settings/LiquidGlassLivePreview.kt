@@ -28,13 +28,6 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FileDownload
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -70,6 +63,7 @@ import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
+import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
 import com.android.purebilibili.feature.home.components.BottomNavItem
 import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
@@ -81,6 +75,7 @@ import coil.compose.AsyncImage
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
@@ -267,13 +262,13 @@ internal fun LiquidGlassAdjustmentPanel(
                     )
                 },
             ) {
-                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_photo_library_24), contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText(if (previewImageUri == null) "选择相册图片" else "更换图片")
             }
             if (previewImageUri != null) {
                 AppTextButton(onClick = { onPreviewImageChanged(null) }) {
-                    Icon(Icons.Outlined.Restore, contentDescription = null)
+                    Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_restore_24), contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
                     AppText("恢复默认")
                 }
@@ -376,7 +371,7 @@ internal fun LiquidGlassAdjustmentPanel(
                 enabled = !isImportingSettings,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Outlined.FileDownload, contentDescription = null)
+                Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_file_download_24), contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText(if (isImportingSettings) "正在读取" else "导入他人设置")
             }
@@ -385,7 +380,7 @@ internal fun LiquidGlassAdjustmentPanel(
                 enabled = !isImportingSettings,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Outlined.Share, contentDescription = null)
+                Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_share_24), contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText("分享我的设置")
             }
@@ -398,7 +393,7 @@ internal fun LiquidGlassAdjustmentPanel(
         AppTextButton(
             onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
         ) {
-            Icon(Icons.Outlined.Tune, contentDescription = null)
+            Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_tune_24), contentDescription = null)
             Spacer(modifier = Modifier.width(6.dp))
             AppText(if (advancedSettingsExpanded) "收起高级调节" else "展开高级调节")
         }
@@ -408,6 +403,53 @@ internal fun LiquidGlassAdjustmentPanel(
             exit = shrinkVertically() + fadeOut(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LiquidGlassAdvancedSlider(
+                    title = "顶部模糊强度",
+                    description = "数值越高，顶部背景越柔和；0% 关闭顶部模糊",
+                    value = advancedSettings.progressiveBlurRadius,
+                    valueText = if (advancedSettings.progressiveBlurRadius <= 0.001f) {
+                        "关闭"
+                    } else {
+                        "${(advancedSettings.progressiveBlurRadius * 100f).roundToInt()}%"
+                    },
+                    onValueChange = { value ->
+                        val updatedSettings = advancedSettings.copy(
+                            preset = LiquidGlassAdvancedPreset.CUSTOM,
+                            progressiveBlurRadius = value,
+                        )
+                        advancedSettings = updatedSettings
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
+                    },
+                    onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
+                )
+                LiquidGlassAdvancedSlider(
+                    title = "模糊覆盖范围",
+                    description = "数值越高，顶部有更多区域保持模糊",
+                    value = advancedSettings.progressiveBlurExtent,
+                    onValueChange = { value ->
+                        val updatedSettings = advancedSettings.copy(
+                            preset = LiquidGlassAdvancedPreset.CUSTOM,
+                            progressiveBlurExtent = value,
+                        )
+                        advancedSettings = updatedSettings
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
+                    },
+                    onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
+                )
+                LiquidGlassAdvancedSlider(
+                    title = "模糊过渡",
+                    description = "向左过渡更快，向右过渡更柔和",
+                    value = advancedSettings.progressiveBlurCurve,
+                    onValueChange = { value ->
+                        val updatedSettings = advancedSettings.copy(
+                            preset = LiquidGlassAdvancedPreset.CUSTOM,
+                            progressiveBlurCurve = value,
+                        )
+                        advancedSettings = updatedSettings
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
+                    },
+                    onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
+                )
                 LiquidGlassAdvancedSlider(
                     title = "文字清晰度保护",
                     description = "数值越高，越优先保证图标和文字与背景有足够对比度",
@@ -473,7 +515,7 @@ internal fun LiquidGlassAdjustmentPanel(
                     },
                     enabled = advancedSettings.contentDistortion > 0.001f,
                 ) {
-                    Icon(Icons.Outlined.Restore, contentDescription = null)
+                    Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_restore_24), contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
                     AppText("关闭内容折射")
                 }
@@ -553,6 +595,21 @@ internal fun resolveLiquidGlassPresetSliderSettings(
     }
     return LiquidGlassAdvancedSettings(
         preset = preset,
+        progressiveBlurRadius = lerpLiquidGlassPresetValue(
+            start.progressiveBlurRadius,
+            end.progressiveBlurRadius,
+            fraction,
+        ),
+        progressiveBlurExtent = lerpLiquidGlassPresetValue(
+            start.progressiveBlurExtent,
+            end.progressiveBlurExtent,
+            fraction,
+        ),
+        progressiveBlurCurve = lerpLiquidGlassPresetValue(
+            start.progressiveBlurCurve,
+            end.progressiveBlurCurve,
+            fraction,
+        ),
         contentReadability = lerpLiquidGlassPresetValue(
             start.contentReadability,
             end.contentReadability,
@@ -750,6 +807,22 @@ private fun LiquidGlassHomeSample(
             }
         }
 
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(132.dp)
+                .biliPaiProgressiveTopBlur(
+                    backdrop = backdrop,
+                    enabled = true,
+                    blurRadiusDp = tuning.progressiveBlurRadius,
+                    gradient = ProgressiveBlur.Top.copy(
+                        endFraction = tuning.progressiveBlurEndFraction,
+                        curve = tuning.progressiveBlurCurve,
+                    ),
+                )
+        )
+
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -774,7 +847,7 @@ private fun LiquidGlassHomeSample(
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = topContentColor)
+            Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_search_24), contentDescription = null, tint = topContentColor)
             Spacer(modifier = Modifier.width(8.dp))
             AppText(
                 text = "搜索感兴趣的视频",
@@ -844,7 +917,7 @@ private fun LiquidGlassHomeSample(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Search,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_search_24),
                         contentDescription = "底栏搜索",
                         tint = bottomContentColor,
                     )

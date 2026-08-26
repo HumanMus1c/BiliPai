@@ -805,6 +805,12 @@ interface BilibiliApi {
         @Query("roomid") roomId: Long
     ): ResponseBody
 
+    @GET("https://api.live.bilibili.com/xlive/app-room/v1/dm/interaction/votePanel")
+    suspend fun getLiveVotePanel(@Query("room_id") roomId: Long): ResponseBody
+
+    @GET("https://api.live.bilibili.com/xlive/app-room/v1/dm/interaction/voteHistory")
+    suspend fun getLiveVoteHistory(@Query("room_id") roomId: Long): ResponseBody
+
     @GET("https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank")
     suspend fun getLiveContributionRank(
         @QueryMap params: Map<String, String>

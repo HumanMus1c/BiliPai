@@ -324,6 +324,12 @@ fun DynamicScreen(
 
     val density = LocalDensity.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
+    val topBarCollapseThresholdPx = with(density) {
+        DynamicTopBarReservedHeightDp.dp.roundToPx()
+    }
+    val horizontalUserListCollapseThresholdPx = with(density) {
+        DynamicHorizontalExpandedHeaderReservedHeightDp.dp.roundToPx()
+    }
     val dynamicListBottomPadding = LocalBottomBarContentPadding.current
     val pullRefreshState = rememberPullToRefreshState()
 
@@ -338,24 +344,35 @@ fun DynamicScreen(
             )
         }
     }
-    val shouldCollapseHorizontalUserList by remember(activeListState, displayMode, shouldShowHorizontalUserList) {
+    val shouldCollapseHorizontalUserList by remember(
+        activeListState,
+        displayMode,
+        shouldShowHorizontalUserList,
+        horizontalUserListCollapseThresholdPx,
+    ) {
         derivedStateOf {
             val state = activeListState ?: return@derivedStateOf false
             shouldShowHorizontalUserList &&
                 displayMode.isHorizontalUserList() &&
                 shouldCollapseDynamicHorizontalUserList(
                     firstVisibleItemIndex = state.firstVisibleItemIndex,
-                    firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset
+                    firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset,
+                    topTolerancePx = horizontalUserListCollapseThresholdPx,
                 )
         }
     }
-    val shouldCollapseTopBar by remember(activeListState, dynamicTopBarCollapseOnScroll) {
+    val shouldCollapseTopBar by remember(
+        activeListState,
+        dynamicTopBarCollapseOnScroll,
+        topBarCollapseThresholdPx,
+    ) {
         derivedStateOf {
             val state = activeListState ?: return@derivedStateOf false
             shouldCollapseDynamicTopBar(
                 collapseOnScrollEnabled = dynamicTopBarCollapseOnScroll,
                 firstVisibleItemIndex = state.firstVisibleItemIndex,
-                firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset
+                firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset,
+                topTolerancePx = topBarCollapseThresholdPx,
             )
         }
     }
@@ -695,7 +712,7 @@ fun DynamicScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .layerBackdrop(dynamicDockBackdrop)
-                                    .background(AppSurfaceTokens.background())
+                                    .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                             ) {
                             HorizontalPager(
                                 state = pagerState,
@@ -737,7 +754,6 @@ fun DynamicScreen(
                                 }
                                 val pageListTopExtra = resolveDynamicListTopPaddingExtraDp(
                                     isHorizontalMode = false,
-                                    isTopBarCollapsed = shouldCollapseTopBar
                                 ).dp
                                 // Overlay top bar (not Scaffold-padded) — anchor indicator under chrome.
                                 val dynamicRefreshIndicatorTopInset =
@@ -882,7 +898,7 @@ fun DynamicScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .layerBackdrop(dynamicDockBackdrop)
-                                .background(AppSurfaceTokens.background())
+                                .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                         ) {
                         HorizontalPager(
                             state = pagerState,
@@ -924,9 +940,7 @@ fun DynamicScreen(
                             }
                             val pageListTopExtra = resolveDynamicListTopPaddingExtraDp(
                                 isHorizontalMode = true,
-                                isHorizontalUserListCollapsed = shouldCollapseHorizontalUserList,
                                 shouldShowHorizontalUserList = shouldShowHorizontalUserList,
-                                isTopBarCollapsed = shouldCollapseTopBar
                             ).dp
                             val dynamicRefreshIndicatorTopInset =
                                 statusBarHeight + pageListTopExtra

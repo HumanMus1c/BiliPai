@@ -199,6 +199,7 @@ object UiSkinPackageReader {
                 bytes[5] == 0x74.toByte() &&
                 bytes[6] == 0x79.toByte() &&
                 bytes[7] == 0x70.toByte() -> UiSkinAssetType.MP4
+            bytes.looksLikeJsonAsset() -> UiSkinAssetType.JSON
             else -> null
         }
     }
@@ -222,6 +223,13 @@ object UiSkinPackageReader {
         }
         return normalized
     }
+}
+
+private fun ByteArray.looksLikeJsonAsset(): Boolean {
+    return firstOrNull { byte ->
+        byte != ' '.code.toByte() && byte != '\n'.code.toByte() &&
+            byte != '\r'.code.toByte() && byte != '\t'.code.toByte()
+    } == '{'.code.toByte()
 }
 
 private data class UiSkinScanResult(

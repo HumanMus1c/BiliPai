@@ -58,10 +58,6 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.util.EasterEggs
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
 import com.android.purebilibili.core.ui.components.AppCard
@@ -357,7 +353,7 @@ internal fun SettingsRootCategoryNavigationSection(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 AppIcon(
-                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                     contentDescription = if (isExpanded) "收起${category.title}" else "展开${category.title}",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                     modifier = Modifier
@@ -472,7 +468,7 @@ private fun SettingsRootCategoryRow(
             )
         }
         AppIcon(
-            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
             modifier = Modifier.size(14.dp),
@@ -1544,7 +1540,7 @@ fun PrivacySection(
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
-            icon = Icons.Outlined.Shield,
+            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_24),
             title = "发评反诈历史",
             value = "查看历史发评与风控状态",
             onClick = onCommentFraudHistoryClick,
@@ -1713,7 +1709,7 @@ private fun DiagnosticsSection(
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
-            icon = Icons.Outlined.BugReport,
+            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_pest_control_24),
             title = "增强诊断日志",
             subtitle = if (enhancedDiagnosticLoggingEnabled) {
                 "正在采集脱敏后的详细运行信息；关闭会立即清除"
@@ -1729,7 +1725,7 @@ private fun DiagnosticsSection(
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
-            icon = Icons.Outlined.Lan,
+            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lan_24),
             title = "HTTP 代理",
             subtitle = formatAppHttpProxySummary(proxySettings) +
                 "（仅应用接口和登录请求，视频播放仍直接连接）",
@@ -1745,7 +1741,7 @@ private fun DiagnosticsSection(
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
-            icon = Icons.Outlined.Dns,
+            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_hub_24),
             title = "代理地址",
             value = formatAppHttpProxyEndpoint(proxySettings),
             subtitle = "填写“主机:端口”，例如 127.0.0.1:7890",

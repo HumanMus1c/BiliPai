@@ -242,6 +242,20 @@ class BottomBarMiuixStructureTest {
     }
 
     @Test
+    fun `floating bottom bar forwards pager position to draggable indicator`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val floatingBarSource = source.substringAfter("fun BiliPaiFloatingBottomBar(")
+
+        assertTrue(floatingBarSource.contains("indicatorPositionProvider: (() -> Float)? = null"))
+        assertTrue(floatingBarSource.contains("indicatorPositionProvider = indicatorPositionProvider"))
+        assertTrue(
+            floatingBarSource.contains(
+                "isScrollInProgressProvider = isPagerScrollInProgressProvider"
+            )
+        )
+    }
+
+    @Test
     fun `bottom bar search click keeps capsule scale stable`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         val refractionProfileSource = source
@@ -257,33 +271,26 @@ class BottomBarMiuixStructureTest {
 
         assertTrue(searchCapsuleSource.contains("label = \"bottomBarSearchFieldAlpha\""))
         assertTrue(searchCapsuleSource.contains("label = \"bottomBarSearchIconScale\""))
-        assertTrue(searchCapsuleSource.contains("label = \"bottomBarSearchLongPressHorizontalScale\""))
+        assertFalse(searchCapsuleSource.contains("bottomBarSearchLongPressHorizontalScale"))
         assertFalse(searchCapsuleSource.contains("rememberBottomBarClickPulseTransform(searchClickPulseKey)"))
         assertFalse(searchCapsuleSource.contains("searchClickPulseKey += 1"))
-        assertTrue(searchCapsuleSource.contains("detectTapGestures("))
-        assertTrue(searchCapsuleSource.contains("onLongPress = {"))
-        assertTrue(searchCapsuleSource.contains("currentHaptic(HapticType.SELECTION)"))
+        assertFalse(searchCapsuleSource.contains("detectTapGestures("))
+        assertFalse(searchCapsuleSource.contains("onLongPress = {"))
+        assertFalse(searchCapsuleSource.contains("currentHaptic(HapticType.SELECTION)"))
         assertTrue(searchCapsuleSource.contains("val currentOnSubmit by rememberUpdatedState(onSubmit)"))
         assertTrue(searchCapsuleSource.contains("val currentHaptic by rememberUpdatedState(haptic)"))
-        assertTrue(searchCapsuleSource.contains("Modifier.pointerInput(Unit)"))
+        assertTrue(searchCapsuleSource.contains("role = Role.Button"))
         assertFalse(searchCapsuleSource.contains("modifier.pointerInput(onExpandChange)"))
         val collapsedTapSource = searchCapsuleSource
-            .substringAfter("onTap = {")
-            .substringBefore("},\n                            onLongPress")
+            .substringAfter("role = Role.Button")
+            .substringBefore("} else {")
         assertTrue(collapsedTapSource.contains("currentOnCompactClick()"))
         assertFalse(collapsedTapSource.contains("currentOnExpandChange(true)"))
         assertTrue(searchCapsuleSource.contains("BasicTextField("))
         assertTrue(searchCapsuleSource.contains("onClick = onSubmit"))
         assertTrue(searchCapsuleSource.contains("keyboardActions = KeyboardActions(onSearch = { onSubmit() })"))
-        assertTrue(searchCapsuleSource.contains("val launchSearchFromExpandedBlankQuery = expanded && query.isBlank()"))
-        assertTrue(searchCapsuleSource.contains("if (launchSearchFromExpandedBlankQuery) {"))
-        assertTrue(searchCapsuleSource.contains(".matchParentSize()"))
-        assertTrue(searchCapsuleSource.contains(".clip(shape)"))
-        val expandedBlankTapSource = searchCapsuleSource
-            .substringAfter("if (launchSearchFromExpandedBlankQuery) {")
-            .substringBefore("\n        }\n    }\n}")
-        assertTrue(expandedBlankTapSource.contains("currentHaptic(HapticType.LIGHT)"))
-        assertTrue(expandedBlankTapSource.contains("currentOnSubmit()"))
+        assertFalse(searchCapsuleSource.contains("launchSearchFromExpandedBlankQuery"))
+        assertTrue(searchCapsuleSource.contains("contentDescription = \"搜索输入框\""))
         assertTrue(searchCapsuleSource.contains("animationSpec = bottomBarContentVisibilityMotionSpec()"))
         assertFalse(source.contains("private fun rememberBottomBarSettlePulseTransform("))
         assertFalse(source.contains("settlePulseKey = if (index == selectedIndex)"))

@@ -31,10 +31,6 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.animation.core.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,7 +49,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.R
-import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
 import com.android.purebilibili.core.store.BackToTopSettingsStore
 import com.android.purebilibili.core.store.DEFAULT_BACK_TO_TOP_BUTTON_ENABLED
 import com.android.purebilibili.core.store.HomeDurationStyle
@@ -455,16 +450,6 @@ fun AppearanceSettingsContent(
     val homeHeroCarouselAutoplayEnabled by SettingsManager
         .getHomeHeroCarouselAutoplayEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
-    val commonListHeaderCollapseMode by SettingsManager
-        .getCommonListHeaderCollapseMode(context)
-        .collectAsStateWithLifecycle(
-            initialValue = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL
-        )
-    val commonListHeaderCollapseOptions = remember {
-        CommonListHeaderCollapseMode.entries.map { mode ->
-            AppSegmentOption(mode, mode.label)
-        }
-    }
     val themeRoleOverrides by SettingsManager
         .getThemeRoleOverrides(context)
         .collectAsStateWithLifecycle(initialValue = ThemeRoleOverrides())
@@ -866,7 +851,7 @@ fun AppearanceSettingsContent(
                                                             exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
                                                         ) {
                                                             AppIcon(
-                                                                Icons.Outlined.Check,
+                                                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_24),
                                                                 contentDescription = null,
                                                                 tint = Color.White,
                                                                 modifier = Modifier.size(18.dp)
@@ -1131,7 +1116,7 @@ fun AppearanceSettingsContent(
 
                     AppPreferenceDivider()
 	                    AppSwitchPreference(
-	                        icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+	                        icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_ICON_ANIMATION),
                         title = "开屏图标遮罩动画",
                         subtitle = "关闭后不保留图标页，不播放遮罩和飞出动画",
                         checked = splashIconAnimationEnabled,
@@ -1181,7 +1166,7 @@ fun AppearanceSettingsContent(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             AppIcon(
-                                                Icons.Outlined.Photo,
+                                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_photo_24),
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(24.dp)
@@ -1206,7 +1191,7 @@ fun AppearanceSettingsContent(
                                 }
                                 
                                 AppIcon(
-                                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(16.dp)
@@ -1290,21 +1275,8 @@ fun AppearanceSettingsContent(
                         )
                         
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsSingleChoicePreference(
-                            title = "列表顶部栏：${commonListHeaderCollapseMode.label}",
-                            subtitle = "收藏夹列表：${commonListHeaderCollapseMode.description}。历史记录跟随「导航设置 → 首页顶栏显示」开关",
-                            options = commonListHeaderCollapseOptions,
-                            selectedValue = commonListHeaderCollapseMode,
-                            onSelectionChange = { mode ->
-                                scope.launch {
-                                    SettingsManager.setCommonListHeaderCollapseMode(context, mode)
-                                }
-                            }
-                        )
-
-                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HEADER_COLLAPSE),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BACK_TO_TOP),
                             title = "显示一键回顶",
                             subtitle = "搜索、列表、动态和评论区等长内容页统一跟随",
                             checked = backToTopButtonEnabled,
@@ -1463,7 +1435,7 @@ fun AppearanceSettingsContent(
                             }
 
                             AppIcon(
-                                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(16.dp)
@@ -1521,7 +1493,7 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HEADER_COLLAPSE),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HEADER_COLLAPSE),
                             title = "首页顶栏仅回顶显示",
                             subtitle = "离开顶部后收起搜索框和标签页，单击底栏首页回顶后再出现",
                             checked = state.isHeaderCollapseEnabled,
@@ -1533,7 +1505,7 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_FEED),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PGC_TIMELINE),
                             title = "展示番剧影视时间表",
                             subtitle = "番剧与影视页显示最近更新时间表",
                             checked = showPgcTimeline,
@@ -1626,7 +1598,7 @@ fun AppearanceSettingsContent(
                             Column {
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                                 SettingsSingleChoicePreference(
-                                    icon = Icons.Outlined.ViewList,
+                                    icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_format_list_bulleted_24),
                                     iconTint = com.android.purebilibili.core.theme.iOSBlue,
                                     title = "网格列数",
                                     subtitle = if (state.gridColumnCount == 0) {
@@ -2220,7 +2192,7 @@ private fun Md3ThemeColorPreview(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Filled.PlayArrow,
+                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_play_arrow_fill_24),
                         contentDescription = null,
                     )
                 }

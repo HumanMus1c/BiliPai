@@ -61,8 +61,9 @@ class VideoContentSectionPerformanceStructureTest {
         assertTrue(source.contains("resolveVideoContentTabBarCollapseProgress("))
         assertFalse(source.contains("visible = !collapseTabBarForCommentScroll"))
         // Sort filter bar lives in the top chrome beside the comment tab.
-        assertTrue(source.contains("if (selectedTabIndex == 1)"))
+        assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("CommentSortFilterBar("))
+        assertTrue(source.contains("shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex)"))
     }
 
     private fun loadSource(path: String): String {

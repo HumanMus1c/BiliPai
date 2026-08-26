@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
 internal const val NavigationSelectionScale = 1.1f
+internal const val FloatingBottomBarSelectionScale = 1.3f
+internal const val FloatingBottomBarSelectionLiftDp = 8f
 internal const val NavigationSelectionWobbleDegrees = 4f
 internal const val NavigationSelectionCounterWobbleDegrees = -3f
 
@@ -24,9 +26,14 @@ internal fun resolveNavigationIconCrossScale(
     if (!enabled) return 1f
     return androidx.compose.ui.util.lerp(
         1f,
-        NavigationSelectionScale,
+        FloatingBottomBarSelectionScale,
         coverage.coerceIn(0f, 1f),
     )
+}
+
+internal fun resolveNavigationIconSelectionLiftDp(scale: Float): Float {
+    val progress = ((scale - 1f) / (FloatingBottomBarSelectionScale - 1f)).coerceIn(0f, 1f)
+    return FloatingBottomBarSelectionLiftDp * progress
 }
 
 internal fun <T> navigationSelectionScaleMotionSpec(): SpringSpec<T> = spring(

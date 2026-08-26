@@ -1,212 +1,68 @@
 package com.android.purebilibili.feature.video.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import com.android.purebilibili.core.ui.components.AppHorizontalDivider
-import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.ContainerLevel
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.DropdownItem
 
 private val HiResGold = Color(0xFFFFD36A)
 private val DolbyBlue = Color(0xFF8DCDFF)
 
 @Composable
-fun HiResBadge(
-    modifier: Modifier = Modifier
-) {
-    AudioFormatBadge(
-        text = "Hi-Res",
-        accentColor = HiResGold,
-        backgroundColor = Color(0xFF332A14),
-        modifier = modifier
-    )
-}
+fun HiResBadge(modifier: Modifier = Modifier) = AudioFormatBadge("Hi-Res", HiResGold, Color(0xFF332A14), modifier)
 
 @Composable
-fun DolbyBadge(
-    modifier: Modifier = Modifier
-) {
-    AudioFormatBadge(
-        text = "DOLBY",
-        accentColor = DolbyBlue,
-        backgroundColor = Color(0xFF142A3A),
-        modifier = modifier
-    )
-}
+fun DolbyBadge(modifier: Modifier = Modifier) = AudioFormatBadge("DOLBY", DolbyBlue, Color(0xFF142A3A), modifier)
 
 @Composable
-private fun AudioFormatBadge(
-    text: String,
-    accentColor: Color,
-    backgroundColor: Color,
-    modifier: Modifier = Modifier
-) {
+private fun AudioFormatBadge(text: String, accent: Color, background: Color, modifier: Modifier) {
     AppSurface(
-        modifier = modifier,
-        color = backgroundColor.copy(alpha = 0.9f),
-        contentColor = accentColor,
-        shape = AppShapes.container(ContainerLevel.Tag),
-        border = androidx.compose.foundation.BorderStroke(0.75.dp, accentColor.copy(alpha = 0.9f))
+        modifier = modifier, color = background.copy(alpha = 0.9f), contentColor = accent,
+        shape = AppShapes.container(ContainerLevel.Tag), border = BorderStroke(0.75.dp, accent),
     ) {
         AppText(
-            text = text,
-            fontSize = 8.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 9.sp,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            text = text, fontSize = 8.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
     }
 }
 
 @Composable
 fun AudioQualitySelectionMenu(
-    options: List<AudioQualityOption>,
-    requestedAudioQuality: Int,
-    onAudioQualitySelected: (Int) -> Unit,
-    onDismiss: () -> Unit
+    options: List<AudioQualityOption>, requestedAudioQuality: Int,
+    onAudioQualitySelected: (Int) -> Unit, onDismiss: () -> Unit,
+    placement: PlayerListPopupPlacement = PlayerListPopupPlacement.CENTER,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        AppSurface(
-            modifier = Modifier
-                .widthIn(min = 200.dp, max = 280.dp)
-                .heightIn(max = 400.dp)
-                .clip(AppShapes.container(ContainerLevel.Card))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {}
-                ),
-            color = Color(0xFF2B2B2B),
-            shape = AppShapes.container(ContainerLevel.Card),
-            tonalElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(vertical = 8.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                AppText(
-                    text = "音质选择",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-                AppHorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                options.forEach { option ->
-                    val isSelected = option.preferenceId == requestedAudioQuality
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .clickable(enabled = !isSelected) {
-                                onAudioQualitySelected(option.preferenceId)
-                            }
-                            .background(
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                } else {
-                                    Color.Transparent
-                                }
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        AppText(
-                            text = option.label,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                Color.White.copy(alpha = 0.9f)
-                            },
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                        if (option.isHiRes) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            HiResBadge()
-                        }
-                        if (option.isDolby) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            DolbyBadge()
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        if (isSelected) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Check,
-                                contentDescription = "当前音质",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
+    PlayerMiuixListPopup(title = "音质选择", onDismissRequest = onDismiss, placement = placement) {
+        options.forEachIndexed { index, option ->
+            val selected = option.preferenceId == requestedAudioQuality
+            val summary = listOfNotNull(
+                "Hi-Res".takeIf { option.isHiRes }, "杜比音效".takeIf { option.isDolby },
+            ).joinToString(" · ").ifEmpty { null }
+            DropdownImpl(
+                item = DropdownItem(text = option.label, summary = summary),
+                optionSize = options.size, isSelected = selected, index = index,
+                enabled = !selected,
+                onSelectedIndexChange = { onAudioQualitySelected(option.preferenceId) },
+            )
         }
     }
 }
 
 @Composable
 fun AudioQualitySelectionMenuDialog(
-    options: List<AudioQualityOption>,
-    requestedAudioQuality: Int,
-    onAudioQualitySelected: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        AudioQualitySelectionMenu(
-            options = options,
-            requestedAudioQuality = requestedAudioQuality,
-            onAudioQualitySelected = onAudioQualitySelected,
-            onDismiss = onDismiss
-        )
-    }
-}
+    options: List<AudioQualityOption>, requestedAudioQuality: Int,
+    onAudioQualitySelected: (Int) -> Unit, onDismiss: () -> Unit,
+    placement: PlayerListPopupPlacement = PlayerListPopupPlacement.CENTER,
+) = AudioQualitySelectionMenu(options, requestedAudioQuality, onAudioQualitySelected, onDismiss, placement)

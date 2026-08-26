@@ -135,6 +135,19 @@ class LiveCategorySegmentedControlStructureTest {
         assertTrue(source.contains("height = viewportLayout.height.toDp()"))
     }
 
+    @Test
+    fun `live room overflow uses the miuix window action menu`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"
+        )
+
+        assertTrue(source.contains("AppWindowActionMenu("))
+        assertTrue(source.contains("label = \"高能榜\""))
+        assertTrue(source.contains("contentDescription = \"更多直播间操作\""))
+        assertFalse(source.contains("AppDropdownMenu("))
+        assertFalse(source.contains("LiveRoomOverflowMenu("))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

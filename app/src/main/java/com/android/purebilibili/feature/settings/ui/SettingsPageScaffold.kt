@@ -34,7 +34,6 @@ import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
-import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
 import com.android.purebilibili.core.ui.TopReadabilityChrome
 import com.android.purebilibili.core.ui.blur.BlurStyles
@@ -133,9 +132,7 @@ internal fun SettingsPageScaffold(
     }
     val pageContainerColor = AppSurfaceTokens.groupedListContainer()
 
-    // BiliPai：设置页用不透明 grouped 底色，避免全局壁纸半透明与多页叠色闪烁。
     CompositionLocalProvider(
-        LocalGlobalWallpaperBackdropVisible provides false,
         LocalAppPreferenceIconTreatment provides AppPreferenceIconTreatment.FILLED,
         LocalAppPreferenceGroupPresentation provides AppPreferenceGroupPresentation.FLAT,
     ) {

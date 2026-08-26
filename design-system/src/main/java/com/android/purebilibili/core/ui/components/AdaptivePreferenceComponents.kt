@@ -604,12 +604,22 @@ internal fun AdaptiveSwitchPreferenceContent(
             },
             leadingContent = if (icon != null) {
                 {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(visualSpec.iconContainerSizeDp.dp)
+                            .adaptiveSquircleBackground(
+                                color = effectiveIconTint.copy(alpha = iconBackgroundAlpha),
+                                cornerRadius = visualSpec.iconCornerRadiusDp.dp,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconContentColor,
+                            modifier = Modifier.size(visualSpec.iconGlyphSizeDp.dp),
+                        )
+                    }
                 }
             } else {
                 null
@@ -877,10 +887,15 @@ private fun Md3NativeListItemContent(
     showChevron: Boolean,
     trailingContent: (@Composable (() -> Unit))? = null,
     minTouchHeight: Int,
+    iconContainerColor: Color,
+    iconContentColor: Color,
+    iconBackgroundAlpha: Float,
+    iconContainerSize: Dp,
+    iconGlyphSize: Dp,
+    iconCornerRadius: Dp,
 ) {
     val haptic = LocalHapticFeedback.current
     val hapticsEnabled = LocalAppThemeConfig.current.hapticFeedbackEnabled
-    val colorScheme = MaterialTheme.colorScheme
     ListItem(
         headlineContent = {
             Text(
@@ -900,20 +915,30 @@ private fun Md3NativeListItemContent(
         },
         leadingContent = if (icon != null || iconPainter != null) {
             {
-                when {
-                    icon != null -> Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(iconContainerSize)
+                        .adaptiveSquircleBackground(
+                            color = iconContainerColor.copy(alpha = iconBackgroundAlpha),
+                            cornerRadius = iconCornerRadius,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        icon != null -> Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconContentColor,
+                            modifier = Modifier.size(iconGlyphSize),
+                        )
 
-                    else -> Icon(
-                        painter = iconPainter!!,
-                        contentDescription = null,
-                        tint = colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
+                        else -> Icon(
+                            painter = iconPainter!!,
+                            contentDescription = null,
+                            tint = iconContentColor,
+                            modifier = Modifier.size(iconGlyphSize),
+                        )
+                    }
                 }
             }
         } else {
@@ -1024,6 +1049,12 @@ internal fun AdaptivePreferenceContent(
             showChevron = showChevron,
             trailingContent = trailingContent,
             minTouchHeight = rowSpec.minTouchTargetHeightDp,
+            iconContainerColor = effectiveIconTint,
+            iconContentColor = iconContentColor,
+            iconBackgroundAlpha = iconBackgroundAlpha,
+            iconContainerSize = visualSpec.iconContainerSizeDp.dp,
+            iconGlyphSize = visualSpec.iconGlyphSizeDp.dp,
+            iconCornerRadius = iconCornerRadius,
         )
         return
     }
@@ -1895,7 +1926,7 @@ private fun MiuixAdaptiveSearchBar(
     onQueryChange: (String) -> Unit,
     modifier: Modifier,
     placeholder: String,
-    @Suppress("UNUSED_PARAMETER") containerColor: Color,
+    containerColor: Color,
     height: androidx.compose.ui.unit.Dp,
     forceExpandedInput: Boolean = false,
     onSearch: () -> Unit = {},
@@ -1912,6 +1943,7 @@ private fun MiuixAdaptiveSearchBar(
                 .fillMaxWidth()
                 .height(height),
             label = placeholder,
+            color = containerColor,
             interactionSource = interactionSource,
         )
         return
@@ -1929,6 +1961,7 @@ private fun MiuixAdaptiveSearchBar(
             .fillMaxWidth()
             .height(height),
         label = placeholder,
+        color = containerColor,
         interactionSource = interactionSource,
     )
 }

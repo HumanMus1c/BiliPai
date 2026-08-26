@@ -27,6 +27,13 @@ class DanmakuComposerPolicyTest {
     }
 
     @Test
+    fun compactDanmakuSend_shownOnTabletInlinePlayer() {
+        assertTrue(shouldShowCompactDanmakuSendAction(isFullscreen = false, widthDp = 800))
+        assertTrue(shouldShowCompactDanmakuSendAction(isFullscreen = false, widthDp = 600))
+        assertFalse(shouldShowCompactDanmakuSendAction(isFullscreen = false, widthDp = 411))
+    }
+
+    @Test
     fun moreActionsFallback_whenInlineInputHidden() {
         assertTrue(
             shouldShowDanmakuSendInMoreActions(

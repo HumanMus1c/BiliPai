@@ -1,6 +1,7 @@
 package com.android.purebilibili.core.ui.renderer.material3
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -9,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -82,12 +84,23 @@ internal fun <T> AppMaterial3TabRow(
     scrollable: Boolean,
     minTabWidth: Dp,
     modifier: Modifier,
+    allowLabelOverflow: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
+    val longestLabelLength = remember(options) {
+        options.maxOfOrNull { it.label.length } ?: 0
+    }
+    val labelFontSize = remember(options.size, longestLabelLength) {
+        resolveAppSegmentedLabelFontSizeSp(options.size, longestLabelLength).sp
+    }
     val tabs: @Composable () -> Unit = {
         options.forEach { option ->
             val selected = option.value == selectedValue
+            // Keep Tab's `text =` slot so TabRow can subtract HorizontalTextPadding
+            // when sizing the underline. Overflow the 16.dp padding instead of
+            // ellipsizing 直播间 / UP主 / 默认排序 when many tabs share one row.
             Tab(
                 selected = selected,
                 onClick = { onSelectionChange(option.value) },
@@ -95,9 +108,24 @@ internal fun <T> AppMaterial3TabRow(
                 text = {
                     Text(
                         text = option.label,
+                        modifier = Modifier.then(
+                            if (allowLabelOverflow) {
+                                Modifier.wrapContentWidth(
+                                    align = Alignment.CenterHorizontally,
+                                    unbounded = true,
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelLarge,
+                        softWrap = false,
+                        overflow = if (allowLabelOverflow) {
+                            TextOverflow.Visible
+                        } else {
+                            TextOverflow.Clip
+                        },
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = labelFontSize),
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     )
                 },
@@ -111,6 +139,7 @@ internal fun <T> AppMaterial3TabRow(
             containerColor = Color.Transparent,
             edgePadding = 0.dp,
             minTabWidth = minTabWidth,
+            indicatorPositionProvider = indicatorPositionProvider,
             tabs = tabs,
         )
     } else {
@@ -118,6 +147,7 @@ internal fun <T> AppMaterial3TabRow(
             selectedTabIndex = selectedIndex,
             modifier = modifier.fillMaxWidth(),
             containerColor = Color.Transparent,
+            indicatorPositionProvider = indicatorPositionProvider,
             tabs = tabs,
         )
     }

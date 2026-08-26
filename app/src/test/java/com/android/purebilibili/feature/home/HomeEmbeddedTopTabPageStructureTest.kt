@@ -40,4 +40,20 @@ class HomeEmbeddedTopTabPageStructureTest {
         assertTrue(source.contains("listBottomPadding = contentPadding.calculateBottomPadding()"))
         assertTrue(!source.contains(".padding(contentPadding)"))
     }
+
+    @Test
+    fun bangumiPageBackdropIsASiblingSharedByAllTabRows() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/bangumi/HomeBangumiTabPage.kt"
+        ).readText()
+
+        assertTrue(source.contains("miuixBackdrop = channelBackdrop"))
+        assertTrue(source.contains(".layerBackdrop(channelBackdrop)"))
+        assertTrue(source.contains(".background(MaterialTheme.colorScheme.background)"))
+        assertTrue(source.contains("tabBackdrop = channelBackdrop"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(channelBackdrop)") <
+                source.indexOf("Column(modifier = Modifier.fillMaxSize())")
+        )
+    }
 }

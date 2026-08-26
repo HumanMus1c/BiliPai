@@ -20,7 +20,7 @@ class TodayWatchLiquidGlassStructureTest {
         assertTrue(modeControl.contains("AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp"))
         assertTrue(modeControl.contains("tapPressRefractionEnabled = true"))
         assertTrue(modeControl.contains("liquidGlassEffectsEnabled = true"))
-        assertTrue(modeControl.contains("miuixBackdrop = backdrop"))
+        assertTrue(modeControl.contains("miuixBackdrop = miuixBackdrop"))
     }
 
     @Test
@@ -46,7 +46,7 @@ class TodayWatchLiquidGlassStructureTest {
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp"))
         assertTrue(source.contains("tapPressRefractionEnabled = true"))
-        assertTrue(source.contains("miuixBackdrop = backdrop"))
+        assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(source.contains("val settingsBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains(".layerBackdrop(settingsBackdrop)"))
     }

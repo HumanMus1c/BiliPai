@@ -16,6 +16,8 @@ import java.util.zip.ZipOutputStream
 
 private const val BILIBILI_SKIN_SOURCE_NAME = "Rovniced/bilibili-skin"
 private const val BILIBILI_SKIN_SOURCE_URL = "https://github.com/Rovniced/bilibili-skin"
+private const val BILIBILI_SUIT_COLLECTION_SOURCE_URL =
+    "https://github.com/sjh8130/BilibiliSuitCollection"
 private const val BILIBILI_SKIN_LICENSE_NOTE =
     "由用户本地 Rovniced/bilibili-skin 主题目录转换，输出包包含原存档/官方装扮素材；" +
         "仅供本地私用或在已获得授权时分享，不要将官方付费主题原图、角色立绘、图标原件或动效资源作为社区包分发。"
@@ -31,6 +33,11 @@ data class UiSkinImportPackage(
     val source: UiSkinImportSource,
     val packageBytes: ByteArray
 )
+
+enum class UiSkinImportMode {
+    FULL_SKIN,
+    PERSONAL_BACKGROUND_ONLY,
+}
 
 object UiSkinImportPackageResolver {
     private val json = Json { ignoreUnknownKeys = true }
@@ -67,6 +74,46 @@ object UiSkinImportPackageResolver {
         }
     }
 
+    /** Creates a minimal package that retains only profile background assets. */
+    fun restrictToPersonalBackground(packageBytes: ByteArray): Result<ByteArray> = runCatching {
+        val preview = UiSkinPackageReader.preview(packageBytes).getOrThrow()
+        val profileAssets = preview.manifest.assets.copy(
+            bottomBarTrim = null,
+            drawerBottomTrim = null,
+            topAtmosphere = null,
+            homeTopTabBackground = null,
+            searchCapsuleBackground = null,
+            homeSideBackground = null,
+            homeChannelIcon = null,
+            homeChannelSelectedIcon = null,
+            dynamicPublishIcon = null,
+            dynamicPublishSelectedIcon = null,
+            loadingAnimation = null,
+            loadingFrame = null,
+            likeEffectAnimation = null,
+            likeEffectPreview = null,
+            playerProgressIcon = null,
+            playerProgressDraggingIcon = null,
+            playerProgressStaticIcon = null,
+            bottomBarIcons = emptyMap(),
+        )
+        require(
+            profileAssets.homeProfileBackground != null ||
+                profileAssets.homeProfileSquaredBackground != null ||
+                profileAssets.homeProfileVideoBackground != null
+        ) { "皮肤包不包含个人背景图" }
+        val entries = scanZip(packageBytes, "皮肤包包含非法路径")
+            .filterKeys { it != "skin-manifest.json" }
+            .filterKeys { it in profileAssets.declaredPaths() }
+        buildBpskinPackage(
+            preview.manifest.copy(
+                surfaces = setOf(UiSkinSurface.PROFILE),
+                assets = profileAssets,
+            ),
+            entries,
+        )
+    }
+
     fun resolveBilibiliPackageWithMetadata(
         packageBytes: ByteArray,
         themeJsonBytes: ByteArray,
@@ -89,6 +136,62 @@ object UiSkinImportPackageResolver {
                 source = UiSkinImportSource.BILIBILI_SKIN_ARCHIVE,
                 packageBytes = buildBpskinPackage(manifest, assetBytesByPath),
             )
+        }
+    }
+
+    fun mergeSupplementalEffectAssets(
+        packageBytes: ByteArray,
+        supplementalAssets: Map<String, ByteArray>,
+    ): Result<ByteArray> = runCatching {
+        if (supplementalAssets.isEmpty()) return@runCatching packageBytes
+        val preview = UiSkinPackageReader.preview(packageBytes).getOrThrow()
+        val packageEntries = scanZip(packageBytes, "皮肤包包含非法路径")
+            .filterKeys { it != "skin-manifest.json" }
+            .toMutableMap()
+        packageEntries.putAll(supplementalAssets)
+        val oldAssets = preview.manifest.assets
+        val mergedAssets = oldAssets.copy(
+            loadingAnimation = supplementalAssets.keys.firstOrNull { it == "assets/loading.webp" }
+                ?: oldAssets.loadingAnimation,
+            loadingFrame = supplementalAssets.keys.firstOrNull { it == "assets/loading_frame.png" }
+                ?: oldAssets.loadingFrame,
+            likeEffectAnimation = supplementalAssets.keys.firstOrNull {
+                it == "assets/like_effect.json" || it == "assets/like_effect.webp" ||
+                    it == "assets/like_effect.png"
+            } ?: oldAssets.likeEffectAnimation,
+            likeEffectPreview = supplementalAssets.keys.firstOrNull {
+                it == "assets/like_effect_preview.png" || it == "assets/like_effect_preview.jpg"
+            } ?: oldAssets.likeEffectPreview,
+            playerProgressIcon = supplementalAssets.keys.firstOrNull {
+                it == "assets/progress_icon.json"
+            } ?: oldAssets.playerProgressIcon,
+            playerProgressDraggingIcon = supplementalAssets.keys.firstOrNull {
+                it == "assets/progress_drag_icon.json"
+            } ?: oldAssets.playerProgressDraggingIcon,
+            playerProgressStaticIcon = supplementalAssets.keys.firstOrNull {
+                it == "assets/progress_static_icon.png"
+            } ?: oldAssets.playerProgressStaticIcon,
+        )
+        val mergedSurfaces = buildSet {
+            addAll(preview.manifest.surfaces)
+            if (mergedAssets.loadingAnimation != null) add(UiSkinSurface.LOADING_INDICATOR)
+            if (mergedAssets.likeEffectAnimation != null || mergedAssets.likeEffectPreview != null) {
+                add(UiSkinSurface.LIKE_EFFECT)
+            }
+            if (
+                mergedAssets.playerProgressIcon != null ||
+                mergedAssets.playerProgressDraggingIcon != null ||
+                mergedAssets.playerProgressStaticIcon != null
+            ) {
+                add(UiSkinSurface.PLAYER_PROGRESS)
+            }
+        }
+        val mergedManifest = preview.manifest.copy(
+            surfaces = mergedSurfaces,
+            assets = mergedAssets,
+        )
+        buildBpskinPackage(mergedManifest, packageEntries).also {
+            UiSkinPackageReader.preview(it).getOrThrow()
         }
     }
 
@@ -162,6 +265,7 @@ object UiSkinImportPackageResolver {
         inputBytes: ByteArray,
         remotePackageFetcher: ((String) -> ByteArray)?
     ): ByteArray {
+        convertStandaloneSuitItemOrNull(inputBytes, remotePackageFetcher)?.let { return it }
         val packageUrl = inputBytes.packageUrlOrNull()
             ?: throw IllegalArgumentException("皮肤 JSON 缺少 package_url，无法导入资源包")
         val packageZip = fetchRemotePackage(packageUrl, remotePackageFetcher)
@@ -179,6 +283,95 @@ object UiSkinImportPackageResolver {
             assetPaths = assetBytesByPath.keys.toSet()
         )
         return buildBpskinPackage(manifest, assetBytesByPath)
+    }
+
+    private fun convertStandaloneSuitItemOrNull(
+        inputBytes: ByteArray,
+        remotePackageFetcher: ((String) -> ByteArray)?
+    ): ByteArray? {
+        val root = runCatching {
+            json.parseToJsonElement(inputBytes.decodeBilibiliSkinJson()).jsonObject
+        }.getOrNull() ?: return null
+        val partId = root.stringOrNull("part_id")?.toIntOrNull() ?: return null
+        if (partId !in setOf(3, 10, 11)) return null
+        val properties = root.objectOrNull("properties") ?: return null
+        val itemId = root.stringOrNull("item_id") ?: "local"
+        val displayName = root.stringOrNull("name") ?: root.stringOrNull("group_name") ?: "Bilibili Suit"
+        val assetBytes = linkedMapOf<String, ByteArray>()
+
+        fun fetchProperty(property: String, targetPath: String) {
+            val url = properties.stringOrNull(property) ?: return
+            assetBytes[targetPath] = fetchRemotePackage(url, remotePackageFetcher)
+        }
+
+        val assets = when (partId) {
+            3 -> {
+                val animationUrl = properties.stringOrNull("image_ani")
+                when {
+                    animationUrl?.substringBefore('?')?.endsWith(".json", true) == true ->
+                        fetchProperty("image_ani", "assets/like_effect.json")
+                    animationUrl?.substringBefore('?')?.endsWith(".webp", true) == true ->
+                        fetchProperty("image_ani", "assets/like_effect.webp")
+                    animationUrl?.substringBefore('?')?.endsWith(".png", true) == true ->
+                        fetchProperty("image_ani", "assets/like_effect.png")
+                }
+                val previewUrl = properties.stringOrNull("image_preview")
+                if (previewUrl != null) {
+                    val extension = if (previewUrl.substringBefore('?').endsWith(".png", true)) "png" else "jpg"
+                    fetchProperty("image_preview", "assets/like_effect_preview.$extension")
+                }
+                UiSkinAssets(
+                    likeEffectAnimation = assetBytes.keys.firstOrNull {
+                        it.substringAfterLast('/').startsWith("like_effect.")
+                    },
+                    likeEffectPreview = assetBytes.keys.firstOrNull {
+                        it.substringAfterLast('/').startsWith("like_effect_preview.")
+                    },
+                )
+            }
+            10 -> {
+                fetchProperty("loading_url", "assets/loading.webp")
+                fetchProperty("loading_frame_url", "assets/loading_frame.png")
+                UiSkinAssets(
+                    loadingAnimation = "assets/loading.webp".takeIf(assetBytes::containsKey),
+                    loadingFrame = "assets/loading_frame.png".takeIf(assetBytes::containsKey),
+                )
+            }
+            else -> {
+                fetchProperty("icon", "assets/progress_icon.json")
+                fetchProperty("drag_icon", "assets/progress_drag_icon.json")
+                fetchProperty("static_icon_image", "assets/progress_static_icon.png")
+                UiSkinAssets(
+                    playerProgressIcon = "assets/progress_icon.json".takeIf(assetBytes::containsKey),
+                    playerProgressDraggingIcon = "assets/progress_drag_icon.json".takeIf(assetBytes::containsKey),
+                    playerProgressStaticIcon = "assets/progress_static_icon.png".takeIf(assetBytes::containsKey),
+                )
+            }
+        }
+        if (assets.declaredPaths().isEmpty()) {
+            throw IllegalArgumentException("该装扮效果没有当前版本可渲染的资源")
+        }
+        val surface = when (partId) {
+            3 -> UiSkinSurface.LIKE_EFFECT
+            10 -> UiSkinSurface.LOADING_INDICATOR
+            else -> UiSkinSurface.PLAYER_PROGRESS
+        }
+        val manifest = UiSkinManifest(
+            formatVersion = 1,
+            skinId = "local.bilibili_suit.part_${partId}_${itemId}".safeUiSkinFileSegment(),
+            displayName = displayName,
+            version = properties.stringOrNull("ver") ?: "1.0.0",
+            apiVersion = 1,
+            author = "BiliPai local converter",
+            surfaces = setOf(surface),
+            assets = assets,
+            styleSourceName = "sjh8130/BilibiliSuitCollection",
+            styleSourceUrl = BILIBILI_SUIT_COLLECTION_SOURCE_URL,
+            licenseNote = BILIBILI_SKIN_LICENSE_NOTE,
+            communityShareable = false,
+            containsOfficialAssets = true,
+        )
+        return buildBpskinPackage(manifest, assetBytes)
     }
 
     private fun fetchRemotePackage(
@@ -335,6 +528,16 @@ object UiSkinImportPackageResolver {
         firstExisting(packageEntries, "head_myself_mp4_bg.mp4")?.let { (path, bytes) ->
             assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
         }
+        listOf(
+            "loading.webp", "loading.png", "loading_frame.png",
+            "like_effect.json", "like_effect.webp", "like_effect.png",
+            "like_effect_preview.png", "like_effect_preview.jpg",
+            "progress_icon.json", "progress_drag_icon.json", "progress_static_icon.png"
+        ).forEach { assetName ->
+            firstExisting(packageEntries, assetName)?.let { (path, bytes) ->
+                assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
+            }
+        }
         firstExisting(packageEntries, "tail_icon_pub_btn_bg.png", "tail_icon_pub_btn_bg.jpg")?.let { (path, bytes) ->
             assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
         }
@@ -419,6 +622,15 @@ object UiSkinImportPackageResolver {
             ) {
                 add(UiSkinSurface.DYNAMIC_PUBLISH)
             }
+            if (assetPaths.any { it.endsWith("loading.webp") || it.endsWith("loading.png") }) {
+                add(UiSkinSurface.LOADING_INDICATOR)
+            }
+            if (assetPaths.any { it.substringAfterLast('/').startsWith("like_effect") }) {
+                add(UiSkinSurface.LIKE_EFFECT)
+            }
+            if (assetPaths.any { it.substringAfterLast('/').startsWith("progress_") }) {
+                add(UiSkinSurface.PLAYER_PROGRESS)
+            }
         }
         return UiSkinManifest(
             formatVersion = 1,
@@ -459,6 +671,24 @@ object UiSkinImportPackageResolver {
                 dynamicPublishSelectedIcon = assetPaths.firstOrNull {
                     it.endsWith("tail_icon_selected_pub_btn_bg.png") ||
                         it.endsWith("tail_icon_selected_pub_btn_bg.jpg")
+                },
+                loadingAnimation = assetPaths.firstOrNull {
+                    it.endsWith("loading.webp") || it.endsWith("loading.png")
+                },
+                loadingFrame = assetPaths.firstOrNull { it.endsWith("loading_frame.png") },
+                likeEffectAnimation = assetPaths.firstOrNull {
+                    it.endsWith("like_effect.json") || it.endsWith("like_effect.webp") ||
+                        it.endsWith("like_effect.png")
+                },
+                likeEffectPreview = assetPaths.firstOrNull {
+                    it.endsWith("like_effect_preview.png") || it.endsWith("like_effect_preview.jpg")
+                },
+                playerProgressIcon = assetPaths.firstOrNull { it.endsWith("progress_icon.json") },
+                playerProgressDraggingIcon = assetPaths.firstOrNull {
+                    it.endsWith("progress_drag_icon.json")
+                },
+                playerProgressStaticIcon = assetPaths.firstOrNull {
+                    it.endsWith("progress_static_icon.png")
                 },
                 bottomBarIcons = iconPaths
             ),

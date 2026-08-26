@@ -488,6 +488,9 @@ internal fun resolvePlayerCollapseProgressForLayout(
     return manualOrCompactCollapseProgress.coerceIn(0f, 1f)
 }
 
+internal fun resolveVideoDetailCollapseShadowAlpha(collapseProgress: Float): Float =
+    collapseProgress.coerceIn(0f, 1f) * 0.16f
+
 internal fun shouldForceBackPreviewPlayerCover(
     keepLoadedContentForBackPreview: Boolean,
     bindLivePlayerForBackPreview: Boolean

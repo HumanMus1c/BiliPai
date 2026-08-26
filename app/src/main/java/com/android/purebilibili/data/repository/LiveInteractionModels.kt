@@ -91,6 +91,26 @@ data class LiveEmoticonItem(
     val emoticonOptions: String? = null
 )
 
+data class LiveVoteOption(val id: Int = 0, val description: String = "", val percent: Float = 0f)
+
+data class LiveVoteInfo(
+    val status: Int = 0,
+    val question: String = "",
+    val options: List<LiveVoteOption> = emptyList(),
+    val durationMillis: Long = 0L,
+    val remainingMillis: Long = 0L,
+    val resultText: String = "",
+    val endTimeText: String = "",
+    val interactionId: Long = 0L
+) {
+    val isActive: Boolean get() = status == 4
+}
+
+data class LiveVoteSnapshot(
+    val current: LiveVoteInfo? = null,
+    val history: List<LiveVoteInfo> = emptyList()
+)
+
 val DefaultLiveReportReasons = listOf(
     LiveReportReason(id = 1, label = "违法违禁", apiReason = "违法违禁"),
     LiveReportReason(id = 2, label = "色情低俗", apiReason = "色情低俗"),

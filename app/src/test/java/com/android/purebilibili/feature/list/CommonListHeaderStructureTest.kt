@@ -7,6 +7,24 @@ import kotlin.test.assertTrue
 class CommonListHeaderStructureTest {
 
     @Test
+    fun `layerBackdrop source paints a wallpaper-aware fill so header blur can sample it`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt"
+        )
+        val contentModifier = source
+            .substringAfter("val contentModifier = Modifier")
+            .substringBefore("Box(modifier = contentModifier)")
+
+        val backdropIndex = contentModifier.indexOf("layerBackdrop(commonListChromeBackdrop)")
+        val fillIndex = contentModifier.indexOf(
+            "globalWallpaperAwareBackground(AppSurfaceTokens.groupedListContainer())"
+        )
+        assertTrue(backdropIndex >= 0)
+        assertTrue(fillIndex >= 0)
+        assertTrue(backdropIndex < fillIndex)
+    }
+
+    @Test
     fun `header motion layer wraps background and blur layers`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt"

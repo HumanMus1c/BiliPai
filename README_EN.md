@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-25 · Current build: 0.2.3-beta.12 · Latest documented release: v0.2.3-beta.12</sub>
+  <sub>Last updated: 2026-08-26 · Current build: 0.2.3-beta.13 · Latest documented release: v0.2.3-beta.13</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.12-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.13-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,15 +452,15 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.12 · 2026-08-25)
+### Current source build (v0.2.3-beta.13 · 2026-08-26)
 
-- Current source build: `0.2.3-beta.12` / `versionCode 304`.
+- Current source build: `0.2.3-beta.13` / `versionCode 317`.
 - Phone, tablet, foldable, desktop, and TV layouts are expanded, with unified Material 3/Miuix native component rendering.
 - Video details gain gesture-following shared transitions with an option to use the default transition; navigation and liquid-glass indicators are refined.
 - Dynamic publishing and comments, bangumi media/playback support, skin catalog search, and large-screen content layouts are completed further.
 - The player adds named global CDN selection and validates high quality against actual DASH tracks, including AI restoration and HDR Vivid tiers.
 - High-quality false warnings, one-time warning persistence, danmaku segments, subtitle positioning, and multiple navigation/UI issues are fixed.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.11 → beta.12 notes.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.12 → beta.13 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -473,7 +473,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.12-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.12.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.13-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.13.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

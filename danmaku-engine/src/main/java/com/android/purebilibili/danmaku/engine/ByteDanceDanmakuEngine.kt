@@ -17,6 +17,7 @@ internal class ByteDanceDanmakuEngine(
     private val controller = view.controller
     private var closed = false
     private val currentItems = ArrayList<DanmakuItem>()
+    private var currentSegmentIndices: List<Int> = emptyList()
     private val currentMaskFrames = ArrayList<DanmakuMaskFrame>()
     private var currentPositionMs: Long = 0L
     private var replaceWindowCount = 0L
@@ -73,11 +74,46 @@ internal class ByteDanceDanmakuEngine(
         if (closed) return
         currentItems.clear()
         currentItems.addAll(window.items.sortedBy(DanmakuItem::showAtTime))
+        currentSegmentIndices = window.segmentIndices
         replaceWindowCount++
         this.currentPositionMs = currentPositionMs.coerceAtLeast(0L)
         traceDanmakuEngineSection(TRACE_SET_DATA) {
             controller.setData(buildEngineTimeline(), this.currentPositionMs)
         }
+    }
+
+    override fun rollWindowForward(window: DanmakuWindow): Boolean {
+        if (closed || currentSegmentIndices.isEmpty()) return false
+        val previous = currentSegmentIndices.toSet()
+        val next = window.segmentIndices.toSet()
+        if (previous.intersect(next).isEmpty() || window.anchorSegment < currentSegmentIndices.first()) {
+            return false
+        }
+
+        val addedSegments = next - previous
+        val appended = window.items
+            .filter { item -> segmentIndexForTime(item.showAtTime) in addedSegments }
+            .sortedBy(DanmakuItem::showAtTime)
+        if (appended.isNotEmpty()) {
+            currentItems.addAll(appended)
+            currentItems.sortBy(DanmakuItem::showAtTime)
+            appendBatchCount++
+            appendedItemCount += appended.size
+            traceDanmakuEngineSection(TRACE_APPEND_DATA) {
+                controller.appendData(appended.map(::toEngineData))
+            }
+        }
+
+        val firstRetainedPositionMs = (window.segmentIndices.first() - 1L) * SEGMENT_DURATION_MS
+        val firstRetained = currentItems.indexOfFirst { it.showAtTime >= firstRetainedPositionMs }
+            .let { if (it < 0) currentItems.size else it }
+        if (firstRetained > 0) {
+            currentItems.subList(0, firstRetained).clear()
+            controller.discardDataBefore(firstRetainedPositionMs)
+            trimCount++
+        }
+        currentSegmentIndices = window.segmentIndices
+        return true
     }
 
     override fun replaceMaskFrames(frames: List<DanmakuMaskFrame>, currentPositionMs: Long) {
@@ -243,6 +279,11 @@ internal class ByteDanceDanmakuEngine(
         pathHeight = frame.sourceHeight
     }
 }
+
+private const val SEGMENT_DURATION_MS = 360_000L
+
+private fun segmentIndexForTime(positionMs: Long): Int =
+    (positionMs.coerceAtLeast(0L) / SEGMENT_DURATION_MS).toInt() + 1
 
 private interface SourceBackedDanmakuData {
     val sourceItem: DanmakuItem

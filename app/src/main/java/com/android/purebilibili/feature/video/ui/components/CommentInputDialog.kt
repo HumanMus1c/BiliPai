@@ -4,7 +4,8 @@ package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.theme.opaqueCompositeOver
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
-import com.android.purebilibili.core.ui.components.AppScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -14,7 +15,6 @@ import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.appDesktopFocusableItemVisuals
 
@@ -682,46 +682,19 @@ fun CommentInputDialog(
                                     .padding(top = 8.dp)
                             ) {
                                 // 顶部标签栏 (可滚动)
-                                AppScrollableTabRow(
-                                    selectedTabIndex = currentTab,
-                                    edgePadding = 16.dp,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                    divider = { AppHorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) },
-                                    modifier = Modifier.height(48.dp)
-                                ) {
-                                    // Tab 0: 颜文字
-                                    AppTab(
-                                        selected = currentTab == 0,
-                                        onClick = { currentTab = 0 },
-                                        text = { AppText("颜文字") }
-                                    )
-                                    // Tab 1: Emoji
-                                    AppTab(
-                                        selected = currentTab == 1,
-                                        onClick = { currentTab = 1 },
-                                        text = { AppText("Emoji") }
-                                    )
-                                    // API Packages (Tab 2+)
-                                    emotePackages.forEachIndexed { index, pkg ->
-                                        AppTab(
-                                            selected = currentTab == index + 2,
-                                            onClick = { currentTab = index + 2 },
-                                            text = { 
-                                                // 尝试显示图标，没有则显示文字
-                                                if (pkg.url.isNotEmpty()) {
-                                                    AsyncImage(
-                                                        model = pkg.url,
-                                                        contentDescription = pkg.text,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                } else {
-                                                    AppText(pkg.text)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
+                                AppThemeAdaptiveTabRow(
+                                    options = buildList {
+                                        add(AppSegmentOption(0, "颜文字"))
+                                        add(AppSegmentOption(1, "Emoji"))
+                                        emotePackages.forEachIndexed { index, pkg ->
+                                            add(AppSegmentOption(index + 2, pkg.text))
+                                        }
+                                    },
+                                    selectedValue = currentTab,
+                                    onSelectionChange = { currentTab = it },
+                                    modifier = Modifier.height(48.dp),
+                                    scrollable = true,
+                                )
 
                                 // 内容区域
                                 Box(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp)) {

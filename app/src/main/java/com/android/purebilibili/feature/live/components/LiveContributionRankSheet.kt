@@ -14,8 +14,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppTab
-import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -101,15 +101,14 @@ fun LiveContributionRankSheet(
                 color = AppSurfaceTokens.onSurfaceVariantSummary(),
                 style = MaterialTheme.typography.bodySmall
             )
-            AppPrimaryTabRow(selectedTabIndex = selectedTab) {
-                rankTypes.forEachIndexed { index, type ->
-                    AppTab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { AppText(type.title) }
-                    )
-                }
-            }
+            AppThemeAdaptiveTabRow(
+                options = rankTypes.mapIndexed { index, type ->
+                    AppSegmentOption(index, type.title)
+                },
+                selectedValue = selectedTab,
+                onSelectionChange = { selectedTab = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
             AppSurface(
                 shape = AppShapes.container(ContainerLevel.Card),
                 color = AppSurfaceTokens.cardContainer()

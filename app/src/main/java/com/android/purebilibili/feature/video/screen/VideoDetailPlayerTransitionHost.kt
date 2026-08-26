@@ -165,6 +165,7 @@ internal fun PortraitInlineVideoPlayerHost(
     onDoubleTapLike: () -> Unit,
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
+    endDrawerRequestKey: Int = 0,
     videoPlayerSectionTarget: VideoPlayerSectionTarget,
     sponsorSegment: com.android.purebilibili.data.model.response.SponsorSegment?,
     showSponsorSkipButton: Boolean,
@@ -219,6 +220,7 @@ internal fun PortraitInlineVideoPlayerHost(
             onQualityChange = { qid -> playbackActions.changeQuality(qid) },
             onBack = onBack,
             onHomeClick = onHomeClick,
+            endDrawerRequestKey = endDrawerRequestKey,
             onLandscapeCommentClick = if (isFullscreen) {
                 fullscreenExtras?.onLandscapeCommentClick ?: {}
             } else {

@@ -72,6 +72,32 @@ class BangumiPlayUrlResponseParsingTest {
     }
 
     @Test
+    fun `decodeBangumiPlayUrlPayload accepts mixed playback permission field types`() {
+        val payload = decodeBangumiPlayUrlPayload(
+            """
+            {
+              "code": 0,
+              "message": "0",
+              "result": {
+                "quality": 80,
+                "is_drm": 0,
+                "has_paid": 1,
+                "is_preview": "true",
+                "status": false
+              }
+            }
+            """.trimIndent(),
+            json
+        )
+
+        val videoInfo = assertNotNull(payload.videoInfo)
+        assertEquals(false, videoInfo.isDrm)
+        assertEquals(true, videoInfo.hasPaid)
+        assertEquals(true, videoInfo.isPreview)
+        assertEquals(0, videoInfo.status)
+    }
+
+    @Test
     fun `decodeBangumiPlayUrlPayload still supports legacy direct result envelope`() {
         val payload = decodeBangumiPlayUrlPayload(
             """

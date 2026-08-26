@@ -303,6 +303,30 @@ class PluginsScreenPolicyTest {
     }
 
     @Test
+    fun uiSkinEntryCards_shareOneFullWidthGroupedSurface() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/settings/screen/PluginsScreen.kt"
+        ).let { file ->
+            if (file.exists()) file else java.io.File(
+                "app/src/main/java/com/android/purebilibili/feature/settings/screen/PluginsScreen.kt"
+            )
+        }.readText()
+        val skinSection = source
+            .substringAfter("text = \"界面皮肤\"")
+            .substringBefore("if (uiSkinImportError != null)")
+
+        assertTrue(skinSection.contains(".fillMaxWidth()"))
+        assertTrue(skinSection.contains(".clip(AppShapes.container(ContainerLevel.Card))"))
+        assertTrue(skinSection.contains("text = \"在线装扮目录\""))
+        assertTrue(skinSection.contains("text = \"导入界面皮肤包\""))
+        assertFalse(
+            skinSection.contains(".padding(horizontal = 16.dp)\n                        .clip(AppShapes.container(ContainerLevel.Card))")
+        )
+        assertTrue(skinSection.contains("clickable { onOpenSkinCatalog() }"))
+        assertTrue(skinSection.contains("uiSkinPackagePicker.launch(\"*/*\")"))
+    }
+
+    @Test
     fun uiSkinImportError_hidesRawByteLimitFromUserMessage() {
         assertEquals(
             "装扮存档资源较大，已放宽导入限制；请重新选择该装扮包导入",

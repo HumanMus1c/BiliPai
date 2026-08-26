@@ -730,10 +730,11 @@ fun FollowingListScreen(
                     .fillMaxWidth()
                     .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small)
             ) {
-                com.android.purebilibili.core.ui.components.AppSearchField(
+                com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    placeholder = "搜索 UP 主"
+                    placeholder = "搜索 UP 主",
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 

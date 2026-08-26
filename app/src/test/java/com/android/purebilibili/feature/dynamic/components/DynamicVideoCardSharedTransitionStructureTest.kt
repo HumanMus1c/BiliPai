@@ -29,6 +29,20 @@ class DynamicVideoCardSharedTransitionStructureTest {
     }
 
     @Test
+    fun dynamicVideoCard_durationUsesCoverOverlayShadowNotCapsule() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/components/VideoCards.kt")
+            .readText()
+
+        assertTrue(source.contains("resolveVideoCardCoverOverlayTextShadow()"))
+        assertTrue(source.contains("feedContentTypography().coverBadge"))
+        assertFalse(source.contains("MediaContrastPalette.Scrim.copy(alpha = 0.45f)"))
+        assertTrue(source.contains("resolveAppTvIcon()"))
+        assertTrue(source.contains("tint = MaterialTheme.colorScheme.onPrimaryContainer"))
+        assertFalse(source.contains("rememberAppPlayIcon()"))
+        assertFalse(source.contains("CircleShape"))
+    }
+
+    @Test
     fun dynamicVideoCard_obeysGlobalSharedTransitionSwitch() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/components/VideoCards.kt")
             .readText()

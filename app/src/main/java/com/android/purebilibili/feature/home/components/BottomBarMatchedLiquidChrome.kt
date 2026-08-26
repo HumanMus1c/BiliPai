@@ -264,15 +264,22 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
 }
 
 /**
- * Content-slot entry point for search fields, comment/action bars, and other inline Chrome.
+ * Content-slot entry point for search fields, comment/action bars, and other inline chrome.
  * When global reuse is disabled, [content] is emitted unchanged.
+ *
+ * 黑虾线防回归规则：
+ * 1. 黑/亮细线来自短胶囊使用 64dp 底栏的满强度折射，导致上下 refraction 在中线相撞，
+ *    或来自一个液态壳内部再次采样、折射自身的嵌套 lens。
+ * 2. 多个视觉上独立的胶囊必须各自拥有 backdrop 和 lens；不要为了消线把它们合成一个长壳。
+ * 3. 独立短胶囊不要直接关闭 lens，否则会丢失液态玻璃折射。应传入
+ *    `resolveFloatingDockGeometryScale(actualHeightDp)`，按实际高度相对 64dp 基准缩放。
+ * 4. 只有已经位于液态外壳内部、且不应再次折射的内容层才使用 [drawShellLens] = false。
+ * 5. lens 开启时必须保留 capture overflow / safe inset，避免折射采样越界产生黑边。
+ *
+ * @param drawShellLens 独立液态表面应保留 lens；只有确实嵌套在另一个液态壳内的内容层才关闭。
+ * @param shellLensIntensity 矮 dock 应按实际高度相对 64dp 基准缩放 lens，避免上下折射边沿相撞成虾线。
  */
 @Composable
-/**
- * @param drawShellLens 底栏整壳可开 lens；搜索框/评论输入等小胶囊必须 false，
- * 否则 refraction 边沿会出现「虾线」亮边（尤其 iOS 主题复用安卓原生液态玻璃时）。
- * @param shellLensIntensity 顶部分类等矮 dock 可用 <1 的 soft lens：保留上下滑动折射，压低边沿虾线。
- */
 internal fun BottomBarMatchedReusableLiquidDock(
     shape: Shape,
     modifier: Modifier = Modifier,
@@ -284,6 +291,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
      * Other chrome must leave this false.
      */
     reuseEnabled: Boolean = false,
+    useNeutralLiquidContainer: Boolean = false,
     drawShellLens: Boolean = true,
     shellLensIntensity: Float = 1f,
     isScrollInProgressProvider: () -> Boolean = { false },
@@ -333,16 +341,24 @@ internal fun BottomBarMatchedReusableLiquidDock(
             homeSettings.liquidGlassReadabilityMode,
         )
     }
-    val containerColor = resolveAndroidNativeFloatingBottomBarContainerColor(
-        surfaceColor = AppSurfaceTokens.cardContainer(),
-        tuning = tuning,
-        glassEnabled = glassEnabled,
-        blurEnabled = true,
-        blurIntensity = blurIntensity,
-        liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
-        liquidGlassTuning = liquidGlassTuning
-    )
-    // 小胶囊关闭 shell lens 时不必做 capture overflow，减少边沿采样产生的亮线。
+    val containerColor = if (useNeutralLiquidContainer && glassEnabled) {
+        resolveBiliPaiBottomBarContainerColor(
+            darkTheme = isDarkTheme,
+            liquidGlassTuning = liquidGlassTuning,
+        )
+    } else {
+        resolveAndroidNativeFloatingBottomBarContainerColor(
+            surfaceColor = AppSurfaceTokens.cardContainer(),
+            tuning = tuning,
+            glassEnabled = glassEnabled,
+            blurEnabled = true,
+            blurIntensity = blurIntensity,
+            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+            liquidGlassTuning = liquidGlassTuning,
+        )
+    }
+    // lens 的 refraction 会读取壳体边界外像素；开启时必须预留安全采样区。
+    // 若调用者是短胶囊，应缩放 shellLensIntensity，而不是通过关闭 lens 跳过这里。
     val captureSafeInset = if (drawShellLens) {
         resolveBottomBarCaptureSafeInsetDp(
             indicatorWidthDp = 0f,

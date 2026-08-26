@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import com.android.purebilibili.feature.settings.isSettingsSubtreeNavKey
+import com.android.purebilibili.feature.settings.resolveSettingsCategoryNavKey
 import com.android.purebilibili.feature.settings.resolveSettingsTabletShellCategory
 import com.android.purebilibili.feature.settings.shouldUseSettingsSplitLayout
 import com.android.purebilibili.feature.settings.ui.SettingsOpaqueSurfaceHost
@@ -22,7 +23,7 @@ internal fun SettingsTabletNavEntryShell(
         SettingsTabletRouteShell(
             key = key,
             onBack = onSystemBack,
-            onCategoryClick = { category -> onPushKey(BiliPaiNavKey.SettingsCategory(category)) },
+            onCategoryClick = { category -> onPushKey(resolveSettingsCategoryNavKey(category)) },
             onSearchOpen = { onPushKey(BiliPaiNavKey.SettingsSearch) },
             phoneContent = content,
         )

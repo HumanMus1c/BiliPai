@@ -167,6 +167,11 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data object FavoriteSubscribed : BiliPaiNavKey {
+        override val routeBase: String = "favorite_subscribed"
+    }
+
+    @Serializable
     data class FavoriteSearch(
         val query: String = "",
         val scope: FavoriteSearchScope = FavoriteSearchScope.CURRENT_FOLDER,

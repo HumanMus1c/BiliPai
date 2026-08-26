@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -77,6 +78,8 @@ import androidx.compose.animation.core.tween
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.feedContentTypography
@@ -118,8 +121,6 @@ import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
 import com.android.purebilibili.feature.video.ui.section.resolveCompactPublishTimeRowText
 //  [预览播放] 相关引用已移除
 
-// 显式导入 collectAsState 以避免 ambiguity 或 missing reference
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
 
 internal fun shouldOpenLongPressMenu(
@@ -524,9 +525,6 @@ internal fun ElegantVideoCard(
     val contentTypography = feedContentTypography()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val showFullCardContent by SettingsManager
-        .getFullVideoCardContentVisible(context)
-        .collectAsStateWithLifecycle(initialValue = false)
     val playbackProgressManager = remember(context) {
         PlaybackProgressManager.getInstance(context)
     }
@@ -1386,9 +1384,9 @@ internal fun ElegantVideoCard(
         // 标题独占整行：更多操作移至右下角，不再挤占两行标题的可用宽度。
         AppText(
             text = highlightedTitle ?: AnnotatedString(video.title),
-            maxLines = if (showFullCardContent) Int.MAX_VALUE else titleMaxLines,
+            maxLines = videoCardTitleMaxLines(titleMaxLines),
             minLines = titleMinLines,
-            overflow = if (showFullCardContent) TextOverflow.Visible else TextOverflow.Ellipsis,
+            overflow = videoCardTitleOverflow(),
             style = contentTypography.title.copy(
                 color = MaterialTheme.colorScheme.onSurface
             ),
@@ -1440,11 +1438,9 @@ internal fun ElegantVideoCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)
             ) {
-                HorizontalVideoStatRow(
+                VideoStatRow(
                     playText = primaryStatText,
                     danmakuText = secondaryStatText.orEmpty(),
-                    playIcon = Icons.Outlined.PlayCircle,
-                    danmakuIcon = Icons.Outlined.ChatBubbleOutline,
                     modifier = Modifier.fillMaxWidth(),
                 )
 

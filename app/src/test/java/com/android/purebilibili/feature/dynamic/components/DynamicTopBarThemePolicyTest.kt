@@ -38,4 +38,17 @@ class DynamicTopBarThemePolicyTest {
         assertTrue(source.contains(".background(dockColor)"))
     }
 
+    @Test
+    fun `layout mode menu uses the miuix window action menu`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
+        ).readText()
+
+        assertTrue(source.contains("AppWindowActionMenu("))
+        assertTrue(source.contains("selected = displayMode == mode"))
+        assertTrue(source.contains("resolveDynamicDisplayModeLabel(mode)"))
+        assertTrue(!source.contains("AppDropdownMenu("))
+        assertTrue(!source.contains("AppDropdownMenuItem("))
+    }
+
 }

@@ -12,8 +12,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,7 +52,6 @@ import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBack
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
 import com.android.purebilibili.navigation.resolveVisibleBottomBarItems
 import com.android.purebilibili.feature.home.components.resolveBottomBarVisibleItemsForSearchMode
-import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
@@ -293,7 +290,7 @@ fun AnimationSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HAPTIC_FEEDBACK),
                             title = "触感反馈",
                             subtitle = "为导航、切换与关键操作提供触感反馈",
                             checked = state.hapticFeedbackEnabled,
@@ -359,7 +356,7 @@ fun AnimationSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.RELATED_VIDEO_TRANSITION),
                             title = "相关推荐过渡动画",
                             subtitle = if (relatedVideoTransitionEnabled) {
                                 "点击相关推荐时使用卡片变形过渡"
@@ -387,7 +384,7 @@ fun AnimationSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.RETURN_GESTURE_POSE),
                             title = "视频返回跟手姿态",
                             subtitle = if (appNavigationSettings.videoSharedReturnGestureFollowEnabled) {
                                 "侧滑返回时共享卡片跟随手指移动和轻微旋转，落点保持不变"
@@ -681,7 +678,7 @@ fun AnimationSettingsContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppIcon(
-                                Icons.Outlined.Lightbulb,
+                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lightbulb_24),
                                 contentDescription = null,
                                 tint = warningTint,
                                 modifier = Modifier.size(20.dp)

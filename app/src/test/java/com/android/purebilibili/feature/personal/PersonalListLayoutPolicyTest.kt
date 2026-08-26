@@ -29,6 +29,11 @@ class PersonalListLayoutPolicyTest {
     @Test
     fun mediaRatios_areStable() {
         assertEquals(16f / 10f, PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO)
+        assertEquals(140, PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP)
         assertEquals(3f / 4f, PERSONAL_LIST_POSTER_ASPECT_RATIO)
+        assertEquals(
+            87.5f,
+            PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP / PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO,
+        )
     }
 }

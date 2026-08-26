@@ -95,9 +95,7 @@ internal fun resolveDynamicActionButtonText(
 ): String? {
     val countText = if (count > 0) formatDynamicActionCount(count) else null
     return when (label) {
-        "评论" -> {
-            listOfNotNull(label, countText).joinToString(separator = " ")
-        }
+        "评论" -> countText
         "转发" -> {
             listOfNotNull(label, countText).joinToString(separator = " ")
         }

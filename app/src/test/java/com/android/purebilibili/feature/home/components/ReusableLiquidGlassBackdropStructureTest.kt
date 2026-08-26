@@ -54,6 +54,10 @@ class ReusableLiquidGlassBackdropStructureTest {
         assertTrue(source.contains("val selectionBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("miuixBackdrop = selectionBackdrop"))
         assertTrue(source.contains(".layerBackdrop(selectionBackdrop)"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(selectionBackdrop)") <
+                source.indexOf("miuixBackdrop = selectionBackdrop")
+        )
     }
 
     @Test
@@ -65,6 +69,10 @@ class ReusableLiquidGlassBackdropStructureTest {
         assertTrue(source.contains("val todayWatchBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("miuixBackdrop = todayWatchBackdrop"))
         assertTrue(source.contains(".layerBackdrop(todayWatchBackdrop)"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(todayWatchBackdrop)") <
+                source.indexOf("miuixBackdrop = todayWatchBackdrop")
+        )
     }
 
     @Test
@@ -76,6 +84,10 @@ class ReusableLiquidGlassBackdropStructureTest {
         assertTrue(source.contains("val reviewChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("miuixBackdrop = reviewChromeBackdrop"))
         assertTrue(source.contains(".layerBackdrop(reviewChromeBackdrop)"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(reviewChromeBackdrop)") <
+                source.indexOf("miuixBackdrop = reviewChromeBackdrop")
+        )
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(!source.contains("AppFilterChip("))
     }
@@ -89,8 +101,18 @@ class ReusableLiquidGlassBackdropStructureTest {
         assertTrue(source.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("backdrop = commentChromeBackdrop"))
         assertTrue(source.contains(".layerBackdrop(commentChromeBackdrop)"))
+        assertTrue(source.contains(".matchParentSize()\n                    .layerBackdrop(commentChromeBackdrop)"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(commentChromeBackdrop)") <
+                source.indexOf("miuixBackdrop = commentChromeBackdrop")
+        )
         assertTrue(source.contains("DynamicAdaptiveSegmentedControl("))
         assertFalse(source.contains("CommentSegmentedControl("))
+        val inlineHeader = source
+            .substringAfter("fun DynamicInlineCommentHeader(")
+            .substringBefore("fun LazyListScope.dynamicInlineCommentItems(")
+        assertFalse(inlineHeader.contains("fallbackBackdrop"))
+        assertTrue(inlineHeader.contains("miuixBackdrop = miuixBackdrop"))
     }
 
     @Test
@@ -101,6 +123,10 @@ class ReusableLiquidGlassBackdropStructureTest {
 
         assertTrue(playerSource.contains("miuixBackdrop = selectionBackdrop"))
         assertTrue(playerSource.contains(".layerBackdrop(selectionBackdrop)"))
+        assertTrue(
+            playerSource.indexOf(".layerBackdrop(selectionBackdrop)") <
+                playerSource.indexOf("miuixBackdrop = selectionBackdrop")
+        )
     }
 
     @Test

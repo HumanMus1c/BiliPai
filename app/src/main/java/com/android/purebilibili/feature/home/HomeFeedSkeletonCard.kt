@@ -210,8 +210,8 @@ private fun HomeFeedSkeletonBlock(
 
 /**
  * 首页横幅（Hero Carousel）骨架占位。
- * 与真实横幅 [HomeHeroCarousel] 对齐：垂直 padding、居中、平板最大宽度 760dp、
- * 宽屏最大宽度 980dp，并按容器宽度选择 16:9 / 2:1 / 21:9 比例、卡片圆角。
+ * 与真实横幅 [HomeHeroCarousel] 对齐：垂直 padding、铺满信息流宽度、
+ * 平板最大宽度 760dp、宽屏最大宽度 980dp，并按容器宽度选择 16:9 / 2:1 / 21:9 比例、卡片圆角。
  */
 @Composable
 internal fun HomeFeedHeroCarouselSkeleton(

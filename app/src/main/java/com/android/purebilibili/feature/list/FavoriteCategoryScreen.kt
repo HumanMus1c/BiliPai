@@ -413,6 +413,8 @@ private fun FavoriteCategoryFilterRow(
         selectedValue = selectedIndex.coerceIn(0, labels.lastIndex.coerceAtLeast(0)),
         onSelectionChange = onSelected,
         scrollable = labels.size > 4,
+        dragSelectionEnabled = labels.size > 1,
+        tapPressRefractionEnabled = true,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = AppSpacingTokens.Medium),

@@ -2,13 +2,23 @@ package com.android.purebilibili.core.ui.components
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import top.yukonga.miuix.kmp.blur.Backdrop
@@ -16,7 +26,7 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 /**
  * App-wide category/page tab contract. The shared renderer keeps MD3's animated underline
  * while liquid glass is off, and switches every theme to the moving glass capsule when reuse
- * is enabled. Miuix keeps the capsule presentation in either state.
+ * is enabled. The disabled path always delegates to the active theme's native tab row.
  */
 @Composable
 fun <T> AppThemeAdaptiveTabRow(
@@ -27,7 +37,14 @@ fun <T> AppThemeAdaptiveTabRow(
     enabled: Boolean = true,
     scrollable: Boolean = false,
     minTabWidth: Dp = 72.dp,
+    height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+    indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+    labelFontSize: TextUnit = TextUnit.Unspecified,
+    dragSelectionEnabled: Boolean? = null,
+    tapPressRefractionEnabled: Boolean = true,
     miuixBackdrop: Backdrop? = null,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     AppLiquidAwareTabRow(
         options = options,
@@ -37,7 +54,14 @@ fun <T> AppThemeAdaptiveTabRow(
         enabled = enabled,
         scrollable = scrollable,
         minTabWidth = minTabWidth,
+        height = height,
+        indicatorHeight = indicatorHeight,
+        labelFontSize = labelFontSize,
+        dragSelectionEnabled = dragSelectionEnabled,
+        tapPressRefractionEnabled = tapPressRefractionEnabled,
         miuixBackdrop = miuixBackdrop,
+        indicatorPositionProvider = indicatorPositionProvider,
+        isScrollInProgressProvider = isScrollInProgressProvider,
     )
 }
 
@@ -55,14 +79,49 @@ fun <T> AppLiquidAwareTabRow(
     enabled: Boolean = true,
     scrollable: Boolean = false,
     minTabWidth: Dp = 72.dp,
+    height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+    indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+    labelFontSize: TextUnit = TextUnit.Unspecified,
+    dragSelectionEnabled: Boolean? = null,
+    tapPressRefractionEnabled: Boolean = true,
     miuixBackdrop: Backdrop? = null,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     if (options.isEmpty()) return
+    val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = true),
+        )
+    if (!homeSettings.androidNativeLiquidGlassEnabled) {
+        AppNativeTabRow(
+            options = options,
+            selectedValue = selectedValue,
+            onSelectionChange = onSelectionChange,
+            modifier = modifier,
+            enabled = enabled,
+            scrollable = scrollable,
+            minTabWidth = minTabWidth,
+            allowLabelOverflow = true,
+            indicatorPositionProvider = indicatorPositionProvider,
+        )
+        return
+    }
     val selectedIndex = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
+    val resolvedDragSelectionEnabled = dragSelectionEnabled ?: (options.size > 1)
     if (scrollable) {
         val scrollState = rememberScrollState()
         val density = LocalDensity.current
-        BoxWithConstraints(modifier = modifier) {
+        val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp
+        BoxWithConstraints(
+            modifier = modifier
+                .widthIn(max = viewportMaxWidth)
+                // The liquid shell intentionally draws beyond its content bounds for capture.
+                // A rectangular scroll viewport would expose that overflow at either edge.
+                .clip(CircleShape),
+        ) {
             val viewportWidthPx = with(density) { maxWidth.toPx() }
             val itemWidthPx = with(density) { minTabWidth.toPx() }
             LaunchedEffect(selectedIndex, scrollState.maxValue, viewportWidthPx, itemWidthPx) {
@@ -81,12 +140,16 @@ fun <T> AppLiquidAwareTabRow(
                 modifier = Modifier.horizontalScroll(scrollState),
                 enabled = enabled,
                 itemWidth = minTabWidth,
-                height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-                indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                height = height,
+                indicatorHeight = indicatorHeight,
+                labelFontSize = labelFontSize,
                 liquidGlassEffectsEnabled = true,
                 dragSelectionEnabled = false,
-                longPressDragSelectionEnabled = options.size > 1,
+                longPressDragSelectionEnabled = resolvedDragSelectionEnabled,
+                tapPressRefractionEnabled = tapPressRefractionEnabled,
                 miuixBackdrop = miuixBackdrop,
+                indicatorPositionProvider = indicatorPositionProvider,
+                isScrollInProgressProvider = isScrollInProgressProvider,
             )
         }
     } else {
@@ -98,11 +161,15 @@ fun <T> AppLiquidAwareTabRow(
             },
             modifier = modifier,
             enabled = enabled,
-            height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-            indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+            height = height,
+            indicatorHeight = indicatorHeight,
+            labelFontSize = labelFontSize,
             liquidGlassEffectsEnabled = true,
-            dragSelectionEnabled = options.size > 1,
+            dragSelectionEnabled = resolvedDragSelectionEnabled,
+            tapPressRefractionEnabled = tapPressRefractionEnabled,
             miuixBackdrop = miuixBackdrop,
+            indicatorPositionProvider = indicatorPositionProvider,
+            isScrollInProgressProvider = isScrollInProgressProvider,
         )
     }
 }

@@ -33,6 +33,7 @@ data class BangumiPagedState<T>(
 @Immutable
 data class BangumiTimelineHubState(
     val days: List<TimelineDay> = emptyList(),
+    val range: BangumiTimelineRange = BangumiTimelineRange.DEFAULT,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
@@ -66,6 +67,7 @@ data class BangumiFollowManagerState(
 @Immutable
 data class BangumiSearchHubState(
     val query: String = "",
+    val category: BangumiIndexCategory = BangumiIndexCategory.BANGUMI,
     val results: BangumiPagedState<BangumiSearchItem> = BangumiPagedState(),
 )
 
@@ -162,6 +164,12 @@ class BangumiHubViewModel : ViewModel() {
         if (_uiState.value.showPgcTimeline) {
             loadTimeline(channel = _uiState.value.channel, reset = true)
         }
+    }
+
+    fun selectTimelineRange(range: BangumiTimelineRange) {
+        val channel = _uiState.value.channel
+        if (homeState(channel).timeline.range == range) return
+        loadTimeline(channel = channel, reset = true, range = range)
     }
 
     fun openIndex() {
@@ -320,35 +328,65 @@ class BangumiHubViewModel : ViewModel() {
         if (currentSelection().isNotEmpty()) return
         val page = _uiState.value.page
         _uiState.update {
+            val category = resolveDefaultBangumiSearchCategory(
+                channel = it.channel,
+                preferred = it.indexCategories[it.channel],
+            )
             it.copy(
                 page = BangumiHubPage.SEARCH,
                 pageBeforeSearch = if (page == BangumiHubPage.SEARCH) it.pageBeforeSearch else page,
-                search = BangumiSearchHubState(),
+                search = BangumiSearchHubState(category = category),
             )
         }
+    }
+
+    fun selectSearchCategory(category: BangumiIndexCategory) {
+        val current = _uiState.value
+        if (category !in resolveBangumiSearchCategories(current.channel)) return
+        if (current.search.category == category) return
+        searchJob?.cancel()
+        _uiState.update {
+            it.copy(
+                search = it.search.copy(
+                    category = category,
+                    results = BangumiPagedState(),
+                ),
+            )
+        }
+        current.search.query.takeIf(String::isNotBlank)?.let(::search)
     }
 
     fun search(query: String) {
         val normalized = query.trim()
         if (normalized.isEmpty()) return
-        val channel = _uiState.value.channel
+        val currentSearch = _uiState.value.search
+        val category = currentSearch.category
         searchJob?.cancel()
         _uiState.update {
-            it.copy(search = BangumiSearchHubState(query = normalized, results = BangumiPagedState(isLoading = true)))
+            it.copy(
+                search = it.search.copy(
+                    query = normalized,
+                    results = BangumiPagedState(isLoading = true),
+                ),
+            )
         }
         searchJob = viewModelScope.launch {
             BangumiRepository.searchBangumi(
                 keyword = normalized,
-                seasonType = if (channel == BangumiChannel.BANGUMI) 1 else 2,
+                seasonType = resolveBangumiSearchSeasonType(category),
                 page = 1,
             ).fold(
                 onSuccess = { data ->
-                    if (_uiState.value.search.query != normalized) return@fold
+                    val latest = _uiState.value.search
+                    if (latest.query != normalized || latest.category != category) return@fold
                     _uiState.update {
                         it.copy(
                             search = it.search.copy(
                                 results = BangumiPagedState(
-                                    items = data.result.orEmpty().distinctBy(::resolveBangumiSearchItemBusinessKey),
+                                    items = filterBangumiSearchItems(
+                                        items = data.result.orEmpty(),
+                                        category = category,
+                                    ).distinctBy(::resolveBangumiSearchItemBusinessKey),
                                     page = data.page.coerceAtLeast(1),
                                     hasMore = data.page < data.numPages,
                                 ),
@@ -357,7 +395,8 @@ class BangumiHubViewModel : ViewModel() {
                     }
                 },
                 onFailure = { error ->
-                    if (_uiState.value.search.query != normalized) return@fold
+                    val latest = _uiState.value.search
+                    if (latest.query != normalized || latest.category != category) return@fold
                     _uiState.update {
                         it.copy(search = it.search.copy(results = BangumiPagedState(error = error.message ?: "搜索失败")))
                     }
@@ -371,18 +410,19 @@ class BangumiHubViewModel : ViewModel() {
         val results = current.results
         if (!results.hasMore || results.isLoading || results.isLoadingMore || current.query.isBlank()) return
         val nextPage = results.page + 1
-        val channel = _uiState.value.channel
+        val category = current.category
         _uiState.update {
             it.copy(search = it.search.copy(results = results.copy(isLoadingMore = true, error = null)))
         }
         searchJob = viewModelScope.launch {
             BangumiRepository.searchBangumi(
                 keyword = current.query,
-                seasonType = if (channel == BangumiChannel.BANGUMI) 1 else 2,
+                seasonType = resolveBangumiSearchSeasonType(category),
                 page = nextPage,
             ).fold(
                 onSuccess = { data ->
-                    if (_uiState.value.search.query != current.query) return@fold
+                    val latest = _uiState.value.search
+                    if (latest.query != current.query || latest.category != category) return@fold
                     _uiState.update { state ->
                         val existing = state.search.results.items
                         state.copy(
@@ -390,7 +430,10 @@ class BangumiHubViewModel : ViewModel() {
                                 results = state.search.results.copy(
                                     items = mergeBangumiPagedItems(
                                         existing = existing,
-                                        incoming = data.result.orEmpty(),
+                                        incoming = filterBangumiSearchItems(
+                                            items = data.result.orEmpty(),
+                                            category = category,
+                                        ),
                                         reset = false,
                                         keyOf = ::resolveBangumiSearchItemBusinessKey,
                                     ),
@@ -403,6 +446,8 @@ class BangumiHubViewModel : ViewModel() {
                     }
                 },
                 onFailure = { error ->
+                    val latest = _uiState.value.search
+                    if (latest.query != current.query || latest.category != category) return@fold
                     _uiState.update {
                         it.copy(search = it.search.copy(results = it.search.results.copy(isLoadingMore = false, error = error.message)))
                     }
@@ -545,15 +590,23 @@ class BangumiHubViewModel : ViewModel() {
         }
     }
 
-    private fun loadTimeline(channel: BangumiChannel, reset: Boolean) {
+    private fun loadTimeline(
+        channel: BangumiChannel,
+        reset: Boolean,
+        range: BangumiTimelineRange = homeState(channel).timeline.range,
+    ) {
         if (!_uiState.value.showPgcTimeline) return
         val current = homeState(channel).timeline
-        if (current.isLoading) return
         val jobKey = "timeline_${channel.name}"
-        if (reset) homeJobs[jobKey]?.cancel()
+        if (reset) {
+            homeJobs[jobKey]?.cancel()
+        } else if (current.isLoading) {
+            return
+        }
         updateHomeState(channel) { home ->
             home.copy(
                 timeline = current.copy(
+                    range = range,
                     isLoading = current.days.isEmpty(),
                     isRefreshing = current.days.isNotEmpty(),
                     error = null,
@@ -562,10 +615,20 @@ class BangumiHubViewModel : ViewModel() {
         }
         homeJobs[jobKey] = viewModelScope.launch {
             val primary = async {
-                BangumiRepository.getTimeline(if (channel == BangumiChannel.CINEMA) 3 else 1)
+                BangumiRepository.getTimeline(
+                    type = if (channel == BangumiChannel.CINEMA) 3 else 1,
+                    before = range.before,
+                    after = range.after,
+                )
             }
             val secondary = if (channel == BangumiChannel.BANGUMI) {
-                async { BangumiRepository.getTimeline(4) }
+                async {
+                    BangumiRepository.getTimeline(
+                        type = 4,
+                        before = range.before,
+                        after = range.after,
+                    )
+                }
             } else {
                 null
             }
@@ -578,6 +641,7 @@ class BangumiHubViewModel : ViewModel() {
                     home.copy(
                         timeline = BangumiTimelineHubState(
                             days = mergeBangumiTimelineDays(primaryDays.orEmpty(), secondaryDays.orEmpty()),
+                            range = range,
                         ),
                     )
                 }

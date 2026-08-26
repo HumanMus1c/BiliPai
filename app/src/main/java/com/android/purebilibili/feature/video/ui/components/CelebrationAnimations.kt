@@ -36,6 +36,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppIcons
+import com.android.purebilibili.core.plugin.skin.LocalUiSkinState
+import com.android.purebilibili.core.plugin.skin.UiSkinAnimatedAsset
+import com.android.purebilibili.core.plugin.skin.UiSkinSurface
+import com.android.purebilibili.core.plugin.skin.assetPath
 import com.android.purebilibili.feature.video.ui.feedback.resolveTripleActionMotionSpec
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -47,6 +51,24 @@ fun LikeBurstAnimation(
     onAnimationEnd: () -> Unit = {}
 ) {
     if (!visible) return
+
+    val uiSkinState = LocalUiSkinState.current
+    val skinLikeEffectPath = uiSkinState.assetPath(UiSkinSurface.LIKE_EFFECT) {
+        it.likeEffectAnimation ?: it.likeEffectPreview
+    }
+    if (skinLikeEffectPath != null) {
+        LaunchedEffect(skinLikeEffectPath, visible) {
+            delay(if (reducedMotion) 300 else 800)
+            onAnimationEnd()
+        }
+        UiSkinAnimatedAsset(
+            path = skinLikeEffectPath,
+            size = if (reducedMotion) 72.dp else 88.dp,
+            iterations = 1,
+            contentDescription = null,
+        )
+        return
+    }
 
     val progress = remember { Animatable(0f) }
     val durationMillis = if (reducedMotion) 260 else 420

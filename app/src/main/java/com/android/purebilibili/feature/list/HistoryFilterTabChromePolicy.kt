@@ -2,11 +2,11 @@ package com.android.purebilibili.feature.list
 
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.ui.AppTopChromePolicy
-internal const val HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP = 58
-internal val HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP =
-    com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
-        HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP.toFloat()
-    )
+import com.android.purebilibili.feature.home.components.resolveHomeTopSearchPillHeight
+import com.android.purebilibili.feature.home.components.resolveHomeTopSearchRowHorizontalPadding
+import com.android.purebilibili.feature.home.components.resolveHomeTopTabRowHeight
+import kotlin.math.roundToInt
+
 internal const val HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 15
 
 internal data class HistoryFilterTabChromeSpec(
@@ -41,13 +41,24 @@ internal fun resolveHistoryFilterTabChromeSpec(
     )
     val compactChrome = topChromePolicy.compactChromeSpec
     return if (useLiquidDock) {
+        val sharedDockHeightDp = minOf(
+            resolveHomeTopSearchPillHeight(topChromePolicy),
+            resolveHomeTopTabRowHeight(
+                isTabFloating = true,
+                chromePolicy = topChromePolicy,
+            ),
+        ).value.roundToInt()
         HistoryFilterTabChromeSpec(
             useLiquidDock = true,
-            heightDp = HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP,
-            indicatorHeightDp = HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP,
+            heightDp = sharedDockHeightDp,
+            indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+                sharedDockHeightDp.toFloat(),
+            ),
             // 全宽 dock：固定 itemWidth 会把指示器压扁，导致整体显得过小。
             itemWidthDp = null,
-            horizontalPaddingDp = 16,
+            horizontalPaddingDp = resolveHomeTopSearchRowHorizontalPadding(topChromePolicy)
+                .value
+                .roundToInt(),
             labelFontSizeSp = HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP,
             // Drag is allowed in the dock middle; FloatingBottomBar leaves the
             // system-gesture edge bands for predictive back.

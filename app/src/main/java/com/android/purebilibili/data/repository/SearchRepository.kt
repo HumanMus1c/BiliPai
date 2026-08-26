@@ -448,13 +448,19 @@ object SearchRepository {
 
     suspend fun searchArticle(
         keyword: String,
-        page: Int = 1
+        page: Int = 1,
+        order: SearchOrder = SearchOrder.TOTALRANK,
+        categoryId: Int = 0
     ): Result<Pair<List<SearchArticleItem>, SearchPageInfo>> = withContext(Dispatchers.IO) {
         try {
             val params = searchTypeParams(
                 keyword = keyword,
                 searchType = "article",
-                page = page
+                page = page,
+                extra = mapOf(
+                    "order" to order.value,
+                    "category_id" to categoryId.toString()
+                )
             )
 
             val signedParams = signWithWbi(params)
@@ -534,10 +540,22 @@ object SearchRepository {
 
     suspend fun searchPhoto(
         keyword: String,
-        page: Int = 1
+        page: Int = 1,
+        order: SearchOrder = SearchOrder.TOTALRANK,
+        categoryId: Int = 0
     ): Result<Pair<List<SearchPhotoItem>, SearchPageInfo>> = withContext(Dispatchers.IO) {
         try {
-            val signedParams = signWithWbi(searchTypeParams(keyword, "photo", page))
+            val signedParams = signWithWbi(
+                searchTypeParams(
+                    keyword = keyword,
+                    searchType = "photo",
+                    page = page,
+                    extra = mapOf(
+                        "order" to order.value,
+                        "category_id" to categoryId.toString()
+                    )
+                )
+            )
             val response = api.searchPhoto(signedParams)
             if (response.code != 0) {
                 return@withContext Result.failure(createSearchError(response.code, response.message))
@@ -733,7 +751,26 @@ enum class SearchOrder(val value: String, val displayName: String) {
     PUBDATE("pubdate", "最新发布"),
     CLICK("click", "播放最多"),
     DM("dm", "弹幕最多"),
-    STOW("stow", "收藏最多")
+    STOW("stow", "收藏最多"),
+    SCORES("scores", "评论最多"),
+    ATTENTION("attention", "喜欢最多")
+}
+
+enum class SearchArticleCategory(val value: Int, val displayName: String) {
+    ALL(0, "全部分区"),
+    GAME(1, "游戏"),
+    ANIMATION(2, "动画"),
+    LIFE(3, "生活"),
+    LIGHT_NOVEL(16, "轻小说"),
+    TECHNOLOGY(17, "科技"),
+    MOVIE(28, "影视"),
+    INTEREST(29, "兴趣")
+}
+
+enum class SearchPhotoCategory(val value: Int, val displayName: String) {
+    ALL(0, "全部分区"),
+    ILLUSTRATION(1, "画友"),
+    PHOTOGRAPHY(2, "摄影")
 }
 
 //  搜索时长筛选

@@ -77,6 +77,26 @@ class AppSegmentedControlPolicyTest {
         assertTrue(miuixSource.contains("resolveRoundedControlVisualGeometry("))
     }
 
+    @Test
+    fun `md3 tab row overflows material text padding instead of ellipsizing compact labels`() {
+        val materialSource = loadSource(
+            "src/main/java/com/android/purebilibili/core/ui/renderer/material3/" +
+                "AppMaterial3SegmentedControl.kt"
+        )
+        val tabRow = materialSource.substringAfter("internal fun <T> AppMaterial3TabRow(")
+
+        assertTrue(tabRow.contains("text = {"))
+        assertTrue(tabRow.contains("resolveAppSegmentedLabelFontSizeSp("))
+        assertTrue(tabRow.contains("allowLabelOverflow"))
+        assertTrue(tabRow.contains("wrapContentWidth("))
+        assertTrue(tabRow.contains("unbounded = true"))
+        assertTrue(tabRow.contains("softWrap = false"))
+        assertTrue(tabRow.contains("TextOverflow.Visible"))
+        assertFalse(tabRow.contains("TextOverflow.Ellipsis"))
+        assertTrue(tabRow.contains("indicatorPositionProvider: (() -> Float)? = null"))
+        assertTrue(tabRow.contains("indicatorPositionProvider = indicatorPositionProvider"))
+    }
+
     private fun loadSource(path: String): String = listOf(
         File(path),
         File("design-system/$path"),

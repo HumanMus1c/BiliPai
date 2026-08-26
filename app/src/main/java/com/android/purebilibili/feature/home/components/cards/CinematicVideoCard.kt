@@ -28,6 +28,7 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.FeedTitleHierarchy
 import com.android.purebilibili.core.ui.feedContentTypography
@@ -357,7 +360,8 @@ fun CinematicVideoCard(
             ) {
                 AppText(
                     text = video.title,
-                    overflow = TextOverflow.Visible,
+                    maxLines = videoCardTitleMaxLines(),
+                    overflow = videoCardTitleOverflow(),
                     style = contentTypography.title.copy(color = MediaContrastPalette.Foreground),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -400,22 +404,11 @@ fun CinematicVideoCard(
                          modifier = Modifier.weight(1f)
                      )
                      
-                     // 播放量
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)) {
-                        AppIcon(
-                            imageVector = Icons.Filled.PlayCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(AppSpacingTokens.Medium),
-                            tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f)
-                        )
-                        AppText(
-                            text = FormatUtils.formatStat(video.stat.view.toLong()),
-                            style = contentTypography.statistic.copy(
-                                color = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Medium
-                            )
-                        )
-                    }
+                    VideoStatRow(
+                        playText = FormatUtils.formatStat(video.stat.view.toLong()),
+                        danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
+                        contentColor = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
+                    )
 
                     // 时长
                     AppText(

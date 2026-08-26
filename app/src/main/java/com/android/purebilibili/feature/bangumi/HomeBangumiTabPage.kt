@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.bangumi
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,7 +56,7 @@ fun HomeBangumiTabPage(
 
     val layoutDirection = LocalLayoutDirection.current
     val channelBackdrop = rememberLayerBackdrop()
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(
@@ -63,22 +65,30 @@ fun HomeBangumiTabPage(
                 end = contentPadding.calculateEndPadding(layoutDirection),
             )
     ) {
-        AppLiquidAwareTabRow(
-            options = channelOptions,
-            selectedValue = state.channel,
-            onSelectionChange = viewModel::selectChannel,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            miuixBackdrop = channelBackdrop,
-        )
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .layerBackdrop(channelBackdrop),
-        ) {
-        BangumiHubContent(
+                .fillMaxSize()
+                .layerBackdrop(channelBackdrop)
+                .background(MaterialTheme.colorScheme.background),
+        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            AppLiquidAwareTabRow(
+                options = channelOptions,
+                selectedValue = state.channel,
+                onSelectionChange = viewModel::selectChannel,
+                dragSelectionEnabled = channelOptions.size > 1,
+                tapPressRefractionEnabled = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                miuixBackdrop = channelBackdrop,
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                BangumiHubContent(
             state = state,
             onBangumiClick = onBangumiClick,
             onEpisodeClick = onBangumiEpisodeClick,
@@ -86,6 +96,7 @@ fun HomeBangumiTabPage(
             onLoadMoreHomeRecommendations = viewModel::loadMoreHomeRecommendations,
             onLoadMoreHomeFollows = viewModel::loadMoreHomeFollows,
             onRetryTimeline = viewModel::retryTimeline,
+            onTimelineRangeSelected = viewModel::selectTimelineRange,
             onOpenIndex = viewModel::openIndex,
             onOpenFollow = viewModel::openFollowManager,
             onIndexCategorySelected = viewModel::selectIndexCategory,
@@ -103,6 +114,7 @@ fun HomeBangumiTabPage(
             onMoveSelectedFollow = viewModel::moveSelectedFollowItems,
             onMoveSingleFollow = viewModel::updateSingleFollowItem,
             onUnfollowSingle = viewModel::unfollowSingleItem,
+            onSearchCategorySelected = viewModel::selectSearchCategory,
             onLoadMoreSearch = viewModel::loadMoreSearch,
             onSaveCover = { url, title ->
                 scope.launch {
@@ -111,7 +123,11 @@ fun HomeBangumiTabPage(
             },
             scrollToTopRequestId = scrollToTopRequestId,
             listBottomPadding = contentPadding.calculateBottomPadding(),
-        )
+            // The source is now a sibling behind this whole content tree, so every nested
+            // dock can sample the real page surface without becoming part of its source.
+            tabBackdrop = channelBackdrop,
+                )
+            }
         }
     }
 }

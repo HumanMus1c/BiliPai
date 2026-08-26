@@ -1740,15 +1740,20 @@ class DanmakuManager private constructor(
         if (!isCurrentSegmentWindowRequest(cid, requestGeneration, requestWindowGeneration)) return
         if (anchorParsed != null) parsedSegments[anchorSegment] = anchorParsed
         activeSegmentIndices = requestedSegments
-        applyParsedSegmentWindow(
-            cid = cid,
-            positionMs = positionMs,
-            requestGeneration = requestGeneration,
-            requestWindowGeneration = requestWindowGeneration,
-            reason = "$reason:anchor"
-        )
-
         val neighborIndices = requestedSegments.filter { it != anchorSegment && it !in parsedSegments }
+        // During normal forward playback, keep the existing renderer timeline alive until the
+        // complete next window is available. Applying the cached anchor first used to clear and
+        // restart the renderer twice at every six-minute boundary (most visibly around 18 min).
+        if (reason != "playback_progress" || neighborIndices.isEmpty()) {
+            applyParsedSegmentWindow(
+                cid = cid,
+                positionMs = positionMs,
+                requestGeneration = requestGeneration,
+                requestWindowGeneration = requestWindowGeneration,
+                reason = "$reason:anchor"
+            )
+        }
+
         val (neighborResults, loadedSpecial) = coroutineScope {
             val neighbors = neighborIndices.map { index ->
                 async { index to loadParsedSegment(cid, index) }
@@ -1849,6 +1854,24 @@ class DanmakuManager private constructor(
                 currentPlayerPositionMs = player?.currentPosition,
                 requestedPositionMs = positionMs,
             )
+            val currentController = controller
+            if (
+                reason == "playback_progress" &&
+                currentController != null &&
+                currentController.rollWindowForward(
+                    DanmakuWindow(
+                        anchorSegment = segmentIndexForPosition(currentPositionMs),
+                        segmentIndices = activeSegmentIndices,
+                        items = cachedDanmakuList.orEmpty(),
+                    )
+                )
+            ) {
+                timelineSyncedController = currentController
+                pendingTimelineResync = false
+                isPlaying = player?.isPlaying == true && config.isEnabled
+                Log.d(TAG, "Rolled danmaku window forward without timeline restart ($reason)")
+                return@withContext
+            }
             resyncDanmakuTimeline(
                 list = cachedDanmakuList.orEmpty(),
                 positionMs = currentPositionMs,

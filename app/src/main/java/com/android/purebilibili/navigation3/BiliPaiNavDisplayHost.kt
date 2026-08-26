@@ -15,6 +15,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -30,6 +31,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
@@ -452,11 +454,18 @@ internal fun BiliPaiNavDisplayHost(
     }
     val interceptPredictiveBack =
         style == BiliPaiPredictiveBackAnimationStyle.NONE && backStack.size > 1
+    val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(AppSurfaceTokens.groupedListContainer()),
+            .background(
+                if (globalWallpaperVisible) {
+                    Color.Transparent
+                } else {
+                    AppSurfaceTokens.groupedListContainer()
+                }
+            ),
     ) {
         VideoCardTransitionHostDepthLayer(
             enabled = cardMorphAvailable &&

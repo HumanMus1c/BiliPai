@@ -11,6 +11,7 @@ class BiliPaiNavKeyMappingPolicyTest {
     fun personalListSearchKeysRoundTripThroughLegacyRoutes() {
         val keys = listOf(
             BiliPaiNavKey.HistorySearch("猫 咪"),
+            BiliPaiNavKey.FavoriteSubscribed,
             BiliPaiNavKey.FavoriteSearch(
                 "Compose",
                 com.android.purebilibili.data.model.response.FavoriteSearchScope.ALL_VIDEO_FOLDERS,

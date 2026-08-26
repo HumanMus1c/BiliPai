@@ -52,4 +52,19 @@ class DanmakuSegmentWindowPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `renderer supports seamless forward window roll instead of timeline reload`() {
+        val managerSource = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/danmaku/DanmakuManager.kt"
+        ).readText()
+        val engineSource = java.io.File(
+            "../danmaku-engine/src/main/java/com/android/purebilibili/danmaku/engine/ByteDanceDanmakuEngine.kt"
+        ).readText()
+
+        assertTrue(managerSource.contains("rollWindowForward("))
+        assertTrue(managerSource.contains("reason != \"playback_progress\" || neighborIndices.isEmpty()"))
+        assertTrue(engineSource.contains("controller.appendData("))
+        assertTrue(engineSource.contains("controller.discardDataBefore("))
+    }
 }

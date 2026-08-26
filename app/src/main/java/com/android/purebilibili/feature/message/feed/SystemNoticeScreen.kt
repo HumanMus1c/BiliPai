@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +36,9 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
 import com.android.purebilibili.data.model.response.SystemNoticeItem
 import com.android.purebilibili.data.repository.MessageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -152,11 +157,7 @@ fun SystemNoticeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading -> com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
-                    modifier = Modifier.fillMaxSize(),
-                    useUserRow = false,
-                    itemCount = 8,
-                )
+                uiState.isLoading -> SystemNoticeListSkeleton(modifier = Modifier.fillMaxSize())
                 uiState.error != null -> MessageFeedError(
                     text = uiState.error ?: "加载失败",
                     onRetry = viewModel::loadInitial,
@@ -221,6 +222,53 @@ fun SystemNoticeScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemNoticeListSkeleton(modifier: Modifier = Modifier) {
+    val blockColor = rememberContentSkeletonBlockColor(rememberContentSkeletonPulse())
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        userScrollEnabled = false,
+    ) {
+        items(7) {
+            MessageFeedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ContentSkeletonBlock(
+                        color = blockColor,
+                        modifier = Modifier
+                            .fillMaxWidth(0.46f)
+                            .height(17.dp),
+                    )
+                    ContentSkeletonBlock(
+                        color = blockColor,
+                        modifier = Modifier
+                            .fillMaxWidth(0.94f)
+                            .height(14.dp),
+                    )
+                    ContentSkeletonBlock(
+                        color = blockColor,
+                        modifier = Modifier
+                            .fillMaxWidth(0.72f)
+                            .height(14.dp),
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    ContentSkeletonBlock(
+                        color = blockColor,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .fillMaxWidth(0.28f)
+                            .height(12.dp),
+                    )
                 }
             }
         }

@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.updateTransition
@@ -397,16 +396,18 @@ internal fun MusicPlayerContent(
                             height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
                             indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                             liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-                            forceLiquidChrome = liquidGlassEffectsEnabled,
                             preferInlineContentStyle = false,
                             miuixBackdrop = musicBackdrop,
+                            dragSelectionEnabled = true,
+                            tapPressRefractionEnabled = true,
                             isScrollInProgressProvider = { pagerState.isScrollInProgress },
                             indicatorPositionProvider = {
                                 resolveMusicPagerIndicatorPosition(
                                     currentPage = pagerState.currentPage,
                                     currentPageOffsetFraction = pagerState.currentPageOffsetFraction
                                 )
-                            }
+                            },
+                            externalPagerMotionEffectsEnabled = true,
                         )
                     }
                 }
@@ -868,9 +869,10 @@ private fun MusicPlayModeDock(
         indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = 13.sp,
         liquidGlassEffectsEnabled = glassEnabled,
-        forceLiquidChrome = glassEnabled,
         preferInlineContentStyle = false,
         miuixBackdrop = miuixBackdrop,
+        dragSelectionEnabled = true,
+        tapPressRefractionEnabled = true,
     )
 }
 
@@ -1426,11 +1428,12 @@ private fun GlassIconButton(
     val scope = rememberCoroutineScope()
     val dragX = remember { Animatable(0f) }
     val dragY = remember { Animatable(0f) }
-    val maxDragPx = with(LocalDensity.current) { 18.dp.toPx() }
+    val maxDragPx = with(LocalDensity.current) { 36.dp.toPx() }
+    val expansionPx = with(LocalDensity.current) { 4.dp.toPx() }
     val releaseSpec = remember {
         spring<Float>(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = 0.5f,
+            stiffness = 300f,
         )
     }
 
@@ -1442,14 +1445,16 @@ private fun GlassIconButton(
                     dragX = dragX.value,
                     dragY = dragY.value,
                     maxDragPx = maxDragPx,
+                    widthPx = size.width,
+                    heightPx = size.height,
+                    expansionPx = expansionPx,
                 )
-                translationX = transform.translationX
-                translationY = transform.translationY
                 scaleX = transform.scaleX
                 scaleY = transform.scaleY
-                rotationZ = transform.rotationZ
+                translationX = transform.translationX
+                translationY = transform.translationY
             }
-            .pointerInput(maxDragPx) {
+            .pointerInput(maxDragPx, releaseSpec) {
                 detectDragGestures(
                     onDragCancel = {
                         scope.launch {

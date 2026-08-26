@@ -4,6 +4,7 @@ import com.android.purebilibili.data.model.response.BangumiIndexConditionData
 import com.android.purebilibili.data.model.response.BangumiIndexConditionFilter
 import com.android.purebilibili.data.model.response.BangumiIndexConditionOrder
 import com.android.purebilibili.data.model.response.BangumiIndexConditionValue
+import com.android.purebilibili.data.model.response.BangumiSearchItem
 import com.android.purebilibili.data.model.response.TimelineDay
 import com.android.purebilibili.data.model.response.TimelineEpisode
 import org.junit.Assert.assertEquals
@@ -114,6 +115,13 @@ class BangumiHubPolicyTest {
     }
 
     @Test
+    fun `timeline ranges stay within the server supported seven day window`() {
+        assertEquals(0 to 7, BangumiTimelineRange.UPCOMING.before to BangumiTimelineRange.UPCOMING.after)
+        assertEquals(3 to 7, BangumiTimelineRange.DEFAULT.before to BangumiTimelineRange.DEFAULT.after)
+        assertEquals(7 to 7, BangumiTimelineRange.TWO_WEEKS.before to BangumiTimelineRange.TWO_WEEKS.after)
+    }
+
+    @Test
     fun `timeline episode metadata prefers the matching cover and update state`() {
         val episode = TimelineEpisode(
             cover = "season-cover",
@@ -146,7 +154,7 @@ class BangumiHubPolicyTest {
     }
 
     @Test
-    fun `cinema index categories produce BiliPai query targets`() {
+    fun `index categories produce BiliPai query targets`() {
         assertEquals(
             BangumiIndexQueryTarget(seasonType = null, indexType = 102),
             resolveBangumiIndexQueryTarget(BangumiIndexCategory.CINEMA_ALL),
@@ -158,6 +166,46 @@ class BangumiHubPolicyTest {
         assertEquals(
             BangumiIndexQueryTarget(seasonType = 1, indexType = null),
             resolveBangumiIndexQueryTarget(BangumiIndexCategory.BANGUMI),
+        )
+        assertEquals(
+            BangumiIndexQueryTarget(seasonType = 4, indexType = null),
+            resolveBangumiIndexQueryTarget(BangumiIndexCategory.GUOCHUANG),
+        )
+        assertEquals(
+            listOf(BangumiIndexCategory.BANGUMI, BangumiIndexCategory.GUOCHUANG),
+            bangumiIndexCategoriesForChannel(BangumiChannel.BANGUMI),
+        )
+    }
+
+    @Test
+    fun `search categories preserve channel scope and filter exact season types`() {
+        assertEquals(
+            BangumiIndexCategory.GUOCHUANG,
+            resolveDefaultBangumiSearchCategory(
+                channel = BangumiChannel.BANGUMI,
+                preferred = BangumiIndexCategory.GUOCHUANG,
+            ),
+        )
+        assertEquals(
+            BangumiIndexCategory.CINEMA_ALL,
+            resolveDefaultBangumiSearchCategory(
+                channel = BangumiChannel.CINEMA,
+                preferred = BangumiIndexCategory.GUOCHUANG,
+            ),
+        )
+
+        val results = listOf(
+            BangumiSearchItem(seasonId = 1, seasonType = 1, seasonTypeName = "番剧"),
+            BangumiSearchItem(seasonId = 2, seasonType = 4, seasonTypeName = "国创"),
+            BangumiSearchItem(seasonId = 3, seasonType = 2, seasonTypeName = "电影"),
+        )
+        assertEquals(
+            listOf(2L),
+            filterBangumiSearchItems(results, BangumiIndexCategory.GUOCHUANG).map { it.seasonId },
+        )
+        assertEquals(
+            listOf(1L, 2L, 3L),
+            filterBangumiSearchItems(results, BangumiIndexCategory.CINEMA_ALL).map { it.seasonId },
         )
     }
 

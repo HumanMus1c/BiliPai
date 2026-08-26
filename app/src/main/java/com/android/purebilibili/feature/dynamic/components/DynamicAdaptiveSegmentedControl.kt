@@ -43,8 +43,8 @@ internal fun DynamicAdaptiveSegmentedControl(
             labelFontSize = labelFontSize,
             modifier = modifier,
             miuixBackdrop = backdrop,
-            forceLiquidChrome = true,
             liquidGlassEffectsEnabled = true,
+            dragSelectionEnabled = items.size > 1,
             tapPressRefractionEnabled = true,
         )
     } else {

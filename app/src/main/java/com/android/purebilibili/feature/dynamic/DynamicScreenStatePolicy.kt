@@ -5,8 +5,8 @@ import com.android.purebilibili.core.util.prependDistinctByKey
 import com.android.purebilibili.data.model.response.DynamicItem
 import kotlinx.collections.immutable.toImmutableList
 
-private const val DynamicTopBarReservedHeightDp = 60
-private const val DynamicHorizontalExpandedHeaderReservedHeightDp = 184
+internal const val DynamicTopBarReservedHeightDp = 60
+internal const val DynamicHorizontalExpandedHeaderReservedHeightDp = 184
 
 internal data class DynamicPagePresentation(
     val items: List<DynamicItem>,
@@ -70,15 +70,14 @@ internal fun resolveDynamicPagePresentation(
 
 internal fun resolveDynamicListTopPaddingExtraDp(
     isHorizontalMode: Boolean,
-    isHorizontalUserListCollapsed: Boolean = false,
     shouldShowHorizontalUserList: Boolean = true,
-    isTopBarCollapsed: Boolean = false
 ): Int {
+    // Keep the lazy grid's coordinate space stable while chrome collapses. Feeding scroll-driven
+    // collapse state back into contentPadding forces a staggered-grid remeasure; uneven cards can
+    // then move the visible anchor because each lane has a different accumulated height.
     return when {
-        isTopBarCollapsed -> 0
         // 横向关注列表展开时，头像下方可能同时有直播标记和 UP 名称两行。
-        isHorizontalMode && shouldShowHorizontalUserList && !isHorizontalUserListCollapsed -> DynamicHorizontalExpandedHeaderReservedHeightDp
-        isHorizontalMode -> DynamicTopBarReservedHeightDp
+        isHorizontalMode && shouldShowHorizontalUserList -> DynamicHorizontalExpandedHeaderReservedHeightDp
         else -> DynamicTopBarReservedHeightDp
     }
 }

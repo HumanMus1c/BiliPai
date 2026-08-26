@@ -16,12 +16,38 @@ class DynamicPublishComposerPolicyTest {
 
     @Test
     fun liquidDockReuseFollowsTheUserSetting() {
-        val source = File(
-            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicPublishComposer.kt"
-        ).readText()
+        val source = loadComposerSource()
 
         assertTrue(source.contains("reuseEnabled = liquidGlassEnabled"))
+        assertTrue(source.contains("shellLensIntensity = resolveFloatingDockGeometryScale("))
         assertTrue(source.contains("if (liquidGlassEnabled)"))
         assertTrue(source.contains("AppNativeSegmentedControl("))
+    }
+
+    @Test
+    fun publishComposerCapturesBackdropFromFormSiblingNotChromeParent() {
+        val source = loadComposerSource()
+        val dialogText = source
+            .substringAfter("text = {")
+            .substringBefore("confirmButton = {")
+        val outerColumnHeader = dialogText
+            .substringAfter("Column(")
+            .substringBefore("verticalArrangement")
+
+        assertTrue(dialogText.contains("layerBackdrop(publishChromeBackdrop)"))
+        assertTrue(dialogText.contains(".matchParentSize()\n                            .layerBackdrop(publishChromeBackdrop)"))
+        assertTrue(outerColumnHeader.contains("verticalScroll(rememberScrollState())"))
+        assertTrue(!outerColumnHeader.contains("layerBackdrop"))
+        assertTrue(dialogText.contains("backdrop = publishChromeBackdrop"))
+        assertTrue(dialogText.contains("miuixBackdrop = publishChromeBackdrop"))
+        assertTrue(
+            dialogText.indexOf("layerBackdrop(publishChromeBackdrop)") <
+                dialogText.indexOf("backdrop = publishChromeBackdrop")
+        )
+    }
+
+    private fun loadComposerSource(): String {
+        val path = "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicPublishComposer.kt"
+        return listOf(File(path), File("app/$path")).first { it.exists() }.readText()
     }
 }

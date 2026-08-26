@@ -131,7 +131,6 @@ internal fun resolveHomeTopPresetStyle(
     labelMode: Int
 ): HomeTopPresetStyle {
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
-    val isIconAndText = normalizedLabelMode == 0
     val compactChrome = chromePolicy.compactChromeSpec
     return when (chromePolicy.tabPresentation) {
         AppTopTabPresentation.MOVING_CAPSULE -> {
@@ -168,8 +167,8 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 56.dp else 36.dp,
-                        floating = if (isIconAndText) 60.dp else 40.dp
+                        docked = resolveBiliPaiBottomBarDockHeight(searchExpanded = false),
+                        floating = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
@@ -229,8 +228,8 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 56.dp else 36.dp,
-                        floating = if (isIconAndText) 60.dp else 40.dp
+                        docked = resolveBiliPaiBottomBarDockHeight(searchExpanded = false),
+                        floating = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
@@ -289,8 +288,8 @@ internal fun resolveHomeTopPresetStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     // Align with resolveMd3TopTabVisualSpec used by the tab row.
                     rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 56.dp else 36.dp,
-                        floating = if (isIconAndText) 60.dp else 40.dp
+                        docked = resolveBiliPaiBottomBarDockHeight(searchExpanded = false),
+                        floating = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,

@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.ui.components.LikeBurstAnimation
@@ -22,6 +21,7 @@ import com.android.purebilibili.feature.video.ui.components.VideoActionFeedbackH
 import com.android.purebilibili.feature.video.ui.feedback.TripleCelebrationPlacement
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackAnchor
 import com.android.purebilibili.feature.video.ui.feedback.resolveQualityReminderPlacement
+import com.android.purebilibili.feature.video.ui.feedback.resolveLikeBurstPlacement
 import com.android.purebilibili.feature.video.ui.feedback.resolveTripleCelebrationPlacement
 import com.android.purebilibili.feature.video.ui.feedback.resolveVideoFeedbackPlacement
 import com.android.purebilibili.feature.video.viewmodel.PlayerToastPresentation
@@ -52,23 +52,16 @@ internal fun BoxScope.VideoDetailFeedbackOverlayAdapter(
         isLandscape = isLandscape,
         bottomInsetDp = feedbackBottomInsetDp,
     )
-    val feedbackAnchorAlignment = when (feedbackPlacement.anchor) {
-        VideoFeedbackAnchor.BottomCenter -> Alignment.BottomCenter
-        VideoFeedbackAnchor.BottomTrailing -> Alignment.BottomEnd
-        VideoFeedbackAnchor.CenterOverlay -> Alignment.Center
-    }
-
+    val likeBurstPlacement = resolveLikeBurstPlacement()
     if (engagementState.likeBurstVisible) {
         Box(
             modifier = Modifier
-                .align(feedbackAnchorAlignment)
-                .padding(
-                    end = if (feedbackPlacement.anchor == VideoFeedbackAnchor.BottomTrailing) {
-                        feedbackPlacement.sideInsetDp.dp
-                    } else {
-                        0.dp
-                    },
-                    bottom = (feedbackPlacement.bottomInsetDp + 56).dp,
+                .align(
+                    when (likeBurstPlacement.anchor) {
+                        VideoFeedbackAnchor.CenterOverlay -> Alignment.Center
+                        VideoFeedbackAnchor.BottomCenter -> Alignment.BottomCenter
+                        VideoFeedbackAnchor.BottomTrailing -> Alignment.BottomEnd
+                    }
                 ),
         ) {
             LikeBurstAnimation(

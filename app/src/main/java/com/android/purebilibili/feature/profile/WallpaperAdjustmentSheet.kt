@@ -1,7 +1,7 @@
 package com.android.purebilibili.feature.profile
 
-import com.android.purebilibili.core.theme.opaqueCompositeOver
-import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -32,9 +31,6 @@ import com.android.purebilibili.core.ui.wallpaper.applyGestureToProfileWallpaper
 import com.android.purebilibili.core.ui.wallpaper.sanitizeProfileWallpaperTransform
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.TabletAndroid
-import androidx.compose.material.icons.outlined.PhoneAndroid
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppCardShape
@@ -102,36 +98,15 @@ fun WallpaperAdjustmentSheet(
                 )
             }
             
-            // Tab Switcher (Mobile vs Tablet)
-            Row(
+            // Device target switcher follows the active native theme; liquid glass reuses the
+            // shared moving indicator when the global glass option is enabled.
+            WallpaperDeviceTabRow(
+                selectedTab = selectedTab,
+                onSelectedTabChange = { selectedTab = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 8.dp)
-                    .clip(AppShapes.container(ContainerLevel.Chip))
-                    .background(
-                        opaqueCompositeOver(
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.surface,
-                        )
-                    )
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                TabItem(
-                    title = "手机端",
-                    icon = Icons.Outlined.PhoneAndroid,
-                    isSelected = selectedTab == 0,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 0 }
-                )
-                TabItem(
-                    title = "平板端",
-                    icon = Icons.Outlined.TabletAndroid,
-                    isSelected = selectedTab == 1,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 1 }
-                )
-            }
+                    .padding(horizontal = 32.dp, vertical = 8.dp),
+            )
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -300,35 +275,13 @@ fun ProfileWallpaperAdjustmentSheet(
                 )
             }
 
-            Row(
+            WallpaperDeviceTabRow(
+                selectedTab = selectedTab,
+                onSelectedTabChange = { selectedTab = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 8.dp)
-                    .clip(AppShapes.container(ContainerLevel.Chip))
-                    .background(
-                        opaqueCompositeOver(
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.surface,
-                        )
-                    )
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                TabItem(
-                    title = "手机端",
-                    icon = Icons.Outlined.PhoneAndroid,
-                    isSelected = selectedTab == 0,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 0 }
-                )
-                TabItem(
-                    title = "平板端",
-                    icon = Icons.Outlined.TabletAndroid,
-                    isSelected = selectedTab == 1,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 1 }
-                )
-            }
+                    .padding(horizontal = 32.dp, vertical = 8.dp),
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -474,35 +427,27 @@ fun ProfileWallpaperAdjustmentSheet(
 }
 
 @Composable
-private fun TabItem(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean,
+private fun WallpaperDeviceTabRow(
+    selectedTab: Int,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onSelectedTabChange: (Int) -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .clip(AppShapes.container(ContainerLevel.Chip))
-            .background(if (isSelected) MaterialTheme.colorScheme.background else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            AppText(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+    val options = remember {
+        listOf(
+            AppSegmentOption(0, "手机端"),
+            AppSegmentOption(1, "平板端"),
+        )
     }
+    AppThemeAdaptiveTabRow(
+        options = options,
+        selectedValue = selectedTab,
+        onSelectionChange = onSelectedTabChange,
+        modifier = modifier,
+        height = 48.dp,
+        indicatorHeight = com.android.purebilibili.core.ui
+            .roundMatchedLiquidIndicatorHeightDp(48f).dp,
+        labelFontSize = 14.sp,
+        dragSelectionEnabled = true,
+        tapPressRefractionEnabled = true,
+    )
 }

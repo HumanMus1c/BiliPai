@@ -6,9 +6,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +63,7 @@ fun JsonPluginEditorScreen(
                 )
                 onSave(updated)
             }) {
-                AppIcon(Icons.Outlined.Check, contentDescription = "保存")
+                AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_24), contentDescription = "保存")
             }
         },
     ) {
@@ -146,7 +143,7 @@ fun JsonPluginEditorContent(
                 AppTextButton(onClick = {
                     onRulesChange(rules + Rule(field = "title", op = "contains", value = JsonPrimitive(""), action = "hide"))
                 }) {
-                    AppIcon(Icons.Outlined.Add, null, modifier = Modifier.size(16.dp))
+                    AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_add_24), null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     AppText("添加规则")
                 }
@@ -241,7 +238,7 @@ private fun RuleEditor(
                 )
                 AppIconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                     AppIcon(
-                        Icons.Outlined.Delete,
+                        com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_delete_24),
                         contentDescription = "删除",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)

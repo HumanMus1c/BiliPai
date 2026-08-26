@@ -24,6 +24,21 @@ class PersonalListSelectorStructureTest {
     }
 
     @Test
+    fun personalListOverflowMenus_useMiuixWindowActionMenu() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",
+        )
+
+        assertTrue(source.contains("AppWindowActionMenu("))
+        assertTrue(source.contains("label = \"新建收藏夹\""))
+        assertTrue(source.contains("label = \"清空历史\""))
+        assertTrue(source.contains("label = \"复制到收藏夹\""))
+        assertFalse(source.contains("showFavoriteManagementMenu"))
+        assertFalse(source.contains("showHistoryManagementMenu"))
+        assertFalse(source.contains("showFavoriteBatchMenu"))
+    }
+
+    @Test
     fun favoriteFolderNavigation_usesSelectorAndProgrammaticPagerOnly() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",

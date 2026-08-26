@@ -19,6 +19,8 @@ import com.android.purebilibili.data.repository.SearchRepository
 import com.android.purebilibili.data.repository.SearchOrder
 import com.android.purebilibili.data.repository.SearchDuration
 import com.android.purebilibili.data.repository.SearchLiveOrder
+import com.android.purebilibili.data.repository.SearchArticleCategory
+import com.android.purebilibili.data.repository.SearchPhotoCategory
 import com.android.purebilibili.data.repository.mergeSearchPageResults
 import com.android.purebilibili.data.repository.SearchOrderSort
 import com.android.purebilibili.data.repository.SearchUpOrder
@@ -78,6 +80,10 @@ data class SearchUiState(
     val upOrderSort: SearchOrderSort = SearchOrderSort.DESC,
     val upUserType: SearchUserType = SearchUserType.ALL,
     val liveOrder: SearchLiveOrder = SearchLiveOrder.ONLINE,
+    val articleOrder: SearchOrder = SearchOrder.TOTALRANK,
+    val articleCategory: SearchArticleCategory = SearchArticleCategory.ALL,
+    val photoOrder: SearchOrder = SearchOrder.TOTALRANK,
+    val photoCategory: SearchPhotoCategory = SearchPhotoCategory.ALL,
     //  搜索彩蛋消息
     val easterEggMessage: String? = null,
     //  [新增] 分页状态
@@ -490,6 +496,23 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setArticleOrder(order: SearchOrder) = updateSearchFilter { it.copy(articleOrder = order) }
+
+    fun setArticleCategory(category: SearchArticleCategory) =
+        updateSearchFilter { it.copy(articleCategory = category) }
+
+    fun setPhotoOrder(order: SearchOrder) = updateSearchFilter { it.copy(photoOrder = order) }
+
+    fun setPhotoCategory(category: SearchPhotoCategory) =
+        updateSearchFilter { it.copy(photoCategory = category) }
+
+    private fun updateSearchFilter(transform: (SearchUiState) -> SearchUiState) {
+        _uiState.update(transform)
+        if (_uiState.value.query.isNotBlank() && _uiState.value.showResults) {
+            search(_uiState.value.query)
+        }
+    }
+
     fun search(keyword: String) {
         val normalizedKeyword = keyword.trim()
         if (normalizedKeyword.isBlank()) return
@@ -793,7 +816,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 SearchType.ARTICLE -> {
-                    val result = SearchRepository.searchArticle(keyword = normalizedKeyword, page = 1)
+                    val result = SearchRepository.searchArticle(
+                        keyword = normalizedKeyword,
+                        page = 1,
+                        order = _uiState.value.articleOrder,
+                        categoryId = _uiState.value.articleCategory.value
+                    )
                     result.onSuccess { (articles, pageInfo) ->
                         if (!shouldApplySearchResult(searchSessionId, activeSearchSessionId, normalizedKeyword, _uiState.value.query, searchType, _uiState.value.searchType)) return@onSuccess
                         _uiState.update {
@@ -867,7 +895,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 SearchType.PHOTO -> {
-                    val result = SearchRepository.searchPhoto(keyword = normalizedKeyword, page = 1)
+                    val result = SearchRepository.searchPhoto(
+                        keyword = normalizedKeyword,
+                        page = 1,
+                        order = _uiState.value.photoOrder,
+                        categoryId = _uiState.value.photoCategory.value
+                    )
                     result.onSuccess { (photos, pageInfo) ->
                         if (!shouldApplySearchResult(searchSessionId, activeSearchSessionId, normalizedKeyword, _uiState.value.query, searchType, _uiState.value.searchType)) return@onSuccess
                         _uiState.update {
@@ -1070,7 +1103,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 SearchType.ARTICLE -> {
                     val result = SearchRepository.searchArticle(
                         keyword = state.query,
-                        page = nextPage
+                        page = nextPage,
+                        order = state.articleOrder,
+                        categoryId = state.articleCategory.value
                     )
                     result.onSuccess { (articles, pageInfo) ->
                         if (!shouldApplySearchResult(searchSessionId, activeSearchSessionId, state.query, _uiState.value.query, state.searchType, _uiState.value.searchType)) return@onSuccess
@@ -1114,7 +1149,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 SearchType.PHOTO -> {
                     val result = SearchRepository.searchPhoto(
                         keyword = state.query,
-                        page = nextPage
+                        page = nextPage,
+                        order = state.photoOrder,
+                        categoryId = state.photoCategory.value
                     )
                     result.onSuccess { (photos, pageInfo) ->
                         if (!shouldApplySearchResult(searchSessionId, activeSearchSessionId, state.query, _uiState.value.query, state.searchType, _uiState.value.searchType)) return@onSuccess

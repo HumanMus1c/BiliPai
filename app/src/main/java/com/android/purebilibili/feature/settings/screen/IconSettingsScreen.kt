@@ -45,9 +45,6 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -205,7 +202,7 @@ fun IconSettingsContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppIcon(
-                        Icons.Outlined.Info,
+                        com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_info_24),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(20.dp)
@@ -303,7 +300,7 @@ fun IconSettingsContent(
                                     .offset(x = 6.dp, y = 6.dp)
                             ) {
                                 AppIcon(
-                                    Icons.Filled.CheckCircle,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_circle_fill_24),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier

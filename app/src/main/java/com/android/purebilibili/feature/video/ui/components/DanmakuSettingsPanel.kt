@@ -554,6 +554,8 @@ fun DanmakuSettingsPanel(
                             },
                             selectedValue = fullscreenActiveSection,
                             onSelectionChange = { fullscreenActiveSection = it },
+                            dragSelectionEnabled = true,
+                            tapPressRefractionEnabled = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1353,6 +1355,8 @@ private fun DanmakuBlockManagerDialog(
                     },
                     selectedValue = selectedTabIndex,
                     onSelectionChange = { selectedTabIndex = it },
+                    dragSelectionEnabled = true,
+                    tapPressRefractionEnabled = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
 

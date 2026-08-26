@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,9 @@ import androidx.compose.material3.ChipElevation
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.window.WindowListPopup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -93,14 +97,59 @@ private val PiliPlusIndicatorAccelerate = Easing { fraction ->
     1f - kotlin.math.cos(flutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
 }
 
+internal data class ElasticTabIndicatorBounds(
+    val leftDp: Float,
+    val widthDp: Float,
+)
+
+internal fun resolveElasticTabIndicatorBounds(
+    position: Float,
+    tabLeftsDp: List<Float>,
+    tabWidthsDp: List<Float>,
+    contentWidthsDp: List<Float>,
+    matchContentSize: Boolean,
+): ElasticTabIndicatorBounds {
+    if (
+        tabLeftsDp.isEmpty() ||
+        tabLeftsDp.size != tabWidthsDp.size ||
+        tabLeftsDp.size != contentWidthsDp.size
+    ) {
+        return ElasticTabIndicatorBounds(leftDp = 0f, widthDp = 0f)
+    }
+    val lastIndex = tabLeftsDp.lastIndex
+    val safePosition = position.coerceIn(0f, lastIndex.toFloat())
+    val startIndex = kotlin.math.floor(safePosition).toInt()
+    val endIndex = (startIndex + 1).coerceAtMost(lastIndex)
+    val fraction = safePosition - startIndex
+
+    fun edges(index: Int): Pair<Float, Float> {
+        val width = if (matchContentSize) contentWidthsDp[index] else tabWidthsDp[index]
+        val left = tabLeftsDp[index] + (tabWidthsDp[index] - width) / 2f
+        return left to (left + width)
+    }
+
+    val (startLeft, startRight) = edges(startIndex)
+    val (endLeft, endRight) = edges(endIndex)
+    val trailingEdgeProgress = 1f - kotlin.math.cos(fraction * Math.PI.toFloat() / 2f)
+    val leadingEdgeProgress = kotlin.math.sin(fraction * Math.PI.toFloat() / 2f)
+    val left = startLeft + (endLeft - startLeft) * trailingEdgeProgress
+    val right = startRight + (endRight - startRight) * leadingEdgeProgress
+    return ElasticTabIndicatorBounds(
+        leftDp = left,
+        widthDp = (right - left).coerceAtLeast(0f),
+    )
+}
+
 @Composable
 private fun AppElasticTabIndicator(
     selectedTabIndex: Int,
     tabPositions: List<TabPosition>,
     matchContentSize: Boolean,
     primary: Boolean,
+    indicatorPositionProvider: (() -> Float)? = null,
 ) {
     if (tabPositions.isEmpty()) return
+    val followPosition = indicatorPositionProvider?.invoke()
     val safeIndex = selectedTabIndex.coerceIn(tabPositions.indices)
     val previousIndex = remember { mutableIntStateOf(selectedTabIndex) }
     val movingRight = remember(safeIndex) { safeIndex >= previousIndex.intValue }
@@ -108,7 +157,7 @@ private fun AppElasticTabIndicator(
     val targetWidth = if (matchContentSize) target.contentWidth else target.width
     val targetLeft = target.left + (target.width - targetWidth) / 2f
     val targetRight = targetLeft + targetWidth
-    val left by animateDpAsState(
+    val animatedLeft by animateDpAsState(
         targetValue = targetLeft,
         animationSpec = tween(
             durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
@@ -116,7 +165,7 @@ private fun AppElasticTabIndicator(
         ),
         label = "appTabIndicatorLeft",
     )
-    val right by animateDpAsState(
+    val animatedRight by animateDpAsState(
         targetValue = targetRight,
         animationSpec = tween(
             durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
@@ -126,6 +175,22 @@ private fun AppElasticTabIndicator(
     )
     SideEffect {
         previousIndex.intValue = safeIndex
+    }
+    val left: Dp
+    val right: Dp
+    if (followPosition != null) {
+        val bounds = resolveElasticTabIndicatorBounds(
+            position = followPosition,
+            tabLeftsDp = tabPositions.map { it.left.value },
+            tabWidthsDp = tabPositions.map { it.width.value },
+            contentWidthsDp = tabPositions.map { it.contentWidth.value },
+            matchContentSize = matchContentSize,
+        )
+        left = bounds.leftDp.dp
+        right = (bounds.leftDp + bounds.widthDp).dp
+    } else {
+        left = animatedLeft
+        right = animatedRight
     }
     val indicatorModifier = Modifier
         // Legacy TabRow measures the indicator slot to the full row. Recreate Material's
@@ -172,12 +237,14 @@ fun AppScrollableTabRow(
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = TabRowDefaults.primaryContentColor,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
+    indicatorPositionProvider: (() -> Float)? = null,
     indicator: @Composable (tabPositions: List<TabPosition>) -> Unit = @Composable { tabPositions ->
         AppElasticTabIndicator(
             selectedTabIndex = selectedTabIndex,
             tabPositions = tabPositions,
             matchContentSize = true,
             primary = false,
+            indicatorPositionProvider = indicatorPositionProvider,
         )
     },
     divider: @Composable () -> Unit = @Composable { HorizontalDivider() },
@@ -389,15 +456,29 @@ fun AppDropdownMenu(
     scrollState: ScrollState = rememberScrollState(),
     properties: PopupProperties = PopupProperties(focusable = true),
     content: @Composable ColumnScope.() -> Unit,
-) = DropdownMenu(
-    expanded = expanded,
-    onDismissRequest = onDismissRequest,
-    modifier = modifier,
-    offset = offset,
-    scrollState = scrollState,
-    properties = properties,
-    content = content,
-)
+) {
+    if (LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
+        WindowListPopup(
+            show = expanded,
+            popupModifier = modifier,
+            onDismissRequest = onDismissRequest,
+        ) {
+            ListPopupColumn {
+                Column(content = content)
+            }
+        }
+    } else {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            modifier = modifier,
+            offset = offset,
+            scrollState = scrollState,
+            properties = properties,
+            content = content,
+        )
+    }
+}
 
 @Composable
 fun AppDropdownMenuItem(
@@ -669,6 +750,7 @@ fun AppPrimaryTabRow(
     modifier: Modifier = Modifier,
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = TabRowDefaults.primaryContentColor,
+    indicatorPositionProvider: (() -> Float)? = null,
     tabs: @Composable () -> Unit,
 ) {
     @Suppress("DEPRECATION")
@@ -683,6 +765,7 @@ fun AppPrimaryTabRow(
                 tabPositions = tabPositions,
                 matchContentSize = true,
                 primary = true,
+                indicatorPositionProvider = indicatorPositionProvider,
             )
         },
         tabs = tabs,
@@ -698,6 +781,7 @@ fun AppPrimaryScrollableTabRow(
     contentColor: Color = TabRowDefaults.primaryContentColor,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
     minTabWidth: Dp = TabRowDefaults.ScrollableTabRowMinTabWidth,
+    indicatorPositionProvider: (() -> Float)? = null,
     tabs: @Composable () -> Unit,
 ) {
     @Suppress("DEPRECATION")
@@ -713,6 +797,7 @@ fun AppPrimaryScrollableTabRow(
                 tabPositions = tabPositions,
                 matchContentSize = true,
                 primary = true,
+                indicatorPositionProvider = indicatorPositionProvider,
             )
         },
         tabs = tabs,

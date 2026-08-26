@@ -172,8 +172,8 @@ fun CommentSegmentedControl(
         labelFontSize = 13.sp,
         modifier = modifier,
         miuixBackdrop = miuixBackdrop,
-        forceLiquidChrome = false,
         liquidGlassEffectsEnabled = true,
+        dragSelectionEnabled = items.size > 1,
         tapPressRefractionEnabled = true,
     )
 }

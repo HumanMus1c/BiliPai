@@ -66,10 +66,12 @@ import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import com.android.purebilibili.feature.home.components.resolveBottomBarSurfaceColor
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.blur.Backdrop
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -298,22 +300,35 @@ private fun FloatingLiquidBottomInputBar(
         onSurfaceColor = MaterialTheme.colorScheme.onSurface,
         onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    val bottomInset = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navigationBarBottomPadding = WindowInsets.navigationBars
+        .asPaddingValues()
+        .calculateBottomPadding()
+    val bottomInset = 12.dp + navigationBarBottomPadding
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = bottomInset),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
+        // 悬浮胶囊不再铺满系统导航区，这里补一层页面底色，避免露出窗口黑边。
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(navigationBarBottomPadding)
+                .background(AppSurfaceTokens.background())
+        )
         Row(
             modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(bottom = bottomInset)
                 .widthIn(max = 360.dp)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // 黑虾线防回归：左右是两个视觉上独立的胶囊，必须分别渲染，不能合成长壳；
+            // 两边都保留 lens，并按 44dp 实际高度缩放折射。直接关 lens 会损失液态玻璃，
+            // 使用满强度 64dp 几何则会让上下 refraction 在短胶囊中线相撞。
             BottomBarMatchedReusableLiquidDock(
                 shape = shellShape,
                 modifier = Modifier
@@ -322,6 +337,7 @@ private fun FloatingLiquidBottomInputBar(
                 backdrop = backdrop,
                 reuseEnabled = true,
                 drawShellLens = true,
+                shellLensIntensity = resolveFloatingDockGeometryScale(44f),
                 isScrollInProgressProvider = isScrollInProgressProvider,
             ) {
                 Row(
@@ -356,6 +372,7 @@ private fun FloatingLiquidBottomInputBar(
                 backdrop = backdrop,
                 reuseEnabled = true,
                 drawShellLens = true,
+                shellLensIntensity = resolveFloatingDockGeometryScale(44f),
                 isScrollInProgressProvider = isScrollInProgressProvider,
             ) {
                 BottomInputBarActionButtons(

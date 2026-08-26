@@ -34,6 +34,27 @@ data class LiveLandscapeChatOverlayMetrics(
     val bottomControlReserveDp: Int
 )
 
+enum class LiveRequestedOrientationMode {
+    Unspecified,
+    SensorLandscape,
+    Portrait,
+}
+
+/**
+ * 直播横竖屏请求必须用稳定设备宽度，不能用当前窗口 `isTablet`。
+ * 手机横屏后宽度会跨过 600dp，被当成平板再放开方向，传感器又把竖握的手机扳回竖屏，形成狂切。
+ */
+fun resolveLiveRequestedOrientationMode(
+    isTabletDevice: Boolean,
+    isFullscreen: Boolean,
+): LiveRequestedOrientationMode {
+    return when {
+        isTabletDevice -> LiveRequestedOrientationMode.Unspecified
+        isFullscreen -> LiveRequestedOrientationMode.SensorLandscape
+        else -> LiveRequestedOrientationMode.Portrait
+    }
+}
+
 fun resolveLiveRoomLayoutMode(
     isLandscape: Boolean,
     isTablet: Boolean,

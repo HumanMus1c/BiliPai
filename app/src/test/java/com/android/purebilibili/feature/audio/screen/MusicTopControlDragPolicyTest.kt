@@ -6,32 +6,67 @@ import org.junit.Test
 class MusicTopControlDragPolicyTest {
     @Test
     fun idleControlKeepsIdentityTransform() {
-        val transform = resolveMusicTopControlTransform(0f, 0f, maxDragPx = 18f)
+        val transform = resolveMusicTopControlTransform(
+            dragX = 0f,
+            dragY = 0f,
+            maxDragPx = 36f,
+            widthPx = 48f,
+            heightPx = 48f,
+            expansionPx = 4f,
+        )
 
-        assertEquals(0f, transform.translationX, 0.001f)
-        assertEquals(0f, transform.translationY, 0.001f)
         assertEquals(1f, transform.scaleX, 0.001f)
         assertEquals(1f, transform.scaleY, 0.001f)
-        assertEquals(0f, transform.rotationZ, 0.001f)
+        assertEquals(0f, transform.translationX, 0.001f)
+        assertEquals(0f, transform.translationY, 0.001f)
     }
 
     @Test
-    fun horizontalDragStretchesAlongGestureAndClampsTravel() {
-        val transform = resolveMusicTopControlTransform(40f, 0f, maxDragPx = 18f)
+    fun horizontalDragStretchesInPlaceAndClampsDeformation() {
+        val transform = resolveMusicTopControlTransform(
+            dragX = 72f,
+            dragY = 0f,
+            maxDragPx = 36f,
+            widthPx = 48f,
+            heightPx = 48f,
+            expansionPx = 4f,
+        )
 
-        assertEquals(18f, transform.translationX, 0.001f)
-        assertEquals(1.18f, transform.scaleX, 0.001f)
-        assertEquals(0.94f, transform.scaleY, 0.001f)
-        assertEquals(5f, transform.rotationZ, 0.001f)
+        assertEquals(1.1458f, transform.scaleX, 0.001f)
+        assertEquals(1.0833f, transform.scaleY, 0.001f)
+        assertEquals(1.799f, transform.translationX, 0.001f)
+        assertEquals(0f, transform.translationY, 0.001f)
     }
 
     @Test
-    fun verticalDragStretchesAlongGestureWithoutRotation() {
-        val transform = resolveMusicTopControlTransform(0f, -18f, maxDragPx = 18f)
+    fun verticalDragStretchesInPlace() {
+        val transform = resolveMusicTopControlTransform(
+            dragX = 0f,
+            dragY = -36f,
+            maxDragPx = 36f,
+            widthPx = 48f,
+            heightPx = 48f,
+            expansionPx = 4f,
+        )
 
-        assertEquals(-18f, transform.translationY, 0.001f)
-        assertEquals(0.94f, transform.scaleX, 0.001f)
-        assertEquals(1.18f, transform.scaleY, 0.001f)
-        assertEquals(0f, transform.rotationZ, 0.001f)
+        assertEquals(1.0833f, transform.scaleX, 0.001f)
+        assertEquals(1.1458f, transform.scaleY, 0.001f)
+        assertEquals(0f, transform.translationX, 0.001f)
+        assertEquals(-1.799f, transform.translationY, 0.001f)
+    }
+
+    @Test
+    fun deformationDoesNotDependOnTheAppsGlassAppearancePreset() {
+        val transform = resolveMusicTopControlTransform(
+            dragX = 18f,
+            dragY = 0f,
+            maxDragPx = 36f,
+            widthPx = 48f,
+            heightPx = 48f,
+            expansionPx = 4f,
+        )
+
+        assertEquals(1.0729f, transform.scaleX, 0.001f)
+        assertEquals(1.0417f, transform.scaleY, 0.001f)
     }
 }

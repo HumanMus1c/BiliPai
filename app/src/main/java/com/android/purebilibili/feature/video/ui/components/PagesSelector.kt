@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.data.model.response.Page
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.DropdownItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +72,33 @@ fun PagesSelector(
     onDismissRequest: (() -> Unit)? = null
 ) {
     if (pages.isEmpty()) return
+
+    if (forceGridMode && onDismissRequest != null) {
+        PlayerMiuixListPopup(
+            title = "分集（${pages.size}）",
+            onDismissRequest = onDismissRequest,
+            placement = PlayerListPopupPlacement.END,
+        ) {
+            pages.forEachIndexed { index, page ->
+                val selected = index == currentPageIndex
+                DropdownImpl(
+                    item = DropdownItem(
+                        text = "P${page.page}",
+                        summary = page.part.takeIf { it.isNotEmpty() },
+                    ),
+                    optionSize = pages.size,
+                    isSelected = selected,
+                    index = index,
+                    enabled = !selected,
+                    onSelectedIndexChange = {
+                        onPageSelect(index)
+                        onDismissRequest()
+                    },
+                )
+            }
+        }
+        return
+    }
 
     val configuration = LocalConfiguration.current
     val isLandscape = remember(configuration.orientation, configuration.screenWidthDp, configuration.screenHeightDp) {
@@ -494,6 +523,7 @@ private fun PageSelectorItem(
             AppText(
                 text = page.part.ifEmpty { "第${page.page}P" },
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                minLines = 2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = titleColor.copy(alpha = 0.96f)

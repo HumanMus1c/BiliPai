@@ -33,6 +33,7 @@ data class SkinCatalogEntry(
     val color: String? = null,
     val colorSecondPage: String? = null,
     val tailColor: String? = null,
+    val effectAssets: SkinCatalogEffectAssets = SkinCatalogEffectAssets(),
     val capabilities: SkinCatalogCapabilities = SkinCatalogCapabilities()
 ) {
     /** 优先用 GitHub raw https 包；回退官方 CDN（已由 normalizeSkinPackageUrl 升级为 https）。 */
@@ -55,6 +56,27 @@ data class SkinCatalogEntry(
 }
 
 @Serializable
+data class SkinCatalogEffectAssets(
+    val loadingAnimationUrl: String? = null,
+    val loadingFrameUrl: String? = null,
+    val likeEffectAnimationUrl: String? = null,
+    val likeEffectPreviewUrl: String? = null,
+    val playerProgressIconUrl: String? = null,
+    val playerProgressDraggingIconUrl: String? = null,
+    val playerProgressStaticIconUrl: String? = null,
+) {
+    val isEmpty: Boolean get() = listOf(
+        loadingAnimationUrl,
+        loadingFrameUrl,
+        likeEffectAnimationUrl,
+        likeEffectPreviewUrl,
+        playerProgressIconUrl,
+        playerProgressDraggingIconUrl,
+        playerProgressStaticIconUrl,
+    ).all { it.isNullOrBlank() }
+}
+
+@Serializable
 data class SkinCatalogCapabilities(
     val bottomBarIcons: Boolean = false,
     val bottomBarTrim: Boolean = false,
@@ -66,6 +88,9 @@ data class SkinCatalogCapabilities(
     val drawerBottomTrim: Boolean = false,
     val publishIcon: Boolean = false,
     val animatedIcons: Boolean = false,
+    val loadingAnimation: Boolean = false,
+    val likeEffect: Boolean = false,
+    val playerProgress: Boolean = false,
 ) {
     /** 该主题可提供的能力位标签（用于浏览页卡片角标）。 */
     fun labels(): List<String> = buildList {
@@ -79,12 +104,16 @@ data class SkinCatalogCapabilities(
         if (drawerBottomTrim) add("侧栏底饰")
         if (publishIcon) add("发布图标")
         if (animatedIcons) add("底栏动效")
+        if (loadingAnimation) add("加载动画")
+        if (likeEffect) add("点赞效果")
+        if (playerProgress) add("进度条")
     }
 
     val isEmpty: Boolean get() =
         !bottomBarIcons && !bottomBarTrim && !profileBackground && !profileVideo &&
             !topAtmosphere && !topTabBackground && !sideBackground &&
-            !drawerBottomTrim && !publishIcon && !animatedIcons
+            !drawerBottomTrim && !publishIcon && !animatedIcons && !loadingAnimation &&
+            !likeEffect && !playerProgress
 }
 
 object SkinCatalogLoader {

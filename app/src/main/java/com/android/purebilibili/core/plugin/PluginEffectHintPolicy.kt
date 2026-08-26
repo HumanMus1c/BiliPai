@@ -16,6 +16,19 @@ enum class PluginEffectHintKind {
     DANMAKU
 }
 
+internal fun shouldShowPluginEffectHint(
+    kind: PluginEffectHintKind,
+    effectMatchHintsEnabled: Boolean
+): Boolean {
+    if (effectMatchHintsEnabled) return true
+    return when (kind) {
+        PluginEffectHintKind.FEED_FILTER,
+        PluginEffectHintKind.DANMAKU -> false
+        PluginEffectHintKind.GENERIC,
+        PluginEffectHintKind.EYE_CARE -> true
+    }
+}
+
 data class PluginEffectHint(
     val pluginId: String,
     val title: String,

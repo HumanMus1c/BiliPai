@@ -11,9 +11,10 @@ class SpaceScreenStructureTest {
     fun `space chrome uses liquid tab rows and piliplus actions`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertFalse(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("AppNativeTabRow("))
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(source.contains("forceLiquidChrome = true"))
+        assertTrue(source.contains("AppThemeAdaptiveTabRow("))
+        assertFalse(source.contains("forceLiquidChrome = true"))
         assertTrue(source.contains("SpaceSecondarySwitchRow("))
         assertTrue(source.contains("resolveSpacePrimaryTab(selectedMainTab)"))
         assertTrue(source.contains("showTabRail = false"))
@@ -34,6 +35,21 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("SpaceHomeVideoCard("))
         assertTrue(source.contains("resolveSpaceContributionVideoItemKey("))
         assertFalse(source.contains("SpaceVideoListItemRow("))
+    }
+
+    @Test
+    fun `space grid video card follows the home cover overlay treatment`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val cardSource = source
+            .substringAfter("private fun SpaceHomeVideoCard(")
+            .substringBefore("private fun SpaceAggregateMediaCard(")
+
+        assertTrue(cardSource.contains("Brush.verticalGradient"))
+        assertTrue(cardSource.contains("resolveVideoCardCoverOverlayTextShadow"))
+        assertTrue(cardSource.contains("HorizontalVideoStatRow("))
+        assertFalse(cardSource.contains("color = Color.Black.copy(alpha = 0.72f)"))
+        assertTrue(source.contains("VideoCardCoverDurationText("))
+        assertFalse(source.contains("color = Color.Black.copy(alpha = 0.72f)"))
     }
 
     @Test
@@ -70,12 +86,14 @@ class SpaceScreenStructureTest {
     fun `contribution video actions live in the top overflow menu`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("text = { AppText(\"播放全部\") }"))
+        assertTrue(source.contains("AppWindowActionMenu("))
+        assertTrue(source.contains("label = \"播放全部\""))
         assertTrue(source.contains("\"切换为双列\""))
         assertTrue(source.contains("\"切换为单列\""))
         assertTrue(source.contains("\"排序：${'$'}{resolveSpaceVideoSortCompactLabel"))
-        assertTrue(source.contains("showVideoSortMenu = true"))
-        assertTrue(source.contains("VideoSortOrder.entries.forEach"))
+        assertTrue(source.contains("children = VideoSortOrder.entries.map"))
+        assertTrue(source.contains("selected = currentSuccessState?.sortOrder == order"))
+        assertFalse(source.contains("showVideoSortMenu"))
         assertFalse(source.contains("SpaceContributionToolbar("))
         assertFalse(source.contains("SpaceContributionVideoToolbarActions("))
         assertFalse(source.contains("SpaceContributionTabRow("))
@@ -93,14 +111,16 @@ class SpaceScreenStructureTest {
         assertTrue(secondaryRow.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(secondaryRow.contains("shouldScrollSpaceSecondarySwitch("))
         assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchAdaptiveItemWidthDp("))
-        assertTrue(secondaryRow.contains("Modifier.horizontalScroll(scrollState)"))
+        assertTrue(secondaryRow.contains(".clip(CircleShape)"))
+        assertTrue(secondaryRow.contains(".horizontalScroll(scrollState)"))
         assertTrue(secondaryRow.contains("dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail"))
         assertTrue(secondaryRow.contains("longPressDragSelectionEnabled = useScrollableRail"))
         assertTrue(secondaryRow.contains("scrollState.dispatchRawDelta("))
         assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchDragScrollDeltaPx("))
         assertTrue(secondaryRow.contains("onIndicatorPositionChanged = { position ->"))
         assertFalse(secondaryRow.contains("AppFilterChip("))
-        assertFalse(secondaryRow.contains("AppNativeTabRow("))
+        assertTrue(secondaryRow.contains("AppNativeTabRow("))
+        assertTrue(secondaryRow.contains("homeSettings.androidNativeLiquidGlassEnabled"))
         assertFalse(source.contains("rememberTextMeasurer()"))
     }
 
@@ -139,10 +159,10 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("copyOnLongPress(userInfo.name, \"UP主名称\")"))
         assertTrue(source.contains("copyOnLongPress(userInfo.sign, \"UP主简介\")"))
         assertTrue(source.contains("copyOnLongPress(userInfo.mid.toString(), \"UID\")"))
-        assertTrue(source.contains("Text(\"复制空间链接\")"))
-        assertTrue(source.contains("Text(\"复制 UID\")"))
-        assertTrue(source.contains("Text(\"分享\")"))
-        assertTrue(source.contains("Text(\"举报\")"))
+        assertTrue(source.contains("label = \"复制空间链接\""))
+        assertTrue(source.contains("label = \"复制 UID\""))
+        assertTrue(source.contains("label = \"分享\""))
+        assertTrue(source.contains("label = \"举报\""))
         assertTrue(source.contains("https://space.bilibili.com/${'$'}mid"))
     }
 
@@ -176,6 +196,26 @@ class SpaceScreenStructureTest {
         )
         assertFalse(source.contains("resolveSpaceHeaderActionTopPaddingDp("))
         assertFalse(source.contains("topChromeInset = scaffoldPadding.calculateTopPadding()"))
+    }
+
+    @Test
+    fun `space back button and up name stay in the pinned top bar`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val header = source
+            .substringAfter("private fun SpaceHeader(")
+            .substringBefore("private fun SpaceMainTabRow(")
+
+        assertTrue(source.contains("resolveSpacePinnedTopChromeScrim("))
+        assertFalse(source.contains("nestedScroll(scrollBehavior.nestedScrollConnection)"))
+        assertFalse(source.contains("scrollBehavior = scrollBehavior"))
+        assertFalse(
+            header.contains(".alpha(contentAlpha)"),
+            "header name must not fade/slide with the collapsing banner"
+        )
+        assertFalse(
+            header.contains("IntOffset(0, -translateYPx)"),
+            "header must not translate the name row under the pinned chrome"
+        )
     }
 
     @Test

@@ -49,7 +49,7 @@ class DynamicScreenStructureTest {
         val topBarSource = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         ).readText()
-        assertTrue(topBarSource.contains("forceLiquidChrome = liquidGlassEnabled"))
+        assertTrue(!topBarSource.contains("forceLiquidChrome"))
         assertTrue(topBarSource.contains("liquidGlassEffectsEnabled = liquidGlassEnabled"))
         assertTrue(topBarSource.contains("if (liquidGlassEnabled)"))
         assertTrue(topBarSource.contains("Modifier.background(dockColor, dockShape)"))

@@ -1,7 +1,9 @@
 package com.android.purebilibili.feature.home
 
 internal const val HOME_HERO_CAROUSEL_MAX_ITEMS = 8
+/** Extra peek inside the feed column; 0 keeps the banner flush with video cards. */
 internal const val HOME_HERO_CAROUSEL_SIDE_PEEK_DP = 0f
+internal const val HOME_HERO_CAROUSEL_PAGE_SPACING_DP = 0f
 internal const val HOME_HERO_CAROUSEL_PHONE_ASPECT_RATIO = 16f / 9f
 internal const val HOME_HERO_CAROUSEL_TABLET_ASPECT_RATIO = 2f
 internal const val HOME_HERO_CAROUSEL_WIDE_ASPECT_RATIO = 21f / 9f
@@ -9,7 +11,10 @@ internal const val HOME_HERO_CAROUSEL_TABLET_BREAKPOINT_DP = 600f
 internal const val HOME_HERO_CAROUSEL_WIDE_BREAKPOINT_DP = 840f
 internal const val HOME_HERO_CAROUSEL_TABLET_MAX_WIDTH_DP = 760f
 internal const val HOME_HERO_CAROUSEL_WIDE_MAX_WIDTH_DP = 980f
-private const val HOME_HERO_CAROUSEL_TOP_GAP_REDUCTION_DP = 12f
+// Keep the hero below the top category dock. The dock's selection indicator can
+// extend beyond its measured bounds, so reducing this reserved gap causes the
+// banner to be covered at the top on the recommendation page.
+private const val HOME_HERO_CAROUSEL_TOP_GAP_REDUCTION_DP = 0f
 
 internal data class HomeHeroCarouselCardTransform(
     val rotationY: Float,
@@ -74,6 +79,10 @@ internal fun shouldShowHomeHeroCarousel(
 ): Boolean {
     return enabled && category == HomeCategory.RECOMMEND && itemCount > 0
 }
+
+internal fun shouldYieldHomeTopPagerToHeroCarousel(
+    heroCarouselPointerActive: Boolean
+): Boolean = heroCarouselPointerActive
 
 internal fun resolveHomeHeroCarouselAspectRatio(containerWidthDp: Float): Float {
     return when {

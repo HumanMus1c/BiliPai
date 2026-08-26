@@ -55,9 +55,9 @@ import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppCardDefaults
 import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppCardVariant
-import com.android.purebilibili.core.ui.components.AppDropdownMenu
-import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppWindowAction
+import com.android.purebilibili.core.ui.components.AppWindowActionMenu
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSnackbar
@@ -91,7 +91,6 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var pendingWithdrawMessage by remember { mutableStateOf<PrivateMessageItem?>(null) }
-    var showSessionMenu by remember { mutableStateOf(false) }
     var showInterceptConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -119,38 +118,21 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    Box {
-                        AppIconButton(onClick = { showSessionMenu = true }) {
-                            AppIcon(Icons.Default.MoreVert, contentDescription = "会话设置")
-                        }
-                        ChatSessionControlMenu(
-                            expanded = showSessionMenu,
-                            sessionType = sessionType,
-                            controlInfo = uiState.sessionControlInfo,
-                            isUpdating = uiState.isSessionControlUpdating,
-                            onDismiss = { showSessionMenu = false },
-                            onToggleDnd = {
-                                showSessionMenu = false
-                                viewModel.toggleDnd()
-                            },
-                            onTogglePush = {
-                                showSessionMenu = false
-                                viewModel.togglePushMuted()
-                            },
-                            onToggleIntercept = {
-                                showSessionMenu = false
+                    ChatSessionControlMenu(
+                        sessionType = sessionType,
+                        controlInfo = uiState.sessionControlInfo,
+                        isUpdating = uiState.isSessionControlUpdating,
+                        onToggleDnd = viewModel::toggleDnd,
+                        onTogglePush = viewModel::togglePushMuted,
+                        onToggleIntercept = {
                                 if (uiState.sessionControlInfo.isIntercept == true) {
                                     viewModel.toggleIntercept()
                                 } else {
                                     showInterceptConfirm = true
                                 }
-                            },
-                            onRefresh = {
-                                showSessionMenu = false
-                                viewModel.loadSessionControlInfo()
-                            }
-                        )
-                    }
+                        },
+                        onRefresh = viewModel::loadSessionControlInfo,
+                    )
                 }
             )
         },
@@ -338,68 +320,60 @@ fun ChatScreen(
 
 @Composable
 private fun ChatSessionControlMenu(
-    expanded: Boolean,
     sessionType: Int,
     controlInfo: MessageSessionControlInfo,
     isUpdating: Boolean,
-    onDismiss: () -> Unit,
     onToggleDnd: () -> Unit,
     onTogglePush: () -> Unit,
     onToggleIntercept: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    AppDropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss
+    val limitLabel = when {
+        controlInfo.isLimit == true && controlInfo.reportLimit == true -> "会话受限，举报也受限"
+        controlInfo.isLimit == true -> "会话受限"
+        controlInfo.reportLimit == true -> "举报受限"
+        else -> null
+    }
+    AppWindowActionMenu(
+        groups = listOf(
+            buildList {
+                add(
+                    AppWindowAction(
+                        label = if (controlInfo.isDnd == true) "关闭免打扰" else "开启免打扰",
+                        enabled = !isUpdating,
+                        onClick = onToggleDnd,
+                    )
+                )
+                if (sessionType == 1 && controlInfo.showPushSetting) {
+                    add(
+                        AppWindowAction(
+                            label = if (controlInfo.pushMuted == true) "接收推送" else "关闭推送",
+                            enabled = !isUpdating,
+                            onClick = onTogglePush,
+                        )
+                    )
+                }
+                if (sessionType == 1) {
+                    add(
+                        AppWindowAction(
+                            label = if (controlInfo.isIntercept == true) "移出拦截" else "移入拦截",
+                            enabled = !isUpdating,
+                            onClick = onToggleIntercept,
+                        )
+                    )
+                }
+                limitLabel?.let { add(AppWindowAction(label = it, enabled = false)) }
+                add(
+                    AppWindowAction(
+                        label = "刷新状态",
+                        enabled = !isUpdating,
+                        onClick = onRefresh,
+                    )
+                )
+            }
+        ),
     ) {
-        AppDropdownMenuItem(
-            text = {
-                AppText(if (controlInfo.isDnd == true) "关闭免打扰" else "开启免打扰")
-            },
-            enabled = !isUpdating,
-            onClick = onToggleDnd
-        )
-
-        if (sessionType == 1 && controlInfo.showPushSetting) {
-            AppDropdownMenuItem(
-                text = {
-                    AppText(if (controlInfo.pushMuted == true) "接收推送" else "关闭推送")
-                },
-                enabled = !isUpdating,
-                onClick = onTogglePush
-            )
-        }
-
-        if (sessionType == 1) {
-            AppDropdownMenuItem(
-                text = {
-                    AppText(if (controlInfo.isIntercept == true) "移出拦截" else "移入拦截")
-                },
-                enabled = !isUpdating,
-                onClick = onToggleIntercept
-            )
-        }
-
-        if (controlInfo.isLimit == true || controlInfo.reportLimit == true) {
-            AppDropdownMenuItem(
-                text = {
-                    val text = when {
-                        controlInfo.isLimit == true && controlInfo.reportLimit == true -> "会话受限，举报也受限"
-                        controlInfo.isLimit == true -> "会话受限"
-                        else -> "举报受限"
-                    }
-                    AppText(text)
-                },
-                enabled = false,
-                onClick = {}
-            )
-        }
-
-        AppDropdownMenuItem(
-            text = { AppText("刷新状态") },
-            enabled = !isUpdating,
-            onClick = onRefresh
-        )
+        AppIcon(Icons.Default.MoreVert, contentDescription = "会话设置")
     }
 }
 
@@ -705,20 +679,12 @@ fun VideoLinkPreviewCard(
                     )
                 }
                 
-                // 时长
                 if (preview.duration > 0) {
-                    AppText(
+                    com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText(
                         text = formatDuration(preview.duration),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(
-                                Color.Black.copy(alpha = 0.7f),
-                                AppShapes.container(ContainerLevel.Tag)
-                            )
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        color = Color.White,
-                        fontSize = 10.sp
+                            .padding(4.dp),
                     )
                 }
             }

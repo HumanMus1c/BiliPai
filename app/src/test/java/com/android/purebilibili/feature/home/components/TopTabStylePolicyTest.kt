@@ -181,7 +181,7 @@ class TopTabStylePolicyTest {
 
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, iconAndText.presentation)
         assertEquals(56.dp, iconAndText.tabRowHeightDocked)
-        assertEquals(60.dp, iconAndText.tabRowHeightFloating)
+        assertEquals(56.dp, iconAndText.tabRowHeightFloating)
         assertEquals(30.dp, iconAndText.md3VisualSpec.selectedCapsuleHeight)
         assertEquals(44.dp, iconAndText.actionButtonSizeDocked)
     }
@@ -403,6 +403,103 @@ class TopTabStylePolicyTest {
     }
 
     @Test
+    fun `capsule top tabs reuse the bottom-bar floating dock shell`() {
+        assertTrue(
+            shouldHomeTopTabUseFloatingBottomBarDock(
+                skinPlainStyle = false,
+                hasSkinStickerIcons = false,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
+                liquidGlassEnabled = true,
+                selectionIndicatorStyle = HomeSelectionIndicatorStyle.CAPSULE,
+            )
+        )
+        assertFalse(
+            shouldHomeTopTabChromeDrawOuterShell(
+                drawOuterChrome = true,
+                innerOwnsFloatingDock = true,
+            )
+        )
+        assertEquals(56.dp, FloatingBottomBarDefaultShellHeight)
+        assertEquals(52.dp, FloatingBottomBarIndicatorHeight)
+        assertEquals(
+            resolveBiliPaiFloatingBottomBarWidth(
+                containerWidth = 360.dp,
+                itemCount = 4,
+                minEdgePadding = 0.dp,
+                labelMode = 0,
+                cornerRadius = FloatingBottomBarDefaultShellHeight / 2,
+            ),
+            resolveHomeTopTabFloatingDockWidth(
+                containerWidth = 360.dp,
+                itemCount = 4,
+                labelMode = 0,
+            ),
+        )
+        val topBar = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+        val chrome = sourceText(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/HomeTopTabChrome.kt"
+        )
+        val dock = sourceText(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
+        assertTrue(topBar.contains("HomeTopTabFloatingDock("))
+        assertTrue(topBar.contains("resolveHomeTopTabFloatingDockWidth("))
+        assertTrue(topBar.contains("itemWidth = null"))
+        assertTrue(topBar.contains("resolveFloatingDockLabelFontSize("))
+        assertTrue(topBar.contains("showIcon = showIcon"))
+        assertTrue(topBar.contains("showText = showText"))
+        assertTrue(chrome.contains("resolveHomeTopTabFloatingDockWidth("))
+        assertTrue(dock.contains("itemIndex = index"))
+    }
+
+    @Test
+    fun `liquid top tab keeps selected icon and text on the export layer even at rest`() {
+        assertTrue(resolveTopTabUsesGlassExportForSelectedGlyphs(liquidGlassEnabled = true))
+        assertFalse(resolveTopTabUsesGlassExportForSelectedGlyphs(liquidGlassEnabled = false))
+        val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+        assertTrue(source.contains("resolveTopTabUsesGlassExportForSelectedGlyphs("))
+        assertFalse(
+            source.contains(
+                "resolveSharedLiquidIndicatorUseGlassColorPath(\n            liquidGlassEnabled = shouldUseLiquidGlassIndicator,"
+            )
+        )
+    }
+
+    @Test
+    fun `top tab viewport does not yank an already visible last item`() {
+        assertFalse(
+            shouldAnimateTopTabViewportToSelection(
+                selectedIndex = 3,
+                firstVisibleIndex = 0,
+                firstVisibleOffset = 0,
+                lastVisibleIndex = 3,
+                lastVisibleEndOffset = 400,
+                viewportEndOffset = 400,
+            )
+        )
+        assertTrue(
+            shouldAnimateTopTabViewportToSelection(
+                selectedIndex = 3,
+                firstVisibleIndex = 0,
+                firstVisibleOffset = 0,
+                lastVisibleIndex = 2,
+                lastVisibleEndOffset = 300,
+                viewportEndOffset = 400,
+            )
+        )
+        assertTrue(
+            shouldAnimateTopTabViewportToSelection(
+                selectedIndex = 3,
+                firstVisibleIndex = 1,
+                firstVisibleOffset = 0,
+                lastVisibleIndex = 3,
+                lastVisibleEndOffset = 420,
+                viewportEndOffset = 400,
+            )
+        )
+    }
+
+    @Test
     fun `top tab viewport follows selection without indicator drag state`() {
         val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
 
@@ -444,14 +541,14 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `all three top tab presentations keep compact chrome and content row heights aligned`() {
+    fun `all three top tab presentations use bottom dock shell height`() {
         listOf(
             topStyle(UiPreset.IOS, AndroidNativeVariant.MATERIAL3),
             topStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3),
             topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX)
         ).forEach { style ->
-            assertEquals(36.dp, style.tabRowHeightDocked)
-            assertEquals(40.dp, style.tabRowHeightFloating)
+            assertEquals(resolveBiliPaiBottomBarDockHeight(searchExpanded = false), style.tabRowHeightDocked)
+            assertEquals(resolveBiliPaiBottomBarDockHeight(searchExpanded = false), style.tabRowHeightFloating)
         }
 
         assertEquals(36.dp, resolveIosTopTabRowHeight(isFloatingStyle = false))

@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.clickable
@@ -53,7 +54,10 @@ import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.VideoTitleWithDesc
 import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
 import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
+import com.android.purebilibili.core.store.DanmakuSettings
+import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
@@ -90,6 +94,81 @@ private enum class TabletSecondaryTab(val label: String) {
     RELATED("相关推荐"),
     COLLECTION("合集"),
     OWNER_UPLOADS("UP 投稿")
+}
+
+internal data class TabletDanmakuChromeState(
+    val enabled: Boolean,
+    val onToggle: () -> Unit,
+)
+
+@Composable
+internal fun rememberTabletDanmakuChromeState(bvid: String): TabletDanmakuChromeState {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val danmakuManager = rememberDanmakuManager(bvid)
+    val danmakuSettings by SettingsManager
+        .getDanmakuSettings(context, DanmakuSettingsScope.PORTRAIT)
+        .collectAsStateWithLifecycle(initialValue = DanmakuSettings())
+    val latestEnabled = rememberUpdatedState(danmakuSettings.enabled)
+    val onToggle = remember(danmakuManager, context, scope) {
+        {
+            val newValue = !latestEnabled.value
+            danmakuManager.isEnabled = newValue
+            if (!newValue) {
+                danmakuManager.clear()
+            }
+            scope.launch {
+                SettingsManager.setDanmakuEnabled(
+                    context,
+                    newValue,
+                    DanmakuSettingsScope.PORTRAIT,
+                )
+            }
+            Unit
+        }
+    }
+    return TabletDanmakuChromeState(
+        enabled = danmakuSettings.enabled,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
+internal fun TabletSecondaryDanmakuActions(
+    danmakuEnabled: Boolean,
+    onDanmakuSendClick: () -> Unit,
+    onDanmakuToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val configuration = LocalConfiguration.current
+    val layoutPolicy = remember(configuration.screenWidthDp) {
+        resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = configuration.screenWidthDp)
+    }
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppText(
+            text = layoutPolicy.sendLabel,
+            fontSize = layoutPolicy.sendTextSizeSp.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            tapToCopyEnabled = false,
+            modifier = Modifier
+                .heightIn(min = layoutPolicy.sendMinHeightDp.dp)
+                .wrapContentHeight(align = Alignment.CenterVertically)
+                .clickable(onClick = onDanmakuSendClick),
+        )
+        NativeDanmakuToggleButton(
+            enabled = danmakuEnabled,
+            onToggle = onDanmakuToggle,
+            activeTint = MaterialTheme.colorScheme.secondary,
+            inactiveTint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier
+                .padding(end = layoutPolicy.toggleTrailingPaddingDp.dp)
+                .size(layoutPolicy.toggleButtonSizeDp.dp),
+            iconSize = layoutPolicy.toggleIconSizeDp.dp,
+        )
+    }
 }
 
 @Composable
@@ -198,6 +277,7 @@ internal fun TabletVideoLayout(
     )
     val useThreePaneLayout = LocalWindowSizeClass.current.shouldUseThreePaneLayout &&
         !layoutPolicy.useTabletopLayout
+    val danmakuChrome = rememberTabletDanmakuChromeState(bvid)
     
     // 🖥️ [修复] 使用 LocalContext 获取 Activity，而非 playerState.context
     val context = LocalContext.current
@@ -317,7 +397,8 @@ internal fun TabletVideoLayout(
                             // 🔁 [新增] 播放模式
                             currentPlayMode = currentPlayMode,
                             onPlayModeClick = onPlayModeClick,
-                            onSubtitleTrackSelected = playbackActions.selectSubtitleTrack
+                            onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
+                            onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
                         )
                     }
                 }
@@ -373,6 +454,9 @@ internal fun TabletVideoLayout(
                     onOpenBilibiliLink = onOpenBilibiliLink,
                     requestedTabName = requestedSecondaryTabName,
                     onRequestedTabConsumed = { requestedSecondaryTabName = null },
+                    danmakuEnabled = danmakuChrome.enabled,
+                    onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
+                    onDanmakuToggle = danmakuChrome.onToggle,
                     fixedTab = if (useThreePaneLayout) TabletSecondaryTab.COMMENTS else null,
                     introContent = if (layoutPolicy.useTabletopLayout) {
                         {
@@ -500,6 +584,9 @@ private fun TabletSecondaryContent(
     onOpenBilibiliLink: ((String) -> Unit)?,
     requestedTabName: String?,
     onRequestedTabConsumed: () -> Unit,
+    danmakuEnabled: Boolean = true,
+    onDanmakuSendClick: () -> Unit = {},
+    onDanmakuToggle: () -> Unit = {},
     fixedTab: TabletSecondaryTab? = null,
     introContent: (@Composable () -> Unit)? = null,
 ) {
@@ -518,6 +605,8 @@ private fun TabletSecondaryContent(
         }
     }
     val relatedTabIndex = tabs.indexOf(TabletSecondaryTab.RELATED).coerceAtLeast(0)
+    val showDanmakuActions = shouldShowTabletSecondaryDanmakuActions() &&
+        (fixedTab == null || fixedTab == TabletSecondaryTab.COMMENTS)
     var selectedTab by rememberSaveable(success.info.bvid, fixedTab) {
         mutableIntStateOf(
             if (fixedTab != null) 0 else resolveTabletSecondaryDefaultTab()
@@ -663,27 +752,53 @@ private fun TabletSecondaryContent(
                 }
             }
 
-            TabletSecondaryLiquidTabRow(
-                labels = tabs.map { it.label },
-                selectedIndex = pagerState.currentPage,
-                onSelected = { index ->
-                    scope.launch { pagerState.animateScrollToPage(index) }
-                },
-                indicatorPositionProvider = {
-                    pagerState.currentPage + pagerState.currentPageOffsetFraction
-                },
-                isScrollInProgressProvider = { pagerState.isScrollInProgress },
+            Row(
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 6.dp),
-            )
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TabletSecondaryLiquidTabRow(
+                    labels = tabs.map { it.label },
+                    selectedIndex = pagerState.currentPage,
+                    onSelected = { index ->
+                        scope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                    indicatorPositionProvider = {
+                        pagerState.currentPage + pagerState.currentPageOffsetFraction
+                    },
+                    isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                )
+                if (showDanmakuActions) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    TabletSecondaryDanmakuActions(
+                        danmakuEnabled = danmakuEnabled,
+                        onDanmakuSendClick = onDanmakuSendClick,
+                        onDanmakuToggle = onDanmakuToggle,
+                    )
+                }
+            }
         } else {
-            AppText(
-                text = fixedTab.label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppText(
+                    text = fixedTab.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (showDanmakuActions) {
+                    TabletSecondaryDanmakuActions(
+                        danmakuEnabled = danmakuEnabled,
+                        onDanmakuSendClick = onDanmakuSendClick,
+                        onDanmakuToggle = onDanmakuToggle,
+                    )
+                }
+            }
         }
         
         HorizontalPager(
@@ -1370,20 +1485,12 @@ private fun ScrollableVideoInfoSection(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                Box(
+                                com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText(
+                                    text = com.android.purebilibili.core.util.FormatUtils.formatDuration(video.duration),
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
-                                        .padding(4.dp)
-                                        .background(Color.Black.copy(alpha = 0.6f), AppShapes.container(ContainerLevel.Tag))
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                ) {
-                                    AppText(
-                                        text = com.android.purebilibili.core.util.FormatUtils.formatDuration(video.duration),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                        fontSize = 10.sp
-                                    )
-                                }
+                                        .padding(4.dp),
+                                )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             AppText(

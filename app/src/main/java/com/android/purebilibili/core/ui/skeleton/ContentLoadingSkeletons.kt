@@ -204,6 +204,8 @@ fun MediaListRowSkeleton(
     modifier: Modifier = Modifier,
     coverWidth: Dp = 128.dp,
     coverAspectRatio: Float = 16f / 10f,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    contentGap: Dp = 12.dp,
     blockColor: Color? = null,
 ) {
     val pulse = if (blockColor == null) rememberContentSkeletonPulse() else 0f
@@ -211,7 +213,7 @@ fun MediaListRowSkeleton(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ContentSkeletonBlock(
@@ -221,7 +223,7 @@ fun MediaListRowSkeleton(
                 .width(coverWidth)
                 .aspectRatio(coverAspectRatio),
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(contentGap))
         Column(modifier = Modifier.weight(1f)) {
             ContentSkeletonBlock(
                 color = color,
@@ -383,6 +385,10 @@ fun ContentMediaListSkeleton(
     itemCount: Int = 8,
     contentPadding: PaddingValues = PaddingValues(vertical = 8.dp),
     useUserRow: Boolean = false,
+    mediaRowCoverWidth: Dp = 128.dp,
+    mediaRowCoverAspectRatio: Float = 16f / 10f,
+    mediaRowContentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    mediaRowContentGap: Dp = 12.dp,
 ) {
     val pulse = rememberContentSkeletonPulse()
     val blockColor = rememberContentSkeletonBlockColor(pulse)
@@ -400,7 +406,13 @@ fun ContentMediaListSkeleton(
             if (useUserRow) {
                 UserListRowSkeleton(blockColor = blockColor)
             } else {
-                MediaListRowSkeleton(blockColor = blockColor)
+                MediaListRowSkeleton(
+                    coverWidth = mediaRowCoverWidth,
+                    coverAspectRatio = mediaRowCoverAspectRatio,
+                    contentPadding = mediaRowContentPadding,
+                    contentGap = mediaRowContentGap,
+                    blockColor = blockColor,
+                )
             }
         }
     }

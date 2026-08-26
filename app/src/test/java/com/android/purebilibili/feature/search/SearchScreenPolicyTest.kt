@@ -98,7 +98,7 @@ class SearchScreenPolicyTest {
     @Test
     fun `searchDefaultPlaceholder covers all visible tabs`() {
         assertEquals(
-            "搜索视频、番剧、影视、直播、UP主、专栏...",
+            "搜索视频、番剧、影视、直播、UP主、专栏等...",
             resolveSearchDefaultPlaceholder()
         )
     }
@@ -117,23 +117,21 @@ class SearchScreenPolicyTest {
                 SearchType.BANGUMI,
                 SearchType.MEDIA_FT,
                 SearchType.LIVE,
+                SearchType.LIVE_USER,
                 SearchType.UP,
-                SearchType.ARTICLE
+                SearchType.ARTICLE,
+                SearchType.TOPIC,
+                SearchType.PHOTO
             ),
             resolveSearchFilterTabs()
         )
     }
 
     @Test
-    fun searchFilterTabs_hideExtraTypesWithoutRemovingModelSupport() {
+    fun searchFilterTabs_exposeEverySupportedApiType() {
         val visibleTabs = resolveSearchFilterTabs()
 
-        assertFalse(SearchType.LIVE_USER in visibleTabs)
-        assertFalse(SearchType.TOPIC in visibleTabs)
-        assertFalse(SearchType.PHOTO in visibleTabs)
-        assertTrue(SearchType.entries.contains(SearchType.LIVE_USER))
-        assertTrue(SearchType.entries.contains(SearchType.TOPIC))
-        assertTrue(SearchType.entries.contains(SearchType.PHOTO))
+        assertEquals(SearchType.entries.toSet(), visibleTabs.toSet())
     }
 
     @Test
@@ -168,9 +166,22 @@ class SearchScreenPolicyTest {
             )
         )
         assertEquals(
-            emptyList(),
+            listOf(
+                SearchFilterControl.PHOTO_ORDER,
+                SearchFilterControl.PHOTO_CATEGORY
+            ),
             resolveSearchFilterControls(
                 currentType = SearchType.PHOTO,
+                currentUpOrder = SearchUpOrder.DEFAULT
+            )
+        )
+        assertEquals(
+            listOf(
+                SearchFilterControl.ARTICLE_ORDER,
+                SearchFilterControl.ARTICLE_CATEGORY
+            ),
+            resolveSearchFilterControls(
+                currentType = SearchType.ARTICLE,
                 currentUpOrder = SearchUpOrder.DEFAULT
             )
         )
@@ -383,9 +394,15 @@ class SearchScreenPolicyTest {
         // 可横向滚动；不再用静态 surfaceContainerHigh 灰胶囊）。
         assertTrue(searchSource.contains("private fun SearchResultTypeTabRow("))
         assertTrue(searchSource.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(
+            searchSource.contains("allowNativeLabelOverflow = true"),
+            "关闭液态玻璃后 MD3 下划线必须完整显示 直播间 / UP主 等标签",
+        )
         assertTrue(searchSource.contains("miuixBackdrop = searchChromeBackdrop"))
         assertTrue(searchSource.contains(".layerBackdrop(searchChromeBackdrop)"))
         assertTrue(searchSource.contains("externalPagerMotionEffectsEnabled = true"))
+        assertTrue(searchSource.contains("indicatorPositionProvider = {"))
+        assertTrue(searchSource.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
         assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))
         assertFalse(searchSource.contains("tabIndicatorOffset("))
         // Top bar uses native BasicTextField + TextFieldValue (not AppSearchField wrapper).
@@ -397,6 +414,10 @@ class SearchScreenPolicyTest {
         assertTrue(filterSheetSource.contains("AppFilterChip("))
         assertTrue(filterSheetSource.contains("AppModalBottomSheet("))
         assertTrue(filterSheetSource.contains("OverlayBottomSheet("))
+        assertTrue(
+            filterSheetSource.contains("allowNativeLabelOverflow = true"),
+            "视频筛选下划线必须完整显示 默认排序 / 播放多 等标签",
+        )
         // History chips use the neutral AppInputChip (visuals follow the theme layer).
         assertTrue(searchSource.contains("AppInputChip("))
         assertFalse(searchSource.contains("androidx.compose.material3.InputChip("))

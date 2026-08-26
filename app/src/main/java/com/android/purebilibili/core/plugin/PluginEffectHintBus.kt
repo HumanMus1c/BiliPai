@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 object PluginEffectHintBus {
 
+    @Volatile
+    private var effectMatchHintsEnabled = false
+
     private val _current = MutableStateFlow<PluginEffectHint?>(null)
     val current: StateFlow<PluginEffectHint?> = _current.asStateFlow()
 
@@ -23,11 +26,22 @@ object PluginEffectHintBus {
         cooldownMs: Long = PLUGIN_EFFECT_HINT_VISIBLE_MS
     ) {
         if (hint == null) return
+        if (!shouldShowPluginEffectHint(hint.kind, effectMatchHintsEnabled)) return
         synchronized(lastAcceptedAtMs) {
             val lastAccepted = lastAcceptedAtMs[hint.pluginId]
             if (!shouldAcceptPluginEffectHint(lastAccepted, nowMs, cooldownMs)) return
             lastAcceptedAtMs[hint.pluginId] = nowMs
             _current.value = hint.copy(issuedAtMs = nowMs)
+        }
+    }
+
+    fun setEffectMatchHintsEnabled(enabled: Boolean) {
+        effectMatchHintsEnabled = enabled
+        val currentKind = _current.value?.kind
+        if (!enabled && currentKind != null &&
+            !shouldShowPluginEffectHint(currentKind, effectMatchHintsEnabled = false)
+        ) {
+            _current.value = null
         }
     }
 
@@ -43,5 +57,6 @@ object PluginEffectHintBus {
             lastAcceptedAtMs.clear()
         }
         _current.value = null
+        effectMatchHintsEnabled = false
     }
 }

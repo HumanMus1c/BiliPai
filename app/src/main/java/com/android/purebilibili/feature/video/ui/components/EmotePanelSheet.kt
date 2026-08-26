@@ -1,10 +1,10 @@
 // 文件路径: feature/video/ui/components/EmotePanelSheet.kt
 package com.android.purebilibili.feature.video.ui.components
-import com.android.purebilibili.core.ui.components.AppScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
-import com.android.purebilibili.core.ui.components.AppTab
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -98,29 +97,16 @@ fun EmotePanelSheet(
                 // 表情包 Tab 栏
                 var selectedPackageIndex by remember { mutableIntStateOf(0) }
                 
-                AppScrollableTabRow(
-                    selectedTabIndex = selectedPackageIndex,
+                AppThemeAdaptiveTabRow(
+                    options = packages.mapIndexed { index, pkg ->
+                        AppSegmentOption(index, pkg.text)
+                    },
+                    selectedValue = selectedPackageIndex,
+                    onSelectionChange = { selectedPackageIndex = it },
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    edgePadding = 8.dp,
-                    divider = {}
-                ) {
-                    packages.forEachIndexed { index, pkg ->
-                        AppTab(
-                            selected = selectedPackageIndex == index,
-                            onClick = { selectedPackageIndex = index },
-                            text = {
-                                AppText(
-                                    text = pkg.text,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        )
-                    }
-                }
+                    scrollable = true,
+                    labelFontSize = 13.sp,
+                )
                 
                 AppHorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),

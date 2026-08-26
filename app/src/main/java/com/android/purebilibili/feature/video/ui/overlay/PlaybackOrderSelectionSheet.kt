@@ -40,6 +40,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.video.ui.components.PlayerListPopupPlacement
+import com.android.purebilibili.feature.video.ui.components.PlayerMiuixListPopup
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.DropdownItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +53,32 @@ internal fun PlaybackOrderSelectionSheet(
     onDismiss: () -> Unit,
     isFullscreen: Boolean = false,
 ) {
+    val nativeOptions = listOf(
+        PlaybackCompletionBehavior.STOP_AFTER_CURRENT,
+        PlaybackCompletionBehavior.PLAY_IN_ORDER,
+        PlaybackCompletionBehavior.REPEAT_ONE,
+        PlaybackCompletionBehavior.LOOP_PLAYLIST,
+        PlaybackCompletionBehavior.CONTINUE_CURRENT_LOGIC,
+    )
+    PlayerMiuixListPopup(
+        title = "选择播放顺序",
+        onDismissRequest = onDismiss,
+        placement = if (isFullscreen) PlayerListPopupPlacement.END else PlayerListPopupPlacement.CENTER,
+    ) {
+        nativeOptions.forEachIndexed { index, behavior ->
+            val selected = currentBehavior == behavior
+            DropdownImpl(
+                item = DropdownItem(text = behavior.label),
+                optionSize = nativeOptions.size,
+                isSelected = selected,
+                index = index,
+                enabled = !selected,
+                onSelectedIndexChange = { onSelect(behavior) },
+            )
+        }
+    }
+    return
+
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val layoutSpec = remember(isLandscape, isFullscreen) {

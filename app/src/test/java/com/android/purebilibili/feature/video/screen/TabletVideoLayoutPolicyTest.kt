@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -9,6 +10,19 @@ class TabletVideoLayoutPolicyTest {
     @Test
     fun secondaryPaneAlwaysDefaultsToComments() {
         assertEquals(0, resolveTabletSecondaryDefaultTab())
+        assertTrue(shouldShowTabletSecondaryDanmakuActions())
+    }
+
+    @Test
+    fun secondaryPaneHostsDanmakuSendAndToggle() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/TabletVideoLayout.kt"
+        ).readText()
+
+        assertTrue(source.contains("TabletSecondaryDanmakuActions("))
+        assertTrue(source.contains("onDanmakuInputClick = playbackActions.showDanmakuSendDialog"))
+        assertTrue(source.contains("fun TabletSecondaryDanmakuActions("))
+        assertTrue(source.contains("NativeDanmakuToggleButton("))
     }
 
     @Test

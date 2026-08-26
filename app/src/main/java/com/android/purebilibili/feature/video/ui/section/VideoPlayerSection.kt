@@ -654,6 +654,7 @@ fun VideoPlayerSection(
     onQualityChange: (Int) -> Unit,
     onBack: () -> Unit,
     onHomeClick: (() -> Unit)? = null,
+    endDrawerRequestKey: Int = 0,
     onLandscapeCommentClick: () -> Unit = {},
     landscapeCommentPanelVisible: Boolean = false,
     landscapeCommentPanelOnLeft: Boolean = true,
@@ -1614,6 +1615,12 @@ fun VideoPlayerSection(
     val overlayDrawerHazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
     var showEndDrawer by remember { mutableStateOf(false) }
     var endDrawerInitialTab by remember { mutableIntStateOf(0) }
+    LaunchedEffect(endDrawerRequestKey) {
+        if (endDrawerRequestKey > 0) {
+            endDrawerInitialTab = 0
+            showEndDrawer = true
+        }
+    }
     val endDrawerReservedWidthDp = resolveLandscapeEndDrawerReservedWidthDp(
         drawerVisible = showEndDrawer,
         isFullscreen = isFullscreen,

@@ -20,7 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppBackToTopButton
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIconButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -338,25 +340,27 @@ private fun LiveSortChip(
     onClick: () -> Unit,
 ) {
     val palette = rememberLiveChromePalette()
-    AppSurface(
+    AppFilterChip(
+        selected = selected,
         onClick = onClick,
         shape = AppShapes.borderedContainer(ContainerLevel.Pill),
-        color = if (selected) palette.accentSoft else palette.surfaceMuted,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = palette.surfaceMuted,
+            labelColor = palette.primaryText,
+            selectedContainerColor = palette.accentSoft,
+            selectedLabelColor = palette.accentStrong,
+        ),
         border = BorderStroke(
             AppSurfaceTokens.OutlineWidth,
             if (selected) palette.accent else palette.border,
         ),
-    ) {
-        AppText(
-            text = text,
-            color = if (selected) palette.accentStrong else palette.primaryText,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(
-                horizontal = AppSpacingTokens.Medium,
-                vertical = AppSpacingTokens.Small,
-            ),
-        )
-    }
+        label = {
+            AppText(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+            )
+        },
+    )
 }
 
 private fun LiveRoom.toLiveRoomCardUiModel() = LiveRoomCardUiModel(

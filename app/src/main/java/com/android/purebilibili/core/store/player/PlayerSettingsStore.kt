@@ -29,6 +29,7 @@ object PlayerSettingsStore {
     private val keyLastPlaybackSpeed = floatPreferencesKey("last_playback_speed")
     private val keyPreferredPlayerVolume = floatPreferencesKey("preferred_player_volume")
     private val keyPlayerInsightMode = stringPreferencesKey("player_insight_mode")
+    private val keyNativeMiuixPlayerPopups = booleanPreferencesKey("native_miuix_player_popups")
     private const val playbackSpeedCachePrefs = "playback_speed_cache"
     private const val cacheKeyDefaultPlaybackSpeed = "default_speed"
     private const val cacheKeyRememberLastSpeed = "remember_last_speed"
@@ -42,6 +43,17 @@ object PlayerSettingsStore {
     private const val cachePlayerInsightModeKey = "player_insight_mode_cache"
 
     const val PLAYER_VOLUME_STEP = 0.02f
+
+    fun getNativeMiuixPlayerPopups(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[keyNativeMiuixPlayerPopups] ?: true
+        }
+
+    suspend fun setNativeMiuixPlayerPopups(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[keyNativeMiuixPlayerPopups] = enabled
+        }
+    }
 
     fun normalizePlayerVolume(volume: Float): Float {
         val stepCount = (volume.coerceIn(0f, 1f) / PLAYER_VOLUME_STEP).toInt()

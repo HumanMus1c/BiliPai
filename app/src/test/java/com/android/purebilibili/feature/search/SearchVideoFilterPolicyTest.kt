@@ -20,6 +20,8 @@ class SearchVideoFilterPolicyTest {
         assertEquals("新发布", resolveSearchOrderChipLabel(SearchOrder.PUBDATE))
         assertEquals("弹幕多", resolveSearchOrderChipLabel(SearchOrder.DM))
         assertEquals("收藏多", resolveSearchOrderChipLabel(SearchOrder.STOW))
+        assertEquals("评论多", resolveSearchOrderChipLabel(SearchOrder.SCORES))
+        assertEquals("喜欢多", resolveSearchOrderChipLabel(SearchOrder.ATTENTION))
     }
 
     @Test

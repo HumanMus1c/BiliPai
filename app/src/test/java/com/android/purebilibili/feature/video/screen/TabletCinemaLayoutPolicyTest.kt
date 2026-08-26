@@ -10,6 +10,20 @@ import kotlin.test.assertTrue
 class TabletCinemaLayoutPolicyTest {
 
     @Test
+    fun cinemaOpenCurtainHostsDanmakuSendAndToggle() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/TabletCinemaLayout.kt"
+        ).readText()
+
+        assertTrue(source.contains("TabletSecondaryDanmakuActions("))
+        assertTrue(source.contains("playbackActions.showDanmakuSendDialog"))
+        assertTrue(source.contains("onDanmakuInputClick = playbackActions.showDanmakuSendDialog"))
+        assertTrue(shouldShowTabletCinemaDanmakuActions(TabletSideCurtainState.OPEN))
+        assertFalse(shouldShowTabletCinemaDanmakuActions(TabletSideCurtainState.PEEK))
+        assertTrue(shouldShowTabletSecondaryDanmakuActions())
+    }
+
+    @Test
     fun cinemaCommentsReuseTheFullCommentAndEngagementDock() {
         val source = File(
             "src/main/java/com/android/purebilibili/feature/video/screen/TabletCinemaLayout.kt"
@@ -140,7 +154,15 @@ class TabletCinemaLayoutPolicyTest {
     }
 
     @Test
-    fun initialCurtainStateUsesScreenWidthBuckets() {
+    fun initialCurtainStateOpensOnAllTabletWidths() {
+        assertEquals(
+            TabletSideCurtainState.OPEN,
+            resolveInitialCurtainState(widthDp = 840)
+        )
+        assertEquals(
+            TabletSideCurtainState.OPEN,
+            resolveInitialCurtainState(widthDp = 960)
+        )
         assertEquals(
             TabletSideCurtainState.OPEN,
             resolveInitialCurtainState(widthDp = 1080)
@@ -191,9 +213,9 @@ class TabletCinemaLayoutPolicyTest {
     }
 
     @Test
-    fun commentsTab_autoSwitchesToRelatedAfterLoadedEmptyComments() {
+    fun commentsTab_staysOnCommentsWhenLoadedEmpty() {
         assertEquals(
-            1,
+            0,
             resolveCinemaSideCurtainSelectedTab(
                 currentSelectedTab = 0,
                 replyCount = 0,

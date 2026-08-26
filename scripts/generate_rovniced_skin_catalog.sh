@@ -184,3 +184,9 @@ done <<<"${TOP_DIRS}"
 echo ">> 完成：生成 ${COUNT} 个主题条目（跳过 ${SKIPPED} 个无资源目录）"
 echo ">> 输出：${OUTPUT}"
 echo ">> 大小：$(wc -c < "${OUTPUT}") 字节"
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 "${SCRIPT_DIR}/augment_skin_catalog_effects.py" "${OUTPUT}"
+else
+  echo "!! 未找到 python3，已跳过加载／点赞／进度条能力合并。" >&2
+fi

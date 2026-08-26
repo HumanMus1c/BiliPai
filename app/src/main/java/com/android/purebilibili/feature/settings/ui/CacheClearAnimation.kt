@@ -24,8 +24,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -464,7 +462,7 @@ private fun CacheClearSuccessAnimation() {
         ) {
             Box(contentAlignment = Alignment.Center) {
                 AppIcon(
-                    imageVector = Icons.Filled.Check,
+                    imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_fill_24),
                     contentDescription = "存储已清除",
                     modifier = Modifier.size(40.dp),
                     tint = successColor

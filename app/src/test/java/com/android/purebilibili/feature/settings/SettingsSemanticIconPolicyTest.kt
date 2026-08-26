@@ -1,274 +1,61 @@
 package com.android.purebilibili.feature.settings
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Analytics
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.BatteryFull
-import androidx.compose.material.icons.outlined.BrightnessMedium
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Memory
-import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Backup
-import top.yukonga.miuix.kmp.icon.extended.Home as MiuixHome
-import top.yukonga.miuix.kmp.icon.extended.Lock
-import top.yukonga.miuix.kmp.icon.extended.Play
-import top.yukonga.miuix.kmp.icon.extended.Theme
 
 class SettingsSemanticIconPolicyTest {
-
     @Test
-    fun homeFeedEntry_usesHomeSemanticIconInsteadOfAnalyticsIcon() {
-        val icon = resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MATERIAL)
-
-        assertSameVectorAsset(Icons.Outlined.Home, icon)
-        assertNotEquals(Icons.Outlined.Analytics.name, icon.name)
+    fun materialPreset_usesMaterialSymbolResources() {
+        assertEquals(R.drawable.ms_home_24, resolveSettingsMaterialSymbolResource(SettingsIconRole.HOME_FEED))
+        assertEquals(R.drawable.ms_backup_24, resolveSettingsMaterialSymbolResource(SettingsIconRole.DATA_BACKUP))
+        assertEquals(R.drawable.ms_terminal_24, resolveSettingsMaterialSymbolResource(SettingsIconRole.DIAGNOSTICS))
     }
 
     @Test
-    fun md3HomeFeedEntry_usesMaterialHomeSemanticIcon() {
-        assertSameVectorAsset(
-            Icons.Outlined.Home,
-            resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MATERIAL)
-        )
+    fun everyMaterialRole_hasAUniqueResource() {
+        val duplicates = SettingsIconRole.entries.groupBy(::resolveSettingsMaterialSymbolResource).filterValues { it.size > 1 }
+        assertTrue(duplicates.isEmpty(), duplicates.toString())
     }
 
     @Test
-    fun settingsSceneRoles_useConcreteDomainIcons() {
-        assertSameVectorAsset(
-            Icons.Outlined.ChatBubbleOutline,
-            resolveSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT, AppSemanticIconFamily.MATERIAL)
-        )
-        assertSameVectorAsset(
-            Icons.Outlined.Backup,
-            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.MATERIAL)
-        )
-        assertSameVectorAsset(
-            Icons.Outlined.Terminal,
-            resolveSettingsSemanticIcon(SettingsIconRole.DIAGNOSTICS, AppSemanticIconFamily.MATERIAL)
-        )
+    fun miuixPreset_keepsMiuixSizingAroundSemanticVectors() {
+        assertEquals(19, resolveSettingsSemanticIconSizeDp(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MIUIX))
     }
 
     @Test
-    fun miuixRootDirectoriesUseNativeMiuixGlyphs() {
-        assertSameVectorAsset(
-            MiuixIcons.Theme,
-            resolveSettingsSemanticIcon(SettingsIconRole.INTERFACE_THEME, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            MiuixIcons.Play,
-            resolveSettingsSemanticIcon(SettingsIconRole.PLAYBACK_QUALITY, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            MiuixIcons.MiuixHome,
-            resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            MiuixIcons.Lock,
-            resolveSettingsSemanticIcon(SettingsIconRole.PRIVACY_PERMISSION, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            MiuixIcons.Backup,
-            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.MIUIX),
-        )
-    }
+    fun batteryStatus_usesBatteryResourceInsteadOfPhoneGlyph() {
+        val source = File(
+            "app/src/main/java/com/android/purebilibili/feature/settings/SettingsSemanticIconPolicy.kt"
+        ).readText()
 
-    @Test
-    fun miuixSemanticIcons_useOpticallyBalancedSizes() {
         assertEquals(
-            19,
-            resolveSettingsSemanticIconSizeDp(
-                SettingsIconRole.HOME_FEED,
-                AppSemanticIconFamily.MIUIX,
-            ),
-        )
-        assertEquals(
-            21,
-            resolveSettingsSemanticIconSizeDp(
-                SettingsIconRole.PLAYBACK_QUALITY,
-                AppSemanticIconFamily.MIUIX,
-            ),
-        )
-        assertEquals(
-            20,
-            resolveSettingsSemanticIconSizeDp(
-                SettingsIconRole.HOME_FEED,
-                AppSemanticIconFamily.MATERIAL,
-            ),
+            R.drawable.ms_battery_full_24,
+            resolveSettingsMaterialSymbolResource(SettingsIconRole.BATTERY_STATUS),
         )
     }
 
     @Test
-    fun miuixMissingGlyphs_fallBackToAccurateMaterialSymbols() {
-        assertSameVectorAsset(
-            Icons.Outlined.BatteryFull,
-            resolveSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            Icons.Outlined.Memory,
-            resolveSettingsSemanticIcon(SettingsIconRole.HARDWARE_DECODER, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            Icons.Outlined.BrightnessMedium,
-            resolveSettingsSemanticIcon(SettingsIconRole.SYSTEM_BRIGHTNESS, AppSemanticIconFamily.MIUIX),
-        )
-        assertSameVectorAsset(
-            Icons.Outlined.Analytics,
-            resolveSettingsSemanticIcon(SettingsIconRole.ANALYTICS, AppSemanticIconFamily.MIUIX),
-        )
+    fun allSettingsSkinsUseRoleSpecificLocalVectors() {
+        val source = File(
+            "app/src/main/java/com/android/purebilibili/feature/settings/SettingsSemanticIconPolicy.kt"
+        ).readText()
+        val rememberFunction = source
+            .substringAfter("internal fun rememberSettingsSemanticIcon(")
+            .substringBefore("internal fun resolveSettingsMaterialSymbolResource(")
+
+        assertTrue(rememberFunction.contains("resolveSettingsMaterialSymbolResource(role)"))
+        assertTrue(!rememberFunction.contains("resolveMiuixSettingsSemanticIcon(role)"))
     }
 
     @Test
-    fun md3Preset_usesUniqueIconForEverySettingsRole() {
-        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.MATERIAL)
-    }
-
-    @Test
-    fun iosPreset_usesUniqueIconForEverySettingsRole() {
-        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.MATERIAL)
-    }
-
-    @Test
-    fun visibleSettingsGroups_doNotReuseTheSameSemanticRole() {
-        val duplicateMessages = settingsSourceFiles()
-            .flatMap { file -> duplicatedRolesInsideVisibleGroups(file) }
-
-        assertTrue(
-            duplicateMessages.isEmpty(),
-            duplicateMessages.joinToString(separator = "\n")
-        )
-    }
-
-    @Test
-    fun directSettingsIconAssignments_doNotReuseTheSameSemanticRole() {
-        val usages = settingsSourceFiles().flatMap { file ->
-            DIRECT_ROLE_USAGE_REGEX.findAll(file.readText()).map { match ->
-                file.path to match.groupValues[1]
-            }.toList()
-        }
-        val duplicates = usages
-            .groupBy { it.second }
-            .filterValues { roleUsages -> roleUsages.size > 1 }
-
-        assertTrue(
-            duplicates.isEmpty(),
-            duplicates.entries.joinToString(separator = "\n") { (role, roleUsages) ->
-                "$role reused in ${roleUsages.joinToString { it.first }}"
-            }
-        )
-    }
-
-    @Test
-    fun themeRoleColorRows_useDistinctSemanticRoles() {
-        val roles = ThemeRoleColorTarget.entries.map(::resolveThemeRoleColorIconRole)
-
-        assertEquals(roles.size, roles.toSet().size)
-    }
-
-    private fun assertSettingsRoleIconsAreUnique(iconFamily: AppSemanticIconFamily) {
-        val duplicates = SettingsIconRole.entries
-            .groupBy { role -> resolveSettingsSemanticIcon(role, iconFamily).assetKey() }
-            .filterValues { roles -> roles.size > 1 }
-
-        assertTrue(
-            duplicates.isEmpty(),
-            duplicates.entries.joinToString(separator = "\n") { (assetKey, roles) ->
-                "$iconFamily duplicate $assetKey: ${roles.joinToString { it.name }}"
-            }
-        )
-    }
-
-    private fun settingsSourceFiles(): List<File> {
-        val roots = listOf(
-            File("app/src/main/java/com/android/purebilibili/feature/settings/screen"),
-            File("app/src/main/java/com/android/purebilibili/feature/settings/ui")
-        )
-        return roots.flatMap { root ->
-            root.walkTopDown()
-                .filter { it.isFile && it.extension == "kt" }
-                .toList()
-        }
-    }
-
-    private fun duplicatedRolesInsideVisibleGroups(file: File): List<String> {
-        val lines = file.readLines()
-        val messages = mutableListOf<String>()
-        var groupStartLine: Int? = null
-        var groupBraceDepth = 0
-        val groupRoles = mutableListOf<Pair<Int, String>>()
-
-        lines.forEachIndexed { index, line ->
-            if (
-                groupStartLine == null &&
-                (
-                    line.contains("IOSGroup {") ||
-                        line.contains("AppPreferenceGroup {") ||
-                        line.contains("SettingsCardGroup {")
-                    )
-            ) {
-                groupStartLine = index + 1
-                groupBraceDepth = line.braceDelta()
-                groupRoles.clear()
-            }
-
-            val activeGroupStart = groupStartLine
-            if (activeGroupStart != null) {
-                ROLE_USAGE_REGEX.findAll(line).forEach { match ->
-                    groupRoles += (index + 1) to match.groupValues[1]
-                }
-
-                if (index + 1 != activeGroupStart) {
-                    groupBraceDepth += line.braceDelta()
-                }
-                if (groupBraceDepth <= 0) {
-                    groupRoles
-                        .groupBy { it.second }
-                        .filterValues { usages -> usages.size > 1 }
-                        .forEach { (role, usages) ->
-                            messages += "${file.path}:$activeGroupStart ${role} reused at lines ${
-                                usages.joinToString { it.first.toString() }
-                            }"
-                    }
-                    groupStartLine = null
-                    groupBraceDepth = 0
-                    groupRoles.clear()
-                }
-            }
-        }
-
-        return messages
-    }
-
-    private fun String.braceDelta(): Int = count { it == '{' } - count { it == '}' }
-
-    private fun assertSameVectorAsset(expected: ImageVector, actual: ImageVector) {
-        assertEquals(expected.name, actual.name)
-        assertEquals(expected.defaultWidth, actual.defaultWidth)
-        assertEquals(expected.defaultHeight, actual.defaultHeight)
-        assertEquals(expected.viewportWidth, actual.viewportWidth)
-        assertEquals(expected.viewportHeight, actual.viewportHeight)
-    }
-
-    private fun ImageVector.assetKey(): String = listOf(
-        name,
-        defaultWidth.value,
-        defaultHeight.value,
-        viewportWidth,
-        viewportHeight
-    ).joinToString(separator = "|")
-
-    private companion object {
-        val ROLE_USAGE_REGEX = Regex("""SettingsIconRole\.([A-Z0-9_]+)""")
-        val DIRECT_ROLE_USAGE_REGEX = Regex(
-            """rememberSettingsSemanticIcon\(\s*SettingsIconRole\.([A-Z0-9_]+)"""
-        )
+    fun settingsSource_hasNoLegacyComposeMaterialIconReferences() {
+        val source = File("app/src/main/java/com/android/purebilibili/feature/settings")
+            .walkTopDown().filter { it.isFile && it.extension == "kt" }.joinToString("\n") { it.readText() }
+        assertTrue("androidx.compose.material.icons" !in source)
+        assertTrue(Regex("""(?<!App)(?<!Miuix)Icons\.""").find(source) == null)
     }
 }

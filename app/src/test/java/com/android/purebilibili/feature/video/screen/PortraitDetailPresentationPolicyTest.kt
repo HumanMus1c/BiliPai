@@ -151,7 +151,7 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun pausedOnlyCollapse_usesPiliPlusToolbarHeightOnlyWhilePaused() {
+    fun enabledCollapseModes_usePiliPlusToolbarHeight() {
         assertEquals(
             56f,
             resolvePiliPlusCollapsedPlayerViewportHeightDp(
@@ -161,7 +161,7 @@ class PortraitDetailPresentationPolicyTest {
             )
         )
         assertEquals(
-            231.75f,
+            56f,
             resolvePiliPlusCollapsedPlayerViewportHeightDp(
                 standardCollapsedHeightDp = 231.75f,
                 collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
@@ -171,7 +171,7 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun regularCollapseModes_keepExistingCompactPlayerHeight() {
+    fun regularCollapseModes_useToolbarExceptWhenDisabled() {
         listOf(
             PortraitPlayerCollapseMode.OFF,
             PortraitPlayerCollapseMode.INTRO_ONLY,
@@ -179,7 +179,7 @@ class PortraitDetailPresentationPolicyTest {
             PortraitPlayerCollapseMode.BOTH,
         ).forEach { mode ->
             assertEquals(
-                231.75f,
+                if (mode == PortraitPlayerCollapseMode.OFF) 231.75f else 56f,
                 resolvePiliPlusCollapsedPlayerViewportHeightDp(
                     standardCollapsedHeightDp = 231.75f,
                     collapseMode = mode,
@@ -190,7 +190,7 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun piliPlusPlayAction_appearsOnlyWhenPausedOnlyPlayerIsFullyCollapsed() {
+    fun piliPlusToolbar_appearsWheneverAnEnabledPlayerIsFullyCollapsed() {
         assertTrue(
             shouldShowPiliPlusCollapsedPlayAction(
                 collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
@@ -212,7 +212,7 @@ class PortraitDetailPresentationPolicyTest {
                 collapseProgress = 0.75f,
             )
         )
-        assertFalse(
+        assertTrue(
             shouldShowPiliPlusCollapsedPlayAction(
                 collapseMode = PortraitPlayerCollapseMode.BOTH,
                 isPlaybackPaused = true,

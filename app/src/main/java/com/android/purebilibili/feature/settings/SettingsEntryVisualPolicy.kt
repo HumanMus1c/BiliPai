@@ -104,16 +104,13 @@ internal fun resolveSettingsEntryVisual(
             icon = AppIcons.Twitter,
             iconTint = iconTint
         )
-        else -> SettingsEntryVisual(
-            icon = resolveSettingsSemanticIcon(
-                role = resolveSettingsSearchTargetIconRole(target),
-                iconFamily = policy.effectiveIconFamily,
-            ),
-            iconTint = iconTint,
-            iconSizeDp = resolveSettingsSemanticIconSizeDp(
-                role = resolveSettingsSearchTargetIconRole(target),
-                iconFamily = policy.effectiveIconFamily,
-            ),
-        )
+        else -> {
+            val role = resolveSettingsSearchTargetIconRole(target)
+            SettingsEntryVisual(
+                iconResId = resolveSettingsMaterialSymbolResource(role),
+                iconTint = iconTint,
+                iconSizeDp = resolveSettingsSemanticIconSizeDp(role, policy.effectiveIconFamily),
+            )
+        }
     }
 }

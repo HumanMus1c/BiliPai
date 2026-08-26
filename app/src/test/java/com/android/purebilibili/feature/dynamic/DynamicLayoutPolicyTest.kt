@@ -98,9 +98,9 @@ class DynamicLayoutPolicyTest {
     @Test
     fun `dynamic share and comment actions keep readable text labels`() {
         assertEquals("转发", resolveDynamicActionButtonText(label = "转发", count = 0))
-        assertEquals("评论", resolveDynamicActionButtonText(label = "评论", count = 0))
-        assertEquals("评论 9", resolveDynamicActionButtonText(label = "评论", count = 9))
-        assertEquals("评论 1.2k", resolveDynamicActionButtonText(label = "评论", count = 1200))
+        assertNull(resolveDynamicActionButtonText(label = "评论", count = 0))
+        assertEquals("9", resolveDynamicActionButtonText(label = "评论", count = 9))
+        assertEquals("1.2k", resolveDynamicActionButtonText(label = "评论", count = 1200))
         assertEquals("85", resolveDynamicActionButtonText(label = "点赞", count = 85))
         assertNull(resolveDynamicActionButtonText(label = "点赞", count = 0))
     }
@@ -114,7 +114,7 @@ class DynamicLayoutPolicyTest {
     @Test
     fun `dynamic action text keeps share and comment counts when slot is narrow`() {
         assertEquals(
-            "评论 1.2k",
+            "1.2k",
             resolveDynamicActionButtonText(label = "评论", count = 1200, slotWidthDp = 96)
         )
         assertEquals(
@@ -122,7 +122,7 @@ class DynamicLayoutPolicyTest {
             resolveDynamicActionButtonText(label = "转发", count = 34000, slotWidthDp = 96)
         )
         assertEquals(
-            "评论 1.2k",
+            "1.2k",
             resolveDynamicActionButtonText(label = "评论", count = 1200, slotWidthDp = 140)
         )
     }

@@ -33,4 +33,29 @@ class SpaceHeaderPresentationPolicyTest {
 
         assertEquals(listOf(0L, 0L, 0L), metrics.map { it.value })
     }
+
+    @Test
+    fun `pinned top chrome stays clear at rest and solid after the header scrolls`() {
+        assertEquals(
+            0f,
+            resolveSpacePinnedTopChromeScrim(
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 0,
+            )
+        )
+        assertEquals(
+            0.5f,
+            resolveSpacePinnedTopChromeScrim(
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 60,
+            )
+        )
+        assertEquals(
+            1f,
+            resolveSpacePinnedTopChromeScrim(
+                firstVisibleItemIndex = 1,
+                firstVisibleItemScrollOffset = 0,
+            )
+        )
+    }
 }

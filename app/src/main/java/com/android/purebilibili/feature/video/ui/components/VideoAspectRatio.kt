@@ -24,6 +24,8 @@ import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.math.roundToInt
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.DropdownItem
 //  已改用 MaterialTheme.colorScheme.primary
 
 /**
@@ -231,6 +233,29 @@ fun AspectRatioMenu(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    PlayerMiuixListPopup(
+        title = "画面比例",
+        onDismissRequest = onDismiss,
+        placement = PlayerListPopupPlacement.END,
+        minWidth = 160.dp,
+    ) {
+        VideoAspectRatio.entries.forEachIndexed { index, ratio ->
+            val selected = ratio == currentRatio
+            DropdownImpl(
+                item = DropdownItem(text = ratio.displayName),
+                optionSize = VideoAspectRatio.entries.size,
+                isSelected = selected,
+                index = index,
+                enabled = !selected,
+                onSelectedIndexChange = {
+                    onRatioSelected(ratio)
+                    onDismiss()
+                },
+            )
+        }
+    }
+    return
+
     AppSurface(
         modifier = modifier.widthIn(min = 120.dp, max = 200.dp),
         shape = AppShapes.container(ContainerLevel.Card),

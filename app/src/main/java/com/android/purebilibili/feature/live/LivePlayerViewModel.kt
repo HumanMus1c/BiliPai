@@ -18,6 +18,7 @@ import com.android.purebilibili.data.repository.LiveReportReason
 import com.android.purebilibili.data.repository.LiveRepository
 import com.android.purebilibili.data.repository.LiveShieldInfo
 import com.android.purebilibili.data.repository.LiveSuperChatReportRequest
+import com.android.purebilibili.data.repository.LiveVoteSnapshot
 import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -166,6 +167,9 @@ class LivePlayerViewModel : ViewModel() {
 
     private val _shieldInfo = MutableStateFlow<LiveShieldInfo?>(null)
     val shieldInfo = _shieldInfo.asStateFlow()
+
+    private val _voteSnapshot = MutableStateFlow(LiveVoteSnapshot())
+    val voteSnapshot = _voteSnapshot.asStateFlow()
     
     private var danmakuClient: com.android.purebilibili.core.network.socket.LiveDanmakuClient? = null
     private var liveStreamLoadJob: Job? = null
@@ -207,6 +211,9 @@ class LivePlayerViewModel : ViewModel() {
         refreshEmoticons: Boolean
     ) {
         pauseLiveHeartbeat()
+        if (currentRoomId != roomId) {
+            _voteSnapshot.value = LiveVoteSnapshot()
+        }
         currentRoomId = roomId
         currentRequestedQuality = qn
         CrashReporter.markLivePlaybackStage("load_stream_request")
@@ -251,6 +258,9 @@ class LivePlayerViewModel : ViewModel() {
             val danmakuPermissionDeferred = async {
                 LiveRepository.getLiveDanmakuPermission(roomId).getOrNull()
             }
+            val voteSnapshotDeferred = async {
+                LiveRepository.getLiveVoteSnapshot(roomId).getOrNull()
+            }
             
             val playUrlResult = playUrlDeferred.await()
             val roomInitResponse = roomInitDeferred.await()
@@ -258,6 +268,7 @@ class LivePlayerViewModel : ViewModel() {
             val roomH5Snapshot = roomH5Deferred.await()
             val redPocketInfo = redPocketDeferred.await()
             val danmakuPermission = danmakuPermissionDeferred.await() ?: LiveDanmakuPermission()
+            voteSnapshotDeferred.await()?.let { _voteSnapshot.value = it }
             val roomInitData = roomInitResponse?.data
             val realRoomId = roomInitData?.roomId?.takeIf { it > 0L } ?: roomId
             currentRoomId = realRoomId
@@ -1227,6 +1238,18 @@ class LivePlayerViewModel : ViewModel() {
                 )
             }
             is LiveRealtimeAction.RefreshRedPocket -> refreshLiveRedPocket(action.message)
+            is LiveRealtimeAction.UpdateVote -> {
+                val previous = _voteSnapshot.value
+                _voteSnapshot.value = previous.copy(
+                    current = action.vote,
+                    history = if (action.vote.isActive) previous.history else {
+                        listOf(action.vote) + previous.history.filterNot {
+                            it.interactionId > 0L && it.interactionId == action.vote.interactionId
+                        }
+                    }.take(10)
+                )
+                emitLiveChatItem(action.announcement)
+            }
         }
     }
 

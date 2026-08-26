@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 
 /**
  *  视频合集底部弹窗
@@ -232,26 +233,14 @@ fun CollectionSheet(
                                 )
                             }
                             
-                            // 时长标签
                             episode.arc?.duration?.let { duration ->
                                 if (duration > 0) {
-                                    Box(
+                                    VideoCardCoverDurationText(
+                                        text = formatDuration(duration),
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(4.dp)
-                                            .background(
-                                                Color.Black.copy(alpha = 0.7f),
-                                                AppShapes.container(ContainerLevel.Tag)
-                                            )
-                                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                                    ) {
-                                        AppText(
-                                            text = formatDuration(duration),
-                                            fontSize = 10.sp,
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
+                                            .padding(4.dp),
+                                    )
                                 }
                             }
                             

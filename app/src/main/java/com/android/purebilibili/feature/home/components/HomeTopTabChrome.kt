@@ -168,19 +168,27 @@ internal fun HomeTopTabChrome(
             // 分栏 dock 宽度封顶于顶部三控件合计宽度。
             val cappedMaxWidth = minOf(maxWidth.value, maxDockWidth.value)
             val dockWidth = if (shouldWrap) {
-                val preferredItem = resolveTopTabWrapItemWidthDp(
-                    labelMode = dockLabelMode,
-                    isFloatingStyle = isTabFloating
-                )
-                resolveTopTabDockWrapWidthDp(
-                    itemWidthDp = preferredItem,
-                    categoryCount = dockCategoryCount,
-                    maxWidthDp = cappedMaxWidth,
-                    contentPaddingHorizontalDp = resolveTopTabDockEndInsetDp(
-                        wrapContent = true,
-                        isFloatingStyle = isTabFloating
+                if (isTabFloating) {
+                    resolveHomeTopTabFloatingDockWidth(
+                        containerWidth = cappedMaxWidth.dp,
+                        itemCount = dockCategoryCount,
+                        labelMode = dockLabelMode,
                     )
-                ).dp
+                } else {
+                    val preferredItem = resolveTopTabWrapItemWidthDp(
+                        labelMode = dockLabelMode,
+                        isFloatingStyle = false
+                    )
+                    resolveTopTabDockWrapWidthDp(
+                        itemWidthDp = preferredItem,
+                        categoryCount = dockCategoryCount,
+                        maxWidthDp = cappedMaxWidth,
+                        contentPaddingHorizontalDp = resolveTopTabDockEndInsetDp(
+                            wrapContent = true,
+                            isFloatingStyle = false
+                        )
+                    ).dp
+                }
             } else {
                 maxWidth
             }

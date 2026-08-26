@@ -115,8 +115,10 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertFalse(search.contains("BottomBarMatchedReusableLiquidDock("))
         assertTrue(search.contains("drawShellLens = false"))
         assertTrue(bottomInput.contains("BottomBarMatchedReusableLiquidDock("))
-        // 评论底栏外层保留 shell lens 液态玻璃；搜索小胶囊仍关 lens 防虾线。
+        // 独立评论胶囊保留 lens，并按实际高度缩放折射几何。
         assertTrue(bottomInput.contains("drawShellLens = true"))
+        assertTrue(bottomInput.contains("shellLensIntensity = resolveFloatingDockGeometryScale(44f)"))
+        assertFalse(bottomInput.contains("drawShellLens = false"))
         assertFalse(bottomInput.contains("BottomBarMatchedLiquidDock("))
         assertFalse(bottomInput.contains(".biliPaiFloatingDockSurface("))
         assertTrue(partition.contains("DampedDragAnimation("))

@@ -27,6 +27,15 @@ internal fun shouldFallbackToLegacyBangumiPlayUrl(payload: BangumiPlayUrlPayload
     return payload.code == -400 || payload.code == -404
 }
 
+internal fun validateBangumiPlayableVideoInfo(
+    videoInfo: BangumiVideoInfo
+): Result<BangumiVideoInfo> = when {
+    videoInfo.isDrm -> Result.failure(
+        UnsupportedOperationException("该番剧使用 DRM 版权保护，当前版本暂不支持播放")
+    )
+    else -> Result.success(videoInfo)
+}
+
 internal fun buildBangumiPlayUrlParams(
     epId: Long,
     cid: Long,
@@ -165,9 +174,17 @@ object BangumiRepository {
      * 获取番剧时间表
      * @param type 1=番剧 3=电影 4=国创
      */
-    suspend fun getTimeline(type: Int = 1): Result<List<TimelineDay>> = withContext(Dispatchers.IO) {
+    suspend fun getTimeline(
+        type: Int = 1,
+        before: Int = 3,
+        after: Int = 7,
+    ): Result<List<TimelineDay>> = withContext(Dispatchers.IO) {
         try {
-            val response = api.getTimeline(types = type)
+            val response = api.getTimeline(
+                types = type,
+                before = before.coerceIn(0, 7),
+                after = after.coerceIn(0, 7),
+            )
             if (response.code == 0 && response.result != null) {
                 Result.success(response.result)
             } else {
@@ -383,8 +400,13 @@ object BangumiRepository {
             
             if (response.code == 0 && response.videoInfo != null) {
                 val result = response.videoInfo
-                android.util.Log.d("BangumiRepo", "📹 PlayUrl: quality=${result.quality}, hasDash=${result.dash != null}, hasDurl=${!result.durl.isNullOrEmpty()}")
-                Result.success(result)
+                android.util.Log.d(
+                    "BangumiRepo",
+                    "📹 PlayUrl: quality=${result.quality}, hasDash=${result.dash != null}, " +
+                        "hasDurl=${!result.durl.isNullOrEmpty()}, preview=${result.isPreview}, " +
+                        "paid=${result.hasPaid}, drm=${result.isDrm}, status=${result.status}"
+                )
+                validateBangumiPlayableVideoInfo(result)
             } else {
                 val errorMsg = when (response.code) {
                     -10403 -> "需要大会员才能观看"

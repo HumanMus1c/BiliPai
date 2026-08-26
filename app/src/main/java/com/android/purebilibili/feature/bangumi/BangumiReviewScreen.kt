@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.bangumi
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -161,11 +162,18 @@ fun BangumiReviewScreen(
         val reviewChromeBackdrop = rememberLayerBackdrop()
         val reviewTypes = remember { BangumiReviewType.entries.toList() }
         val sortLabels = remember { listOf("默认", "最新") }
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(reviewChromeBackdrop)
+                    .background(MaterialTheme.colorScheme.background),
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -184,8 +192,8 @@ fun BangumiReviewScreen(
                     indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                     labelFontSize = 13.sp,
                     miuixBackdrop = reviewChromeBackdrop,
-                    forceLiquidChrome = false,
                     liquidGlassEffectsEnabled = true,
+                    dragSelectionEnabled = reviewTypes.size > 1,
                     tapPressRefractionEnabled = true,
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -198,8 +206,8 @@ fun BangumiReviewScreen(
                     indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                     labelFontSize = 13.sp,
                     miuixBackdrop = reviewChromeBackdrop,
-                    forceLiquidChrome = false,
                     liquidGlassEffectsEnabled = true,
+                    dragSelectionEnabled = sortLabels.size > 1,
                     tapPressRefractionEnabled = true,
                 )
             }
@@ -208,8 +216,7 @@ fun BangumiReviewScreen(
                 loading && items.isEmpty() -> {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(reviewChromeBackdrop),
+                            .fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
                         com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
@@ -218,8 +225,7 @@ fun BangumiReviewScreen(
                 errorMessage != null && items.isEmpty() -> {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(reviewChromeBackdrop),
+                            .fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -232,8 +238,7 @@ fun BangumiReviewScreen(
                 items.isEmpty() -> {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(reviewChromeBackdrop),
+                            .fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
                         AppText("还没有点评")
@@ -243,8 +248,7 @@ fun BangumiReviewScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(reviewChromeBackdrop),
+                            .fillMaxSize(),
                         contentPadding = PaddingValues(
                             horizontal = AppSpacingTokens.Medium,
                             vertical = AppSpacingTokens.Small
@@ -329,6 +333,7 @@ fun BangumiReviewScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

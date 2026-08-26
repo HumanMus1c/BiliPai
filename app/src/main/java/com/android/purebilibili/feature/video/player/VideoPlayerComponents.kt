@@ -48,6 +48,7 @@ import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 
 //  [重构] 视频标题区域 (官方B站样式：紧凑布局)
 @Composable
@@ -618,21 +619,12 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                // 时长标签
-                AppSurface(
+                VideoCardCoverDurationText(
+                    text = FormatUtils.formatDuration(video.duration),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    shape = AppShapes.container(ContainerLevel.Tag)
-                ) {
-                    AppText(
-                        text = FormatUtils.formatDuration(video.duration),
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
+                )
                 
                 //  播放量遮罩
                 Box(

@@ -65,7 +65,7 @@ class DynamicNeutralUiStructureTest {
         val cardSource = File(sourceRoot, "components/DynamicCard.kt").readText()
 
         assertTrue(actionSource.contains("rememberAppShareIcon()"))
-        assertTrue(actionSource.contains("rememberAppCommentIcon()"))
+        assertTrue(actionSource.contains("Icons.Outlined.ChatBubbleOutline"))
         assertTrue(actionSource.contains("rememberAppLikeIcon()"))
         assertTrue(actionSource.contains("rememberAppLikeFilledIcon()"))
         assertFalse(cardSource.contains("icon = io.github.alexzhirkevich.cupertino"))
@@ -75,10 +75,24 @@ class DynamicNeutralUiStructureTest {
     fun `dynamic native action buttons reserve width for complete labels`() {
         val actionSource = File(sourceRoot, "components/ActionButton.kt").readText()
 
-        assertTrue(actionSource.contains("contentPadding = PaddingValues("))
         assertTrue(actionSource.contains("insideMargin = PaddingValues("))
         assertTrue(actionSource.contains("horizontal = AppSpacingTokens.Small"))
-        assertTrue(actionSource.contains("shape = AppShapes.container(ContainerLevel.Card)"))
+        assertTrue(actionSource.contains("useFilledShell = !isComment && LocalAppUiStyle.current != AppUiStyle.MATERIAL3"))
+        assertTrue(actionSource.contains("if (isForward && LocalAppUiStyle.current == AppUiStyle.MIUIX)"))
+        assertFalse(actionSource.contains("FilledTonalButton("))
+        assertFalse(actionSource.contains("shape = AppShapes.container(ContainerLevel.Card)"))
+    }
+
+    @Test
+    fun `dynamic card overflow uses the miuix window action menu`() {
+        val cardSource = File(sourceRoot, "components/DynamicCard.kt").readText()
+
+        assertTrue(cardSource.contains("AppWindowActionMenu("))
+        assertTrue(cardSource.contains("label = \"复制链接\""))
+        assertTrue(cardSource.contains("label = \"分享动态\""))
+        assertTrue(cardSource.contains("label = \"屏蔽该 UP 主\""))
+        assertFalse(cardSource.contains("AppDropdownMenu("))
+        assertFalse(cardSource.contains("AppDropdownMenuItem("))
     }
 
     @Test

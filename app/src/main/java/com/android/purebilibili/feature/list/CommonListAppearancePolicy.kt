@@ -76,6 +76,17 @@ internal fun resolveCommonListHeaderMaxCollapsePx(
     return (headerHeightPx - pinnedDockHeightPx - topInsetPx).coerceAtLeast(0f)
 }
 
+/** Fully removes the history title while its following docks stop below the status bar. */
+internal fun resolveHistoryTitleOffsetPx(
+    headerOffsetPx: Float,
+    maxCollapsePx: Float,
+    titleHeightPx: Int,
+): Int {
+    if (titleHeightPx <= 0 || maxCollapsePx <= 0f) return 0
+    val collapseFraction = (-headerOffsetPx / maxCollapsePx).coerceIn(0f, 1f)
+    return (-titleHeightPx * collapseFraction).toInt()
+}
+
 internal fun resolveCommonListHeaderOffsetPx(
     currentOffsetPx: Float,
     scrollDeltaYPx: Float,
@@ -91,31 +102,14 @@ internal fun resolveCommonListHeaderOffsetPx(
     return (currentOffsetPx + scrollDeltaYPx).coerceIn(-maxCollapsePx, 0f)
 }
 
-/**
- * 收藏夹在列表反向滚动时不重新展开整个顶栏；只在真正回到顶部时恢复。
- * 历史记录等共用列表仍遵循用户选择的顶栏折叠模式。
- */
+/** Maps the shared home/header switch onto history, favorites, and other common lists. */
 internal fun resolveCommonListHeaderCollapseModeForScreen(
-    configuredMode: CommonListHeaderCollapseMode,
-    isFavoritePage: Boolean,
-    isHistoryPage: Boolean = false,
-    homeHeaderCollapseMode: HomeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
+    homeHeaderMode: HomeHeaderCollapseMode,
 ): CommonListHeaderCollapseMode {
-    if (isHistoryPage) {
-        // 与首页推荐流保持同一展开策略：开启时随列表收起，只有回到顶部才展开；
-        // 首页关闭折叠时，历史页也固定显示。
-        return if (homeHeaderCollapseMode.hasAnyCollapse) {
-            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY
-        } else {
-            CommonListHeaderCollapseMode.ALWAYS_VISIBLE
-        }
-    }
-    return if (
-        isFavoritePage && configuredMode == CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL
-    ) {
+    return if (homeHeaderMode.hasAnyCollapse) {
         CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY
     } else {
-        configuredMode
+        CommonListHeaderCollapseMode.ALWAYS_VISIBLE
     }
 }
 

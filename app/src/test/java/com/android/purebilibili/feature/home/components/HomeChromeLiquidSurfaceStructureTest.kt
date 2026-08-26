@@ -78,7 +78,7 @@ class HomeChromeLiquidSurfaceStructureTest {
             topHeaderMatchedSurfaceCalls > 0
         )
         assertTrue(
-            "search/edge capsules keep shell lens off; top dock uses soft intensity instead",
+            "legacy flat chrome may disable lens while active compact surfaces use scaled intensity",
             topHeaderDisabledShellLensCalls >= 1 && topHeaderMatchedSurfaceCalls >= 1
         )
         assertTrue(
@@ -94,7 +94,7 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topHeaderSource.contains("val topTabLiquidGlassEnabled =") &&
                 topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface") &&
                 topHeaderSource.contains("val useTopTabBottomBarMatchedDock = drawTopTabDockChrome") &&
-                topHeaderSource.contains("drawChromeSurface = drawTopTabDockChrome") &&
+                topHeaderSource.contains("shouldHomeTopTabChromeDrawOuterShell(") &&
                 topHeaderSource.contains("useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock") &&
                 topHeaderSource.contains("drawMatchedShellLens = topTabLiquidGlassEnabled") &&
                 topHeaderSource.contains("matchedShellLensIntensity = resolveFloatingDockGeometryScale(") &&

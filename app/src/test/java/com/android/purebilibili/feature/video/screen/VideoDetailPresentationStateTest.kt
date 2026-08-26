@@ -24,6 +24,23 @@ class VideoDetailPresentationStateTest {
     }
 
     @Test
+    fun syncingPlaybackIdentityKeepsSelectedTab() {
+        val state = VideoDetailPresentationState.create(
+            initialBvid = "BV1",
+            initialCid = 11L,
+            initialPortraitFullscreen = false,
+            initialPipMode = false,
+        )
+
+        state.selectTab(1)
+        state.syncPlaybackIdentity("BV1", 22L)
+
+        assertEquals("BV1", state.currentBvidState.value)
+        assertEquals(22L, state.currentCidState.longValue)
+        assertEquals(1, state.selectedTabIndexState.intValue)
+    }
+
+    @Test
     fun namedSessionOperationsOwnTransientPresentationFlags() {
         val state = VideoDetailPresentationState.create(
             initialBvid = "BV1",

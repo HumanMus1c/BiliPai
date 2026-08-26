@@ -96,6 +96,13 @@ fun resolveTabletVideoLayoutPolicy(
 
 internal fun resolveTabletSecondaryDefaultTab(): Int = 0
 
+/** Always-visible 发弹幕 / toggle next to 评论, matching the phone content tab bar. */
+internal fun shouldShowTabletSecondaryDanmakuActions(): Boolean = true
+
+internal fun shouldShowTabletCinemaDanmakuActions(
+    curtainState: TabletSideCurtainState
+): Boolean = curtainState == TabletSideCurtainState.OPEN
+
 fun resolveTabletCinemaLayoutPolicy(
     widthDp: Int,
     commentWidthPreset: TabletCommentPanelWidthPreset = TabletCommentPanelWidthPreset.STANDARD,
@@ -175,12 +182,11 @@ internal fun resolveCurtainWidthDp(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveInitialCurtainState(widthDp: Int): TabletSideCurtainState {
-    return if (widthDp >= 960) {
-        TabletSideCurtainState.OPEN
-    } else {
-        TabletSideCurtainState.PEEK
-    }
+    // Tablet cinema is only used on expanded widths. Always land with the
+    // right pane open so comments are immediately available.
+    return TabletSideCurtainState.OPEN
 }
 
 internal fun resolveCurtainStateAfterAutoBehavior(
@@ -198,22 +204,17 @@ internal fun resolveCurtainStateAfterAutoBehavior(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveCinemaSideCurtainSelectedTab(
     currentSelectedTab: Int,
     replyCount: Int,
     isRepliesLoading: Boolean,
     hasRelatedVideos: Boolean
 ): Int {
-    return if (
-        currentSelectedTab == 0 &&
-        replyCount == 0 &&
-        !isRepliesLoading &&
-        hasRelatedVideos
-    ) {
-        1
-    } else {
-        currentSelectedTab
-    }
+    // Comments is the default landing tab. Do not auto-switch to related
+    // when replies are empty or still loading — that moved the indicator
+    // off 评论 as soon as the page opened.
+    return currentSelectedTab
 }
 
 internal fun resolveCinemaMetaPanelContainerColor(

@@ -118,8 +118,8 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 316
-        versionName = "0.2.3-beta.12"
+        versionCode = 322
+        versionName = "0.2.3-beta.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

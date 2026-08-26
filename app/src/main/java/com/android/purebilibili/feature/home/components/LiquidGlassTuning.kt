@@ -16,6 +16,9 @@ data class LiquidGlassTuning(
     val progress: Float,
     val strength: Float,
     val backdropBlurRadius: Float,
+    val progressiveBlurRadius: Float,
+    val progressiveBlurEndFraction: Float,
+    val progressiveBlurCurve: Float,
     val surfaceAlpha: Float,
     val whiteOverlayAlpha: Float,
     val saturation: Float,
@@ -87,6 +90,11 @@ internal fun resolveLiquidGlassTuning(
         // to keep the capsule legible over moving content. The midpoint remains the original
         // BiliPai material and the frosted endpoint retains its stronger diffusion.
         backdropBlurRadius = midpointLerp(0f, 4f, 24f, normalizedProgress),
+        progressiveBlurRadius = advancedSettings.progressiveBlurRadius.coerceIn(0f, 1f) * 40f,
+        progressiveBlurEndFraction = 0.25f +
+            advancedSettings.progressiveBlurExtent.coerceIn(0f, 1f) * 0.75f,
+        progressiveBlurCurve = 0.35f +
+            advancedSettings.progressiveBlurCurve.coerceIn(0f, 1f) * 1.65f,
         surfaceAlpha = midpointLerp(0.40f, 0.40f, 0.54f, normalizedProgress),
         whiteOverlayAlpha = midpointLerp(0.04f, 0.04f, 0.14f, normalizedProgress),
         saturation = midpointLerp(1.5f, 1.5f, 1.24f, normalizedProgress),

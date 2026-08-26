@@ -88,8 +88,7 @@ import com.android.purebilibili.data.model.response.TimelineDay
 import com.android.purebilibili.data.model.response.TimelineEpisode
 import com.android.purebilibili.feature.bangumi.ui.list.BangumiBadge
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.Backdrop
 
 internal const val BANGUMI_POSTER_ASPECT_RATIO = 0.75f
 
@@ -102,6 +101,7 @@ internal fun BangumiHubContent(
     onLoadMoreHomeRecommendations: () -> Unit,
     onLoadMoreHomeFollows: () -> Unit,
     onRetryTimeline: () -> Unit,
+    onTimelineRangeSelected: (BangumiTimelineRange) -> Unit,
     onOpenIndex: () -> Unit,
     onOpenFollow: () -> Unit,
     onIndexCategorySelected: (BangumiIndexCategory) -> Unit,
@@ -119,11 +119,13 @@ internal fun BangumiHubContent(
     onMoveSelectedFollow: (BangumiFollowStatus) -> Unit,
     onMoveSingleFollow: (Long, BangumiFollowStatus) -> Unit,
     onUnfollowSingle: (Long) -> Unit,
+    onSearchCategorySelected: (BangumiIndexCategory) -> Unit,
     onLoadMoreSearch: () -> Unit,
     onSaveCover: (String, String) -> Unit,
     onHomeScrollChanged: (firstVisibleIndex: Int, scrollOffset: Int) -> Unit = { _, _ -> },
     scrollToTopRequestId: Int = 0,
     listBottomPadding: Dp = 24.dp,
+    tabBackdrop: Backdrop? = null,
 ) {
     val homeGridStates = remember { mutableMapOf<BangumiChannel, LazyGridState>() }
     val indexGridStates = remember { mutableMapOf<BangumiIndexCategory, LazyGridState>() }
@@ -163,10 +165,12 @@ internal fun BangumiHubContent(
             onLoadMoreRecommendations = onLoadMoreHomeRecommendations,
             onLoadMoreFollows = onLoadMoreHomeFollows,
             onRetryTimeline = onRetryTimeline,
+            onTimelineRangeSelected = onTimelineRangeSelected,
             onOpenIndex = onOpenIndex,
             onOpenFollow = onOpenFollow,
             onSaveCover = onSaveCover,
             listBottomPadding = listBottomPadding,
+            tabBackdrop = tabBackdrop,
         )
 
         BangumiHubPage.INDEX -> BangumiIndexContent(
@@ -183,6 +187,7 @@ internal fun BangumiHubContent(
             onBangumiClick = onBangumiClick,
             onSaveCover = onSaveCover,
             listBottomPadding = listBottomPadding,
+            tabBackdrop = tabBackdrop,
         )
 
         BangumiHubPage.FOLLOW -> BangumiFollowContent(
@@ -201,15 +206,19 @@ internal fun BangumiHubContent(
             onMoveSingle = onMoveSingleFollow,
             onUnfollowSingle = onUnfollowSingle,
             listBottomPadding = listBottomPadding,
+            tabBackdrop = tabBackdrop,
         )
 
         BangumiHubPage.SEARCH -> BangumiSearchContent(
+            channel = state.channel,
             state = state.search,
             gridState = searchGridState,
+            onCategorySelected = onSearchCategorySelected,
             onBangumiClick = onBangumiClick,
             onLoadMore = onLoadMoreSearch,
             onSaveCover = onSaveCover,
             listBottomPadding = listBottomPadding,
+            tabBackdrop = tabBackdrop,
         )
     }
 }
@@ -227,10 +236,12 @@ private fun BangumiHomeContent(
     onLoadMoreRecommendations: () -> Unit,
     onLoadMoreFollows: () -> Unit,
     onRetryTimeline: () -> Unit,
+    onTimelineRangeSelected: (BangumiTimelineRange) -> Unit,
     onOpenIndex: () -> Unit,
     onOpenFollow: () -> Unit,
     onSaveCover: (String, String) -> Unit,
     listBottomPadding: Dp,
+    tabBackdrop: Backdrop?,
 ) {
     val isRefreshing = state.recommendations.isRefreshing ||
         state.follows.isRefreshing || state.timeline.isRefreshing
@@ -294,6 +305,8 @@ private fun BangumiHomeContent(
                         state = state.timeline,
                         onEpisodeClick = onEpisodeClick,
                         onRetry = onRetryTimeline,
+                        onRangeSelected = onTimelineRangeSelected,
+                        tabBackdrop = tabBackdrop,
                     )
                 }
             }
@@ -345,20 +358,33 @@ private fun TimelineSection(
     state: BangumiTimelineHubState,
     onEpisodeClick: (Long, Long) -> Unit,
     onRetry: () -> Unit,
+    onRangeSelected: (BangumiTimelineRange) -> Unit,
+    tabBackdrop: Backdrop?,
 ) {
-    when {
-        state.isLoading && state.days.isEmpty() -> BangumiTimelineSkeleton()
-        state.error != null && state.days.isEmpty() -> InlineError(state.error, onRetry)
-        state.days.isEmpty() -> InlineNotice("暂无更新时间表")
-        else -> {
-            val today = state.days.indexOfFirst { it.isToday == 1 }.coerceAtLeast(0)
-            var selectedDay by remember(state.days) { mutableIntStateOf(today) }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AppText(
-                    text = "追番时间表",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                AppLiquidAwareTabRow(
+    val today = state.days.indexOfFirst { it.isToday == 1 }.coerceAtLeast(0)
+    var selectedDay by remember(state.days) { mutableIntStateOf(today) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        AppText(
+            text = "追番时间表",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        AppThemeAdaptiveTabRow(
+            options = BangumiTimelineRange.entries.map { range ->
+                AppSegmentOption(range, range.label)
+            },
+            selectedValue = state.range,
+            onSelectionChange = onRangeSelected,
+            minTabWidth = 104.dp,
+            scrollable = true,
+            miuixBackdrop = tabBackdrop,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        when {
+            state.isLoading && state.days.isEmpty() -> BangumiTimelineSkeleton()
+            state.error != null && state.days.isEmpty() -> InlineError(state.error, onRetry)
+            state.days.isEmpty() -> InlineNotice("当前范围暂无更新时间表")
+            else -> {
+                AppThemeAdaptiveTabRow(
                     options = state.days.mapIndexed { index, item ->
                         AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
                     },
@@ -366,6 +392,7 @@ private fun TimelineSection(
                     onSelectionChange = { selectedDay = it },
                     scrollable = true,
                     minTabWidth = 112.dp,
+                    miuixBackdrop = tabBackdrop,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AnimatedContent(
@@ -425,8 +452,10 @@ private fun BangumiIndexContent(
     onBangumiClick: (Long) -> Unit,
     onSaveCover: (String, String) -> Unit,
     listBottomPadding: Dp,
+    tabBackdrop: Backdrop?,
 ) {
     val scope = rememberCoroutineScope()
+    val categories = bangumiIndexCategoriesForChannel(channel)
     AdaptivePullToRefreshBox(
         isRefreshing = state.results.isRefreshing,
         onRefresh = onRetryResults,
@@ -439,15 +468,16 @@ private fun BangumiIndexContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (channel == BangumiChannel.CINEMA) item(
+            if (categories.size > 1) item(
                 span = { GridItemSpan(maxLineSpan) },
-                key = "cinema_categories",
+                key = "index_categories",
             ) {
-                AppLiquidAwareTabRow(
-                    options = CINEMA_INDEX_CATEGORIES.map { AppSegmentOption(it, it.label) },
+                AppThemeAdaptiveTabRow(
+                    options = categories.map { AppSegmentOption(it, it.label) },
                     selectedValue = category,
                     scrollable = true,
                     minTabWidth = 108.dp,
+                    miuixBackdrop = tabBackdrop,
                     onSelectionChange = {
                         if (it == category) {
                             scope.launch { gridState.animateScrollToItem(0) }
@@ -584,10 +614,10 @@ private fun BangumiFollowContent(
     onMoveSingle: (Long, BangumiFollowStatus) -> Unit,
     onUnfollowSingle: (Long) -> Unit,
     listBottomPadding: Dp,
+    tabBackdrop: Backdrop?,
 ) {
     val selectionMode = state.selectedIds.isNotEmpty()
     var menuItem by remember { mutableStateOf<FollowBangumiItem?>(null) }
-    val followBackdrop = rememberLayerBackdrop()
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             AppLiquidAwareTabRow(
@@ -595,17 +625,17 @@ private fun BangumiFollowContent(
                 selectedValue = status,
                 enabled = !state.isMutating,
                 onSelectionChange = onStatusSelected,
+                dragSelectionEnabled = BangumiFollowStatus.entries.size > 1,
+                tapPressRefractionEnabled = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
-                miuixBackdrop = followBackdrop,
+                miuixBackdrop = tabBackdrop,
             )
             AdaptivePullToRefreshBox(
                 isRefreshing = state.content.isRefreshing,
                 onRefresh = onRefresh,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .layerBackdrop(followBackdrop),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 if (state.content.isLoading && state.content.items.isEmpty()) {
                     BangumiFollowManagerSkeleton()
@@ -774,48 +804,85 @@ private fun FollowItemActionDialog(
 
 @Composable
 private fun BangumiSearchContent(
+    channel: BangumiChannel,
     state: BangumiSearchHubState,
     gridState: LazyGridState,
+    onCategorySelected: (BangumiIndexCategory) -> Unit,
     onBangumiClick: (Long) -> Unit,
     onLoadMore: () -> Unit,
     onSaveCover: (String, String) -> Unit,
     listBottomPadding: Dp,
+    tabBackdrop: Backdrop?,
 ) {
     val results = state.results
-    when {
-        state.query.isBlank() -> AppEmptyState(title = "搜索番剧或影视", message = "结果会按当前频道筛选")
-        results.isLoading && results.items.isEmpty() ->
-            com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton(
-                minItemWidth = 112.dp,
-                coverAspectRatio = BANGUMI_POSTER_ASPECT_RATIO,
-                horizontalSpacing = 10.dp,
-                verticalSpacing = 14.dp,
-            )
-        results.error != null && results.items.isEmpty() -> AppErrorState(title = "搜索失败", message = results.error)
-        results.items.isEmpty() -> AppEmptyState(title = "没有搜索结果", message = "换个关键词试试")
-        else -> LazyVerticalGrid(
-            columns = GridCells.Adaptive(112.dp),
-            state = gridState,
-            contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = listBottomPadding),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            itemsIndexed(
-                results.items,
-                key = { index, item -> resolveBangumiSearchItemLazyKey(index, item) },
-            ) { index, item ->
-                SearchPosterCard(
-                    item = item,
-                    onClick = { onBangumiClick(item.seasonId.takeIf { it > 0 } ?: item.pgcSeasonId) },
-                    onLongClick = { onSaveCover(item.cover, plainSearchTitle(item)) },
+    Column(modifier = Modifier.fillMaxSize()) {
+        val categories = resolveBangumiSearchCategories(channel)
+        AppThemeAdaptiveTabRow(
+            options = categories.map { category -> AppSegmentOption(category, category.label) },
+            selectedValue = state.category,
+            onSelectionChange = onCategorySelected,
+            scrollable = true,
+            minTabWidth = 104.dp,
+            miuixBackdrop = tabBackdrop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                state.query.isBlank() -> AppEmptyState(
+                    title = "搜索${state.category.label}",
+                    message = "结果会限定在当前分类",
                 )
-                if (index == results.items.lastIndex && results.hasMore) {
-                    LaunchedEffect(item.seasonId, results.page) { onLoadMore() }
+                (results.isLoading || results.isLoadingMore) && results.items.isEmpty() ->
+                    com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton(
+                        minItemWidth = 112.dp,
+                        coverAspectRatio = BANGUMI_POSTER_ASPECT_RATIO,
+                        horizontalSpacing = 10.dp,
+                        verticalSpacing = 14.dp,
+                    )
+                results.error != null && results.items.isEmpty() ->
+                    AppErrorState(
+                        title = "搜索失败",
+                        message = results.error,
+                        primaryAction = AppContentStateAction("重试", onLoadMore),
+                    )
+                results.items.isEmpty() ->
+                    AppEmptyState(
+                        title = "当前页没有${state.category.label}结果",
+                        message = if (results.hasMore) "可以继续查找后续结果" else "换个关键词试试",
+                        primaryAction = if (results.hasMore) {
+                            AppContentStateAction("继续查找", onLoadMore)
+                        } else {
+                            null
+                        },
+                    )
+                else -> LazyVerticalGrid(
+                    columns = GridCells.Adaptive(112.dp),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = listBottomPadding),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    itemsIndexed(
+                        results.items,
+                        key = { index, item -> resolveBangumiSearchItemLazyKey(index, item) },
+                    ) { index, item ->
+                        SearchPosterCard(
+                            item = item,
+                            onClick = { onBangumiClick(item.seasonId.takeIf { it > 0 } ?: item.pgcSeasonId) },
+                            onLongClick = { onSaveCover(item.cover, plainSearchTitle(item)) },
+                        )
+                        if (index == results.items.lastIndex && results.hasMore) {
+                            LaunchedEffect(item.seasonId, results.page) { onLoadMore() }
+                        }
+                    }
+                    if (results.isLoadingMore) item(span = { GridItemSpan(maxLineSpan) }) { InlineLoading() }
+                    if (results.error != null && results.items.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                        InlineError(results.error, onLoadMore)
+                    }
                 }
-            }
-            if (results.isLoadingMore) item(span = { GridItemSpan(maxLineSpan) }) { InlineLoading() }
-            if (results.error != null && results.items.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                InlineError(results.error, onLoadMore)
             }
         }
     }
@@ -1118,11 +1185,3 @@ private fun InlineError(message: String, onRetry: () -> Unit) {
         primaryAction = AppContentStateAction("重试", onRetry),
     )
 }
-
-private val CINEMA_INDEX_CATEGORIES = listOf(
-    BangumiIndexCategory.CINEMA_ALL,
-    BangumiIndexCategory.MOVIE,
-    BangumiIndexCategory.TV_SHOW,
-    BangumiIndexCategory.DOCUMENTARY,
-    BangumiIndexCategory.VARIETY,
-)

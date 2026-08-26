@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
@@ -38,8 +39,9 @@ internal enum class PagerGestureDirection {
 
 internal const val PAGER_HORIZONTAL_DOMINANCE_RATIO = 1.5f
 internal const val PAGER_AMBIGUOUS_DIRECTION_SLOP_MULTIPLIER = 1.5f
-internal const val HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER = 2f
+internal const val HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER = 1.5f
 internal const val PAGER_RELEASE_POSITION_THRESHOLD = 0.2f
+internal const val PAGER_RELEASE_MAX_POSITION_THRESHOLD_DP = 96f
 internal const val PAGER_RELEASE_MIN_FLING_VELOCITY_DP = 300f
 
 internal fun resolveVerticalPriorityPagerGestureDirection(
@@ -94,14 +96,19 @@ internal fun resolvePagerReleaseTargetPage(
     scrollDeltaPx: Float,
     scrollVelocityPxPerSecond: Float,
     positionalThresholdFraction: Float = PAGER_RELEASE_POSITION_THRESHOLD,
+    maximumPositionThresholdPx: Float = Float.POSITIVE_INFINITY,
     minimumFlingVelocityPxPerSecond: Float,
 ): Int {
     if (pageCount <= 0) return 0
     val boundedStartPage = startPage.coerceIn(0, pageCount - 1)
     val isFastFling = scrollVelocityPxPerSecond != 0f &&
         abs(scrollVelocityPxPerSecond) >= minimumFlingVelocityPxPerSecond.coerceAtLeast(0f)
+    val positionThresholdPx = minOf(
+        pageSizePx * positionalThresholdFraction.coerceIn(0f, 1f),
+        maximumPositionThresholdPx.coerceAtLeast(0f),
+    )
     val crossedPositionThreshold = pageSizePx > 0f &&
-        abs(scrollDeltaPx) >= pageSizePx * positionalThresholdFraction.coerceIn(0f, 1f)
+        abs(scrollDeltaPx) >= positionThresholdPx
     if (!isFastFling && !crossedPositionThreshold) return boundedStartPage
 
     val releaseDirection = if (isFastFling) {
@@ -121,19 +128,27 @@ internal fun resolvePagerReleaseTargetPage(
  * two-dimensional pointer stream without consuming it, then takes ownership only after the
  * accumulated gesture is clearly horizontal. Vertical and ambiguous gestures remain untouched so
  * the child LazyColumn/LazyGrid can continue handling them normally.
+ *
+ * [shouldYield] aborts this detector without consuming the pointer stream, so a nested
+ * horizontal pager (such as the home hero carousel) can own the same gesture.
  */
 internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
     state: PagerState,
     enabled: Boolean,
     reverseLayout: Boolean = false,
     horizontalLockSlopMultiplier: Float = 1f,
+    shouldYield: () -> Boolean = { false },
 ): Modifier = composed {
     if (!enabled) return@composed this
 
+    val latestShouldYield = rememberUpdatedState(shouldYield)
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
     val minimumFlingVelocityPx = with(density) {
         PAGER_RELEASE_MIN_FLING_VELOCITY_DP.dp.toPx()
+    }
+    val maximumPositionThresholdPx = with(density) {
+        PAGER_RELEASE_MAX_POSITION_THRESHOLD_DP.dp.toPx()
     }
     val reverseDirection = remember(layoutDirection, reverseLayout) {
         ScrollableDefaults.reverseDirection(
@@ -143,7 +158,13 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
         )
     }
 
-    pointerInput(state, reverseDirection, minimumFlingVelocityPx, horizontalLockSlopMultiplier) {
+    pointerInput(
+        state,
+        reverseDirection,
+        minimumFlingVelocityPx,
+        maximumPositionThresholdPx,
+        horizontalLockSlopMultiplier,
+    ) {
         val dragCoroutineScope = CoroutineScope(currentCoroutineContext())
         val velocityTracker = VelocityTracker()
         awaitEachGesture gesture@{
@@ -151,6 +172,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                 requireUnconsumed = false,
                 pass = PointerEventPass.Initial,
             )
+            if (latestShouldYield.value()) return@gesture
             if (state.isScrollInProgress) {
                 dragCoroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
                     state.scroll(MutatePriority.UserInput) { }
@@ -167,6 +189,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
 
             while (direction == PagerGestureDirection.UNDECIDED) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (latestShouldYield.value()) return@gesture
                 val change = event.changes.firstOrNull { it.id == trackedPointerId }
                     ?: event.changes.firstOrNull { it.pressed }
                     ?: return@gesture
@@ -214,6 +237,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                             pageSizePx = state.layoutInfo.pageSize.toFloat(),
                             scrollDeltaPx = dragRelease.scrollDeltaPx,
                             scrollVelocityPxPerSecond = dragRelease.velocityPxPerSecond,
+                            maximumPositionThresholdPx = maximumPositionThresholdPx,
                             minimumFlingVelocityPxPerSecond = minimumFlingVelocityPx,
                         ),
                     )
@@ -226,6 +250,11 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                 var released = false
                 while (!released) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (latestShouldYield.value()) {
+                        dragSession.cancel()
+                        released = true
+                        continue
+                    }
                     val change = event.changes.firstOrNull { it.id == trackedPointerId }
                         ?: event.changes.firstOrNull { it.pressed }
                     if (change == null) {

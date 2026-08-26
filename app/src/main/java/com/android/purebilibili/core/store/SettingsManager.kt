@@ -137,6 +137,9 @@ enum class LiquidGlassAdvancedPreset(val value: Int, val label: String) {
 
 data class LiquidGlassAdvancedSettings(
     val preset: LiquidGlassAdvancedPreset = LiquidGlassAdvancedPreset.BALANCED,
+    val progressiveBlurRadius: Float = 0.5f,
+    val progressiveBlurExtent: Float = 0.75f,
+    val progressiveBlurCurve: Float = 0.5f,
     val contentReadability: Float = 0.62f,
     val chromaticAberration: Float = 0.56f,
     val contentDistortion: Float = 0.45f,
@@ -150,18 +153,27 @@ internal fun resolveLiquidGlassAdvancedPreset(
 ): LiquidGlassAdvancedSettings = when (preset) {
     LiquidGlassAdvancedPreset.READABLE -> LiquidGlassAdvancedSettings(
         preset = preset,
+        progressiveBlurRadius = 0.25f,
+        progressiveBlurExtent = 0.6f,
+        progressiveBlurCurve = 0.4f,
         contentReadability = 1f,
         chromaticAberration = 0.08f,
         contentDistortion = 0f,
     )
     LiquidGlassAdvancedPreset.BALANCED -> LiquidGlassAdvancedSettings(
         preset = preset,
+        progressiveBlurRadius = 0.5f,
+        progressiveBlurExtent = 0.75f,
+        progressiveBlurCurve = 0.5f,
         contentReadability = 0.62f,
         chromaticAberration = 0.56f,
         contentDistortion = 0.45f,
     )
     LiquidGlassAdvancedPreset.PRISM -> LiquidGlassAdvancedSettings(
         preset = preset,
+        progressiveBlurRadius = 0.8f,
+        progressiveBlurExtent = 0.9f,
+        progressiveBlurCurve = 0.65f,
         contentReadability = 0.72f,
         chromaticAberration = 0.96f,
         contentDistortion = 0.90f,
@@ -171,6 +183,9 @@ internal fun resolveLiquidGlassAdvancedPreset(
 
 internal fun resolveLiquidGlassAdvancedSettings(
     presetValue: Int?,
+    progressiveBlurRadius: Float? = null,
+    progressiveBlurExtent: Float? = null,
+    progressiveBlurCurve: Float? = null,
     contentReadability: Float?,
     chromaticAberration: Float?,
     contentDistortion: Float?,
@@ -181,6 +196,18 @@ internal fun resolveLiquidGlassAdvancedSettings(
     val defaults = resolveLiquidGlassAdvancedPreset(preset)
     if (preset != LiquidGlassAdvancedPreset.CUSTOM) return defaults
     return defaults.copy(
+        progressiveBlurRadius = normalizeLiquidGlassAdvancedValue(
+            progressiveBlurRadius ?: defaults.progressiveBlurRadius,
+            defaults.progressiveBlurRadius,
+        ),
+        progressiveBlurExtent = normalizeLiquidGlassAdvancedValue(
+            progressiveBlurExtent ?: defaults.progressiveBlurExtent,
+            defaults.progressiveBlurExtent,
+        ),
+        progressiveBlurCurve = normalizeLiquidGlassAdvancedValue(
+            progressiveBlurCurve ?: defaults.progressiveBlurCurve,
+            defaults.progressiveBlurCurve,
+        ),
         contentReadability = normalizeLiquidGlassAdvancedValue(
             contentReadability ?: defaults.contentReadability,
             defaults.contentReadability,
@@ -568,7 +595,7 @@ enum class BottomBarLiquidGlassPreset(
 data class HomeSettings(
     val displayMode: Int = 0,              // 展示模式 (0=网格, 1=故事卡片)
     val isBottomBarFloating: Boolean = true,
-    val navigationIconCrossScaleEnabled: Boolean = false,
+    val navigationIconCrossScaleEnabled: Boolean = true,
     val bottomBarLabelMode: Int = 0,       // (0=图标+文字, 1=仅图标, 2=仅文字)
     val topTabLabelMode: Int = 2,          // (0=图标+文字, 1=仅图标, 2=仅文字)
     val homeTopRightAction: HomeTopRightAction = HomeTopRightAction.SETTINGS,
@@ -1506,6 +1533,12 @@ object SettingsManager {
         stringPreferencesKey("liquid_glass_preview_image_uri")
     private val KEY_LIQUID_GLASS_ADVANCED_PRESET =
         intPreferencesKey("liquid_glass_advanced_preset")
+    private val KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS =
+        floatPreferencesKey("liquid_glass_progressive_blur_radius")
+    private val KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT =
+        floatPreferencesKey("liquid_glass_progressive_blur_extent")
+    private val KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE =
+        floatPreferencesKey("liquid_glass_progressive_blur_curve")
     private val KEY_LIQUID_GLASS_CONTENT_READABILITY =
         floatPreferencesKey("liquid_glass_content_readability")
     private val KEY_LIQUID_GLASS_CHROMATIC_ABERRATION =
@@ -1583,6 +1616,9 @@ object SettingsManager {
         )
         val liquidGlassAdvancedSettings = resolveLiquidGlassAdvancedSettings(
             presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+            progressiveBlurRadius = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS],
+            progressiveBlurExtent = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT],
+            progressiveBlurCurve = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE],
             contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
             chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
             contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
@@ -1591,7 +1627,7 @@ object SettingsManager {
             displayMode = preferences[KEY_DISPLAY_MODE] ?: 0,
             isBottomBarFloating = preferences[KEY_BOTTOM_BAR_FLOATING] ?: true,
             navigationIconCrossScaleEnabled =
-                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] ?: false,
+                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] ?: true,
             bottomBarLabelMode = preferences[KEY_BOTTOM_BAR_LABEL_MODE] ?: BottomBarLabelMode.ICON_AND_TEXT,
             topTabLabelMode = preferences[KEY_TOP_TAB_LABEL_MODE] ?: TopTabLabelMode.TEXT_ONLY,
             homeTopRightAction = HomeTopRightAction.fromValue(
@@ -3906,6 +3942,9 @@ object SettingsManager {
         context.settingsDataStore.data.map { preferences ->
             resolveLiquidGlassAdvancedSettings(
                 presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+                progressiveBlurRadius = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS],
+                progressiveBlurExtent = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT],
+                progressiveBlurCurve = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE],
                 contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
                 chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
                 contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
@@ -3918,6 +3957,12 @@ object SettingsManager {
     ) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET] = settings.preset.value
+            preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS] =
+                normalizeLiquidGlassAdvancedValue(settings.progressiveBlurRadius, 0.5f)
+            preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT] =
+                normalizeLiquidGlassAdvancedValue(settings.progressiveBlurExtent, 0.75f)
+            preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE] =
+                normalizeLiquidGlassAdvancedValue(settings.progressiveBlurCurve, 0.5f)
             preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY] =
                 normalizeLiquidGlassAdvancedValue(settings.contentReadability, 0.62f)
             preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION] =
@@ -3994,8 +4039,8 @@ object SettingsManager {
     // ==========  弹幕设置 ==========
     
     private const val DANMAKU_DEFAULTS_VERSION = 5
-    // v3: force-refresh the bottom navigation once, restoring Recommend (HOME) as item one.
-    private const val HOME_VISUAL_DEFAULTS_VERSION = 3
+    // v4: restore navigation icon cross-scale as the default without resetting other visual choices.
+    private const val HOME_VISUAL_DEFAULTS_VERSION = 4
     private const val DEFAULT_DANMAKU_OPACITY = DANMAKU_DEFAULT_OPACITY
     private const val DEFAULT_DANMAKU_FONT_SCALE = 1.0f
     private const val DEFAULT_DANMAKU_SPEED = 1.0f
@@ -5029,22 +5074,24 @@ object SettingsManager {
 
     /**
      * 启动时一次性迁移首页视觉默认值（仅在版本未迁移时覆盖）。
-     * 目标：默认开启底栏悬浮、顶/底液态玻璃、顶部模糊，并在 v3 一次性
-     * 覆盖底栏项目，确保“推荐”（HOME）恢复为第一项。版本标记写入后不再重复覆盖。
+     * 目标：默认开启底栏悬浮、导航图标交叉缩放、顶/底液态玻璃、顶部模糊，
+     * 并覆盖底栏项目，确保“推荐”（HOME）恢复为第一项。版本标记写入后不再重复覆盖。
      */
     suspend fun ensureHomeVisualDefaults(context: Context) {
         context.settingsDataStore.edit { preferences ->
             val currentVersion = preferences[KEY_HOME_VISUAL_DEFAULTS_VERSION] ?: 0
             if (currentVersion < HOME_VISUAL_DEFAULTS_VERSION) {
-                preferences[KEY_BOTTOM_BAR_FLOATING] = true
-                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] = false
-                preferences[KEY_LIQUID_GLASS_ENABLED] = true
-                preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = true
-                preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] = true
-                preferences[KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED] = true
-                preferences[KEY_HEADER_BLUR_ENABLED] = true
-                preferences[KEY_BOTTOM_BAR_ORDER] = DEFAULT_BOTTOM_BAR_ORDER
-                preferences[KEY_BOTTOM_BAR_VISIBLE_TABS] = DEFAULT_BOTTOM_BAR_VISIBLE_TABS
+                if (currentVersion < 3) {
+                    preferences[KEY_BOTTOM_BAR_FLOATING] = true
+                    preferences[KEY_LIQUID_GLASS_ENABLED] = true
+                    preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = true
+                    preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] = true
+                    preferences[KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED] = true
+                    preferences[KEY_HEADER_BLUR_ENABLED] = true
+                    preferences[KEY_BOTTOM_BAR_ORDER] = DEFAULT_BOTTOM_BAR_ORDER
+                    preferences[KEY_BOTTOM_BAR_VISIBLE_TABS] = DEFAULT_BOTTOM_BAR_VISIBLE_TABS
+                }
+                preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] = true
                 preferences[KEY_HOME_VISUAL_DEFAULTS_VERSION] = HOME_VISUAL_DEFAULTS_VERSION
             }
         }
@@ -7144,6 +7191,18 @@ object SettingsManager {
                 KEY_LIQUID_GLASS_ADVANCED_PRESET,
                 SettingsShareSection.APPEARANCE,
             ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE,
+                SettingsShareSection.APPEARANCE,
+            ),
             IntShareablePreferenceDefinition(
                 liquidGlassReadabilityModePreferencesKey,
                 SettingsShareSection.APPEARANCE,
@@ -7393,6 +7452,9 @@ object SettingsManager {
             KEY_LIQUID_GLASS_STRENGTH.name,
             KEY_LIQUID_GLASS_PROGRESS.name,
             KEY_LIQUID_GLASS_ADVANCED_PRESET.name,
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS.name,
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT.name,
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE.name,
             liquidGlassReadabilityModePreferencesKey.name,
             KEY_LIQUID_GLASS_CONTENT_READABILITY.name,
             KEY_LIQUID_GLASS_CHROMATIC_ABERRATION.name,
@@ -7432,6 +7494,9 @@ object SettingsManager {
         )
         val advancedSettings = resolveLiquidGlassAdvancedSettings(
             presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+            progressiveBlurRadius = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS],
+            progressiveBlurExtent = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT],
+            progressiveBlurCurve = preferences[KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE],
             contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
             chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
             contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
@@ -7456,6 +7521,15 @@ object SettingsManager {
             KEY_LIQUID_GLASS_PROGRESS.name to JsonPrimitive(progress),
             KEY_LIQUID_GLASS_ADVANCED_PRESET.name to JsonPrimitive(
                 advancedSettings.preset.value
+            ),
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_RADIUS.name to JsonPrimitive(
+                advancedSettings.progressiveBlurRadius
+            ),
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT.name to JsonPrimitive(
+                advancedSettings.progressiveBlurExtent
+            ),
+            KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE.name to JsonPrimitive(
+                advancedSettings.progressiveBlurCurve
             ),
             liquidGlassReadabilityModePreferencesKey.name to JsonPrimitive(
                 preferences[liquidGlassReadabilityModePreferencesKey]

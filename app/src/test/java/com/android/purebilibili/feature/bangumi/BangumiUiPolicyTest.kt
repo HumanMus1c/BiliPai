@@ -1,10 +1,34 @@
 package com.android.purebilibili.feature.bangumi
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BangumiUiPolicyTest {
+
+    @Test
+    fun `cover badge on light gold uses dark label`() {
+        val colors = resolveBangumiCoverBadgeColors(
+            primary = Color(0xFFE8C9A0),
+            onPrimary = Color(0xFF3A2A18),
+            surface = Color(0xFF121212),
+            onSurface = Color(0xFFE6E1DC),
+        )
+        assertTrue(colors.contentColor.luminance() < 0.45f)
+    }
+
+    @Test
+    fun `cover badge on dark primary keeps light label`() {
+        val colors = resolveBangumiCoverBadgeColors(
+            primary = Color(0xFF8B5A2B),
+            onPrimary = Color.White,
+            surface = Color(0xFF121212),
+            onSurface = Color(0xFFE6E1DC),
+        )
+        assertTrue(colors.contentColor.luminance() > 0.5f)
+    }
 
     @Test
     fun `bangumi navigation title font should be reduced on phone`() {

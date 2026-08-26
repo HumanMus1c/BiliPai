@@ -1,11 +1,9 @@
 package com.android.purebilibili.feature.settings
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.vectorResource
+import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.*
@@ -31,7 +29,32 @@ private enum class SettingsNavigationIconRole {
     TECH,
 }
 
+internal fun resolveSettingsNavigationPreviewMaterialSymbolResource(
+    tabId: String,
+    selected: Boolean = false,
+): Int = when (tabId.trim().uppercase()) {
+    "HOME", "RECOMMEND" -> if (selected) R.drawable.ms_home_fill_24 else R.drawable.ms_home_24
+    "DYNAMIC" -> if (selected) R.drawable.ms_notifications_fill_24 else R.drawable.ms_notifications_none_24
+    "STORY" -> if (selected) R.drawable.ms_play_circle_fill_24 else R.drawable.ms_play_circle_outline_24
+    "HISTORY" -> if (selected) R.drawable.ms_history_fill_24 else R.drawable.ms_history_24
+    "LISTEN_VIDEO" -> if (selected) R.drawable.ms_library_music_fill_24 else R.drawable.ms_library_music_24
+    "PROFILE", "FOLLOW" -> if (selected) R.drawable.ms_person_fill_24 else R.drawable.ms_person_24
+    "FAVORITE" -> if (selected) R.drawable.ms_collections_bookmark_fill_24 else R.drawable.ms_collections_bookmark_24
+    "LIVE" -> if (selected) R.drawable.ms_live_tv_fill_24 else R.drawable.ms_live_tv_24
+    "WATCHLATER", "WATCH_LATER" -> if (selected) R.drawable.ms_watch_later_fill_24 else R.drawable.ms_watch_later_24
+    "SETTINGS" -> if (selected) R.drawable.ms_settings_fill_24 else R.drawable.ms_settings_24
+    "PLUGINS" -> if (selected) R.drawable.ms_extension_fill_24 else R.drawable.ms_extension_24
+    "POPULAR" -> if (selected) R.drawable.ms_trending_up_fill_24 else R.drawable.ms_trending_up_24
+    "ANIME" -> if (selected) R.drawable.ms_collections_bookmark_fill_24 else R.drawable.ms_collections_bookmark_24
+    "GAME" -> if (selected) R.drawable.ms_sports_esports_fill_24 else R.drawable.ms_sports_esports_24
+    "PARTITION" -> if (selected) R.drawable.ms_grid_view_fill_24 else R.drawable.ms_grid_view_24
+    "KNOWLEDGE" -> if (selected) R.drawable.ms_lightbulb_fill_24 else R.drawable.ms_lightbulb_24
+    "TECH" -> if (selected) R.drawable.ms_smart_toy_fill_24 else R.drawable.ms_smart_toy_24
+    else -> if (selected) R.drawable.ms_home_fill_24 else R.drawable.ms_home_24
+}
+
 /** Uses the active native icon family so the navigation preview matches the runtime chrome. */
+@Composable
 internal fun resolveSettingsNavigationPreviewIcon(
     tabId: String,
     iconFamily: AppSemanticIconFamily,
@@ -61,7 +84,7 @@ internal fun resolveSettingsNavigationPreviewIcon(
 
     return when (iconFamily) {
         AppSemanticIconFamily.MIUIX -> when (role) {
-            SettingsNavigationIconRole.HOME -> if (selected) MiuixIcons.Medium.Th1 else MiuixIcons.Th1
+            SettingsNavigationIconRole.HOME -> if (selected) MiuixIcons.Medium.Home else MiuixIcons.Home
             SettingsNavigationIconRole.DYNAMIC -> if (selected) MiuixIcons.Medium.Messages else MiuixIcons.Messages
             SettingsNavigationIconRole.STORY -> if (selected) MiuixIcons.Medium.Recording else MiuixIcons.Recording
             SettingsNavigationIconRole.HISTORY -> if (selected) MiuixIcons.Medium.Recent else MiuixIcons.Recent
@@ -74,31 +97,14 @@ internal fun resolveSettingsNavigationPreviewIcon(
             SettingsNavigationIconRole.PLUGINS -> if (selected) MiuixIcons.FolderFill else MiuixIcons.Folder
             SettingsNavigationIconRole.FOLLOW -> MiuixIcons.Contacts
             SettingsNavigationIconRole.POPULAR -> MiuixIcons.TopDownloads
-            SettingsNavigationIconRole.ANIME -> MiuixIcons.Play
+            SettingsNavigationIconRole.ANIME -> if (selected) MiuixIcons.FavoritesFill else MiuixIcons.Favorites
             SettingsNavigationIconRole.GAME -> MiuixIcons.Store
             SettingsNavigationIconRole.PARTITION -> if (selected) MiuixIcons.Medium.GridView else MiuixIcons.GridView
             SettingsNavigationIconRole.KNOWLEDGE -> MiuixIcons.Notes
-            SettingsNavigationIconRole.TECH -> MiuixIcons.Theme
+            SettingsNavigationIconRole.TECH -> MiuixIcons.MindMap
         }
-        AppSemanticIconFamily.MATERIAL -> when (role) {
-            SettingsNavigationIconRole.HOME -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
-            SettingsNavigationIconRole.DYNAMIC -> if (selected) Icons.Filled.Notifications else Icons.Outlined.NotificationsNone
-            SettingsNavigationIconRole.STORY -> if (selected) Icons.Filled.PlayCircle else Icons.Outlined.PlayCircleOutline
-            SettingsNavigationIconRole.HISTORY -> if (selected) Icons.Filled.History else Icons.Outlined.History
-            SettingsNavigationIconRole.LISTEN_VIDEO -> if (selected) Icons.Filled.LibraryMusic else Icons.Outlined.LibraryMusic
-            SettingsNavigationIconRole.PROFILE -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
-            SettingsNavigationIconRole.FAVORITE -> if (selected) Icons.Filled.CollectionsBookmark else Icons.Outlined.CollectionsBookmark
-            SettingsNavigationIconRole.LIVE -> if (selected) Icons.Filled.LiveTv else Icons.Outlined.LiveTv
-            SettingsNavigationIconRole.WATCH_LATER -> if (selected) Icons.Filled.WatchLater else Icons.Outlined.WatchLater
-            SettingsNavigationIconRole.SETTINGS -> if (selected) Icons.Filled.Settings else Icons.Outlined.Settings
-            SettingsNavigationIconRole.PLUGINS -> if (selected) Icons.Filled.Extension else Icons.Outlined.Extension
-            SettingsNavigationIconRole.FOLLOW -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
-            SettingsNavigationIconRole.POPULAR -> if (selected) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Outlined.TrendingUp
-            SettingsNavigationIconRole.ANIME -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv
-            SettingsNavigationIconRole.GAME -> if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
-            SettingsNavigationIconRole.PARTITION -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
-            SettingsNavigationIconRole.KNOWLEDGE -> if (selected) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb
-            SettingsNavigationIconRole.TECH -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
-        }
+        AppSemanticIconFamily.MATERIAL -> ImageVector.vectorResource(
+            resolveSettingsNavigationPreviewMaterialSymbolResource(tabId, selected)
+        )
     }
 }

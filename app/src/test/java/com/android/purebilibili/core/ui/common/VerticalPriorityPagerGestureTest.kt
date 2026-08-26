@@ -72,7 +72,7 @@ class VerticalPriorityPagerGestureTest {
         assertEquals(
             PagerGestureDirection.UNDECIDED,
             resolveVerticalPriorityPagerGestureDirection(
-                totalX = 12f,
+                totalX = 11f,
                 totalY = 2f,
                 touchSlop = 8f,
                 horizontalLockSlopMultiplier = HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
@@ -81,7 +81,7 @@ class VerticalPriorityPagerGestureTest {
         assertEquals(
             PagerGestureDirection.HORIZONTAL,
             resolveVerticalPriorityPagerGestureDirection(
-                totalX = 17f,
+                totalX = 13f,
                 totalY = 3f,
                 touchSlop = 8f,
                 horizontalLockSlopMultiplier = HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
@@ -126,6 +126,34 @@ class VerticalPriorityPagerGestureTest {
                 pageSizePx = 400f,
                 scrollDeltaPx = 79f,
                 scrollVelocityPxPerSecond = 100f,
+                minimumFlingVelocityPxPerSecond = 900f,
+            ),
+        )
+    }
+
+    @Test
+    fun `wide tablet page uses capped positional threshold`() {
+        assertEquals(
+            3,
+            resolvePagerReleaseTargetPage(
+                startPage = 2,
+                pageCount = 5,
+                pageSizePx = 2_000f,
+                scrollDeltaPx = 97f,
+                scrollVelocityPxPerSecond = 100f,
+                maximumPositionThresholdPx = 96f,
+                minimumFlingVelocityPxPerSecond = 900f,
+            ),
+        )
+        assertEquals(
+            2,
+            resolvePagerReleaseTargetPage(
+                startPage = 2,
+                pageCount = 5,
+                pageSizePx = 2_000f,
+                scrollDeltaPx = 95f,
+                scrollVelocityPxPerSecond = 100f,
+                maximumPositionThresholdPx = 96f,
                 minimumFlingVelocityPxPerSecond = 900f,
             ),
         )
@@ -177,6 +205,7 @@ class VerticalPriorityPagerGestureTest {
         assertTrue(homePager.contains("userScrollEnabled = false"))
         assertTrue(homePager.contains(".verticalPriorityHorizontalPagerSwipe("))
         assertTrue(homePager.contains("HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER"))
+        assertTrue(homePager.contains("shouldYield = shouldYieldHomePagerToHeroCarousel"))
 
         val commentPager = videoContentSource
             .substringAfter("HorizontalPager(")

@@ -1,5 +1,6 @@
 // 文件路径: feature/dynamic/components/ImagePreviewDialog.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -469,7 +470,10 @@ private fun ImagePreviewOverlayContent(
             val visualFrame = resolveImagePreviewVisualFrame(
                 visualProgress = transitionFrame.visualProgress,
                 transitionEnabled = true,
-                maxBlurRadiusPx = maxBlurRadiusPx
+                maxBlurRadiusPx = maxBlurRadiusPx,
+                // Returning should stay optically sharp while the image morphs back
+                // into its source rect. Blur made the source image look unfocused.
+                blurEnabled = !isDismissing && backProgress <= 0f,
             )
             val backdropAlpha = if (isDismissing) {
                 resolveImagePreviewDismissBackdropAlpha(transitionFrame.visualProgress)
@@ -1234,7 +1238,7 @@ private fun ImagePreviewOverlayContent(
     }
 
     if (showOrdinaryImageActions) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showOrdinaryImageActions = false },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {

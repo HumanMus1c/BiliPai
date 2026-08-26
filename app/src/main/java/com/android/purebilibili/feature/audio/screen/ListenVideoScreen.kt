@@ -190,6 +190,20 @@ internal fun ListenVideoScreen(
             .statusBarsPadding()
     ) {
         val layout = resolveListenVideoLayout(maxWidth.value.toInt())
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(listenBackdrop)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
+                            AppSurfaceTokens.chromeBackground(),
+                            AppSurfaceTokens.chromeBackground(),
+                        )
+                    )
+                ),
+        )
         Column(modifier = Modifier.fillMaxSize()) {
             ListenVideoHeader(
                 nowPlaying = nowPlaying,
@@ -212,19 +226,19 @@ internal fun ListenVideoScreen(
                 indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                 preferInlineContentStyle = false,
                 miuixBackdrop = listenBackdrop,
-                forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
                 liquidGlassEffectsEnabled = true,
+                dragSelectionEnabled = sectionLabels.size > 1,
+                tapPressRefractionEnabled = true,
                 indicatorPositionProvider = {
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },
-                isScrollInProgressProvider = { pagerState.isScrollInProgress }
+                isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                externalPagerMotionEffectsEnabled = true,
             )
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .weight(1f)
-                    .layerBackdrop(listenBackdrop)
+                modifier = Modifier.weight(1f)
             ) { page ->
                 ListenVideoPage(
                     section = ListenVideoSection.entries[page],

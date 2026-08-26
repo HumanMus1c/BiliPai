@@ -83,6 +83,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -508,7 +510,8 @@ internal data class BiliPaiBottomBarSearchLayout(
     val minimumIndicatorWidth: Dp,
 )
 
-internal fun resolveBiliPaiBottomBarSearchCircleSize(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
+internal fun resolveBiliPaiBottomBarSearchCircleSize(): Dp =
+    AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small
 
 internal fun resolveBiliPaiExpandedHomeIconSize(): Dp = AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall
 
@@ -547,10 +550,9 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
         )
     }
 
-    val gap = AppSpacingTokens.Small + AppSpacingTokens.Micro
+    val gap = AppSpacingTokens.Small
     val availableWidth = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(AppSpacingTokens.None)
     val searchCircleSize = resolveBiliPaiBottomBarSearchCircleSize()
-    val minimumDockWidth = searchCircleSize
     val collapsedSearchWidth = searchCircleSize
     val compactHomeDockSize = searchCircleSize
     val expandedSearchWidth = minOf(
@@ -563,22 +565,20 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
     } else {
         collapsedSearchWidth
     }
+    val allocatableDockWidth =
+        (availableWidth - targetSearchWidth - gap).coerceAtLeast(AppSpacingTokens.None)
     val targetDockWidth = if (useCompactLayout && searchExpanded) {
         compactHomeDockSize
     } else {
-        minOf(baseDockWidth, (availableWidth - targetSearchWidth - gap).coerceAtLeast(minimumDockWidth))
+        minOf(baseDockWidth, allocatableDockWidth)
     }
     return BiliPaiBottomBarSearchLayout(
         dockWidth = targetDockWidth,
         searchWidth = targetSearchWidth,
         gap = gap,
-        // The search capsule may narrow the dock, but it must not also squeeze the selected
-        // indicator. Preserve the slot width the dock had before allocating search space.
-        minimumIndicatorWidth = resolveBiliPaiBottomBarItemSlotWidth(
-            dockWidth = baseDockWidth,
-            horizontalPadding = AppSpacingTokens.ExtraSmall,
-            itemCount = itemCount,
-        ),
+        // The indicator must match the compressed navigation slot. Keeping the pre-search
+        // width makes it overlap neighbouring destinations and shifts it at the dock edges.
+        minimumIndicatorWidth = AppSpacingTokens.None,
     )
 }
 
@@ -600,7 +600,7 @@ internal fun resolveBiliPaiBottomBarIndicatorHeight(dockHeight: Dp): Dp {
 }
 
 internal fun resolveBiliPaiBottomBarSearchHeight(searchExpanded: Boolean): Dp {
-    return AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
+    return resolveBiliPaiBottomBarSearchCircleSize()
 }
 
 internal fun resolveBottomBarRefractionCaptureWidth(
@@ -2152,6 +2152,8 @@ fun FrostedBottomBar(
     isTransitionRunning: Boolean = false,
     forceLowBlurBudget: Boolean = false,
     isFeedScrollInProgress: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isPagerScrollInProgressProvider: () -> Boolean = { false },
     uiSkinDecoration: BottomBarUiSkinDecoration? = null
 ) {
     val foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture
@@ -2203,6 +2205,8 @@ fun FrostedBottomBar(
                 isTransitionRunning = isTransitionRunning,
                 forceLowBlurBudget = forceLowBlurBudget,
                 isFeedScrollInProgress = isFeedScrollInProgress,
+                indicatorPositionProvider = indicatorPositionProvider,
+                isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
                 uiSkinDecoration = uiSkinDecoration,
                 sharedLiquidGlassEnabled = policy.liquidGlassEnabled,
                 )
@@ -2231,6 +2235,8 @@ fun FrostedBottomBar(
                 isTransitionRunning = isTransitionRunning,
                 forceLowBlurBudget = forceLowBlurBudget,
                 isFeedScrollInProgress = isFeedScrollInProgress,
+                indicatorPositionProvider = indicatorPositionProvider,
+                isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
                 uiSkinDecoration = uiSkinDecoration,
                 sharedLiquidGlassEnabled = policy.liquidGlassEnabled,
                 )
@@ -2263,6 +2269,8 @@ private fun MaterialBottomBar(
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
     isFeedScrollInProgress: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isPagerScrollInProgressProvider: () -> Boolean = { false },
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
     sharedLiquidGlassEnabled: Boolean,
 ) {
@@ -2374,6 +2382,8 @@ private fun MaterialBottomBar(
             searchLaunchKey = searchLaunchKey,
             onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
             isFeedScrollInProgress = isFeedScrollInProgress,
+            indicatorPositionProvider = indicatorPositionProvider,
+            isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
             uiSkinDecoration = uiSkinDecoration
         )
         return
@@ -2562,6 +2572,8 @@ private fun MiuixBottomBar(
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
     isFeedScrollInProgress: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isPagerScrollInProgressProvider: () -> Boolean = { false },
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
     sharedLiquidGlassEnabled: Boolean,
 ) {
@@ -2666,6 +2678,8 @@ private fun MiuixBottomBar(
             searchLaunchKey = searchLaunchKey,
             onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
             isFeedScrollInProgress = isFeedScrollInProgress,
+            indicatorPositionProvider = indicatorPositionProvider,
+            isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
             uiSkinDecoration = uiSkinDecoration
         )
         return
@@ -2990,6 +3004,8 @@ private fun BiliPaiFloatingBottomBar(
     searchLaunchKey: Int = 0,
     onSearchLaunchTransitionFinished: (Int) -> Unit = {},
     isFeedScrollInProgress: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isPagerScrollInProgressProvider: () -> Boolean = { false },
     uiSkinDecoration: BottomBarUiSkinDecoration? = null
 ) {
     // BiliPai 对齐：材质/动效由 FloatingBottomBar 三层结构承担；
@@ -3282,6 +3298,8 @@ private fun BiliPaiFloatingBottomBar(
                             shellHeight = dockHeight,
                             indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
                             minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
+                            indicatorPositionProvider = indicatorPositionProvider,
+                            isScrollInProgressProvider = isPagerScrollInProgressProvider,
                             liquidGlassTuning = liquidGlassTuning
                         ) {
                             visibleItems.forEachIndexed { index, item ->
@@ -3520,6 +3538,7 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
     }
     val selectedAlpha = if (selected) 1f else 0f
     val selectionScale = LocalFloatingBottomBarItemSelectionScale.current
+    val density = LocalDensity.current
 
     if (showIcon) {
         Box(
@@ -3527,6 +3546,9 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
                 val scale = selectionScale()
                 scaleX = scale
                 scaleY = scale
+                translationY = with(density) {
+                    -resolveNavigationIconSelectionLiftDp(scale).dp.toPx()
+                }
                 clip = false
             },
             contentAlignment = Alignment.Center,
@@ -3577,7 +3599,10 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
         AppText(
             text = label,
             color = contentColor,
-            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+            fontSize = resolveFloatingDockLabelFontSize(
+                showIcon = showIcon,
+                showText = showText,
+            ),
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             textAlign = TextAlign.Center,
@@ -3831,24 +3856,9 @@ private fun BiliPaiBottomBarSearchCapsule(
     liquidGlassTuning: LiquidGlassTuning,
     iconStyle: SharedFloatingBottomBarIconStyle
 ) {
-    var searchLongPressHeld by remember { mutableStateOf(false) }
     val currentOnCompactClick by rememberUpdatedState(onCompactClick)
     val currentOnSubmit by rememberUpdatedState(onSubmit)
     val currentHaptic by rememberUpdatedState(haptic)
-    val launchSearchFromExpandedBlankQuery = expanded && query.isBlank()
-    val longPressHorizontalScale by animateFloatAsState(
-        targetValue = if (searchLongPressHeld) 0.94f else 1f,
-        animationSpec = bottomBarSearchHoldMotionSpec(),
-        label = "bottomBarSearchLongPressHorizontalScale"
-    )
-    LaunchedEffect(searchLongPressHeld) {
-        if (!searchLongPressHeld) return@LaunchedEffect
-        currentHaptic(HapticType.MEDIUM)
-        while (searchLongPressHeld) {
-            delay(90L)
-            currentHaptic(HapticType.SELECTION)
-        }
-    }
     val fieldAlpha by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = bottomBarContentVisibilityMotionSpec(),
@@ -3864,9 +3874,6 @@ private fun BiliPaiBottomBarSearchCapsule(
         modifier = Modifier
             .width(width)
             .height(height)
-            .graphicsLayer {
-                scaleX = longPressHorizontalScale
-            }
             .biliPaiMiuixFloatingDockSurface(
                 shape = shape,
                 backdrop = miuixBackdrop,
@@ -3887,28 +3894,17 @@ private fun BiliPaiBottomBarSearchCapsule(
             )
             .then(
                 if (!expanded) {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                try {
-                                    awaitRelease()
-                                } finally {
-                                    if (searchLongPressHeld) {
-                                        searchLongPressHeld = false
-                                    }
-                                }
-                            },
-                            onTap = {
-                                currentHaptic(HapticType.LIGHT)
-                                currentOnCompactClick()
-                            },
-                            onLongPress = {
-                                searchLongPressHeld = true
-                            }
-                        )
-                    }
+                    Modifier.clickable(
+                        role = Role.Button,
+                        onClick = {
+                            currentHaptic(HapticType.LIGHT)
+                            currentOnCompactClick()
+                        },
+                    )
                 } else {
-                    Modifier
+                    Modifier.semantics {
+                        contentDescription = "搜索输入框"
+                    }
                 }
             ),
         contentAlignment = Alignment.Center
@@ -3927,20 +3923,6 @@ private fun BiliPaiBottomBarSearchCapsule(
             interactive = true,
             iconStyle = iconStyle
         )
-        if (launchSearchFromExpandedBlankQuery) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(shape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        currentHaptic(HapticType.LIGHT)
-                        currentOnSubmit()
-                    }
-            )
-        }
     }
 }
 

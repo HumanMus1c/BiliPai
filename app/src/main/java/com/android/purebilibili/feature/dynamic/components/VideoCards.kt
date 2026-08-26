@@ -1,12 +1,14 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.rememberAppPlayIcon
+import com.android.purebilibili.core.ui.resolveAppTvIcon
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.tween
@@ -23,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
@@ -61,7 +64,9 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.util.CardPositionManager
+import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
+import com.android.purebilibili.core.ui.components.VideoStatRow
 import com.android.purebilibili.data.model.response.ArchiveMajor
 
 /**
@@ -247,6 +252,9 @@ private fun VideoCardLargeCover(
             .clip(coverShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
+        val coverOverlayTextStyle = remember {
+            TextStyle(shadow = resolveVideoCardCoverOverlayTextShadow())
+        }
         if (coverUrl.isNotEmpty()) {
             AsyncImage(
                 model = coverRequest,
@@ -296,39 +304,31 @@ private fun VideoCardLargeCover(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (archive.duration_text.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .background(MediaContrastPalette.Scrim.copy(alpha = 0.45f), AppShapes.container(ContainerLevel.Tag))
-                            .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
-                    ) {
-                        AppText(
-                            text = archive.duration_text,
-                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                            color = MediaContrastPalette.Foreground,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    AppText(
+                        text = archive.duration_text,
+                        color = MediaContrastPalette.Foreground,
+                        style = feedContentTypography().coverBadge
+                            .copy(fontWeight = FontWeight.Medium)
+                            .merge(coverOverlayTextStyle),
+                        maxLines = 1,
+                        tapToCopyEnabled = false,
+                    )
                     Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
                 }
 
-                VideoCardLargeMetaText(text = "${archive.stat.play}播放")
-                Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
-                VideoCardLargeMetaText(text = "${archive.stat.danmaku}弹幕")
+                VideoStatRow(
+                    playText = archive.stat.play,
+                    danmakuText = archive.stat.danmaku,
+                    contentColor = MediaContrastPalette.Foreground,
+                )
                 Spacer(modifier = Modifier.weight(1f))
 
-                Box(
-                    modifier = Modifier
-                        .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro)
-                        .background(MediaContrastPalette.Scrim.copy(alpha = 0.28f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AppIcon(
-                        imageVector = rememberAppPlayIcon(),
-                        contentDescription = null,
-                        tint = MediaContrastPalette.Foreground,
-                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
-                    )
-                }
+                AppIcon(
+                    imageVector = resolveAppTvIcon(),
+                    contentDescription = "播放视频",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(32.dp),
+                )
             }
         }
     }
@@ -347,14 +347,16 @@ private fun VideoCardLargeInfo(
             text = collectionTitle,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow(),
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(AppSpacingTokens.Micro))
         AppText(
             text = archive.title,
             fontSize = MaterialTheme.typography.labelMedium.fontSize,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = titleModifier
         )
@@ -363,7 +365,8 @@ private fun VideoCardLargeInfo(
             text = archive.title,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
-            overflow = TextOverflow.Visible,
+            maxLines = videoCardTitleMaxLines(),
+            overflow = videoCardTitleOverflow(),
             lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = titleModifier

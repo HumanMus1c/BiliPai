@@ -14,6 +14,32 @@ import kotlin.test.assertSame
 class VideoLoadRequestPolicyTest {
 
     @Test
+    fun `page switch commits target ui identity before replacing player source`() {
+        val source = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/video/viewmodel/VideoPlaybackViewModel.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/video/viewmodel/VideoPlaybackViewModel.kt"),
+        ).first { it.exists() }.readText()
+        val switchBlock = source
+            .substringAfter("fun switchPage(")
+            .substringBefore("fun dismissResumePlaybackSuggestion()")
+        val uiCommitIndex = switchBlock.indexOf("_uiState.value = switchedState")
+        val playerReplaceIndex = switchBlock.indexOf("playResolvedPlayback(")
+        val identityCallbackIndex = switchBlock.indexOf("onIdentityCommitted?.invoke(targetBvid, page.cid)")
+
+        assertTrue(uiCommitIndex >= 0)
+        assertTrue(playerReplaceIndex > uiCommitIndex)
+        assertTrue(identityCallbackIndex in 0 until uiCommitIndex)
+        assertTrue(switchBlock.contains("val targetBvid = current.info.bvid"))
+        assertTrue(
+            switchBlock.contains(
+                "VideoRepository.getPlayUrlData(targetBvid, page.cid, current.currentQuality)"
+            )
+        )
+        assertTrue(switchBlock.contains("info = current.info.copy(cid = page.cid)"))
+        assertTrue(switchBlock.contains("currentCid = previousCid"))
+    }
+
+    @Test
     fun `restores an empty reattached player from matching loaded ui without reloading detail`() {
         assertTrue(
             shouldRestoreAttachedPlayerFromLoadedUi(

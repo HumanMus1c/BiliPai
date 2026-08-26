@@ -8,6 +8,38 @@ import kotlin.test.assertTrue
 class LiveRoomLayoutPolicyTest {
 
     @Test
+    fun `phone fullscreen requests sensor landscape instead of following window tablet width`() {
+        assertEquals(
+            LiveRequestedOrientationMode.SensorLandscape,
+            resolveLiveRequestedOrientationMode(
+                isTabletDevice = false,
+                isFullscreen = true,
+            )
+        )
+        assertEquals(
+            LiveRequestedOrientationMode.Portrait,
+            resolveLiveRequestedOrientationMode(
+                isTabletDevice = false,
+                isFullscreen = false,
+            )
+        )
+        assertEquals(
+            LiveRequestedOrientationMode.Unspecified,
+            resolveLiveRequestedOrientationMode(
+                isTabletDevice = true,
+                isFullscreen = true,
+            )
+        )
+        assertEquals(
+            LiveRequestedOrientationMode.Unspecified,
+            resolveLiveRequestedOrientationMode(
+                isTabletDevice = true,
+                isFullscreen = false,
+            )
+        )
+    }
+
+    @Test
     fun `portrait vertical live uses overlay layout like BiliPai portrait room`() {
         val mode = resolveLiveRoomLayoutMode(
             isLandscape = false,

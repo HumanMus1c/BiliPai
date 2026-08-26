@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.components.cards
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoCardCoverOverlayTextPolicyTest {
@@ -21,5 +22,16 @@ class VideoCardCoverOverlayTextPolicyTest {
         ).readText()
         assertTrue(source.contains("resolveVideoCardCoverOverlayTextShadow()"))
         assertTrue(source.contains("style = coverOverlayTextStyle"))
+    }
+
+    @Test
+    fun coverDurationTextUsesSharedOverlayShadow() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCardCoverDurationText.kt"
+        ).readText()
+        assertTrue(source.contains("resolveVideoCardCoverOverlayTextShadow()"))
+        assertTrue(source.contains("feedContentTypography().coverBadge"))
+        assertFalse(source.contains("Color.Black.copy"))
+        assertFalse(source.contains("AppSurface("))
     }
 }

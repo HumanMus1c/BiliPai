@@ -14,6 +14,7 @@ class AppThemeConfigTest {
 
         assertEquals(BlurIntensity.THIN, config.blurIntensity)
         assertTrue(config.headerBlurEnabled)
+        assertFalse(config.bottomBarBlurEnabled)
         assertTrue(config.hapticFeedbackEnabled)
         assertFalse(config.globalTextTapCopyEnabled)
         assertTrue(config.uiEntranceAnimationEnabled)

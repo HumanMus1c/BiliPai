@@ -96,6 +96,9 @@ class SkinCatalogPolicyTest {
             drawerBottomTrim = true,
             publishIcon = true,
             animatedIcons = true,
+            loadingAnimation = true,
+            likeEffect = true,
+            playerProgress = true,
         )
         assertEquals(
             listOf(
@@ -109,6 +112,9 @@ class SkinCatalogPolicyTest {
                 "侧栏底饰",
                 "发布图标",
                 "底栏动效",
+                "加载动画",
+                "点赞效果",
+                "进度条",
             ),
             caps.labels()
         )

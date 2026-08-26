@@ -36,18 +36,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
-import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppBackIcon
-import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
-import com.android.purebilibili.core.ui.components.AppSuggestionChip
+import com.android.purebilibili.core.ui.components.AppStatusBadge
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.util.FormatUtils
@@ -1109,29 +1107,15 @@ private fun BangumiDetailMetaSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val colorScheme = MaterialTheme.colorScheme
-        val adaptiveRestrictionColors = resolveAdaptivePrimaryAccentColors(colorScheme)
-        val restrictionColors = resolveAccessibleContainerColors(
-            containerColor = adaptiveRestrictionColors.backgroundColor,
-            contentColor = adaptiveRestrictionColors.contentColor,
-            backgroundColor = colorScheme.surface,
-            fallbackContentColors = listOf(colorScheme.onSurface, Color.White, Color.Black),
-        )
         if (metaChips.isNotEmpty()) {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(metaChips, key = { it }) { chip ->
-                    AppAssistChip(
-                        onClick = {},
-                        label = {
-                            AppText(
-                                text = chip,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                    AppStatusBadge(
+                        label = chip,
+                        emphasized = false,
                     )
                 }
             }
@@ -1142,20 +1126,9 @@ private fun BangumiDetailMetaSection(
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(restrictionLabels, key = { it }) { label ->
-                    AppSuggestionChip(
-                        onClick = {},
-                        label = {
-                            AppText(
-                                text = label,
-                                color = restrictionColors.contentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = restrictionColors.containerColor,
-                            labelColor = restrictionColors.contentColor
-                        )
+                    AppStatusBadge(
+                        label = label,
+                        emphasized = true,
                     )
                 }
             }

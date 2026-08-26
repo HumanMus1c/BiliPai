@@ -26,6 +26,24 @@ class BottomPagerGlassContinuityStructureTest {
         )
     }
 
+    @Test
+    fun bottomBarIndicator_followsPagerPositionDuringUserDrag() {
+        val source = sourceFile("navigation/AppNavigation.kt")
+        val bottomBarSection = source.substringAfter("if (bottomBarCanMount)")
+
+        assertTrue(
+            bottomBarSection.contains(
+                "mainBottomPagerState.indicatorPositionProvider"
+            )
+        )
+        assertTrue(
+            bottomBarSection.contains(
+                "mainBottomPagerState.scrollInProgressProvider"
+            )
+        )
+        assertFalse(bottomBarSection.contains("bottomPagerState.currentPageOffsetFraction"))
+    }
+
     private fun sourceFile(relativePath: String): String {
         return listOf(
             File("app/src/main/java/com/android/purebilibili/$relativePath"),

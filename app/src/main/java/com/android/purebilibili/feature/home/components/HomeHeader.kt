@@ -96,7 +96,6 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
-import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 
 private const val HOME_HEADER_LIQUID_GLASS_ALPHA = 0.10f
 
@@ -478,12 +477,9 @@ internal fun resolveHomeTopTabRowHeight(
     chromePolicy: AppTopChromePolicy,
     labelMode: Int = com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
 ): Dp {
+    if (isTabFloating) return FloatingBottomBarDefaultShellHeight
     val style = resolveHomeTopPresetStyle(chromePolicy, labelMode)
-    return if (isTabFloating) {
-        style.tabRowHeightFloating
-    } else {
-        style.tabRowHeightDocked
-    }
+    return style.tabRowHeightDocked
 }
 
 internal fun resolveHomeTopSearchRowHorizontalPadding(
@@ -737,7 +733,9 @@ internal fun resolveHomeTopContinuousSlabRenderMode(
 ): HomeTopChromeRenderMode {
     return when (renderMode) {
         HomeTopChromeRenderMode.BLUR -> HomeTopChromeRenderMode.BLUR
-        else -> HomeTopChromeRenderMode.PLAIN
+        HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP -> HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP
+        HomeTopChromeRenderMode.LIQUID_GLASS_HAZE -> HomeTopChromeRenderMode.LIQUID_GLASS_HAZE
+        HomeTopChromeRenderMode.PLAIN -> HomeTopChromeRenderMode.PLAIN
     }
 }
 
@@ -764,9 +762,9 @@ internal fun resolveHomeTopContinuousSlabSurfaceColor(
     renderMode: HomeTopChromeRenderMode
 ): Color {
     if (renderMode == HomeTopChromeRenderMode.PLAIN) return Color.Transparent
-    if (renderMode != HomeTopChromeRenderMode.BLUR) {
-        return baseColor.copy(alpha = maxOf(baseColor.alpha, blurAlpha))
-    }
+    // Liquid controls already own their local glass surfaces. The continuous slab only samples
+    // the backdrop; another tinted fill here becomes a visible rectangular panel behind them.
+    if (renderMode != HomeTopChromeRenderMode.BLUR) return Color.Transparent
     return if (usesNativeContainerTreatment) {
         baseColor.copy(alpha = maxOf(baseColor.alpha, blurAlpha))
     } else {
@@ -1372,26 +1370,42 @@ internal fun Modifier.homeTopChromeSurface(
     when (renderMode) {
         HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP,
         HomeTopChromeRenderMode.LIQUID_GLASS_HAZE -> {
-            this.background(surfaceColor, shape)
+            this
+                .biliPaiProgressiveTopBlur(
+                    backdrop = miuixBackdrop,
+                    enabled = useProgressiveTopBlur,
+                    shape = shape,
+                    blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
+                        ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
+                    gradient = ProgressiveBlur.Top.copy(
+                        endFraction = liquidGlassTuning?.progressiveBlurEndFraction
+                            ?: ProgressiveBlur.Top.endFraction,
+                        curve = liquidGlassTuning?.progressiveBlurCurve
+                            ?: ProgressiveBlur.Top.curve,
+                    ),
+                )
+                .background(surfaceColor, shape)
         }
 
         HomeTopChromeRenderMode.BLUR -> {
             this
                 .then(
-                    if (
-                        useProgressiveTopBlur &&
-                        miuixBackdrop != null &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    if (shouldUseBiliPaiProgressiveTopBlur(
+                            enabled = useProgressiveTopBlur,
+                            hasBackdrop = miuixBackdrop != null,
+                        )
                     ) {
-                        Modifier.progressiveTextureBlur(
+                        Modifier.biliPaiProgressiveTopBlur(
                             backdrop = miuixBackdrop,
+                            enabled = true,
                             shape = shape,
-                            blurRadius = 24f,
-                            gradient = ProgressiveBlur(
-                                angle = 90f,
-                                startFraction = 0.08f,
-                                endFraction = 0.92f,
-                                curve = 0.72f,
+                            blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
+                                ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
+                            gradient = ProgressiveBlur.Top.copy(
+                                endFraction = liquidGlassTuning?.progressiveBlurEndFraction
+                                    ?: ProgressiveBlur.Top.endFraction,
+                                curve = liquidGlassTuning?.progressiveBlurCurve
+                                    ?: ProgressiveBlur.Top.curve,
                             ),
                         )
                     } else if (hazeState != null) {
@@ -1991,6 +2005,8 @@ fun HomeHeader(
     // 再出现一整块高对比的白色 dock。其余 presentation 仍保留独立轨道以保证可读性。
     val drawTopTabDockChrome = drawTopTabOuterChromeSurface
     val useTopTabBottomBarMatchedDock = drawTopTabDockChrome
+    val topTabInnerOwnsFloatingDockShell =
+        useTopTabBottomBarMatchedDock || topTabLiquidGlassEnabled
     val topTabLabelMode = homeSettings?.topTabLabelMode
         ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
     // Floating dock shell + tabs share one wrap decision so glass length matches content.
@@ -2012,10 +2028,15 @@ fun HomeHeader(
         tabRowHeight = currentTabHeight,
         searchToTabsSpacing = currentTabToSearchSpacing,
         renderMode = effectiveContinuousSlabRenderMode,
-        // 没有独立轨道时让连续模糊层覆盖标签区域；有轨道时避免重复模糊。
-        includeTabInBlur = !drawTopTabDockChrome,
+        // 连续背景始终覆盖顶部 Dock；独立轨道只负责自身材质与前景可读性。
+        includeTabInBlur = true,
     )
-    val continuousSlabHeight = pinnedChromeLayout.blurHeight
+    val progressiveBlurBottomExtension = resolveProgressiveTopBlurBottomExtension(
+        enabled = homeSettings?.androidNativeLiquidGlassEnabled == true &&
+            liquidGlassTuning.progressiveBlurRadius > 0.001f,
+        endFraction = liquidGlassTuning.progressiveBlurEndFraction,
+    )
+    val continuousSlabHeight = pinnedChromeLayout.blurHeight + progressiveBlurBottomExtension
     val pinnedChromeContentHeight = pinnedChromeLayout.tabTop + currentTabHeight
     val isTopTabViewportSyncEnabled = resolveHomeTopTabViewportSyncEnabled(
         currentTabHeightDp = currentTabHeight.value,
@@ -2038,7 +2059,7 @@ fun HomeHeader(
             } else {
                 resolveNonNegativeHomeTopPadding(tabHorizontalPadding)
             },
-            tabVerticalPadding = if (embedTopTabsInUnifiedPanel) {
+            tabVerticalPadding = if (embedTopTabsInUnifiedPanel || topTabInnerOwnsFloatingDockShell) {
                 AppSpacingTokens.None
             } else {
                 resolveNonNegativeHomeTopPadding(tabVerticalPadding)
@@ -2088,7 +2109,10 @@ fun HomeHeader(
                 !isTopTabsAutoCollapseEnabled,
             isTabsCollapsed = topTabsCollapsed,
             onTabsCollapsedChange = onTopTabsCollapsedChange,
-            drawChromeSurface = drawTopTabDockChrome,
+            drawChromeSurface = shouldHomeTopTabChromeDrawOuterShell(
+                drawOuterChrome = drawTopTabDockChrome,
+                innerOwnsFloatingDock = topTabInnerOwnsFloatingDockShell,
+            ),
             useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock,
             drawMatchedShellLens = topTabLiquidGlassEnabled,
             matchedShellLensIntensity = resolveFloatingDockGeometryScale(
@@ -2140,7 +2164,9 @@ fun HomeHeader(
             .fillMaxWidth()
             .zIndex(10f)
     ) {
-        // 分栏 tab 最大宽度 = 顶部三控件合计宽度（头像左缘 ~ 设置按钮右缘）。
+        val fullTopDockWidth = maxWidth
+        // Plain/native tabs align to the top controls. The bottom-bar-backed dock uses the
+        // full parent width so its width resolver receives the same constraint as the bottom dock.
         val topControlsContentWidth = resolveHomeTopControlsContentWidthDp(
             containerWidthDp = maxWidth,
             chromePolicy = topChromePolicy
@@ -2168,7 +2194,7 @@ fun HomeHeader(
                         isScrolling = topChromeMotionPolicy.isScrolling,
                         isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                         forceLowBlurBudget = forceLowBlurBudget,
-                        useProgressiveTopBlur = true,
+                        useProgressiveTopBlur = homeSettings?.androidNativeLiquidGlassEnabled == true,
                 )
             )
         }
@@ -2318,7 +2344,9 @@ fun HomeHeader(
                         )
                 ) {
                     if (topLayoutOrder == HomeTopLayoutOrder.TABS_THEN_SEARCH) {
-                        topTabsContent(topControlsContentWidth)
+                        topTabsContent(
+                            if (topTabInnerOwnsFloatingDockShell) fullTopDockWidth else topControlsContentWidth
+                        )
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
                             AppHorizontalDivider(
@@ -2395,6 +2423,9 @@ fun HomeHeader(
                                                     isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                                                     forceLowBlurBudget = forceLowBlurBudget,
                                                     drawShellLens = true,
+                                                    shellLensIntensity = resolveFloatingDockGeometryScale(
+                                                        resolveHomeTopAvatarInnerSize().value
+                                                    ),
                                                     isScrolling = topChromeMotionPolicy.isScrolling
                                                 )
                                             } else if (useUnifiedTopPanel) {
@@ -2728,6 +2759,9 @@ fun HomeHeader(
                                                     isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                                                     forceLowBlurBudget = forceLowBlurBudget,
                                                     drawShellLens = true,
+                                                    shellLensIntensity = resolveFloatingDockGeometryScale(
+                                                        topRightActionButtonSize.value
+                                                    ),
                                                     isScrolling = topChromeMotionPolicy.isScrolling
                                                 )
                                             } else if (useUnifiedTopPanel) {
@@ -2846,7 +2880,9 @@ fun HomeHeader(
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
                         }
 
-                        topTabsContent(topControlsContentWidth)
+                        topTabsContent(
+                            if (topTabInnerOwnsFloatingDockShell) fullTopDockWidth else topControlsContentWidth
+                        )
                     }
                 }
             }

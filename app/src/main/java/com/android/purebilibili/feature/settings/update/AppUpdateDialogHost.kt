@@ -33,6 +33,9 @@ import com.android.purebilibili.core.ui.components.AppText
 import kotlinx.coroutines.delay
 import java.io.File
 
+private const val GITHUB_RELEASE_DOWNLOAD_URL = "https://github.com/jay3-yy/BiliPai/releases/latest"
+private const val GITHUB_TEST_DOWNLOAD_URL = "https://github.com/jay3-yy/BiliPai/releases"
+
 /** Style-neutral update dialog host backed by the adaptive dialog facade. */
 @Composable
 internal fun AppUpdateDialogHost(
@@ -112,19 +115,31 @@ internal fun AppUpdateDialogHost(
             }
         },
         dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (downloadState.status == AppUpdateDownloadStatus.DOWNLOADING ||
-                    downloadState.status == AppUpdateDownloadStatus.QUEUED
-                ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppOutlinedButton(
-                        onClick = onCancelDownload,
+                        onClick = { uriHandler.openUri(GITHUB_RELEASE_DOWNLOAD_URL) },
                         modifier = Modifier.sizeIn(minHeight = 48.dp),
-                    ) { AppText("取消下载") }
+                    ) { AppText("正式版下载") }
+                    AppOutlinedButton(
+                        onClick = { uriHandler.openUri(GITHUB_TEST_DOWNLOAD_URL) },
+                        modifier = Modifier.sizeIn(minHeight = 48.dp),
+                    ) { AppText("测试版下载") }
                 }
-                AppOutlinedButton(
-                    onClick = onDismissRequest,
-                    modifier = Modifier.sizeIn(minHeight = 48.dp),
-                ) { AppText(if (showReleaseNotesOnly) "关闭" else "稍后") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (downloadState.status == AppUpdateDownloadStatus.DOWNLOADING ||
+                        downloadState.status == AppUpdateDownloadStatus.QUEUED
+                    ) {
+                        AppOutlinedButton(
+                            onClick = onCancelDownload,
+                            modifier = Modifier.sizeIn(minHeight = 48.dp),
+                        ) { AppText("取消下载") }
+                    }
+                    AppOutlinedButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.sizeIn(minHeight = 48.dp),
+                    ) { AppText(if (showReleaseNotesOnly) "关闭" else "稍后") }
+                }
             }
         },
     )

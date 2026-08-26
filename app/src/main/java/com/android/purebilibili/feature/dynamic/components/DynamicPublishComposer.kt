@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +35,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -46,6 +49,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.rememberAppDeleteIcon
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.data.model.response.DynamicCreatedReserve
@@ -102,64 +106,76 @@ fun DynamicPublishComposer(
                     AppSegmentOption(true, "仅自己可见"),
                 )
             }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .then(
-                        if (liquidGlassEnabled) Modifier.layerBackdrop(publishChromeBackdrop)
-                        else Modifier
-                    ),
-                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
-            ) {
-                if (!isEditing) {
-                    AppTextField(
-                        value = title,
-                        onValueChange = { if (it.length <= 20) title = it },
-                        placeholder = "标题，选填 20 字",
-                        singleLine = true
+            Box(modifier = Modifier.fillMaxWidth()) {
+                if (liquidGlassEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .layerBackdrop(publishChromeBackdrop)
+                            .background(AppSurfaceTokens.background())
                     )
                 }
-                AppTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = "说点什么吧…",
-                    singleLine = false,
-                    minLines = 4
-                )
-                if (!isEditing) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-                        items(imageUris, key = { it.toString() }) { uri ->
-                            Box {
-                                AsyncImage(
-                                    model = uri,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .clip(AppShapes.container(ContainerLevel.Chip)),
-                                    contentScale = ContentScale.Crop
-                                )
-                                AppIconButton(
-                                    onClick = { imageUris = imageUris - uri },
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(AppChromeSizeTokens.MinimumTouchTarget),
-                                ) {
-                                    AppIcon(
-                                        imageVector = rememberAppDeleteIcon(),
-                                        contentDescription = "移除图片",
-                                        modifier = Modifier.size(18.dp),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
+                ) {
+                    if (!isEditing) {
+                        AppTextField(
+                            value = title,
+                            onValueChange = { if (it.length <= 20) title = it },
+                            placeholder = "标题，选填 20 字",
+                            singleLine = true
+                        )
+                    }
+                    AppTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        placeholder = "说点什么吧…",
+                        singleLine = false,
+                        minLines = 4
+                    )
+                    if (!isEditing) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+                            items(imageUris, key = { it.toString() }) { uri ->
+                                Box {
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(72.dp)
+                                            .clip(AppShapes.container(ContainerLevel.Chip)),
+                                        contentScale = ContentScale.Crop
                                     )
+                                    AppIconButton(
+                                        onClick = { imageUris = imageUris - uri },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(AppChromeSizeTokens.MinimumTouchTarget),
+                                    ) {
+                                        AppIcon(
+                                            imageVector = rememberAppDeleteIcon(),
+                                            contentDescription = "移除图片",
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                if (!isEditing) {
                     BottomBarMatchedReusableLiquidDock(
                         shape = AppShapes.container(ContainerLevel.Pill),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(AppSpacingTokens.TripleExtraLarge),
                         backdrop = publishChromeBackdrop,
                         reuseEnabled = liquidGlassEnabled,
                         drawShellLens = true,
+                        shellLensIntensity = resolveFloatingDockGeometryScale(
+                            AppSpacingTokens.TripleExtraLarge.value
+                        ),
                     ) { liquidChromeActive ->
                         LazyRow(
                             modifier = Modifier
@@ -211,8 +227,8 @@ fun DynamicPublishComposer(
                             indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                             labelFontSize = 13.sp,
                             miuixBackdrop = publishChromeBackdrop,
-                            forceLiquidChrome = true,
                             liquidGlassEffectsEnabled = true,
+                            dragSelectionEnabled = visibilityLabels.size > 1,
                             tapPressRefractionEnabled = true,
                         )
                     } else {
@@ -225,6 +241,7 @@ fun DynamicPublishComposer(
                     }
                 }
                 errorMessage?.let { AppText(it) }
+                }
             }
         },
         confirmButton = {

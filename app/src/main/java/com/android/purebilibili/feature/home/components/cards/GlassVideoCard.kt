@@ -1,6 +1,7 @@
 // 文件路径: feature/home/components/cards/GlassVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -8,6 +9,8 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppSurface
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -107,16 +110,8 @@ fun GlassVideoCard(
     val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.ProminentCard)
     val cardShape = AppShapes.container(ContainerLevel.ProminentCard)
     val coverShape = AppShapes.container(ContainerLevel.Dialog)
-    val durationBadgeShape = AppShapes.container(ContainerLevel.Pill)
     val verticalBadgeShape = AppShapes.container(ContainerLevel.Chip)
-    val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
-    val durationBadgeMinWidth = remember(durationText, durationBadgeStyle) {
-        resolveVideoCardDurationBadgeMinWidthDp(
-            durationText = durationText,
-            style = durationBadgeStyle
-        ).dp
-    }
     val coverPillColors = rememberHomeGlassPillColors(
         glassEnabled = true,
         blurEnabled = true,
@@ -394,50 +389,12 @@ fun GlassVideoCard(
                                 )
                         )
                         
-                        //  已删除悬浮播放按钮
-                        //  时长标签 - 玻璃胶囊
-                        if (badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) {
-                            AppSurface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
-                                color = emphasizedCoverPillColors.containerColor,
-                                border = BorderStroke(AppSpacingTokens.Micro * 0.4f, emphasizedCoverPillColors.borderColor),
-                                shape = durationBadgeShape
-                            ) {
-                                AppText(
-                                    text = durationText,
-                                    color = MediaContrastPalette.Foreground,
-                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .widthIn(min = durationBadgeMinWidth)
-                                        .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2)
-                                )
-                            }
-                        } else {
-                            AppSurface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.None, AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.Large),
-                                color = MediaContrastPalette.Scrim.copy(alpha = durationBadgeStyle.backgroundAlpha),
-                                shape = durationBadgeShape
-                            ) {
-                                AppText(
-                                    text = durationText,
-                                    color = MediaContrastPalette.Foreground,
-                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .widthIn(min = durationBadgeMinWidth)
-                                        .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2)
-                                )
-                            }
-                        }
+                        VideoCardCoverDurationText(
+                            text = durationText,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                        )
                         
                         //  [新增] 竖屏标签 - 左上角显示
                         if (video.isVertical && badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) {
@@ -493,7 +450,8 @@ fun GlassVideoCard(
                         text = video.title,
                         color = onSurface,
                         style = contentTypography.title,
-                        overflow = TextOverflow.Visible
+                        maxLines = videoCardTitleMaxLines(),
+                        overflow = videoCardTitleOverflow()
                     )
                     
                     Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
@@ -531,28 +489,12 @@ fun GlassVideoCard(
                         
                         Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                         
-                        // 播放量 -  [修复] 只在有播放量时显示
+                        // 播放量与弹幕统一使用相关推荐统计组件。
                         if (video.stat.view > 0) {
-                            if (badgeStylePolicy.infoStyle == HomeVideoBadgeStyle.GLASS) {
-                                AppSurface(
-                                    shape = AppShapes.container(ContainerLevel.Pill),
-                                    color = inlinePillColors.containerColor,
-                                    border = BorderStroke(AppSpacingTokens.Micro * 0.4f, inlinePillColors.borderColor)
-                                ) {
-                                    AppText(
-                                        text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
-                                        color = onSurfaceVariant.copy(alpha = 0.78f),
-                                        style = contentTypography.statistic,
-                                        modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
-                                    )
-                                }
-                            } else {
-                                AppText(
-                                    text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
-                                    color = onSurfaceVariant.copy(alpha = 0.78f),
-                                    style = contentTypography.statistic
-                                )
-                            }
+                            VideoStatRow(
+                                playText = FormatUtils.formatStat(video.stat.view.toLong()),
+                                danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
+                            )
                         }
                     }
                 }

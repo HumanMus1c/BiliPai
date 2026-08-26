@@ -40,6 +40,11 @@ internal class VideoDetailPresentationState private constructor(
         selectedTabIndexState.intValue = 0
     }
 
+    fun syncPlaybackIdentity(bvid: String, cid: Long) {
+        currentBvidState.value = bvid
+        currentCidState.longValue = cid
+    }
+
     fun selectTab(index: Int) {
         selectedTabIndexState.intValue = index
     }

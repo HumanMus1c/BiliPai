@@ -47,7 +47,7 @@ class FavoriteContentModeResolverTest {
     }
 
     @Test
-    fun sharedSegmentedControlForwardsLiquidInteractionOptions() {
+    fun sharedSegmentedControlUsesGlobalLiquidSettingAndForwardsInteractionOptions() {
         val segmentedSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedControl.kt"
         )
@@ -55,17 +55,10 @@ class FavoriteContentModeResolverTest {
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt"
         )
 
-        assertTrue(
-            segmentedSource.contains("forceLiquidIndicator: Boolean = false"),
-            "Shared segmented control should expose an explicit liquid-indicator override"
-        )
+        assertFalse(segmentedSource.contains("forceLiquidIndicator"))
         assertTrue(
             segmentedSource.contains("tapPressRefractionEnabled: Boolean = true"),
             "Shared segmented control should expose tap refraction control to callers"
-        )
-        assertTrue(
-            segmentedSource.contains("forceLiquidChrome = forceLiquidIndicator"),
-            "Shared iOS segmented control should forward the override into the bottom-bar liquid implementation"
         )
         assertTrue(
             segmentedSource.contains("tapPressRefractionEnabled = tapPressRefractionEnabled"),
@@ -75,14 +68,8 @@ class FavoriteContentModeResolverTest {
             segmentedSource.contains("dragSelectionEnabled = dragSelectionEnabled"),
             "Shared segmented control should forward drag-selection policy to its liquid implementation"
         )
-        assertTrue(
-            bottomBarSource.contains("forceLiquidChrome: Boolean = false"),
-            "BottomBarLiquidSegmentedControl should allow parents with settled settings to bypass the async default fallback"
-        )
-        assertTrue(
-            bottomBarSource.contains("forceLiquidChrome || homeSettings.androidNativeLiquidGlassEnabled"),
-            "BottomBarLiquidSegmentedControl should treat forced liquid chrome the same as the global Android native glass setting"
-        )
+        assertFalse(bottomBarSource.contains("forceLiquidChrome"))
+        assertTrue(bottomBarSource.contains("homeSettings.androidNativeLiquidGlassEnabled"))
     }
 
     private fun loadSource(path: String): String {

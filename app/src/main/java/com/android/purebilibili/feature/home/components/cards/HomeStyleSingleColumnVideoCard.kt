@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,8 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -252,7 +255,8 @@ internal fun HomeStyleSingleColumnVideoCard(
                 text = video.title,
                 modifier = Modifier.fillMaxWidth(),
                 style = contentTypography.title,
-                overflow = TextOverflow.Visible,
+                maxLines = videoCardTitleMaxLines(),
+                overflow = videoCardTitleOverflow(),
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
@@ -279,11 +283,9 @@ internal fun HomeStyleSingleColumnVideoCard(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            HorizontalVideoStatRow(
+            VideoStatRow(
                 playText = FormatUtils.formatStat(video.stat.view.toLong()),
                 danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
-                playIcon = Icons.Filled.PlayArrow,
-                danmakuIcon = Icons.Filled.ChatBubble,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

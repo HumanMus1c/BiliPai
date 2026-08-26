@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,12 +33,9 @@ import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIco
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 
 private data class TipEntry(
-    val icon: ImageVector,
+    @DrawableRes val iconResId: Int,
     val iconTint: Color,
     val title: String,
     val content: String
@@ -59,25 +56,25 @@ fun TipsSettingsScreen(
     val basicTips = remember {
         listOf(
             TipEntry(
-                icon = Icons.Filled.Draw,
+                iconResId = R.drawable.ms_draw_fill_24,
                 iconTint = iOSBlue,
                 title = "1. 摸鱼模式：播放器缩小策略",
                 content = "在播放设置里把「播放器缩小策略」设为竖屏、横屏、全部或暂停时，再按对应条件缩小播放器。"
             ),
             TipEntry(
-                icon = Icons.Outlined.KeyboardArrowUp,
+                iconResId = R.drawable.ms_keyboard_arrow_up_24,
                 iconTint = iOSTeal,
                 title = "2. 回顶部不用狂划",
                 content = "首页刷太深时，双击底栏「首页」图标，或双击顶部频道标题，可快速回到列表顶部。"
             ),
             TipEntry(
-                icon = Icons.Filled.TouchApp,
+                iconResId = R.drawable.ms_touch_app_fill_24,
                 iconTint = iOSOrange,
                 title = "3. 封面长按有快捷操作",
                 content = "长按视频卡片可快速预览，并直接执行「稍后再看」等常用动作。"
             ),
             TipEntry(
-                icon = Icons.Outlined.Search,
+                iconResId = R.drawable.ms_find_in_page_24,
                 iconTint = iOSGreen,
                 title = "4. 搜索不只搜视频",
                 content = "搜索页可切换「视频 / UP主 / 番剧 / 直播」，还能按分区、排序、时长做精确筛选。"
@@ -88,25 +85,25 @@ fun TipsSettingsScreen(
     val hiddenTips = remember {
         listOf(
             TipEntry(
-                icon = Icons.Filled.SkipNext,
+                iconResId = R.drawable.ms_skip_next_fill_24,
                 iconTint = iOSPink,
                 title = "5. 关闭自动连播，结尾更安静",
                 content = "在播放设置关闭「自动播放下一个」后，视频播完会停在结束态，不再自动连播。"
             ),
             TipEntry(
-                icon = Icons.Filled.Cameraswitch,
+                iconResId = R.drawable.ms_cameraswitch_fill_24,
                 iconTint = iOSBlue,
                 title = "6. 自动横竖屏更省手",
                 content = "开启「自动横竖屏切换」后，跟随手机方向自动进出全屏，单手看片更顺。"
             ),
             TipEntry(
-                icon = Icons.Filled.PictureInPicture,
+                iconResId = R.drawable.ms_picture_in_picture_fill_24,
                 iconTint = iOSTeal,
                 title = "7. 小窗和画中画是两种玩法",
                 content = "播放设置中的「后台播放模式」可选择应用内小窗、系统画中画，或让两者同时生效；画中画需先授予权限。"
             ),
             TipEntry(
-                icon = Icons.Filled.ThumbUp,
+                iconResId = R.drawable.ms_thumb_up_fill_24,
                 iconTint = iOSOrange,
                 title = "8. 双击点赞可按喜好开关",
                 content = "若你容易误触，可在播放设置关闭「双击点赞」；喜欢快操作就保持开启。"
@@ -117,25 +114,25 @@ fun TipsSettingsScreen(
     val advancedTips = remember {
         listOf(
             TipEntry(
-                icon = Icons.Outlined.AutoAwesome,
+                iconResId = R.drawable.ms_flare_24,
                 iconTint = iOSBlue,
                 title = "9. 空降助手能跳过片头广告",
                 content = "在设置开启「空降助手」后，可自动跳过赞助/片头片尾；也可改成仅提示不自动跳过。"
             ),
             TipEntry(
-                icon = Icons.Filled.Label,
+                iconResId = R.drawable.ms_label_fill_24,
                 iconTint = iOSPink,
                 title = "10. 版本号连点有彩蛋",
                 content = "在设置页连续点击版本号会触发隐藏彩蛋提示，适合探索党。"
             ),
             TipEntry(
-                icon = Icons.Filled.CardGiftcard,
+                iconResId = R.drawable.ms_card_giftcard_fill_24,
                 iconTint = iOSOrange,
                 title = "11. 趣味彩蛋可随时关闭",
                 content = "如果不想看到趣味提示，可在设置里关闭「趣味彩蛋」，界面会更克制。"
             ),
             TipEntry(
-                icon = Icons.Outlined.Link,
+                iconResId = R.drawable.ms_link_24,
                 iconTint = iOSTeal,
                 title = "12. 链接默认打开可一步到位",
                 content = "在设置中配置「默认打开链接」后，点到 B 站链接可更稳定地直达应用内页面。"
@@ -198,7 +195,7 @@ private fun TipSection(items: List<TipEntry>) {
     ) {
         items.forEachIndexed { index, tip ->
             TipItem(
-                icon = tip.icon,
+                iconResId = tip.iconResId,
                 iconTint = tip.iconTint,
                 title = tip.title,
                 content = tip.content
@@ -212,11 +209,12 @@ private fun TipSection(items: List<TipEntry>) {
 
 @Composable
 private fun TipItem(
-    icon: ImageVector,
+    @DrawableRes iconResId: Int,
     iconTint: Color,
     title: String,
     content: String
 ) {
+    val icon = rememberMaterialSymbol(iconResId)
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
     val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     Row(

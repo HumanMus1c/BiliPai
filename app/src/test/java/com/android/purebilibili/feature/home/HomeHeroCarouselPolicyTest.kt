@@ -28,9 +28,9 @@ class HomeHeroCarouselPolicyTest {
     }
 
     @Test
-    fun `visible hero carousel reduces the reserved top gap without affecting other feeds`() {
+    fun `visible hero carousel keeps the reserved top gap without affecting other feeds`() {
         assertEquals(
-            157f,
+            169f,
             resolveHomeFeedTopPaddingDp(
                 reservedTopPaddingDp = 169f,
                 showHeroCarousel = true
@@ -117,8 +117,15 @@ class HomeHeroCarouselPolicyTest {
     }
 
     @Test
-    fun `carousel uses no resting side peek so centered cover hides neighbors`() {
+    fun `carousel fills the feed width without side peek gaps`() {
         assertEquals(0f, HOME_HERO_CAROUSEL_SIDE_PEEK_DP)
+        assertEquals(0f, HOME_HERO_CAROUSEL_PAGE_SPACING_DP)
+    }
+
+    @Test
+    fun `home pager yields to the hero carousel while a pointer is active on it`() {
+        assertTrue(shouldYieldHomeTopPagerToHeroCarousel(heroCarouselPointerActive = true))
+        assertFalse(shouldYieldHomeTopPagerToHeroCarousel(heroCarouselPointerActive = false))
     }
 
     @Test

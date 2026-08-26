@@ -66,6 +66,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         BiliPaiNavKey.History -> ScreenRoutes.History.route
         is BiliPaiNavKey.HistorySearch -> "history_search?query=${encodeRouteValue(query)}"
         BiliPaiNavKey.Favorite -> ScreenRoutes.Favorite.route
+        BiliPaiNavKey.FavoriteSubscribed -> "favorite_subscribed"
         is BiliPaiNavKey.FavoriteSearch ->
             "favorite_search?query=${encodeRouteValue(query)}&scope=${scope.name}"
         BiliPaiNavKey.LikedVideos -> ScreenRoutes.LikedVideos.route
@@ -180,6 +181,7 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         normalized == ScreenRoutes.History.route -> BiliPaiNavKey.History
         routeBase == "history_search" -> BiliPaiNavKey.HistorySearch(query["query"].orEmpty())
         normalized == ScreenRoutes.Favorite.route -> BiliPaiNavKey.Favorite
+        normalized == "favorite_subscribed" -> BiliPaiNavKey.FavoriteSubscribed
         routeBase == "favorite_search" -> BiliPaiNavKey.FavoriteSearch(
             query = query["query"].orEmpty(),
             scope = com.android.purebilibili.data.model.response.FavoriteSearchScope.entries
@@ -340,6 +342,7 @@ internal fun isCardReturnTargetNavKey(key: BiliPaiNavKey): Boolean {
         BiliPaiNavKey.History,
         is BiliPaiNavKey.HistorySearch,
         BiliPaiNavKey.Favorite,
+        BiliPaiNavKey.FavoriteSubscribed,
         is BiliPaiNavKey.FavoriteSearch,
         BiliPaiNavKey.LikedVideos,
         BiliPaiNavKey.WatchLater,

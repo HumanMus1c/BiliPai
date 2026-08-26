@@ -749,6 +749,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val backgroundPlaybackUseCase = VideoPlaybackUseCase()
     private var backgroundSkipJob: kotlinx.coroutines.Job? = null
+    private var notificationMetadataJob: kotlinx.coroutines.Job? = null
     
     // 🔋 [后台优化] 低内存模式状态
     private var isLowMemoryMode = false
@@ -1175,6 +1176,33 @@ class MiniPlayerManager private constructor(private val context: Context) :
     fun cacheUiState(state: VideoPlaybackUiState.Success) {
         cachedUiState = state
         com.android.purebilibili.core.util.Logger.d(TAG, " 缓存 UI 状态: ${state.info.title}")
+    }
+
+    /**
+     * 同步由详情 ViewModel 在后台完成的换集结果。
+     *
+     * 后台/熄屏时 Compose 的 lifecycle-aware state collection 会暂停，不能依赖页面侧的
+     * setVideoInfo 来刷新通知和当前媒体身份，否则播放器已换集而通知、返回目标仍停在旧视频。
+     */
+    fun syncCurrentVideoInfo(state: VideoPlaybackUiState.Success) {
+        val info = state.info
+        currentBvid = info.bvid
+        currentAudioMediaId = null
+        currentTitle = info.title
+        currentCover = info.pic
+        currentOwner = info.owner.name
+        currentCid = info.cid
+        currentAid = info.aid
+        cachedUiState = state
+        isActive = true
+        isLiveMode = false
+        currentRoomId = 0L
+        currentLiveUname = ""
+        updateMediaMetadata(
+            title = info.title,
+            artist = info.owner.name,
+            coverUrl = info.pic
+        )
     }
     
     //  [新增] 获取并清除缓存的 UI 状态
@@ -2573,7 +2601,8 @@ class MiniPlayerManager private constructor(private val context: Context) :
         // 异步加载封面并推送通知
         val shouldReloadArtwork = effectiveCoverUrl.isNotBlank() &&
             (cachedArtworkBitmap == null || previousCoverUrl != effectiveCoverUrl)
-        scope.launch(Dispatchers.IO) {
+        notificationMetadataJob?.cancel()
+        notificationMetadataJob = scope.launch(Dispatchers.IO) {
             val bitmap = if (shouldReloadArtwork) {
                 loadBitmap(effectiveCoverUrl)
             } else {

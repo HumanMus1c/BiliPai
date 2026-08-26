@@ -352,6 +352,54 @@ internal fun parseLiveRedPocketInfo(rawJson: String): LiveRedPocketInfo? {
     )
 }
 
+internal fun parseLiveVotePanel(rawJson: String): LiveVoteInfo? {
+    val root = JSONObject(rawJson)
+    if (root.optInt("code") != 0) return null
+    return root.optJSONObject("data")?.optJSONObject("vote_info")?.let(::parseLiveVoteInfo)
+}
+
+internal fun parseLiveVoteHistory(rawJson: String): List<LiveVoteInfo> {
+    val root = JSONObject(rawJson)
+    if (root.optInt("code") != 0) return emptyList()
+    val history = root.optJSONObject("data")?.optJSONArray("history") ?: return emptyList()
+    return buildList {
+        for (index in 0 until history.length()) {
+            history.optJSONObject(index)?.let(::parseLiveVoteInfo)?.let(::add)
+        }
+    }
+}
+
+private fun parseLiveVoteInfo(json: JSONObject): LiveVoteInfo? {
+    val question = json.optString("question").trim()
+    if (question.isBlank()) return null
+    val optionsJson = json.optJSONArray("options")
+    val options = buildList {
+        if (optionsJson != null) for (index in 0 until optionsJson.length()) {
+            val option = optionsJson.optJSONObject(index) ?: continue
+            val description = option.optString("desc").trim()
+            if (description.isNotBlank()) {
+                add(
+                    LiveVoteOption(
+                        id = option.optInt("idx"),
+                        description = description,
+                        percent = option.optDouble("percent", 0.0).toFloat().coerceIn(0f, 1f)
+                    )
+                )
+            }
+        }
+    }
+    return LiveVoteInfo(
+        status = json.optInt("status"),
+        question = question,
+        options = options,
+        durationMillis = json.optLong("duration"),
+        remainingMillis = json.optLong("left_duration"),
+        resultText = json.optString("result_text"),
+        endTimeText = json.optString("etime_str"),
+        interactionId = json.optLong("interaction_id")
+    )
+}
+
 private fun formatLiveRedPocketAwards(awards: JsonArray?): String {
     return awards
         ?.mapNotNull { it as? JsonObject }
@@ -879,6 +927,16 @@ object LiveRepository {
             Result.success(parseLiveRedPocketInfo(api.getLiveLotteryInfo(realRoomId).string()))
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun getLiveVoteSnapshot(roomId: Long): Result<LiveVoteSnapshot> = withContext(Dispatchers.IO) {
+        runCatching {
+            val realRoomId = resolveRealRoomId(roomId)
+            LiveVoteSnapshot(
+                current = parseLiveVotePanel(api.getLiveVotePanel(realRoomId).string()),
+                history = parseLiveVoteHistory(api.getLiveVoteHistory(realRoomId).string())
+            )
         }
     }
 

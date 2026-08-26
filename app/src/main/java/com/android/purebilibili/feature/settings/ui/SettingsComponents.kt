@@ -5,8 +5,6 @@ import androidx.compose.ui.Modifier
 import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.components.AppSegmentOption
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
 
 @Composable
 fun BlurIntensitySelector(
@@ -28,7 +26,7 @@ fun BlurIntensitySelector(
         ),
         selectedValue = selectedIntensity,
         modifier = modifier,
-        icon = Icons.Outlined.AutoAwesome,
+        icon = rememberSettingsSemanticIcon(SettingsIconRole.BLUR_INTENSITY),
         iconTint = iOSBlue,
         onSelectionChange = onIntensityChange,
     )

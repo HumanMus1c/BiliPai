@@ -27,6 +27,41 @@ internal const val MIUIX_UPSTREAM_DOCK_INNER_SHADOW_RADIUS_DP = 8f
 
 internal const val FLOATING_DOCK_TAB_PRESS_SCALE_EXTRA = 0.2f
 
+internal const val DOCK_HIGHLIGHT_COMPACT_RADIUS_FACTOR = 1.2f
+internal const val DOCK_HIGHLIGHT_SLOT_COVER_FACTOR = 0.5f
+internal const val DOCK_PILL_HIGHLIGHT_BASE_WIDTH_DP = 1f
+internal const val DOCK_PILL_HIGHLIGHT_MAX_WIDTH_DP = 2f
+internal const val DOCK_PILL_HIGHLIGHT_ASPECT_SPAN = 8f
+
+/**
+ * Home dock tabs are nearly square, so [size.minDimension] * 1.2 already covers the pill.
+ * Two-item rows such as 番剧/影视 stretch to a long capsule; keep the compact radius as a
+ * floor and expand to half the slot so the press highlight still fills the selected item.
+ */
+internal fun resolveDockInteractiveHighlightRadiusPx(
+    shellMinDimensionPx: Float,
+    tabWidthPx: Float,
+): Float {
+    val compactRadius = shellMinDimensionPx.coerceAtLeast(0f) * DOCK_HIGHLIGHT_COMPACT_RADIUS_FACTOR
+    val slotCoverRadius = tabWidthPx.coerceAtLeast(0f) * DOCK_HIGHLIGHT_SLOT_COVER_FACTOR
+    return max(compactRadius, slotCoverRadius)
+}
+
+/** Specular rim stays 1dp on compact docks and thickens slightly on long capsules. */
+internal fun resolveDockPillHighlightWidthDp(
+    indicatorWidthDp: Float,
+    indicatorHeightDp: Float,
+): Float {
+    if (indicatorWidthDp <= 0f || indicatorHeightDp <= 0f) {
+        return DOCK_PILL_HIGHLIGHT_BASE_WIDTH_DP
+    }
+    val aspect = indicatorWidthDp / indicatorHeightDp
+    val extra = ((aspect - FLOATING_DOCK_MIN_INDICATOR_ASPECT) / DOCK_PILL_HIGHLIGHT_ASPECT_SPAN)
+        .coerceIn(0f, 1f)
+    return DOCK_PILL_HIGHLIGHT_BASE_WIDTH_DP +
+        extra * (DOCK_PILL_HIGHLIGHT_MAX_WIDTH_DP - DOCK_PILL_HIGHLIGHT_BASE_WIDTH_DP)
+}
+
 private const val FLOATING_DOCK_MAX_VELOCITY_SCALE_X = 1.25f
 private const val FLOATING_DOCK_MAX_VELOCITY_SCALE_Y = 1.2f
 private const val FLOATING_DOCK_PANEL_OFFSET_DP = 4f

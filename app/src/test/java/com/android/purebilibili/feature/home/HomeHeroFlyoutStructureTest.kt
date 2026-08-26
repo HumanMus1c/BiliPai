@@ -89,6 +89,43 @@ class HomeHeroFlyoutStructureTest {
     }
 
     @Test
+    fun homeHeroCarouselOwnsItsGestureBeforeOuterCategoryPager() {
+        val carouselSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeroCarousel.kt"
+        )
+        val homeSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt"
+        )
+        val gestureSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/core/ui/common/VerticalPriorityPagerGesture.kt"
+        )
+
+        assertTrue(carouselSource.contains("pointerInput(Unit)"))
+        assertTrue(carouselSource.contains("onGestureActiveChangeLatest.value(true)"))
+        assertTrue(carouselSource.contains("onGestureActiveChangeLatest.value(false)"))
+        assertTrue(carouselSource.contains("userScrollEnabled = false"))
+        assertTrue(carouselSource.contains(".verticalPriorityHorizontalPagerSwipe("))
+        assertFalse(carouselSource.contains("pointerInput(onGestureActiveChange)"))
+        assertFalse(carouselSource.contains("PageSize.Fixed("))
+        assertFalse(carouselSource.contains("contentPadding = PaddingValues(horizontal = sidePeek)"))
+        assertTrue(homeSource.contains("shouldYield = shouldYieldHomePagerToHeroCarousel"))
+        assertTrue(homeSource.contains("onHeroCarouselGestureActiveChange = onHeroCarouselGestureActiveChange"))
+        assertFalse(homeSource.contains("!isHeroCarouselGestureActive"))
+        assertTrue(gestureSource.contains("shouldYield: () -> Boolean = { false }"))
+        assertTrue(gestureSource.contains("if (latestShouldYield.value()) return@gesture"))
+    }
+
+    @Test
+    fun homeHeroCarouselUsesPageDotsInsteadOfNumericBadge() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeroCarousel.kt"
+        )
+        assertTrue(source.contains("repeat(videos.size)"))
+        assertTrue(source.contains("index == pagerState.currentPage"))
+        assertFalse(source.contains("\${pagerState.currentPage + 1} / \${videos.size}"))
+    }
+
+    @Test
     fun inlinePartitionPageKeepsPartitionVideoSourceInsteadOfHomeFeed() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val partitionPageSource = source

@@ -83,6 +83,9 @@ sealed class BangumiPlayerState {
         val selectedAudioQuality: Int = -1,
         val availableAudioQualities: List<AudioQualityOption> = emptyList(),
         val audioFallbackReason: AudioFallbackReason? = null,
+        val isPreview: Boolean = false,
+        val hasPaid: Boolean = false,
+        val playbackStatus: Int = 0,
         val isLoggedIn: Boolean = false,
         val isVip: Boolean = false,
         val isLiked: Boolean = false,
@@ -546,6 +549,9 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,
                 availableAudioQualities = audioSelection?.availableOptions.orEmpty(),
                 audioFallbackReason = audioSelection?.fallbackReason,
+                isPreview = playData.isPreview,
+                hasPaid = playData.hasPaid,
+                playbackStatus = playData.status,
                 isLoggedIn = isLoggedIn,
                 isVip = isVip
             )
@@ -604,11 +610,13 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         }.onFailure { e ->
             val isVip = e.message?.contains("大会员") == true
             val isLogin = e.message?.contains("登录") == true
+            val isUnsupportedDrm = e is UnsupportedOperationException &&
+                e.message?.contains("DRM") == true
             _uiState.value = BangumiPlayerState.Error(
                 message = e.message ?: "获取播放地址失败",
                 isVipRequired = isVip,
                 isLoginRequired = isLogin,
-                canRetry = !isVip && !isLogin
+                canRetry = !isVip && !isLogin && !isUnsupportedDrm
             )
         }
     }

@@ -7,14 +7,18 @@ enum class UiSkinSurface {
     HOME_TOP_CHROME,
     HOME_DRAWER,
     PROFILE,
-    DYNAMIC_PUBLISH
+    DYNAMIC_PUBLISH,
+    LOADING_INDICATOR,
+    LIKE_EFFECT,
+    PLAYER_PROGRESS
 }
 
 enum class UiSkinAssetType {
     PNG,
     WEBP,
     JPEG,
-    MP4
+    MP4,
+    JSON
 }
 
 @Serializable
@@ -51,6 +55,13 @@ data class UiSkinAssets(
     val homeChannelSelectedIcon: String? = null,
     val dynamicPublishIcon: String? = null,
     val dynamicPublishSelectedIcon: String? = null,
+    val loadingAnimation: String? = null,
+    val loadingFrame: String? = null,
+    val likeEffectAnimation: String? = null,
+    val likeEffectPreview: String? = null,
+    val playerProgressIcon: String? = null,
+    val playerProgressDraggingIcon: String? = null,
+    val playerProgressStaticIcon: String? = null,
     val bottomBarIcons: Map<String, String> = emptyMap()
 ) {
     fun declaredPaths(): List<String> {
@@ -68,6 +79,13 @@ data class UiSkinAssets(
             homeChannelSelectedIcon?.let(::add)
             dynamicPublishIcon?.let(::add)
             dynamicPublishSelectedIcon?.let(::add)
+            loadingAnimation?.let(::add)
+            loadingFrame?.let(::add)
+            likeEffectAnimation?.let(::add)
+            likeEffectPreview?.let(::add)
+            playerProgressIcon?.let(::add)
+            playerProgressDraggingIcon?.let(::add)
+            playerProgressStaticIcon?.let(::add)
             addAll(bottomBarIcons.values)
         }
     }
@@ -86,6 +104,9 @@ data class UiSkinColorTokens(
     val dynamicPublishIconTint: String? = null,
     val dynamicPublishShadeTop: String? = null,
     val dynamicPublishShadeBottom: String? = null,
+    val playerProgressActiveTint: String? = null,
+    val playerProgressBufferedTint: String? = null,
+    val playerProgressTrackTint: String? = null,
     val colorMode: String? = null
 )
 

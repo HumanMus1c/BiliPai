@@ -54,6 +54,7 @@ import com.android.purebilibili.feature.video.ui.components.QualitySelectionMenu
 import com.android.purebilibili.feature.video.ui.components.AudioQualitySelectionMenuDialog
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuDialog
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuPlacement
+import com.android.purebilibili.feature.video.ui.components.PlayerListPopupPlacement
 import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.LandscapeDanmakuComposer
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
@@ -78,11 +79,15 @@ import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import com.android.purebilibili.feature.video.progress.PbpRidgeSample
 import com.android.purebilibili.feature.anime4k.VideoEnhancementAlgorithm
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.plugin.skin.LocalUiSkinState
+import com.android.purebilibili.core.plugin.skin.UiSkinAnimatedAsset
+import com.android.purebilibili.core.plugin.skin.UiSkinSurface
+import com.android.purebilibili.core.plugin.skin.assetPath
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
-import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppTab
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppTextButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -423,6 +428,22 @@ internal fun resolveDisplayedOnlineCount(
     showOnlineCount: Boolean
 ): String {
     return if (showOnlineCount) onlineCount else ""
+}
+
+@Composable
+private fun SkinAwareLoadingIndicator(color: Color) {
+    val skinPath = LocalUiSkinState.current.assetPath(UiSkinSurface.LOADING_INDICATOR) {
+        it.loadingAnimation ?: it.loadingFrame
+    }
+    if (skinPath != null) {
+        UiSkinAnimatedAsset(
+            path = skinPath,
+            size = 48.dp,
+            contentDescription = "加载中",
+        )
+    } else {
+        AdaptiveLoadingIndicator(color = color)
+    }
 }
 
 private const val CENTER_PLAY_BUTTON_SEEK_TRANSITION_GRACE_MS = 350L
@@ -1824,9 +1845,7 @@ fun VideoPlayerOverlay(
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
-            AdaptiveLoadingIndicator(
-                color = centerLoadingVisualState.indicatorColor
-            )
+            SkinAwareLoadingIndicator(color = centerLoadingVisualState.indicatorColor)
         }
 
         AnimatedVisibility(
@@ -1848,9 +1867,7 @@ fun VideoPlayerOverlay(
                         vertical = overlayVisualPolicy.qualitySwitchContentVerticalPaddingDp.dp
                     )
                 ) {
-                    AdaptiveLoadingIndicator(
-                        color = centerLoadingVisualState.indicatorColor
-                    )
+                    SkinAwareLoadingIndicator(color = centerLoadingVisualState.indicatorColor)
                     Spacer(modifier = Modifier.height(overlayVisualPolicy.qualitySwitchContentSpacingDp.dp))
                     AppText(
                         text = loadingState.primaryText,
@@ -1890,9 +1907,7 @@ fun VideoPlayerOverlay(
                         vertical = overlayVisualPolicy.qualitySwitchContentVerticalPaddingDp.dp
                     )
                 ) {
-                    AdaptiveLoadingIndicator(
-                        color = centerLoadingVisualState.indicatorColor
-                    )
+                    SkinAwareLoadingIndicator(color = centerLoadingVisualState.indicatorColor)
                     Spacer(modifier = Modifier.height(overlayVisualPolicy.qualitySwitchContentSpacingDp.dp))
                     AppText(
                         text = "正在切换清晰度...",
@@ -1918,7 +1933,8 @@ fun VideoPlayerOverlay(
                     showQualityMenu = false
                 },
                 onDismiss = { showQualityMenu = false },
-                useDialog = true
+                useDialog = true,
+                placement = if (isFullscreen) PlayerListPopupPlacement.END_BOTTOM else PlayerListPopupPlacement.CENTER,
             )
         }
 
@@ -1930,7 +1946,8 @@ fun VideoPlayerOverlay(
                     onAudioQualityChange(preferenceId)
                     showAudioQualityMenu = false
                 },
-                onDismiss = { showAudioQualityMenu = false }
+                onDismiss = { showAudioQualityMenu = false },
+                placement = if (isFullscreen) PlayerListPopupPlacement.END_BOTTOM else PlayerListPopupPlacement.CENTER,
             )
         }
         
@@ -2810,22 +2827,16 @@ fun LandscapeEndDrawer(
                     }
                     
                     if (hasSeason) {
-                        AppPrimaryTabRow(
-                            selectedTabIndex = selectedTab,
-                            containerColor = Color.Transparent,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ) {
-                            AppTab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                text = { AppText("推荐视频", fontSize = layoutPolicy.followButtonFontSp.sp) }
-                            )
-                            AppTab(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                text = { AppText("合集列表", fontSize = layoutPolicy.followButtonFontSp.sp) }
-                            )
-                        }
+                        AppThemeAdaptiveTabRow(
+                            options = listOf(
+                                AppSegmentOption(0, "推荐视频"),
+                                AppSegmentOption(1, "合集列表"),
+                            ),
+                            selectedValue = selectedTab,
+                            onSelectionChange = { selectedTab = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            labelFontSize = layoutPolicy.followButtonFontSp.sp,
+                        )
                     } else {
                         // 只有推荐，显示标题
                         AppText(
@@ -3183,15 +3194,11 @@ private fun LandscapeVideoItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            // 时长
-            AppText(
+            com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText(
                 text = FormatUtils.formatDuration(video.duration),
-                color = Color.White,
-                fontSize = layoutPolicy.itemDurationFontSp.sp,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .background(Color.Black.copy(0.6f), AppShapes.container(ContainerLevel.Tag))
-                    .padding(horizontal = 2.dp)
+                    .padding(horizontal = 2.dp),
             )
         }
         
@@ -3252,18 +3259,11 @@ private fun LandscapeEpisodeItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                // 时长
-                AppText(
+                com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText(
                     text = FormatUtils.formatDuration(episode.arc.duration),
-                    color = Color.White,
-                    fontSize = layoutPolicy.itemDurationFontSp.sp,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .background(
-                            Color.Black.copy(0.6f),
-                            AppShapes.topStartRounded(AppShapes.containerCornerDp(ContainerLevel.Tag)),
-                        )
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))

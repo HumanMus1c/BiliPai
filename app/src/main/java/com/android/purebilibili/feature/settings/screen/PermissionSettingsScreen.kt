@@ -17,16 +17,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -93,7 +90,7 @@ fun PermissionSettingsContent(
                 name = "网络访问",
                 permission = Manifest.permission.INTERNET,
                 description = "加载视频、图片和用户数据",
-                icon = Icons.Outlined.Wifi,
+                iconResId = R.drawable.ms_wifi_24,
                 iconTint = iOSBlue,
                 isNormal = true,
                 alwaysGranted = true
@@ -102,7 +99,7 @@ fun PermissionSettingsContent(
                 name = "网络状态",
                 permission = Manifest.permission.ACCESS_NETWORK_STATE,
                 description = "检测网络连接状态，优化加载体验",
-                icon = Icons.Outlined.BarChart,
+                iconResId = R.drawable.ms_bar_chart_24,
                 iconTint = iOSGreen,
                 isNormal = true,
                 alwaysGranted = true
@@ -115,7 +112,7 @@ fun PermissionSettingsContent(
                     "android.permission.POST_NOTIFICATIONS"
                 },
                 description = "显示媒体播放控制通知，方便后台控制播放",
-                icon = Icons.Outlined.Notifications,
+                iconResId = R.drawable.ms_notifications_24,
                 iconTint = iOSOrange,
                 isNormal = false,
                 alwaysGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
@@ -124,7 +121,7 @@ fun PermissionSettingsContent(
                 name = "前台服务",
                 permission = Manifest.permission.FOREGROUND_SERVICE,
                 description = "支持后台播放视频时保持服务运行",
-                icon = Icons.Outlined.PlayCircle,
+                iconResId = R.drawable.ms_play_circle_24,
                 iconTint = iOSPurple,
                 isNormal = true,
                 alwaysGranted = true
@@ -133,7 +130,7 @@ fun PermissionSettingsContent(
                 name = "媒体播放服务",
                 permission = "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
                 description = "允许应用在后台继续播放视频",
-                icon = Icons.Outlined.MusicNote,
+                iconResId = R.drawable.ms_audio_file_24,
                 iconTint = iOSTeal,
                 isNormal = true,
                 alwaysGranted = true
@@ -148,7 +145,7 @@ fun PermissionSettingsContent(
                 } else {
                     "用于搜索和连接附近的 DLNA 投屏设备"
                 },
-                icon = Icons.Outlined.Tv,
+                iconResId = R.drawable.ms_tv_24,
                 iconTint = iOSBlue,
                 isNormal = false,
                 alwaysGranted = localNetworkRuntimePermissions().isEmpty(),
@@ -159,7 +156,7 @@ fun PermissionSettingsContent(
                 name = "媒体文件写入",
                 permission = "scoped_storage",
                 description = "保存图片/截图时使用系统媒体库，下载导出使用系统文件夹授权",
-                icon = Icons.Outlined.Folder,
+                iconResId = R.drawable.ms_folder_shared_24,
                 iconTint = iOSPink,
                 isNormal = true,
                 alwaysGranted = true
@@ -254,7 +251,7 @@ private data class PermissionInfo(
     val name: String,
     val permission: String,
     val description: String,
-    val icon: ImageVector,
+    @DrawableRes val iconResId: Int,
     val iconTint: Color,
     val isNormal: Boolean,  // 是否是普通权限（自动授予）
     val alwaysGranted: Boolean = false,  // 是否总是被授予
@@ -270,6 +267,7 @@ private fun PermissionItem(
     isGranted: Boolean,
     onOpenSettings: (() -> Unit)?
 ) {
+    val permissionIcon = rememberMaterialSymbol(info.iconResId)
     val visualSpec = rememberAdaptiveListVisualCapabilities().componentSpec
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(info.iconTint)
     val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
@@ -293,7 +291,7 @@ private fun PermissionItem(
             contentAlignment = Alignment.Center
         ) {
             AppIcon(
-                info.icon,
+                permissionIcon,
                 contentDescription = null,
                 tint = iconContentColor,
                 modifier = Modifier.size(visualSpec.iconGlyphSizeDp.dp)
@@ -320,7 +318,7 @@ private fun PermissionItem(
         // 状态指示器
         if (isGranted) {
             AppIcon(
-                Icons.Outlined.CheckCircleOutline,
+                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_circle_outline_24),
                 contentDescription = "已授权",
                 tint = grantedTint,
                 modifier = Modifier.size(22.dp)
@@ -328,7 +326,7 @@ private fun PermissionItem(
         } else {
             // 未授权时显示红色的 X
             AppIcon(
-                Icons.Outlined.Cancel,
+                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cancel_24),
                 contentDescription = "未授权",
                 tint = deniedTint,
                 modifier = Modifier.size(22.dp)

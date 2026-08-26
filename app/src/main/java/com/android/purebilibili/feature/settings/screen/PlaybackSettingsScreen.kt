@@ -18,10 +18,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -175,6 +171,8 @@ fun PlaybackSettingsContent(
         .getDefaultPlaybackSpeed(context).collectAsStateWithLifecycle(initialValue = 1.0f)
     val rememberLastPlaybackSpeed by com.android.purebilibili.core.store.SettingsManager
         .getRememberLastPlaybackSpeed(context).collectAsStateWithLifecycle(initialValue = false)
+    val nativeMiuixPlayerPopups by PlayerSettingsStore
+        .getNativeMiuixPlayerPopups(context).collectAsStateWithLifecycle(initialValue = true)
     val longPressSpeedHintHidden by SettingsManager
         .getLongPressSpeedHintHidden(context)
         .collectAsStateWithLifecycle(
@@ -291,6 +289,19 @@ fun PlaybackSettingsContent(
                     }
                     AppPreferenceGroup {
 		                        AppSwitchPreference(
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LONG_PRESS_SPEED_HINT),
+                            title = "使用原生 Miuix 弹窗",
+                            subtitle = "用于播放器、动态、用户空间等页面；关闭后使用 Material 3 弹窗",
+                            checked = nativeMiuixPlayerPopups,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    PlayerSettingsStore.setNativeMiuixPlayerPopups(context, enabled)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                        )
+                        AppPreferenceDivider()
+		                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HARDWARE_DECODER),
                             title = "启用硬件解码",
                             subtitle = "推荐保持开启；只有遇到绿屏或无法播放时再尝试关闭，关闭后更耗电",
@@ -342,7 +353,7 @@ fun PlaybackSettingsContent(
                     val scope = rememberCoroutineScope()
                     AppPreferenceGroup {
 		                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LONG_PRESS_SPEED_HINT),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.REMEMBER_PLAYBACK_SPEED),
                             title = "记忆上次播放速度",
                             subtitle = if (rememberLastPlaybackSpeed) {
                                 "新视频将优先使用你最后一次手动设置的速度"
@@ -360,7 +371,7 @@ fun PlaybackSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK_SPEED),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LONG_PRESS_SPEED_HINT),
                             title = "隐藏长按倍速提示",
                             subtitle = if (longPressSpeedHintHidden) {
                                 "长按临时加速仍会生效，但不再显示倍速浮层"
@@ -617,7 +628,7 @@ fun PlaybackSettingsContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AppIcon(
-                                    Icons.Outlined.Warning,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_warning_24),
                                     contentDescription = null,
                                     tint = warningTint,
                                     modifier = Modifier.size(22.dp)
@@ -636,7 +647,7 @@ fun PlaybackSettingsContent(
                                     )
                                 }
                                 AppIcon(
-                                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                    com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(20.dp)
@@ -711,7 +722,7 @@ fun PlaybackSettingsContent(
                             onValueChange = viewModel::setGestureSensitivity,
                             valueRange = 0.5f..2.0f,
                             steps = 5,
-                            icon = Icons.Outlined.TouchApp,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_gesture_24),
                             iconTint = warningTint,
                             valueFormatter = { value -> "${(value * 100).toInt()}%" },
                         )
@@ -765,7 +776,7 @@ fun PlaybackSettingsContent(
                         )
                         AppPreferenceDivider()
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTICS),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.SEGMENT_LOADING_COMPATIBILITY),
                             title = "分段加载兼容模式（实验性）",
                             subtitle = if (dashSegmentRequestsEnabled) {
                                 "用于部分视频的分段加载；若出现无法播放或卡住，请关闭此项"
@@ -782,7 +793,7 @@ fun PlaybackSettingsContent(
                         )
                         AppPreferenceDivider()
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING_ONCE),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING),
                             title = "画质降档诊断弹窗",
                             subtitle = "只在画质切换失败或权限异常时提示，不会因视频没有更高画质而打断播放",
                             checked = qualitySwitchFailureDialogEnabled,
@@ -795,7 +806,7 @@ fun PlaybackSettingsContent(
                         )
                         AppPreferenceDivider()
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING_ONCE),
                             title = "降档弹窗仅提示一次",
                             subtitle = if (qualitySwitchFailureDialogEnabled) {
                                 "首次弹出后不再重复打断播放；关闭本项会重置提示记录"
@@ -858,7 +869,7 @@ fun PlaybackSettingsContent(
 
                     AppPreferenceGroup {
                         SettingsSingleChoicePreference(
-                            icon = Icons.Outlined.Dns,
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_router_24),
                             title = "CDN 设置：${playbackCdnPreference.displayName}",
                             subtitle = "新视频优先使用此线路；不可用时自动回退主/备用 URL",
                             options = playbackCdnOptions,
@@ -1055,7 +1066,7 @@ fun PlaybackSettingsContent(
                         AppPreferenceDivider()
 
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_COVER_GLASS),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.DATA_SAVER_COVER_QUALITY),
                             title = "省流量时降低首页封面清晰度",
                             subtitle = if (homeSettings.lowQualityHomeCoverInDataSaver) {
                                 "开启后仅在省流量模式生效时加载低清晰度首页封面"
@@ -1081,7 +1092,7 @@ fun PlaybackSettingsContent(
                             verticalAlignment = Alignment.Top
                         ) {
                             AppIcon(
-                                Icons.Outlined.Info,
+                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_info_24),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(18.dp)
@@ -1233,7 +1244,7 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
         AppSwitchPreference(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK_QUALITY),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.SPACE_PLAYED_VIDEO_LOCATE),
             title = "UP 主页看过视频定位提示",
             subtitle = if (spacePlayedVideoLocatePromptEnabled) {
                 "每次从视频进入该 UP 主页时显示，可一键定位到对应投稿"
@@ -1414,7 +1425,7 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
         AppSwitchPreference(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_PLAY_NEXT),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_SKIP_OP_ED),
             title = "自动跳过片头片尾",
             subtitle = if (state.autoSkipOpEd) {
                 "番剧提供跳过区间时，播放中自动跳过片头和片尾"
@@ -1451,7 +1462,7 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
         AppSwitchPreference(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.SUB_REPLY_LOADED_COUNT),
             title = "楼中楼已加载数量",
             subtitle = "在回复总数后显示当前已加载的条数",
             checked = subReplyLoadedCountEnabled,
@@ -1465,7 +1476,7 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
 	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT),
+	            icon = rememberSettingsSemanticIcon(SettingsIconRole.COMMENT_VISIBILITY_CHECK),
             title = "评论发送检测",
             subtitle = "发送成功后自动检查评论是否正常显示",
             checked = commentFraudDetectionEnabled,
@@ -1493,7 +1504,7 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
 	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.DOWNLOAD_PATH),
+	            icon = rememberSettingsSemanticIcon(SettingsIconRole.IMAGE_LONG_PRESS_ACTION),
             title = "图片长按操作",
             subtitle = if (imagePreviewLongPressSaveEnabled) {
                 "查看图片时长按可分享、复制链接或保存"
@@ -1511,12 +1522,12 @@ private fun PlaybackInteractionSettingsSection(
         )
         AppPreferenceDivider()
 	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+	            icon = rememberSettingsSemanticIcon(SettingsIconRole.IMAGE_3D_PAGE),
             title = "图片 3D 翻页",
             subtitle = if (imagePreview3dPageEnabled) {
                 "普通图片浏览使用轻量透视翻页"
             } else {
-                "使用与 PiliPlus 一致的平面横滑"
+                "普通图片浏览使用平面横滑"
             },
             checked = imagePreview3dPageEnabled,
             onCheckedChange = { enabled ->
@@ -1796,7 +1807,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             .collectAsStateWithLifecycle(initialValue = true)
         AppPreferenceDivider()
         AppSwitchPreference(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.HEADER_COLLAPSE),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_COLLAPSE_PAUSE),
             title = "缩小后自动暂停",
             subtitle = if (pauseOnPlayerCollapseEnabled) {
                 "上滑缩小播放器浏览相关推荐时自动暂停，展开后若为自动暂停则恢复播放"
@@ -2212,7 +2223,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             .getPortraitLetterboxAmbientHaze(context)
             .collectAsStateWithLifecycle(initialValue = true)
         AppSwitchPreference(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.IMMERSIVE_STATUS_BAR),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_AMBIENT_HAZE),
             title = "竖屏黑边动态模糊",
             subtitle = if (portraitLetterboxAmbientHaze) {
                 "竖屏播放横屏视频时，上下黑边实时采样画面做毛玻璃模糊（默认开启）"

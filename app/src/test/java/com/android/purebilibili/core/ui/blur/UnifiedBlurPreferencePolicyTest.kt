@@ -14,6 +14,7 @@ class UnifiedBlurPreferencePolicyTest {
                 enabled = true,
                 surfaceType = BlurSurfaceType.HEADER,
                 globalHeaderBlurEnabled = false,
+                globalBottomBarBlurEnabled = true,
             )
         )
         assertTrue(
@@ -21,6 +22,27 @@ class UnifiedBlurPreferencePolicyTest {
                 enabled = true,
                 surfaceType = BlurSurfaceType.GENERIC,
                 globalHeaderBlurEnabled = false,
+                globalBottomBarBlurEnabled = false,
+            )
+        )
+    }
+
+    @Test
+    fun `global bottom bar preference gates every bottom bar blur surface`() {
+        assertFalse(
+            shouldApplyUnifiedBlur(
+                enabled = true,
+                surfaceType = BlurSurfaceType.BOTTOM_BAR,
+                globalHeaderBlurEnabled = true,
+                globalBottomBarBlurEnabled = false,
+            )
+        )
+        assertTrue(
+            shouldApplyUnifiedBlur(
+                enabled = true,
+                surfaceType = BlurSurfaceType.BOTTOM_BAR,
+                globalHeaderBlurEnabled = false,
+                globalBottomBarBlurEnabled = true,
             )
         )
     }

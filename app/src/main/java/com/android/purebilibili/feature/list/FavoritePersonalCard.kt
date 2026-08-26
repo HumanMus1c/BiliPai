@@ -24,15 +24,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
-import com.android.purebilibili.core.ui.MediaContrastPalette
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
-import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -46,6 +46,8 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
+import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import kotlin.math.roundToInt
 
 internal fun resolveFavoriteDateLabel(
@@ -165,7 +167,8 @@ internal fun FavoritePersonalCard(
                 text = item.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                overflow = TextOverflow.Visible,
+                maxLines = videoCardTitleMaxLines(),
+                overflow = videoCardTitleOverflow(),
             )
         },
         supportingContent = {
@@ -177,12 +180,17 @@ internal fun FavoritePersonalCard(
                     overflow = TextOverflow.Visible,
                 )
                 val dateLabel = resolveFavoriteDateLabel(item.view_at)
-                val stats = "${FormatUtils.formatStat(item.stat.view.toLong())}播放 · ${FormatUtils.formatStat(item.stat.danmaku.toLong())}弹幕"
-                AppText(
-                    text = listOf(dateLabel, stats).filter(String::isNotBlank).joinToString(" · "),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f),
-                    overflow = TextOverflow.Visible,
+                if (dateLabel.isNotBlank()) {
+                    AppText(
+                        text = dateLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f),
+                        overflow = TextOverflow.Visible,
+                    )
+                }
+                VideoStatRow(
+                    playText = FormatUtils.formatStat(item.stat.view.toLong()),
+                    danmakuText = FormatUtils.formatStat(item.stat.danmaku.toLong()),
                 )
             }
         },
@@ -195,27 +203,16 @@ internal fun FavoritePersonalCard(
             )
         },
         coverOverlayContent = {
-            AppSurface(
+            VideoCardCoverDurationText(
+                text = if (progressState.progressSec > 0 || progressState.progressSec == -1) {
+                    resolveHistoryProgressLabel(progressState.progressSec, item.duration)
+                } else {
+                    FormatUtils.formatDuration(item.duration)
+                },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(AppSpacingTokens.ExtraSmall),
-                shape = AppShapes.container(ContainerLevel.Tag),
-                color = MediaContrastPalette.Scrim.copy(alpha = 0.76f),
-            ) {
-                AppText(
-                    text = if (progressState.progressSec > 0 || progressState.progressSec == -1) {
-                        resolveHistoryProgressLabel(progressState.progressSec, item.duration)
-                    } else {
-                        FormatUtils.formatDuration(item.duration)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MediaContrastPalette.Foreground,
-                    modifier = Modifier.padding(
-                        horizontal = AppSpacingTokens.ExtraSmall,
-                        vertical = AppSpacingTokens.Micro,
-                    ),
-                )
-            }
+            )
             if (progressState.showProgressBar) {
                 AppLinearProgressIndicator(
                     progress = { progressState.progressFraction },

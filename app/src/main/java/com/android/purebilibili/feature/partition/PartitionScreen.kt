@@ -1185,6 +1185,9 @@ private fun PartitionVideoList(
             ContentMediaListSkeleton(
                 modifier = modifier.fillMaxHeight(),
                 itemCount = 8,
+                mediaRowCoverWidth = 140.dp,
+                mediaRowContentPadding = PaddingValues(8.dp),
+                mediaRowContentGap = 10.dp,
             )
         }
         state.videos.isEmpty() && state.error != null -> {

@@ -33,7 +33,7 @@ class DynamicCommentSortControlPolicyTest {
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("tapPressRefractionEnabled = true"))
         assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
-        assertTrue(source.contains("forceLiquidChrome = false"))
+        assertTrue(!source.contains("forceLiquidChrome"))
         assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
         assertTrue(source.contains("listOf(CommentSortMode.HOT, CommentSortMode.NEWEST)"))
         assertTrue(!source.contains("CommentSegmentedControl("))
@@ -51,6 +51,11 @@ class DynamicCommentSortControlPolicyTest {
         assertTrue(voteSource.contains("DynamicAdaptiveSegmentedControl("))
         assertTrue(voteSource.contains("listOf(\"单选\", \"多选\")"))
         assertTrue(voteSource.contains("backdrop = voteChromeBackdrop"))
+        assertTrue(voteSource.contains(".matchParentSize()\n                        .layerBackdrop(voteChromeBackdrop)"))
+        assertTrue(
+            voteSource.indexOf(".layerBackdrop(voteChromeBackdrop)") <
+                voteSource.indexOf("backdrop = voteChromeBackdrop")
+        )
         assertTrue(publishSource.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(publishSource.contains("listOf(\"公开\", \"仅自己可见\")"))
         assertTrue(publishSource.contains("tapPressRefractionEnabled = true"))
@@ -67,6 +72,11 @@ class DynamicCommentSortControlPolicyTest {
         assertTrue(source.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains(".layerBackdrop(commentChromeBackdrop)"))
         assertTrue(source.contains("backdrop = commentChromeBackdrop"))
+        assertTrue(source.contains(".matchParentSize()\n                    .layerBackdrop(commentChromeBackdrop)"))
+        assertTrue(
+            source.indexOf(".layerBackdrop(commentChromeBackdrop)") <
+                source.indexOf("miuixBackdrop = commentChromeBackdrop")
+        )
     }
 
     private fun loadSource(path: String): String {

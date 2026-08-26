@@ -17,7 +17,11 @@ internal fun shouldShowDanmakuInputInControlBar(
 internal fun shouldShowCompactDanmakuSendAction(
     isFullscreen: Boolean,
     widthDp: Int
-): Boolean = isFullscreen && widthDp < 480
+): Boolean {
+    // Narrow fullscreen keeps a compact send chip; tablet inline cinema
+    // (≥600dp) has no phone tab-bar 发弹幕, so expose it next to the overlay toggle.
+    return (isFullscreen && widthDp < 480) || (!isFullscreen && widthDp >= 600)
+}
 
 internal fun shouldShowDanmakuSendInMoreActions(
     isFullscreen: Boolean,

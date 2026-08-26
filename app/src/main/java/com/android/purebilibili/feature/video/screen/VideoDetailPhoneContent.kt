@@ -41,6 +41,8 @@ import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.components.BottomInputBar
 import com.android.purebilibili.feature.video.ui.components.resolveBottomInputBarContentBottomPadding
 import com.android.purebilibili.feature.video.ui.components.shouldUseFloatingLiquidBottomInputBar
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
@@ -91,7 +93,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     transitionEnabled: Boolean,
     sourceRouteForSharedElement: String?,
     isPlayerCollapsed: Boolean,
-    onRestorePlayer: () -> Unit,
     onBgmClick: (BgmInfo) -> Unit,
     homeUpBadgesVisible: Boolean,
     isVideoPlaying: Boolean,
@@ -287,7 +288,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 sourceRouteForSharedElement = sourceRouteForSharedElement,
                                 onFavoriteLongClick = playbackActions.showFavoriteFolderDialog,
                                 isPlayerCollapsed = isPlayerCollapsed,
-                                onRestorePlayer = onRestorePlayer,
                                 aiSummary = success.aiSummary,
                                 aiSummaryPrompt = success.aiSummaryPrompt,
                                 onRetryAiSummary = playbackActions.retryAiSummary,
@@ -377,10 +377,22 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 videoCount = playlistItems.size,
                                 onClick = onShowExternalPlaylistQueueSheet,
                                 hazeState = hazeState,
+                                liquidGlassEnabled = floatingLiquidBottomInputBar,
+                                backdrop = if (floatingLiquidBottomInputBar) bottomInputBarBackdrop else null,
+                                isScrollInProgressProvider = {
+                                    introListState.isScrollInProgress ||
+                                        commentListState.isScrollInProgress ||
+                                        videoContentPagerState.isScrollInProgress
+                                },
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .navigationBarsPadding()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    .padding(
+                                        start = 12.dp,
+                                        end = 12.dp,
+                                        top = 8.dp,
+                                        bottom = 24.dp,
+                                    )
                             )
                         }
                     }
@@ -396,9 +408,32 @@ private fun ExternalPlaylistQueueCollapsedBar(
     videoCount: Int,
     onClick: () -> Unit,
     hazeState: HazeState,
+    liquidGlassEnabled: Boolean,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop?,
+    isScrollInProgressProvider: () -> Boolean,
     modifier: Modifier = Modifier
 ) {
     val shape = AppShapes.borderedContainer(ContainerLevel.Dialog)
+    if (liquidGlassEnabled) {
+        BottomBarMatchedReusableLiquidDock(
+            shape = shape,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(64.dp),
+            backdrop = backdrop,
+            reuseEnabled = true,
+            drawShellLens = true,
+            shellLensIntensity = resolveFloatingDockGeometryScale(64f),
+            isScrollInProgressProvider = isScrollInProgressProvider,
+        ) {
+            ExternalPlaylistQueueCollapsedBarContent(
+                title = title,
+                videoCount = videoCount,
+                onClick = onClick,
+            )
+        }
+        return
+    }
     val useHazeEffect = shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)
     AppSurface(
         modifier = modifier
@@ -424,9 +459,24 @@ private fun ExternalPlaylistQueueCollapsedBar(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
         )
     ) {
+        ExternalPlaylistQueueCollapsedBarContent(
+            title = title,
+            videoCount = videoCount,
+            onClick = onClick,
+        )
+    }
+}
+
+@Composable
+private fun ExternalPlaylistQueueCollapsedBarContent(
+    title: String,
+    videoCount: Int,
+    onClick: () -> Unit,
+) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -450,5 +500,4 @@ private fun ExternalPlaylistQueueCollapsedBar(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
 }

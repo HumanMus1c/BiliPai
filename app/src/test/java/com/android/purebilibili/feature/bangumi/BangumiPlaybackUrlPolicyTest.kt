@@ -4,6 +4,7 @@ import com.android.purebilibili.data.model.response.Durl
 import com.android.purebilibili.core.network.BANGUMI_PLAY_URL_PATH
 import com.android.purebilibili.data.repository.BangumiPlayUrlPayload
 import com.android.purebilibili.data.repository.shouldFallbackToLegacyBangumiPlayUrl
+import com.android.purebilibili.data.repository.validateBangumiPlayableVideoInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -38,6 +39,16 @@ class BangumiPlaybackUrlPolicyTest {
                 BangumiPlayUrlPayload(code = -10403, message = "大会员", videoInfo = null)
             )
         )
+    }
+
+    @Test
+    fun `DRM playurl is rejected with an actionable non-generic reason`() {
+        val result = validateBangumiPlayableVideoInfo(
+            com.android.purebilibili.data.model.response.BangumiVideoInfo(isDrm = true)
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("DRM") == true)
     }
 
     @Test

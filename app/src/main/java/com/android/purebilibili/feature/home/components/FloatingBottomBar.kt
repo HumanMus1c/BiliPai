@@ -185,6 +185,7 @@ private const val GRAVITY_DIR_THRESHOLD_SQ = 0.01f
 @Composable
 internal fun rememberGravityRotatedHighlight(
     extraDegrees: Float = 0f,
+    width: Dp = 1.dp,
 ): Highlight {
     val base = iosIndicatorSpecular
     val baseStyle = base.style as BloomStroke
@@ -213,8 +214,11 @@ internal fun rememberGravityRotatedHighlight(
             ),
         )
     }
-    return remember(base, rotatedPrimary) {
-        base.copy(style = baseStyle.copy(primaryLight = rotatedPrimary))
+    return remember(base, rotatedPrimary, width) {
+        base.copy(
+            width = width,
+            style = baseStyle.copy(primaryLight = rotatedPrimary),
+        )
     }
 }
 
@@ -275,11 +279,12 @@ internal fun isExternalPagerCaughtUpToOwnedTarget(
 
 internal fun shouldAnimateIndicatorToSelectedIndex(
     isDragging: Boolean,
+    isPagerScrolling: Boolean,
     indicatorTarget: Float,
     selectedIndex: Int,
     ownedTargetIndex: Int?,
 ): Boolean {
-    if (isDragging) return false
+    if (isDragging || isPagerScrolling) return false
     if (abs(indicatorTarget - selectedIndex.toFloat()) <= 0.001f) return false
     if (ownedTargetIndex != null && ownedTargetIndex != selectedIndex) return false
     return true
@@ -305,7 +310,7 @@ fun RowScope.FloatingBottomBarItem(
     val baseContentAlpha = LocalFloatingBottomBarBaseContentAlpha.current
     val activeContent = LocalFloatingBottomBarActiveContent.current
     val contentColor = LocalFloatingBottomBarContentColor.current
-    val selectionScale = remember(itemIndex, indicatorPosition) {
+    val selectionScale = remember(itemIndex, indicatorPosition, iconCrossScaleEnabled) {
         {
             if (!iconCrossScaleEnabled || itemIndex == null) {
                 1f
@@ -613,24 +618,26 @@ fun FloatingBottomBar(
         }
     }
     val baseContentAlphaProvider: (Int) -> Float = { itemIndex ->
-        if (isLiquidGlassMode) {
-            1f
-        } else {
-            val coverage = (1f - abs(itemIndex.toFloat() - dampedDragAnimation.value))
-                .coerceIn(0f, 1f)
-            1f - coverage
-        }
+        // Fade the dock copy of the selected label in every mode. Leaving it opaque
+        // under a clamped right-edge indicator stacks two glyphs (重影).
+        val coverage = (1f - abs(itemIndex.toFloat() - dampedDragAnimation.value))
+            .coerceIn(0f, 1f)
+        1f - coverage
     }
 
     LaunchedEffect(dampedDragAnimation, maxTabIndex) {
         snapshotFlow {
-            selectedIndexLatest.value().coerceIn(0, maxTabIndex) to
-                dampedDragAnimation.isDragging
+            Triple(
+                selectedIndexLatest.value().coerceIn(0, maxTabIndex),
+                dampedDragAnimation.isDragging,
+                isScrollInProgressLatest(),
+            )
         }
-            .collectLatest { (index, isDragging) ->
+            .collectLatest { (index, isDragging, isPagerScrolling) ->
                 if (
                     shouldAnimateIndicatorToSelectedIndex(
                         isDragging = isDragging,
+                        isPagerScrolling = isPagerScrolling,
                         indicatorTarget = dampedDragAnimation.targetValue,
                         selectedIndex = index,
                         ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
@@ -672,6 +679,9 @@ fun FloatingBottomBar(
                 dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
             } else if (pagerPressed) {
                 pagerPressed = false
+                external?.let {
+                    dampedDragAnimation.snapTo(it.coerceIn(0f, maxTabIndex.toFloat()))
+                }
                 dampedDragAnimation.release()
             }
         }
@@ -691,7 +701,13 @@ fun FloatingBottomBar(
                             },
                             size.height / 2f
                         )
-                    }
+                    },
+                    radius = { size ->
+                        resolveDockInteractiveHighlightRadiusPx(
+                            shellMinDimensionPx = size.minDimension,
+                            tabWidthPx = tabWidthPx,
+                        )
+                    },
                 )
             }
         } else {
@@ -699,7 +715,13 @@ fun FloatingBottomBar(
         }
 
     val baseHighlight = rememberGravityRotatedHighlight(extraDegrees = -45f)
-    val pillHighlight = rememberGravityRotatedHighlight(extraDegrees = 90f)
+    val pillHighlight = rememberGravityRotatedHighlight(
+        extraDegrees = 90f,
+        width = resolveDockPillHighlightWidthDp(
+            indicatorWidthDp = fittedIndicatorWidth.value,
+            indicatorHeightDp = fittedIndicatorHeight.value,
+        ).dp,
+    )
 
     val combinedBackdrop = if (backdrop != null) {
         rememberCombinedBackdrop(backdrop, tabsBackdrop)

@@ -153,6 +153,8 @@ class VideoActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
             val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
+            val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = false)
             val hapticFeedbackEnabled by SettingsManager
                 .getHapticFeedbackEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
@@ -168,6 +170,7 @@ class VideoActivity : ComponentActivity() {
             val appThemeConfig = remember(
                 blurIntensity,
                 headerBlurEnabled,
+                bottomBarBlurEnabled,
                 hapticFeedbackEnabled,
                 globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
@@ -176,6 +179,7 @@ class VideoActivity : ComponentActivity() {
                 AppThemeConfig(
                     blurIntensity = blurIntensity,
                     headerBlurEnabled = headerBlurEnabled,
+                    bottomBarBlurEnabled = bottomBarBlurEnabled,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
                     globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,

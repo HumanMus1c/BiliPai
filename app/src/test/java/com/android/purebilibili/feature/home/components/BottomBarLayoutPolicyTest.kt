@@ -145,20 +145,14 @@ class BottomBarLayoutPolicyTest {
             searchExpanded = false
         )
 
-        assertEquals(279.dp, layout.dockWidth)
-        assertEquals(64.dp, layout.searchWidth)
-        assertEquals(10.dp, layout.gap)
-        assertTrue(
-            layout.minimumIndicatorWidth > resolveBiliPaiBottomBarItemSlotWidth(
-                dockWidth = layout.dockWidth,
-                horizontalPadding = 4.dp,
-                itemCount = 4,
-            )
-        )
+        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(56.dp, layout.searchWidth)
+        assertEquals(8.dp, layout.gap)
+        assertEquals(0.dp, layout.minimumIndicatorWidth)
     }
 
     @Test
-    fun `five item dock keeps its uncompressed indicator width beside search`() {
+    fun `five item dock keeps indicator aligned to its compressed slot beside search`() {
         val layout = resolveBiliPaiBottomBarSearchLayout(
             containerWidth = 393.dp,
             itemCount = 5,
@@ -167,15 +161,47 @@ class BottomBarLayoutPolicyTest {
             searchExpanded = false,
         )
 
-        assertEquals(279.dp, layout.dockWidth)
-        assertEquals(69.dp, layout.minimumIndicatorWidth)
+        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(0.dp, layout.minimumIndicatorWidth)
         assertTrue(
-            layout.minimumIndicatorWidth > resolveBiliPaiBottomBarItemSlotWidth(
+            resolveBiliPaiBottomBarItemSlotWidth(
                 dockWidth = layout.dockWidth,
                 horizontalPadding = 4.dp,
                 itemCount = 5,
-            )
+            ) >= 48.dp
         )
+    }
+
+    @Test
+    fun `five item dock preserves minimum touch width on narrow phone with search`() {
+        val layout = resolveBiliPaiBottomBarSearchLayout(
+            containerWidth = 360.dp,
+            itemCount = 5,
+            minEdgePadding = 20.dp,
+            searchEnabled = true,
+            searchExpanded = false,
+        )
+
+        assertTrue(
+            resolveBiliPaiBottomBarItemSlotWidth(
+                dockWidth = layout.dockWidth,
+                horizontalPadding = 4.dp,
+                itemCount = 5,
+            ) >= 48.dp
+        )
+    }
+
+    @Test
+    fun `search layout stays within available width when minimum targets cannot all fit`() {
+        val layout = resolveBiliPaiBottomBarSearchLayout(
+            containerWidth = 320.dp,
+            itemCount = 5,
+            minEdgePadding = 20.dp,
+            searchEnabled = true,
+            searchExpanded = false,
+        )
+
+        assertTrue(layout.dockWidth + layout.gap + layout.searchWidth <= 280.dp)
     }
 
     @Test
@@ -189,9 +215,9 @@ class BottomBarLayoutPolicyTest {
             searchLayoutMode = BottomBarSearchLayoutMode.FULL_DOCK
         )
 
-        assertEquals(279.dp, layout.dockWidth)
-        assertEquals(64.dp, layout.searchWidth)
-        assertEquals(10.dp, layout.gap)
+        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(56.dp, layout.searchWidth)
+        assertEquals(8.dp, layout.gap)
     }
 
     @Test
@@ -206,8 +232,8 @@ class BottomBarLayoutPolicyTest {
         )
 
         assertEquals(resolveBiliPaiBottomBarSearchCircleSize(), layout.dockWidth)
-        assertEquals(279.dp, layout.searchWidth)
-        assertEquals(10.dp, layout.gap)
+        assertEquals(280.dp, layout.searchWidth)
+        assertEquals(8.dp, layout.gap)
     }
 
     @Test
@@ -234,7 +260,7 @@ class BottomBarLayoutPolicyTest {
 
     @Test
     fun `bilipai expanded home dock copies search circle size`() {
-        assertEquals(64.dp, resolveBiliPaiBottomBarSearchCircleSize())
+        assertEquals(56.dp, resolveBiliPaiBottomBarSearchCircleSize())
         assertEquals(56.dp, resolveBiliPaiBottomBarDockHeight(searchExpanded = false))
         assertEquals(
             64.dp,
@@ -246,8 +272,8 @@ class BottomBarLayoutPolicyTest {
         assertEquals(resolveBiliPaiBottomBarSearchCircleSize(), resolveBiliPaiBottomBarDockHeight(searchExpanded = true))
         assertEquals(52.dp, resolveBiliPaiBottomBarIndicatorHeight(56.dp))
         assertEquals(60.dp, resolveBiliPaiBottomBarIndicatorHeight(64.dp))
-        assertEquals(64.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = false))
-        assertEquals(64.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
+        assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = false))
+        assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
     }
 
     @Test
@@ -259,9 +285,9 @@ class BottomBarLayoutPolicyTest {
     @Test
     fun `bottom bar refraction capture follows full visible bar while search is enabled`() {
         val captureWidth = resolveBottomBarRefractionCaptureWidth(
-            dockWidth = 279.dp,
-            launchAdjustedSearchGap = 10.dp,
-            searchWidth = 64.dp,
+            dockWidth = 289.dp,
+            launchAdjustedSearchGap = 8.dp,
+            searchWidth = 56.dp,
             searchEnabled = true
         )
 

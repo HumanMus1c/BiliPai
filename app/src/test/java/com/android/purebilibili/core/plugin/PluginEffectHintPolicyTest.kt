@@ -9,6 +9,15 @@ import org.junit.Test
 class PluginEffectHintPolicyTest {
 
     @Test
+    fun frequentMatchHintsFollowUserPreference() {
+        assertFalse(shouldShowPluginEffectHint(PluginEffectHintKind.FEED_FILTER, false))
+        assertFalse(shouldShowPluginEffectHint(PluginEffectHintKind.DANMAKU, false))
+        assertTrue(shouldShowPluginEffectHint(PluginEffectHintKind.FEED_FILTER, true))
+        assertTrue(shouldShowPluginEffectHint(PluginEffectHintKind.GENERIC, false))
+        assertTrue(shouldShowPluginEffectHint(PluginEffectHintKind.EYE_CARE, false))
+    }
+
+    @Test
     fun cooldownRejectsHintsInsideWindow() {
         assertTrue(shouldAcceptPluginEffectHint(lastAcceptedAtMs = null, nowMs = 1_000L, cooldownMs = 5_000L))
         assertFalse(shouldAcceptPluginEffectHint(lastAcceptedAtMs = 1_000L, nowMs = 3_000L, cooldownMs = 5_000L))

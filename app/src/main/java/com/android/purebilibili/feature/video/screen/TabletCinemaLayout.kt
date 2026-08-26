@@ -204,6 +204,7 @@ internal fun TabletCinemaLayout(
         )
     }
     val success = uiState as? VideoPlaybackUiState.Success
+    val danmakuChrome = rememberTabletDanmakuChromeState(bvid)
     val initialCurtainState = remember(configuration.screenWidthDp) {
         resolveInitialCurtainState(configuration.screenWidthDp).name
     }
@@ -212,7 +213,9 @@ internal fun TabletCinemaLayout(
         runCatching { TabletSideCurtainState.valueOf(curtainStateName) }
             .getOrDefault(resolveInitialCurtainState(configuration.screenWidthDp))
     }
-    var selectedTab by rememberSaveable(bvid) { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable(bvid) {
+        mutableIntStateOf(resolveTabletSecondaryDefaultTab())
+    }
     val curtainPagerState = rememberPagerState(
         initialPage = selectedTab,
         pageCount = { 2 }
@@ -363,6 +366,9 @@ internal fun TabletCinemaLayout(
                 width = curtainWidth,
                 selectedTab = selectedTab,
                 pagerState = curtainPagerState,
+                danmakuEnabled = danmakuChrome.enabled,
+                onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
+                onDanmakuToggle = danmakuChrome.onToggle,
                 onToggle = {
                     curtainStateName = when (curtainState) {
                         TabletSideCurtainState.OPEN -> TabletSideCurtainState.PEEK.name
@@ -547,6 +553,7 @@ private fun CinemaStagePlayer(
                 onToggleFavorite = engagementActions.toggleFavorite,
                 onTriple = engagementActions.doTripleAction,
                 onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
+                onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
                 sponsorContributionState = sponsorContributionState,
                 onSponsorContributionMarkBoundary = playbackActions.markSponsorContributionBoundary,
                 onSponsorContributionCategoryChange = playbackActions.setSponsorContributionCategory,
@@ -954,6 +961,9 @@ private fun CinemaSideCurtain(
     width: Dp,
     selectedTab: Int,
     pagerState: PagerState,
+    danmakuEnabled: Boolean,
+    onDanmakuSendClick: () -> Unit,
+    onDanmakuToggle: () -> Unit,
     onToggle: () -> Unit,
     onTabSelected: (Int) -> Unit,
     success: VideoPlaybackUiState.Success?,
@@ -1050,18 +1060,30 @@ private fun CinemaSideCurtain(
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            TabletSecondaryLiquidTabRow(
-                                labels = listOf("评论", "相关推荐"),
-                                selectedIndex = pagerState.currentPage,
-                                onSelected = onTabSelected,
-                                indicatorPositionProvider = {
-                                    pagerState.currentPage + pagerState.currentPageOffsetFraction
-                                },
-                                isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                            Row(
                                 modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(vertical = 6.dp),
-                            )
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TabletSecondaryLiquidTabRow(
+                                    labels = listOf("评论", "相关推荐"),
+                                    selectedIndex = pagerState.currentPage,
+                                    onSelected = onTabSelected,
+                                    indicatorPositionProvider = {
+                                        pagerState.currentPage + pagerState.currentPageOffsetFraction
+                                    },
+                                    isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                                )
+                                if (shouldShowTabletCinemaDanmakuActions(state)) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TabletSecondaryDanmakuActions(
+                                        danmakuEnabled = danmakuEnabled,
+                                        onDanmakuSendClick = onDanmakuSendClick,
+                                        onDanmakuToggle = onDanmakuToggle,
+                                    )
+                                }
+                            }
 
                             HorizontalPager(
                                 state = pagerState,

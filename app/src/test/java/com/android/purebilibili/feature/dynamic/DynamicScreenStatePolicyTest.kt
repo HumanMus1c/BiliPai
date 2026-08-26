@@ -14,12 +14,11 @@ import kotlin.test.assertTrue
 class DynamicScreenStatePolicyTest {
 
     @Test
-    fun `horizontal dynamic header reserves top user list height at rest`() {
+    fun `dynamic list top padding stays independent from scroll driven chrome collapse`() {
         assertEquals(
             184,
             resolveDynamicListTopPaddingExtraDp(
                 isHorizontalMode = true,
-                isHorizontalUserListCollapsed = false,
                 shouldShowHorizontalUserList = true
             )
         )
@@ -27,15 +26,6 @@ class DynamicScreenStatePolicyTest {
             60,
             resolveDynamicListTopPaddingExtraDp(
                 isHorizontalMode = true,
-                isHorizontalUserListCollapsed = true,
-                shouldShowHorizontalUserList = true
-            )
-        )
-        assertEquals(
-            60,
-            resolveDynamicListTopPaddingExtraDp(
-                isHorizontalMode = true,
-                isHorizontalUserListCollapsed = false,
                 shouldShowHorizontalUserList = false
             )
         )
@@ -43,7 +33,6 @@ class DynamicScreenStatePolicyTest {
             60,
             resolveDynamicListTopPaddingExtraDp(
                 isHorizontalMode = false,
-                isHorizontalUserListCollapsed = false
             )
         )
     }
@@ -103,6 +92,20 @@ class DynamicScreenStatePolicyTest {
             shouldCollapseDynamicHorizontalUserList(
                 firstVisibleItemIndex = 1,
                 firstVisibleItemScrollOffset = 0
+            )
+        )
+        assertFalse(
+            shouldCollapseDynamicHorizontalUserList(
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = DynamicHorizontalExpandedHeaderReservedHeightDp,
+                topTolerancePx = DynamicHorizontalExpandedHeaderReservedHeightDp,
+            )
+        )
+        assertTrue(
+            shouldCollapseDynamicHorizontalUserList(
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = DynamicHorizontalExpandedHeaderReservedHeightDp + 1,
+                topTolerancePx = DynamicHorizontalExpandedHeaderReservedHeightDp,
             )
         )
     }

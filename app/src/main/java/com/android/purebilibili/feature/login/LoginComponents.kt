@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -946,28 +947,28 @@ fun ModernButton(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val palette = rememberLoginPalette()
     val isEnabled = enabled && !isLoading
     val shape = AppShapes.container(ContainerLevel.Dialog)
-    val gradientBrush = Brush.horizontalGradient(
-        colors = listOf(
-            palette.buttonGradientStart,
-            palette.buttonGradientEnd
-        )
-    )
 
-    Box(
-        modifier = Modifier
+    AppButton(
+        onClick = onClick,
+        enabled = isEnabled,
+        shape = shape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = palette.buttonGradientStart,
+            contentColor = palette.buttonText,
+            disabledContainerColor = palette.buttonDisabled,
+            disabledContentColor = palette.buttonText.copy(alpha = 0.6f),
+        ),
+        border = BorderStroke(1.dp, palette.panelStroke),
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .clip(shape)
-            .background(if (isEnabled) gradientBrush else SolidColor(palette.buttonDisabled))
-            .border(1.dp, palette.panelStroke, shape)
-            .clickable(enabled = isEnabled) { onClick() }
-            .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center
+            .height(50.dp),
     ) {
         if (isLoading) {
             AppCircularProgressIndicator(
