@@ -29,6 +29,11 @@ interface FeedPlugin : Plugin {
     fun shouldShowItem(item: VideoItem, feedKind: FeedKind): Boolean = shouldShowItem(item)
 }
 
+/** Reorders or decorates feed items after all [FeedPlugin] filters have run. */
+interface FeedTransformPlugin : Plugin {
+    fun transformFeedItems(items: List<VideoItem>, feedKind: FeedKind): List<VideoItem>
+}
+
 /**
  * 信息流来源类型，供 FeedPlugin 按来源区分过滤行为。
  */

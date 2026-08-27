@@ -86,7 +86,7 @@ internal fun resolveSpaceSecondarySwitchChromeSpec(
     val itemWidthDp = resolveSpaceContributionTabItemWidthDpFromTitles(items.map { it.title })
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
-        heightDp = AppChromeSizeTokens.MinimumTouchTarget.value.roundToInt(),
+        heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
         indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = itemWidthDp,

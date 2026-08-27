@@ -118,6 +118,7 @@ class WatchLaterQueueUiPolicyTest {
             .substringBefore("\n}\n\n")
 
         assertTrue(barBlock.contains(".clip(shape)"))
+        assertTrue(barBlock.contains(".height(64.dp)"))
         assertTrue(barBlock.contains("hazeEffectCompat("))
         assertTrue(
             barBlock.indexOf(".clip(shape)") < barBlock.indexOf("hazeEffectCompat("),

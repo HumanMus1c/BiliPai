@@ -2,6 +2,9 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.ui.components.shouldUseCompactMiuixTabRow
+import com.android.purebilibili.core.ui.components.resolveReadableNativeTabMinWidth
+import com.android.purebilibili.core.ui.components.resolveCompactMiuixTabRowWidth
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,6 +12,49 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AppSegmentedControlPolicyTest {
+
+    @Test
+    fun `compact two option rows do not consume viewport`() {
+        assertEquals(144.dp, resolveCompactMiuixTabRowWidth(400.dp, 72.dp, 2, false))
+        assertEquals(400.dp, resolveCompactMiuixTabRowWidth(400.dp, 72.dp, 2, true))
+        assertEquals(400.dp, resolveCompactMiuixTabRowWidth(400.dp, 72.dp, 3, false))
+    }
+
+    @Test
+    fun `native tabs expand shared item width across themes for complete long labels`() {
+        assertEquals(
+            88.dp,
+            resolveReadableNativeTabMinWidth(
+                requestedMinWidth = 72.dp,
+                labels = listOf("播放多", "默认排序", "新发布"),
+                allowLabelOverflow = true,
+            ),
+        )
+        assertEquals(
+            72.dp,
+            resolveReadableNativeTabMinWidth(
+                requestedMinWidth = 72.dp,
+                labels = listOf("视频", "番剧"),
+                allowLabelOverflow = true,
+            ),
+        )
+        assertEquals(
+            72.dp,
+            resolveReadableNativeTabMinWidth(
+                requestedMinWidth = 72.dp,
+                labels = listOf("默认排序"),
+                allowLabelOverflow = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `only non scrollable two option Miuix rows use compact width`() {
+        assertTrue(shouldUseCompactMiuixTabRow(2, scrollable = false, compactWhenTwoOptions = true))
+        assertFalse(shouldUseCompactMiuixTabRow(2, scrollable = true, compactWhenTwoOptions = true))
+        assertFalse(shouldUseCompactMiuixTabRow(3, scrollable = false, compactWhenTwoOptions = true))
+        assertFalse(shouldUseCompactMiuixTabRow(2, scrollable = false, compactWhenTwoOptions = false))
+    }
 
     @Test
     fun `material3 exposes material segmented capabilities`() {
@@ -39,14 +85,14 @@ class AppSegmentedControlPolicyTest {
     }
 
     @Test
-    fun `visual height is derived from corner instead of a hardcoded 48dp`() {
+    fun `oversized semantic corner is clamped instead of enlarging the control`() {
         val geometry = resolveRoundedControlVisualGeometry(
             preferredCornerRadius = 14.4.dp,
             nativeMinimumHeight = 40.dp,
         )
 
-        assertEquals(48f, geometry.height.value, absoluteTolerance = 0.001f)
-        assertEquals(14.4.dp, geometry.cornerRadius)
+        assertEquals(40.dp, geometry.height)
+        assertEquals(12.dp, geometry.cornerRadius)
         assertTrue(geometry.cornerRadius < geometry.height / 2)
     }
 
@@ -73,7 +119,7 @@ class AppSegmentedControlPolicyTest {
         )
 
         assertFalse(materialSource.contains("heightIn(min = 48.dp)"))
-        assertTrue(miuixSource.contains("TabRowDefaults.TabRowHeight"))
+        assertTrue(miuixSource.contains("MiuixNativeCompactControlHeightDp"))
         assertTrue(miuixSource.contains("resolveRoundedControlVisualGeometry("))
     }
 

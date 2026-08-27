@@ -241,7 +241,11 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                     blocks += if (paragraphType == 4) {
                         OpusContentBlock.Quote(text = text, alignment = alignment)
                     } else {
-                        OpusContentBlock.Text(text = text, alignment = alignment)
+                        OpusContentBlock.Text(
+                            text = text,
+                            alignment = alignment,
+                            richTextNodes = extractParagraphRichTextNodes(paragraph),
+                        )
                     }
                 }
             }
@@ -323,6 +327,41 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
             ?.let { runCatching { it.jsonObject }.getOrNull() }
             ?.get("nodes")
         return extractParagraphNodesText(nodes).takeIf { it.isNotBlank() }
+    }
+
+    private fun extractParagraphRichTextNodes(paragraph: JsonObject): List<RichTextNode> {
+        val nodes = (paragraph["text"] as? JsonObject)?.get("nodes") as? JsonArray
+            ?: return emptyList()
+        val parsedNodes = nodes.mapNotNull { nodeElement ->
+            val node = nodeElement as? JsonObject ?: return@mapNotNull null
+            (node["rich"] as? JsonObject)?.let { rich ->
+                val richNode = RichTextNode(
+                    type = rich["type"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    text = rich["text"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    orig_text = rich["orig_text"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    jump_url = rich["jump_url"]?.jsonPrimitive?.contentOrNull,
+                    rid = rich["rid"]?.jsonPrimitive?.contentOrNull,
+                )
+                richNode
+            } ?: (node["word"] as? JsonObject)
+                ?.get("words")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { words -> RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = words) }
+                ?: (node["formula"] as? JsonObject)
+                    ?.get("latex_content")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { formula ->
+                        // Keep formula nodes in the stream so an otherwise complete
+                        // paragraph is not downgraded to plain text (which would also
+                        // lose AT metadata next to the formula).
+                        RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = formula)
+                    }
+        }
+        return parsedNodes.filter { it.text.isNotBlank() || it.orig_text.isNotBlank() }
     }
 
     private fun extractParagraphPics(
@@ -1044,7 +1083,11 @@ data class OpusMajor(
 )
 
 sealed interface OpusContentBlock {
-    data class Text(val text: String, val alignment: Int = 0) : OpusContentBlock
+    data class Text(
+        val text: String,
+        val alignment: Int = 0,
+        val richTextNodes: List<RichTextNode> = emptyList(),
+    ) : OpusContentBlock
     data class Heading(val text: String, val level: Int = 2, val alignment: Int = 0) : OpusContentBlock
     data class Quote(val text: String, val alignment: Int = 0) : OpusContentBlock
     data class ListBlock(

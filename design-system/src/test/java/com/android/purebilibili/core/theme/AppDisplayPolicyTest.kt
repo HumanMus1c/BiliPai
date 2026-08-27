@@ -94,4 +94,15 @@ class AppDisplayPolicyTest {
         assertSame(fontFamily, textStyles.body1.fontFamily)
         assertSame(fontFamily, textStyles.title4.fontFamily)
     }
+
+    @Test
+    fun `miuix native roles inherit md3 typography density`() {
+        val textStyles = Md3Typography.toMiuixTextStyles()
+
+        assertEquals(Md3Typography.bodyLarge, textStyles.main)
+        assertEquals(Md3Typography.bodyMedium, textStyles.body1)
+        assertEquals(Md3Typography.bodySmall, textStyles.body2)
+        assertEquals(Md3Typography.labelLarge, textStyles.button)
+        assertEquals(Md3Typography.titleMedium, textStyles.headline1)
+    }
 }

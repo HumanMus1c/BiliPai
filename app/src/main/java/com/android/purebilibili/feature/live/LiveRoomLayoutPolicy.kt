@@ -9,6 +9,11 @@ enum class LiveRoomLayoutMode {
     LandscapeOverlay
 }
 
+/** White media-overlay chat colors are only valid when chat is drawn over the video. */
+internal fun shouldUseLiveChatMediaOverlay(layoutMode: LiveRoomLayoutMode): Boolean =
+    layoutMode == LiveRoomLayoutMode.LandscapeOverlay ||
+        layoutMode == LiveRoomLayoutMode.PortraitVerticalOverlay
+
 data class LivePortraitOverlayMetrics(
     val panelHeightFraction: Float,
     val minPanelHeightDp: Int,

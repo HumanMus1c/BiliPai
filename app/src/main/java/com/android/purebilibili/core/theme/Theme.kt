@@ -52,7 +52,6 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
-import top.yukonga.miuix.kmp.theme.defaultTextStyles
 import top.yukonga.miuix.kmp.theme.darkColorScheme as miuixDarkColorScheme
 import top.yukonga.miuix.kmp.theme.lightColorScheme as miuixLightColorScheme
 
@@ -958,10 +957,8 @@ fun PureBiliBiliTheme(
     val materialMotionScheme = remember(uiStyle) {
         resolveMaterialMotionScheme(uiStyle)
     }
-    val miuixTextStyles = remember(fontSizePreset, appFontFamily) {
-        defaultTextStyles()
-            .scaled(fontSizePreset.multiplier)
-            .withFontFamily(appFontFamily)
+    val miuixTextStyles = remember(materialTypography) {
+        materialTypography.toMiuixTextStyles()
     }
     val systemWallpaperRefreshToken = rememberSystemWallpaperRefreshToken(isDynamicColorActive)
     val dynamicLightBaseScheme = if (

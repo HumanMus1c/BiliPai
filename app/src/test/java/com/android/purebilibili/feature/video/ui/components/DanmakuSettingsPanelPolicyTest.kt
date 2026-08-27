@@ -14,6 +14,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DanmakuSettingsPanelPolicyTest {
+    @Test
+    fun blockManagerTabs_keepDynamicLabelsReadable() {
+        val source = java.io.File(
+            "app/src/main/java/com/android/purebilibili/feature/video/ui/components/DanmakuSettingsPanel.kt"
+        ).readText()
+        val blockManagerTabs = source
+            .substringAfter("options = listOf(\"关键词\", \"正则\", \"UID(hash)\")")
+            .substringBefore("AppOutlinedTextField(")
+
+        assertTrue(blockManagerTabs.contains("scrollable = true"))
+        assertTrue(blockManagerTabs.contains("minTabWidth = 88.dp"))
+    }
 
     @Test
     fun portraitPanelAnchorsToBottomAndUsesWiderSheetWidth() {

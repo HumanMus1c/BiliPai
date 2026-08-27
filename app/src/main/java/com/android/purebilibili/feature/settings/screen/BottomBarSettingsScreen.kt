@@ -348,7 +348,7 @@ fun BottomBarSettingsContent(
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.NAV_ICON_CROSS_SCALE),
                             title = "导航图标交叉缩放",
-                            subtitle = "指示器滑动时旧图标缩小、新图标放大；选中后稳定在 1.10 倍",
+                            subtitle = "指示器滑动途中图标短暂放大，停稳后恢复原始大小",
                             checked = navigationIconCrossScaleEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch {

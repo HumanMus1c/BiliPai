@@ -14,8 +14,10 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
 internal const val NavigationSelectionScale = 1.1f
-internal const val FloatingBottomBarSelectionScale = 1.3f
-internal const val FloatingBottomBarSelectionLiftDp = 8f
+// Keep the transition inside the selected indicator: the icon still breathes without
+// overtaking the label or crossing the capsule's vertical bounds.
+internal const val FloatingBottomBarSelectionScale = 1.12f
+internal const val FloatingBottomBarSelectionLiftDp = 0f
 internal const val NavigationSelectionWobbleDegrees = 4f
 internal const val NavigationSelectionCounterWobbleDegrees = -3f
 
@@ -24,11 +26,12 @@ internal fun resolveNavigationIconCrossScale(
     coverage: Float,
 ): Float {
     if (!enabled) return 1f
-    return androidx.compose.ui.util.lerp(
-        1f,
-        FloatingBottomBarSelectionScale,
-        coverage.coerceIn(0f, 1f),
-    )
+    val progress = coverage.coerceIn(0f, 1f)
+    // Cross-scale is a transition accent, not a persistent selected state. A sine arc keeps
+    // both endpoints at the icon's authored size and reaches the enlargement peak only while
+    // the indicator is travelling between destinations.
+    val transitionArc = kotlin.math.sin(Math.PI.toFloat() * progress)
+    return androidx.compose.ui.util.lerp(1f, FloatingBottomBarSelectionScale, transitionArc)
 }
 
 internal fun resolveNavigationIconSelectionLiftDp(scale: Float): Float {

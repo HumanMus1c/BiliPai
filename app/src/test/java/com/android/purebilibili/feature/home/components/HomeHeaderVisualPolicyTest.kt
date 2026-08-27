@@ -349,7 +349,7 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `detached tab dock is excluded from parent blur slab`() {
+    fun `tab row can be excluded from parent blur slab for non pinned surfaces`() {
         val layout = resolveHomeTopPinnedChromeLayout(
             statusBarHeight = 44.dp,
             visibleSearchHeight = 48.dp,

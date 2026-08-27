@@ -518,6 +518,7 @@ internal fun StoryVideoCard(
                     topSpacing = if (compactMetadata) AppSpacingTokens.ExtraSmall else AppSpacingTokens.Small
                 )
             }
+
         }
         }
     }

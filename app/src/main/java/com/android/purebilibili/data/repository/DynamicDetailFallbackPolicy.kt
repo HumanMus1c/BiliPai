@@ -80,20 +80,48 @@ internal fun mergeRicherOpusDetailContent(
     candidates: List<DynamicItem>
 ): DynamicItem {
     val richest = candidates.maxByOrNull(::resolveDynamicOpusContentScore) ?: return base
-    if (resolveDynamicOpusContentScore(richest) <= resolveDynamicOpusContentScore(base)) {
-        return base
-    }
-    val richestOpus = richest.modules.module_dynamic?.major?.opus ?: return base
+    val richestOpus = if (
+        resolveDynamicOpusContentScore(richest) > resolveDynamicOpusContentScore(base)
+    ) {
+        richest.modules.module_dynamic?.major?.opus
+    } else {
+        base.modules.module_dynamic?.major?.opus
+            ?: richest.modules.module_dynamic?.major?.opus
+    } ?: return base
     val baseContent = base.modules.module_dynamic ?: return richest
     val baseMajor = baseContent.major
     val baseOpus = baseMajor?.opus
+    // Detail and feed responses split rich content across payloads: the opus
+    // response may contain the article blocks while the feed seed contains the
+    // actual preview pictures. Keep the union so navigating into detail cannot
+    // accidentally drop images just because the richer candidate scored higher.
+    val candidateItems = candidates.asSequence()
+        .flatMap { item -> sequence {
+            yield(item)
+            item.orig?.let { yield(it) }
+        } }
+        .toList()
+    val richestPics = candidateItems.asSequence()
+        .mapNotNull { it.modules.module_dynamic?.major?.opus }
+        .flatMap { it.pics.asSequence() }
+        .filter { it.url.isNotBlank() }
+        .distinctBy { it.url }
+        .toList()
+    // The desktop/feed API documents legacy image dynamics under
+    // `major.draw.items`, while the detail/opus API may return the same
+    // dynamic as an opus payload. Preserve those preview images when the
+    // preferred candidate switches representation.
+    val drawPics = candidateItems.asSequence()
+        .mapNotNull { it.modules.module_dynamic?.major?.draw }
+        .flatMap { it.items.asSequence() }
+        .filter { it.src.isNotBlank() }
+        .map { OpusPic(url = it.src, width = it.width, height = it.height) }
+        .toList()
+    val mergedPics = (richestPics + drawPics)
+        .distinctBy { it.url }
     val mergedOpus = OpusMajor(
         jump_url = baseOpus?.jump_url?.takeIf { it.isNotBlank() } ?: richestOpus.jump_url,
-        pics = if (richestOpus.pics.size >= (baseOpus?.pics?.size ?: 0)) {
-            richestOpus.pics
-        } else {
-            baseOpus?.pics.orEmpty()
-        },
+        pics = mergedPics.ifEmpty { baseOpus?.pics.orEmpty() },
         summary = if ((richestOpus.summary?.text?.length ?: 0) >= (baseOpus?.summary?.text?.length ?: 0)) {
             richestOpus.summary
         } else {
@@ -131,7 +159,10 @@ internal fun mergeDynamicDetailInteractionMetadata(
     val seedBasic = seedItem.basic?.takeIf {
         it.comment_type > 0 && it.comment_id_str.toLongOrNull()?.let { oid -> oid > 0L } == true
     }
-    val detailContent = detailItem.modules.module_dynamic
+    val detailContent = mergeDynamicDetailContentWithSeedMedia(
+        detailContent = detailItem.modules.module_dynamic,
+        seedContent = seedItem.modules.module_dynamic,
+    )
     val seedEmojiNodes = collectDynamicDetailSeedEmojiNodes(seedItem)
     val mergedContent = if (detailContent != null && seedEmojiNodes.isNotEmpty()) {
         detailContent.copy(
@@ -155,6 +186,43 @@ internal fun mergeDynamicDetailInteractionMetadata(
     )
 }
 
+internal fun mergeDynamicDetailContentWithSeedMedia(
+    detailContent: DynamicContentModule?,
+    seedContent: DynamicContentModule?,
+): DynamicContentModule? {
+    val seedMajor = seedContent?.major ?: return detailContent
+    val seedPics = buildList {
+        addAll(seedMajor.opus?.pics.orEmpty())
+        seedMajor.draw?.items.orEmpty().mapTo(this) { item ->
+            OpusPic(url = item.src, width = item.width, height = item.height)
+        }
+    }.filter { it.url.isNotBlank() }
+        .distinctBy { it.url }
+    if (seedPics.isEmpty()) return detailContent
+    if (detailContent == null) return seedContent
+
+    val detailMajor = detailContent.major
+        ?: return detailContent.copy(major = seedMajor)
+    val detailHasMedia = detailMajor.draw?.items?.any { it.src.isNotBlank() } == true ||
+        detailMajor.opus?.pics?.any { it.url.isNotBlank() } == true ||
+        detailMajor.opus?.contentBlocks?.any { block ->
+            block is OpusContentBlock.Image && block.pic.url.isNotBlank()
+        } == true
+    if (detailHasMedia) return detailContent
+
+    val mergedMajor = when {
+        detailMajor.opus != null || detailMajor.type == "MAJOR_TYPE_OPUS" -> detailMajor.copy(
+            opus = (detailMajor.opus ?: OpusMajor()).copy(pics = seedPics),
+        )
+        detailMajor.draw != null || detailMajor.type == "MAJOR_TYPE_DRAW" -> {
+            seedMajor.draw?.let { seedDraw -> detailMajor.copy(draw = seedDraw) } ?: seedMajor
+        }
+        detailMajor.type.isBlank() || detailMajor.type == "MAJOR_TYPE_NONE" -> seedMajor
+        else -> detailMajor
+    }
+    return detailContent.copy(major = mergedMajor)
+}
+
 /**
  * Dynamic feed payloads may expose emoji metadata in either `desc.rich_text_nodes` or
  * `major.opus.summary.rich_text_nodes`. The detail/opus body can retain only the shortcode,
@@ -164,7 +232,7 @@ internal fun collectDynamicDetailSeedEmojiNodes(item: DynamicItem): List<RichTex
     val content = item.modules.module_dynamic ?: return emptyList()
     return (content.desc?.rich_text_nodes.orEmpty() +
         content.major?.opus?.summary?.rich_text_nodes.orEmpty())
-        .filter(::containsDynamicEmojiMetadata)
+        .filter(::containsDynamicRichTextMetadata)
         .distinctBy(::dynamicEmojiMetadataKey)
 }
 
@@ -174,19 +242,22 @@ internal fun mergeDynamicDetailRichTextNodes(
 ): List<RichTextNode> {
     if (seedEmojiNodes.isEmpty()) return detailNodes
     val existingEmojiKeys = detailNodes
-        .filter(::containsDynamicEmojiMetadata)
+        .filter(::containsDynamicRichTextMetadata)
         .mapTo(mutableSetOf(), ::dynamicEmojiMetadataKey)
     return detailNodes + seedEmojiNodes
         .distinctBy(::dynamicEmojiMetadataKey)
         .filter { node -> dynamicEmojiMetadataKey(node) !in existingEmojiKeys }
 }
 
-private fun containsDynamicEmojiMetadata(node: RichTextNode): Boolean {
+private fun containsDynamicRichTextMetadata(node: RichTextNode): Boolean {
     val type = node.type.removePrefix("RICH_TEXT_NODE_TYPE_")
-    return type.equals("EMOJI", ignoreCase = true) &&
-        node.emoji?.let { emoji ->
+    return when {
+        type.equals("AT", ignoreCase = true) -> node.rid?.toLongOrNull()?.let { it > 0L } == true
+        type.equals("EMOJI", ignoreCase = true) -> node.emoji?.let { emoji ->
             emoji.icon_url.isNotBlank() || emoji.webp_url.isNotBlank() || emoji.gif_url.isNotBlank()
         } == true
+        else -> false
+    }
 }
 
 private fun dynamicEmojiMetadataKey(node: RichTextNode): String = sequenceOf(
@@ -202,6 +273,16 @@ internal fun shouldFetchOpusDetailForDynamicDetail(item: DynamicItem): Boolean {
     if (major?.type == "MAJOR_TYPE_DRAW" || major?.draw != null) return true
     if (item.type.equals("DYNAMIC_TYPE_DRAW", ignoreCase = true)) return true
     return item.basic?.comment_type == 11
+}
+
+internal fun shouldRequestOpusDetailForDynamicDetail(
+    webItem: DynamicItem?,
+    seedItem: DynamicItem?,
+): Boolean {
+    return webItem == null ||
+        shouldFallbackForDynamicDetail(webItem) ||
+        shouldFetchOpusDetailForDynamicDetail(webItem) ||
+        seedItem?.let(::shouldFetchOpusDetailForDynamicDetail) == true
 }
 
 internal fun resolveOpusArticleFallbackCvId(

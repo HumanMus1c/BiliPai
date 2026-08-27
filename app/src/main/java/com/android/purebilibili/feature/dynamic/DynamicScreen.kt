@@ -12,12 +12,10 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import kotlinx.coroutines.flow.distinctUntilChanged // [Fix] Missing import
 import androidx.compose.animation.slideOutHorizontally
@@ -56,12 +54,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -324,12 +324,6 @@ fun DynamicScreen(
 
     val density = LocalDensity.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
-    val topBarCollapseThresholdPx = with(density) {
-        DynamicTopBarReservedHeightDp.dp.roundToPx()
-    }
-    val horizontalUserListCollapseThresholdPx = with(density) {
-        DynamicHorizontalExpandedHeaderReservedHeightDp.dp.roundToPx()
-    }
     val dynamicListBottomPadding = LocalBottomBarContentPadding.current
     val pullRefreshState = rememberPullToRefreshState()
 
@@ -344,27 +338,9 @@ fun DynamicScreen(
             )
         }
     }
-    val shouldCollapseHorizontalUserList by remember(
-        activeListState,
-        displayMode,
-        shouldShowHorizontalUserList,
-        horizontalUserListCollapseThresholdPx,
-    ) {
-        derivedStateOf {
-            val state = activeListState ?: return@derivedStateOf false
-            shouldShowHorizontalUserList &&
-                displayMode.isHorizontalUserList() &&
-                shouldCollapseDynamicHorizontalUserList(
-                    firstVisibleItemIndex = state.firstVisibleItemIndex,
-                    firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset,
-                    topTolerancePx = horizontalUserListCollapseThresholdPx,
-                )
-        }
-    }
     val shouldCollapseTopBar by remember(
         activeListState,
         dynamicTopBarCollapseOnScroll,
-        topBarCollapseThresholdPx,
     ) {
         derivedStateOf {
             val state = activeListState ?: return@derivedStateOf false
@@ -372,7 +348,7 @@ fun DynamicScreen(
                 collapseOnScrollEnabled = dynamicTopBarCollapseOnScroll,
                 firstVisibleItemIndex = state.firstVisibleItemIndex,
                 firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset,
-                topTolerancePx = topBarCollapseThresholdPx,
+                topTolerancePx = DynamicHeaderCollapseTriggerPx,
             )
         }
     }
@@ -1034,6 +1010,7 @@ fun DynamicScreen(
                             BottomBarMatchedDockVisibility(
                                 visible = !shouldCollapseTopBar,
                                 edge = BottomBarMatchedDockEdge.TOP,
+                                modifier = Modifier.zIndex(1f),
                                 animateScale = false,
                             ) {
                                 DynamicTopBarWithTabs(
@@ -1050,11 +1027,10 @@ fun DynamicScreen(
                                 )
                             }
 
-                            AnimatedVisibility(
-                                visible = shouldShowHorizontalUserList && !shouldCollapseHorizontalUserList,
-                                enter = expandVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeIn(animationSpec = AppMotionTokens.standardSpec()),
-                                exit = shrinkVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeOut(animationSpec = AppMotionTokens.standardSpec())
-                            ) {
+                            if (shouldShowHorizontalUserList) {
+                                val expandedUserListHeightPx = with(density) {
+                                    DynamicHorizontalUserListReservedHeightDp.dp.roundToPx()
+                                }
                                 HorizontalUserList(
                                     users = displayUsers,
                                     selectedUserId = selectedUserId,
@@ -1067,7 +1043,14 @@ fun DynamicScreen(
                                     onToggleShowHidden = { viewModel.toggleShowHiddenUsers() },
                                     onTogglePin = { viewModel.togglePinUser(it) },
                                     onToggleHidden = { viewModel.toggleHiddenUser(it) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        // 与首页顶部一致：滚动逐帧压缩占位，并让固定内容向
+                                        // Dock 方向移动；Dock 保持在更高层覆盖收起中的内容。
+                                        .dynamicScrollCollapseLayout(
+                                            expandedHeightPx = expandedUserListHeightPx,
+                                            listStateProvider = { activeListState },
+                                        )
                                 )
                             }
                         }
@@ -1711,7 +1694,12 @@ private fun HorizontalUserList(
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.width(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
+                            // 头像行名称不要用头像宽度限制，避免正常昵称被提前截断；
+                            // LazyRow 仍会在屏幕边缘自然裁切超出视口的内容。
+                            modifier = Modifier.widthIn(
+                                min = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large,
+                                max = 112.dp,
+                            )
                         )
                     }
 
@@ -1738,6 +1726,25 @@ private fun HorizontalUserList(
             }
         }
     }
+
+private fun Modifier.dynamicScrollCollapseLayout(
+    expandedHeightPx: Int,
+    listStateProvider: () -> LazyStaggeredGridState?,
+): Modifier = layout { measurable, constraints ->
+    val fixedHeightPx = expandedHeightPx.coerceIn(constraints.minHeight, constraints.maxHeight)
+    val placeable = measurable.measure(
+        constraints.copy(minHeight = fixedHeightPx, maxHeight = fixedHeightPx)
+    )
+    val state = listStateProvider()
+    val contentOffsetYPx = resolveDynamicScrollCollapsedHeaderOffsetYPx(
+        expandedHeightPx = fixedHeightPx,
+        firstVisibleItemIndex = state?.firstVisibleItemIndex ?: 0,
+        firstVisibleItemScrollOffset = state?.firstVisibleItemScrollOffset ?: 0,
+    )
+    layout(placeable.width, fixedHeightPx) {
+        placeable.placeRelative(0, contentOffsetYPx)
+    }
+}
 
 /**
  * 错误提示覆盖层

@@ -1175,7 +1175,7 @@ fun LivePlayerScreen(
                             .fillMaxWidth()
                             .height(portraitOverlayPanelHeightDp.dp)
                     ) {
-                        interactionContent(true)
+                        interactionContent(shouldUseLiveChatMediaOverlay(liveLayoutMode))
                     }
                 }
             }
@@ -1221,7 +1221,7 @@ fun LivePlayerScreen(
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
-                        interactionContent(true)
+                        interactionContent(shouldUseLiveChatMediaOverlay(liveLayoutMode))
                     }
                 }
             }

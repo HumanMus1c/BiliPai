@@ -29,6 +29,30 @@ internal data class VideoCardSourceInfoPresentation(
      * ([resolveHomeCardInfoSurfaceAppearance]); flying chrome must paint the same plate.
      */
     val useTintedInfoSurface: Boolean = false,
+    /** Whether the stationary card exposes the bottom-right overflow affordance. */
+    val showOverflowMenu: Boolean = false,
+)
+
+/**
+ * Chrome painted directly over the stationary source cover.
+ *
+ * These flags are frozen at click time because home settings can move statistics and duration
+ * between the cover and info region. The return overlay must mirror the clicked card rather than
+ * re-resolving settings after navigation.
+ */
+@Immutable
+internal data class VideoCardSourceCoverPresentation(
+    val showGradientMask: Boolean = false,
+    val showStatsOnCover: Boolean = false,
+    val showSecondaryStatOnCover: Boolean = false,
+    val showOnlineCountOnCover: Boolean = false,
+    val showDurationOnCover: Boolean = false,
+    val showDurationAsStat: Boolean = false,
+    val useGlassStats: Boolean = false,
+    val onlineCountText: String = "",
+    val premiumBadgeText: String = "",
+    val showHistoryProgressBar: Boolean = false,
+    val historyProgressFraction: Float = 0f,
 )
 
 /**
@@ -56,6 +80,8 @@ internal data class VideoCardSourceChromeSnapshot(
     val followed: Boolean = false,
     /** What the list info column actually showed at click. */
     val infoPresentation: VideoCardSourceInfoPresentation = VideoCardSourceInfoPresentation(),
+    /** What the list cover actually painted at click. */
+    val coverPresentation: VideoCardSourceCoverPresentation = VideoCardSourceCoverPresentation(),
     /** Exact list-card cover request URL (sized / quality resolved). */
     val coverUrl: String = "",
     /** Exact list-card Coil memoryCacheKey / diskCacheKey. */
@@ -70,10 +96,12 @@ internal fun resolveVideoCardSourceInfoPresentation(
     publishTimeText: String,
     showStatsInInfo: Boolean,
     useTintedInfoSurface: Boolean = false,
+    showOverflowMenu: Boolean = false,
 ): VideoCardSourceInfoPresentation = VideoCardSourceInfoPresentation(
     publishTimeText = publishTimeText.trim(),
     showStatsInInfo = showStatsInInfo,
     useTintedInfoSurface = useTintedInfoSurface,
+    showOverflowMenu = showOverflowMenu,
 )
 
 internal fun resolveVideoCardSourceLayout(

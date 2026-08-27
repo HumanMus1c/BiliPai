@@ -151,14 +151,14 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
-    fun `tab bar layout reserves trailing danmaku action area`() {
+    fun `tab bar layout stays compact beside danmaku actions`() {
         val spec = resolveVideoContentTabBarLayoutSpec(widthDp = 412)
 
         assertEquals(1f, spec.tabsRowWeight)
         assertTrue(spec.tabsRowScrollable)
         assertEquals(12, spec.containerHorizontalPaddingDp)
         assertEquals(12, spec.tabHorizontalPaddingDp)
-        assertEquals(40, spec.segmentedControlHeightDp)
+        assertEquals(36, spec.segmentedControlHeightDp)
         assertEquals(30, spec.segmentedControlIndicatorHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
@@ -211,8 +211,8 @@ class VideoContentTabBarPolicyTest {
         assertEquals(8, spec.containerHorizontalPaddingDp)
         assertEquals(8, spec.tabHorizontalPaddingDp)
         assertEquals(10, spec.tabSpacingDp)
-        assertEquals(16, spec.selectedTabFontSizeSp)
-        assertEquals(40, spec.segmentedControlHeightDp)
+        assertEquals(14, spec.selectedTabFontSizeSp)
+        assertEquals(32, spec.segmentedControlHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
                 containerHeightDp = spec.segmentedControlHeightDp,
@@ -282,7 +282,8 @@ class VideoContentTabBarPolicyTest {
         assertTrue(tabBarBlock.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(tabBarBlock.contains("dragSelectionEnabled = true"))
         assertFalse(tabBarBlock.contains("tabSwipeModifier"))
-        assertTrue(tabBarBlock.contains("modifier = Modifier.width("))
+        assertTrue(tabBarBlock.contains("modifier = Modifier.weight(1f)"))
+        assertTrue(tabBarBlock.contains("compactMiuixWhenTwoOptions = false"))
         assertTrue(source.contains("clip = tabBarCollapseProgress > 0.001f"))
     }
 
@@ -437,10 +438,17 @@ class VideoContentTabBarPolicyTest {
         assertTrue(spec.liquidGlassEffectsEnabled)
         assertEquals(layoutSpec.segmentedControlHeightDp, spec.segmentedControlHeightDp)
         assertEquals(layoutSpec.segmentedControlIndicatorHeightDp, spec.segmentedControlIndicatorHeightDp)
-        assertEquals(70, spec.itemWidthDp)
+        assertEquals(68, spec.itemWidthDp)
         assertEquals(70, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 15))
         assertEquals(72, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 16))
         assertEquals(66, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 13))
+        assertEquals(
+            136,
+            resolveVideoContentTabBarControlWidthDp(
+                itemWidthDp = spec.itemWidthDp ?: 0,
+                itemCount = 2,
+            ),
+        )
         assertEquals(
             0,
             resolveVideoContentTabBarStartPaddingDp(
@@ -461,12 +469,16 @@ class VideoContentTabBarPolicyTest {
                 hasBackdrop = false,
             )
         )
-        assertNull(
-            resolveVideoContentTabBarLiquidChromeSpec(
-                androidNativeLiquidGlassEnabled = false,
-                hasBackdrop = true,
-                layoutSpec = layoutSpec,
-            ).itemWidthDp
+        val nativeSpec = resolveVideoContentTabBarLiquidChromeSpec(
+            androidNativeLiquidGlassEnabled = false,
+            hasBackdrop = true,
+            layoutSpec = layoutSpec,
+        )
+        assertFalse(nativeSpec.reusesLiquidGlassDock)
+        assertFalse(nativeSpec.liquidGlassEffectsEnabled)
+        assertEquals(
+            spec.itemWidthDp,
+            resolveVideoContentTabBarDockItemWidthDp(nativeSpec.labelFontSizeSp),
         )
     }
 

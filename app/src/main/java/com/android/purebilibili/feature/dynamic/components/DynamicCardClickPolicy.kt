@@ -148,6 +148,14 @@ internal fun resolveDynamicOpusPresentationBlocks(
     return if (isDetail) opus.contentBlocks else emptyList()
 }
 
+internal fun shouldRenderDynamicOpusBlocksAsFullBody(
+    opus: OpusMajor,
+    presentationBlocks: List<OpusContentBlock>,
+): Boolean {
+    return presentationBlocks.isNotEmpty() &&
+        (presentationBlocks.any { it is OpusContentBlock.Image } || opus.pics.isEmpty())
+}
+
 internal fun resolveDynamicOpusPreviewImageLimit(isDetail: Boolean): Int? {
     return if (isDetail) null else DYNAMIC_FEED_PREVIEW_MAX_IMAGES
 }

@@ -16,7 +16,7 @@ class DynamicScreenStatePolicyTest {
     @Test
     fun `dynamic list top padding stays independent from scroll driven chrome collapse`() {
         assertEquals(
-            184,
+            144,
             resolveDynamicListTopPaddingExtraDp(
                 isHorizontalMode = true,
                 shouldShowHorizontalUserList = true
@@ -85,7 +85,8 @@ class DynamicScreenStatePolicyTest {
         assertTrue(
             shouldCollapseDynamicHorizontalUserList(
                 firstVisibleItemIndex = 0,
-                firstVisibleItemScrollOffset = 12
+                firstVisibleItemScrollOffset = 1,
+                topTolerancePx = DynamicHeaderCollapseTriggerPx,
             )
         )
         assertTrue(
@@ -111,12 +112,56 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
+    fun `horizontal user list height follows scroll like home header`() {
+        assertEquals(
+            96,
+            resolveDynamicScrollCollapsedHeaderHeightPx(
+                expandedHeightPx = 96,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 0,
+            )
+        )
+        assertEquals(
+            64,
+            resolveDynamicScrollCollapsedHeaderHeightPx(
+                expandedHeightPx = 96,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 32,
+            )
+        )
+        assertEquals(
+            -32,
+            resolveDynamicScrollCollapsedHeaderOffsetYPx(
+                expandedHeightPx = 96,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 32,
+            )
+        )
+        assertEquals(
+            0,
+            resolveDynamicScrollCollapsedHeaderHeightPx(
+                expandedHeightPx = 96,
+                firstVisibleItemIndex = 1,
+                firstVisibleItemScrollOffset = 0,
+            )
+        )
+    }
+
+    @Test
     fun `dynamic top bar collapse respects optional setting`() {
         assertFalse(
             shouldCollapseDynamicTopBar(
                 collapseOnScrollEnabled = false,
                 firstVisibleItemIndex = 1,
                 firstVisibleItemScrollOffset = 20
+            )
+        )
+        assertTrue(
+            shouldCollapseDynamicTopBar(
+                collapseOnScrollEnabled = true,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 1,
+                topTolerancePx = DynamicHeaderCollapseTriggerPx,
             )
         )
         assertTrue(

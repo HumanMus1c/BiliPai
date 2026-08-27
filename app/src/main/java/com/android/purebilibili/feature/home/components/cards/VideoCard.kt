@@ -60,6 +60,7 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.HomeCoverReturnPrefetchEntry
 import com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.core.theme.BiliPink
@@ -744,9 +745,35 @@ internal fun ElegantVideoCard(
         )
         showDismissMenu = true
     }
+    val hasOverflowMenu = onDismiss != null || onWatchLater != null
+    val hasTrailingCardAction = onUnfavorite != null || hasOverflowMenu
     
     val triggerCardClick = {
         cardCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
+            val sourceCoverBounds = coverCoordsRef.value
+                ?.takeIf { it.isAttached }
+                ?.boundsInRoot()
+            val frozenCompactStatsLayout = resolveVideoCardCompactCoverStatsLayout(
+                availableWidthDp = sourceCoverBounds?.let { coverBounds ->
+                    (
+                        coverBounds.width / screenMetrics.density -
+                            (AppSpacingTokens.Small.value * 2f)
+                        ).coerceAtLeast(0f)
+                } ?: Float.MAX_VALUE,
+                primaryStatText = primaryStatText,
+                secondaryStatText = secondaryStatText,
+                hasOnlineCount = onlineCount.isNotEmpty(),
+                durationBadgeMinWidthDp = if (showDurationOnCover) {
+                    durationBadgeMinWidth.value
+                } else {
+                    0f
+                },
+                durationStatMinWidthDp = if (showDurationOutside) {
+                    durationStatMinWidthDp
+                } else {
+                    0f
+                },
+            )
             CardPositionManager.recordVideoCardPosition(
                 bvid = video.bvid,
                 sourceRoute = effectiveSharedElementSourceRoute,
@@ -755,9 +782,7 @@ internal fun ElegantVideoCard(
                 screenHeight = screenMetrics.heightPx,
                 density = screenMetrics.density,
                 sourceCornerDp = cardCornerRadius.value.roundToInt(),
-                coverBounds = coverCoordsRef.value
-                    ?.takeIf { it.isAttached }
-                    ?.boundsInRoot(),
+                coverBounds = sourceCoverBounds,
                 // Dual-column home cards are cover-over-meta; freeze chrome so return text
                 // survives Loading and does not wait for destination ViewInfo.
                 sourceLayout = VideoCardSourceLayout.STACKED,
@@ -780,7 +805,25 @@ internal fun ElegantVideoCard(
                             publishTimeText = publishTimeRowText,
                             showStatsInInfo = scrollLitePolicy.showSecondaryStatsRow,
                             useTintedInfoSurface = infoSurfaceAppearance.useTintedSurface,
+                            showOverflowMenu = hasOverflowMenu,
                         ),
+                    coverPresentation = VideoCardSourceCoverPresentation(
+                        showGradientMask = scrollLitePolicy.showCoverGradientMask,
+                        showStatsOnCover = scrollLitePolicy.showCompactStatsOnCover,
+                        showSecondaryStatOnCover = scrollLitePolicy.showCompactStatsOnCover &&
+                            frozenCompactStatsLayout.showSecondaryStat,
+                        showOnlineCountOnCover = scrollLitePolicy.showCompactStatsOnCover &&
+                            frozenCompactStatsLayout.showOnlineCount,
+                        showDurationOnCover = showDurationOnCover,
+                        showDurationAsStat = scrollLitePolicy.showCompactStatsOnCover &&
+                            showDurationOutside,
+                        useGlassStats = badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS,
+                        onlineCountText = onlineCount,
+                        premiumBadgeText = premiumBadgeLabel.orEmpty(),
+                        showHistoryProgressBar = scrollLitePolicy.showHistoryProgressBar &&
+                            showHistoryProgressBar,
+                        historyProgressFraction = historyProgressFraction,
+                    ),
                     // Exact stationary list cover request (URL + key + Coil size).
                     coverUrl = coverUrl,
                     coverCacheKey = coverCacheKey,
@@ -1177,7 +1220,7 @@ internal fun ElegantVideoCard(
                                 borderColor = coverPillColors.borderColor
                             ) {
                                 AppIcon(
-                                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                                    imageVector = Icons.Outlined.Subtitles,
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                     tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
@@ -1364,9 +1407,6 @@ internal fun ElegantVideoCard(
                 )
         }
 
-        val hasOverflowMenu = onDismiss != null || onWatchLater != null
-        val hasTrailingCardAction = onUnfavorite != null || hasOverflowMenu
-
         Box(
             modifier = infoContainerModifier.videoCardShellReturnChromeAlpha(
                 enabled = useCardShellSharedBounds,
@@ -1380,8 +1420,7 @@ internal fun ElegantVideoCard(
         if (!infoSurfaceAppearance.useTintedSurface) {
             Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         }
-        
-        // 标题独占整行：更多操作移至右下角，不再挤占两行标题的可用宽度。
+
         AppText(
             text = highlightedTitle ?: AnnotatedString(video.title),
             maxLines = videoCardTitleMaxLines(titleMaxLines),
@@ -1496,6 +1535,7 @@ internal fun ElegantVideoCard(
                 AppSpacingTokens.Small - AppSpacingTokens.Micro
             },
         )
+
         }
         }
 

@@ -270,8 +270,8 @@ class BottomBarLayoutPolicyTest {
             )
         )
         assertEquals(resolveBiliPaiBottomBarSearchCircleSize(), resolveBiliPaiBottomBarDockHeight(searchExpanded = true))
-        assertEquals(52.dp, resolveBiliPaiBottomBarIndicatorHeight(56.dp))
-        assertEquals(60.dp, resolveBiliPaiBottomBarIndicatorHeight(64.dp))
+        assertEquals(48.dp, resolveBiliPaiBottomBarIndicatorHeight(56.dp))
+        assertEquals(56.dp, resolveBiliPaiBottomBarIndicatorHeight(64.dp))
         assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = false))
         assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
     }
@@ -775,5 +775,30 @@ class BottomBarLayoutPolicyTest {
     fun `floating default bar trims height while keeping touch comfort`() {
         assertEquals(58f, resolveBottomBarFloatingHeightDp(labelMode = 1, isTablet = false))
         assertEquals(12f, resolveBottomBarBottomPaddingDp(isFloating = true, isTablet = false))
+    }
+
+    @Test
+    fun `plain md3 floating bar uses official floating toolbar`() {
+        assertEquals(
+            true,
+            shouldUseOfficialMd3FloatingToolbar(
+                isFloating = true,
+                liquidGlassEnabled = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldUseOfficialMd3FloatingToolbar(
+                isFloating = true,
+                liquidGlassEnabled = true,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldUseOfficialMd3FloatingToolbar(
+                isFloating = false,
+                liquidGlassEnabled = false,
+            ),
+        )
     }
 }

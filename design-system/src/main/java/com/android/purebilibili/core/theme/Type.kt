@@ -111,6 +111,12 @@ val BiliTypography = Typography(
 
 val Md3Typography = Typography()
 
+/**
+ * Miuix-owned compact typography. Its density intentionally matches the MD3 baseline, but it is
+ * a separate theme value so Miuix pages never depend on the active Material typography object.
+ */
+val CompactMiuixTypography = Typography()
+
 val BiliMiuixTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,

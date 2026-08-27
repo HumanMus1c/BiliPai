@@ -185,6 +185,7 @@ class SpaceTabChromePolicyTest {
         )
         assertTrue(spec.liquidGlassEffectsEnabled)
         assertFalse(shouldScrollSpaceSecondarySwitch(2, 104, 360, 4))
+        assertTrue(shouldScrollSpaceSecondarySwitch(3, 176, 328, 4))
         assertTrue(shouldScrollSpaceSecondarySwitch(4, 104, 360, 4))
     }
 

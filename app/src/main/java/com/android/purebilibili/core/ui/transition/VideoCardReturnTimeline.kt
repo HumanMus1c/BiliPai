@@ -38,13 +38,13 @@ internal object VideoCardTransitionVisualTimeline {
     // This only refreshes the backdrop; it never reveals the source card as a stationary substitute.
     const val WHOLE_SOURCE_CARD_RETURN_START = 0.55f
     const val WHOLE_SOURCE_CARD_RETURN_END = 0.90f
-    // Detail controls/body → source title/owner/stats. Start before media so the landing card
-    // never reaches the cover state with an empty information region.
-    const val SOURCE_CHROME_RETURN_START = 0.72f
-    const val SOURCE_CHROME_RETURN_END = 0.96f
     // Live player → cover. Keep the live frame dominant until the card is very close to landing.
     const val MEDIA_RETURN_START = 0.82f
     const val MEDIA_RETURN_END = 0.98f
+    // Detail controls/body → stationary-card chrome. Reuse the exact media handoff window:
+    // source text/badges must arrive with cover pixels, never earlier or after landing.
+    const val SOURCE_CHROME_RETURN_START = MEDIA_RETURN_START
+    const val SOURCE_CHROME_RETURN_END = MEDIA_RETURN_END
     const val SECONDARY_CONTENT_TRANSLATION_DP = 8
     const val REDUCED_MOTION_DURATION_MILLIS = 140
 }
@@ -67,8 +67,8 @@ internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START =
     VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START
 
 /**
- * 来源卡标题/UP 等正文独立于 live surface → 封面的像素交接提前回显。
- * 正文位于封面下方，不会与缩回中的视频画面重叠；在落位前完成可避免最后一帧只剩封面。
+ * 来源卡标题/UP/统计/菜单与 live → cover 共用同一交接窗口。
+ * 它们在实时画面让给封面时同步出现，并在落位前完成。
  */
 internal fun resolveVideoCardSourceChromeReturnAlpha(
     morphDepthProgress: Float,
@@ -89,7 +89,7 @@ internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END =
 
 /**
  * 实时画面缩回时，播放器在 82%–98% 的最后落位段才变为封面。
- * 来源标题/UP/统计使用稍早的 72%–96%，保证封面出现时信息区已同步形变，
+ * 来源标题/UP/统计使用同一 82%–98% 交接进度，保证信息区与封面同帧形变，
  * 不会留下截图中的空白黑块。
  */
 internal const val VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START =
@@ -244,7 +244,7 @@ internal fun resolveVideoCardSecondaryContentVisualFrame(
         sourceLayout = sourceLayout,
     ).handoffProgress
     val alpha = when {
-        // Detail body yields as source chrome (title/UP) takes over in the late handoff window.
+        // Detail body yields in the exact live → cover/source-card chrome window.
         returning -> 1f - handoff
         motionTier == MotionTier.Reduced -> depth
         phase == VideoCardTransitionBackgroundPhase.OPENING ->
@@ -276,9 +276,8 @@ internal fun resolveVideoCardSecondaryContentVisualFrame(
 /**
  * Source chrome alpha (title / UP / stats + card shell under live media).
  *
- * Same late 72%–96% window for [VideoCardSourceLayout.STACKED] and
- * [VideoCardSourceLayout.SIDE_BY_SIDE]: live player owns early frames; landing text appears
- * near settle. No opaque static-cover facade over the live surface.
+ * [VideoCardSourceLayout.STACKED] and [VideoCardSourceLayout.SIDE_BY_SIDE] both reuse the media
+ * handoff. Source text/badges and cover pixels therefore remain frame-synchronous.
  */
 internal fun resolveVideoCardSourceChromeVisualFrame(
     morphDepthProgress: Float,
@@ -294,7 +293,7 @@ internal fun resolveVideoCardSourceChromeVisualFrame(
     )
     val handoff = when {
         !yieldActive -> 0f
-        // COVER_ONLY has no below/side info band; STACKED + SIDE_BY_SIDE share home late window.
+        // COVER_ONLY has no below/side info band; other layouts share the media handoff.
         sourceLayout == VideoCardSourceLayout.COVER_ONLY -> 0f
         else -> resolveVideoCardSourceChromeReturnAlpha(depth)
     }

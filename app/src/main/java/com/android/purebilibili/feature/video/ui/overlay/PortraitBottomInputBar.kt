@@ -26,10 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ScreenRotation
-import androidx.compose.material.icons.rounded.ChatBubble
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.remember
+import com.android.purebilibili.feature.video.ui.components.NativeDanmakuToggleButton
 
 /**
  * 竖屏模式底部的输入栏
@@ -84,12 +83,13 @@ fun PortraitBottomInputBar(
             horizontalArrangement = Arrangement.spacedBy(layoutPolicy.actionSpacingDp.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PortraitInputIconButton(
-                icon = if (danmakuEnabled) Icons.Rounded.ChatBubble else Icons.Rounded.ChatBubbleOutline,
-                desc = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
-                layoutPolicy = layoutPolicy,
-                selected = danmakuEnabled,
-                onClick = onDanmakuToggle
+            NativeDanmakuToggleButton(
+                enabled = danmakuEnabled,
+                onToggle = onDanmakuToggle,
+                activeTint = MaterialTheme.colorScheme.primary,
+                inactiveTint = Color.White,
+                modifier = Modifier.size(layoutPolicy.actionButtonSizeDp.dp),
+                iconSize = layoutPolicy.actionIconSizeDp.dp,
             )
             PortraitInputIconButton(
                 icon = Icons.Rounded.ScreenRotation,

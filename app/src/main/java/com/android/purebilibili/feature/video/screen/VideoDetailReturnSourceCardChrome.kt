@@ -7,18 +7,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -28,8 +38,10 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -38,17 +50,24 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.MediaContrastPalette
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.VideoStatRow
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceChromeVisualFrame
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.ViewInfo
+import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.feature.home.resolveHomeCardInfoSurfaceAppearance
+import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
+import com.android.purebilibili.feature.home.components.cards.resolveVideoCardPrimaryStatBadgeMinWidthDp
+import com.android.purebilibili.feature.home.components.cards.resolveVideoCardSecondaryStatBadgeMinWidthDp
 import kotlin.math.roundToInt
 
 /**
@@ -109,6 +128,8 @@ internal data class VideoDetailReturnSourceCardChromeModel(
     /** Mirrors list-card info rows frozen at click; drives what LandingInfoTexts paints. */
     val infoPresentation: com.android.purebilibili.core.ui.transition.VideoCardSourceInfoPresentation =
         com.android.purebilibili.core.ui.transition.VideoCardSourceInfoPresentation(),
+    /** Mirrors gradient/badges/progress frozen from the source cover. */
+    val coverPresentation: VideoCardSourceCoverPresentation = VideoCardSourceCoverPresentation(),
 )
 
 /**
@@ -129,6 +150,7 @@ internal fun resolveVideoDetailReturnSourceCardChromeModel(
             durationText = frozen.durationText,
             followed = frozen.followed,
             infoPresentation = frozen.infoPresentation,
+            coverPresentation = frozen.coverPresentation,
         ).takeIf { it.title.isNotBlank() || it.ownerName.isNotBlank() }
     }
     if (info == null) return null
@@ -171,6 +193,16 @@ internal fun resolveVideoDetailReturnInfoSecondaryLine(
     }
     return presentation.publishTimeText
 }
+
+/** Bottom metadata line that remains outside the dedicated statistic component. */
+internal fun resolveVideoDetailReturnInfoFooterLine(
+    model: VideoDetailReturnSourceCardChromeModel,
+): String = buildList {
+    if (model.durationText.isNotBlank()) add(model.durationText)
+    if (model.infoPresentation.publishTimeText.isNotBlank()) {
+        add(model.infoPresentation.publishTimeText)
+    }
+}.joinToString("  ·  ")
 
 /**
  * Landing info plate colors for the flying chrome.
@@ -583,14 +615,13 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     ),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(coverHeight.coerceAtMost(cardHeight - AppSpacingTokens.Small * 2)),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    LandingInfoTexts(model = model, info = info)
-                }
+                LandingInfoContent(
+                    model = model,
+                    info = info,
+                    constrainedHeight = coverHeight.coerceAtMost(
+                        cardHeight - AppSpacingTokens.Small * 2,
+                    ),
+                )
             }
         }
         VideoCardSourceLayout.STACKED -> {
@@ -605,7 +636,7 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     .landingLayer()
                     .background(Color.Transparent),
             )
-            Column(
+            Box(
                 modifier = modifier
                     .zIndex(1f)
                     .align(Alignment.TopStart)
@@ -618,12 +649,312 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                         horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro,
                         vertical = AppSpacingTokens.Small,
                     ),
-                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
             ) {
-                LandingInfoTexts(model = model, info = info)
+                LandingInfoContent(model = model, info = info)
             }
         }
         VideoCardSourceLayout.COVER_ONLY -> Unit
+    }
+}
+
+private fun VideoCardSourceCoverPresentation.hasVisibleChrome(): Boolean =
+    showGradientMask ||
+        showStatsOnCover ||
+        showDurationOnCover ||
+        showDurationAsStat ||
+        premiumBadgeText.isNotBlank() ||
+        showHistoryProgressBar
+
+/**
+ * Cover-only chrome mounted beside the live player/resident cover.
+ *
+ * The caller applies [videoDetailReturnMediaLayout], so gradient, statistics, duration and
+ * progress use the exact same per-frame geometry as the live surface instead of waiting at the
+ * final source-cover rectangle.
+ */
+@Composable
+internal fun VideoDetailReturnCoverChrome(
+    sourceChromeSnapshot: VideoCardSourceChromeSnapshot?,
+    sourceScale: Float,
+    modifier: Modifier = Modifier,
+) {
+    val snapshot = sourceChromeSnapshot ?: return
+    if (!snapshot.coverPresentation.hasVisibleChrome()) return
+    val model = resolveVideoDetailReturnSourceCardChromeModel(
+        info = null,
+        snapshot = snapshot,
+    ) ?: return
+    val baseDensity = LocalDensity.current
+    val densityScale = resolveVideoDetailReturnCoverChromeDensityScale(sourceScale)
+    val compensatedDensity = remember(
+        baseDensity.density,
+        baseDensity.fontScale,
+        densityScale,
+    ) {
+        Density(
+            density = baseDensity.density * densityScale,
+            fontScale = baseDensity.fontScale,
+        )
+    }
+    Box(modifier = modifier) {
+        CompositionLocalProvider(LocalDensity provides compensatedDensity) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LandingCoverChrome(model = model)
+            }
+        }
+    }
+}
+
+/** Inverse source scaling keeps cover text/icons at the same resting size as the list card. */
+internal fun resolveVideoDetailReturnCoverChromeDensityScale(sourceScale: Float): Float =
+    1f / sourceScale.coerceIn(0.01f, 1f)
+
+/** The same cover chrome that is visible on the stationary home card, without cover pixels. */
+@Composable
+private fun BoxScope.LandingCoverChrome(
+    model: VideoDetailReturnSourceCardChromeModel,
+) {
+    val presentation = model.coverPresentation
+    val overlayStyle = remember { TextStyle(shadow = resolveVideoCardCoverOverlayTextShadow()) }
+
+    if (presentation.showGradientMask) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Transparent,
+                            MediaContrastPalette.Scrim.copy(alpha = 0.3f),
+                            MediaContrastPalette.Scrim.copy(alpha = 0.78f),
+                        ),
+                    ),
+                ),
+        )
+    }
+
+    if (presentation.premiumBadgeText.isNotBlank()) {
+        AppText(
+            text = presentation.premiumBadgeText,
+            color = MediaContrastPalette.Foreground,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(AppSpacingTokens.Small)
+                .clip(AppShapes.container(ContainerLevel.Tag))
+                .background(BiliPink.copy(alpha = 0.88f))
+                .padding(
+                    horizontal = AppSpacingTokens.ExtraSmall,
+                    vertical = AppSpacingTokens.Micro,
+                ),
+        )
+    }
+
+    val progressBottomPadding = if (presentation.showHistoryProgressBar) {
+        AppSpacingTokens.ExtraSmall
+    } else {
+        AppSpacingTokens.None
+    }
+    if (presentation.showHistoryProgressBar) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(MediaContrastPalette.Foreground.copy(alpha = 0.24f)),
+        )
+        if (presentation.historyProgressFraction > 0f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(presentation.historyProgressFraction.coerceIn(0f, 1f))
+                    .height(2.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
+    }
+
+    if (presentation.showStatsOnCover) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(
+                    start = AppSpacingTokens.Small,
+                    end = AppSpacingTokens.Small,
+                    bottom = AppSpacingTokens.ExtraSmall + progressBottomPadding,
+                ),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        end = if (presentation.showDurationOnCover) {
+                            AppSpacingTokens.TripleExtraLarge
+                        } else {
+                            AppSpacingTokens.None
+                        },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(
+                    AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
+                ),
+            ) {
+                LandingCoverStat(
+                    icon = Icons.Outlined.PlayCircle,
+                    text = model.viewText,
+                    minWidth = resolveVideoCardPrimaryStatBadgeMinWidthDp(model.viewText).dp,
+                    useGlass = presentation.useGlassStats,
+                    textStyle = overlayStyle,
+                )
+                if (presentation.showSecondaryStatOnCover && model.danmakuText.isNotBlank()) {
+                    LandingCoverStat(
+                        icon = Icons.Outlined.Subtitles,
+                        text = model.danmakuText,
+                        minWidth = resolveVideoCardSecondaryStatBadgeMinWidthDp(
+                            model.danmakuText,
+                        ).dp,
+                        useGlass = presentation.useGlassStats,
+                        textStyle = overlayStyle,
+                    )
+                }
+                if (presentation.showOnlineCountOnCover) {
+                    LandingCoverStat(
+                        icon = Icons.Outlined.Visibility,
+                        text = presentation.onlineCountText,
+                        useGlass = presentation.useGlassStats,
+                        textStyle = overlayStyle,
+                    )
+                }
+                if (presentation.showDurationAsStat && model.durationText.isNotBlank()) {
+                    LandingCoverStat(
+                        icon = Icons.Outlined.Alarm,
+                        text = model.durationText,
+                        useGlass = presentation.useGlassStats,
+                        textStyle = overlayStyle,
+                    )
+                }
+            }
+            if (presentation.showDurationOnCover && model.durationText.isNotBlank()) {
+                AppText(
+                    text = model.durationText,
+                    color = MediaContrastPalette.Foreground,
+                    style = MaterialTheme.typography.labelSmall.merge(overlayStyle),
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    maxLines = 1,
+                )
+            }
+        }
+    } else if (presentation.showDurationOnCover && model.durationText.isNotBlank()) {
+        AppText(
+            text = model.durationText,
+            color = MediaContrastPalette.Foreground,
+            style = MaterialTheme.typography.labelSmall.merge(overlayStyle),
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                    bottom = AppSpacingTokens.Small + progressBottomPadding,
+                ),
+        )
+    }
+}
+
+@Composable
+private fun LandingCoverStat(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    useGlass: Boolean,
+    textStyle: TextStyle,
+    minWidth: Dp = 0.dp,
+) {
+    if (text.isBlank()) return
+    val pillShape = AppShapes.container(ContainerLevel.Pill)
+    val pillModifier = if (useGlass) {
+        Modifier
+            .widthIn(min = minWidth)
+            .clip(pillShape)
+            .background(MediaContrastPalette.Scrim.copy(alpha = 0.46f))
+            .border(
+                width = AppSpacingTokens.Micro * 0.4f,
+                color = MediaContrastPalette.Foreground.copy(alpha = 0.22f),
+                shape = pillShape,
+            )
+            .padding(
+                horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
+                vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+            )
+    } else {
+        Modifier.widthIn(min = minWidth)
+    }
+    Row(
+        modifier = pillModifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro),
+    ) {
+        AppIcon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MediaContrastPalette.Foreground.copy(alpha = 0.92f),
+            modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+        )
+        AppText(
+            text = text,
+            color = MediaContrastPalette.Foreground.copy(alpha = 0.94f),
+            style = MaterialTheme.typography.labelSmall.merge(textStyle),
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Visible,
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.LandingInfoContent(
+    model: VideoDetailReturnSourceCardChromeModel,
+    info: ViewInfo?,
+    constrainedHeight: Dp? = null,
+) {
+    val sizeModifier = if (constrainedHeight != null) {
+        Modifier
+            .fillMaxWidth()
+            .height(constrainedHeight)
+    } else {
+        Modifier.fillMaxSize()
+    }
+    Column(
+        modifier = sizeModifier
+            .padding(
+                end = if (model.infoPresentation.showOverflowMenu) {
+                    AppSpacingTokens.Large
+                } else {
+                    AppSpacingTokens.None
+                },
+            ),
+        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
+    ) {
+        LandingInfoTexts(model = model, info = info)
+    }
+    if (model.infoPresentation.showOverflowMenu) {
+        AppText(
+            text = "⋮",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = AppSpacingTokens.ExtraSmall,
+                    bottom = AppSpacingTokens.ExtraSmall,
+                ),
+        )
     }
 }
 
@@ -644,9 +975,17 @@ private fun LandingInfoTexts(
         style = contentTypography.title,
         color = MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Medium,
+        minLines = 2,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
     )
+    if (model.infoPresentation.showStatsInInfo) {
+        VideoStatRow(
+            playText = model.viewText,
+            danmakuText = model.danmakuText,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
     if (model.ownerName.isNotBlank() || model.followed) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -673,10 +1012,10 @@ private fun LandingInfoTexts(
             }
         }
     }
-    val secondaryLine = resolveVideoDetailReturnInfoSecondaryLine(model)
-    if (secondaryLine.isNotBlank()) {
+    val footerLine = resolveVideoDetailReturnInfoFooterLine(model)
+    if (footerLine.isNotBlank()) {
         AppText(
-            text = secondaryLine,
+            text = footerLine,
             modifier = Modifier.fillMaxWidth(),
             style = contentTypography.statistic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

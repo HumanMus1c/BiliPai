@@ -396,6 +396,45 @@ class DynamicCardClickPolicyTest {
     }
 
     @Test
+    fun shouldRenderDynamicOpusBlocksAsFullBody_usesGridForStandalonePics() {
+        val textBlock = OpusContentBlock.Text("完整正文")
+        val opusWithStandalonePic = OpusMajor(
+            pics = listOf(OpusPic(url = "https://i0.hdslb.com/standalone.jpg")),
+            contentBlocks = listOf(textBlock),
+        )
+
+        assertEquals(
+            false,
+            shouldRenderDynamicOpusBlocksAsFullBody(
+                opus = opusWithStandalonePic,
+                presentationBlocks = opusWithStandalonePic.contentBlocks,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldRenderDynamicOpusBlocksAsFullBody(
+                opus = opusWithStandalonePic.copy(
+                    contentBlocks = listOf(
+                        textBlock,
+                        OpusContentBlock.Image(OpusPic(url = "https://i0.hdslb.com/embedded.jpg")),
+                    ),
+                ),
+                presentationBlocks = listOf(
+                    textBlock,
+                    OpusContentBlock.Image(OpusPic(url = "https://i0.hdslb.com/embedded.jpg")),
+                ),
+            ),
+        )
+        assertEquals(
+            true,
+            shouldRenderDynamicOpusBlocksAsFullBody(
+                opus = OpusMajor(contentBlocks = listOf(textBlock)),
+                presentationBlocks = listOf(textBlock),
+            ),
+        )
+    }
+
+    @Test
     fun resolveDynamicOpusPreviewImageLimit_removesNineImageLimitOnDetailPage() {
         assertEquals(null, resolveDynamicOpusPreviewImageLimit(isDetail = true))
         assertEquals(

@@ -105,4 +105,26 @@ class HorizontalVideoCardLayoutPolicyTest {
             )
         }
     }
+
+    @Test
+    fun horizontalCardsUseTheThemeCardContainer() {
+        val paths = listOf(
+            "feature/home/components/cards/HomeStyleSingleColumnVideoCard.kt",
+            "feature/personal/PersonalMediaCard.kt",
+            "feature/list/HistoryPersonalCard.kt",
+            "feature/space/SpaceScreen.kt",
+            "feature/video/ui/components/RelatedVideoItem.kt",
+        )
+
+        paths.forEach { relativePath ->
+            val source = java.io.File("src/main/java/com/android/purebilibili/$relativePath")
+                .let { file ->
+                    listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
+                }
+            assertTrue(
+                source.contains("AppSurfaceTokens.cardContainer()"),
+                "$relativePath must use the same theme card container as home",
+            )
+        }
+    }
 }

@@ -1657,6 +1657,8 @@ fun CommonListScreen(
                             selectedValue = historyContentFilter,
                             onSelectionChange = onHistoryFilterSelected,
                             enabled = !isHistoryBatchMode,
+                            scrollable = historyFilterChrome.itemWidthDp != null,
+                            minTabWidth = (historyFilterChrome.itemWidthDp ?: 0).dp,
                             height = historyFilterChrome.heightDp.dp,
                             indicatorHeight = historyFilterChrome.indicatorHeightDp.dp,
                             labelFontSize = historyFilterChrome.labelFontSizeSp.sp,

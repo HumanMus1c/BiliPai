@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -441,7 +442,14 @@ private fun HomeHeroCarouselCard(
                     AppText(
                         text = video.title,
                         color = MediaContrastPalette.Foreground,
-                        style = MaterialTheme.typography.titleMedium,
+                        // 背景图亮暗变化较大，给标题加柔和阴影保持可读性。
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.72f),
+                                offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                                blurRadius = 5f,
+                            )
+                        ),
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -452,7 +460,13 @@ private fun HomeHeroCarouselCard(
                     AppText(
                         text = video.owner.name,
                         color = MediaContrastPalette.Foreground.copy(alpha = 0.78f),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.62f),
+                                offset = androidx.compose.ui.geometry.Offset(0f, 1.5f),
+                                blurRadius = 4f,
+                            )
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -472,6 +486,9 @@ private fun HomeHeroCarouselCard(
                             text = FormatUtils.formatDuration(video.duration),
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.65f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                shadow = Shadow(Color.Black.copy(alpha = 0.58f), blurRadius = 3f)
+                            ),
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             modifier = Modifier.wrapContentSize()

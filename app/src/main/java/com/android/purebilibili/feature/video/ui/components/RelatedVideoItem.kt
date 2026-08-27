@@ -54,9 +54,10 @@ import com.android.purebilibili.core.store.TodayWatchFeedbackStore
 import com.android.purebilibili.core.store.withDislikedVideoFeedback
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.videoCardTitleMaxLines
-import com.android.purebilibili.core.ui.videoCardTitleOverflow
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -81,6 +82,7 @@ import com.android.purebilibili.navigation.VideoRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 /**
  * PiliPlus horizontal cards use a 16:10 cover.
@@ -183,6 +185,8 @@ fun RelatedVideoItem(
     )
     val cardCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
     val coverCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
+    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val context = LocalContext.current
     // Keep the request stable and skip image crossfade during the Miuix page transition.
     val stationaryCoverUrl = remember(video.pic) {
@@ -208,7 +212,7 @@ fun RelatedVideoItem(
                     screenWidth = screenWidthPx,
                     screenHeight = screenHeightPx,
                     density = densityValue,
-                    sourceCornerDp = 0,
+                    sourceCornerDp = cardCornerRadiusDp,
                     coverBounds = coverCoordinatesRef.value
                         ?.takeIf { it.isAttached }
                         ?.boundsInRoot(),
@@ -246,11 +250,13 @@ fun RelatedVideoItem(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(vertical = 5.dp)
             .onGloballyPositioned { coordinates ->
                 cardCoordinatesRef.value = coordinates
             }
+            .clip(cardShape)
+            .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerRelatedVideoClick)
-            .padding(vertical = 5.dp),
     ) {
         Row(
             modifier = Modifier
@@ -302,16 +308,23 @@ fun RelatedVideoItem(
                 AppText(
                     text = video.title,
                     style = contentTypography.title,
-                    maxLines = videoCardTitleMaxLines(),
-                    overflow = videoCardTitleOverflow(),
+                    // This side-by-side card has a cover-bound fixed height. Never let the
+                    // global "full card content" preference make its title overlap metadata.
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
                 )
                 Column(
                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Keep the follow badge clear of the trailing overflow action.
+                            .padding(end = if (onMoreClick != null) 32.dp else 0.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     ) {

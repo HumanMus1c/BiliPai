@@ -2,6 +2,7 @@ package com.android.purebilibili.data.model.response
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * 核心列表模型 - 视频、推荐、热门、分区相关
@@ -207,7 +208,7 @@ data class VideoItem(
     val rights: VideoRights? = null,
     val recommendationFeedback: RecommendationFeedbackMetadata? = null,
     val contentType: String = "",
-    val navigationUrl: String = ""
+    val navigationUrl: String = "",
 )
 
 @Serializable

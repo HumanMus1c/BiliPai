@@ -49,6 +49,8 @@ internal fun BottomBarFloatingSegmentedControl(
     containerHorizontalPadding: Dp,
     containerVerticalPadding: Dp,
     liquidGlassEffectsEnabled: Boolean,
+    backdropBlurEnabled: Boolean = liquidGlassEffectsEnabled,
+    containerChromeVisible: Boolean = true,
     dragSelectionEnabled: Boolean,
     longPressDragSelectionEnabled: Boolean,
     miuixBackdrop: Backdrop?,

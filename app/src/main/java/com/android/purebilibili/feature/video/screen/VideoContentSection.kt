@@ -850,6 +850,14 @@ fun VideoContentSection(
                 onDanmakuSendClick = onDanmakuSendClick,
                 danmakuEnabled = danmakuEnabled,
                 onDanmakuToggle = onDanmakuToggle,
+                tabSwipeModifier = Modifier.verticalPriorityHorizontalPagerSwipe(
+                    state = pagerState,
+                    enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                        currentPage = pagerState.currentPage,
+                        commentPageIndex = 1,
+                        isPagerScrollInProgress = pagerState.isScrollInProgress,
+                    ),
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight(unbounded = tabBarMaxHeightPx > 0f)
@@ -1690,6 +1698,7 @@ private fun VideoContentTabBar(
     danmakuEnabled: Boolean,
     onDanmakuToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    tabSwipeModifier: Modifier = Modifier,
     isPlayerCollapsed: Boolean = false,
     miuixBackdrop: MiuixBackdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null,
@@ -1756,7 +1765,7 @@ private fun VideoContentTabBar(
                 height = liquidChromeSpec.segmentedControlHeightDp.dp,
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
-                // 指示器自身支持跟手拖拽，Pager 位置则继续驱动其页面横滑表现。
+                // 该栏的指示器由 HorizontalPager 实时位置驱动，禁止自身再 settle 一次。
                 dragSelectionEnabled = true,
                 tapPressRefractionEnabled = true,
                 miuixBackdrop = miuixBackdrop,

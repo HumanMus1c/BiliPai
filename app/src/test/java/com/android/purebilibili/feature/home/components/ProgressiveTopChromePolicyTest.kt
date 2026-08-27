@@ -53,9 +53,28 @@ class ProgressiveTopChromePolicyTest {
         val dynamicTopBar = loadSource("feature/dynamic/components/DynamicTopBar.kt")
         val commonList = loadSource("feature/list/CommonListScreen.kt")
 
-        assertTrue(homeHeader.contains("pinnedChromeLayout.blurHeight + progressiveBlurBottomExtension"))
+        assertTrue(homeHeader.contains("floatingTabBackdropOverlap + progressiveBlurBottomExtension"))
+        assertTrue(homeHeader.contains("topTabInnerOwnsFloatingDockShell && !isHeaderBlurEnabled"))
+        assertTrue(homeHeader.contains("floatingDockBlurEnabled = isHeaderBlurEnabled"))
+        assertTrue(homeHeader.contains("floatingDockContainerVisible = !isHeaderBlurEnabled"))
         assertTrue(dynamicTopBar.contains("Spacer(modifier = Modifier.height(statusBarHeight))"))
         assertTrue(commonList.contains(".then(topBarBackgroundModifier)"))
+    }
+
+    @Test
+    fun includedTabRowDoesNotLeaveProgressiveBlurExtensionBelowDock() {
+        assertFalse(
+            shouldExtendProgressiveTopBlurBelowTabs(
+                progressiveBlurEnabled = true,
+                tabRowIncludedInBlur = true,
+            )
+        )
+        assertTrue(
+            shouldExtendProgressiveTopBlurBelowTabs(
+                progressiveBlurEnabled = true,
+                tabRowIncludedInBlur = false,
+            )
+        )
     }
 
     private fun loadSource(relativePath: String): String {

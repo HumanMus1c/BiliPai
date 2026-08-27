@@ -279,12 +279,11 @@ internal fun isExternalPagerCaughtUpToOwnedTarget(
 
 internal fun shouldAnimateIndicatorToSelectedIndex(
     isDragging: Boolean,
-    isPagerScrolling: Boolean,
     indicatorTarget: Float,
     selectedIndex: Int,
     ownedTargetIndex: Int?,
 ): Boolean {
-    if (isDragging || isPagerScrolling) return false
+    if (isDragging) return false
     if (abs(indicatorTarget - selectedIndex.toFloat()) <= 0.001f) return false
     if (ownedTargetIndex != null && ownedTargetIndex != selectedIndex) return false
     return true
@@ -310,7 +309,7 @@ fun RowScope.FloatingBottomBarItem(
     val baseContentAlpha = LocalFloatingBottomBarBaseContentAlpha.current
     val activeContent = LocalFloatingBottomBarActiveContent.current
     val contentColor = LocalFloatingBottomBarContentColor.current
-    val selectionScale = remember(itemIndex, indicatorPosition, iconCrossScaleEnabled) {
+    val selectionScale = remember(itemIndex, indicatorPosition) {
         {
             if (!iconCrossScaleEnabled || itemIndex == null) {
                 1f
@@ -627,17 +626,13 @@ fun FloatingBottomBar(
 
     LaunchedEffect(dampedDragAnimation, maxTabIndex) {
         snapshotFlow {
-            Triple(
-                selectedIndexLatest.value().coerceIn(0, maxTabIndex),
-                dampedDragAnimation.isDragging,
-                isScrollInProgressLatest(),
-            )
+            selectedIndexLatest.value().coerceIn(0, maxTabIndex) to
+                dampedDragAnimation.isDragging
         }
-            .collectLatest { (index, isDragging, isPagerScrolling) ->
+            .collectLatest { (index, isDragging) ->
                 if (
                     shouldAnimateIndicatorToSelectedIndex(
                         isDragging = isDragging,
-                        isPagerScrolling = isPagerScrolling,
                         indicatorTarget = dampedDragAnimation.targetValue,
                         selectedIndex = index,
                         ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
@@ -679,9 +674,6 @@ fun FloatingBottomBar(
                 dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
             } else if (pagerPressed) {
                 pagerPressed = false
-                external?.let {
-                    dampedDragAnimation.snapTo(it.coerceIn(0f, maxTabIndex.toFloat()))
-                }
                 dampedDragAnimation.release()
             }
         }

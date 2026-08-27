@@ -67,6 +67,10 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("HorizontalVideoStatRow("))
         assertTrue(source.contains(".align(Alignment.BottomEnd)"))
         assertTrue(source.contains(".size(32.dp)"))
+        assertTrue(
+            source.contains(".padding(end = if (onMoreClick != null) 32.dp else 0.dp)"),
+            "follow metadata must reserve the trailing overflow action width",
+        )
         assertTrue(source.contains("resolveHomeFeedCardLayout(homeFeedCardStyle)"))
         assertTrue(source.contains("RELATED_VIDEO_GRID_COLUMNS = 1"))
         assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))

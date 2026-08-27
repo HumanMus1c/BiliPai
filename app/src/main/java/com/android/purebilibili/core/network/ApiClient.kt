@@ -2012,8 +2012,8 @@ interface SpaceApi {
         @Query("jsonp") jsonp: String = "jsonp"
     ): com.android.purebilibili.data.model.response.SpaceAudioResponse
 
-    // 空间图文列表。API 文档为 /opus/feed/space，返回 opus_id/content/cover/jump_url。
-    @GET("x/polymer/web-dynamic/v1/opus/feed/space")
+    // 空间专栏列表。相比 opus/feed/space，此接口会为其他用户的专栏返回 stats.view。
+    @GET("x/space/wbi/article")
     suspend fun getSpaceArticleList(
         @QueryMap params: Map<String, String>
     ): com.android.purebilibili.data.model.response.SpaceArticleResponse

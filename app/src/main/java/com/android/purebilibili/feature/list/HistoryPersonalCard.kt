@@ -43,6 +43,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.FeedTitleHierarchy
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
@@ -266,6 +267,7 @@ internal fun HistoryPersonalCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 5.dp)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -276,12 +278,13 @@ internal fun HistoryPersonalCard(
                 clipShape = coverShape,
                 crossfadeSourceContent = true,
             )
+            .clip(coverShape)
+            .background(AppSurfaceTokens.cardContainer())
             .combinedClickable(
                 onClick = triggerClick,
                 onLongClick = onLongClick,
             )
             .onGloballyPositioned { cardBounds.value = it.boundsInRoot() }
-            .padding(horizontal = 12.dp, vertical = 5.dp)
             .then(
                 if (selected) {
                     Modifier.background(

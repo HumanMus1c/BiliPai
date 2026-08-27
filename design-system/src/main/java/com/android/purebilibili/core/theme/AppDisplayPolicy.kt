@@ -4,10 +4,12 @@ import androidx.compose.material3.Typography
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.theme.TextStyles
+import top.yukonga.miuix.kmp.theme.defaultTextStyles
 
 private const val DISPLAY_NARROW_WIDTH_THRESHOLD_DP = 360
 private const val DISPLAY_DPI_OVERRIDE_PERCENT_MIN = 85
@@ -178,6 +180,27 @@ fun Typography.withFontFamily(fontFamily: FontFamily?): Typography {
         labelSmall = labelSmall.withFontFamily(fontFamily)
     )
 }
+
+/**
+ * Maps Miuix-native component roles onto the app's Material typography contract.
+ * This keeps native Miuix controls visually consistent with neighboring MD3-backed content.
+ */
+fun Typography.toMiuixTextStyles(): TextStyles = defaultTextStyles(
+    main = bodyLarge,
+    paragraph = bodyLarge,
+    body1 = bodyMedium,
+    body2 = bodySmall,
+    button = labelLarge,
+    footnote1 = labelMedium,
+    footnote2 = labelSmall,
+    headline1 = titleMedium,
+    headline2 = titleSmall,
+    subtitle = labelLarge.copy(fontWeight = FontWeight.Bold),
+    title1 = headlineLarge,
+    title2 = headlineMedium,
+    title3 = headlineSmall,
+    title4 = titleLarge,
+)
 
 fun TextStyles.scaled(multiplier: Float): TextStyles {
     if (multiplier == 1f) return this

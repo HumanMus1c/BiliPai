@@ -34,6 +34,7 @@ class DynamicTopBarThemePolicyTest {
         ).readText()
 
         assertTrue(source.contains("if (liquidGlassEnabled)"))
+        assertTrue(source.contains(".clip(RectangleShape)"))
         assertTrue(source.contains(".clip(dockShape)"))
         assertTrue(source.contains(".background(dockColor)"))
     }

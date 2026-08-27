@@ -11,11 +11,13 @@ import kotlin.test.assertTrue
 class AndroidNativeVariantThemePolicyTest {
 
     @Test
-    fun miuixVariant_usesMiuixAlignedTypography() {
+    fun miuixVariant_usesMd3TypographyDensity() {
         val typography = resolveMaterialTypography(AppUiStyle.MIUIX)
 
-        assertEquals(BiliMiuixTypography.bodyMedium.fontSize, typography.bodyMedium.fontSize)
-        assertEquals(BiliMiuixTypography.titleMedium.letterSpacing, typography.titleMedium.letterSpacing)
+        assertSame(CompactMiuixTypography, typography)
+        assertNotSame(Md3Typography, typography)
+        assertEquals(Md3Typography.bodyMedium.fontSize, CompactMiuixTypography.bodyMedium.fontSize)
+        assertEquals(Md3Typography.labelLarge.fontSize, CompactMiuixTypography.labelLarge.fontSize)
     }
 
     @Test
@@ -24,7 +26,6 @@ class AndroidNativeVariantThemePolicyTest {
 
         assertEquals(Md3Typography.bodyMedium.fontSize, typography.bodyMedium.fontSize)
         assertEquals(Md3Typography.titleMedium.letterSpacing, typography.titleMedium.letterSpacing)
-        assertFalse(typography.bodyMedium.fontSize == BiliMiuixTypography.bodyMedium.fontSize)
     }
 
     @Test
@@ -77,6 +78,8 @@ class AndroidNativeVariantThemePolicyTest {
         assertEquals(300, material.motionEmphasizedMillis)
         assertEquals(180, miuix.motionStandardMillis)
         assertEquals(200, material.motionStandardMillis)
+        assertEquals(44, miuix.rowMinTouchTargetDp)
+        assertEquals(48, material.rowMinTouchTargetDp)
     }
 
     @Test

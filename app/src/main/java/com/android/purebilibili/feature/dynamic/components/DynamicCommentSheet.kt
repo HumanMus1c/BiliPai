@@ -645,6 +645,12 @@ private fun DynamicCommentComposer(
             shellLensIntensity = composerLensIntensity,
         ) { liquidChromeActive ->
             val fieldColor = if (liquidChromeActive) Color.Transparent else commentFieldContainerColor
+            val fieldTextColor = MaterialTheme.colorScheme.onSurface
+            val placeholderColor = if (liquidChromeActive) {
+                fieldTextColor.copy(alpha = 0.82f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -652,7 +658,7 @@ private fun DynamicCommentComposer(
                 placeholder = {
                     AppText(
                         text = hint,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = placeholderColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -666,7 +672,13 @@ private fun DynamicCommentComposer(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
                     disabledBorderColor = Color.Transparent,
-                    cursorColor = MaterialTheme.colorScheme.onSurface,
+                    focusedTextColor = fieldTextColor,
+                    unfocusedTextColor = fieldTextColor,
+                    disabledTextColor = fieldTextColor.copy(alpha = 0.72f),
+                    focusedPlaceholderColor = placeholderColor,
+                    unfocusedPlaceholderColor = placeholderColor,
+                    disabledPlaceholderColor = placeholderColor,
+                    cursorColor = fieldTextColor,
                 ),
             )
         }
@@ -697,6 +709,10 @@ private fun DynamicCommentComposer(
                     ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.72f
+                        ),
                     )
                 } else {
                     null

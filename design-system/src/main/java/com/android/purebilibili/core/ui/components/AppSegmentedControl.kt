@@ -1,6 +1,8 @@
 package com.android.purebilibili.core.ui.components
 
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -83,6 +85,16 @@ fun shouldFillMaxWidthAppSegmentedControl(
     optionCount: Int,
     longestLabelLength: Int,
 ): Boolean = optionCount >= 2 || longestLabelLength >= 1
+
+fun resolveReadableNativeTabMinWidth(
+    requestedMinWidth: Dp,
+    labels: List<String>,
+    allowLabelOverflow: Boolean,
+): Dp {
+    if (!allowLabelOverflow || labels.isEmpty()) return requestedMinWidth
+    val longestLabelLength = labels.maxOf(String::length)
+    return maxOf(requestedMinWidth, (longestLabelLength * 16 + 24).dp)
+}
 
 fun resolveAppLiquidSegmentedControlSpec(
     itemCount: Int,
@@ -208,11 +220,20 @@ fun <T> AppNativeTabRow(
     enabled: Boolean = true,
     scrollable: Boolean = false,
     minTabWidth: Dp = 72.dp,
+    compactMiuixWhenTwoOptions: Boolean = true,
+    height: Dp? = null,
     allowLabelOverflow: Boolean = false,
+    forceMaterial3: Boolean = false,
     indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
     if (options.isEmpty()) return
+    val readableMinTabWidth = resolveReadableNativeTabMinWidth(
+        requestedMinWidth = minTabWidth,
+        labels = options.map { it.label },
+        allowLabelOverflow = allowLabelOverflow,
+    )
+    val effectiveScrollable = scrollable || options.size > 3 || readableMinTabWidth > minTabWidth
     val viewportBoundedModifier = modifier.widthIn(
         max = LocalConfiguration.current.screenWidthDp.dp,
     )
@@ -229,13 +250,13 @@ fun <T> AppNativeTabRow(
         miuixSurfaceContainerHigh = AppSurfaceTokens.surfaceContainerHigh(),
         miuixOnSurfaceVariantSummary = AppSurfaceTokens.onSurfaceVariantSummary(),
     )
-    when (resolveAppSegmentedRenderer(policy.usesNativeTabRow)) {
+    when (if (forceMaterial3) AppSegmentedRenderer.MATERIAL3 else resolveAppSegmentedRenderer(policy.usesNativeTabRow)) {
         AppSegmentedRenderer.MATERIAL3 -> AppMaterial3TabRow(
             options = options,
             selectedValue = selectedValue,
             enabled = enabled,
-            scrollable = scrollable,
-            minTabWidth = minTabWidth,
+            scrollable = effectiveScrollable,
+            minTabWidth = readableMinTabWidth,
             allowLabelOverflow = allowLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
             modifier = viewportBoundedModifier,
@@ -245,11 +266,16 @@ fun <T> AppNativeTabRow(
             options = options,
             selectedValue = selectedValue,
             enabled = enabled,
-            scrollable = scrollable,
-            minTabWidth = minTabWidth,
+            scrollable = effectiveScrollable,
+            minTabWidth = readableMinTabWidth,
             colors = colors,
             preferredCornerRadius = policy.preferredCornerRadius,
-            modifier = viewportBoundedModifier,
+            height = height,
+            modifier = if (!effectiveScrollable && options.size == 2) {
+                viewportBoundedModifier.requiredWidth(readableMinTabWidth * options.size)
+            } else {
+                viewportBoundedModifier
+            },
             indicatorPositionProvider = indicatorPositionProvider,
             onSelectionChange = onSelectionChange,
         )

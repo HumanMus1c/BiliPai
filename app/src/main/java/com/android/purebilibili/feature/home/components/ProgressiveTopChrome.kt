@@ -36,6 +36,11 @@ internal fun resolveProgressiveTopBlurBottomExtension(
     0.dp
 }
 
+internal fun shouldExtendProgressiveTopBlurBelowTabs(
+    progressiveBlurEnabled: Boolean,
+    tabRowIncludedInBlur: Boolean,
+): Boolean = progressiveBlurEnabled && !tabRowIncludedInBlur
+
 /** Shared home-style edge blur for immersive floating top chrome. */
 internal fun Modifier.biliPaiProgressiveTopBlur(
     backdrop: Backdrop?,

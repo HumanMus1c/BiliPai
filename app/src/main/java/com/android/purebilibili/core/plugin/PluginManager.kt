@@ -204,6 +204,9 @@ object PluginManager {
      */
     fun getEnabledFeedPlugins(): List<FeedPlugin> = getEnabledPlugins(FeedPlugin::class)
 
+    fun getEnabledFeedTransformPlugins(): List<FeedTransformPlugin> =
+        getEnabledPlugins(FeedTransformPlugin::class)
+
     /**
      * 获取所有已启用的 CastPluginApi 插件
      */
@@ -220,7 +223,8 @@ object PluginManager {
         feedKind: FeedKind = FeedKind.GENERIC
     ): List<com.android.purebilibili.data.model.response.VideoItem> {
         val feedPlugins = getEnabledFeedPlugins()
-        if (feedPlugins.isEmpty()) return items
+        val transformPlugins = getEnabledFeedTransformPlugins()
+        if (feedPlugins.isEmpty() && transformPlugins.isEmpty()) return items
 
         val filtered = items.filter { item ->
             feedPlugins.all { plugin ->
@@ -242,7 +246,9 @@ object PluginManager {
                 cooldownMs = PLUGIN_EFFECT_HINT_FEED_COOLDOWN_MS
             )
         }
-        return filtered
+        return applyFeedTransformPlugins(filtered, transformPlugins, feedKind) { plugin, error ->
+            Logger.e(TAG, " Feed transform plugin failed: ${plugin.name}", error)
+        }
     }
     
     /**
@@ -252,6 +258,20 @@ object PluginManager {
 
     fun notifyDanmakuPluginsUpdated() {
         _danmakuPluginUpdateToken.value = System.currentTimeMillis()
+    }
+}
+
+internal fun applyFeedTransformPlugins(
+    items: List<com.android.purebilibili.data.model.response.VideoItem>,
+    plugins: List<FeedTransformPlugin>,
+    feedKind: FeedKind,
+    onFailure: (FeedTransformPlugin, Exception) -> Unit = { _, _ -> },
+): List<com.android.purebilibili.data.model.response.VideoItem> = plugins.fold(items) { current, plugin ->
+    try {
+        plugin.transformFeedItems(current, feedKind)
+    } catch (error: Exception) {
+        onFailure(plugin, error)
+        current
     }
 }
 

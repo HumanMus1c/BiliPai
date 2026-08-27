@@ -327,6 +327,22 @@ class FloatingBottomBarStructureTest {
     }
 
     @Test
+    fun `non liquid selected content stays clipped to its indicator`() {
+        val source = loadFloatingBottomBarSource()
+        val indicatorSection = source
+            .substringAfter("if (isLiquidGlassMode && combinedBackdrop != null)")
+            .substringBefore("// The selected capsule can be wider than its tab")
+        val nonLiquidIndicator = indicatorSection.substringAfter("} else {")
+
+        assertTrue(
+            nonLiquidIndicator.contains(
+                ".background(colors.indicatorColor.copy(alpha = 0.15f), pillShape)"
+            )
+        )
+        assertTrue(nonLiquidIndicator.contains(".clip(pillShape)"))
+    }
+
+    @Test
     fun `caller width constrains dock before intrinsic measurement`() {
         val source = loadFloatingBottomBarSource()
         val body = source.substringAfter("fun FloatingBottomBar(")

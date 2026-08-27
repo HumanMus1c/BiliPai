@@ -484,6 +484,61 @@ class DynamicRichTextPolicyTest {
     }
 
     @Test
+    fun resolveDynamicOpusTextBlockRichDesc_prefersBodyMentionMetadata() {
+        val bodyNodes = listOf(
+            RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = "谢谢"),
+            RichTextNode(type = "RICH_TEXT_NODE_TYPE_AT", text = "@叽米", rid = "12345"),
+        )
+
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "谢谢@叽米",
+            preferredDesc = DynamicDesc(text = "预览摘要"),
+            blockRichTextNodes = bodyNodes,
+        )
+
+        assertEquals(bodyNodes, resolved?.rich_text_nodes)
+        assertEquals(12345L, resolveDynamicRichTextUserMid(resolved!!.rich_text_nodes.last()))
+    }
+
+    @Test
+    fun resolveDynamicOpusTextBlockRichDesc_mergesPreviewMentionIntoLongerBody() {
+        val preferred = DynamicDesc(
+            text = "谢谢@叽米",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = "谢谢"),
+                RichTextNode(type = "RICH_TEXT_NODE_TYPE_AT", text = "@叽米", rid = "12345"),
+            ),
+        )
+
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "谢谢@叽米，后续正文继续。",
+            preferredDesc = preferred,
+            blockRichTextNodes = listOf(
+                RichTextNode(
+                    type = "RICH_TEXT_NODE_TYPE_TEXT",
+                    text = "谢谢@叽米，后续正文继续。",
+                )
+            ),
+        )
+
+        assertEquals("谢谢@叽米，后续正文继续。", resolved?.text)
+        val mention = resolved?.rich_text_nodes?.single { it.type.endsWith("AT") }
+        assertEquals("@叽米", mention?.text)
+        assertEquals(12345L, mention?.let(::resolveDynamicRichTextUserMid))
+        val resolvedDesc = resolved ?: error("expected rich body description")
+        val annotation = buildDynamicRichTextAnnotatedString(
+            desc = resolvedDesc,
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        ).getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_USER_TAG,
+            start = 0,
+            end = resolvedDesc.text.length,
+        ).single()
+        assertEquals("12345", annotation.item)
+    }
+
+    @Test
     fun buildDynamicRichText_usesMergedSummaryEmojiMetadataForFullBodyShortcode() {
         val shortcode = "[UPOWER_3546635395139954_舔舔]"
         val iconUrl = "https://i0.hdslb.com/bfs/garb/upower.png"

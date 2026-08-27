@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
@@ -77,8 +78,7 @@ internal fun PersonalMediaCardFrame(
                 onLongClick = onLongClick,
             ),
         shape = cardShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-        tonalElevation = AppSpacingTokens.Micro / 2,
+        color = AppSurfaceTokens.cardContainer(),
     ) {
         Box {
             Row(
@@ -158,8 +158,7 @@ internal fun PersonalMediaCardSkeleton(
             .fillMaxWidth()
             .height(coverHeight),
         shape = cardShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-        tonalElevation = AppSpacingTokens.Micro / 2,
+        color = AppSurfaceTokens.cardContainer(),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             ContentSkeletonBlock(

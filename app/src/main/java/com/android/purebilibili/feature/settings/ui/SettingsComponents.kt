@@ -15,14 +15,14 @@ fun BlurIntensitySelector(
     SettingsSingleChoicePreference(
         title = "模糊强度",
         subtitle = when (selectedIntensity) {
-            BlurIntensity.THIN -> "平衡美观与性能（推荐）"
-            BlurIntensity.APPLE_DOCK -> "强烈模糊，完全遮盖背景"
-            BlurIntensity.THICK -> "背景颜色透出并增强磨砂质感"
+            BlurIntensity.THIN -> "轻微淡化背景，效果自然且更省性能（推荐）"
+            BlurIntensity.APPLE_DOCK -> "大幅淡化背景，前景内容最突出"
+            BlurIntensity.THICK -> "适度淡化背景，兼顾层次与可读性"
         },
         options = listOf(
-            AppSegmentOption(BlurIntensity.THIN, "标准"),
-            AppSegmentOption(BlurIntensity.APPLE_DOCK, "玻璃拟态"),
-            AppSegmentOption(BlurIntensity.THICK, "浓郁"),
+            AppSegmentOption(BlurIntensity.THIN, "轻度"),
+            AppSegmentOption(BlurIntensity.THICK, "中度"),
+            AppSegmentOption(BlurIntensity.APPLE_DOCK, "重度"),
         ),
         selectedValue = selectedIntensity,
         modifier = modifier,

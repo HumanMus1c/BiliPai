@@ -107,6 +107,7 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.MediaContrastPalette
@@ -133,6 +134,7 @@ import com.android.purebilibili.core.ui.components.VideoStatRow
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.videoCardTitleMaxLines
@@ -150,6 +152,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.FavFolder
+import com.android.purebilibili.data.model.response.DynamicDesc
 import kotlin.math.roundToInt
 import com.android.purebilibili.data.model.response.FollowBangumiItem
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
@@ -167,6 +170,7 @@ import com.android.purebilibili.data.model.response.VideoSortOrder
 import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
 import com.android.purebilibili.feature.dynamic.DynamicViewModel
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.RichTextContent
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
@@ -2467,9 +2471,10 @@ private fun SpaceSearchEntryChip(
     modifier: Modifier = Modifier
 ) {
     if (label.isBlank()) return
-    // Use bordered Field shape (not continuous Pill + stroke) so corners stay round
-    // and match the real search bar; continuous iOS corners + BorderStroke chamfer.
-    val shape = AppShapes.borderedContainer(ContainerLevel.Field)
+    // Keep the entry capsule on the same Pill geometry as the space/home dock.
+    // Using the Field token here made the search entry visibly flatter than the
+    // segmented dock immediately above it.
+    val shape = resolveSharedBottomBarCapsuleShape()
     AppSurface(
         onClick = onClick,
         modifier = modifier
@@ -2526,15 +2531,19 @@ private fun SpaceSecondarySwitchRow(
             .padding(horizontal = spec.horizontalPaddingDp.dp, vertical = 6.dp),
     ) {
         val containerHorizontalPaddingDp = AppSpacingTokens.ExtraSmall.value.roundToInt()
-        val itemWidthDp = resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
-            preferredItemWidthDp = spec.itemWidthDp ?: 104,
+        val preferredItemWidthDp = spec.itemWidthDp ?: 104
+        val useScrollableRail = shouldScrollSpaceSecondarySwitch(
             itemCount = items.size,
+            itemWidthDp = preferredItemWidthDp,
             viewportWidthDp = maxWidth.value.roundToInt(),
             containerHorizontalPaddingDp = containerHorizontalPaddingDp
         )
-        val useScrollableRail = shouldScrollSpaceSecondarySwitch(
+        // Keep three slots visible in the viewport even when later library entries
+        // make the rail scrollable; long contribution titles then use the same
+        // compact width as the legacy three-tab dock.
+        val itemWidthDp = resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
+            preferredItemWidthDp = preferredItemWidthDp,
             itemCount = items.size,
-            itemWidthDp = itemWidthDp,
             viewportWidthDp = maxWidth.value.roundToInt(),
             containerHorizontalPaddingDp = containerHorizontalPaddingDp
         )
@@ -2625,6 +2634,7 @@ private fun SpaceMainTabRow(
             options = tabs.map { AppSegmentOption(it.tab, it.title) },
             selectedValue = tabs[selectedIndex].tab,
             onSelectionChange = onSelect,
+            scrollable = spec.scrollable,
             dragSelectionEnabled = spec.dragSelectionEnabled,
             tapPressRefractionEnabled = true,
             height = spec.heightDp.dp,
@@ -3195,7 +3205,7 @@ private fun SpaceTopVideoCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(AppShapes.container(ContainerLevel.Card))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .background(AppSurfaceTokens.cardContainer())
             .clickable {
                 coverBounds?.let { bounds ->
                     CardPositionManager.recordVideoCardPosition(
@@ -3387,6 +3397,7 @@ private fun SpaceArchiveListItemRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -3396,11 +3407,12 @@ private fun SpaceArchiveListItemRow(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
+            .clip(cardShellShape)
+            .background(AppSurfaceTokens.cardContainer())
             .border(width = 3.dp, color = locateHighlightColor, shape = cardShellShape)
             .onGloballyPositioned { coordinates ->
                 cardBounds = coordinates.boundsInRoot()
             }
-            .padding(horizontal = 16.dp)
             .clickable {
                 cardBounds?.let { bounds ->
                     CardPositionManager.recordVideoCardPosition(
@@ -3617,8 +3629,10 @@ private fun SpaceArticleListItem(
             .clickable { onClick() }
             .padding(vertical = 6.dp)
     ) {
-        AppText(
-            text = article.title,
+        RichTextContent(
+            desc = remember(article.title) { DynamicDesc(text = article.title) },
+            onUserClick = {},
+            onBlankTap = onClick,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
             lineHeight = 24.sp,
@@ -3651,7 +3665,7 @@ private fun SpaceArticleListItem(
         }
         Spacer(modifier = Modifier.height(10.dp))
         AppText(
-            text = "${article.category?.name ?: "图文"} · ${FormatUtils.formatStat(article.stats?.view?.toLong() ?: 0)}阅读 · ${FormatUtils.formatStat(article.stats?.like?.toLong() ?: 0)}点赞",
+            text = buildSpaceArticleStatsText(article),
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

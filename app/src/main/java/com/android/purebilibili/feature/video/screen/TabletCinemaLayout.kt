@@ -140,7 +140,7 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun TabletCinemaLayout(
@@ -314,6 +314,9 @@ internal fun TabletCinemaLayout(
                         videoNoteEnabled = videoNoteEnabled,
                         videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                         modifier = Modifier.weight(1f),
+                        danmakuEnabled = danmakuChrome.enabled,
+                        onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
+                        onDanmakuToggle = danmakuChrome.onToggle,
                         onFollowClick = engagementActions.toggleFollow,
                         onUpClick = onUpClick,
                         onFavoriteClick = engagementActions.toggleFavorite,
@@ -366,9 +369,6 @@ internal fun TabletCinemaLayout(
                 width = curtainWidth,
                 selectedTab = selectedTab,
                 pagerState = curtainPagerState,
-                danmakuEnabled = danmakuChrome.enabled,
-                onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
-                onDanmakuToggle = danmakuChrome.onToggle,
                 onToggle = {
                     curtainStateName = when (curtainState) {
                         TabletSideCurtainState.OPEN -> TabletSideCurtainState.PEEK.name
@@ -574,6 +574,9 @@ private fun CinemaMetaPanel(
     videoNoteEnabled: Boolean,
     videoNoteDefaultCollapsed: Boolean,
     modifier: Modifier = Modifier,
+    danmakuEnabled: Boolean,
+    onDanmakuSendClick: () -> Unit,
+    onDanmakuToggle: () -> Unit,
     onFollowClick: () -> Unit,
     onUpClick: (Long) -> Unit,
     onFavoriteClick: () -> Unit,
@@ -690,6 +693,9 @@ private fun CinemaMetaPanel(
                                                 isFollowing = engagement.isFollowing,
                                                 onFollowClick = onFollowClick,
                                                 onUpClick = onUpClick,
+                                                danmakuEnabled = danmakuEnabled,
+                                                onDanmakuSendClick = onDanmakuSendClick,
+                                                onDanmakuToggle = onDanmakuToggle,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             CinemaMetaActions(
@@ -710,6 +716,16 @@ private fun CinemaMetaPanel(
                                     } else {
                                         // 宽度不足，竖排
                                         Column(Modifier.fillMaxWidth()) {
+                                            CinemaMetaUpInfo(
+                                                success = success,
+                                                isFollowing = engagement.isFollowing,
+                                                onFollowClick = onFollowClick,
+                                                onUpClick = onUpClick,
+                                                danmakuEnabled = danmakuEnabled,
+                                                onDanmakuSendClick = onDanmakuSendClick,
+                                                onDanmakuToggle = onDanmakuToggle,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
                                             CinemaMetaActions(
                                                 success = success,
                                                 engagement = engagement,
@@ -722,13 +738,6 @@ private fun CinemaMetaPanel(
                                                 onDownloadClick = onDownloadClick,
                                                 onWatchLaterClick = onWatchLaterClick,
                                                 onOpenComments = onOpenComments,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                            CinemaMetaUpInfo(
-                                                success = success,
-                                                isFollowing = engagement.isFollowing,
-                                                onFollowClick = onFollowClick,
-                                                onUpClick = onUpClick,
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         }
@@ -866,6 +875,9 @@ private fun CinemaMetaUpInfo(
     isFollowing: Boolean,
     onFollowClick: () -> Unit,
     onUpClick: (Long) -> Unit,
+    danmakuEnabled: Boolean,
+    onDanmakuSendClick: () -> Unit,
+    onDanmakuToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     UpInfoSection(
@@ -875,7 +887,14 @@ private fun CinemaMetaUpInfo(
         onUpClick = onUpClick,
         followerCount = success.ownerFollowerCount,
         videoCount = success.ownerVideoCount,
-        modifier = modifier
+        modifier = modifier,
+        trailingContent = {
+            TabletSecondaryDanmakuActions(
+                danmakuEnabled = danmakuEnabled,
+                onDanmakuSendClick = onDanmakuSendClick,
+                onDanmakuToggle = onDanmakuToggle,
+            )
+        },
     )
 }
 
@@ -961,9 +980,6 @@ private fun CinemaSideCurtain(
     width: Dp,
     selectedTab: Int,
     pagerState: PagerState,
-    danmakuEnabled: Boolean,
-    onDanmakuSendClick: () -> Unit,
-    onDanmakuToggle: () -> Unit,
     onToggle: () -> Unit,
     onTabSelected: (Int) -> Unit,
     success: VideoPlaybackUiState.Success?,
@@ -1075,14 +1091,6 @@ private fun CinemaSideCurtain(
                                     },
                                     isScrollInProgressProvider = { pagerState.isScrollInProgress },
                                 )
-                                if (shouldShowTabletCinemaDanmakuActions(state)) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    TabletSecondaryDanmakuActions(
-                                        danmakuEnabled = danmakuEnabled,
-                                        onDanmakuSendClick = onDanmakuSendClick,
-                                        onDanmakuToggle = onDanmakuToggle,
-                                    )
-                                }
                             }
 
                             HorizontalPager(

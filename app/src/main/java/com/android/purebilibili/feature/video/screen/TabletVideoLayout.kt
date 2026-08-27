@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyRow
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -186,9 +187,8 @@ internal fun TabletSecondaryLiquidTabRow(
         onSelected = onSelected,
         modifier = modifier,
         itemWidth = if (labels.size <= 2) 108.dp else null,
-        height = 48.dp,
-        indicatorHeight = com.android.purebilibili.core.ui
-            .roundMatchedLiquidIndicatorHeightDp(48f).dp,
+        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = 15.sp,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = true,
@@ -414,6 +414,9 @@ internal fun TabletVideoLayout(
                         onBgmClick = onBgmClick,
                         onRelatedVideoClick = onRelatedVideoClick,
                         onOpenBilibiliLink = onOpenBilibiliLink,
+                        danmakuEnabled = danmakuChrome.enabled,
+                        onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
+                        onDanmakuToggle = danmakuChrome.onToggle,
                         onOwnerUploadsClick = {
                             requestedSecondaryTabName = TabletSecondaryTab.OWNER_UPLOADS.name
                             secondaryPaneModeName = TabletSecondaryPaneMode.EXPANDED.name
@@ -454,9 +457,6 @@ internal fun TabletVideoLayout(
                     onOpenBilibiliLink = onOpenBilibiliLink,
                     requestedTabName = requestedSecondaryTabName,
                     onRequestedTabConsumed = { requestedSecondaryTabName = null },
-                    danmakuEnabled = danmakuChrome.enabled,
-                    onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
-                    onDanmakuToggle = danmakuChrome.onToggle,
                     fixedTab = if (useThreePaneLayout) TabletSecondaryTab.COMMENTS else null,
                     introContent = if (layoutPolicy.useTabletopLayout) {
                         {
@@ -469,6 +469,9 @@ internal fun TabletVideoLayout(
                                 onBgmClick = onBgmClick,
                                 onRelatedVideoClick = onRelatedVideoClick,
                                 onOpenBilibiliLink = onOpenBilibiliLink,
+                                danmakuEnabled = danmakuChrome.enabled,
+                                onDanmakuSendClick = playbackActions.showDanmakuSendDialog,
+                                onDanmakuToggle = danmakuChrome.onToggle,
                                 onOwnerUploadsClick = {
                                     requestedSecondaryTabName = TabletSecondaryTab.OWNER_UPLOADS.name
                                 },
@@ -522,6 +525,9 @@ private fun TabletVideoInfoPane(
     onBgmClick: (BgmInfo) -> Unit,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     onOpenBilibiliLink: ((String) -> Unit)?,
+    danmakuEnabled: Boolean,
+    onDanmakuSendClick: () -> Unit,
+    onDanmakuToggle: () -> Unit,
     onOwnerUploadsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -556,6 +562,13 @@ private fun TabletVideoInfoPane(
         onWatchLaterClick = engagementActions.toggleWatchLater,
         onRelatedVideoClick = onRelatedVideoClick,
         onOpenBilibiliLink = onOpenBilibiliLink,
+        ownerTrailingContent = {
+            TabletSecondaryDanmakuActions(
+                danmakuEnabled = danmakuEnabled,
+                onDanmakuSendClick = onDanmakuSendClick,
+                onDanmakuToggle = onDanmakuToggle,
+            )
+        },
         modifier = modifier,
     )
 }
@@ -584,9 +597,6 @@ private fun TabletSecondaryContent(
     onOpenBilibiliLink: ((String) -> Unit)?,
     requestedTabName: String?,
     onRequestedTabConsumed: () -> Unit,
-    danmakuEnabled: Boolean = true,
-    onDanmakuSendClick: () -> Unit = {},
-    onDanmakuToggle: () -> Unit = {},
     fixedTab: TabletSecondaryTab? = null,
     introContent: (@Composable () -> Unit)? = null,
 ) {
@@ -605,8 +615,6 @@ private fun TabletSecondaryContent(
         }
     }
     val relatedTabIndex = tabs.indexOf(TabletSecondaryTab.RELATED).coerceAtLeast(0)
-    val showDanmakuActions = shouldShowTabletSecondaryDanmakuActions() &&
-        (fixedTab == null || fixedTab == TabletSecondaryTab.COMMENTS)
     var selectedTab by rememberSaveable(success.info.bvid, fixedTab) {
         mutableIntStateOf(
             if (fixedTab != null) 0 else resolveTabletSecondaryDefaultTab()
@@ -769,14 +777,6 @@ private fun TabletSecondaryContent(
                     },
                     isScrollInProgressProvider = { pagerState.isScrollInProgress },
                 )
-                if (showDanmakuActions) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    TabletSecondaryDanmakuActions(
-                        danmakuEnabled = danmakuEnabled,
-                        onDanmakuSendClick = onDanmakuSendClick,
-                        onDanmakuToggle = onDanmakuToggle,
-                    )
-                }
             }
         } else {
             Row(
@@ -791,13 +791,6 @@ private fun TabletSecondaryContent(
                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                if (showDanmakuActions) {
-                    TabletSecondaryDanmakuActions(
-                        danmakuEnabled = danmakuEnabled,
-                        onDanmakuSendClick = onDanmakuSendClick,
-                        onDanmakuToggle = onDanmakuToggle,
-                    )
-                }
             }
         }
         
@@ -1269,7 +1262,8 @@ private fun ScrollableVideoInfoSection(
     onSearchKeywordClick: (String) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)?,
     relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    ownerTrailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val windowSizeClass = LocalWindowSizeClass.current
@@ -1333,7 +1327,8 @@ private fun ScrollableVideoInfoSection(
                     onFollowClick = onFollowClick,
                     onUpClick = onUpClick,
                     followerCount = ownerFollowerCount,
-                    videoCount = ownerVideoCount
+                    videoCount = ownerVideoCount,
+                    trailingContent = ownerTrailingContent,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }

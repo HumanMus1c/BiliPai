@@ -1355,6 +1355,8 @@ private fun DanmakuBlockManagerDialog(
                     },
                     selectedValue = selectedTabIndex,
                     onSelectionChange = { selectedTabIndex = it },
+                    scrollable = true,
+                    minTabWidth = 88.dp,
                     dragSelectionEnabled = true,
                     tapPressRefractionEnabled = true,
                     modifier = Modifier.fillMaxWidth(),

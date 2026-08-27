@@ -72,8 +72,6 @@ import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.data.model.response.VideoItem
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChatBubble
-import androidx.compose.material.icons.filled.PlayArrow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 

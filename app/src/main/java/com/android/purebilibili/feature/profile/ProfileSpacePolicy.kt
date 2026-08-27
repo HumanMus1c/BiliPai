@@ -20,7 +20,7 @@ enum class ProfileSpaceMainTab(val title: String) {
     DYNAMIC("动态"),
     CONTRIBUTION("投稿"),
     FAVORITE("收藏"),
-    BANGUMI("追番")
+    BANGUMI("番剧")
 }
 
 data class ProfileSpaceTabItem(

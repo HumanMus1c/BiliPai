@@ -2485,7 +2485,25 @@ internal fun VideoDetailScreenStateHolder(
             portraitSyncSnapshotCid = portraitSyncSnapshotCid,
             currentBvidCid = currentBvidCid
         ) ?: return
+        val loaded = viewModel.uiState.value as? VideoPlaybackUiState.Success
         presentationState.switchVideo(target.bvid, target.cid)
+        if (com.android.purebilibili.feature.video.ui.pager.shouldReloadMainPlayerAfterPortraitExit(
+                snapshotBvid = target.bvid,
+                snapshotCid = target.cid,
+                currentBvid = loaded?.info?.bvid,
+                currentCid = loaded?.info?.cid ?: 0L,
+            )
+        ) {
+            // Commit the detail subject together with the portrait exit. Relying on the later
+            // currentBvid observer leaves a frame-order race with AnimatedVisibility disposal:
+            // the player/cover can already point at page N while title/description still expose
+            // the route's first VideoInfo.
+            viewModel.loadVideo(
+                bvid = target.bvid,
+                cid = target.cid.takeIf { it > 0L } ?: 0L,
+                autoPlay = resolveAutoPlayOverrideForInternalBvidSync(forceAutoPlay = false),
+            )
+        }
     }
 
 
@@ -4028,6 +4046,24 @@ internal fun VideoDetailScreenStateHolder(
                                     ).handoffProgress
                             }
                         }
+                        val returnMediaFrameProvider: () -> VideoDetailReturnMediaFrame = {
+                            val returnGestureInProgress =
+                                videoCardDepthBackgroundState.isReturnGestureInProgressProvider() ||
+                                    videoCardDepthBackgroundState
+                                        .isGestureRestoreInProgressProvider()
+                            resolveVideoDetailReturnMediaFrame(
+                                transitionProgress = resolveVideoDetailReturnVisualProgress(
+                                    animatedVisibilityProgress = detailTransitionProgress.value,
+                                    morphDepthProgress =
+                                        videoCardDepthBackgroundState.progressProvider(),
+                                    liveReturnMorph = liveReturnMorph,
+                                ),
+                                isCommittedCardReturn = isCommittedCardReturn,
+                                hasResidentCover = hasResidentReturnCover,
+                                liveReturnMorph = liveReturnMorph,
+                                isReturnGestureInProgress = returnGestureInProgress,
+                            )
+                        }
                         Box(
                             modifier = playerContainerModifier
                                 .fillMaxWidth()
@@ -4092,26 +4128,7 @@ internal fun VideoDetailScreenStateHolder(
                                         // an ancestor Compose alpha, but it can be occluded by this layer.
                                         .zIndex(1f)
                                         .graphicsLayer {
-                                            val returnGestureInProgress =
-                                                videoCardDepthBackgroundState
-                                                    .isReturnGestureInProgressProvider() ||
-                                                    videoCardDepthBackgroundState
-                                                        .isGestureRestoreInProgressProvider()
-                                            alpha = resolveVideoDetailReturnMediaFrame(
-                                                transitionProgress =
-                                                    resolveVideoDetailReturnVisualProgress(
-                                                        animatedVisibilityProgress =
-                                                            detailTransitionProgress.value,
-                                                        morphDepthProgress =
-                                                            videoCardDepthBackgroundState
-                                                                .progressProvider(),
-                                                        liveReturnMorph = liveReturnMorph,
-                                                    ),
-                                                isCommittedCardReturn = isCommittedCardReturn,
-                                                hasResidentCover = hasResidentReturnCover,
-                                                liveReturnMorph = liveReturnMorph,
-                                                isReturnGestureInProgress = returnGestureInProgress,
-                                            ).coverAlpha
+                                            alpha = returnMediaFrameProvider().coverAlpha
                                         },
                                     contentScale = ContentScale.Crop
                                 )
@@ -4129,26 +4146,7 @@ internal fun VideoDetailScreenStateHolder(
                                     )
                                     .zIndex(0f)
                                     .graphicsLayer {
-                                        val returnGestureInProgress =
-                                            videoCardDepthBackgroundState
-                                                .isReturnGestureInProgressProvider() ||
-                                                videoCardDepthBackgroundState
-                                                    .isGestureRestoreInProgressProvider()
-                                        alpha = resolveVideoDetailReturnMediaFrame(
-                                            transitionProgress =
-                                                resolveVideoDetailReturnVisualProgress(
-                                                    animatedVisibilityProgress =
-                                                        detailTransitionProgress.value,
-                                                    morphDepthProgress =
-                                                        videoCardDepthBackgroundState
-                                                            .progressProvider(),
-                                                    liveReturnMorph = liveReturnMorph,
-                                                ),
-                                            isCommittedCardReturn = isCommittedCardReturn,
-                                            hasResidentCover = hasResidentReturnCover,
-                                            liveReturnMorph = liveReturnMorph,
-                                            isReturnGestureInProgress = returnGestureInProgress,
-                                        ).playerAlpha
+                                        alpha = returnMediaFrameProvider().playerAlpha
                                     }
                             ) {
                             if (continuousFullscreenTransitionEnabled) {
@@ -4234,6 +4232,21 @@ internal fun VideoDetailScreenStateHolder(
                             )
                             }
                             }
+                            VideoDetailReturnCoverChrome(
+                                sourceChromeSnapshot = miuixLandingState.sourceChromeSnapshot,
+                                sourceScale = landingLayoutForMedia?.sourceScale ?: 1f,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .videoDetailReturnMediaLayout(
+                                        landingLayout = landingLayoutForMedia,
+                                        handoffProgressProvider =
+                                            returnMediaHandoffProgressProvider,
+                                    )
+                                    .zIndex(1.5f)
+                                    .graphicsLayer {
+                                        alpha = returnMediaFrameProvider().coverAlpha
+                                    },
+                            )
                             CollapsedPlayerNavigationBar(
                                 scrollRatio = layoutCollapseProgress,
                                 topInset = collapsedSystemBarInset,

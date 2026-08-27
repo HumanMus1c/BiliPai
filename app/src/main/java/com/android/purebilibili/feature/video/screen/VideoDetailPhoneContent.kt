@@ -438,6 +438,7 @@ private fun ExternalPlaylistQueueCollapsedBar(
     AppSurface(
         modifier = modifier
             .fillMaxWidth()
+            .height(64.dp)
             // 先 clip 再 haze：否则模糊层按矩形绘制，左/右端会露出直角（与展开 sheet 一致）。
             .clip(shape)
             .then(

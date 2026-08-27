@@ -3538,7 +3538,6 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
     }
     val selectedAlpha = if (selected) 1f else 0f
     val selectionScale = LocalFloatingBottomBarItemSelectionScale.current
-    val density = LocalDensity.current
 
     if (showIcon) {
         Box(
@@ -3546,9 +3545,6 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
                 val scale = selectionScale()
                 scaleX = scale
                 scaleY = scale
-                translationY = with(density) {
-                    -resolveNavigationIconSelectionLiftDp(scale).dp.toPx()
-                }
                 clip = false
             },
             contentAlignment = Alignment.Center,

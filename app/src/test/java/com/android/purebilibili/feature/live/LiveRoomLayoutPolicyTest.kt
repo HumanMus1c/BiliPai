@@ -8,6 +8,14 @@ import kotlin.test.assertTrue
 class LiveRoomLayoutPolicyTest {
 
     @Test
+    fun `only landscape video overlay uses media chat colors`() {
+        assertTrue(shouldUseLiveChatMediaOverlay(LiveRoomLayoutMode.LandscapeOverlay))
+        assertTrue(shouldUseLiveChatMediaOverlay(LiveRoomLayoutMode.PortraitVerticalOverlay))
+        assertFalse(shouldUseLiveChatMediaOverlay(LiveRoomLayoutMode.PortraitPanel))
+        assertFalse(shouldUseLiveChatMediaOverlay(LiveRoomLayoutMode.LandscapeSplit))
+    }
+
+    @Test
     fun `phone fullscreen requests sensor landscape instead of following window tablet width`() {
         assertEquals(
             LiveRequestedOrientationMode.SensorLandscape,

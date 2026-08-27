@@ -1767,8 +1767,7 @@ class SpaceViewModel(
             val page = if (refresh) 1 else current.articlePage + 1
             
             try {
-                val articleOffset = if (refresh) "" else current.articleOffset
-                val result = fetchSpaceArticleList(currentMid, page, articleOffset)
+                val result = fetchSpaceArticleList(currentMid, page)
                  val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
                  
                  if (result != null && result.code == 0) {
@@ -1816,7 +1815,7 @@ class SpaceViewModel(
         activeSpaceArticleJob?.cancel()
         activeSpaceArticleJob = viewModelScope.launch {
             try {
-                val result = fetchSpaceArticleList(mid = mid, page = 1, offset = "")
+                val result = fetchSpaceArticleList(mid = mid, page = 1)
                 if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
                     return@launch
                 }
@@ -1854,16 +1853,15 @@ class SpaceViewModel(
         }
     }
 
-    private suspend fun fetchSpaceArticleList(mid: Long, page: Int, offset: String): SpaceArticleResponse? {
+    private suspend fun fetchSpaceArticleList(mid: Long, page: Int): SpaceArticleResponse? {
         return try {
             if (!ensureWbiKeysLoaded()) return null
             val params = WbiUtils.sign(
                 mapOf(
-                    "host_mid" to mid.toString(),
-                    "page" to page.toString(),
-                    "offset" to offset,
-                    "type" to "all",
-                    "web_location" to "333.1387"
+                    "mid" to mid.toString(),
+                    "pn" to page.toString(),
+                    "ps" to "30",
+                    "sort" to "publish_time"
                 ),
                 cachedImgKey,
                 cachedSubKey

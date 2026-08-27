@@ -33,7 +33,7 @@ class ProfileSpacePolicyTest {
     @Test
     fun `profile space tabs match self space order`() {
         assertEquals(
-            listOf("主页", "动态", "投稿", "收藏", "追番"),
+            listOf("主页", "动态", "投稿", "收藏", "番剧"),
             defaultProfileSpaceTabs().map { it.title }
         )
         assertEquals(ProfileSpaceMainTab.HOME, defaultProfileSpaceTabs().first().tab)

@@ -214,10 +214,10 @@ class DynamicApiContractTest {
     }
 
     @Test
-    fun getSpaceArticleList_usesDocumentedOpusSpaceFeedEndpointAndQueryMap() {
+    fun getSpaceArticleList_usesDocumentedSpaceArticleEndpointAndQueryMap() {
         val method = SpaceApi::class.java.methods.first { it.name == "getSpaceArticleList" }
         val get = method.getAnnotation(GET::class.java)
-        assertEquals("x/polymer/web-dynamic/v1/opus/feed/space", get?.value)
+        assertEquals("x/space/wbi/article", get?.value)
 
         val firstParamAnnotations = method.parameterAnnotations[0].toList()
         assertTrue(firstParamAnnotations.any { it is QueryMap })

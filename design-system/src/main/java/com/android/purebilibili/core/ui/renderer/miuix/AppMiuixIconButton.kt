@@ -16,9 +16,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.android.purebilibili.core.ui.components.AppIconButtonColors
 import com.android.purebilibili.core.ui.components.AppIconButtonVariant
 import com.android.purebilibili.core.ui.components.appDesktopFocusableItemVisuals
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.IconButtonDefaults as MiuixIconButtonDefaults
 import top.yukonga.miuix.kmp.theme.LocalContentColor as MiuixLocalContentColor
 
 @Composable
@@ -69,7 +70,7 @@ internal fun AppMiuixIconButton(
     val nativeModifier = modifier
         .appDesktopFocusableItemVisuals(
             enabled = enabled,
-            shape = RoundedCornerShape(MiuixIconButtonDefaults.CornerRadius),
+            shape = RoundedCornerShape(AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp),
         )
         .then(pointerMirror)
 
@@ -79,6 +80,9 @@ internal fun AppMiuixIconButton(
             modifier = nativeModifier,
             enabled = enabled,
             backgroundColor = backgroundColor,
+            minHeight = AppChromeSizeTokens.MiuixNativeCompactControlHeightDp.dp,
+            minWidth = AppChromeSizeTokens.MiuixNativeCompactControlHeightDp.dp,
+            cornerRadius = AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp,
             content = content,
         )
     }

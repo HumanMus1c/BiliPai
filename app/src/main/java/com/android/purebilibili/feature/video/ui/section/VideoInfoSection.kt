@@ -697,7 +697,8 @@ fun UpInfoSection(
     transitionEnabled: Boolean = false,  // 🔗 共享元素过渡开关
     isQuickReturnLimitedForSharedElements: Boolean = false,
     sourceRouteForSharedElement: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val playerControlVisibility by com.android.purebilibili.core.store.SettingsManager
         .getPlayerControlVisibilitySettings(LocalContext.current)
@@ -748,7 +749,7 @@ fun UpInfoSection(
         ) {
             if (showOwnerAvatar) {
                 var avatarModifier = Modifier
-                    .size(44.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
 
@@ -856,7 +857,7 @@ fun UpInfoSection(
                     }
                     AppText(
                         text = info.owner.name,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -877,7 +878,7 @@ fun UpInfoSection(
             }
 
             if (playerControlVisibility.showFollowButton) {
-                var followActionModifier = Modifier.height(36.dp)
+                var followActionModifier = Modifier.height(32.dp)
                 if (metadataSharedEnabled) {
                     with(requireNotNull(sharedTransitionScope)) {
                         followActionModifier = followActionModifier.sharedBounds(
@@ -918,11 +919,11 @@ fun UpInfoSection(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     ) {
                         AppText(
                             text = if (isFollowing) "\u5df2\u5173\u6ce8" else "\u5173\u6ce8",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             color = when (followVisualPolicy.detailTextTone) {
                                 FollowTextTone.ON_PRIMARY -> MaterialTheme.colorScheme.onPrimary
                                 FollowTextTone.ON_PRIMARY_CONTAINER -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -931,6 +932,12 @@ fun UpInfoSection(
                         )
                     }
                 }
+            }
+            if (trailingContent != null) {
+                if (playerControlVisibility.showFollowButton) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                trailingContent()
             }
         }
         if (shouldShowCreatorTeamSection(info)) {

@@ -57,12 +57,17 @@ internal class ByteDanceDanmakuEngine(
             scroll.lineCount = config.lineCount
             scroll.marginTop = config.topMarginPx
             top.lineHeight = config.lineHeightPx
-            top.lineCount = (config.lineCount / 2).coerceAtLeast(1)
+            // The display-area setting is a total vertical budget. Splitting the
+            // line count into top and bottom layers made a 1/4 selection occupy
+            // roughly half the viewport (top + bottom each got half the budget).
+            // Keep pinned layers conservative so they cannot expand the selected
+            // band; scrolling remains the source of the configured line budget.
+            top.lineCount = if (config.lineCount <= 4) 0 else (config.lineCount / 2).coerceAtLeast(1)
             top.marginTop = config.topMarginPx
             top.showTimeMin = config.pinnedDurationMs
             top.showTimeMax = config.pinnedDurationMs
             bottom.lineHeight = config.lineHeightPx
-            bottom.lineCount = (config.lineCount / 2).coerceAtLeast(1)
+            bottom.lineCount = if (config.lineCount <= 4) 0 else (config.lineCount / 2).coerceAtLeast(1)
             bottom.marginBottom = config.bottomMarginPx
             bottom.showTimeMin = config.pinnedDurationMs
             bottom.showTimeMax = config.pinnedDurationMs

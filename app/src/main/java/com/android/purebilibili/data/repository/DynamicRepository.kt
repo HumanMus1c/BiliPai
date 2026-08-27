@@ -281,7 +281,7 @@ object DynamicRepository {
             webItem?.let(candidates::add)
 
             var opusFallbackCvId: Long? = null
-            if (webItem == null || shouldFetchOpusDetailForDynamicDetail(webItem) || shouldFallbackForDynamicDetail(webItem)) {
+            if (shouldRequestOpusDetailForDynamicDetail(webItem = webItem, seedItem = seed)) {
                 val opusFetch = fetchOpusDetail(cleanedId)
                 opusFetch.item?.let(candidates::add)
                 opusFallbackCvId = opusFetch.fallbackCvId
