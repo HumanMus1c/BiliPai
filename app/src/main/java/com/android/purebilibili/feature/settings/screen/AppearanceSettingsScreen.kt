@@ -65,6 +65,7 @@ import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.core.ui.blur.BlurIntensity
+import com.android.purebilibili.core.ui.blur.resolveHomeChromeLiquidGlassEnabled
 import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.ui.getWindowNavigationBarColor
 import com.android.purebilibili.core.ui.rememberAppSparklesIcon
@@ -103,6 +104,10 @@ fun AppearanceSettingsScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val effectiveLiquidGlassEnabled = resolveHomeChromeLiquidGlassEnabled(
+        userEnabled = state.androidNativeLiquidGlassEnabled,
+        sdkInt = Build.VERSION.SDK_INT,
+    )
     val coroutineScope = rememberCoroutineScope()
     var pendingLanguageRestart by remember { mutableStateOf<AppLanguage?>(null) }
     val backLabel = stringResource(R.string.common_back)
@@ -152,7 +157,7 @@ fun AppearanceSettingsScreen(
         scrollHost = SettingsPageScrollHost.External,
         topBarBlurEnabled = state.headerBlurEnabled,
     ) {
-        CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides state.isLiquidGlassEnabled) {
+        CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides effectiveLiquidGlassEnabled) {
             AppearanceSettingsContent(
                 state = state,
                 onNavigateToIconSettings = onNavigateToIconSettings,
@@ -458,6 +463,10 @@ fun AppearanceSettingsContent(
         .getShowOnlineCount(context)
         .collectAsStateWithLifecycle(initialValue = false)
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
+    val effectiveLiquidGlassEnabled = resolveHomeChromeLiquidGlassEnabled(
+        userEnabled = state.androidNativeLiquidGlassEnabled,
+        sdkInt = Build.VERSION.SDK_INT,
+    )
     val showThemeColorPicker = shouldShowMd3CustomColorControls(state.md3ColorSource)
     var showMd3ColorPickerDialog by remember { mutableStateOf(false) }
     var roleColorTarget by remember { mutableStateOf<ThemeRoleColorTarget?>(null) }
@@ -536,7 +545,7 @@ fun AppearanceSettingsContent(
                                 } else {
                                     "当前 Android 版本暂不支持液态玻璃效果"
                                 },
-                                checked = state.androidNativeLiquidGlassEnabled,
+                                checked = effectiveLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleAndroidNativeLiquidGlass(it) },
                                 enabled = isLiquidGlassAvailable,
                                 iconTint = iOSBlue

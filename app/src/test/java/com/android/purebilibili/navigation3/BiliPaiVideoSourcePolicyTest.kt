@@ -33,7 +33,7 @@ class BiliPaiVideoSourcePolicyTest {
     }
 
     @Test
-    fun listAndRelatedDetailUseDistinctCardMorphModes() {
+    fun listAndRelatedDetailUseTheSameWholeCardMorphMode() {
         assertTrue(isRelatedVideoCardMorphSourceRoute("video/BV_PARENT"))
         assertFalse(isRelatedVideoCardMorphSourceRoute("partition"))
         assertFalse(isRelatedVideoCardMorphSourceRoute("home?category=1"))
@@ -68,7 +68,7 @@ class BiliPaiVideoSourcePolicyTest {
             )
         }
         assertEquals(
-            BiliPaiVideoCardMorphMode.NESTED_RELATED,
+            BiliPaiVideoCardMorphMode.PRIMARY_WHOLE_CARD,
             resolveBiliPaiVideoCardMorphMode(
                 cardTransitionEnabled = true,
                 reduceMotion = false,
@@ -83,7 +83,7 @@ class BiliPaiVideoSourcePolicyTest {
                 sourceRoute = "video/BV_PARENT",
                 hasUsableSourceBounds = true,
             ),
-            "相关推荐应使用嵌套卡片 Morph",
+            "相关推荐应与首页一样使用整卡 Morph",
         )
         assertFalse(
             shouldUseMiuixVideoCardMorph(

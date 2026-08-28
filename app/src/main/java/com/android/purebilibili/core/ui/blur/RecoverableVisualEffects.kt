@@ -54,6 +54,13 @@ internal fun shouldAllowHomeChromeLiquidGlass(
     return sdkInt >= Build.VERSION_CODES.TIRAMISU
 }
 
+internal fun resolveHomeChromeLiquidGlassEnabled(
+    userEnabled: Boolean,
+    sdkInt: Int
+): Boolean {
+    return userEnabled && shouldAllowHomeChromeLiquidGlass(sdkInt)
+}
+
 internal fun shouldAllowRuntimeShaderBackedHazeEffect(
     sdkInt: Int
 ): Boolean {

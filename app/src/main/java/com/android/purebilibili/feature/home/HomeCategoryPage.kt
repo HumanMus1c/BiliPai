@@ -549,26 +549,34 @@ private fun PopularSubCategorySegmentedControl(
         stringResource(resolvePopularSubCategoryLabelRes(subCategory))
     }
 
-    BottomBarLiquidSegmentedControl(
-        items = labels,
-        selectedIndex = selectedIndex,
-        onSelected = { index ->
-            subCategories.getOrNull(index)?.let(onSubCategoryChange)
-        },
+    Box(
         modifier = modifier,
-        height = AppSpacingTokens.TripleExtraLarge,
-        indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
-            AppSpacingTokens.TripleExtraLarge.value
-        ).dp,
-        labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
-        containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
-        containerVerticalPadding = AppSpacingTokens.ExtraSmall,
-        miuixBackdrop = null,
-        liquidGlassEffectsEnabled = true,
-        tapPressRefractionEnabled = true,
-        dragSelectionEnabled = false,
-        preferInlineContentStyle = true
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        BottomBarLiquidSegmentedControl(
+            items = labels,
+            selectedIndex = selectedIndex,
+            onSelected = { index ->
+                subCategories.getOrNull(index)?.let(onSubCategoryChange)
+            },
+            modifier = Modifier
+                .widthIn(max = 400.dp)
+                .fillMaxWidth(),
+            height = AppSpacingTokens.TripleExtraLarge,
+            indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+                AppSpacingTokens.TripleExtraLarge.value
+            ).dp,
+            labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
+            containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
+            containerVerticalPadding = AppSpacingTokens.ExtraSmall,
+            miuixBackdrop = null,
+            liquidGlassEffectsEnabled = true,
+            tapPressRefractionEnabled = true,
+            dragSelectionEnabled = false,
+            preferInlineContentStyle = true,
+            forceEqualWidth = true,
+        )
+    }
 }
 
 @Composable

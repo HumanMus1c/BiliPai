@@ -17,8 +17,8 @@ import com.android.purebilibili.core.util.CardPositionManager
 /**
  * 源卡信息区在 shell morph 时的 chrome 视觉。
  *
- * morph 中列表真卡保持透明（飞行层盖住列表）；卸层后再亮。
- * 返回途中可见的标题/UP 由飞行壳 [VideoDetailReturnSourceCardChrome] 绘制。
+ * 列表真卡与飞行 entry 使用同一 shared-bounds 几何；返回时由 shared transition 自己完成
+ * 像素交接，避免额外的整卡 alpha 层造成播放器 Surface 黑帧。
  * 横卡可选择随主进度短距离移动。进度在绘制阶段读取，避免整卡重组。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)

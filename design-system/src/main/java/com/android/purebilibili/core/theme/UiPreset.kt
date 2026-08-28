@@ -32,7 +32,7 @@ enum class AndroidNativeVariant(val value: Int, val label: String) {
 
 /**
  * 运行时主题选择（两值模型）：仅保留 MIUIX / MATERIAL3。
- * 历史 iOS 值在迁移边界（fromLegacyValues / resolveUiStyle）解析为默认主题 MIUIX，
+ * 历史 iOS 值在迁移边界（fromLegacyValues / resolveUiStyle）解析为 MIUIX，
  * 不再进入运行时。
  */
 enum class AppUiStyle {
@@ -41,7 +41,8 @@ enum class AppUiStyle {
 
     companion object {
         /**
-         * 按迁移表解析历史旧键：iOS、缺失、非法值一律得到默认主题 MIUIX；
+         * 按迁移表解析历史旧键：全量缺失使用新用户默认的 Material 3；
+         * 历史 iOS 或非法组合迁移为 MIUIX；
          * 仅 MD3 + 合法变体保留有效选择。
          */
         fun fromLegacyValues(
@@ -53,7 +54,8 @@ enum class AppUiStyle {
                 AndroidNativeVariant::fromValueOrNull
             )
             return when {
-                // 缺失或非法（preset 或 variant 任一）→ 默认主题 MIUIX
+                rawUiPreset == null && rawAndroidNativeVariant == null -> AppUiStyle.MATERIAL3
+                // 非法或历史 iOS 组合保留旧用户的 MIUIX 兼容行为。
                 uiPreset == null || androidNativeVariant == null -> AppUiStyle.MIUIX
                 else -> resolveUiStyle(uiPreset, androidNativeVariant)
             }
@@ -74,6 +76,6 @@ fun resolveUiStyle(
 }
 
 /** 两值运行时主题 Local。 */
-val LocalAppUiStyle = staticCompositionLocalOf { AppUiStyle.MIUIX }
+val LocalAppUiStyle = staticCompositionLocalOf { AppUiStyle.MATERIAL3 }
 val LocalDynamicColorActive = staticCompositionLocalOf { false }
 val LocalSettingsLiquidGlassEnabled = staticCompositionLocalOf { false }

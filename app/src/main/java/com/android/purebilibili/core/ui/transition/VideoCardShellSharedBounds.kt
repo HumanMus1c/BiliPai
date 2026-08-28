@@ -122,6 +122,12 @@ internal fun resolveVideoCardShellSourceExitFadeDurationMillis(
     return (duration * VIDEO_CARD_SHELL_SOURCE_EXIT_FADE_RATIO).toInt().coerceIn(72, duration.coerceAtLeast(72))
 }
 
+internal fun shouldCrossfadeVideoCardSourceContentOnReturn(
+    requested: Boolean,
+    isQuickReturnFromDetail: Boolean,
+    preferWholeCardReturn: Boolean,
+): Boolean = requested && !isQuickReturnFromDetail && !preferWholeCardReturn
+
 internal fun resolveVideoCardShellSharedBoundsEnter(
     role: VideoCardShellSharedBoundsRole,
     transitionDurationMillis: Int,
@@ -205,8 +211,11 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
     val bgState = LocalVideoCardTransitionBackgroundState.current
     // 快速返回：源卡 Enter.None，标题/UP 与封面同步落位，避免先占位后出字。
     val isQuickReturnFromDetail = bgState.isQuickReturnFromDetailProvider()
-    val crossfadeSourceContentOnReturn =
-        crossfadeSourceContent && !isQuickReturnFromDetail
+    val crossfadeSourceContentOnReturn = shouldCrossfadeVideoCardSourceContentOnReturn(
+        requested = crossfadeSourceContent,
+        isQuickReturnFromDetail = isQuickReturnFromDetail,
+        preferWholeCardReturn = bgState.preferWholeCardReturnProvider(),
+    )
     val delaySourceCardEnter = shouldDelaySourceCardEnterForLiveReturnMorph(
         sourceRoute = sourceRoute,
         isQuickReturnFromDetail = isQuickReturnFromDetail,

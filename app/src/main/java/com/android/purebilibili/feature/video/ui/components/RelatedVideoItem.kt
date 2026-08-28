@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -9,13 +10,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -58,10 +60,18 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
+import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.LocalVideoTransitionAdaptiveInfo
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
+import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
@@ -74,7 +84,7 @@ import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.feature.home.HomeFeedCardLayout
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
-import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
@@ -158,9 +168,10 @@ internal fun rememberRelatedVideoCardLayout(): HomeFeedCardLayout {
 }
 
 /**
- * 相关推荐单列横卡：点击时冻结来源标识、几何与 chrome，供嵌套卡片 Morph 及逐层返回。
- * 导航宿主统一驱动动效，卡片本身不额外叠加 AnimatedContent 或封面 crossfade。
+ * 相关推荐单列横卡：点击时冻结来源标识、几何与 chrome，供整卡 Morph 及逐层返回。
+ * 与首页视频卡一致，由一个 sharedBounds 容器承载封面、标题、UP 信息和统计内容。
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun RelatedVideoItem(
     video: RelatedVideo,
@@ -182,6 +193,31 @@ fun RelatedVideoItem(
     val densityValue = density.density
     val sourceRoute = resolveRelatedVideoSharedElementSourceRoute(
         LocalVideoCardSharedElementSourceRoute.current
+    )
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+    val sharedTransitionEnabled = LocalSharedTransitionEnabled.current
+    val sharedReady = sharedTransitionEnabled &&
+        sharedTransitionScope != null &&
+        animatedVisibilityScope != null
+    val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = LocalVideoTransitionAdaptiveInfo.current
+    val sharedTransitionMotionSpec = remember(
+        sourceRoute,
+        sharedTransitionEnabled,
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
+    ) {
+        resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = sourceRoute,
+            transitionEnabled = sharedTransitionEnabled,
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
+        )
+    }
+    val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
+        sourceRoute = sourceRoute,
+        transitionEnabled = sharedReady,
     )
     val cardCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
     val coverCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
@@ -230,6 +266,7 @@ fun RelatedVideoItem(
                             .resolveVideoCardSourceInfoPresentation(
                                 publishTimeText = FormatUtils.formatPublishTime(video.pubdate),
                                 showStatsInInfo = true,
+                                showOverflowMenu = onMoreClick != null,
                             ),
                         coverUrl = stationaryCoverUrl,
                         coverCacheKey = stationaryCoverUrl,
@@ -254,6 +291,16 @@ fun RelatedVideoItem(
             .onGloballyPositioned { coordinates ->
                 cardCoordinatesRef.value = coordinates
             }
+            .videoCardShellSharedBoundsOrEmpty(
+                enabled = useCardShellSharedBounds,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                bvid = video.bvid,
+                sourceRoute = sourceRoute,
+                motionSpec = sharedTransitionMotionSpec,
+                clipShape = cardShape,
+                crossfadeSourceContent = true,
+            )
             .clip(cardShape)
             .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerRelatedVideoClick)
@@ -261,7 +308,9 @@ fun RelatedVideoItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(coverHeight),
+                // Keep the cover as the minimum row height, but let the information column
+                // grow when title + UP/publish + statistics need more vertical space.
+                .heightIn(min = coverHeight),
             horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
             verticalAlignment = Alignment.Top,
         ) {
@@ -301,9 +350,11 @@ fun RelatedVideoItem(
 
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween,
+                    .weight(1f),
+                // Keep the headline in normal flow. A weighted headline inside a
+                // SpaceBetween column can collapse during the shared return remeasure,
+                // leaving only the date/UP and stats rows visible.
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
             ) {
                 AppText(
                     text = video.title,
@@ -311,11 +362,11 @@ fun RelatedVideoItem(
                     // This side-by-side card has a cover-bound fixed height. Never let the
                     // global "full card content" preference make its title overlap metadata.
                     maxLines = 2,
+                    minLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false),
+                        .fillMaxWidth(),
                 )
                 Column(
                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
@@ -338,6 +389,8 @@ fun RelatedVideoItem(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 96.dp),
                             )
                         }
                         UpBadgeName(
@@ -389,11 +442,11 @@ fun RelatedVideoItem(
                             badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                             showUpBadge = showUpBadge,
                             maxLines = 1,
-                            overflow = TextOverflow.Clip,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    VideoStatRow(
+                    HorizontalVideoStatRow(
                         playText = FormatUtils.formatStat(video.stat.view.toLong()),
                         danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                         modifier = Modifier.padding(end = if (onMoreClick != null) 32.dp else 0.dp),

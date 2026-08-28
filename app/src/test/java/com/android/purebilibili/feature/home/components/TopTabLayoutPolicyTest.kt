@@ -7,6 +7,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TopTabLayoutPolicyTest {
+    @Test
+    fun `legacy top tabs divide the available width across all five items`() {
+        assertEquals(
+            72f,
+            resolveFixedHomeTopTabItemWidthDp(
+                containerWidthDp = 360f,
+                categoryCount = 5,
+            ),
+            0.001f,
+        )
+    }
 
     @Test
     fun `visible slot count should stay in compact range`() {

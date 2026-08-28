@@ -242,7 +242,7 @@ internal fun BiliPaiNavDisplayHost(
             stackSnapshot.size < previous.size
         when {
             openedCardDestination -> {
-                videoCardClock.beginOpening(sourceMetadata.sourceRoute)
+                videoCardClock.beginOpeningIfNeeded(sourceMetadata.sourceRoute)
                 videoCardClock.snapFallback(0f)
                 videoCardClock.animateFallbackTo(
                     target = 1f,

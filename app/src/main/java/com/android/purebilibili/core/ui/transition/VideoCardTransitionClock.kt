@@ -136,6 +136,22 @@ internal class VideoCardTransitionClock {
     }
 
     /**
+     * Card clicks pre-arm OPENING before the destination is added to the back stack so the
+     * destination's very first frame can consume the frozen source cover. The Nav host observes
+     * that same stack change later; do not restart the clock there or clear progress already
+     * reported by the newly mounted entry.
+     */
+    fun beginOpeningIfNeeded(sourceRoute: String?) {
+        if (
+            phase == VideoCardTransitionBackgroundPhase.OPENING &&
+            this.sourceRoute == sourceRoute
+        ) {
+            return
+        }
+        beginOpening(sourceRoute)
+    }
+
+    /**
      * @param startDepth 消糊起点。HELD 稳态后必须为 1（满糊），否则 shared-only 进场
      * 留下的 fallback=0 会让返回首帧立刻清晰、看不到模糊过程。
      */

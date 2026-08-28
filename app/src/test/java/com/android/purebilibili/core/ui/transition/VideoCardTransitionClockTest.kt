@@ -205,6 +205,19 @@ class VideoCardTransitionClockTest {
     }
 
     @Test
+    fun prearmedOpeningIsNotRestartedByTheNavHostObserver() {
+        val clock = VideoCardTransitionClock()
+        clock.beginOpeningIfNeeded("history")
+        clock.reportSharedMorphProgress(morphFraction = 0.35f, active = true)
+
+        clock.beginOpeningIfNeeded("history")
+
+        assertEquals(VideoCardTransitionBackgroundPhase.OPENING, clock.phase)
+        assertEquals("history", clock.sourceRoute)
+        assertEquals(0.35f, clock.depthProgress(), 0.0001f)
+    }
+
+    @Test
     fun heldPhaseKeepsFullDepthWhenFallbackNeverSeeded() {
         assertEquals(
             1f,

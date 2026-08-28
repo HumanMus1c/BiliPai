@@ -56,15 +56,14 @@ class RelatedVideoItemPolicyTest {
     }
 
     @Test
-    fun `related detail records source metadata without mounting card chrome animation`() {
+    fun `related detail uses the same whole card shared bounds as home video cards`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt")
             .readText()
 
         assertTrue(source.contains("RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
         assertTrue(source.contains("coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
         assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP"))
-        assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("HorizontalVideoStatRow("))
+        assertTrue(source.contains("VideoStatRow("))
         assertTrue(source.contains(".align(Alignment.BottomEnd)"))
         assertTrue(source.contains(".size(32.dp)"))
         assertTrue(
@@ -75,7 +74,8 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("RELATED_VIDEO_GRID_COLUMNS = 1"))
         assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
         assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
-        assertFalse(source.contains("videoCardShellSharedBoundsOrEmpty("))
+        assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
+        assertTrue(source.contains("crossfadeSourceContent = true"))
         assertFalse(source.contains("videoCoverSharedBoundsOrEmpty("))
         assertTrue(source.contains("sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE"))
         assertTrue(source.contains("sourceChromeSnapshot = VideoCardSourceChromeSnapshot("))
@@ -86,9 +86,9 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))
-        assertFalse(source.contains(".height(coverHeight)"))
+        assertTrue(source.contains(".height(coverHeight)"))
         assertTrue(
-            source.indexOf("UpBadgeName(") < source.indexOf("HorizontalVideoStatRow(")
+            source.indexOf("UpBadgeName(") < source.indexOf("VideoStatRow(")
         )
     }
 

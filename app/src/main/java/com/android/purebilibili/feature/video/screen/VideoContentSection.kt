@@ -116,6 +116,8 @@ import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 internal fun shouldShowDanmakuSendInput(isPlayerCollapsed: Boolean): Boolean = !isPlayerCollapsed
 
@@ -1715,13 +1717,18 @@ private fun VideoContentTabBar(
     val danmakuActionLayoutPolicy = remember(configuration.screenWidthDp) {
         resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = configuration.screenWidthDp)
     }
+    // Miuix uses its native tab row on this surface; keep the liquid dock opt-in to the
+    // MD3 presentation so it cannot center over the danmaku actions.
+    val liquidGlassEnabledForTabBar =
+        homeSettings.androidNativeLiquidGlassEnabled && LocalAppUiStyle.current != AppUiStyle.MIUIX
     val liquidChromeSpec = remember(
-        homeSettings.androidNativeLiquidGlassEnabled,
+        liquidGlassEnabledForTabBar,
+        LocalAppUiStyle.current,
         miuixBackdrop,
         layoutSpec
     ) {
         resolveVideoContentTabBarLiquidChromeSpec(
-            androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+            androidNativeLiquidGlassEnabled = liquidGlassEnabledForTabBar,
             hasBackdrop = miuixBackdrop != null,
             layoutSpec = layoutSpec,
         )
@@ -1753,15 +1760,19 @@ private fun VideoContentTabBar(
                 Arrangement.Start
             }
         ) {
-            AppThemeAdaptiveTabRow(
-                options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
-                selectedValue = selectedTabIndex,
-                onSelectionChange = onTabSelected,
+            Box(
                 modifier = Modifier.width(
                     (resolveVideoContentTabBarDockItemWidthDp(
-                        layoutSpec.unselectedTabFontSizeSp,
+                        liquidChromeSpec.labelFontSizeSp,
                     ) * tabs.size).dp,
                 ),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                AppThemeAdaptiveTabRow(
+                    options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
+                    selectedValue = selectedTabIndex,
+                    onSelectionChange = onTabSelected,
+                    modifier = Modifier.fillMaxWidth(),
                 height = liquidChromeSpec.segmentedControlHeightDp.dp,
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
@@ -1770,8 +1781,9 @@ private fun VideoContentTabBar(
                 tapPressRefractionEnabled = true,
                 miuixBackdrop = miuixBackdrop,
                 indicatorPositionProvider = indicatorPositionProvider,
-                isScrollInProgressProvider = isScrollInProgressProvider,
-            )
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                )
+            }
 
             if (shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex)) {
                 Spacer(modifier = Modifier.weight(1f))

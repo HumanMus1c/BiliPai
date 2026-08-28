@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.first
  * 目标架构：运行时只保留 MIUIX / MATERIAL3 两值，枚举持久化使用稳定字符串。
  * 历史旧键 `ui_preset` / `android_native_variant_v1` 在首次读取时按
  * FRONTEND_ARCHITECTURE_THEME_SIMPLIFICATION_PLAN.md §5.2 迁移表单向迁移：
- * iOS、缺失、非法值 → MIUIX；MD3 组合保留有效选择；同一事务写入新键并删除旧键。
+ * iOS、非法值 → MIUIX；全量缺失 → 新用户默认 Material 3；同一事务写入新键并删除旧键。
  */
 
 internal val KEY_THEME_SELECTION = stringPreferencesKey("theme_selection_v1")
@@ -45,7 +45,7 @@ internal data class ThemeSelectionMigrationResult(
 /**
  * 按迁移表计算迁移结果（纯函数，可测试）：
  * - 新键优先；非法新键视为缺失。
- * - 旧 iOS、缺失、非法值 → MIUIX；MD3 组合保留有效选择。
+ * - 旧 iOS、非法值 → MIUIX；全量缺失 → Material 3；MD3 组合保留有效选择。
  * - 同一事务写入新键并删除旧键。
  */
 internal fun resolveThemeSelectionMigration(

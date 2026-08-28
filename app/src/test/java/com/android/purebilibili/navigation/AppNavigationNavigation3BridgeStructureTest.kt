@@ -113,6 +113,24 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
+    fun videoCardOpeningIsPrearmedBeforeTheDetailDestinationMounts() {
+        val source = appNavigationSource()
+        val prearmHelper = source
+            .substringAfter("fun prearmVideoCardOpening(")
+            .substringBefore("var lastVideoDetailOpenId")
+        val videoNavigation = source
+            .substringAfter("fun navigateToVideoRouteInNavigation3(")
+            .substringBefore("fun navigateToVideoInNavigation3(")
+
+        assertTrue(prearmHelper.contains("beginOpeningIfNeeded(session.sourceRoute)"))
+        assertTrue(videoNavigation.contains("prearmVideoCardOpening(transitionSession)"))
+        assertTrue(
+            videoNavigation.indexOf("prearmVideoCardOpening(transitionSession)") <
+                videoNavigation.indexOf("pushNavigation3Key(key)")
+        )
+    }
+
+    @Test
     fun immediateVideoDetailBackTargetKeepsLoadedPreviewContent() {
         val videoDetailBranch = appNavigationSource()
             .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
@@ -486,7 +504,8 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("bottomBarVisibilityState.currentState ||"))
         assertTrue(source.contains("val sideBarRouteGate = shouldShowBottomBarForNavigation("))
         assertTrue(source.contains("windowSizeClass.shouldUseSideNavigation && sideBarMountGate"))
-        assertTrue(source.contains(".relativeToHost(navigationHostOriginInRoot)"))
+        assertTrue(source.contains("transitionSession?.hostOriginInRoot"))
+        assertTrue(source.contains("hostOriginInRoot = navigationHostOriginInRoot"))
         assertTrue(source.contains("val bottomBarReservesSpace = bottomBarCanMount"))
         assertTrue(bottomBarOverlay.contains("visibleState = bottomBarVisibilityState"))
         assertTrue(bottomBarOverlay.contains("BottomBarMatchedDockVisibility("))

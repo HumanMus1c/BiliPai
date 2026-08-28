@@ -93,6 +93,7 @@ fun DynamicCardV2(
     onVideoClick: (String) -> Unit,
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit = {},
     onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
     onArticleClick: ((articleId: Long, title: String) -> Unit)? = null,
     onDynamicDetailClick: ((dynamicId: String) -> Unit)? = null,
@@ -691,6 +692,14 @@ fun DynamicCardV2(
                 }
             }
         }
+
+        content?.topic?.takeIf { it.id > 0L && it.name.isNotBlank() }?.let { topic ->
+            DynamicTopicLabel(
+                topicName = topic.name,
+                onClick = { onTopicClick(topic.id) },
+                modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
+            )
+        }
         
         //  动态内容文字（支持@高亮 / 表情）；优先可渲染表情的 desc 或 opus summary
         val visibleOpusSummaryDescForBody = remember(content?.major?.opus?.summary, content?.major?.opus?.pics) {
@@ -712,6 +721,7 @@ fun DynamicCardV2(
                 RichTextContent(
                     desc = desc,
                     onUserClick = onUserClick,
+                    onTopicClick = onTopicClick,
                     onVoteClick = { voteId -> pendingVoteId = voteId },
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
@@ -858,6 +868,7 @@ fun DynamicCardV2(
                                     RichTextContent(
                                         desc = richBlockDesc,
                                         onUserClick = onUserClick,
+                                        onTopicClick = onTopicClick,
                                         onVoteClick = { voteId -> pendingVoteId = voteId },
                                     )
                                 }
@@ -1243,6 +1254,7 @@ fun DynamicCardV2(
                 onVideoClick = onVideoClick,
                 onBangumiClick = onBangumiClick,
                 onUserClick = onUserClick,
+                onTopicClick = onTopicClick,
                 onDynamicDetailClick = openDynamicDetail,
                 gifImageLoader = gifImageLoader,
                 defaultPreviewTextVisible = dynamicPreviewTextVisible
@@ -1456,6 +1468,45 @@ private fun DynamicNativeLinkCard(
     }
 }
 
+@Composable
+internal fun DynamicTopicLabel(
+    topicName: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
+            .clip(AppShapes.container(ContainerLevel.Chip))
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                .clip(RoundedCornerShape(AppSpacingTokens.ExtraSmall))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppText(
+                text = "#",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+        AppText(
+            text = topicName,
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 private fun openDynamicUrl(
     uriHandler: androidx.compose.ui.platform.UriHandler,
     rawUrl: String,
@@ -1479,6 +1530,7 @@ private fun openDynamicUrl(
 fun RichTextContent(
     desc: DynamicDesc,
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit = {},
     onVoteClick: (Long) -> Unit = {},
     onBlankTap: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -1546,7 +1598,14 @@ fun RichTextContent(
         overflow = overflow,
         color = textColor,
         onTextLayout = { textLayoutResult = it },
-        modifier = modifier.pointerInput(copyText, annotatedText, onVoteClick, onBlankTap) {
+        modifier = modifier.pointerInput(
+            copyText,
+            annotatedText,
+            onUserClick,
+            onVoteClick,
+            onTopicClick,
+            onBlankTap,
+        ) {
             detectTapGestures(
                 onLongPress = {
                     if (copyText.isNotEmpty()) {
@@ -1579,6 +1638,18 @@ fun RichTextContent(
                         ?.takeIf { it > 0L }
                         ?.let { voteId ->
                             onVoteClick(voteId)
+                            return@detectTapGestures
+                        }
+
+                    annotatedText.getStringAnnotations(
+                        tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
+                        start = searchStart,
+                        end = searchEnd
+                    ).firstOrNull()?.item
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0L }
+                        ?.let { topicId ->
+                            onTopicClick(topicId)
                             return@detectTapGestures
                         }
 

@@ -159,10 +159,18 @@ internal fun mergeDynamicDetailInteractionMetadata(
     val seedBasic = seedItem.basic?.takeIf {
         it.comment_type > 0 && it.comment_id_str.toLongOrNull()?.let { oid -> oid > 0L } == true
     }
-    val detailContent = mergeDynamicDetailContentWithSeedMedia(
+    val seedContent = seedItem.modules.module_dynamic
+    val contentWithSeedMedia = mergeDynamicDetailContentWithSeedMedia(
         detailContent = detailItem.modules.module_dynamic,
-        seedContent = seedItem.modules.module_dynamic,
+        seedContent = seedContent,
     )
+    val detailContent = when {
+        contentWithSeedMedia == null -> seedContent
+        contentWithSeedMedia.topic == null && seedContent?.topic != null -> {
+            contentWithSeedMedia.copy(topic = seedContent.topic)
+        }
+        else -> contentWithSeedMedia
+    }
     val seedEmojiNodes = collectDynamicDetailSeedEmojiNodes(seedItem)
     val mergedContent = if (detailContent != null && seedEmojiNodes.isNotEmpty()) {
         detailContent.copy(

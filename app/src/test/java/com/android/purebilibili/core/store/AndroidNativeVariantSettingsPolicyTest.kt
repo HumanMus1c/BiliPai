@@ -7,9 +7,9 @@ import kotlin.test.assertEquals
 class AndroidNativeVariantSettingsPolicyTest {
 
     @Test
-    fun nullPreferenceValue_defaultsToMiuixVariant() {
+    fun nullPreferenceValue_defaultsToMaterial3Variant() {
         assertEquals(
-            AndroidNativeVariant.MIUIX,
+            AndroidNativeVariant.MATERIAL3,
             resolveAndroidNativeVariantPreferenceValue(null)
         )
     }

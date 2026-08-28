@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -233,7 +234,9 @@ private fun HomeHeroCarouselCard(
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
-    val sharedSourceInstanceId = remember { CardPositionManager.newVideoCardSourceInstanceId() }
+    val sharedSourceInstanceId = rememberSaveable(video.bvid) {
+        CardPositionManager.newVideoCardSourceInstanceId()
+    }
     val ownsSharedTransitionSource = isVideoCardSharedSourceInstanceOwner(
         sourceInstanceId = sharedSourceInstanceId,
         lastClickedSourceInstanceId = CardPositionManager.lastClickedVideoSourceInstanceId,

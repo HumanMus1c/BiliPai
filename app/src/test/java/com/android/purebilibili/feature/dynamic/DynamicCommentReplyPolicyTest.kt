@@ -87,6 +87,8 @@ class DynamicCommentReplyPolicyTest {
         assertEquals("还没有评论", resolveDynamicCommentEmptyLabel())
         assertEquals("发一条友善的评论", resolveDynamicCommentComposerHint())
         assertEquals("回复 @小明", resolveDynamicCommentComposerHint("小明"))
+        assertEquals("评论内容", resolveDynamicCommentImeSubmission("  评论内容  "))
+        assertEquals(null, resolveDynamicCommentImeSubmission("   "))
     }
 
     @Test

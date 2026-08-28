@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -107,6 +108,7 @@ internal fun HistoryPersonalCardSkeleton(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = coverHeight)
             .padding(horizontal = 12.dp, vertical = 5.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -121,7 +123,6 @@ internal fun HistoryPersonalCardSkeleton(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .height(coverHeight)
                 .padding(end = 4.dp),
         ) {
             ContentSkeletonBlock(
@@ -239,8 +240,11 @@ internal fun HistoryPersonalCard(
                         durationText = FormatUtils.formatDuration(video.duration),
                         infoPresentation = com.android.purebilibili.core.ui.transition
                             .resolveVideoCardSourceInfoPresentation(
-                                publishTimeText = "",
-                                showStatsInInfo = true,
+                                publishTimeText = FormatUtils.formatPublishTime(video.view_at),
+                                // History cards show owner + viewed time, not play/danmaku stats.
+                                showStatsInInfo = false,
+                                ownerBeforePublish = true,
+                                showOverflowMenu = !batchMode,
                             ),
                         coverUrl = stationaryCoverUrl,
                         coverCacheKey = stationaryCoverUrl,
@@ -334,7 +338,6 @@ internal fun HistoryPersonalCard(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .height(coverHeight)
                 .padding(end = 4.dp),
         ) {
             AppText(
@@ -344,7 +347,6 @@ internal fun HistoryPersonalCard(
                 overflow = TextOverflow.Ellipsis,
                 tapToCopyEnabled = false,
             )
-            Spacer(modifier = Modifier.weight(1f))
             AppText(
                 text = owner,
                 style = contentTypography.author,
@@ -366,7 +368,7 @@ internal fun HistoryPersonalCard(
         if (!batchMode) {
             Box(
                 modifier = Modifier
-                    .height(coverHeight)
+                    .heightIn(min = coverHeight)
                     .width(29.dp),
                 contentAlignment = Alignment.BottomCenter,
             ) {

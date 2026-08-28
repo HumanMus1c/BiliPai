@@ -382,6 +382,7 @@ internal fun resolveSpaceDynamicCardItem(item: SpaceDynamicItem): DynamicItem {
             module_dynamic = item.modules.module_dynamic?.let { content ->
                 DynamicContentModule(
                     desc = resolveSpaceDynamicContentDesc(content),
+                    topic = content.topic,
                     major = content.major?.let { major ->
                         DynamicMajor(
                             type = major.type,

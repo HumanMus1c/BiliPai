@@ -130,7 +130,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
 import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
-import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
@@ -189,7 +189,9 @@ fun SpaceScreen(
     onAudioClick: (Long) -> Unit = {},
     onBangumiClick: (Long) -> Unit = {},
     onWebClick: (String, String) -> Unit = { _, _ -> },
+    onLiveClick: (Long, String, String) -> Unit = { _, _, _ -> },
     onUserClick: (Long) -> Unit = {},
+    onTopicClick: (Long) -> Unit = {},
     onPlayAllAudioClick: ((String, Long) -> Unit)? = null,
     onDynamicDetailClick: (String) -> Unit = {},
     onArticleClick: (Long, String) -> Unit = { _, _ -> },
@@ -539,7 +541,9 @@ fun SpaceScreen(
                             onAudioClick = onAudioClick,
                             onBangumiClick = onBangumiClick,
                             onWebClick = onWebClick,
+                            onLiveClick = onLiveClick,
                             onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
                             onPlayAllAudioClick = onPlayAllAudioClick,
                             onDynamicDetailClick = onDynamicDetailClick,
                             onArticleClick = onArticleClick,
@@ -869,7 +873,9 @@ private fun SpaceContent(
     onAudioClick: (Long) -> Unit,
     onBangumiClick: (Long) -> Unit,
     onWebClick: (String, String) -> Unit,
+    onLiveClick: (Long, String, String) -> Unit,
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit,
     onPlayAllAudioClick: ((String, Long) -> Unit)?,
     onDynamicDetailClick: (String) -> Unit,
     onArticleClick: (Long, String) -> Unit,
@@ -1179,7 +1185,7 @@ private fun SpaceContent(
                     onFansClick = onFansClick,
                     onTopPhotoClick = onTopPhotoClick,
                     onAvatarClick = onAvatarClick,
-                    onLiveClick = { url, title -> onWebClick(url, title) },
+                    onLiveClick = { roomId, title, uname -> onLiveClick(roomId, title, uname) },
                     sharedTransitionScope = lazyGridSharedTransitionScope,
                     animatedVisibilityScope = lazyGridAnimatedVisibilityScope
                 )
@@ -1537,11 +1543,9 @@ private fun SpaceContent(
                             onVideoClick = playVideoFromSpace,
                             onBangumiClick = { seasonId, _ -> onBangumiClick(seasonId) },
                             onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
                             onLiveClick = { roomId, title, uname ->
-                                onWebClick(
-                                    "https://live.bilibili.com/$roomId",
-                                    title.ifBlank { uname }
-                                )
+                                onLiveClick(roomId, title, uname)
                             },
                             onArticleClick = onArticleClick,
                             onDynamicDetailClick = onDynamicDetailClick,
@@ -2145,7 +2149,7 @@ private fun SpaceHeader(
     onFansClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
     onAvatarClick: () -> Unit,
-    onLiveClick: (String, String) -> Unit,
+    onLiveClick: (Long, String, String) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
@@ -2409,9 +2413,16 @@ private fun SpaceHeader(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         onClick = {
+                            val roomId = userInfo.liveRoom.roomId.takeIf { it > 0L }
+                                ?: userInfo.liveRoom.url
+                                    .substringAfterLast('/')
+                                    .substringBefore('?')
+                                    .toLongOrNull()
+                                ?: 0L
                             onLiveClick(
-                                userInfo.liveRoom.url,
-                                userInfo.liveRoom.title.ifBlank { userInfo.name }
+                                roomId,
+                                userInfo.liveRoom.title.ifBlank { userInfo.name },
+                                userInfo.name
                             )
                         }
                     )
@@ -2861,7 +2872,7 @@ private fun SpaceHomeVideoCard(
                             durationText = video.length,
                             infoPresentation = com.android.purebilibili.core.ui.transition
                                 .resolveVideoCardSourceInfoPresentation(
-                                    publishTimeText = "",
+                                    publishTimeText = FormatUtils.formatPublishTime(video.created),
                                     showStatsInInfo = true,
                                 ),
                             coverUrl = stationaryCoverUrl,
@@ -2984,7 +2995,7 @@ private fun SpaceHomeVideoCard(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            VideoStatRow(
+            HorizontalVideoStatRow(
                 playText = FormatUtils.formatStat(video.play.toLong()),
                 danmakuText = FormatUtils.formatStat(video.comment.toLong()),
                 modifier = Modifier.fillMaxWidth(),
@@ -3405,7 +3416,8 @@ private fun SpaceArchiveListItemRow(
                 bvid = sharedTransitionKey.orEmpty(),
                 sourceRoute = sourceRoute,
                 motionSpec = cardSharedTransitionMotionSpec,
-                clipShape = cardShellShape
+                clipShape = cardShellShape,
+                crossfadeSourceContent = true,
             )
             .clip(cardShellShape)
             .background(AppSurfaceTokens.cardContainer())
@@ -3434,8 +3446,9 @@ private fun SpaceArchiveListItemRow(
                             durationText = duration,
                             infoPresentation = com.android.purebilibili.core.ui.transition
                                 .resolveVideoCardSourceInfoPresentation(
-                                    publishTimeText = "",
+                                    publishTimeText = publishTime,
                                     showStatsInInfo = true,
+                                    showOverflowMenu = true,
                                 ),
                             coverUrl = stationaryCoverUrl,
                             coverCacheKey = stationaryCoverUrl,
@@ -3540,7 +3553,7 @@ private fun SpaceArchiveListItemRow(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            VideoStatRow(
+            HorizontalVideoStatRow(
                 playText = FormatUtils.formatStat(play),
                 danmakuText = FormatUtils.formatStat(secondaryCount),
                 modifier = Modifier.fillMaxWidth(),

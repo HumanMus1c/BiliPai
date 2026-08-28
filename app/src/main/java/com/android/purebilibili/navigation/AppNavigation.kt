@@ -202,6 +202,8 @@ import com.android.purebilibili.navigation3.shouldBindVideoDetailBackPreviewPlay
 import com.android.purebilibili.navigation3.shouldActivateVideoDetailPlaybackSession
 import com.android.purebilibili.navigation3.shouldRecoverVideoPlayerAfterBackCancellation
 import com.android.purebilibili.navigation3.resolveBiliPaiVideoSource
+import com.android.purebilibili.navigation3.resolveVideoCardTransitionEnabledForSource
+import com.android.purebilibili.navigation3.shouldUseMiuixVideoCardMorph
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
 import com.android.purebilibili.navigation3.resolveInitialBiliPaiBackStack
@@ -754,7 +756,29 @@ fun AppNavigation(
             isSingleColumnCard = CardPositionManager.isSingleColumnCard,
             sourceLayout = CardPositionManager.lastClickedVideoSourceLayout,
             sourceChromeSnapshot = CardPositionManager.lastClickedVideoSourceChromeSnapshot,
+            hostOriginInRoot = navigationHostOriginInRoot,
         )
+        fun prearmVideoCardOpening(session: VideoCardTransitionSession) {
+            val transitionEnabledForSource = resolveVideoCardTransitionEnabledForSource(
+                cardTransitionEnabled = sharedVideoCardTransitionEnabled,
+                relatedVideoTransitionEnabled = relatedVideoTransitionEnabled,
+                sourceRoute = session.sourceRoute,
+            )
+            val hasUsableSourceBounds = session.cardBounds
+                ?.let { it.width > 1f && it.height > 1f } == true
+            if (
+                shouldUseMiuixVideoCardMorph(
+                    cardTransitionEnabled = transitionEnabledForSource,
+                    reduceMotion = systemReduceMotion,
+                    sourceRoute = session.sourceRoute,
+                    hasUsableSourceBounds = hasUsableSourceBounds,
+                )
+            ) {
+                // Activate the source-cover session before NavDisplay mounts the destination.
+                // Waiting for its stack-observer effect exposes the black player Surface for one frame.
+                videoCardTransitionClock.beginOpeningIfNeeded(session.sourceRoute)
+            }
+        }
         var lastVideoDetailOpenId by remember { mutableLongStateOf(0L) }
         var lastLiveAreaDetailOpenId by remember { mutableLongStateOf(0L) }
         fun pushNavigation3KeyDirect(key: BiliPaiNavKey) {
@@ -904,15 +928,15 @@ fun AppNavigation(
                 previousSourceRoute = navigation3ReturnSession.lastVideoSourceRoute
             )
             if (source.route != null) {
+                val transitionSession = captureVideoCardTransitionSession(
+                    bvid = seed.bvid,
+                    source = source,
+                    coverIdentity = seed.coverUrl,
+                )
                 navigation3ReturnSession = navigation3ReturnSession
-                    .recordTransitionSession(
-                        captureVideoCardTransitionSession(
-                            bvid = seed.bvid,
-                            source = source,
-                            coverIdentity = seed.coverUrl,
-                        )
-                    )
+                    .recordTransitionSession(transitionSession)
                     .markDetailEntered(SystemClock.uptimeMillis())
+                prearmVideoCardOpening(transitionSession)
             }
             pushNavigation3Key(
                 BiliPaiNavKey.Story(
@@ -1005,15 +1029,15 @@ fun AppNavigation(
                 currentKey = navigation3BackStack.lastOrNull(),
                 previousSourceRoute = navigation3ReturnSession.lastVideoSourceRoute
             )
+            val transitionSession = captureVideoCardTransitionSession(
+                bvid = videoBvid,
+                source = source,
+                coverIdentity = videoKey?.coverUrl,
+            )
             navigation3ReturnSession = navigation3ReturnSession
-                .recordTransitionSession(
-                    captureVideoCardTransitionSession(
-                        bvid = videoBvid,
-                        source = source,
-                        coverIdentity = videoKey?.coverUrl,
-                    )
-                )
+                .recordTransitionSession(transitionSession)
                 .markDetailEntered(SystemClock.uptimeMillis())
+            prearmVideoCardOpening(transitionSession)
             miniPlayerManager?.isNavigatingToVideo = true
             // 合集列表 / 详情压详情：进新片前立刻挂起上一级仍在响的 player，避免只听见旧声音。
             if (videoBvid.isNotBlank()) {
@@ -1179,7 +1203,10 @@ fun AppNavigation(
             }
         }
         val navigation3SourceMetadata = currentNavigation3SourceMetadata()
-            .relativeToHost(navigationHostOriginInRoot)
+            .relativeToHost(
+                navigation3ReturnSession.transitionSession?.hostOriginInRoot
+                    ?: navigationHostOriginInRoot,
+            )
         val previousNavigation3Key = navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1)
         val activeBottomTabRoute = resolveActiveBottomTabRoute(
             currentKey = currentNavigation3Key,
@@ -1273,12 +1300,12 @@ fun AppNavigation(
             shouldHideBottomBarOnTablet = shouldHideBottomBarOnTablet,
             shouldDeferReveal = false
         )
+        // Keep the rail's layout slot for the whole detail round trip. Removing it at HELD moves
+        // the NavHost after click and invalidates the frozen card coordinates on return.
         val sideBarMountGate = sideBarRouteGate &&
             (!isVideoDetailDestination ||
                 (sharedVideoCardTransitionEnabled &&
-                    navigation3SourceMetadata.sharedTransitionReady &&
-                    videoCardTransitionClock.phase !=
-                        com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase.HELD))
+                    navigation3SourceMetadata.sharedTransitionReady))
         val showBottomBar = shouldShowBottomBarForNavigation(
             activeRoute = activeBottomTabRoute,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
@@ -2292,6 +2319,11 @@ fun AppNavigation(
                                 pushNavigation3Route(ScreenRoutes.DynamicDetail.createRoute(dynamicId))
                             },
                             onUserClick = { mid -> pushNavigation3Route(ScreenRoutes.Space.createRoute(mid)) },
+                            onTopicClick = { topicId ->
+                                if (topicId > 0L) {
+                                    pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
+                                }
+                            },
                             onLiveClick = { roomId, title, uname ->
                                 pushNavigation3Route(ScreenRoutes.Live.createRoute(roomId, title, uname))
                             },
@@ -2392,8 +2424,18 @@ fun AppNavigation(
                                         }
                                     },
                                     onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) },
+                                    onTopicClick = { nestedTopicId ->
+                                        if (nestedTopicId > 0L) {
+                                            pushNavigation3Key(BiliPaiNavKey.TopicDetail(nestedTopicId))
+                                        }
+                                    },
                                     onLiveClick = { roomId, title, uname ->
                                         pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
+                                    },
+                                    onArticleClick = { articleId, title ->
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.ArticleDetail(articleId = articleId, title = title)
+                                        )
                                     },
                                     onDynamicDetailClick = { dynamicId ->
                                         pushNavigation3Key(BiliPaiNavKey.DynamicDetail(dynamicId))
@@ -3337,6 +3379,17 @@ fun AppNavigation(
                                     onWebClick = { url, title ->
                                         pushNavigation3Key(BiliPaiNavKey.Web(url = url, title = title))
                                     },
+                                    onLiveClick = { roomId, title, uname ->
+                                        if (roomId > 0L) {
+                                            pushNavigation3Key(
+                                                BiliPaiNavKey.Live(
+                                                    roomId = roomId.toString(),
+                                                    title = title,
+                                                    uname = uname
+                                                )
+                                            )
+                                        }
+                                    },
                                     onPlayAllAudioClick = { bvid, resumePositionMs ->
                                         navigateToVideoInNavigation3(
                                             bvid = bvid,
@@ -3349,6 +3402,11 @@ fun AppNavigation(
                                     },
                                     onDynamicDetailClick = { dynamicId ->
                                         pushNavigation3Key(BiliPaiNavKey.DynamicDetail(dynamicId))
+                                    },
+                                    onTopicClick = { topicId ->
+                                        if (topicId > 0L) {
+                                            pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
+                                        }
                                     },
                                     onArticleClick = { articleId, title ->
                                         if (canNavigate(false)) {
@@ -3465,6 +3523,11 @@ fun AppNavigation(
                                             )
                                         },
                                         onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) },
+                                        onTopicClick = { topicId ->
+                                            if (topicId > 0L) {
+                                                pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
+                                            }
+                                        },
                                         onArticleClick = { articleId, title ->
                                             pushNavigation3Key(
                                                 BiliPaiNavKey.ArticleDetail(articleId = articleId, title = title)
@@ -3593,8 +3656,7 @@ fun AppNavigation(
                         appNavigationSettings.videoSharedReturnGestureFollowEnabled,
                     sourceMetadata = navigation3SourceMetadata,
                     programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher,
-                    // 来源卡内容进入飞行 shared-bounds 壳，在后段由播放器/详情信息
-                    // 形变为封面、标题和统计；不能把完整源卡留在列表原位直接揭示。
+                    // Miuix 飞行 entry 独占过渡像素；列表真卡只保留布局，落位完成后再显示。
                     preferWholeCardReturn = false,
                     onBack = { performSystemBackAction() },
                     onPrepareVideoCardSharedReturn = {

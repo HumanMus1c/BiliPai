@@ -2,7 +2,6 @@
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -66,6 +65,7 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
+import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
@@ -255,7 +255,8 @@ internal fun StoryVideoCard(
     val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
         isScrollInProgress = scrollLiteModeEnabled,
         isReturningFromDetail = isReturningFromVideoDetail,
-        useCoverSharedBounds = useCardShellSharedBounds,
+        useCoverSharedBounds = useCardShellSharedBounds ||
+            (LocalMiuixVideoCardTransitionState.current.enabled && isSharedReturnTarget),
         isSharedReturnTarget = isSharedReturnTarget,
     )
     val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
@@ -448,7 +449,7 @@ internal fun StoryVideoCard(
                     verticalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_WRAP_SPACING_DP.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    VideoStatRow(
+                    HorizontalVideoStatRow(
                         playText = FormatUtils.formatStat(video.stat.view.toLong()),
                         danmakuText = if (video.stat.danmaku > 0) {
                             FormatUtils.formatStat(video.stat.danmaku.toLong())

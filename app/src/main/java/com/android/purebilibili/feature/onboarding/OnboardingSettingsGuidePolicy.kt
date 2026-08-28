@@ -12,11 +12,11 @@ enum class OnboardingSettingsProfile(
 ) {
     RECOMMENDED(
         title = "推荐默认",
-        subtitle = "MD3、悬浮底栏、五个纯文字顶部标签"
+        subtitle = "MD3、安卓液态玻璃、悬浮底栏、五个纯文字顶部标签"
     ),
     PERFORMANCE(
         title = "流畅优先",
-        subtitle = "减少视觉负担，保留核心过渡"
+        subtitle = "安卓液态玻璃与悬浮底栏，保留核心过渡"
     ),
     DATA_SAVER(
         title = "省流量",
@@ -28,6 +28,7 @@ data class OnboardingSettingsGuidePreset(
     val profile: OnboardingSettingsProfile,
     val bottomBarFloating: Boolean,
     val bottomBarLiquidGlassEnabled: Boolean,
+    val androidNativeLiquidGlassEnabled: Boolean,
     val bottomBarSearchEnabled: Boolean,
     val topTabLabelMode: Int,
     val topTabOrderIds: List<String>,
@@ -52,14 +53,15 @@ fun resolveOnboardingSettingsGuidePreset(
 ): OnboardingSettingsGuidePreset {
     val sharedSummary = listOf(
         "默认使用 MD3 / Material 3",
-        "关闭液态玻璃，开启悬浮底栏",
+        "开启安卓液态玻璃和悬浮底栏",
         "首页顶部标签纯文字显示 5 个"
     )
     return when (profile) {
         OnboardingSettingsProfile.RECOMMENDED -> OnboardingSettingsGuidePreset(
             profile = profile,
             bottomBarFloating = true,
-            bottomBarLiquidGlassEnabled = false,
+            bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = true,
             bottomBarSearchEnabled = false,
             topTabLabelMode = SettingsManager.TopTabLabelMode.TEXT_ONLY,
             topTabOrderIds = DEFAULT_ONBOARDING_TOP_TAB_IDS,
@@ -74,7 +76,8 @@ fun resolveOnboardingSettingsGuidePreset(
         OnboardingSettingsProfile.PERFORMANCE -> OnboardingSettingsGuidePreset(
             profile = profile,
             bottomBarFloating = true,
-            bottomBarLiquidGlassEnabled = false,
+            bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = true,
             bottomBarSearchEnabled = false,
             topTabLabelMode = SettingsManager.TopTabLabelMode.TEXT_ONLY,
             topTabOrderIds = DEFAULT_ONBOARDING_TOP_TAB_IDS,
@@ -89,7 +92,8 @@ fun resolveOnboardingSettingsGuidePreset(
         OnboardingSettingsProfile.DATA_SAVER -> OnboardingSettingsGuidePreset(
             profile = profile,
             bottomBarFloating = true,
-            bottomBarLiquidGlassEnabled = false,
+            bottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = true,
             bottomBarSearchEnabled = false,
             topTabLabelMode = SettingsManager.TopTabLabelMode.TEXT_ONLY,
             topTabOrderIds = DEFAULT_ONBOARDING_TOP_TAB_IDS,
@@ -111,6 +115,10 @@ suspend fun applyOnboardingSettingsGuidePreset(
     applyOnboardingRecommendedUiStyle(context)
     SettingsManager.setBottomBarFloating(context, preset.bottomBarFloating)
     SettingsManager.setBottomBarLiquidGlassEnabled(context, preset.bottomBarLiquidGlassEnabled)
+    SettingsManager.setAndroidNativeLiquidGlassEnabled(
+        context,
+        preset.androidNativeLiquidGlassEnabled
+    )
     SettingsManager.setBottomBarSearchEnabled(context, preset.bottomBarSearchEnabled)
     SettingsManager.setTopTabLabelMode(context, preset.topTabLabelMode)
     SettingsManager.setTopTabOrder(context, preset.topTabOrderIds)

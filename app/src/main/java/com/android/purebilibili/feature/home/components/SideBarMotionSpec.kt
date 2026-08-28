@@ -14,10 +14,8 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
 internal const val NavigationSelectionScale = 1.1f
-// Keep the transition inside the selected indicator: the icon still breathes without
-// overtaking the label or crossing the capsule's vertical bounds.
-internal const val FloatingBottomBarSelectionScale = 1.12f
-internal const val FloatingBottomBarSelectionLiftDp = 0f
+internal const val FloatingBottomBarSelectionScale = 1.3f
+internal const val FloatingBottomBarSelectionLiftDp = 8f
 internal const val NavigationSelectionWobbleDegrees = 4f
 internal const val NavigationSelectionCounterWobbleDegrees = -3f
 

@@ -1756,7 +1756,7 @@ interface DynamicApi {
     @GET("https://app.bilibili.com/x/topic/web/details/top")
     suspend fun getTopicDetail(
         @Query("topic_id") topicId: Long,
-        @Query("source") source: String = "H5",
+        @Query("source") source: String = "Web",
         @Query("web_location") webLocation: String = "333.1036"
     ): TopicDetailResponse
 
@@ -1767,7 +1767,7 @@ interface DynamicApi {
         @Query("offset") offset: String = "",
         @Query("page_size") pageSize: Int = 20,
         @Query("source") source: String = "Web",
-        @Query("features") features: String = DYNAMIC_DETAIL_FEATURES
+        @Query("features") features: String = DYNAMIC_FEED_FEATURES
     ): TopicFeedResponse
     
     //  [新增] 获取动态评论列表 (type=17 表示动态)

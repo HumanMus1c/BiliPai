@@ -14,7 +14,8 @@ class OnboardingSettingsGuidePolicyTest {
         val preset = resolveOnboardingSettingsGuidePreset(OnboardingSettingsProfile.RECOMMENDED)
 
         assertTrue(preset.bottomBarFloating)
-        assertFalse(preset.bottomBarLiquidGlassEnabled)
+        assertTrue(preset.androidNativeLiquidGlassEnabled)
+        assertTrue(preset.bottomBarLiquidGlassEnabled)
         assertEquals(SettingsManager.TopTabLabelMode.TEXT_ONLY, preset.topTabLabelMode)
         assertEquals(
             listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME"),

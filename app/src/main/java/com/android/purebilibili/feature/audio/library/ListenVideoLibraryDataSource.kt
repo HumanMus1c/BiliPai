@@ -4,15 +4,15 @@ import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.FavoriteData
 import com.android.purebilibili.data.model.response.FavoriteResourceData
 import com.android.purebilibili.data.repository.FavoriteRepository
+import com.android.purebilibili.feature.list.isFavoriteRiskControlError
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-private const val LISTEN_VIDEO_PAGE_SIZE = 40
+private const val LISTEN_VIDEO_PAGE_SIZE = 20
+private const val LISTEN_VIDEO_REQUEST_INTERVAL_MILLIS = 600L
+private const val LISTEN_VIDEO_PREVIEW_FOLDER_LIMIT = 8
 
 internal data class ListenVideoCollectedFoldersPage(
     val folders: List<FavFolder>,
@@ -21,7 +21,8 @@ internal data class ListenVideoCollectedFoldersPage(
 
 internal data class ListenVideoIndexResult(
     val resources: List<FavoriteData>,
-    val failedFolderIds: Set<Long>
+    val failedFolderIds: Set<Long>,
+    val haltedByRiskControl: Boolean = false
 )
 
 internal interface ListenVideoLibraryDataSource {
@@ -81,21 +82,23 @@ internal class BilibiliListenVideoLibraryDataSource : ListenVideoLibraryDataSour
 
 internal class ListenVideoLibraryLoader(
     private val source: ListenVideoLibraryDataSource,
-    maxConcurrentFolders: Int = 1,
+    private val minimumRequestIntervalMillis: Long = LISTEN_VIDEO_REQUEST_INTERVAL_MILLIS,
+    private val delayAction: suspend (Long) -> Unit = { delay(it) },
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L },
     private val previewCoverSelector: (List<String>) -> String? = { covers ->
         covers.randomOrNull()
     }
 ) {
-    private val folderSemaphore = Semaphore(maxConcurrentFolders.coerceAtLeast(1))
+    private val folderRequestMutex = Mutex()
+    private val firstFolderPages = mutableMapOf<Long, FavoriteResourceData>()
+    private var lastFolderRequestAtMillis: Long? = null
 
     suspend fun loadCollectedFolders(mid: Long): Result<List<FavFolder>> {
         return loadPages { page -> source.collectedFolders(mid, page) }
     }
 
     suspend fun loadFolder(mediaId: Long): Result<List<FavoriteData>> {
-        return folderSemaphore.withPermit {
-            loadFolderPages(mediaId)
-        }
+        return loadFolderPages(mediaId)
     }
 
     suspend fun loadAlbum(seasonId: Long): Result<List<FavoriteData>> {
@@ -104,52 +107,58 @@ internal class ListenVideoLibraryLoader(
 
     suspend fun loadPlaylistPreviewCovers(
         folders: List<FavFolder>
-    ): Map<Long, String> = supervisorScope {
-        folders.filter { it.id > 0L }.map { folder ->
-            async {
-                folderSemaphore.withPermit {
-                    val page = try {
-                        source.folderPage(folder.id, 1).getOrNull()
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    }
-                    val covers = page?.medias.orEmpty()
-                        .map(FavoriteData::cover)
-                        .filter(String::isNotBlank)
-                    previewCoverSelector(covers)?.let { cover -> folder.id to cover }
+    ): Map<Long, String> {
+        val coversByFolder = linkedMapOf<Long, String>()
+        folders.asSequence()
+            .filter { it.id > 0L && it.cover.isBlank() }
+            .take(LISTEN_VIDEO_PREVIEW_FOLDER_LIMIT)
+            .forEach { folder ->
+                val result = requestFolderPage(folder.id, 1)
+                if (result.isFailure && isFavoriteRiskControlError(result.exceptionOrNull()!!)) {
+                    return coversByFolder
                 }
+                val covers = result.getOrNull()?.medias.orEmpty()
+                    .map(FavoriteData::cover)
+                    .filter(String::isNotBlank)
+                previewCoverSelector(covers)?.let { cover -> coversByFolder[folder.id] = cover }
             }
-        }.awaitAll().filterNotNull().toMap()
+        return coversByFolder
     }
 
     suspend fun indexFolders(
         folders: List<FavFolder>,
         onFolderIndexed: (completed: Int, total: Int) -> Unit = { _, _ -> }
-    ): ListenVideoIndexResult = supervisorScope {
+    ): ListenVideoIndexResult {
         val validFolders = folders.filter { it.id > 0L }
-        val completedCount = AtomicInteger(0)
-        val results = validFolders.map { folder ->
-            async {
-                folderSemaphore.withPermit {
-                    val result = folder.id to loadFolderPages(folder.id)
-                    onFolderIndexed(completedCount.incrementAndGet(), validFolders.size)
-                    result
+        val resources = mutableListOf<FavoriteData>()
+        val failedFolderIds = linkedSetOf<Long>()
+        var haltedByRiskControl = false
+        for ((index, folder) in validFolders.withIndex()) {
+            val result = loadFolderPages(folder.id)
+            if (result.isSuccess) {
+                resources += result.getOrDefault(emptyList())
+            } else {
+                failedFolderIds += folder.id
+                if (isFavoriteRiskControlError(result.exceptionOrNull()!!)) {
+                    haltedByRiskControl = true
+                    failedFolderIds += validFolders.drop(index + 1).map(FavFolder::id)
+                    onFolderIndexed(index + 1, validFolders.size)
+                    break
                 }
             }
-        }.awaitAll()
+            onFolderIndexed(index + 1, validFolders.size)
+        }
 
-        ListenVideoIndexResult(
-            resources = results.flatMap { (_, result) -> result.getOrDefault(emptyList()) }
-                .distinctBy { resource ->
+        return ListenVideoIndexResult(
+            resources = resources.distinctBy { resource ->
                     if (resource.type == 21) {
                         "album:${resource.season_id.takeIf { it > 0L } ?: resource.id}"
                     } else {
                         "track:${resource.bvid.ifBlank { resource.bv_id }}"
                     }
                 },
-            failedFolderIds = results.mapNotNull { (folderId, result) ->
-                folderId.takeIf { result.isFailure }
-            }.toSet()
+            failedFolderIds = failedFolderIds,
+            haltedByRiskControl = haltedByRiskControl
         )
     }
 
@@ -191,12 +200,34 @@ internal class ListenVideoLibraryLoader(
         }
     }
 
-    /**
-     * Must be called while [folderSemaphore] is held. Keeping the permit for the whole
-     * pagination sequence prevents detail, preview and indexing requests from bursting
-     * against the same risk-controlled favorite endpoint.
-     */
     private suspend fun loadFolderPages(mediaId: Long): Result<List<FavoriteData>> {
-        return loadResourcePages { page -> source.folderPage(mediaId, page) }
+        return loadResourcePages { page -> requestFolderPage(mediaId, page) }
+    }
+
+    /** Serialize favorite-folder requests and keep a minimum gap between actual network calls. */
+    private suspend fun requestFolderPage(
+        mediaId: Long,
+        page: Int
+    ): Result<FavoriteResourceData> = folderRequestMutex.withLock {
+        if (page == 1) {
+            firstFolderPages[mediaId]?.let { return@withLock Result.success(it) }
+        }
+        val lastRequest = lastFolderRequestAtMillis
+        if (lastRequest != null) {
+            val elapsed = (nowMillis() - lastRequest).coerceAtLeast(0L)
+            val remaining = minimumRequestIntervalMillis - elapsed
+            if (remaining > 0L) delayAction(remaining)
+        }
+        val result = try {
+            source.folderPage(mediaId, page)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } finally {
+            lastFolderRequestAtMillis = nowMillis()
+        }
+        result.getOrNull()?.let { response ->
+            if (page == 1) firstFolderPages[mediaId] = response
+        }
+        result
     }
 }

@@ -100,9 +100,9 @@ class ThemeSelectionMigrationPolicyTest {
     }
 
     @Test
-    fun missingKeys_migrateToMiuix() {
+    fun missingKeys_migrateToMaterial3() {
         val result = migrate(mutablePreferencesOf())
-        assertEquals(AppUiStyle.MIUIX, result.selection)
+        assertEquals(AppUiStyle.MATERIAL3, result.selection)
         assertTrue(result.needsWrite)
     }
 
@@ -118,13 +118,13 @@ class ThemeSelectionMigrationPolicyTest {
     }
 
     @Test
-    fun invalidNewKey_isTreatedAsMissing_andMigratesToMiuix() {
+    fun invalidNewKey_isTreatedAsMissing_andUsesMaterial3Default() {
         val result = migrate(
             mutablePreferencesOf(
                 keySelection to "IOS"
             )
         )
-        assertEquals(AppUiStyle.MIUIX, result.selection)
+        assertEquals(AppUiStyle.MATERIAL3, result.selection)
         assertTrue(result.needsWrite)
     }
 
@@ -175,12 +175,12 @@ class ThemeSelectionMigrationPolicyTest {
     }
 
     @Test
-    fun freshInstallWithNoThemeData_isAlreadySettledAfterFirstRun() {
+    fun freshInstallWithNoThemeData_isAlreadySettledWithMaterial3AfterFirstRun() {
         val prefs = mutablePreferencesOf()
         migrate(prefs).migrationEdits(prefs)
 
         val second = migrate(prefs)
-        assertEquals(AppUiStyle.MIUIX, second.selection)
+        assertEquals(AppUiStyle.MATERIAL3, second.selection)
         assertFalse(second.needsWrite)
     }
 }

@@ -228,13 +228,14 @@ internal fun resolveFavoriteErrorMessage(throwable: Throwable): String {
         ?: "加载收藏夹失败，请稍后重试"
 }
 
-private fun isFavoriteRiskControlError(throwable: Throwable): Boolean {
+internal fun isFavoriteRiskControlError(throwable: Throwable): Boolean {
     val requestError = throwable as? FavoriteRequestException
     if (requestError?.apiCode in setOf(-412, 412, -429, 429)) return true
     if (requestError?.httpCode in setOf(412, 429)) return true
     val message = throwable.message.orEmpty()
     return message.contains("HTTP 412", ignoreCase = true) ||
-        message.contains("HTTP 429", ignoreCase = true)
+        message.contains("HTTP 429", ignoreCase = true) ||
+        throwable.cause?.let(::isFavoriteRiskControlError) == true
 }
 
 internal fun shouldApplyFavoriteFolderResult(

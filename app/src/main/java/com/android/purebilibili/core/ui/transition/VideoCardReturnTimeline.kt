@@ -389,7 +389,7 @@ internal fun shouldDelaySourceCardEnterOnReturn(
  * **可以，且应始终共存**，分工如下：
  * - **LIVE_SURFACE**（详情壳 overlay）：一镜到底缩回，跟手/seek
  * - **来源封面**：飞行 media / resident cover 末段交接；列表封面 morph 中保持透明
- * - **标题/UP/统计**：画在飞行壳 [VideoDetailReturnSourceCardChrome]（与列表快照文案对齐）；
+ * - **标题/UP/统计**：由仍然存活的真实来源卡片随 sharedBounds 一起反向还原；
  *   列表真卡在卸层后露出（飞行层盖住列表，morph 中无法露出原位组件）
  *
  * 禁止：整壳 delayed Enter、中途 LIVE↔RESIDENT 切换、卸层瞬间改 Coil 请求。

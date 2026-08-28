@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +29,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -59,6 +65,21 @@ import com.android.purebilibili.feature.dynamic.components.DynamicFeedSkeletonCa
 import com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.R
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
+import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.data.model.response.DynamicPublishTopic
+import com.android.purebilibili.feature.dynamic.components.DynamicAdaptiveSegmentedControl
+import com.android.purebilibili.feature.dynamic.components.DynamicPublishComposer
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun TopicDetailScreen(
@@ -68,12 +89,21 @@ fun TopicDetailScreen(
     onVideoClick: (String) -> Unit,
     onBangumiClick: (Long, Long) -> Unit,
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
+    onArticleClick: (Long, String) -> Unit,
     onDynamicDetailClick: (String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val homeSettings by SettingsManager.getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val liquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
+        androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+    )
+    val topicBackdrop = rememberLayerBackdrop()
+    var showPublishComposer by remember { mutableStateOf(false) }
 
     LaunchedEffect(topicId) {
         viewModel.load(topicId)
@@ -82,20 +112,40 @@ fun TopicDetailScreen(
     AppScaffold(
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopicDetailTopBar(
+            AppTopBar(
                 title = state.details?.topicItem?.name.orEmpty().ifBlank { "话题" },
-                onBack = onBack
+                navigationIcon = {
+                    AppIconButton(onClick = onBack) {
+                        AppIcon(
+                            imageVector = rememberAppBackIcon(),
+                            contentDescription = "返回",
+                        )
+                    }
+                },
             )
-        }
+        },
+        floatingActionButton = {
+            TopicParticipateButton(
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = topicBackdrop,
+                onClick = { showPublishComposer = true },
+            )
+        },
     ) { padding ->
+        val showInitialSkeleton = shouldShowTopicInitialSkeleton(
+            isLoading = state.isLoading,
+            hasDetails = state.details != null,
+            itemCount = state.items.size,
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .globalWallpaperAwareBackground()
+                .layerBackdrop(topicBackdrop)
                 .padding(padding)
         ) {
             when {
-                state.isLoading -> {
+                showInitialSkeleton -> {
                     TopicDetailLoadingSkeleton(modifier = Modifier.fillMaxSize())
                 }
                 state.error != null && state.details == null && state.items.isEmpty() -> {
@@ -118,10 +168,31 @@ fun TopicDetailScreen(
                             )
                         ),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .responsiveContentWidth(maxWidth = 960.dp)
+                            .fillMaxSize()
                     ) {
                         item {
-                            TopicHeaderCard(details = state.details)
+                            TopicHeaderCard(
+                                details = state.details,
+                                onUserClick = onUserClick,
+                            )
+                        }
+                        if (state.sortOptions.isNotEmpty()) {
+                            item(key = "topic_sort") {
+                                TopicSortControl(
+                                    options = state.sortOptions.map { it.sortName.ifBlank { "动态" } },
+                                    selectedIndex = state.sortOptions
+                                        .indexOfFirst { it.sortBy == state.selectedSortBy }
+                                        .coerceAtLeast(0),
+                                    switching = state.isSwitchingSort,
+                                    onSelected = { index ->
+                                        state.sortOptions.getOrNull(index)?.let { option ->
+                                            viewModel.selectSort(option.sortBy)
+                                        }
+                                    },
+                                )
+                            }
                         }
                         itemsIndexed(state.items, key = { _, item -> item.id_str }) { index, item ->
                             DynamicCardV2(
@@ -129,7 +200,9 @@ fun TopicDetailScreen(
                                 onVideoClick = onVideoClick,
                                 onBangumiClick = onBangumiClick,
                                 onUserClick = onUserClick,
+                                onTopicClick = onTopicClick,
                                 onLiveClick = onLiveClick,
+                                onArticleClick = onArticleClick,
                                 onDynamicDetailClick = onDynamicDetailClick,
                                 onCommentClick = onDynamicDetailClick,
                                 gifImageLoader = context.imageLoader
@@ -159,6 +232,30 @@ fun TopicDetailScreen(
                 }
             }
         }
+    }
+
+    if (showPublishComposer) {
+        val topic = state.details?.topicItem
+        DynamicPublishComposer(
+            initialText = "",
+            initialTopic = topic?.takeIf { it.id > 0L }?.let {
+                DynamicPublishTopic(id = it.id, name = it.name)
+            },
+            isEditing = false,
+            submitting = state.isPublishing,
+            errorMessage = state.publishError,
+            onDismiss = { showPublishComposer = false },
+            onSubmit = { draft ->
+                viewModel.publish(context, draft) { success, message ->
+                    android.widget.Toast.makeText(
+                        context,
+                        message,
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                    if (success) showPublishComposer = false
+                }
+            },
+        )
     }
 }
 
@@ -227,37 +324,126 @@ private fun TopicDetailLoadingSkeleton(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TopicDetailTopBar(
-    title: String,
-    onBack: () -> Unit
+private fun TopicSortControl(
+    options: List<String>,
+    selectedIndex: Int,
+    switching: Boolean,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val itemWidth = TOPIC_SORT_ITEM_WIDTH_DP.dp
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(MaterialTheme.colorScheme.surface),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIconButton(onClick = onBack) {
-            AppIcon(
-                imageVector = rememberAppBackIcon(),
-                contentDescription = "返回"
-            )
-        }
-        AppText(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+        DynamicAdaptiveSegmentedControl(
+            items = options,
+            selectedIndex = selectedIndex,
+            onSelected = onSelected,
+            itemWidth = itemWidth,
+            height = 40.dp,
+            indicatorHeight = 34.dp,
+            labelFontSize = 13.sp,
+            // This control is inside the page source captured by topicBackdrop. Reusing that
+            // same source here would make the liquid lens sample an ancestor that contains
+            // the lens itself, producing a cyclic RenderNode graph and RenderThread overflow.
+            // Let the segmented control own its isolated local backdrop instead.
+            backdrop = null,
+            modifier = Modifier.width(resolveTopicSortControlWidthDp(options.size).dp),
         )
-        Spacer(modifier = Modifier.width(48.dp))
+        if (switching) {
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+            AdaptiveLoadingIndicator(size = 18.dp, strokeWidth = 2.dp)
+        }
     }
 }
 
 @Composable
-private fun TopicHeaderCard(details: TopicTopDetails?) {
+private fun TopicParticipateButton(
+    liquidGlassEnabled: Boolean,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val buttonModifier = modifier
+        .width(TOPIC_PARTICIPATE_BUTTON_WIDTH_DP.dp)
+        .height(52.dp)
+    val topicIcon = painterResource(R.drawable.ms_tag_24)
+
+    when (
+        resolveTopicParticipateChrome(
+            uiStyle = LocalAppUiStyle.current,
+            liquidGlassEnabled = liquidGlassEnabled,
+        )
+    ) {
+        TopicParticipateChrome.LIQUID_GLASS_DOCK -> BottomBarMatchedReusableLiquidDock(
+            shape = AppShapes.container(ContainerLevel.Pill),
+            modifier = buttonModifier,
+            backdrop = backdrop,
+            reuseEnabled = true,
+            useNeutralLiquidContainer = true,
+            drawShellLens = true,
+            shellLensIntensity = resolveFloatingDockGeometryScale(52f),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(AppShapes.container(ContainerLevel.Pill))
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = AppSpacingTokens.Medium),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppIcon(
+                    painter = topicIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                AppText(
+                    text = "参与话题",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        TopicParticipateChrome.MIUIX_COMPACT_BUTTON -> MiuixButton(
+            onClick = onClick,
+            modifier = buttonModifier,
+            insideMargin = PaddingValues(horizontal = AppSpacingTokens.Medium),
+        ) {
+            AppIcon(
+                painter = topicIcon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+            AppText("参与话题", fontWeight = FontWeight.SemiBold)
+        }
+
+        TopicParticipateChrome.MATERIAL_EXTENDED_FAB ->
+            androidx.compose.material3.ExtendedFloatingActionButton(
+            onClick = onClick,
+            icon = {
+                AppIcon(
+                    painter = topicIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+            },
+            text = { AppText("参与话题", fontWeight = FontWeight.SemiBold) },
+            modifier = buttonModifier,
+        )
+    }
+}
+
+@Composable
+private fun TopicHeaderCard(
+    details: TopicTopDetails?,
+    onUserClick: (Long) -> Unit,
+) {
     val topic = details?.topicItem
     val creator = details?.topicCreator
     val topicDescription = topic?.description
@@ -311,7 +497,7 @@ private fun TopicHeaderCard(details: TopicTopDetails?) {
                 AppText(
                     text = buildString {
                         append("浏览 ${FormatUtils.formatStat(topic?.view ?: 0)}")
-                        append(" · 动态 ${FormatUtils.formatStat(topic?.dynamics ?: 0)}")
+                        append(" · 讨论 ${FormatUtils.formatStat(topic?.discuss ?: 0)}")
                         if (!creatorName.isNullOrBlank()) {
                             append(" · $creatorName")
                         }
@@ -330,7 +516,10 @@ private fun TopicHeaderCard(details: TopicTopDetails?) {
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable(enabled = (creator?.uid ?: 0L) > 0L) {
+                            onUserClick(creator?.uid ?: 0L)
+                        },
                     contentScale = ContentScale.Crop
                 )
             }

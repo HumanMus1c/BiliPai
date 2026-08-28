@@ -4062,6 +4062,23 @@ internal fun VideoDetailScreenStateHolder(
                                 hasResidentCover = hasResidentReturnCover,
                                 liveReturnMorph = liveReturnMorph,
                                 isReturnGestureInProgress = returnGestureInProgress,
+                                showResidentCoverUntilFirstFrame =
+                                    entryOwnsMiuixCardTransition &&
+                                        currentBvid == bvid &&
+                                        !hasRenderedFirstFrameForReturn,
+                            )
+                        }
+                        val flyingSourceChromeAlphaProvider: () -> Float = {
+                            resolveVideoDetailFlyingSourceChromeAlpha(
+                                morphDepthProgress = miuixLandingState.progressProvider(),
+                                phase = videoCardDepthBackgroundState.phaseProvider(),
+                                isReturnGestureInProgress =
+                                    videoCardDepthBackgroundState
+                                        .isReturnGestureInProgressProvider() ||
+                                        videoCardDepthBackgroundState
+                                            .isGestureRestoreInProgressProvider(),
+                                sourceLayout = landingLayoutForMedia?.layout
+                                    ?: miuixLandingState.sourceLayout,
                             )
                         }
                         Box(
@@ -4232,21 +4249,23 @@ internal fun VideoDetailScreenStateHolder(
                             )
                             }
                             }
-                            VideoDetailReturnCoverChrome(
-                                sourceChromeSnapshot = miuixLandingState.sourceChromeSnapshot,
-                                sourceScale = landingLayoutForMedia?.sourceScale ?: 1f,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .videoDetailReturnMediaLayout(
-                                        landingLayout = landingLayoutForMedia,
-                                        handoffProgressProvider =
-                                            returnMediaHandoffProgressProvider,
-                                    )
-                                    .zIndex(1.5f)
-                                    .graphicsLayer {
-                                        alpha = returnMediaFrameProvider().coverAlpha
-                                    },
-                            )
+                            if (miuixVisualAssetsActive) {
+                                VideoDetailReturnCoverChrome(
+                                    sourceChromeSnapshot = miuixLandingState.sourceChromeSnapshot,
+                                    sourceScale = landingLayoutForMedia?.sourceScale ?: 1f,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .videoDetailReturnMediaLayout(
+                                            landingLayout = landingLayoutForMedia,
+                                            handoffProgressProvider =
+                                                returnMediaHandoffProgressProvider,
+                                        )
+                                        .zIndex(1.5f)
+                                        .graphicsLayer {
+                                            alpha = flyingSourceChromeAlphaProvider()
+                                        },
+                                )
+                            }
                             CollapsedPlayerNavigationBar(
                                 scrollRatio = layoutCollapseProgress,
                                 topInset = collapsedSystemBarInset,
@@ -4585,52 +4604,40 @@ internal fun VideoDetailScreenStateHolder(
                     }  // Detail body
                     }  // 📱 手机竖屏布局结束（Column）
                     }  // phone portrait branch of useTabletLayout
-                    // 返回信息区必须画在飞行壳上：sharedBounds 遮罩盖住列表，真卡露不出来。
-                    // 文案用点击快照 + ViewInfo，尽量对齐列表；卸层后再露列表真卡。
+                    // The Miuix entry owns the complete flying card. Rebuild the click-time
+                    // information region here while the retained list card is transparent.
+                    val miuixCardTransitionState =
+                        com.android.purebilibili.core.ui.transition
+                            .LocalMiuixVideoCardTransitionState.current
+                    val sourceCardInfo = (uiState as? VideoPlaybackUiState.Success)?.info
                     if (
-                        shouldConsumeMiuixTransitionVisualAssets(
-                            entryOwnsMiuixCardTransition = entryOwnsMiuixCardTransition,
-                            phase = videoCardDepthBackgroundState.phaseProvider(),
-                            isReturnGestureInProgress = videoCardDepthBackgroundState
-                                .isReturnGestureInProgressProvider(),
-                            isGestureRestoreInProgress = videoCardDepthBackgroundState
-                                .isGestureRestoreInProgressProvider(),
-                        ) &&
-                        shouldDrawFlyingReturnSourceCardChrome() &&
-                        !suppressPhoneDetailBodyForDirectPortrait
+                        // Nested detail entries share the host CompositionLocals. Only the
+                        // outgoing child owns this session; the retained parent must not draw
+                        // the child's frozen cover/chrome over its related-video list.
+                        miuixVisualAssetsActive &&
+                        miuixCardTransitionState.enabled &&
+                        !suppressPhoneDetailBodyForDirectPortrait &&
+                        (sourceCardInfo != null ||
+                            miuixCardTransitionState.sourceChromeSnapshot != null)
                     ) {
-                        val miuixCardTransitionState =
-                            com.android.purebilibili.core.ui.transition
-                                .LocalMiuixVideoCardTransitionState.current
-                        val sourceCardInfo = (uiState as? VideoPlaybackUiState.Success)?.info
-                        if (
-                            miuixCardTransitionState.enabled &&
-                            (
-                                sourceCardInfo != null ||
-                                    miuixCardTransitionState.sourceChromeSnapshot != null
-                                )
-                        ) {
-                            VideoDetailReturnSourceCardChrome(
-                                info = sourceCardInfo,
-                                sourceChromeSnapshot =
-                                    miuixCardTransitionState.sourceChromeSnapshot,
-                                sourceLayout = miuixCardTransitionState.sourceLayout,
-                                sourceBounds = miuixCardTransitionState.sourceBoundsProvider(),
-                                sourceCoverBounds =
-                                    miuixCardTransitionState.sourceCoverBoundsProvider(),
-                                coverUrl = coverUrl,
-                                morphDepthProgressProvider =
-                                    miuixCardTransitionState.progressProvider,
-                                phaseProvider = videoCardDepthBackgroundState.phaseProvider,
-                                isReturnGestureInProgressProvider = {
+                        VideoDetailReturnSourceCardChrome(
+                            info = sourceCardInfo,
+                            sourceChromeSnapshot = miuixCardTransitionState.sourceChromeSnapshot,
+                            sourceLayout = miuixCardTransitionState.sourceLayout,
+                            sourceBounds = miuixCardTransitionState.sourceBoundsProvider(),
+                            sourceCoverBounds =
+                                miuixCardTransitionState.sourceCoverBoundsProvider(),
+                            morphDepthProgressProvider =
+                                miuixCardTransitionState.progressProvider,
+                            phaseProvider = videoCardDepthBackgroundState.phaseProvider,
+                            isReturnGestureInProgressProvider = {
+                                videoCardDepthBackgroundState
+                                    .isReturnGestureInProgressProvider() ||
                                     videoCardDepthBackgroundState
-                                        .isReturnGestureInProgressProvider() ||
-                                        videoCardDepthBackgroundState
-                                            .isGestureRestoreInProgressProvider()
-                                },
-                                modifier = Modifier.align(Alignment.TopStart),
-                            )
-                        }
+                                        .isGestureRestoreInProgressProvider()
+                            },
+                            modifier = Modifier.align(Alignment.TopStart),
+                        )
                     }
                     }  // Full-viewport source-card chrome host (phone + tablet)
                 }  // else shouldUseSplitLayout / immersive parent

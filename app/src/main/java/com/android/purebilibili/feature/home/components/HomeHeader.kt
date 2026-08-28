@@ -190,6 +190,11 @@ internal fun resolveHomeTopLinkedBottomBarAppearance(
     )
 }
 
+internal fun shouldUseLegacyHomeTopTabs(
+    liquidGlassEnabled: Boolean,
+    bottomBarFloating: Boolean,
+): Boolean = !liquidGlassEnabled && !bottomBarFloating
+
 internal fun formatHomeTopRightUnreadBadge(
     action: HomeTopRightAction,
     unreadCount: Int
@@ -1519,6 +1524,10 @@ fun HomeHeader(
     val topChromeLiquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(
         homeSettings = homeSettings,
     )
+    val useLegacyHomeTopTabs = shouldUseLegacyHomeTopTabs(
+        liquidGlassEnabled = topChromeLiquidGlassEnabled,
+        bottomBarFloating = linkedBottomBarAppearance.isFloating,
+    )
 
     // 状态栏高度
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -1607,7 +1616,7 @@ fun HomeHeader(
         materialMode = topChromeMaterialMode,
         interactionBudget = interactionBudget
     )
-    // 分栏 presentation 由主题决定（两主题均走移动胶囊），不再随液态玻璃开关切换。
+    // 同时关闭液态玻璃与悬浮底栏时恢复旧式纯文字分栏：选中项仅显示短下划线。
     val drawTopTabOuterChromeSurface = shouldDrawHomeTopTabOuterChromeSurface(
         presentation = topChromePolicy.tabPresentation,
         materialMode = effectiveTabMaterialMode
@@ -1789,11 +1798,12 @@ fun HomeHeader(
     }
     
     val searchBarHeightDp = resolveHomeTopSearchBarHeight(topChromePolicy)
+    val topTabLabelMode = homeSettings?.topTabLabelMode
+        ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
     val tabRowHeightDp = resolveHomeTopTabRowHeight(
         isTabFloating = isTabFloating,
         chromePolicy = topChromePolicy,
-        labelMode = homeSettings?.topTabLabelMode
-            ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
+        labelMode = topTabLabelMode
     )
     val searchCollapseDistanceDp = resolveHomeTopSearchCollapseDistance(
         searchBarHeight = searchBarHeightDp,
@@ -2007,8 +2017,6 @@ fun HomeHeader(
     val useTopTabBottomBarMatchedDock = drawTopTabDockChrome
     val topTabInnerOwnsFloatingDockShell =
         useTopTabBottomBarMatchedDock || topTabLiquidGlassEnabled
-    val topTabLabelMode = homeSettings?.topTabLabelMode
-        ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
     // Floating dock shell + tabs share one wrap decision so glass length matches content.
     val wrapTopTabDockFloatingStyle = if (embedTopTabsInUnifiedPanel) false else isTabFloating
     val wrapTopTabDockHasOuterChrome = drawTopTabDockChrome && !embedTopTabsInUnifiedPanel
@@ -2154,7 +2162,7 @@ fun HomeHeader(
                 forceLowBlurBudget = forceLowBlurBudget,
                 isViewportSyncEnabled = isTopTabViewportSyncEnabled,
                 maxDockWidthDp = maxDockWidth.value,
-                forceMaterialUnderline = false
+                forceMaterialUnderline = useLegacyHomeTopTabs
             )
         }
     }
@@ -2345,7 +2353,11 @@ fun HomeHeader(
                 ) {
                     if (topLayoutOrder == HomeTopLayoutOrder.TABS_THEN_SEARCH) {
                         topTabsContent(
-                            if (topTabInnerOwnsFloatingDockShell) fullTopDockWidth else topControlsContentWidth
+                            if (topTabInnerOwnsFloatingDockShell || useLegacyHomeTopTabs) {
+                                fullTopDockWidth
+                            } else {
+                                topControlsContentWidth
+                            }
                         )
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
@@ -2881,7 +2893,11 @@ fun HomeHeader(
                         }
 
                         topTabsContent(
-                            if (topTabInnerOwnsFloatingDockShell) fullTopDockWidth else topControlsContentWidth
+                            if (topTabInnerOwnsFloatingDockShell || useLegacyHomeTopTabs) {
+                                fullTopDockWidth
+                            } else {
+                                topControlsContentWidth
+                            }
                         )
                     }
                 }

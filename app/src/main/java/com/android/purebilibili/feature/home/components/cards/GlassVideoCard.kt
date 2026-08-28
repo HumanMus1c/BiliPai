@@ -1,7 +1,6 @@
 // 文件路径: feature/home/components/cards/GlassVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -62,6 +61,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
+import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
@@ -243,7 +243,8 @@ fun GlassVideoCard(
     val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
         isScrollInProgress = false,
         isReturningFromDetail = isReturningFromVideoDetail,
-        useCoverSharedBounds = useCardShellSharedBounds,
+        useCoverSharedBounds = useCardShellSharedBounds ||
+            (LocalMiuixVideoCardTransitionState.current.enabled && isSharedReturnTarget),
         isSharedReturnTarget = isSharedReturnTarget,
     )
     // 🌈 彩虹渐变边框色
@@ -491,7 +492,7 @@ fun GlassVideoCard(
                         
                         // 播放量与弹幕统一使用相关推荐统计组件。
                         if (video.stat.view > 0) {
-                            VideoStatRow(
+                            HorizontalVideoStatRow(
                                 playText = FormatUtils.formatStat(video.stat.view.toLong()),
                                 danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                             )

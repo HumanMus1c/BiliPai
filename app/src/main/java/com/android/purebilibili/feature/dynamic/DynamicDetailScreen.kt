@@ -81,6 +81,7 @@ fun DynamicDetailScreen(
     onVideoClick: (String) -> Unit,
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit = {},
     onArticleClick: (articleId: Long, title: String) -> Unit = { _, _ -> },
     onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> }
 ) {
@@ -226,6 +227,7 @@ fun DynamicDetailScreen(
                             onVideoClick = onVideoClick,
                             onBangumiClick = onBangumiClick,
                             onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
                             onArticleClick = onArticleClick,
                             onLiveClick = onLiveClick,
                             isDetail = true,

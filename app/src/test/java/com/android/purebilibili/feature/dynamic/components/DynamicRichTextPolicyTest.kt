@@ -288,6 +288,78 @@ class DynamicRichTextPolicyTest {
     }
 
     @Test
+    fun buildDynamicRichTextAnnotatedString_marksTopicWithNativeTopicAnnotation() {
+        val annotated = buildDynamicRichTextAnnotatedString(
+            desc = DynamicDesc(
+                text = "#新机来了!# 后续正文",
+                rich_text_nodes = listOf(
+                    RichTextNode(
+                        type = "RICH_TEXT_NODE_TYPE_TOPIC",
+                        orig_text = "#新机来了!#",
+                        rid = "1314000",
+                    ),
+                    RichTextNode(type = "TEXT", text = " 后续正文"),
+                ),
+            ),
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+
+        val annotation = annotated.getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
+            start = 0,
+            end = annotated.length,
+        ).single()
+
+        assertEquals("1314000", annotation.item)
+        assertEquals("#新机来了!#", annotated.text.substring(annotation.start, annotation.end))
+    }
+
+    @Test
+    fun resolveDynamicRichTextTopicId_fallsBackToTopicJumpUrl() {
+        assertEquals(
+            1028161L,
+            resolveDynamicRichTextTopicId(
+                RichTextNode(
+                    type = "TOPIC",
+                    text = "#话题#",
+                    jump_url = "bilibili://m.bilibili.com/topic-detail?topic_id=1028161",
+                )
+            )
+        )
+    }
+
+    @Test
+    fun buildDynamicRichTextAnnotatedString_keepsMentionWhenPreviewNodesAreTruncated() {
+        val annotated = buildDynamicRichTextAnnotatedString(
+            desc = DynamicDesc(
+                text = "前面的完整正文 @影视飓风 后续内容",
+                // The feed may omit surrounding TEXT nodes while retaining the
+                // actionable mention metadata.
+                rich_text_nodes = listOf(
+                    RichTextNode(
+                        type = "RICH_TEXT_NODE_TYPE_AT",
+                        orig_text = "@影视飓风 ",
+                        rid = "946974",
+                    ),
+                ),
+            ),
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+
+        val annotation = annotated.getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_USER_TAG,
+            start = 0,
+            end = annotated.length,
+        ).single()
+
+        assertEquals("前面的完整正文 @影视飓风 后续内容", annotated.text)
+        assertEquals("946974", annotation.item)
+        assertEquals("@影视飓风", annotated.text.substring(annotation.start, annotation.end).trim())
+    }
+
+    @Test
     fun buildDynamicRichTextAnnotatedString_skipsUserAnnotationWhenAtRidMissing() {
         val desc = DynamicDesc(
             rich_text_nodes = listOf(
@@ -536,6 +608,35 @@ class DynamicRichTextPolicyTest {
             end = resolvedDesc.text.length,
         ).single()
         assertEquals("12345", annotation.item)
+    }
+
+    @Test
+    fun resolveDynamicOpusTextBlockRichDesc_matchesMentionFromOrigTextWhenTextIsBlank() {
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "前文 @影视飓风 后文",
+            preferredDesc = DynamicDesc(text = "摘要"),
+            blockRichTextNodes = listOf(
+                RichTextNode(
+                    type = "RICH_TEXT_NODE_TYPE_AT",
+                    orig_text = "@影视飓风 ",
+                    rid = "946974",
+                ),
+            ),
+        ) ?: error("expected rich body description")
+
+        val richAnnotated = buildDynamicRichTextAnnotatedString(
+            desc = resolved,
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+        )
+        val annotation = richAnnotated.getStringAnnotations(
+            tag = DYNAMIC_RICH_TEXT_USER_TAG,
+            start = 0,
+            end = resolved.text.length,
+        ).single()
+
+        assertEquals("前文 @影视飓风 后文", richAnnotated.text)
+        assertEquals("946974", annotation.item)
     }
 
     @Test

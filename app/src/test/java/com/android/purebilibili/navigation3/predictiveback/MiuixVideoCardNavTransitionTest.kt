@@ -18,7 +18,6 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(true, transform.contains("alpha = 1f"))
         assertEquals(false, transform.contains("visibleHeightFraction"))
         assertEquals(false, transform.contains("outgoingClipFraction"))
-        assertEquals(false, transform.contains("alpha = resolveMiuixVideoCard"))
     }
 
     @Test

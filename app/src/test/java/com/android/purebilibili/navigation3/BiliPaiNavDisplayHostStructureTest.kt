@@ -137,7 +137,7 @@ class BiliPaiNavDisplayHostStructureTest {
             .substringBefore("!isCardMorphDestinationNavKey(currentTop)")
 
         // 单时钟：open/return 走 clock.begin* + fallback；返回不因 shared 跳过消糊。
-        assertTrue(openingBranch.contains("beginOpening("))
+        assertTrue(openingBranch.contains("beginOpeningIfNeeded("))
         assertTrue(openingBranch.contains("animateFallbackTo("))
         assertTrue(openingBranch.contains("markHeld()"))
         assertTrue(openingBranch.contains("hasActiveSharedMorphProgress()"))
@@ -217,7 +217,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(source.contains("resolveVideoCardTransitionReturnFullDurationMillis"))
         assertTrue(performBackBlock.contains("cancelVideoCardDepthAnimation()"))
         assertTrue(source.contains("VideoCardTransitionClock"))
-        assertTrue(source.contains("beginOpening("))
+        assertTrue(source.contains("beginOpeningIfNeeded("))
     }
 
     @Test

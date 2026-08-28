@@ -135,7 +135,7 @@ import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
-import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.resolveReturnAnimationSuppressionDurationMs
 import com.android.purebilibili.core.store.HomeDurationStyle
@@ -3164,7 +3164,7 @@ fun SearchResultCard(
         )
 
         Spacer(modifier = Modifier.height(6.dp))
-        VideoStatRow(
+        HorizontalVideoStatRow(
             playText = FormatUtils.formatStat(video.stat.view.toLong()),
             danmakuText = if (video.stat.danmaku > 0) {
                 FormatUtils.formatStat(video.stat.danmaku.toLong())

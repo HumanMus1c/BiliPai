@@ -1,5 +1,6 @@
 package com.android.purebilibili.navigation3
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
@@ -191,6 +192,24 @@ class BiliPaiReturnSessionStateTest {
         assertEquals(12, state.transitionSession?.sourceCornerDp)
         assertEquals(VideoCardSourceLayout.STACKED, state.transitionSession?.sourceLayout)
         assertEquals("title-BV_A", state.transitionSession?.sourceChromeSnapshot?.title)
+    }
+
+    @Test
+    fun transitionSessionFreezesNavigationHostOriginAtClick() {
+        val origin = Offset(96f, 24f)
+        val session = VideoCardTransitionSession.create(
+            bvid = "BV_A",
+            source = BiliPaiVideoSource(route = "home", key = "home:BV_A"),
+            cardBounds = Rect(120f, 80f, 420f, 360f),
+            sourceCornerDp = 12,
+            cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+            coverIdentity = "cover-BV_A",
+            cardFullyVisible = true,
+            isSingleColumnCard = false,
+            hostOriginInRoot = origin,
+        )
+
+        assertEquals(origin, session.hostOriginInRoot)
     }
 
     @Test

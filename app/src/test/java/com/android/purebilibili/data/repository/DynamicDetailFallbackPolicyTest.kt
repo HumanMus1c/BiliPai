@@ -8,6 +8,7 @@ import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicMajor
 import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.DynamicStatModule
+import com.android.purebilibili.data.model.response.DynamicTopic
 import com.android.purebilibili.data.model.response.DrawMajor
 import com.android.purebilibili.data.model.response.DrawItem
 import com.android.purebilibili.data.model.response.EmojiInfo
@@ -473,6 +474,29 @@ class DynamicDetailFallbackPolicyTest {
         assertEquals("326122895", merged.basic?.comment_id_str)
         assertEquals(11, merged.basic?.comment_type)
         assertEquals(17, merged.modules.module_stat?.comment?.count)
+    }
+
+    @Test
+    fun mergeInteractionMetadata_retainsStandaloneTopicFromFeedSeed() {
+        val detail = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(desc = DynamicDesc(text = "完整正文")),
+            ),
+        )
+        val seed = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    topic = DynamicTopic(id = 1314000L, name = "新机来了！"),
+                ),
+            ),
+        )
+
+        val merged = mergeDynamicDetailInteractionMetadata(detail, seed)
+
+        assertEquals(1314000L, merged.modules.module_dynamic?.topic?.id)
+        assertEquals("新机来了！", merged.modules.module_dynamic?.topic?.name)
     }
 
     @Test

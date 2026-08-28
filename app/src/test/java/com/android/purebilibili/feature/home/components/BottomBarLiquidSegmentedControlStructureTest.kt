@@ -10,6 +10,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BottomBarLiquidSegmentedControlStructureTest {
+    @Test
+    fun `popular subcategories force four equal-width tabs`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt"
+        )
+        val popularControl = source.substringAfter("private fun PopularSubCategorySegmentedControl(")
+            .substringBefore("private fun TodayWatchModeSegmentedControl(")
+
+        assertTrue(popularControl.contains("forceEqualWidth = true"))
+        assertTrue(popularControl.contains("contentAlignment = Alignment.Center"))
+        assertTrue(popularControl.contains(".widthIn(max = 400.dp)"))
+    }
 
     @Test
     fun `liquid segmented labels keep bottom bar foreground opacity`() {

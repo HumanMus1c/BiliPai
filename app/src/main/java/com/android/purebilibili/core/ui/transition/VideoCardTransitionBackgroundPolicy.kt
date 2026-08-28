@@ -152,7 +152,7 @@ internal data class VideoCardTransitionBackgroundState(
      * 为 true 时完整源卡常驻下层，由上层 live 画面在落点窗口内淡出交接。
      * 默认值仅供未接入导航宿主的调用方兜底；导航宿主应显式选择返回策略。
      */
-    val preferWholeCardReturnProvider: () -> Boolean = { false },
+    val preferWholeCardReturnProvider: () -> Boolean = { true },
     val motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     val isLightBackgroundProvider: () -> Boolean = { false },
 )

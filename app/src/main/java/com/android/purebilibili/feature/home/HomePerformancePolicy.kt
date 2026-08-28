@@ -56,7 +56,7 @@ internal fun resolveHomePerformanceConfig(
     topBarLiquidGlassEnabled: Boolean,
     homeSearchLiquidGlassEnabled: Boolean = false,
     bottomBarLiquidGlassEnabled: Boolean,
-    androidNativeLiquidGlassEnabled: Boolean = false,
+    androidNativeLiquidGlassEnabled: Boolean = true,
     cardAnimationEnabled: Boolean,
     cardTransitionEnabled: Boolean,
     isDataSaverActive: Boolean,

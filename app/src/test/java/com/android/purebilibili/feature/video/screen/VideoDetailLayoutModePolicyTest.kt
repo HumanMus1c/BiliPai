@@ -425,7 +425,7 @@ class VideoDetailLayoutModePolicyTest {
     @Test
     fun compactPhoneIgnoresFoldablePortraitPreference() {
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolvePhoneVideoRequestedOrientation(
                 autoRotateEnabled = false,
                 fullscreenMode = FullscreenMode.AUTO,
@@ -474,13 +474,28 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolvePhoneVideoRequestedOrientation(
                 autoRotateEnabled = false,
                 fullscreenMode = FullscreenMode.AUTO,
                 isCompactDevice = true,
                 isOrientationDrivenFullscreen = true,
                 isFullscreenMode = true
+            )
+        )
+    }
+
+    @Test
+    fun phoneOrientationPolicy_autoRotateDisabled_preservesCurrentExactLandscapeSide() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = false,
+                fullscreenMode = FullscreenMode.AUTO,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                isFullscreenMode = true,
+                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
             )
         )
     }

@@ -63,7 +63,7 @@ internal fun shouldStartSettingsDiagnostics(
 ): Boolean = loadState != SettingsDiagnosticsLoadState.LOADED && !jobActive
 
 data class SettingsUiState(
-    val themeSelection: AppUiStyle = AppUiStyle.MIUIX,
+    val themeSelection: AppUiStyle = AppUiStyle.MATERIAL3,
     val hwDecode: Boolean = true,
     val themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
     val darkThemeStyle: DarkThemeStyle = DarkThemeStyle.DEFAULT,
@@ -121,7 +121,7 @@ data class SettingsUiState(
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
     val bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
         BottomBarSearchLayoutMode.FULL_DOCK,
-    val androidNativeLiquidGlassEnabled: Boolean = false,
+    val androidNativeLiquidGlassEnabled: Boolean = true,
     val liquidGlassStyle: com.android.purebilibili.core.store.LiquidGlassStyle = com.android.purebilibili.core.store.LiquidGlassStyle.CLASSIC, // [New]
     val liquidGlassMode: LiquidGlassMode = LiquidGlassMode.BALANCED,
     val liquidGlassStrength: Float = 0.52f,
@@ -182,7 +182,7 @@ data class ExtraSettings(
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
     val bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
         BottomBarSearchLayoutMode.FULL_DOCK,
-    val androidNativeLiquidGlassEnabled: Boolean = false,
+    val androidNativeLiquidGlassEnabled: Boolean = true,
     val liquidGlassStyle: com.android.purebilibili.core.store.LiquidGlassStyle, // [New]
     val liquidGlassMode: LiquidGlassMode, // [New]
     val liquidGlassStrength: Float, // [New]

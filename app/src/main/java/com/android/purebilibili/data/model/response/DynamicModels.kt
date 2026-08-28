@@ -144,7 +144,25 @@ data class TopicCardList(
     @SerialName("has_more")
     val hasMore: Boolean = false,
     val offset: String = "",
-    val items: List<TopicDynamicCardItem> = emptyList()
+    val items: List<TopicDynamicCardItem> = emptyList(),
+    @SerialName("topic_sort_by_conf")
+    val topicSortByConf: TopicSortByConf? = null,
+)
+
+@Serializable
+data class TopicSortByConf(
+    @SerialName("all_sort_by")
+    val allSortBy: List<TopicSortOption> = emptyList(),
+    @SerialName("show_sort_by")
+    val showSortBy: Int = 0,
+)
+
+@Serializable
+data class TopicSortOption(
+    @SerialName("sort_by")
+    val sortBy: Int = 0,
+    @SerialName("sort_name")
+    val sortName: String = "",
 )
 
 @Serializable
@@ -699,7 +717,8 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                 } else {
                     existingMajor
                 },
-                additional = existing?.additional
+                additional = existing?.additional,
+                topic = existing?.topic,
             )
         )
     }
@@ -896,7 +915,15 @@ data class DecorateInfo(
 data class DynamicContentModule(
     val desc: DynamicDesc? = null,
     val major: DynamicMajor? = null,
-    val additional: DynamicAdditional? = null
+    val additional: DynamicAdditional? = null,
+    val topic: DynamicTopic? = null,
+)
+
+@Serializable
+data class DynamicTopic(
+    @Serializable(with = FlexibleLongSerializer::class)
+    val id: Long = 0,
+    val name: String = "",
 )
 
 @Serializable

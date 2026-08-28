@@ -31,6 +31,9 @@ internal fun resolveDynamicCommentComposerHint(replyUname: String? = null): Stri
     return if (uname.isNotEmpty()) "回复 @$uname" else "发一条友善的评论"
 }
 
+internal fun resolveDynamicCommentImeSubmission(text: String): String? =
+    text.trim().takeIf(String::isNotEmpty)
+
 internal fun resolveDynamicCommentLocationLabel(location: String?): String? {
     return location?.trim()?.takeIf { it.isNotEmpty() }
 }

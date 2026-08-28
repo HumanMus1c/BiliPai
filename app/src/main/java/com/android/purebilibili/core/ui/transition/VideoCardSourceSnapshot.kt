@@ -25,6 +25,15 @@ internal data class VideoCardSourceInfoPresentation(
      */
     val showStatsInInfo: Boolean = false,
     /**
+     * Whether duration is painted in the source card's information region.
+     *
+     * Horizontal cards keep duration on the cover. Recording this separately prevents the
+     * flying return chrome from inventing a duplicate duration row beside the cover.
+     */
+    val showDurationInInfo: Boolean = false,
+    /** Horizontal personal cards paint the UP row before their date row. */
+    val ownerBeforePublish: Boolean = false,
+    /**
      * When true, list info sits on the home themed/tinted plate
      * ([resolveHomeCardInfoSurfaceAppearance]); flying chrome must paint the same plate.
      */
@@ -95,11 +104,15 @@ internal data class VideoCardSourceChromeSnapshot(
 internal fun resolveVideoCardSourceInfoPresentation(
     publishTimeText: String,
     showStatsInInfo: Boolean,
+    showDurationInInfo: Boolean = false,
+    ownerBeforePublish: Boolean = false,
     useTintedInfoSurface: Boolean = false,
     showOverflowMenu: Boolean = false,
 ): VideoCardSourceInfoPresentation = VideoCardSourceInfoPresentation(
     publishTimeText = publishTimeText.trim(),
     showStatsInInfo = showStatsInInfo,
+    showDurationInInfo = showDurationInInfo,
+    ownerBeforePublish = ownerBeforePublish,
     useTintedInfoSurface = useTintedInfoSurface,
     showOverflowMenu = showOverflowMenu,
 )

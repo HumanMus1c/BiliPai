@@ -67,8 +67,15 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WatchLater
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.TextButton
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -437,6 +444,11 @@ internal fun resolveMd3BottomBarDisplayMode(labelMode: Int): Md3BottomBarDisplay
         else -> Md3BottomBarDisplayMode.IconAndText
     }
 }
+
+internal fun shouldUseOfficialMd3FloatingToolbar(
+    isFloating: Boolean,
+    liquidGlassEnabled: Boolean,
+): Boolean = isFloating && !liquidGlassEnabled
 
 internal data class AndroidNativeBottomBarTuning(
     val cornerRadiusDp: Float,
@@ -2352,6 +2364,33 @@ private fun MaterialBottomBar(
         hasUiSkinDecoration = uiSkinDecoration != null,
     )
 
+    if (
+        shouldUseOfficialMd3FloatingToolbar(
+            isFloating = isFloating,
+            liquidGlassEnabled = glassEnabled,
+        )
+    ) {
+        OfficialMd3FloatingBottomBar(
+            currentItem = currentItem,
+            onItemClick = onItemClick,
+            modifier = modifier,
+            visibleItems = bottomBarVisibleItems,
+            itemLabels = itemLabels,
+            onToggleSidebar = onToggleSidebar,
+            dynamicUnreadCount = dynamicUnreadCount,
+            isTablet = isTablet,
+            showIcon = showIcon,
+            showText = showText,
+            searchEnabled = resolveBottomBarSearchEnabledForItem(
+                currentItem = currentItem,
+                bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
+            ),
+            onSearchClick = onSearchClick,
+            haptic = haptic,
+        )
+        return
+    }
+
     if (isFloating) {
         BiliPaiFloatingBottomBar(
             currentItem = currentItem,
@@ -2522,6 +2561,117 @@ private fun MaterialBottomBar(
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OfficialMd3FloatingBottomBar(
+    currentItem: BottomNavItem,
+    onItemClick: (BottomNavItem) -> Unit,
+    modifier: Modifier = Modifier,
+    visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String>,
+    onToggleSidebar: (() -> Unit)?,
+    dynamicUnreadCount: Int,
+    isTablet: Boolean,
+    showIcon: Boolean,
+    showText: Boolean,
+    searchEnabled: Boolean,
+    onSearchClick: () -> Unit,
+    haptic: (HapticType) -> Unit,
+) {
+    val toolbarContent: @Composable RowScope.() -> Unit = {
+        visibleItems.forEach { item ->
+            val selected = currentItem == item
+            val label = resolveBottomNavItemLabel(item, itemLabels)
+            val onClick = {
+                performMaterialBottomBarTap(
+                    haptic = haptic,
+                    onClick = { onItemClick(item) },
+                )
+            }
+            val icon: @Composable () -> Unit = {
+                BottomBarReminderBadgeAnchor(
+                    item = item,
+                    unreadCount = dynamicUnreadCount,
+                    floatingCompact = true,
+                ) {
+                    AppIcon(
+                        imageVector = resolveMaterialBottomBarIcon(item, selected),
+                        contentDescription = if (showText) null else label,
+                    )
+                }
+            }
+
+            when {
+                showIcon && showText && selected -> FilledTonalButton(
+                    onClick = onClick,
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    icon()
+                    Spacer(Modifier.width(8.dp))
+                    AppText(text = label, maxLines = 1)
+                }
+                showIcon && selected -> FilledTonalIconButton(onClick = onClick) { icon() }
+                showIcon -> IconButton(onClick = onClick) { icon() }
+                selected -> FilledTonalButton(onClick = onClick) {
+                    AppText(text = label, maxLines = 1)
+                }
+                else -> TextButton(onClick = onClick) {
+                    AppText(text = label, maxLines = 1)
+                }
+            }
+        }
+
+        if (isTablet && onToggleSidebar != null) {
+            IconButton(
+                onClick = {
+                    performMaterialBottomBarTap(haptic = haptic, onClick = onToggleSidebar)
+                },
+            ) {
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Outlined.MenuOpen,
+                    contentDescription = stringResource(R.string.sidebar_toggle),
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = FloatingToolbarDefaults.ScreenOffset,
+                end = FloatingToolbarDefaults.ScreenOffset,
+                bottom = FloatingToolbarDefaults.ScreenOffset +
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            ),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        if (searchEnabled) {
+            HorizontalFloatingToolbar(
+                expanded = true,
+                floatingActionButton = {
+                    FloatingToolbarDefaults.StandardFloatingActionButton(
+                        onClick = {
+                            performMaterialBottomBarTap(haptic = haptic, onClick = onSearchClick)
+                        },
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = stringResource(R.string.common_search),
+                        )
+                    }
+                },
+                content = toolbarContent,
+            )
+        } else {
+            HorizontalFloatingToolbar(
+                expanded = true,
+                content = toolbarContent,
+            )
         }
     }
 }
@@ -3538,6 +3688,7 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
     }
     val selectedAlpha = if (selected) 1f else 0f
     val selectionScale = LocalFloatingBottomBarItemSelectionScale.current
+    val density = LocalDensity.current
 
     if (showIcon) {
         Box(
@@ -3545,6 +3696,9 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
                 val scale = selectionScale()
                 scaleX = scale
                 scaleY = scale
+                translationY = with(density) {
+                    -resolveNavigationIconSelectionLiftDp(scale).dp.toPx()
+                }
                 clip = false
             },
             contentAlignment = Alignment.Center,

@@ -613,7 +613,7 @@ data class HomeSettings(
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
     val bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
         BottomBarSearchLayoutMode.FULL_DOCK,
-    val androidNativeLiquidGlassEnabled: Boolean = false,
+    val androidNativeLiquidGlassEnabled: Boolean = true,
     val liquidGlassStyle: LiquidGlassStyle = LiquidGlassStyle.CLASSIC, // [New]
     val liquidGlassMode: LiquidGlassMode = LiquidGlassMode.BALANCED,
     val liquidGlassStrength: Float = 0.52f,
@@ -666,7 +666,7 @@ data class HomeSettings(
 }
 
 data class AppThemeSettings(
-    val uiStyle: AppUiStyle = AppUiStyle.MIUIX,
+    val uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
     val themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
     val darkThemeStyle: DarkThemeStyle = DarkThemeStyle.DEFAULT,
     val appLanguage: AppLanguage = AppLanguage.FOLLOW_SYSTEM,
@@ -860,7 +860,7 @@ internal fun resolveUiPresetPreferenceValue(rawValue: Int?): UiPreset {
 }
 
 internal fun resolveAndroidNativeVariantPreferenceValue(rawValue: Int?): AndroidNativeVariant {
-    return AndroidNativeVariant.fromValue(rawValue ?: AndroidNativeVariant.MIUIX.value)
+    return AndroidNativeVariant.fromValue(rawValue ?: AndroidNativeVariant.MATERIAL3.value)
 }
 
 enum class DanmakuPanelWidthMode(val value: Int, val label: String, val widthFraction: Float) {
@@ -1655,7 +1655,7 @@ object SettingsManager {
             ),
             androidNativeLiquidGlassEnabled =
                 preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED]
-                    ?: false,
+                    ?: true,
             liquidGlassStyle = legacyLiquidGlassStyle,
             liquidGlassMode = liquidGlassMode,
             liquidGlassStrength = liquidGlassStrength,
@@ -2075,7 +2075,7 @@ object SettingsManager {
         val rawDpiOverride = preferences[KEY_APP_DPI_OVERRIDE_PERCENT] ?: 0
         val defaultRoleOverrides = ThemeRoleOverrides()
         // 两值运行时模型：优先新键；缺失时回退旧键解析并归一化。
-        // 历史 iOS、缺失、非法值均按迁移表单向迁移为默认主题 MIUIX。
+        // 新用户缺失主题键默认 Material 3；历史/非法组合由迁移表兼容为 MIUIX。
         val uiStyle = resolveThemeSelectionFromPreferences(
             preferences,
             KEY_UI_PRESET,
@@ -3829,7 +3829,7 @@ object SettingsManager {
         context.settingsDataStore.data
             .map { preferences ->
                 preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED]
-                    ?: false
+                    ?: true
             }
 
     suspend fun setAndroidNativeLiquidGlassEnabled(context: Context, value: Boolean) {
@@ -7503,7 +7503,7 @@ object SettingsManager {
         )
         return linkedMapOf(
             KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED.name to JsonPrimitive(
-                preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED] ?: false
+                preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED] ?: true
             ),
             KEY_LIQUID_GLASS_ENABLED.name to JsonPrimitive(bottomBarEnabled),
             KEY_TOP_BAR_LIQUID_GLASS_ENABLED.name to JsonPrimitive(topBarEnabled),

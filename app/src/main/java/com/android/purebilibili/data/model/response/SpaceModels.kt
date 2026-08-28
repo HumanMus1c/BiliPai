@@ -581,7 +581,8 @@ data class SpaceDynamicAuthor(
 @kotlinx.serialization.Serializable
 data class SpaceDynamicContent(
     val desc: SpaceDynamicDesc? = null,
-    val major: SpaceDynamicMajor? = null
+    val major: SpaceDynamicMajor? = null,
+    val topic: DynamicTopic? = null,
 )
 
 @kotlinx.serialization.Serializable

@@ -444,7 +444,7 @@ class TopTabStylePolicyTest {
                 selectionIndicatorStyle = HomeSelectionIndicatorStyle.CAPSULE,
             )
         )
-        assertTrue(
+        assertFalse(
             shouldHomeTopTabUseFloatingBottomBarDock(
                 skinPlainStyle = false,
                 hasSkinStickerIcons = false,

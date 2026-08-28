@@ -90,6 +90,7 @@ internal enum class SettingsIconRole {
     FLOATING_BOTTOM_BAR,
     HARDWARE_DECODER,
     PLAYBACK_SPEED,
+    NATIVE_MIUIX_DIALOG,
     LONG_PRESS_SPEED_HINT,
     RESUME_PLAYBACK_PROMPT,
     STOP_ON_EXIT,
@@ -279,6 +280,7 @@ internal fun resolveSettingsMaterialSymbolResource(role: SettingsIconRole): Int 
     SettingsIconRole.FLOATING_BOTTOM_BAR -> R.drawable.ms_view_agenda_24
     SettingsIconRole.HARDWARE_DECODER -> R.drawable.ms_memory_24
     SettingsIconRole.PLAYBACK_SPEED -> R.drawable.ms_speed_24
+    SettingsIconRole.NATIVE_MIUIX_DIALOG -> R.drawable.ms_chat_bubble_outline_24
     SettingsIconRole.LONG_PRESS_SPEED_HINT -> R.drawable.ms_visibility_off_24
     SettingsIconRole.RESUME_PLAYBACK_PROMPT -> R.drawable.ms_restore_24
     SettingsIconRole.STOP_ON_EXIT -> R.drawable.ms_stop_circle_24
@@ -538,6 +540,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.FLOATING_BOTTOM_BAR -> MiuixIcons.MoreCircle
     SettingsIconRole.HARDWARE_DECODER -> MiuixIcons.Settings
     SettingsIconRole.PLAYBACK_SPEED -> MiuixIcons.Stopwatch
+    SettingsIconRole.NATIVE_MIUIX_DIALOG -> MiuixIcons.Messages
     SettingsIconRole.LONG_PRESS_SPEED_HINT -> MiuixIcons.Stopwatch
     SettingsIconRole.RESUME_PLAYBACK_PROMPT -> MiuixIcons.Undo
     SettingsIconRole.STOP_ON_EXIT -> MiuixIcons.Pause

@@ -15,6 +15,8 @@ class DynamicVideoCardSharedTransitionStructureTest {
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(source.contains("sourceRoute = sourceRoute"))
         assertTrue(source.contains("VideoCardLargeCover("))
+        assertTrue(source.contains("crossfadeSourceContent = true"))
+        assertTrue(source.contains("videoCardShellReturnCoverAlpha("))
         assertFalse(source.contains("videoTitleSharedElementKey("))
     }
 
@@ -50,5 +52,17 @@ class DynamicVideoCardSharedTransitionStructureTest {
         assertTrue(source.contains("val sharedTransitionEnabled = LocalSharedTransitionEnabled.current"))
         assertTrue(source.contains("val sharedElementReady = sharedTransitionEnabled &&"))
         assertTrue(source.contains("transitionEnabled = sharedTransitionEnabled"))
+    }
+
+    @Test
+    fun dynamicVideoCard_freezesCoverChromeForReturn() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/components/VideoCards.kt")
+            .readText()
+
+        assertTrue(source.contains("showGradientMask = true"))
+        assertTrue(source.contains("showStatsOnCover = true"))
+        assertTrue(source.contains("showSecondaryStatOnCover = true"))
+        assertTrue(source.contains("showDurationOnCover = true"))
+        assertTrue(source.contains("showStatsInInfo = false"))
     }
 }

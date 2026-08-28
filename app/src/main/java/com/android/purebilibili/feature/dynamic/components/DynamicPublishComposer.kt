@@ -62,6 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun DynamicPublishComposer(
     initialText: String,
+    initialTopic: DynamicPublishTopic? = null,
     isEditing: Boolean,
     submitting: Boolean,
     errorMessage: String?,
@@ -79,7 +80,7 @@ fun DynamicPublishComposer(
     var reserve by remember { mutableStateOf<DynamicCreatedReserve?>(null) }
     var mentions by remember { mutableStateOf<List<DynamicPublishMention>>(emptyList()) }
     var emotes by remember { mutableStateOf<List<String>>(emptyList()) }
-    var topic by remember { mutableStateOf<DynamicPublishTopic?>(null) }
+    var topic by remember(initialTopic) { mutableStateOf(initialTopic) }
     var privatePublish by remember { mutableStateOf(false) }
     var showVoteDialog by remember { mutableStateOf(false) }
     var showReserveDialog by remember { mutableStateOf(false) }

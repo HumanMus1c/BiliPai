@@ -93,7 +93,7 @@ import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import com.android.purebilibili.feature.list.resolveHistoryFilterTabChromeSpec
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
 import com.android.purebilibili.feature.personal.PersonalMediaCardSkeleton
-import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
 import com.android.purebilibili.core.util.CardPositionManager
 import kotlinx.coroutines.Dispatchers
@@ -1318,6 +1318,7 @@ private fun WatchLaterVideoCard(
                             .resolveVideoCardSourceInfoPresentation(
                                 publishTimeText = "",
                                 showStatsInInfo = true,
+                                showOverflowMenu = !isBatchMode,
                             ),
                         coverUrl = stationaryCoverUrl,
                         coverCacheKey = stationaryCoverUrl,
@@ -1389,7 +1390,7 @@ private fun WatchLaterVideoCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     overflow = TextOverflow.Visible,
                 )
-                VideoStatRow(
+                HorizontalVideoStatRow(
                     playText = formatNumber(item.stat.view),
                     danmakuText = formatNumber(item.stat.danmaku),
                 )

@@ -909,7 +909,7 @@ internal fun createBiliPaiStyleColorScheme(
 
 @Composable
 fun PureBiliBiliTheme(
-    uiStyle: AppUiStyle = AppUiStyle.MIUIX,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
     themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,

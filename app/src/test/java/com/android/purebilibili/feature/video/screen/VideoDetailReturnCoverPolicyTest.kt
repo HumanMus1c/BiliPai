@@ -1,5 +1,8 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import org.junit.Assert.assertEquals
@@ -9,6 +12,66 @@ import org.junit.Test
 import java.io.File
 
 class VideoDetailReturnCoverPolicyTest {
+
+    @Test
+    fun flyingSourceChromeOwnsClickFrameAndReturnLandingFrame() {
+        assertEquals(
+            1f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 1f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun flyingCoverUsesTheFrozenStationaryCardPresentation() {
+        val coverPresentation = VideoCardSourceCoverPresentation(
+            showGradientMask = true,
+            showStatsOnCover = true,
+            showSecondaryStatOnCover = true,
+            showDurationOnCover = true,
+            showHistoryProgressBar = true,
+            historyProgressFraction = 0.42f,
+        )
+        val model = resolveVideoDetailReturnSourceCardChromeModel(
+            info = null,
+            snapshot = VideoCardSourceChromeSnapshot(
+                title = "title",
+                ownerName = "owner",
+                viewText = "12.3万",
+                danmakuText = "456",
+                durationText = "05:20",
+                coverPresentation = coverPresentation,
+            ),
+        )
+
+        assertEquals(coverPresentation, model?.coverPresentation)
+        assertEquals(2f, resolveVideoDetailReturnCoverChromeDensityScale(0.5f), 0.001f)
+    }
 
     @Test
     fun restoredParentSessionDoesNotRetakeVisualAssetsWhileClockIsIdle() {
@@ -129,8 +192,24 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun flyingReturnSourceCardChromeMustDrawBecauseOverlayCoversList() {
-        assertTrue(shouldDrawFlyingReturnSourceCardChrome())
+    fun flyingEntryOwnsInformationAndCoverChrome() {
+        val holder = File(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt",
+        ).takeIf { it.isFile }?.readText()
+            ?: File(
+                "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt",
+            ).readText()
+        assertTrue(holder.contains("VideoDetailReturnSourceCardChrome("))
+        assertTrue(holder.contains("VideoDetailReturnCoverChrome("))
+        assertTrue(holder.contains("alpha = flyingSourceChromeAlphaProvider()"))
+        val coverChromeGuard = holder
+            .substringBefore("VideoDetailReturnCoverChrome(")
+            .takeLast(500)
+        assertTrue(coverChromeGuard.contains("if (miuixVisualAssetsActive)"))
+        val sourceChromeGuard = holder
+            .substringBefore("VideoDetailReturnSourceCardChrome(")
+            .takeLast(1_000)
+        assertTrue(sourceChromeGuard.contains("miuixVisualAssetsActive"))
     }
 
     @Test
@@ -855,6 +934,30 @@ class VideoDetailReturnCoverPolicyTest {
                 hasResidentCover = true,
                 liveReturnMorph = true,
                 keepLivePlayerForPredictiveBack = true,
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `entry keeps resident cover above black surface until first player frame`() {
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnCoverAlpha(
+                transitionProgress = 0f,
+                isCommittedCardReturn = false,
+                hasResidentCover = true,
+                showResidentCoverUntilFirstFrame = true,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnPlayerAlpha(
+                transitionProgress = 0f,
+                isCommittedCardReturn = false,
+                hasResidentCover = true,
+                showResidentCoverUntilFirstFrame = true,
             ),
             0.0001f,
         )

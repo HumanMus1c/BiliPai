@@ -131,25 +131,6 @@ private fun SettingsCardGroup(
 }
 
 @Composable
-fun SupportAuthorCompactSection(
-    onDonateClick: () -> Unit
-) {
-    val donateVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DONATE)
-
-    SettingsCardGroup {
-        SettingClickableItem(
-            icon = donateVisual.icon,
-            iconPainter = donateVisual.iconResId?.let { painterResource(id = it) },
-            title = "打赏作者",
-            value = "支持开发",
-            onClick = onDonateClick,
-            iconTint = donateVisual.iconTint,
-            enableCopy = false
-        )
-    }
-}
-
-@Composable
 fun GeneralSection(
     onAppearanceClick: () -> Unit,
     onPlaybackClick: () -> Unit,
@@ -383,11 +364,13 @@ internal fun SettingsRootCategoryNavigationSection(
 @Composable
 internal fun SettingsRootCategoryListSection(
     categories: List<SettingsRootCategory>,
-    onCategoryClick: (SettingsRootCategory) -> Unit
+    onCategoryClick: (SettingsRootCategory) -> Unit,
+    onDonateClick: () -> Unit,
 ) {
     val siblingTints = remember(categories.size) {
-        resolveSettingsSiblingIconTints(categories.size)
+        resolveSettingsSiblingIconTints(categories.size + 1)
     }
+    val donateVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DONATE)
     SettingsCardGroup {
         categories.forEachIndexed { index, category ->
             val visual = rememberSettingsEntryVisual(category.searchTarget)
@@ -400,10 +383,17 @@ internal fun SettingsRootCategoryListSection(
                 iconSizeDp = visual.iconSizeDp,
                 onClick = { onCategoryClick(category) },
             )
-            if (index != categories.lastIndex) {
-                SettingsAdaptiveDivider()
-            }
+            SettingsAdaptiveDivider()
         }
+        SettingsRootCategoryRow(
+            title = "打赏作者",
+            subtitle = "支持项目后续持续开发和维护",
+            icon = donateVisual.icon,
+            iconPainter = donateVisual.iconResId?.let { painterResource(id = it) },
+            iconTint = siblingTints.last(),
+            iconSizeDp = donateVisual.iconSizeDp,
+            onClick = onDonateClick,
+        )
     }
 }
 

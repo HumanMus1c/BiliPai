@@ -219,6 +219,7 @@ fun <T> AppNativeTabRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollable: Boolean = false,
+    forceEqualWidth: Boolean = false,
     minTabWidth: Dp = 72.dp,
     compactMiuixWhenTwoOptions: Boolean = true,
     height: Dp? = null,
@@ -233,7 +234,8 @@ fun <T> AppNativeTabRow(
         labels = options.map { it.label },
         allowLabelOverflow = allowLabelOverflow,
     )
-    val effectiveScrollable = scrollable || options.size > 3 || readableMinTabWidth > minTabWidth
+    val effectiveScrollable = !forceEqualWidth &&
+        (scrollable || options.size > 3 || readableMinTabWidth > minTabWidth)
     val viewportBoundedModifier = modifier.widthIn(
         max = LocalConfiguration.current.screenWidthDp.dp,
     )

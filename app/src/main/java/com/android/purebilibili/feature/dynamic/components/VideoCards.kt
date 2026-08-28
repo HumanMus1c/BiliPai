@@ -56,6 +56,7 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
@@ -66,7 +67,8 @@ import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrE
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
-import com.android.purebilibili.core.ui.components.VideoStatRow
+import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnCoverAlpha
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.data.model.response.ArchiveMajor
 
 /**
@@ -130,8 +132,15 @@ fun VideoCardLarge(
                     infoPresentation = com.android.purebilibili.core.ui.transition
                         .resolveVideoCardSourceInfoPresentation(
                             publishTimeText = "",
-                            showStatsInInfo = true,
+                            // Dynamic cards paint duration/stats on the cover, not below it.
+                            showStatsInInfo = false,
                         ),
+                    coverPresentation = VideoCardSourceCoverPresentation(
+                        showGradientMask = true,
+                        showStatsOnCover = true,
+                        showSecondaryStatOnCover = true,
+                        showDurationOnCover = true,
+                    ),
                     coverUrl = coverUrl,
                     coverCacheKey = coverUrl,
                 ),
@@ -200,7 +209,8 @@ fun VideoCardLarge(
                 bvid = archive.bvid,
                 sourceRoute = sourceRoute,
                 motionSpec = sharedTransitionMotionSpec,
-                clipShape = coverShape
+                clipShape = coverShape,
+                crossfadeSourceContent = true,
             )
             .onGloballyPositioned { coordinates ->
                 cardBoundsRef.value = coordinates.boundsInRoot()
@@ -213,9 +223,15 @@ fun VideoCardLarge(
             isCollection = isCollection,
             cornerBadgeText = cornerBadgeText,
             coverShape = coverShape,
-            modifier = Modifier.onGloballyPositioned { coordinates ->
-                coverBoundsRef.value = coordinates.boundsInRoot()
-            },
+            modifier = Modifier
+                .videoCardShellReturnCoverAlpha(
+                    enabled = useCardShellSharedBounds,
+                    bvid = archive.bvid,
+                    sourceRoute = sourceRoute,
+                )
+                .onGloballyPositioned { coordinates ->
+                    coverBoundsRef.value = coordinates.boundsInRoot()
+                },
         )
         Column(
             modifier = Modifier.videoCardShellReturnChromeAlpha(
@@ -316,7 +332,7 @@ private fun VideoCardLargeCover(
                     Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
                 }
 
-                VideoStatRow(
+                HorizontalVideoStatRow(
                     playText = archive.stat.play,
                     danmakuText = archive.stat.danmaku,
                     contentColor = MediaContrastPalette.Foreground,

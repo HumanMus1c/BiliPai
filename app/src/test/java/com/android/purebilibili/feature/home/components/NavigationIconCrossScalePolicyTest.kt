@@ -9,9 +9,9 @@ class NavigationIconCrossScalePolicyTest {
 
     @Test
     fun `coverage only enlarges old and new navigation icons during transition`() {
-        assertEquals(1.085f, resolveNavigationIconCrossScale(true, 0.75f), 0.001f)
-        assertEquals(1.12f, resolveNavigationIconCrossScale(true, 0.5f), 0.001f)
-        assertEquals(1.085f, resolveNavigationIconCrossScale(true, 0.25f), 0.001f)
+        assertEquals(1.212f, resolveNavigationIconCrossScale(true, 0.75f), 0.001f)
+        assertEquals(1.3f, resolveNavigationIconCrossScale(true, 0.5f), 0.001f)
+        assertEquals(1.212f, resolveNavigationIconCrossScale(true, 0.25f), 0.001f)
     }
 
     @Test
@@ -22,7 +22,7 @@ class NavigationIconCrossScalePolicyTest {
         assertEquals(1f, resolveNavigationIconCrossScale(true, 1f), 0.001f)
         assertEquals(0f, resolveNavigationIconSelectionLiftDp(1f), 0.001f)
         assertEquals(
-            0f,
+            8f,
             resolveNavigationIconSelectionLiftDp(FloatingBottomBarSelectionScale),
             0.001f,
         )

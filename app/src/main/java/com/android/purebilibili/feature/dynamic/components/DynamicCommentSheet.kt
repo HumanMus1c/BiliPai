@@ -23,8 +23,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.data.model.response.DynamicItem
@@ -50,6 +52,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicCommentComposerHin
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentCountLabel
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentEmptyLabel
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentLocationLabel
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentImeSubmission
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalCount
 import com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount
 import com.android.purebilibili.feature.dynamic.shouldOpenDynamicCommentThreadOnTap
@@ -625,7 +628,6 @@ private fun DynamicCommentComposer(
     backdrop: MiuixBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
-    val trimmedComment = value.trim()
     val dockShape = resolveSharedBottomBarCapsuleShape()
     val composerHeight = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small
     val composerLensIntensity = resolveFloatingDockGeometryScale(composerHeight.value)
@@ -664,6 +666,12 @@ private fun DynamicCommentComposer(
                     )
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        resolveDynamicCommentImeSubmission(value)?.let(onSubmit)
+                    },
+                ),
                 shape = dockShape,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = fieldColor,
@@ -689,37 +697,6 @@ private fun DynamicCommentComposer(
                     contentDescription = "取消回复",
                     modifier = Modifier.size(AppSpacingTokens.Large)
                 )
-            }
-        }
-        Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-        BottomBarMatchedReusableLiquidDock(
-            modifier = Modifier.height(composerHeight),
-            shape = dockShape,
-            reuseEnabled = liquidGlassEnabled,
-            backdrop = backdrop,
-            drawShellLens = true,
-            shellLensIntensity = composerLensIntensity,
-        ) { liquidChromeActive ->
-            AppButton(
-                onClick = { onSubmit(trimmedComment) },
-                enabled = trimmedComment.isNotEmpty(),
-                modifier = Modifier.fillMaxHeight(),
-                shape = dockShape,
-                colors = if (liquidChromeActive) {
-                    ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(
-                            alpha = 0.72f
-                        ),
-                    )
-                } else {
-                    null
-                },
-                contentPadding = PaddingValues(horizontal = AppSpacingTokens.Large),
-            ) {
-                AppText("发送")
             }
         }
     }

@@ -599,10 +599,15 @@ internal fun resolvePhoneVideoRequestedOrientation(
     if (!shouldApplyPhoneAutoRotatePolicy(isCompactDevice)) {
         return when {
             isFullscreenMode || manualFullscreenRequested -> {
-                resolvePhoneFullscreenEnterOrientation(
+                val fullscreenOrientation = resolvePhoneFullscreenEnterOrientation(
                     fullscreenMode = fullscreenMode,
                     isVerticalVideo = isVerticalVideoForOrientation,
                     preferPortraitForFlatFoldable = preferPortraitForFoldableInnerScreen
+                )
+                resolveStableOrientationWhenAutoRotateDisabled(
+                    requestedOrientation = fullscreenOrientation,
+                    currentRequestedOrientation = currentRequestedOrientation,
+                    autoRotateEnabled = autoRotateEnabled
                 )
             }
             autoRotateEnabled -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
@@ -640,14 +645,37 @@ internal fun resolvePhoneVideoRequestedOrientation(
         }
     }
     return if (isFullscreenMode) {
-        resolvePhoneFullscreenEnterOrientation(
+        val fullscreenOrientation = resolvePhoneFullscreenEnterOrientation(
             fullscreenMode = fullscreenMode,
             isVerticalVideo = isVerticalVideo,
             preferPortraitForFlatFoldable = preferPortraitForFoldableInnerScreen
         ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        resolveStableOrientationWhenAutoRotateDisabled(
+            requestedOrientation = fullscreenOrientation,
+            currentRequestedOrientation = currentRequestedOrientation,
+            autoRotateEnabled = autoRotateEnabled
+        )
     } else {
         ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     }
+}
+
+private fun resolveStableOrientationWhenAutoRotateDisabled(
+    requestedOrientation: Int?,
+    currentRequestedOrientation: Int?,
+    autoRotateEnabled: Boolean
+): Int? {
+    if (
+        autoRotateEnabled ||
+        requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    ) {
+        return requestedOrientation
+    }
+    // SENSOR_LANDSCAPE still follows gravity and can oscillate between both landscape sides
+    // while the user is lying down. With app auto-rotate disabled, preserve an exact landscape
+    // side if one is already active; otherwise enter the platform's fixed landscape orientation.
+    return resolveCurrentExactLandscapeOrientation(currentRequestedOrientation)
+        ?: ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 }
 
 internal fun resolvePhoneAutoRotateRequestedOrientation(

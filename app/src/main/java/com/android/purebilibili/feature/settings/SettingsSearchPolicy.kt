@@ -450,7 +450,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.DONATE,
         title = "打赏作者",
-        subtitle = "自愿支持项目后续开发和维护",
+        subtitle = "自愿支持项目后续持续开发和维护",
         section = "关注作者",
         aliases = listOf("打赏", "赞助", "支持")
     ),

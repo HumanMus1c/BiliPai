@@ -124,4 +124,26 @@ class RecoverableVisualEffectsPolicyTest {
             )
         )
     }
+
+    @Test
+    fun unsupportedAndroidVersionNeverReportsLiquidGlassAsEnabled() {
+        assertFalse(
+            resolveHomeChromeLiquidGlassEnabled(
+                userEnabled = true,
+                sdkInt = 32
+            )
+        )
+        assertTrue(
+            resolveHomeChromeLiquidGlassEnabled(
+                userEnabled = true,
+                sdkInt = 33
+            )
+        )
+        assertFalse(
+            resolveHomeChromeLiquidGlassEnabled(
+                userEnabled = false,
+                sdkInt = 33
+            )
+        )
+    }
 }

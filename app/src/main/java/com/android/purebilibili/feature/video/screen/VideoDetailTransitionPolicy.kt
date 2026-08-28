@@ -234,9 +234,9 @@ internal data class VideoDetailReturnMediaFrame(
 )
 
 /**
- * One ownership decision for the two media layers. The resident cover is drawn above TextureView;
- * SurfaceView ownership uses the paired player-internal cover-only fallback. The outer navigation
- * entry alpha is no longer responsible for hiding platform video surfaces.
+ * One ownership decision for the two media layers. The resident cover is drawn above TextureView
+ * and SurfaceView, including entry bootstrap before the player renders its first frame. The outer
+ * navigation entry alpha is no longer responsible for hiding platform video surfaces.
  */
 internal fun resolveVideoDetailReturnMediaFrame(
     transitionProgress: Float,
@@ -244,9 +244,13 @@ internal fun resolveVideoDetailReturnMediaFrame(
     hasResidentCover: Boolean,
     liveReturnMorph: Boolean = false,
     isReturnGestureInProgress: Boolean = false,
+    showResidentCoverUntilFirstFrame: Boolean = false,
 ): VideoDetailReturnMediaFrame {
     if (!hasResidentCover) {
         return VideoDetailReturnMediaFrame(coverAlpha = 0f, playerAlpha = 1f)
+    }
+    if (showResidentCoverUntilFirstFrame) {
+        return VideoDetailReturnMediaFrame(coverAlpha = 1f, playerAlpha = 0f)
     }
     val returnActive = isCommittedCardReturn || isReturnGestureInProgress
     if (!returnActive) {
@@ -270,12 +274,14 @@ internal fun resolveVideoDetailReturnCoverAlpha(
     hasResidentCover: Boolean,
     liveReturnMorph: Boolean = false,
     keepLivePlayerForPredictiveBack: Boolean = false,
+    showResidentCoverUntilFirstFrame: Boolean = false,
 ): Float = resolveVideoDetailReturnMediaFrame(
     transitionProgress = transitionProgress,
     isCommittedCardReturn = isCommittedCardReturn,
     hasResidentCover = hasResidentCover,
     liveReturnMorph = liveReturnMorph,
     isReturnGestureInProgress = keepLivePlayerForPredictiveBack,
+    showResidentCoverUntilFirstFrame = showResidentCoverUntilFirstFrame,
 ).coverAlpha
 
 /**
@@ -302,12 +308,14 @@ internal fun resolveVideoDetailReturnPlayerAlpha(
     hasResidentCover: Boolean,
     liveReturnMorph: Boolean = false,
     keepLivePlayerForPredictiveBack: Boolean = false,
+    showResidentCoverUntilFirstFrame: Boolean = false,
 ): Float = resolveVideoDetailReturnMediaFrame(
     transitionProgress = transitionProgress,
     isCommittedCardReturn = isCommittedCardReturn,
     hasResidentCover = hasResidentCover,
     liveReturnMorph = liveReturnMorph,
     isReturnGestureInProgress = keepLivePlayerForPredictiveBack,
+    showResidentCoverUntilFirstFrame = showResidentCoverUntilFirstFrame,
 ).playerAlpha
 
 /**
@@ -475,8 +483,6 @@ internal fun shouldExpandPlayerViewportForSharedReturn(
  *
  * 文案来自点击时冻结的 [VideoCardSourceChromeSnapshot] + 详情 ViewInfo，尽量与列表卡一致。
  */
-internal fun shouldDrawFlyingReturnSourceCardChrome(): Boolean = true
-
 /**
  * 布局用折叠进度：返回 morph 中强制 0（展开），其余沿用手势/评论折叠进度。
  */

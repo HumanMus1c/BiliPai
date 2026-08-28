@@ -1,5 +1,6 @@
 package com.android.purebilibili.navigation3
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
@@ -24,6 +25,8 @@ internal data class VideoCardTransitionSession(
     val isSingleColumnCard: Boolean,
     val sourceLayout: VideoCardSourceLayout,
     val sourceChromeSnapshot: VideoCardSourceChromeSnapshot?,
+    /** Navigation-host origin frozen at click, so the landing rect stays in one coordinate space. */
+    val hostOriginInRoot: Offset = Offset.Zero,
 ) {
     val hasUsableSourceGeometry: Boolean
         get() = cardBounds != null && cardFullyVisible
@@ -41,6 +44,7 @@ internal data class VideoCardTransitionSession(
             isSingleColumnCard: Boolean,
             sourceLayout: VideoCardSourceLayout = VideoCardSourceLayout.COVER_ONLY,
             sourceChromeSnapshot: VideoCardSourceChromeSnapshot? = null,
+            hostOriginInRoot: Offset = Offset.Zero,
         ): VideoCardTransitionSession {
             val normalizedBvid = bvid.trim()
             val sourceBvid = source.key
@@ -68,6 +72,7 @@ internal data class VideoCardTransitionSession(
                 isSingleColumnCard = isSingleColumnCard,
                 sourceLayout = sourceLayout,
                 sourceChromeSnapshot = sourceChromeSnapshot.takeIf { ownsRecordedGeometry },
+                hostOriginInRoot = hostOriginInRoot,
             )
         }
     }

@@ -289,7 +289,7 @@ fun PlaybackSettingsContent(
                     }
                     AppPreferenceGroup {
 		                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LONG_PRESS_SPEED_HINT),
+	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.NATIVE_MIUIX_DIALOG),
                             title = "使用原生 Miuix 弹窗",
                             subtitle = "用于播放器、动态、用户空间等页面；关闭后使用 Material 3 弹窗",
                             checked = nativeMiuixPlayerPopups,

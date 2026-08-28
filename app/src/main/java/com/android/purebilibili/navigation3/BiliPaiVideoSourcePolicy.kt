@@ -56,16 +56,13 @@ internal fun resolveVideoCardTransitionEnabledForSource(
 )
 
 /**
- * Card morph depth is part of the navigation meaning, not a card-local animation choice.
- *
- * List -> detail owns the full first-level depth treatment. Detail -> related detail keeps the
- * same frozen-card geometry and inverse return path, but uses a lighter nested depth treatment so
- * the retained parent detail still reads as the immediate back destination.
+ * Card morph mode is part of the navigation meaning, not a card-local animation choice.
+ * Every video-card source, including a related card inside a retained detail page, uses the same
+ * whole-card treatment so cover and metadata always travel as one visual unit.
  */
 internal enum class BiliPaiVideoCardMorphMode {
     NONE,
     PRIMARY_WHOLE_CARD,
-    NESTED_RELATED,
 }
 
 internal fun resolveBiliPaiVideoCardMorphMode(
@@ -82,11 +79,7 @@ internal fun resolveBiliPaiVideoCardMorphMode(
     ) {
         return BiliPaiVideoCardMorphMode.NONE
     }
-    return if (isRelatedVideoCardMorphSourceRoute(sourceRoute)) {
-        BiliPaiVideoCardMorphMode.NESTED_RELATED
-    } else {
-        BiliPaiVideoCardMorphMode.PRIMARY_WHOLE_CARD
-    }
+    return BiliPaiVideoCardMorphMode.PRIMARY_WHOLE_CARD
 }
 
 /**

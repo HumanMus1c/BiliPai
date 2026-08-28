@@ -1,7 +1,6 @@
 package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.components.VideoStatRow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -22,6 +21,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,6 +98,7 @@ import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
+import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionVisualSpec
@@ -727,7 +728,9 @@ internal fun ElegantVideoCard(
     //  [性能优化] 存储 LayoutCoordinates 引用而非 Rect，boundsInRoot() 仅在交互时惰性计算，
     //  避免滚动期间每帧 4 次坐标树遍历开销。
     val cardCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
-    val sharedSourceInstanceId = remember { CardPositionManager.newVideoCardSourceInstanceId() }
+    val sharedSourceInstanceId = rememberSaveable(video.bvid) {
+        CardPositionManager.newVideoCardSourceInstanceId()
+    }
     val coverCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
     val titleCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
     val menuButtonCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
@@ -804,6 +807,7 @@ internal fun ElegantVideoCard(
                         .resolveVideoCardSourceInfoPresentation(
                             publishTimeText = publishTimeRowText,
                             showStatsInInfo = scrollLitePolicy.showSecondaryStatsRow,
+                            showDurationInInfo = showDurationOutside,
                             useTintedInfoSurface = infoSurfaceAppearance.useTintedSurface,
                             showOverflowMenu = hasOverflowMenu,
                         ),
@@ -930,10 +934,12 @@ internal fun ElegantVideoCard(
         val isCoverSharedReturnTarget = routeMatchesSharedReturnTarget && sharedSourceOwnershipAllowed
         val useCardShellSharedBounds = sharedTransitionOwnership.useCardContainerSharedBounds &&
             sharedSourceOwnershipAllowed
+        val miuixCardPixelOwnership =
+            LocalMiuixVideoCardTransitionState.current.enabled && isCoverSharedReturnTarget
         val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
             isScrollInProgress = scrollLiteModeEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
-            useCoverSharedBounds = useCardShellSharedBounds,
+            useCoverSharedBounds = useCardShellSharedBounds || miuixCardPixelOwnership,
             isSharedReturnTarget = isCoverSharedReturnTarget
         )
         // lastClicked 生命周期内钉住点击时的封面源，避免返回途中换 URL/质量触发重解码闪烁。
@@ -957,6 +963,12 @@ internal fun ElegantVideoCard(
                     .matchParentSize()
                     .clip(cardShellShape)
                     .background(AppSurfaceTokens.cardContainer())
+                    .videoCardShellReturnCoverAlpha(
+                        enabled = useCardShellSharedBounds,
+                        bvid = video.bvid,
+                        sourceRoute = effectiveSharedElementSourceRoute,
+                        isReturningFromDetail = isReturningFromVideoDetail,
+                    )
             )
             Column(
                 modifier = Modifier
@@ -1477,7 +1489,7 @@ internal fun ElegantVideoCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)
             ) {
-                VideoStatRow(
+                HorizontalVideoStatRow(
                     playText = primaryStatText,
                     danmakuText = secondaryStatText.orEmpty(),
                     modifier = Modifier.fillMaxWidth(),

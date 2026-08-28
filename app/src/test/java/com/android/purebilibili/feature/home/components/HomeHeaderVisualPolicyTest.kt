@@ -26,6 +26,28 @@ import org.junit.Test
 
 class HomeHeaderVisualPolicyTest {
     @Test
+    fun `legacy top tabs require liquid glass and floating bottom bar both disabled`() {
+        assertTrue(
+            shouldUseLegacyHomeTopTabs(
+                liquidGlassEnabled = false,
+                bottomBarFloating = false,
+            ),
+        )
+        assertFalse(
+            shouldUseLegacyHomeTopTabs(
+                liquidGlassEnabled = true,
+                bottomBarFloating = false,
+            ),
+        )
+        assertFalse(
+            shouldUseLegacyHomeTopTabs(
+                liquidGlassEnabled = false,
+                bottomBarFloating = true,
+            ),
+        )
+    }
+
+    @Test
     fun topActionIcon_exportsOnlyThroughActiveLiquidGlassBackdrop() {
         assertTrue(
             shouldExportHomeTopActionIconThroughLiquidGlass(

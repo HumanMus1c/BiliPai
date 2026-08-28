@@ -27,7 +27,7 @@ class AppThemeSettingsMappingPolicyTest {
     fun emptyPreferences_useStartupThemeDefaults() {
         val result = mapAppThemeSettingsFromPreferences(mutablePreferencesOf())
 
-        assertEquals(AppUiStyle.MIUIX, result.uiStyle)
+        assertEquals(AppUiStyle.MATERIAL3, result.uiStyle)
         assertEquals(AppThemeMode.FOLLOW_SYSTEM, result.themeMode)
         assertEquals(DarkThemeStyle.DEFAULT, result.darkThemeStyle)
         assertEquals(AppLanguage.FOLLOW_SYSTEM, result.appLanguage)

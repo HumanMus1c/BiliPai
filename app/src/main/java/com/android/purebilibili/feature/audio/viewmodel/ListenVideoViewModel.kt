@@ -227,7 +227,11 @@ internal class ListenVideoViewModel(
                     artists = mapListenVideoArtists(indexedResources),
                     failedFolderIds = result.failedFolderIds,
                     error = result.failedFolderIds.takeIf(Set<Long>::isNotEmpty)?.let {
-                        "${it.size} 个收藏夹暂时无法索引"
+                        if (result.haltedByRiskControl) {
+                            "已触发收藏夹风控，整理已暂停；${it.size} 个收藏夹可稍后重试"
+                        } else {
+                            "${it.size} 个收藏夹暂时无法索引"
+                        }
                     }
                 )
             }

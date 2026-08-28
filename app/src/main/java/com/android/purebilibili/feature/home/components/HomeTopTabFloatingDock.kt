@@ -44,13 +44,14 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 internal fun shouldHomeTopTabUseFloatingBottomBarDock(
     skinPlainStyle: Boolean,
     hasSkinStickerIcons: Boolean,
-    @Suppress("UNUSED_PARAMETER") presentation: AppTopTabPresentation,
+    presentation: AppTopTabPresentation,
     @Suppress("UNUSED_PARAMETER") liquidGlassEnabled: Boolean,
-    @Suppress("UNUSED_PARAMETER") selectionIndicatorStyle: HomeSelectionIndicatorStyle,
+    selectionIndicatorStyle: HomeSelectionIndicatorStyle,
 ): Boolean {
-    // The ordinary home category dock has one renderer regardless of preset, blur,
-    // or indicator style. Only artwork-backed/skin layouts remain on the bespoke path.
-    return !skinPlainStyle && !hasSkinStickerIcons
+    if (skinPlainStyle || hasSkinStickerIcons) return false
+    val usesLegacyUnderline = presentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
+        selectionIndicatorStyle == HomeSelectionIndicatorStyle.MD3_UNDERLINE
+    return !usesLegacyUnderline
 }
 
 internal fun shouldHomeTopTabChromeDrawOuterShell(
@@ -215,8 +216,6 @@ internal fun HomeTopTabFloatingDock(
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-        backdropBlurEnabled = backdropBlurEnabled,
-        containerChromeVisible = containerChromeVisible,
         dragSelectionEnabled = true,
         longPressDragSelectionEnabled = false,
         miuixBackdrop = miuixBackdrop,

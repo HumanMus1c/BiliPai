@@ -80,8 +80,17 @@ internal fun rememberSettingsEntryVisual(
     target: SettingsSearchTarget,
 ): SettingsEntryVisual {
     val policy = rememberAppSemanticVisualPolicy()
-    return remember(target, policy) {
+    val resolved = remember(target, policy) {
         resolveSettingsEntryVisual(target, policy)
+    }
+    // Material 3's native ListItem renders ImageVector leading content more
+    // consistently than a VectorDrawable painter (whose XML tint can be
+    // overridden by the platform theme). Keep the resource for legacy skins,
+    // but also expose the vector form so MD3 rows never lose their glyph.
+    return if (resolved.icon == null && resolved.iconResId != null) {
+        resolved.copy(icon = rememberMaterialSymbol(resolved.iconResId))
+    } else {
+        resolved
     }
 }
 

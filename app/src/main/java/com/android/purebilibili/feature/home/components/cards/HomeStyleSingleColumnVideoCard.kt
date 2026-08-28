@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.components.VideoStatRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -169,6 +168,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                         .resolveVideoCardSourceInfoPresentation(
                             publishTimeText = "",
                             showStatsInInfo = true,
+                            showOverflowMenu = onMoreClick != null,
                         ),
                     coverUrl = stationaryCoverUrl,
                     coverCacheKey = stationaryCoverUrl,
@@ -276,15 +276,16 @@ internal fun HomeStyleSingleColumnVideoCard(
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                 showUpBadge = showUpBadge,
-                maxLines = Int.MAX_VALUE,
-                overflow = TextOverflow.Visible,
+                // The info column is a single horizontal-card row; keep the owner on one
+                // measured line so a long name cannot grow past the cover bounds.
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            VideoStatRow(
+            HorizontalVideoStatRow(
                 playText = FormatUtils.formatStat(video.stat.view.toLong()),
                 danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
-                modifier = Modifier.fillMaxWidth(),
             )
         }
 

@@ -40,4 +40,18 @@ class HomeSelectionIndicatorPolicyTest {
             )
         }
     }
+
+    @Test
+    fun `legacy home tabs force underline in every theme`() {
+        AppUiStyle.entries.forEach { uiStyle ->
+            assertEquals(
+                HomeSelectionIndicatorStyle.MD3_UNDERLINE,
+                resolveHomeSelectionIndicatorStyle(
+                    uiStyle = uiStyle,
+                    liquidGlassEnabled = false,
+                    forceMaterialUnderline = true,
+                ),
+            )
+        }
+    }
 }

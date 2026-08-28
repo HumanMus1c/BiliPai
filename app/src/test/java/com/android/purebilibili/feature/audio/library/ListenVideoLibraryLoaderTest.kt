@@ -83,12 +83,66 @@ class ListenVideoLibraryLoaderTest {
             )
         )
 
-        val result = ListenVideoLibraryLoader(source, maxConcurrentFolders = 3).indexFolders(
+        val result = ListenVideoLibraryLoader(source, minimumRequestIntervalMillis = 0L).indexFolders(
             listOf(FavFolder(id = 1L, title = "A"), FavFolder(id = 2L, title = "B"))
         )
 
         assertEquals(listOf("BV1"), result.resources.map { it.bvid })
         assertEquals(setOf(2L), result.failedFolderIds)
+    }
+
+    @Test
+    fun `index stops after risk control and marks untouched folders for retry`() = runTest {
+        val riskError = com.android.purebilibili.data.repository.FavoriteRequestException(
+            httpCode = 412,
+            message = "HTTP 412",
+        )
+        val source = FakeListenVideoDataSource(
+            folderPages = mapOf(
+                1L to mapOf(1 to Result.success(page("BV1", hasMore = false))),
+                2L to mapOf(1 to Result.failure(riskError)),
+                3L to mapOf(1 to Result.success(page("BV3", hasMore = false))),
+            )
+        )
+
+        val result = ListenVideoLibraryLoader(
+            source = source,
+            minimumRequestIntervalMillis = 0L,
+        ).indexFolders(
+            listOf(
+                FavFolder(id = 1L, title = "A"),
+                FavFolder(id = 2L, title = "B"),
+                FavFolder(id = 3L, title = "C"),
+            )
+        )
+
+        assertEquals(listOf(1L, 2L), source.requestedFolderIds)
+        assertEquals(listOf("BV1"), result.resources.map { it.bvid })
+        assertEquals(setOf(2L, 3L), result.failedFolderIds)
+        assertTrue(result.haltedByRiskControl)
+    }
+
+    @Test
+    fun `folder pagination applies minimum spacing between requests`() = runTest {
+        val delays = mutableListOf<Long>()
+        val source = FakeListenVideoDataSource(
+            folderPages = mapOf(
+                1L to mapOf(
+                    1 to Result.success(page("BV1", hasMore = true)),
+                    2 to Result.success(page("BV2", hasMore = false)),
+                )
+            )
+        )
+        val loader = ListenVideoLibraryLoader(
+            source = source,
+            minimumRequestIntervalMillis = 350L,
+            delayAction = { delays += it },
+            nowMillis = { 0L },
+        )
+
+        loader.loadFolder(1L).getOrThrow()
+
+        assertEquals(listOf(350L), delays)
     }
 
     @Test
@@ -101,7 +155,7 @@ class ListenVideoLibraryLoaderTest {
         )
         val loader = ListenVideoLibraryLoader(
             source = source,
-            maxConcurrentFolders = 3,
+            minimumRequestIntervalMillis = 0L,
             previewCoverSelector = { covers -> covers.lastOrNull() }
         )
 
@@ -114,23 +168,22 @@ class ListenVideoLibraryLoaderTest {
     }
 
     @Test
-    fun `index progress counts completed folders even when they finish out of order`() = runTest {
-        val source = GatedListenVideoDataSource()
-        val progress = mutableListOf<Int>()
-        val result = async {
-            ListenVideoLibraryLoader(source, maxConcurrentFolders = 2).indexFolders(
-                folders = listOf(FavFolder(id = 1L), FavFolder(id = 2L)),
-                onFolderIndexed = { completed, _ -> progress += completed }
+    fun `index reuses preview first page instead of requesting it twice`() = runTest {
+        val source = FakeListenVideoDataSource(
+            folderPages = mapOf(
+                1L to mapOf(1 to Result.success(coverPage("cover-a")))
             )
-        }
-        runCurrent()
+        )
+        val loader = ListenVideoLibraryLoader(
+            source = source,
+            minimumRequestIntervalMillis = 0L,
+        )
 
-        source.secondGate.complete(Unit)
-        runCurrent()
-        source.firstGate.complete(Unit)
-        result.await()
+        loader.loadPlaylistPreviewCovers(listOf(FavFolder(id = 1L)))
+        val result = loader.indexFolders(listOf(FavFolder(id = 1L)))
 
-        assertEquals(listOf(1, 2), progress)
+        assertEquals(listOf(1L), source.requestedFolderIds)
+        assertEquals(listOf("BV0"), result.resources.map { it.bvid })
     }
 
     @Test
@@ -216,6 +269,7 @@ private open class FakeListenVideoDataSource(
     var ownedFolderRequests = 0
         private set
     val requestedFolderPages = mutableListOf<Int>()
+    val requestedFolderIds = mutableListOf<Long>()
 
     override suspend fun ownedFolders(mid: Long): Result<List<FavFolder>> {
         ownedFolderRequests += 1
@@ -227,6 +281,7 @@ private open class FakeListenVideoDataSource(
     }
 
     override suspend fun folderPage(mediaId: Long, page: Int): Result<FavoriteResourceData> {
+        requestedFolderIds += mediaId
         requestedFolderPages += page
         return folderPages[mediaId]?.get(page)
             ?: Result.failure(IllegalStateException("missing folder page $mediaId/$page"))
@@ -264,26 +319,6 @@ private class RestartingListenVideoDataSource : ListenVideoLibraryDataSource {
 
     override suspend fun albumPage(seasonId: Long, page: Int): Result<FavoriteResourceData> {
         return Result.success(FavoriteResourceData())
-    }
-}
-
-private class GatedListenVideoDataSource : ListenVideoLibraryDataSource {
-    val firstGate = CompletableDeferred<Unit>()
-    val secondGate = CompletableDeferred<Unit>()
-
-    override suspend fun ownedFolders(mid: Long): Result<List<FavFolder>> = Result.success(emptyList())
-
-    override suspend fun collectedFolders(mid: Long, page: Int): Result<ListenVideoCollectedFoldersPage> {
-        return Result.success(ListenVideoCollectedFoldersPage(emptyList(), hasMore = false))
-    }
-
-    override suspend fun folderPage(mediaId: Long, page: Int): Result<FavoriteResourceData> {
-        if (mediaId == 1L) firstGate.await() else secondGate.await()
-        return Result.success(FavoriteResourceData(has_more = false))
-    }
-
-    override suspend fun albumPage(seasonId: Long, page: Int): Result<FavoriteResourceData> {
-        return Result.failure(IllegalStateException("unused"))
     }
 }
 

@@ -70,6 +70,7 @@ fun ForwardedContent(
     onVideoClick: (String) -> Unit,
     onBangumiClick: (Long, Long) -> Unit,
     onUserClick: (Long) -> Unit,
+    onTopicClick: (Long) -> Unit = {},
     onDynamicDetailClick: ((String) -> Unit)? = null,
     gifImageLoader: ImageLoader,
     defaultPreviewTextVisible: Boolean = true
@@ -148,6 +149,14 @@ fun ForwardedContent(
             }
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
+
+        content?.topic?.takeIf { it.id > 0L && it.name.isNotBlank() }?.let { topic ->
+            DynamicTopicLabel(
+                topicName = topic.name,
+                onClick = { onTopicClick(topic.id) },
+                modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
+            )
+        }
         
         // 原文字内容 - 使用 RichTextContent 支持表情；点空白文字打开原动态
         val preferredDesc = resolvePreferredDynamicDesc(
@@ -159,6 +168,7 @@ fun ForwardedContent(
                 RichTextContent(
                     desc = desc,
                     onUserClick = onUserClick,
+                    onTopicClick = onTopicClick,
                     onBlankTap = openOrigDynamic.takeIf {
                         onDynamicDetailClick != null && origDynamicId.isNotEmpty()
                     }
