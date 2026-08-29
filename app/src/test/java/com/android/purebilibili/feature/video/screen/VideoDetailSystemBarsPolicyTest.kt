@@ -298,6 +298,26 @@ class VideoDetailSystemBarsPolicyTest {
     }
 
     @Test
+    fun collapsedPlayerChrome_usesReadableStatusBarIconsOnLightSurface() {
+        val spec = resolveVideoDetailSystemBarsApplySpec(
+            visibilityPolicy = VideoDetailSystemBarsVisibilityPolicy(
+                hideStatusBars = false,
+                hideNavigationBars = false,
+            ),
+            useTabletLayout = false,
+            isLightBackground = true,
+            useCollapsedPlayerChromeAppearance = true,
+            backgroundColor = 1,
+            transparentColor = 2,
+            blackColor = 3,
+            transientBarsBehavior = 4,
+        )
+
+        assertTrue(spec.lightStatusBars)
+        assertFalse(spec.lightNavigationBars)
+    }
+
+    @Test
     fun playerChrome_padsOnlyWhenStatusBarVisible() {
         assertTrue(shouldApplyStatusBarPaddingToVideoPlayerChrome(statusBarVisible = true))
         assertFalse(shouldApplyStatusBarPaddingToVideoPlayerChrome(statusBarVisible = false))

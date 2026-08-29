@@ -62,6 +62,7 @@ import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCa
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.ReplyMemberAvatar
+import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.VideoCommentTypographyTokens
 import com.android.purebilibili.feature.video.ui.components.FanGroupDecorationBadge
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupDecorationCardBgs
@@ -72,6 +73,7 @@ import com.android.purebilibili.feature.video.ui.components.resolveReplyPreviewT
 import com.android.purebilibili.feature.video.ui.components.resolveVisibleSubReplies
 import com.android.purebilibili.feature.video.ui.components.shouldShowInlineSubReplyToggle
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
+import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -140,7 +142,13 @@ fun DynamicCommentOverlayHost(
                     }
                 }
             },
-            onViewReplies = { reply -> viewModel.openSubReply(reply) },
+            onViewReplies = { reply ->
+                if (subReplyState.rootReply?.rpid == reply.rpid && subReplyState.visible) {
+                    viewModel.loadMoreSubReplies()
+                } else {
+                    viewModel.openSubReply(reply)
+                }
+            },
             onReply = { reply -> viewModel.startCommentReply(reply) },
             onLike = { reply -> viewModel.likeComment(reply.rpid) },
             dynamicAuthorMid = dynamicItem?.modules?.module_author?.mid ?: 0L,
@@ -164,29 +172,11 @@ fun DynamicCommentOverlayHost(
             onClearReplyTarget = { viewModel.clearCommentReplyTarget() },
             onLoadMore = { viewModel.loadMoreComments() },
             onUserClick = onUserClick,
+            subReplyState = subReplyState,
         )
     }
 
-    DynamicSubReplyPreviewHost(
-        state = subReplyState,
-        onDismiss = { viewModel.closeSubReply() },
-        onLoadMore = { viewModel.loadMoreSubReplies() },
-        onUserClick = onUserClick,
-        onReplyClick = { reply -> viewModel.startCommentReply(reply) },
-        onCommentLike = { rpid -> viewModel.likeComment(rpid) },
-        currentMid = TokenManager.midCache ?: 0L,
-        onDeleteComment = { rpid ->
-            viewModel.deleteDynamicComment(rpid) { _, message ->
-                if (!inspectionMode) {
-                    android.widget.Toast.makeText(
-                        toastContext,
-                        message,
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            }
-        },
-    )
+    // 回复详情已嵌入主评论卡片；不再额外弹出独立回复面板。
 }
 
 /**
@@ -215,6 +205,7 @@ fun DynamicCommentSheet(
     onClearReplyTarget: () -> Unit = {},
     onLoadMore: () -> Unit = {},
     onUserClick: (Long) -> Unit,
+    subReplyState: SubReplyUiState = SubReplyUiState(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
@@ -385,24 +376,32 @@ fun DynamicCommentSheet(
                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                 ) {
                     items(comments, key = { it.rpid }) { reply ->
-                        CommentItem(
-                            reply = reply,
-                            onViewReplies = onViewReplies,
-                            onReply = onReply,
-                            onLike = onLike,
-                            dynamicAuthorMid = dynamicAuthorMid,
-                            currentUserMid = currentUserMid,
-                            onDelete = onDelete,
-                            onToggleTop = onToggleTop,
-                            onReport = onReport,
-                            onUserClick = onUserClick,
+                        val embeddedReplies = if (
+                            subReplyState.visible && subReplyState.rootReply?.rpid == reply.rpid
+                        ) {
+                            subReplyState.items
+                        } else {
+                            reply.replies
+                        }
+                        ReplyItemView(
+                            item = reply.copy(replies = embeddedReplies),
+                            onClick = { onViewReplies(reply) },
+                            onSubClick = { root, _ -> onViewReplies(root) },
+                            onReplyClick = { onReply(reply) },
+                            onLikeClick = { onLike(reply) },
+                            isLiked = isDynamicCommentLiked(reply),
+                            onDeleteClick = { onDelete(reply) },
+                            onReportClick = { reason -> onReport(reply, reason) },
+                            canToggleTop = dynamicAuthorMid > 0L,
+                            onToggleTopClick = { onToggleTop(reply) },
+                            onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
                             onImagePreview = { images, index, rect, textContent ->
                                 previewImages = images
                                 previewInitialIndex = index
                                 previewSourceRect = rect
                                 previewTextContent = textContent
                                 showImagePreview = true
-                            }
+                            },
                         )
                     }
                     if (isLoadingMore) {
@@ -562,17 +561,18 @@ fun LazyListScope.dynamicInlineCommentItems(
         }
 
         else -> items(comments, key = { it.rpid }) { reply ->
-            CommentItem(
-                reply = reply,
-                onViewReplies = onViewReplies,
-                onReply = onReply,
-                onLike = onLike,
-                dynamicAuthorMid = dynamicAuthorMid,
-                currentUserMid = currentUserMid,
-                onDelete = onDelete,
-                onToggleTop = onToggleTop,
-                onReport = onReport,
-                onUserClick = onUserClick,
+            ReplyItemView(
+                item = reply,
+                onClick = { onViewReplies(reply) },
+                onSubClick = { root, _ -> onViewReplies(root) },
+                onReplyClick = { onReply(reply) },
+                onLikeClick = { onLike(reply) },
+                isLiked = isDynamicCommentLiked(reply),
+                onDeleteClick = { onDelete(reply) },
+                onReportClick = { reason -> onReport(reply, reason) },
+                canToggleTop = dynamicAuthorMid > 0L,
+                onToggleTopClick = { onToggleTop(reply) },
+                onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
                 onImagePreview = onImagePreview,
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
             )
@@ -718,6 +718,7 @@ private fun CommentItem(
     onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
+    subReplyState: SubReplyUiState = SubReplyUiState(),
     modifier: Modifier = Modifier,
 ) {
     val member = reply.member
@@ -746,14 +747,19 @@ private fun CommentItem(
         )
     }
     var isSubPreviewExpanded by remember(reply.rpid) { mutableStateOf(false) }
-    val visibleSubReplies = remember(reply.replies, isSubPreviewExpanded) {
+    val loadedSubReplies = if (subReplyState.visible && subReplyState.rootReply?.rpid == reply.rpid) {
+        subReplyState.items
+    } else {
+        reply.replies.orEmpty()
+    }
+    val visibleSubReplies = remember(loadedSubReplies, isSubPreviewExpanded) {
         resolveVisibleSubReplies(
-            replies = reply.replies,
+            replies = loadedSubReplies,
             expanded = isSubPreviewExpanded
         )
     }
-    val showInlineToggle = remember(reply.replies) {
-        shouldShowInlineSubReplyToggle(reply.replies.orEmpty().size)
+    val showInlineToggle = remember(loadedSubReplies) {
+        shouldShowInlineSubReplyToggle(loadedSubReplies.size)
     }
     val fanGroupVisual = remember(member) {
         resolveFanGroupVisualFromMemberAndSailing(
@@ -984,7 +990,7 @@ private fun CommentItem(
                 }
             }
 
-            if (canOpenDynamicSubReplies(reply)) {
+            if (canOpenDynamicSubReplies(reply) || loadedSubReplies.isNotEmpty()) {
                 if (visibleSubReplies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(AppSpacingTokens.Small + AppSpacingTokens.Micro))
                     Column(
@@ -1058,7 +1064,11 @@ private fun CommentItem(
                     contentPadding = PaddingValues(horizontal = AppSpacingTokens.None, vertical = AppSpacingTokens.None)
                 ) {
                     AppText(
-                        text = "查看回复(${resolveDynamicSubReplyCount(reply)})",
+                        text = if (subReplyState.isLoading) {
+                            "加载回复中…"
+                        } else {
+                            "查看回复(${maxOf(resolveDynamicSubReplyCount(reply), subReplyState.totalCount)})"
+                        },
                         fontSize = VideoCommentTypographyTokens.subReply,
                         color = MaterialTheme.colorScheme.primary
                     )

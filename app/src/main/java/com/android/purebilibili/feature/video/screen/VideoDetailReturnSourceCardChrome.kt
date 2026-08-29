@@ -213,6 +213,9 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
     val infoAnchorX = with(density) { layout.infoAnchorXInViewportPx.toDp() }
     val infoAnchorY = with(density) { layout.infoAnchorYInViewportPx.toDp() }
     val inverseScale = 1f / layout.sourceScale
+    // One physical source pixel, converted into the inverse-scaled flying entry. The outer
+    // shared-bounds shape clips this overdraw back to the card edge.
+    val sideBySideBottomOverscan = with(density) { inverseScale.toDp() }
 
     fun Modifier.landingLayer(): Modifier = graphicsLayer {
         val phase = phaseProvider()
@@ -249,11 +252,14 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
         )
     }
 
-    fun Modifier.infoSurface(shape: Shape): Modifier {
+    fun Modifier.infoSurface(
+        shape: Shape,
+        drawBorder: Boolean = true,
+    ): Modifier {
         return clip(shape)
             .background(surface.containerColor, shape)
             .then(
-                if (surface.useTintedSurface) {
+                if (surface.useTintedSurface && drawBorder) {
                     Modifier.border(surface.borderWidth, surface.borderColor, shape)
                 } else {
                     Modifier
@@ -279,9 +285,19 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     .align(Alignment.TopStart)
                     .offset(x = infoAnchorX, y = cardAnchorY)
                     .width(infoWidth)
-                    .height(cardHeight)
+                    .height(cardHeight + sideBySideBottomOverscan)
                     .landingLayer()
-                    .infoSurface(AppShapes.container(ContainerLevel.Field))
+                    // This surface joins the cover on its start edge. Keeping start corners
+                    // square prevents the two independently clipped rounded shapes from
+                    // exposing the shell/background at the seam during the morph.
+                    .infoSurface(
+                        AppShapes.endRounded(
+                            AppShapes.containerCornerDp(ContainerLevel.Field),
+                        ),
+                        // Horizontal source cards have one outer shell; an independent
+                        // tinted border here becomes a dark line at the landing bottom edge.
+                        drawBorder = false,
+                    )
                     .padding(
                         start = AppSpacingTokens.Medium,
                         end = AppSpacingTokens.Small,

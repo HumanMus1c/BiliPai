@@ -163,7 +163,15 @@ internal fun resolveVideoDetailReturnSourceCardLayout(
 
 internal fun resolveVideoDetailReturnCoverHeightInEntryPx(
     layout: VideoDetailReturnSourceCardLayout,
-): Float = if (layout.canRender) layout.coverHeightPx / layout.sourceScale else 0f
+): Float {
+    if (!layout.canRender) return 0f
+    val landingEdgeOverscanPx = if (layout.layout == VideoCardSourceLayout.SIDE_BY_SIDE) {
+        1f
+    } else {
+        0f
+    }
+    return (layout.coverHeightPx + landingEdgeOverscanPx) / layout.sourceScale
+}
 
 internal fun resolveVideoDetailReturnCoverWidthInEntryPx(
     layout: VideoDetailReturnSourceCardLayout,

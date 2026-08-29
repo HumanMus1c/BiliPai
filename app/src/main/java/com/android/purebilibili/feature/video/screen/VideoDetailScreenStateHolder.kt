@@ -2812,6 +2812,12 @@ internal fun VideoDetailScreenStateHolder(
     // 沉浸式状态栏控制
     val backgroundColor = AppSurfaceTokens.background()
     val isLightBackground = remember(backgroundColor) { backgroundColor.luminance() > 0.5f }
+    var useCollapsedPlayerChromeAppearance by remember(currentBvid) { mutableStateOf(false) }
+    LaunchedEffect(useTabletLayout, isLandscape, isFullscreenMode, isPortraitFullscreen) {
+        if (useTabletLayout || isLandscape || isFullscreenMode || isPortraitFullscreen) {
+            useCollapsedPlayerChromeAppearance = false
+        }
+    }
     val systemBarsVisibilityPolicy = remember(
         isFullscreenMode,
         isPortraitFullscreen,
@@ -2831,12 +2837,14 @@ internal fun VideoDetailScreenStateHolder(
         systemBarsVisibilityPolicy,
         useTabletLayout,
         isLightBackground,
-        backgroundColor
+        backgroundColor,
+        useCollapsedPlayerChromeAppearance,
     ) {
         resolveVideoDetailSystemBarsApplySpec(
             visibilityPolicy = systemBarsVisibilityPolicy,
             useTabletLayout = useTabletLayout,
             isLightBackground = isLightBackground,
+            useCollapsedPlayerChromeAppearance = useCollapsedPlayerChromeAppearance,
             backgroundColor = backgroundColor.toArgb(),
             transparentColor = Color.Transparent.toArgb(),
             blackColor = Color.Black.toArgb(),
@@ -3843,6 +3851,9 @@ internal fun VideoDetailScreenStateHolder(
                             manualOrCompactCollapseProgress = effectiveCollapseProgress,
                             expandForSharedReturn = expandPlayerForSharedReturn,
                         )
+                        SideEffect {
+                            useCollapsedPlayerChromeAppearance = layoutCollapseProgress >= 0.98f
+                        }
                         LaunchedEffect(expandPlayerForSharedReturn) {
                             if (expandPlayerForSharedReturn) {
                                 // 清掉折叠 offset，避免 skipGesture 路径下一帧又压扁。

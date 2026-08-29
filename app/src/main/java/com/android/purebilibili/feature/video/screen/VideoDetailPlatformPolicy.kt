@@ -127,6 +127,7 @@ internal fun resolveVideoDetailSystemBarsApplySpec(
     visibilityPolicy: VideoDetailSystemBarsVisibilityPolicy,
     useTabletLayout: Boolean,
     isLightBackground: Boolean,
+    useCollapsedPlayerChromeAppearance: Boolean = false,
     backgroundColor: Int,
     transparentColor: Int,
     blackColor: Int,
@@ -163,7 +164,7 @@ internal fun resolveVideoDetailSystemBarsApplySpec(
             systemBarsBehavior = transientBarsBehavior,
             statusBarColor = transparentColor,
             navigationBarColor = transparentColor,
-            lightStatusBars = false,
+            lightStatusBars = useCollapsedPlayerChromeAppearance && isLightBackground,
             lightNavigationBars = false
         )
     }

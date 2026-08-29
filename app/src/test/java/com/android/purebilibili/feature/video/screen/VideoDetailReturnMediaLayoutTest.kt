@@ -63,6 +63,8 @@ class VideoDetailReturnMediaLayoutTest {
         )
 
         assertEquals(400, frame.widthPx)
-        assertEquals(360, frame.heightPx)
+        // Side-by-side media overdraws one source pixel below the landing edge. The outer
+        // shared-bounds clip removes the excess and prevents the black player layer peeking out.
+        assertEquals(362, frame.heightPx)
     }
 }
