@@ -71,7 +71,7 @@ import com.android.purebilibili.feature.home.components.resolveMaterialBottomBar
 import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveContentColor
 import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveReadabilityState
 import com.android.purebilibili.feature.home.components.trackLiquidGlassAdaptiveReadability
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.layerBackdrop

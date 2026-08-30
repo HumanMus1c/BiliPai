@@ -1,5 +1,10 @@
 // 文件路径: feature/dynamic/components/DrawGrid.kt
 package com.android.purebilibili.feature.dynamic.components
+
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -15,9 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,9 +30,9 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.imageLoader
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.imageLoader
 import com.android.purebilibili.data.model.response.DrawItem
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.ui.unit.sp
@@ -150,23 +152,25 @@ private fun DrawGridImage(
         }
     }
     val isGif = imageUrl.endsWith(".gif", ignoreCase = true)
-    var imageRect by remember { mutableStateOf<Rect?>(null) }
+    // boundsInWindow changes on every scroll frame. Keep it outside snapshot state so
+    // measuring a waterfall item never back-writes into composition and reflows the grid.
+    val imageRectRef = remember { object { var value: Rect? = null } }
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .onGloballyPositioned { coordinates ->
-                imageRect = coordinates.boundsInWindow()
+                imageRectRef.value = coordinates.boundsInWindow()
             }
-            .clickable { onImageClick(index, imageRect) },
+            .clickable { onImageClick(index, imageRectRef.value) },
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl.isNotEmpty()) {
             AsyncImage(
-                model = coil.request.ImageRequest.Builder(context)
+                model = coil3.request.ImageRequest.Builder(context)
                     .data(imageUrl)
-                    .addHeader("Referer", "https://www.bilibili.com/")
+                    .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
                     .crossfade(!isGif)
                     .build(),
                 imageLoader = if (isGif) gifImageLoader else defaultImageLoader,

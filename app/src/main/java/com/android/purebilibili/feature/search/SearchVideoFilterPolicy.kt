@@ -69,7 +69,8 @@ fun resolveSearchVideoOrderOptions(): List<SearchOrder> {
         SearchOrder.CLICK,
         SearchOrder.PUBDATE,
         SearchOrder.DM,
-        SearchOrder.STOW
+        SearchOrder.STOW,
+        SearchOrder.SCORES
     )
 }
 

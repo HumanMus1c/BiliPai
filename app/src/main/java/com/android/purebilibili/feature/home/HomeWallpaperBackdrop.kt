@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home
 
+import coil3.request.crossfade
+
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
 import androidx.compose.foundation.background
@@ -16,9 +18,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Scale
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase

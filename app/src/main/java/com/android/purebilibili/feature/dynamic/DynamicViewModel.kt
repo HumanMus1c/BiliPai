@@ -30,6 +30,8 @@ import com.android.purebilibili.data.repository.DynamicFeedScope
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.data.repository.LiveRepository
 import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
+import com.android.purebilibili.feature.dynamic.components.DynamicReserveAction
+import com.android.purebilibili.feature.dynamic.components.DynamicReserveResult
 import com.android.purebilibili.feature.dynamic.components.buildDynamicVisibilityObjectId
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicVisibilityAction
 import com.android.purebilibili.feature.video.viewmodel.resolveRoutedCommentRootReply
@@ -168,6 +170,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         loadUserPreferences()
+        loadNotInterestedDynamicIds()
         loadCachedDynamics()
         rebuildFollowedUsers()
         observeFollowStateChanges()
@@ -223,6 +226,24 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             savedTab = savedSelectedTab,
             tabCount = DYNAMIC_TOP_TAB_COUNT
         )
+    }
+
+    private fun loadNotInterestedDynamicIds() {
+        val ids = normalizeDynamicNotInterestedIds(
+            cachePrefs.getStringSet(KEY_NOT_INTERESTED_DYNAMIC_IDS, emptySet()).orEmpty(),
+            MAX_NOT_INTERESTED_DYNAMIC_IDS,
+        )
+            .toImmutableSet()
+        _uiState.value = _uiState.value.copy(tempBannedDynamicIds = ids)
+    }
+
+    private fun persistNotInterestedDynamicIds(ids: Set<String>) {
+        cachePrefs.edit()
+            .putStringSet(
+                KEY_NOT_INTERESTED_DYNAMIC_IDS,
+                normalizeDynamicNotInterestedIds(ids, MAX_NOT_INTERESTED_DYNAMIC_IDS),
+            )
+            .apply()
     }
 
     private fun saveUserPreferences(pinned: Set<Long>, hidden: Set<Long>) {
@@ -1002,6 +1023,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     // 点赞状态缓存 (dynamicId -> isLiked)
     private val _likedDynamics = MutableStateFlow<Set<String>>(emptySet())
     val likedDynamics: StateFlow<Set<String>> = _likedDynamics.asStateFlow()
+    private val _likeOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val likeOverrides: StateFlow<Map<String, Boolean>> = _likeOverrides.asStateFlow()
+    private val likeRequestGate = DynamicLikeRequestGate()
     
     /**
      *  [修复] 根据动态ID获取动态对象 - 同时搜索 items 和 userItems
@@ -1668,7 +1692,19 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     /**
      *  点赞动态
      */
-    fun likeDynamic(dynamicId: String, onResult: (Boolean, String) -> Unit) {
+    fun likeDynamic(
+        dynamicId: String,
+        knownIsLiked: Boolean? = null,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        if (dynamicId.isBlank()) {
+            onResult(false, "无法识别该动态")
+            return
+        }
+        if (!likeRequestGate.tryAcquire(dynamicId)) {
+            onResult(false, "操作进行中，请稍候")
+            return
+        }
         viewModelScope.launch {
             try {
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
@@ -1676,7 +1712,13 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     onResult(false, "请先登录")
                     return@launch
                 }
-                val isLiked = _likedDynamics.value.contains(dynamicId)
+                val serverIsLiked = knownIsLiked ?: findDynamicById(dynamicId)
+                    ?.modules
+                    ?.module_stat
+                    ?.like
+                    ?.status
+                val isLiked = _likeOverrides.value[dynamicId]
+                    ?: (_likedDynamics.value.contains(dynamicId) || serverIsLiked == true)
                 val up = if (isLiked) 2 else 1  // 1=点赞, 2=取消
                 
                 val response = com.android.purebilibili.core.network.NetworkModule.dynamicApi
@@ -1695,6 +1737,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         _likedDynamics.value - dynamicId
                     }
+                    _likeOverrides.value = _likeOverrides.value + (dynamicId to toLiked)
 
                     val currentState = mapDynamicTimelineItems(_uiState.value) { items ->
                         applyDynamicLikeCountChange(
@@ -1715,8 +1758,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     onResult(false, response.message.ifBlank { "操作失败" })
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 onResult(false, e.message ?: "网络错误")
+            } finally {
+                likeRequestGate.release(dynamicId)
             }
         }
     }
@@ -1732,6 +1779,71 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             result
                 .onSuccess { onResult(true, "已添加到稍后再看") }
                 .onFailure { onResult(false, it.message ?: "添加失败") }
+        }
+    }
+
+    fun checkDynamic(dynamicId: String, onResult: (Boolean, String) -> Unit) {
+        if (dynamicId.isBlank()) {
+            onResult(false, "无法识别该动态")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                // Deliberately query as a guest. An authenticated detail request can still see an
+                // author's self-only dynamic and therefore cannot detect publication visibility.
+                val response = NetworkModule.guestDynamicApi.getDynamicDetail(id = dynamicId)
+                if (response.code == 0 && response.data?.item != null) {
+                    onResult(true, "匿名状态下可见，动态正常")
+                } else {
+                    onResult(false, "匿名状态下不可见，动态可能仅自己可见或尚未通过审核")
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                onResult(false, error.message ?: "检查失败")
+            }
+        }
+    }
+
+    fun toggleDynamicReserve(
+        action: DynamicReserveAction,
+        onResult: (Result<DynamicReserveResult>) -> Unit,
+    ) {
+        if (action.dynamicId.isBlank() || action.reserveId <= 0L) {
+            onResult(Result.failure(IllegalArgumentException("无法识别该预约")))
+            return
+        }
+        viewModelScope.launch {
+            val csrf = TokenManager.csrfCache
+            if (csrf.isNullOrBlank()) {
+                onResult(Result.failure(IllegalStateException("请先登录")))
+                return@launch
+            }
+            try {
+                val response = NetworkModule.dynamicApi.clickDynamicReserve(
+                    csrf = csrf,
+                    reserveId = action.reserveId,
+                    currentButtonStatus = action.currentButtonStatus,
+                    dynamicId = action.dynamicId,
+                    reserveTotal = action.reserveTotal,
+                )
+                if (response.code != 0 || response.data == null) {
+                    throw IllegalStateException(response.message.ifBlank { "预约操作失败" })
+                }
+                onResult(
+                    Result.success(
+                        DynamicReserveResult(
+                            description = response.data.desc_update,
+                            reserveTotal = response.data.reserve_update,
+                            buttonStatus = response.data.final_btn_status,
+                        )
+                    )
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                onResult(Result.failure(error))
+            }
         }
     }
     
@@ -1885,6 +1997,20 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     //  [新增] 更多菜单管理动作分发：置顶 / 可见范围 / 评论互动 / 临时屏蔽
     fun handleManageAction(action: DynamicManageAction, onResult: (Boolean, String) -> Unit) {
         when (action) {
+            is DynamicManageAction.NotInterested -> {
+                if (action.dynamicId.isBlank()) {
+                    onResult(false, "无法识别该动态")
+                } else {
+                    val updatedIds = normalizeDynamicNotInterestedIds(
+                        _uiState.value.tempBannedDynamicIds + action.dynamicId,
+                        MAX_NOT_INTERESTED_DYNAMIC_IDS,
+                    )
+                        .toImmutableSet()
+                    _uiState.value = _uiState.value.copy(tempBannedDynamicIds = updatedIds)
+                    persistNotInterestedDynamicIds(updatedIds)
+                    onResult(true, "已标记为不感兴趣")
+                }
+            }
             is DynamicManageAction.ToggleTop -> toggleDynamicTop(action, onResult)
             is DynamicManageAction.SetVisibility -> setDynamicVisibility(action, onResult)
             is DynamicManageAction.SetReplySubject -> modifyReplySubject(action, onResult)
@@ -1929,32 +2055,22 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun editDynamic(dynamicId: String, content: String, onResult: (Boolean, String) -> Unit) {
+    fun editDynamic(
+        context: android.content.Context,
+        dynamicId: String,
+        draft: com.android.purebilibili.data.model.response.DynamicPublishDraft,
+        onResult: (Boolean, String) -> Unit,
+    ) {
         viewModelScope.launch {
-            try {
-                val csrf = TokenManager.csrfCache
-                if (csrf.isNullOrEmpty()) {
-                    onResult(false, "请先登录")
-                    return@launch
-                }
-                if (dynamicId.isBlank() || content.isBlank()) {
-                    onResult(false, "内容不能为空")
-                    return@launch
-                }
-                val response = NetworkModule.dynamicApi.editDynamic(
-                    dynamicId = dynamicId,
-                    content = content,
-                    csrf = csrf
+            com.android.purebilibili.data.repository.DynamicCreateRepository
+                .edit(context = context, dynamicId = dynamicId, draft = draft)
+                .fold(
+                    onSuccess = {
+                        onResult(true, "已更新动态")
+                        refresh()
+                    },
+                    onFailure = { onResult(false, it.message ?: "编辑失败") },
                 )
-                if (response.code == 0) {
-                    onResult(true, "已更新动态")
-                    refresh()
-                } else {
-                    onResult(false, response.message.ifBlank { "编辑失败" })
-                }
-            } catch (e: Exception) {
-                onResult(false, e.message ?: "网络错误")
-            }
         }
     }
 
@@ -2092,12 +2208,14 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         private const val DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS = 5_000L
         private const val KEY_DYNAMIC_CACHE = "dynamic_items_cache"
         private const val KEY_DYNAMIC_CACHE_TIME = "dynamic_cache_time"
+        private const val KEY_NOT_INTERESTED_DYNAMIC_IDS = "not_interested_dynamic_ids_v1"
         private const val KEY_PINNED_USERS = "dynamic_pinned_users"
         private const val KEY_HIDDEN_USERS = "dynamic_hidden_users"
         private const val KEY_DISPLAY_MODE = "dynamic_display_mode"
         private const val KEY_SELECTED_TAB = "dynamic_selected_tab"
         private const val DYNAMIC_TOP_TAB_COUNT = 5
         private const val MAX_CACHE_ITEMS = 100
+        private const val MAX_NOT_INTERESTED_DYNAMIC_IDS = 500
     }
 }
 
@@ -2133,7 +2251,7 @@ data class DynamicUiState(
     val incrementalPrependedCount: Int = 0,
     val errorSource: DynamicFeedErrorSource = DynamicFeedErrorSource.NONE,
     val timelinePages: PersistentMap<String, DynamicTimelinePageState> = persistentMapOf(),
-    //  [新增] 临时屏蔽的动态 id（仅内存，重启恢复）
+    // 用户明确标记不感兴趣的动态 id，持久化后刷新和重启仍会过滤。
     val tempBannedDynamicIds: ImmutableSet<String> = persistentSetOf(),
     //  [新增] 关注 UP 列表未读（有更新的 mid 集合，来自 uplist 接口）
     val uplistUpdateMids: ImmutableSet<Long> = persistentSetOf()

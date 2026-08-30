@@ -256,7 +256,7 @@ private fun SearchTrendingRow(
                         modifier = Modifier.width(28.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        coil.compose.AsyncImage(
+                        coil3.compose.AsyncImage(
                             model = item.iconUrl,
                             contentDescription = null,
                             modifier = Modifier.size(width = 24.dp, height = 18.dp)

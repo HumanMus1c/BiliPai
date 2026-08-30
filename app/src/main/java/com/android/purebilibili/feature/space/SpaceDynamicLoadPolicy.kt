@@ -455,15 +455,18 @@ internal fun resolveSpaceDynamicCardItem(item: SpaceDynamicItem): DynamicItem {
                 DynamicStatModule(
                     comment = StatItem(
                         count = stat.comment.count,
-                        forbidden = stat.comment.forbidden
+                        forbidden = stat.comment.forbidden,
+                        status = stat.comment.status,
                     ),
                     forward = StatItem(
                         count = stat.forward.count,
-                        forbidden = stat.forward.forbidden
+                        forbidden = stat.forward.forbidden,
+                        status = stat.forward.status,
                     ),
                     like = StatItem(
                         count = stat.like.count,
-                        forbidden = stat.like.forbidden
+                        forbidden = stat.like.forbidden,
+                        status = stat.like.status,
                     )
                 )
             }

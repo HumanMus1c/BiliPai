@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
+
+import coil3.request.crossfade
+import coil3.request.transformations
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Intent
@@ -73,9 +76,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Size
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.android.purebilibili.core.ui.common.CopySelectionDialog
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberStoragePermissionState
@@ -1161,7 +1164,14 @@ private fun SubReplyDetailItem(
                 placeholderColor = appearance.placeholderColor,
                 lightweightMode = false,
                 modifier = Modifier.size(avatarSize),
-                onClick = { onAvatarClick(item.member.mid) }
+                // Some dynamic/comment endpoints omit member.mid while still providing the
+                // canonical author id on ReplyItem.mid. Use the shared resolver so avatars in
+                //楼中楼 navigate consistently with inline user mentions and root comments.
+                onClick = {
+                    resolveReplyMemberMid(item)
+                        .takeIf { it > 0L }
+                        ?.let { onAvatarClick(it.toString()) }
+                }
             )
 
             Spacer(modifier = Modifier.width(12.dp))

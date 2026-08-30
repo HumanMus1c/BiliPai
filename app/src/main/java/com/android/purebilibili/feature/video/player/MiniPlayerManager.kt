@@ -3,6 +3,9 @@
 
 package com.android.purebilibili.feature.video.player
 
+import coil3.request.allowHardware
+import coil3.request.transformations
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,7 +14,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -37,11 +39,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.MediaSession
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import coil.size.Scale
-import coil.transform.RoundedCornersTransformation
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.size.Scale
+import coil3.transform.RoundedCornersTransformation
 import com.android.purebilibili.R
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
@@ -2625,7 +2627,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
                 .size(512, 512)
                 .build()
             val result = loader.execute(request)
-            (result as? SuccessResult)?.drawable?.let { (it as BitmapDrawable).bitmap }
+            ((result as? SuccessResult)?.image as? coil3.BitmapImage)?.bitmap
         } catch (e: Exception) {
             com.android.purebilibili.core.util.Logger.e(TAG, "Failed to load bitmap", e)
             null

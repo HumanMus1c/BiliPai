@@ -980,6 +980,22 @@ data class DynamicAdditionalReserve(
 )
 
 @Serializable
+data class DynamicReserveClickResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: DynamicReserveClickData? = null,
+)
+
+@Serializable
+data class DynamicReserveClickData(
+    val desc_update: String = "",
+    @Serializable(with = FlexibleLongSerializer::class)
+    val reserve_update: Long = 0,
+    @Serializable(with = FlexibleIntSerializer::class)
+    val final_btn_status: Int = 0,
+)
+
+@Serializable
 data class DynamicAdditionalGoods(
     val head_text: String = "",
     val items: List<DynamicAdditionalGoodsItem> = emptyList()
@@ -1043,7 +1059,8 @@ data class DynamicCardButtonStyle(
 
 @Serializable
 data class DynamicAdditionalText(
-    val text: String = ""
+    val text: String = "",
+    val jump_url: String = "",
 )
 
 @Serializable
@@ -1188,7 +1205,9 @@ data class MedialistMajor(
     val id: String = "",
     val title: String = "",
     val cover: String = "",
-    val jump_url: String = ""
+    val jump_url: String = "",
+    val sub_title: String = "",
+    val badge: DynamicMajorBadge? = null,
 )
 
 @Serializable
@@ -1368,7 +1387,10 @@ data class DynamicStatModule(
 @Serializable
 data class StatItem(
     val count: Int = 0,
-    val forbidden: Boolean = false
+    val forbidden: Boolean = false,
+    /** Server-side interaction state. BiliBili may return 0/1 or a boolean. */
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val status: Boolean = false,
 )
 
 // --- 动态类型枚举 ---

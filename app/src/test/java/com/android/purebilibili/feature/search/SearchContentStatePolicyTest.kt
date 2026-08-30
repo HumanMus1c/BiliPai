@@ -8,6 +8,28 @@ import kotlin.test.assertTrue
 class SearchContentStatePolicyTest {
 
     @Test
+    fun `video pagination can fill an empty filtered page or a one or two item grid`() {
+        assertTrue(shouldLoadMoreSearchVideos(0, -1, true, false, false, false))
+        assertTrue(shouldLoadMoreSearchVideos(1, 0, true, false, false, false))
+        assertTrue(shouldLoadMoreSearchVideos(2, 1, true, false, false, false))
+    }
+
+    @Test
+    fun `video pagination uses visible tail instead of exact card index`() {
+        assertFalse(shouldLoadMoreSearchVideos(20, 8, true, false, false, false))
+        assertTrue(shouldLoadMoreSearchVideos(20, 19, true, false, false, false))
+        assertFalse(shouldLoadMoreSearchVideos(2, -1, true, false, false, false))
+    }
+
+    @Test
+    fun `video pagination waits during sorting loading errors and end of results`() {
+        assertFalse(shouldLoadMoreSearchVideos(0, -1, true, true, false, false))
+        assertFalse(shouldLoadMoreSearchVideos(0, -1, true, false, true, false))
+        assertFalse(shouldLoadMoreSearchVideos(0, -1, true, false, false, true))
+        assertFalse(shouldLoadMoreSearchVideos(0, -1, false, false, false, false))
+    }
+
+    @Test
     fun `initial search shows loading before any result exists`() {
         assertEquals(
             SearchResultPresentation(

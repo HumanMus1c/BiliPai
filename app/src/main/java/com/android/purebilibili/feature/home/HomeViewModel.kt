@@ -42,6 +42,7 @@ import com.android.purebilibili.feature.plugin.TodayWatchPluginMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +54,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
@@ -84,6 +86,29 @@ internal fun selectHomeFeedIncomingVideos(
     } else {
         outsideCurrentList
     }
+}
+
+private data class PreparedHomeFeedVideos(
+    val validVideoCount: Int,
+    val filteredVideos: List<VideoItem>,
+)
+
+private fun prepareHomeFeedVideos(
+    videos: List<VideoItem>,
+    blockedMids: Set<Long>,
+    feedKind: FeedKind,
+    feedbackFilter: (List<VideoItem>) -> List<VideoItem>,
+): PreparedHomeFeedVideos {
+    val validVideos = videos.filter { it.bvid.isNotEmpty() && it.title.isNotEmpty() }
+    val blockedFiltered = validVideos.filter { video -> video.owner.mid !in blockedMids }
+    val feedbackFiltered = feedbackFilter(blockedFiltered)
+    val builtinFiltered = PluginManager.filterFeedItems(feedbackFiltered, feedKind = feedKind)
+    val filteredVideos = com.android.purebilibili.core.plugin.json.JsonPluginManager
+        .filterVideos(builtinFiltered)
+    return PreparedHomeFeedVideos(
+        validVideoCount = validVideos.size,
+        filteredVideos = filteredVideos,
+    )
 }
 
 internal fun resolveRecommendFeedRequestIndex(
@@ -1430,27 +1455,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         if (isLoadMore) delay(100)
 
+        // Feed filtering and de-duplication are CPU-only work. Keep it off the UI dispatcher so
+        // the list can continue drawing while plugin and feedback rules process the response.
+        val preparedHomeFeed = videoResult.getOrNull()?.let { videos ->
+            withContext(Dispatchers.Default) {
+                prepareHomeFeedVideos(
+                    videos = videos,
+                    blockedMids = blockedMids,
+                    feedKind = currentCategory.toFeedKind(popularSubCategory),
+                    feedbackFilter = ::filterHomeFeedbackVideos,
+                )
+            }
+        }
+
         videoResult.onSuccess { videos ->
-            val validVideos = videos.filter { it.bvid.isNotEmpty() && it.title.isNotEmpty() }
+            val prepared = preparedHomeFeed ?: return@onSuccess
             if (shouldAdvanceRecommendFeedRequestIndex(
                     category = currentCategory,
                     isLoadMore = isLoadMore,
                     isManualRefresh = isManualRefresh,
-                    validVideoCount = validVideos.size
+                    validVideoCount = prepared.validVideoCount
                 )
             ) {
                 refreshIdx = maxOf(refreshIdx, recommendRequestIndex)
             }
             
-            //  [Feature] 应用屏蔽 + 原生插件 + JSON 规则插件过滤器
-            val blockedFiltered = validVideos.filter { video -> video.owner.mid !in blockedMids }
-            val feedbackFiltered = filterHomeFeedbackVideos(blockedFiltered)
-            val builtinFiltered = PluginManager.filterFeedItems(
-                feedbackFiltered,
-                feedKind = currentCategory.toFeedKind(popularSubCategory)
-            )
-            val filteredVideos = com.android.purebilibili.core.plugin.json.JsonPluginManager
-                .filterVideos(builtinFiltered)
+            // Filtering and de-duplication already ran on Dispatchers.Default above.
+            val validVideoCount = prepared.validVideoCount
+            val filteredVideos = prepared.filteredVideos
             
             val useIncrementalRecommendRefresh = !isLoadMore &&
                 currentCategory == HomeCategory.RECOMMEND &&

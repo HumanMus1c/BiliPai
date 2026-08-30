@@ -73,7 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.motion.resolveCommentVerticalContentRevealMotionSpec
 import com.android.purebilibili.core.ui.motion.verticalContentRevealEnterTransition
 import com.android.purebilibili.core.ui.motion.verticalContentRevealExitTransition

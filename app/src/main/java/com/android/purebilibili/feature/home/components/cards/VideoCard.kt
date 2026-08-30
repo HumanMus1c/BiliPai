@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.home.components.cards
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -51,8 +53,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.core.util.animateEnter
@@ -659,7 +661,9 @@ internal fun ElegantVideoCard(
     val coverCacheKey: String
     val coverUrl: String
     val premiumBadgeLabel: String?
-    remember(video, useLowQualityCover, coverRequestSpec) {
+    // Cover identity does not depend on playback progress or live statistics. Keep unrelated
+    // VideoItem updates from rebuilding the cover URL/cache key on the UI thread.
+    remember(video.pic, video.rights, useLowQualityCover, coverRequestSpec) {
         Triple(
             resolveVideoCardCoverCacheKey(
                 video = video,

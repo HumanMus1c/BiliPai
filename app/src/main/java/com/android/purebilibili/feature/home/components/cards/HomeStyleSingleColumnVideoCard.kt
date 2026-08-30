@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import coil3.request.crossfade
+
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -44,8 +46,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.FeedTitleHierarchy

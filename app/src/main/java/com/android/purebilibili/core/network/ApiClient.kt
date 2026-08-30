@@ -1817,6 +1817,12 @@ interface DynamicApi {
         @retrofit2.http.Body body: DynamicCreateFeedRequest
     ): DynamicCreateFeedResponse
 
+    @retrofit2.http.POST("x/dynamic/feed/edit/dyn")
+    suspend fun editFeedDynamic(
+        @retrofit2.http.QueryMap query: Map<String, String>,
+        @retrofit2.http.Body body: com.android.purebilibili.data.model.response.DynamicEditFeedRequest,
+    ): SimpleApiResponse
+
     @retrofit2.http.POST("x/vote/create")
     suspend fun createVote(
         @Query("csrf") csrf: String,
@@ -1833,6 +1839,16 @@ interface DynamicApi {
         @retrofit2.http.Field("live_plan_start_time") livePlanStartTime: Long,
         @retrofit2.http.Field("csrf") csrf: String
     ): DynamicCreateReserveResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/dynamic/feed/reserve/click")
+    suspend fun clickDynamicReserve(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Field("reserve_id") reserveId: Long,
+        @retrofit2.http.Field("cur_btn_status") currentButtonStatus: Int,
+        @retrofit2.http.Field("dynamic_id_str") dynamicId: String,
+        @retrofit2.http.Field("reserve_total") reserveTotal: Long,
+    ): com.android.purebilibili.data.model.response.DynamicReserveClickResponse
 
     //  发布纯文本动态（multipart form，type=4 表示纯文本）
     @retrofit2.http.Multipart
@@ -1890,16 +1906,6 @@ interface DynamicApi {
         @retrofit2.http.Field("reason_type") reasonType: Int,
         @retrofit2.http.Field("reason_desc") reasonDesc: String? = null
     ): SimpleApiResponse
-
-    @retrofit2.http.Multipart
-    @retrofit2.http.POST("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/modify")
-    suspend fun editDynamic(
-        @retrofit2.http.Part("dynamic_id") dynamicId: String,
-        @retrofit2.http.Part("type") type: Int = 4,
-        @retrofit2.http.Part("rid") rid: Int = 0,
-        @retrofit2.http.Part("content") content: String,
-        @retrofit2.http.Part("csrf") csrf: String
-    ): DynamicCreateResponse
 
     @retrofit2.http.POST("x/dynamic/feed/dyn/private_pub_setting")
     suspend fun setDynamicVisibility(
@@ -3095,6 +3101,13 @@ object NetworkModule {
     //  动态 API
     val dynamicApi: DynamicApi by lazy {
         Retrofit.Builder().baseUrl("https://api.bilibili.com/").client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
+            .create(DynamicApi::class.java)
+    }
+
+    /** Dynamic visibility checks must not inherit the signed-in user's cookies. */
+    val guestDynamicApi: DynamicApi by lazy {
+        Retrofit.Builder().baseUrl("https://api.bilibili.com/").client(guestOkHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
             .create(DynamicApi::class.java)
     }

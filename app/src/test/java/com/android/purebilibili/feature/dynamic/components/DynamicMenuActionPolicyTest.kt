@@ -7,6 +7,14 @@ import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.DynamicMoreModule
 import com.android.purebilibili.data.model.response.DynamicThreePointItem
 import com.android.purebilibili.data.model.response.DynamicThreePointParams
+import com.android.purebilibili.data.model.response.DynamicContentModule
+import com.android.purebilibili.data.model.response.DynamicDesc
+import com.android.purebilibili.data.model.response.DynamicMajor
+import com.android.purebilibili.data.model.response.DynamicTopic
+import com.android.purebilibili.data.model.response.OpusMajor
+import com.android.purebilibili.data.model.response.OpusPic
+import com.android.purebilibili.data.model.response.OpusSummary
+import com.android.purebilibili.data.model.response.RichTextNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -14,6 +22,65 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DynamicMenuActionPolicyTest {
+
+    @Test
+    fun manageActionDispatcherUsesSameBranchesForListAndDetail() {
+        val visited = mutableListOf<String>()
+        val dispatch: (DynamicManageAction) -> Unit = { action ->
+            dispatchDynamicManageAction(
+                action,
+                onReport = { visited += "report" },
+                onEdit = { visited += "edit" },
+                onNotInterested = { visited += "not_interested" },
+                onOther = { visited += "other" },
+            )
+        }
+
+        dispatch(DynamicManageAction.NotInterested("1"))
+        dispatch(DynamicManageAction.ToggleTop("2", false))
+
+        assertEquals(listOf("not_interested", "other"), visited)
+    }
+
+    @Test
+    fun editDraftRestoresTitleImagesTopicAndRichNodes() {
+        val item = DynamicItem(
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(
+                        text = "@测试 [doge] 正文",
+                        rich_text_nodes = listOf(
+                            RichTextNode(type = "RICH_TEXT_NODE_TYPE_AT", text = "@测试", rid = "22"),
+                            RichTextNode(type = "RICH_TEXT_NODE_TYPE_EMOJI", text = "[doge]"),
+                        ),
+                    ),
+                    topic = DynamicTopic(id = 7L, name = "Compose"),
+                    major = DynamicMajor(
+                        opus = OpusMajor(
+                            title = "标题",
+                            summary = OpusSummary(text = "摘要"),
+                            pics = listOf(OpusPic(url = "https://i0.hdslb.com/a.jpg", width = 640, height = 480)),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val draft = resolveDynamicEditDraft(item)
+
+        assertEquals("标题", draft.title)
+        assertEquals(listOf("https://i0.hdslb.com/a.jpg"), draft.imageUris)
+        assertEquals(22L, draft.mentions.single().uid)
+        assertEquals(listOf("[doge]"), draft.emotes)
+        assertEquals(7L, draft.topic?.id)
+        assertEquals(640, draft.existingImages.single().img_width)
+    }
+
+    @Test
+    fun notInterestedActionCarriesDynamicId() {
+        val action = DynamicManageAction.NotInterested("dyn-100")
+        assertEquals("dyn-100", action.dynamicId)
+    }
 
     @Test
     fun pinnedMenuLabelFollowsCurrentTopState() {

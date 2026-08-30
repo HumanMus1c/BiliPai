@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import coil3.request.crossfade
+
 import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
@@ -47,8 +49,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TodayWatchDislikedVideoSnapshot
@@ -350,11 +352,12 @@ fun RelatedVideoItem(
 
             Column(
                 modifier = Modifier
-                    .weight(1f),
-                // Keep the headline in normal flow. A weighted headline inside a
-                // SpaceBetween column can collapse during the shared return remeasure,
-                // leaving only the date/UP and stats rows visible.
-                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                    .weight(1f)
+                    .heightIn(min = coverHeight),
+                // Keep both sections in normal flow while pinning metadata to the bottom.
+                // Unlike the old weighted-headline layout, the title cannot collapse during
+                // a shared return remeasure; taller content can still grow beyond the cover.
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 AppText(
                     text = video.title,

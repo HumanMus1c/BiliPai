@@ -1,6 +1,8 @@
 // 文件路径: feature/dynamic/components/DynamicSidebar.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import coil3.request.crossfade
+
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -47,7 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.rememberAppBackIcon
@@ -481,7 +483,7 @@ fun SidebarUserItem(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = coil.request.ImageRequest.Builder(LocalContext.current)
+                        model = coil3.request.ImageRequest.Builder(LocalContext.current)
                             .data(faceUrl.ifEmpty { null })
                             .crossfade(true)
                             .build(),

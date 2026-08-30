@@ -52,7 +52,7 @@ class HomeChromeLiquidSurfaceStructureTest {
             homeScreenSource.contains("var homeMiuixBackdropReady") &&
                 homeScreenSource.contains("withFrameNanos { }") &&
                 homeScreenSource.contains("val readyHomeMiuixBackdrop") &&
-                homeScreenSource.contains(".miuixLayerBackdrop(homeMiuixBackdrop)") &&
+                homeScreenSource.contains(".then(homeMiuixBackdropSource.modifier)") &&
                 homeScreenSource.contains("miuixBackdrop = readyHomeMiuixBackdrop")
         )
         assertTrue(
@@ -155,7 +155,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         assertTrue(
             "top tab content should be a sibling overlay outside the clipped shell surface and allow indicator overflow",
             topTabChrome.readText().let { source ->
-                source.contains("alpha = tabContentAlpha") &&
+                source.contains("alpha = tabContentAlphaProvider.value") &&
                     source.contains("clip = false") &&
                     source.contains("contentAlignment = Alignment.Center") &&
                     source.contains("content()")

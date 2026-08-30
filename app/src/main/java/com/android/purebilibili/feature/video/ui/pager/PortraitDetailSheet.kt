@@ -27,7 +27,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion

@@ -1554,6 +1554,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
         .getPortraitSwipeToFullscreenEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val directPortraitStoryEntry by com.android.purebilibili.core.store.SettingsManager
         .getAutoPortraitFullscreen(context).collectAsStateWithLifecycle(initialValue = false)
+    val portraitOnlyVerticalRecommendations by com.android.purebilibili.core.store.SettingsManager
+        .getPortraitOnlyVerticalRecommendations(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val launchToPortraitFeedOnStartup by com.android.purebilibili.core.store.SettingsManager
         .getLaunchToPortraitFeedOnStartup(context).collectAsStateWithLifecycle(initialValue = false)
     val centerSwipeToFullscreenEnabled by com.android.purebilibili.core.store.SettingsManager
@@ -1857,6 +1860,25 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager
                         .setAutoPortraitFullscreen(context, it)
+                }
+            },
+            iconTint = iOSTeal
+        )
+
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_STORY_ENTRY),
+            title = "竖屏刷视频仅推荐真竖屏（Beta）",
+            subtitle = if (portraitOnlyVerticalRecommendations) {
+                "开启后过滤横屏视频，仅保留实际画面为竖屏的推荐"
+            } else {
+                "关闭后竖屏刷视频允许横竖屏混合推荐"
+            },
+            checked = portraitOnlyVerticalRecommendations,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setPortraitOnlyVerticalRecommendations(context, it)
                 }
             },
             iconTint = iOSTeal

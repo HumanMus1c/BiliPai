@@ -85,6 +85,45 @@ class TabletCinemaLayoutPolicyTest {
     }
 
     @Test
+    fun cinemaPlayerViewportUsesActualPrimaryPaneWidthWhenCurtainIsOpen() {
+        assertEquals(
+            600,
+            resolveCinemaPlayerViewportWidthDp(
+                availableWidthDp = 600,
+                playerMaxWidthDp = 1095,
+            )
+        )
+    }
+
+    @Test
+    fun cinemaPlayerViewportStillHonorsPlayerWidthCapOnUltraWideScreens() {
+        assertEquals(
+            1280,
+            resolveCinemaPlayerViewportWidthDp(
+                availableWidthDp = 1400,
+                playerMaxWidthDp = 1280,
+            )
+        )
+    }
+
+    @Test
+    fun cinemaPlayerViewportIsForwardedToPlayerChrome() {
+        val cinemaSource = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/TabletCinemaLayout.kt"
+        ).readText()
+        val playerSource = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"
+        ).readText()
+        val overlaySource = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/overlay/VideoPlayerOverlay.kt"
+        ).readText()
+
+        assertTrue(cinemaSource.contains("viewportWidthDpOverride = playerViewportWidthDp"))
+        assertTrue(playerSource.contains("viewportWidthDpOverride = uiLayoutWidthDp"))
+        assertTrue(overlaySource.contains("viewportWidthDpOverride = viewportWidthDpOverride"))
+    }
+
+    @Test
     fun commentWidthPresetsScaleCurtainWidthAroundCurrentStandard() {
         val compact = resolveTabletCinemaLayoutPolicy(
             widthDp = 1280,

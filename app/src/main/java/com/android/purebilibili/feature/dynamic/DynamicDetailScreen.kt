@@ -10,9 +10,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.components.AppListItem
+import com.android.purebilibili.core.ui.components.AppRadioButton
+import com.android.purebilibili.core.ui.components.AppTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -37,7 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.imageLoader
+import coil3.imageLoader
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppSplitLayout
@@ -50,6 +56,12 @@ import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
+import com.android.purebilibili.feature.dynamic.components.dispatchDynamicManageAction
+import com.android.purebilibili.feature.dynamic.components.DynamicPublishComposer
+import com.android.purebilibili.feature.dynamic.components.resolveDynamicReportReasons
+import com.android.purebilibili.feature.dynamic.components.saveDynamicImageToGallery
+import com.android.purebilibili.feature.dynamic.components.DynamicShareToMessageDialog
 import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentComposer
 import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentHeader
 import com.android.purebilibili.feature.dynamic.components.DynamicSubReplyPreviewHost
@@ -83,7 +95,11 @@ fun DynamicDetailScreen(
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit = {},
     onArticleClick: (articleId: Long, title: String) -> Unit = { _, _ -> },
-    onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> }
+    onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
+    onMusicClick: ((Long) -> Unit)? = null,
+    onCollectionClick: ((Long, Long, String, String) -> Unit)? = null,
+    onCourseClick: ((String, String) -> Unit)? = null,
+    onShareToMessageClick: ((DynamicItem) -> Unit)? = null,
 ) {
     val interactionViewModel: DynamicViewModel = viewModel()
     var retryToken by rememberSaveable { mutableIntStateOf(0) }
@@ -117,6 +133,7 @@ fun DynamicDetailScreen(
     val detailCommentBackdrop = rememberLayerBackdrop()
     val gifImageLoader = context.imageLoader
     val likedDynamics by interactionViewModel.likedDynamics.collectAsStateWithLifecycle()
+    val likeOverrides by interactionViewModel.likeOverrides.collectAsStateWithLifecycle()
     val comments by interactionViewModel.comments.collectAsStateWithLifecycle()
     val commentsLoading by interactionViewModel.commentsLoading.collectAsStateWithLifecycle()
     val commentsLoadingMore by interactionViewModel.commentsLoadingMore.collectAsStateWithLifecycle()
@@ -125,6 +142,9 @@ fun DynamicDetailScreen(
     val subReplyState by interactionViewModel.subReplyState.collectAsStateWithLifecycle()
     val commentReplyTarget by interactionViewModel.commentReplyTarget.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }
+    var pendingReport by remember { mutableStateOf<DynamicManageAction.Report?>(null) }
+    var editingAction by remember { mutableStateOf<DynamicManageAction.Edit?>(null) }
+    var pendingMessageShare by remember { mutableStateOf<DynamicItem?>(null) }
     var forwardCountDelta by remember(dynamicId) { mutableIntStateOf(0) }
     val detailListState = rememberLazyListState()
     //  [新增] 大屏/横屏分栏：右栏评论列表
@@ -230,6 +250,9 @@ fun DynamicDetailScreen(
                             onTopicClick = onTopicClick,
                             onArticleClick = onArticleClick,
                             onLiveClick = onLiveClick,
+                            onMusicClick = onMusicClick,
+                            onCollectionClick = onCollectionClick,
+                            onCourseClick = onCourseClick,
                             isDetail = true,
                             gifImageLoader = gifImageLoader,
                             onCommentClick = {
@@ -242,10 +265,58 @@ fun DynamicDetailScreen(
                                 }
                             },
                             onRepostClick = { showRepostDialog = it },
-                            onLikeClick = { targetDynamicId ->
-                                interactionViewModel.likeDynamic(targetDynamicId) { _, msg ->
+                            onLikeClickWithState = { targetDynamicId, isLiked ->
+                                interactionViewModel.likeDynamic(
+                                    dynamicId = targetDynamicId,
+                                    knownIsLiked = isLiked,
+                                ) { _, msg ->
                                     android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                 }
+                            },
+                            onWatchLaterClick = { aid ->
+                                interactionViewModel.addToWatchLater(aid) { _, msg ->
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onSaveDynamicClick = {
+                                detailScrollScope.launch {
+                                    val saved = saveDynamicImageToGallery(context, state.item)
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        if (saved) "已保存动态图片" else "保存动态失败",
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            },
+                            onShareToMessageClick = {
+                                onShareToMessageClick?.invoke(state.item) ?: run { pendingMessageShare = state.item }
+                            },
+                            onCheckDynamicClick = {
+                                interactionViewModel.checkDynamic(state.item.id_str) { _, msg ->
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onReserveClick = interactionViewModel::toggleDynamicReserve,
+                            onManageAction = { action ->
+                                dispatchDynamicManageAction(
+                                    action = action,
+                                    onReport = { pendingReport = it },
+                                    onEdit = { editingAction = it },
+                                    onNotInterested = {
+                                        interactionViewModel.handleManageAction(it) { success, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                            if (success) onBack()
+                                        }
+                                    },
+                                    onOther = {
+                                        interactionViewModel.handleManageAction(it) { _, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                )
+                            },
+                            onLoadReplyInteractionStatus = { oid, type, onLoaded ->
+                                interactionViewModel.loadReplyInteractionStatus(oid, type, onLoaded)
                             },
                             onDeleteClick = { action ->
                                 interactionViewModel.deleteDynamic(action) { success, msg ->
@@ -254,6 +325,7 @@ fun DynamicDetailScreen(
                                 }
                             },
                             isLiked = likedDynamics.contains(state.item.id_str),
+                            likeOverride = likeOverrides[state.item.id_str],
                             forwardCountDelta = forwardCountDelta
                         )
                     }
@@ -487,6 +559,92 @@ fun DynamicDetailScreen(
                                 onComplete(success)
                             }
                         }
+                    )
+                }
+
+                editingAction?.let { action ->
+                    var submitting by remember(action.dynamicId) { mutableStateOf(false) }
+                    var errorMessage by remember(action.dynamicId) { mutableStateOf<String?>(null) }
+                    DynamicPublishComposer(
+                        initialDraft = action.initialDraft,
+                        isEditing = true,
+                        submitting = submitting,
+                        errorMessage = errorMessage,
+                        onDismiss = { editingAction = null },
+                        onSubmit = { draft ->
+                            submitting = true
+                            interactionViewModel.editDynamic(context, action.dynamicId, draft) { success, msg ->
+                                submitting = false
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                if (success) {
+                                    editingAction = null
+                                    retryToken++
+                                } else {
+                                    errorMessage = msg
+                                }
+                            }
+                        },
+                    )
+                }
+
+                pendingReport?.let { reportAction ->
+                    var selectedReason by remember(reportAction.dynamicId) {
+                        mutableStateOf(resolveDynamicReportReasons().first())
+                    }
+                    var otherDesc by remember(reportAction.dynamicId) { mutableStateOf("") }
+                    AppAlertDialog(
+                        onDismissRequest = { pendingReport = null },
+                        title = { AppText("举报动态") },
+                        text = {
+                            Column {
+                                resolveDynamicReportReasons().forEach { reason ->
+                                    AppListItem(
+                                        headlineContent = { AppText(reason.label) },
+                                        trailingContent = {
+                                            AppRadioButton(
+                                                selected = reason.type == selectedReason.type,
+                                                onClick = { selectedReason = reason },
+                                            )
+                                        },
+                                        modifier = Modifier.clickable { selectedReason = reason },
+                                    )
+                                }
+                                if (selectedReason.type == 0) {
+                                    AppTextField(
+                                        value = otherDesc,
+                                        onValueChange = { otherDesc = it },
+                                        placeholder = "补充详细说明",
+                                        singleLine = false,
+                                        minLines = 2,
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            AppDialogAction(onClick = {
+                                interactionViewModel.reportDynamic(
+                                    action = reportAction,
+                                    reasonType = selectedReason.type,
+                                    reasonDesc = otherDesc,
+                                ) { _, msg ->
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                    pendingReport = null
+                                }
+                            }) { AppText("提交") }
+                        },
+                        dismissButton = {
+                            AppDialogAction(onClick = { pendingReport = null }) { AppText("取消") }
+                        },
+                    )
+                }
+
+                pendingMessageShare?.let { shareItem ->
+                    DynamicShareToMessageDialog(
+                        item = shareItem,
+                        onDismiss = { pendingMessageShare = null },
+                        onResult = { _, message ->
+                            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                     )
                 }
             }

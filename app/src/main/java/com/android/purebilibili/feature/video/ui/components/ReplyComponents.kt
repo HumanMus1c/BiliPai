@@ -1,4 +1,10 @@
 package com.android.purebilibili.feature.video.ui.components
+
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+
+import coil3.request.crossfade
+import coil3.request.transformations
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -42,11 +48,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Size
-import coil.transform.Transformation
-import coil.imageLoader
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
+import coil3.transform.Transformation
+import coil3.imageLoader
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.calculateContrastRatio
@@ -124,7 +130,7 @@ private val replyVideoTitleCache = ConcurrentHashMap<String, String>()
  * 官方 cardbg 经常是 972×162 的透明画布，实际角色图案只占其中一小部分。
  * 在解码线程裁掉全透明边缘，才能以官方预期的视觉尺寸显示内容而不裁掉图案。
  */
-internal object TransparentBoundsCropTransformation : Transformation {
+internal object TransparentBoundsCropTransformation : Transformation() {
     override val cacheKey: String = "comment_transparent_bounds_crop_v1"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
@@ -2725,7 +2731,7 @@ fun CommentPictures(
                     model = ImageRequest.Builder(context)
                         .data(imageUrls[0])
                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
-                        .addHeader("Referer", "https://www.bilibili.com/")  //  必需
+                        .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
                         .crossfade(true)
                         .build(),
                     contentDescription = null,
@@ -2766,7 +2772,7 @@ fun CommentPictures(
                                     model = ImageRequest.Builder(context)
                                         .data(imageUrls[globalIndex])
                                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
-                                        .addHeader("Referer", "https://www.bilibili.com/")  //  必需
+                                        .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = null,

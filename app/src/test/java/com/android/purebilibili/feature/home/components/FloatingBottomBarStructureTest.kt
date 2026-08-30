@@ -60,8 +60,8 @@ class FloatingBottomBarStructureTest {
         assertTrue(body.contains("baseHighlight.copy(alpha = 0.75f)"))
 
         assertTrue(body.contains(".alpha(0f)"))
-        assertTrue(body.contains(".layerBackdrop(tabsBackdrop)"))
-        assertTrue(body.contains("rememberLayerBackdrop()"))
+        assertTrue(body.contains(".then(tabsBackdropSource.modifier)"))
+        assertTrue(body.contains("rememberChromeBackdropSource()"))
 
         assertTrue(body.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
         assertTrue(body.contains("depthEffect = true"))

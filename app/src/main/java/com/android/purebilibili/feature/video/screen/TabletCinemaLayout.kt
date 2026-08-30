@@ -80,7 +80,7 @@ import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -170,6 +170,7 @@ internal fun TabletCinemaLayout(
     onBgmClick: (BgmInfo) -> Unit = {},
     onNavigateToAudioMode: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onPortraitFullscreen: () -> Unit,
     isInPipMode: Boolean,
     onPipClick: () -> Unit,
     isPortraitFullscreen: Boolean = false,
@@ -280,6 +281,7 @@ internal fun TabletCinemaLayout(
                     coverUrl = coverUrl,
                     onNavigateToAudioMode = onNavigateToAudioMode,
                     onToggleFullscreen = onToggleFullscreen,
+                    onPortraitFullscreen = onPortraitFullscreen,
                     isInPipMode = isInPipMode,
                     onPipClick = onPipClick,
                     sleepTimerMinutes = sleepTimerMinutes,
@@ -413,6 +415,7 @@ private fun CinemaStagePlayer(
     coverUrl: String,
     onNavigateToAudioMode: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onPortraitFullscreen: () -> Unit,
     isInPipMode: Boolean,
     onPipClick: () -> Unit,
     sleepTimerMinutes: Int?,
@@ -467,7 +470,11 @@ private fun CinemaStagePlayer(
         modifier = Modifier
             .fillMaxWidth()
     ) {
-        val playerWidth = minOf(maxWidth, playerMaxWidth)
+        val playerViewportWidthDp = resolveCinemaPlayerViewportWidthDp(
+            availableWidthDp = maxWidth.value.toInt(),
+            playerMaxWidthDp = playerMaxWidth.value.toInt(),
+        )
+        val playerWidth = playerViewportWidthDp.dp
         val videoHeight = if (forceCoverOnlyOnReturn) {
             playerWidth / VIDEO_SHARED_COVER_ASPECT_RATIO
         } else {
@@ -524,8 +531,11 @@ private fun CinemaStagePlayer(
                 viewPoints = viewPoints,
                 pbpProgressData = pbpProgressData,
                 isVerticalVideo = isVerticalVideo,
-                onPortraitFullscreen = { playerState.setPortraitFullscreen(true) },
+                onPortraitFullscreen = onPortraitFullscreen,
                 isPortraitFullscreen = isPortraitFullscreen,
+                // Cinema is a nested pane. Player chrome must adapt to this measured viewport,
+                // not LocalConfiguration.screenWidthDp for the entire tablet window.
+                viewportWidthDpOverride = playerViewportWidthDp,
                 onPipClick = onPipClick,
                 currentCodec = currentCodec,
                 onCodecChange = onCodecChange,

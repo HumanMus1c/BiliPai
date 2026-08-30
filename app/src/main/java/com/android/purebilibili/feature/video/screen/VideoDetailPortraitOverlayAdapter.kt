@@ -19,12 +19,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.media3.exoplayer.ExoPlayer
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.data.repository.StoryRepository
 import com.android.purebilibili.feature.story.storyItemToRelatedVideo
@@ -53,12 +55,14 @@ internal fun VideoDetailPortraitOverlayAdapter(
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
     onVideoChange: (String) -> Unit,
+    onPlaybackIdentityChange: (String, Long, String) -> Unit,
     onProgressUpdate: (String, Long, Long, String) -> Unit,
     onExitSnapshot: (String, Long, Long, String) -> Unit,
     onSearchClick: () -> Unit,
     onUserClick: (Long) -> Unit,
     onRotateToLandscape: () -> Unit,
 ) {
+    val context = LocalContext.current
     val showPortraitFullscreen = shouldShowStandalonePortraitPager(
         portraitExperienceEnabled = portraitExperienceEnabled,
         isPortraitFullscreen = isPortraitFullscreen,
@@ -119,6 +123,9 @@ internal fun VideoDetailPortraitOverlayAdapter(
             targetOffsetY = { -(it * motionSpec.exitTranslateUpFraction).roundToInt() },
         )
     }
+    val portraitOnlyVerticalRecommendations by com.android.purebilibili.core.store.SettingsManager
+        .getPortraitOnlyVerticalRecommendations(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     AnimatedVisibility(
         visible = showPortraitFullscreen && success != null,
         enter = if (shouldAnimatePortraitPager) {
@@ -154,9 +161,11 @@ internal fun VideoDetailPortraitOverlayAdapter(
                 initialBvid = initialBvidOverride ?: info.bvid,
                 initialInfo = info,
                 recommendations = portraitRecommendations,
+                onlyVerticalRecommendations = portraitOnlyVerticalRecommendations,
                 onBack = onBack,
                 onHomeClick = onHomeClick,
                 onVideoChange = onVideoChange,
+                onPlaybackIdentityChange = onPlaybackIdentityChange,
                 viewModel = playbackViewModel,
                 engagementViewModel = engagementViewModel,
                 sharedPlayer = sharedPlayer,

@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.profile
+
+import coil3.request.crossfade
+import coil3.request.placeholder
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -71,10 +74,10 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.size.Scale
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.size.Scale
 import java.io.File
 import com.android.purebilibili.core.theme.DarkBackground
 import com.android.purebilibili.core.theme.DarkSurface

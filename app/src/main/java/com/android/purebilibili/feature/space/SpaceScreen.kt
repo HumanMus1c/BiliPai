@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.space
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.AnimatedVisibility
@@ -24,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -99,10 +102,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.size.Scale
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.size.Scale
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
@@ -214,6 +217,7 @@ fun SpaceScreen(
     val dynamicInteractionViewModel: DynamicViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val likedDynamics by dynamicInteractionViewModel.likedDynamics.collectAsStateWithLifecycle()
+    val dynamicLikeOverrides by dynamicInteractionViewModel.likeOverrides.collectAsStateWithLifecycle()
     val forwardCountDeltas = remember { mutableStateMapOf<String, Int>() }
     val followGroupDialogVisible by viewModel.followGroupDialogVisible.collectAsStateWithLifecycle()
     val followGroupTags by viewModel.followGroupTags.collectAsStateWithLifecycle()
@@ -250,6 +254,7 @@ fun SpaceScreen(
     var contributionVideoLayoutMode by rememberSaveable(mid) {
         mutableStateOf(defaultSpaceContributionVideoLayoutMode())
     }
+    val nextContributionVideoLayoutMode = toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
     val showContributionVideoMenuActions = currentSuccessState?.let { state ->
         state.tabShellState.selectedTab == SpaceMainTab.CONTRIBUTION &&
             state.selectedSubTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
@@ -385,7 +390,7 @@ fun SpaceScreen(
                                                 },
                                                 onClick = {
                                                     contributionVideoLayoutMode =
-                                                        toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
+                                                        nextContributionVideoLayoutMode
                                                 },
                                             ),
                                             AppWindowAction(
@@ -578,11 +583,12 @@ fun SpaceScreen(
                             onAvatarClick = { showAvatarPreview = true },
                             dynamicCardItems = dynamicCardItems,
                             likedDynamics = likedDynamics,
+                            likeOverrides = dynamicLikeOverrides,
                             forwardCountDeltas = forwardCountDeltas,
                             onSpaceDynamicCommentClick = dynamicInteractionViewModel::openCommentSheet,
                             onSpaceDynamicRepostClick = { repostDynamicId = it },
-                            onSpaceDynamicLikeClick = { dynamicId ->
-                                dynamicInteractionViewModel.likeDynamic(dynamicId) { _, message ->
+                            onSpaceDynamicLikeClick = { dynamicId, isLiked ->
+                                dynamicInteractionViewModel.likeDynamic(dynamicId, isLiked) { _, message ->
                                     android.widget.Toast.makeText(
                                         context,
                                         message,
@@ -590,6 +596,7 @@ fun SpaceScreen(
                                     ).show()
                                 }
                             },
+                            onSpaceDynamicReserveClick = dynamicInteractionViewModel::toggleDynamicReserve,
                             onSpaceDynamicDeleteClick = { action ->
                                 dynamicInteractionViewModel.deleteDynamic(action) { success, message ->
                                     android.widget.Toast.makeText(
@@ -907,10 +914,15 @@ private fun SpaceContent(
     onAvatarClick: () -> Unit,
     dynamicCardItems: List<com.android.purebilibili.data.model.response.DynamicItem>,
     likedDynamics: Set<String>,
+    likeOverrides: Map<String, Boolean>,
     forwardCountDeltas: Map<String, Int>,
     onSpaceDynamicCommentClick: (com.android.purebilibili.data.model.response.DynamicItem) -> Unit,
     onSpaceDynamicRepostClick: (String) -> Unit,
-    onSpaceDynamicLikeClick: (String) -> Unit,
+    onSpaceDynamicLikeClick: (String, Boolean) -> Unit,
+    onSpaceDynamicReserveClick: (
+        com.android.purebilibili.feature.dynamic.components.DynamicReserveAction,
+        (Result<com.android.purebilibili.feature.dynamic.components.DynamicReserveResult>) -> Unit,
+    ) -> Unit,
     onSpaceDynamicDeleteClick: (DynamicDeleteAction) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
@@ -1295,7 +1307,12 @@ private fun SpaceContent(
                             actionLabel = null
                         )
                     }
-                    items(state.homeCoinVideos.take(2), key = { "coin_${it.aid}_${it.bvid}" }) { item ->
+                    itemsIndexed(
+                        items = state.homeCoinVideos.take(2),
+                        key = { index, item ->
+                            resolveSpaceAggregateLazyItemKey("coin", index, item)
+                        }
+                    ) { _, item ->
                         SpaceAggregateMediaCard(
                             item = item,
                             onClick = {
@@ -1322,7 +1339,12 @@ private fun SpaceContent(
                             actionLabel = null
                         )
                     }
-                    items(state.homeLikeVideos.take(2), key = { "like_${it.aid}_${it.bvid}" }) { item ->
+                    itemsIndexed(
+                        items = state.homeLikeVideos.take(2),
+                        key = { index, item ->
+                            resolveSpaceAggregateLazyItemKey("like", index, item)
+                        }
+                    ) { _, item ->
                         SpaceAggregateMediaCard(
                             item = item,
                             onClick = {
@@ -1547,14 +1569,27 @@ private fun SpaceContent(
                             onLiveClick = { roomId, title, uname ->
                                 onLiveClick(roomId, title, uname)
                             },
+                            onMusicClick = onAudioClick,
+                            onCollectionClick = { mediaId, ownerMid, title, url ->
+                                if (mediaId > 0L && url.contains("medialist/detail/ml", ignoreCase = true)) {
+                                    onViewAllClick("favorite", mediaId, ownerMid, title, "")
+                                } else if (url.isNotBlank()) {
+                                    onWebClick(url, title)
+                                }
+                            },
+                            onCourseClick = onWebClick,
                             onArticleClick = onArticleClick,
                             onDynamicDetailClick = onDynamicDetailClick,
                             gifImageLoader = context.imageLoader,
                             onCommentClick = { onDynamicDetailClick(dynamic.id_str) },
                             onRepostClick = onSpaceDynamicRepostClick,
-                            onLikeClick = onSpaceDynamicLikeClick,
+                            onLikeClickWithState = { dynamicId, isLiked ->
+                                onSpaceDynamicLikeClick(dynamicId, isLiked)
+                            },
                             onDeleteClick = onSpaceDynamicDeleteClick,
+                            onReserveClick = onSpaceDynamicReserveClick,
                             isLiked = likedDynamics.contains(dynamic.id_str),
+                            likeOverride = likeOverrides[dynamic.id_str],
                             forwardCountDelta = forwardCountDeltas[dynamic.id_str] ?: 0
                         )
                     }
@@ -2530,7 +2565,9 @@ private fun SpaceSecondarySwitchRow(
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+        .collectAsStateWithLifecycle(
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
+        )
     val spec = remember(items, selectedId) {
         resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
     }

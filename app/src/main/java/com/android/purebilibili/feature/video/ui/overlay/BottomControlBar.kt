@@ -402,6 +402,7 @@ fun BottomControlBar(
     onEpisodeClick: () -> Unit = {},
     hasEpisodeEntry: Boolean = false,
     onToggleFullscreen: () -> Unit,
+    viewportWidthDpOverride: Int? = null,
     
     // Danmaku
     danmakuEnabled: Boolean = true,
@@ -466,22 +467,25 @@ fun BottomControlBar(
     val onSubtitlePositionLockedChange = subtitleControlCallbacks.onPositionLockedChange
 
     val configuration = LocalConfiguration.current
-    val layoutPolicy = remember(configuration.screenWidthDp) {
+    val uiLayoutWidthDp = remember(configuration.screenWidthDp, viewportWidthDpOverride) {
+        (viewportWidthDpOverride ?: configuration.screenWidthDp).coerceAtLeast(1)
+    }
+    val layoutPolicy = remember(uiLayoutWidthDp) {
         resolveBottomControlBarLayoutPolicy(
-            widthDp = configuration.screenWidthDp
+            widthDp = uiLayoutWidthDp
         )
     }
-    val floatingPanelMinWidthDp = remember(configuration.screenWidthDp) {
-        resolveFloatingControlPanelMinWidthDp(widthDp = configuration.screenWidthDp)
+    val floatingPanelMinWidthDp = remember(uiLayoutWidthDp) {
+        resolveFloatingControlPanelMinWidthDp(widthDp = uiLayoutWidthDp)
     }
-    val moreActionItemMinWidthDp = remember(configuration.screenWidthDp) {
-        resolveMoreActionItemMinWidthDp(widthDp = configuration.screenWidthDp)
+    val moreActionItemMinWidthDp = remember(uiLayoutWidthDp) {
+        resolveMoreActionItemMinWidthDp(widthDp = uiLayoutWidthDp)
     }
     val moreActionsPanelWidthDp = remember(moreActionItemMinWidthDp) {
         moreActionItemMinWidthDp * 2 + 32
     }
-    val moreButtonAnchorOffsetDp = remember(configuration.screenWidthDp) {
-        resolveMoreActionsButtonAnchorOffsetDp(widthDp = configuration.screenWidthDp)
+    val moreButtonAnchorOffsetDp = remember(uiLayoutWidthDp) {
+        resolveMoreActionsButtonAnchorOffsetDp(widthDp = uiLayoutWidthDp)
     }
     val moreActionsPanelEndPaddingDp = remember(
         layoutPolicy.horizontalPaddingDp,
@@ -513,9 +517,9 @@ fun BottomControlBar(
     ) {
         (configuration.screenHeightDp - floatingPanelBottomOffsetDp - 48).coerceAtLeast(120)
     }
-    val progressLayoutPolicy = remember(configuration.screenWidthDp) {
+    val progressLayoutPolicy = remember(uiLayoutWidthDp) {
         resolveVideoProgressBarLayoutPolicy(
-            widthDp = configuration.screenWidthDp
+            widthDp = uiLayoutWidthDp
         )
     }
     val danmakuPlaceholderPolicy = remember {
@@ -527,11 +531,11 @@ fun BottomControlBar(
     val fullscreenToggleTouchTargetDp = remember(layoutPolicy.fullscreenIconSizeDp) {
         resolveFullscreenToggleTouchTargetDp(iconSizeDp = layoutPolicy.fullscreenIconSizeDp)
     }
-    val showEpisodeButton = remember(isFullscreen, hasEpisodeEntry, configuration.screenWidthDp) {
+    val showEpisodeButton = remember(isFullscreen, hasEpisodeEntry, uiLayoutWidthDp) {
         shouldShowEpisodeButtonInControlBar(
             isFullscreen = isFullscreen,
             hasEpisodeEntry = hasEpisodeEntry,
-            widthDp = configuration.screenWidthDp
+            widthDp = uiLayoutWidthDp
         )
     }
     val showEpisodeInMoreActions = remember(isFullscreen, hasEpisodeEntry, showEpisodeButton) {
@@ -541,16 +545,16 @@ fun BottomControlBar(
             showInlineEpisodeButton = showEpisodeButton
         )
     }
-    val showDanmakuInput = remember(isFullscreen, configuration.screenWidthDp) {
+    val showDanmakuInput = remember(isFullscreen, uiLayoutWidthDp) {
         shouldShowDanmakuInputInControlBar(
             isFullscreen = isFullscreen,
-            widthDp = configuration.screenWidthDp
+            widthDp = uiLayoutWidthDp
         )
     }
-    val showCompactDanmakuSend = remember(isFullscreen, configuration.screenWidthDp) {
+    val showCompactDanmakuSend = remember(isFullscreen, uiLayoutWidthDp) {
         com.android.purebilibili.feature.video.ui.components.shouldShowCompactDanmakuSendAction(
             isFullscreen = isFullscreen,
-            widthDp = configuration.screenWidthDp
+            widthDp = uiLayoutWidthDp
         )
     }
     val danmakuInputPlaceholder = remember(isLoggedIn) {
@@ -729,7 +733,7 @@ fun BottomControlBar(
             // tablet side pane next to 评论.
             val showDanmakuToggle = shouldShowDanmakuToggleInControlBar(
                 isFullscreen = isFullscreen,
-                widthDp = configuration.screenWidthDp
+                widthDp = uiLayoutWidthDp
             )
             if (showDanmakuToggle) {
                 val danmakuActiveColor = Color.White.copy(alpha = 0.96f)

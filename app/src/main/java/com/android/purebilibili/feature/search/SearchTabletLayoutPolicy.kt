@@ -1,5 +1,17 @@
 package com.android.purebilibili.feature.search
 
+internal fun resolveSearchGridCardWidthDp(
+    availableWidthDp: Float,
+    minItemWidthDp: Float,
+    horizontalPaddingDp: Float,
+    spacingDp: Float,
+): Float {
+    val contentWidth = (availableWidthDp - 2 * horizontalPaddingDp).coerceAtLeast(0f)
+    val columns = ((contentWidth + spacingDp) / (minItemWidthDp + spacingDp))
+        .toInt().coerceAtLeast(1)
+    return ((contentWidth - spacingDp * (columns - 1)) / columns).coerceAtLeast(0f)
+}
+
 data class SearchLayoutPolicy(
     val resultGridMinItemWidthDp: Int,
     val resultGridSpacingDp: Int,

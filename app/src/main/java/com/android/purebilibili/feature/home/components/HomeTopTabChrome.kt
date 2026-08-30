@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -46,7 +47,7 @@ import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import dev.chrisbanes.haze.HazeState
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import java.io.File
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
@@ -115,6 +116,9 @@ internal fun HomeTopTabChrome(
     } else {
         tabAlpha * tabContentAlpha
     }
+    // Alpha is draw-only during scroll. Keep it out of the tab content's composition path.
+    val containerAlphaProvider = rememberUpdatedState(containerAlpha)
+    val tabContentAlphaProvider = rememberUpdatedState(tabContentAlpha)
     val hasSkinBackground = !skinBackgroundImagePath.isNullOrBlank()
 
     Box(
@@ -122,7 +126,7 @@ internal fun HomeTopTabChrome(
             .fillMaxWidth()
             .zIndex(containerZIndex)
             .height(currentTabHeight)
-            .graphicsLayer { alpha = containerAlpha }
+            .graphicsLayer { alpha = containerAlphaProvider.value }
             .offset { IntOffset(x = 0, y = tabVerticalOffset.roundToPx()) }
             .then(
                 if (gestureEnabled && onTabsCollapsedChange != null) {
@@ -264,7 +268,7 @@ internal fun HomeTopTabChrome(
                             Modifier
                         }
                     )
-                    .graphicsLayer { alpha = tabContentAlpha }
+                    .graphicsLayer { alpha = tabContentAlphaProvider.value }
             ) {
                 if (drawChromeSurface && !hasSkinBackground) {
                     Box(
@@ -308,7 +312,7 @@ internal fun HomeTopTabChrome(
             Box(
                 modifier = dockModifier
                     .graphicsLayer {
-                        alpha = tabContentAlpha
+                        alpha = tabContentAlphaProvider.value
                         clip = false
                     },
                 contentAlignment = Alignment.Center

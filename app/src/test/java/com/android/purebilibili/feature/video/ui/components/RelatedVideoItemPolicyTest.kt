@@ -87,6 +87,9 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))
         assertTrue(source.contains(".height(coverHeight)"))
+        assertTrue(source.contains(".heightIn(min = coverHeight)"))
+        assertTrue(source.contains("verticalArrangement = Arrangement.SpaceBetween"))
+        assertFalse(source.contains(".weight(1f, fill = false)"))
         assertTrue(
             source.indexOf("UpBadgeName(") < source.indexOf("VideoStatRow(")
         )

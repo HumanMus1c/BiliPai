@@ -1,5 +1,7 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppBackToTopButton
 import com.android.purebilibili.core.ui.components.AppCheckbox
@@ -133,6 +135,7 @@ import com.android.purebilibili.core.ui.rememberAppSearchIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.ui.components.UpBadgeName
+import com.android.purebilibili.feature.home.resolveHomeCoverRequestSpec
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
@@ -156,8 +159,8 @@ import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.shouldShowScrollToTop
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -1116,19 +1119,26 @@ fun SearchScreen(
                                 )
                             }
                         }
+                        val isEmptyVideoPage = targetSearchType == SearchType.VIDEO &&
+                            pageResultState.totalCount == 0
+                        val pageError = pageResultState.error
+                            ?: pageResultState.loadMoreError.takeIf { isEmptyVideoPage }
+                        val isFillingEmptyVideoPage = isEmptyVideoPage &&
+                            pageResultState.hasMoreResults && pageError == null
                         val pagePresentation = remember(
                             pageResultState.totalCount,
                             pageResultState.isSearching,
-                            pageResultState.error,
+                            pageError,
                             pageResultState.emptyStateReason,
                             pageResultState.isLoadingMore,
                             pageResultState.loadMoreError,
-                            pageResultState.hasMoreResults
+                            pageResultState.hasMoreResults,
+                            isFillingEmptyVideoPage
                         ) {
                             resolveSearchResultPresentation(
                                 itemCount = pageResultState.totalCount,
-                                isSearching = pageResultState.isSearching,
-                                error = pageResultState.error,
+                                isSearching = pageResultState.isSearching || isFillingEmptyVideoPage,
+                                error = pageError,
                                 emptyStateReason = pageResultState.emptyStateReason,
                                 isLoadingMore = pageResultState.isLoadingMore,
                                 loadMoreError = pageResultState.loadMoreError,
@@ -1158,6 +1168,27 @@ fun SearchScreen(
                             resultListState
                         } else {
                             pageListState
+                        }
+                        // Observe the viewport, not a specific card's composition. This also
+                        // continues after a page is entirely removed by local search filters.
+                        val latestVideoPage by rememberUpdatedState(pageResultState)
+                        if (targetSearchType == SearchType.VIDEO && targetSearchType == state.searchType) {
+                            LaunchedEffect(activePageGridState, state.searchSessionId) {
+                                snapshotFlow {
+                                    val current = latestVideoPage
+                                    current.currentPage to shouldLoadMoreSearchVideos(
+                                        itemCount = current.searchResults.size,
+                                        lastVisibleItemIndex = activePageGridState.layoutInfo
+                                            .visibleItemsInfo.lastOrNull()?.index ?: -1,
+                                        hasMoreResults = current.hasMoreResults,
+                                        isSearching = current.isSearching,
+                                        isLoadingMore = current.isLoadingMore,
+                                        hasError = current.error != null || current.loadMoreError != null,
+                                    )
+                                }.collect { (_, shouldLoad) ->
+                                    if (shouldLoad) viewModel.loadMoreResults()
+                                }
+                            }
                         }
                         LaunchedEffect(scrollToTopRequestId, scrollToTopSearchType, targetSearchType) {
                             if (scrollToTopSearchType == targetSearchType && scrollToTopRequestId > 0) {
@@ -1201,9 +1232,15 @@ fun SearchScreen(
                         } else if (pagePresentation.body == SearchResultBodyMode.ERROR) {
                             SearchNativeMessageState(
                                 title = "搜索失败",
-                                message = pageResultState.error,
+                                message = pageError,
                                 actionLabel = "重试",
-                                onAction = { viewModel.search(pageResultState.query) },
+                                onAction = {
+                                    if (isEmptyVideoPage && pageResultState.loadMoreError != null) {
+                                        viewModel.loadMoreResults()
+                                    } else {
+                                        viewModel.search(pageResultState.query)
+                                    }
+                                },
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else if (pagePresentation.body == SearchResultBodyMode.EMPTY) {
@@ -1220,7 +1257,22 @@ fun SearchScreen(
                         } else {
                         when (targetSearchType) {
                             com.android.purebilibili.data.model.response.SearchType.VIDEO -> {
-                                // 视频搜索结果
+                                // Size cover requests against the actual result pane, including split windows.
+                                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                    val searchCoverRequestSpec = remember(
+                                        maxWidth, density.density, cardLayout, searchLayoutPolicy
+                                    ) {
+                                        resolveHomeCoverRequestSpec(
+                                            cardWidthDp = resolveSearchGridCardWidthDp(
+                                                availableWidthDp = maxWidth.value,
+                                                minItemWidthDp = searchLayoutPolicy.resultGridMinItemWidthDp.toFloat(),
+                                                horizontalPaddingDp = cardLayout.outerPaddingDp.toFloat(),
+                                                spacingDp = cardLayout.itemSpacingDp.toFloat(),
+                                            ),
+                                            density = density.density,
+                                            useLowQualityCover = false,
+                                        )
+                                    }
                                 LazyVerticalGrid(
                                     columns = GridCells.Adaptive(minSize = searchLayoutPolicy.resultGridMinItemWidthDp.dp),
                                     state = activePageGridState,
@@ -1257,6 +1309,7 @@ fun SearchScreen(
                                             isReturningFromVideoDetail = isReturningFromVideoDetail,
                                             isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
                                             showPublishTime = true,
+                                            coverRequestSpec = searchCoverRequestSpec,
                                             glassEnabled = videoCardAppearance.glassEnabled,
                                             blurEnabled = videoCardAppearance.blurEnabled,
                                             showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
@@ -1298,12 +1351,6 @@ fun SearchScreen(
                                             }
                                         )
                                         
-                                        //  [新增] 无限滚动触发：当滚动到最后几个 item 时加载更多
-                                        if (targetSearchType == state.searchType && index == pageResultState.searchResults.size - 3 && pageResultState.hasMoreResults && !pageResultState.isLoadingMore) {
-                                            LaunchedEffect(pageResultState.currentPage, targetSearchType) {
-                                                viewModel.loadMoreResults()
-                                            }
-                                        }
                                     }
                                     
                                     // [新增] 空状态提示 (提示可能被屏蔽)
@@ -1368,6 +1415,7 @@ fun SearchScreen(
                                             )
                                         }
                                     }
+                                }
                                 }
                             }
                             com.android.purebilibili.data.model.response.SearchType.UP -> {
@@ -2707,7 +2755,7 @@ fun SearchFilterBar(
                 if (SearchFilterControl.VIDEO_ORDER in filterControls) {
                 Box {
                     FilterMenuChip(
-                        text = currentOrder.displayName,
+                        text = resolveSearchOrderChipLabel(currentOrder),
                         highlighted = currentOrder != SearchOrder.TOTALRANK,
                         onClick = { showOrderMenu = true }
                     )
@@ -2715,9 +2763,9 @@ fun SearchFilterBar(
                         expanded = showOrderMenu,
                         onDismissRequest = { showOrderMenu = false }
                     ) {
-                        SearchOrder.entries.forEach { order ->
+                        resolveSearchVideoOrderOptions().forEach { order ->
                             AppDropdownMenuItem(
-                                text = { AppText(order.displayName) },
+                                text = { AppText(resolveSearchOrderChipLabel(order)) },
                                 onClick = {
                                     onOrderChange(order)
                                     showOrderMenu = false

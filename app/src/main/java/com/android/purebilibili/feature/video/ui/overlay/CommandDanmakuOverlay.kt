@@ -66,7 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 
 import com.android.purebilibili.core.ui.AppIcons
 import com.android.purebilibili.feature.video.danmaku.CommandDanmakuItem

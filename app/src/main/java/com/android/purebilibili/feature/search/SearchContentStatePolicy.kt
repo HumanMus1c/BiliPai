@@ -30,6 +30,16 @@ data class SearchResultPresentation(
     val footer: SearchResultFooterMode,
 )
 
+internal fun shouldLoadMoreSearchVideos(
+    itemCount: Int,
+    lastVisibleItemIndex: Int,
+    hasMoreResults: Boolean,
+    isSearching: Boolean,
+    isLoadingMore: Boolean,
+    hasError: Boolean,
+): Boolean = hasMoreResults && !isSearching && !isLoadingMore && !hasError &&
+    (itemCount == 0 || lastVisibleItemIndex >= (itemCount - 3).coerceAtLeast(0))
+
 internal fun SearchUiState.withLoadMoreStarted(): SearchUiState = copy(
     isLoadingMore = true,
     loadMoreError = null,

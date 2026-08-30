@@ -3,10 +3,7 @@ package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
@@ -15,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -236,6 +232,7 @@ fun AspectRatioMenu(
     PlayerMiuixListPopup(
         title = "画面比例",
         onDismissRequest = onDismiss,
+        modifier = modifier,
         placement = PlayerListPopupPlacement.END,
         minWidth = 160.dp,
     ) {
@@ -252,51 +249,6 @@ fun AspectRatioMenu(
                     onDismiss()
                 },
             )
-        }
-    }
-    return
-
-    AppSurface(
-        modifier = modifier.widthIn(min = 120.dp, max = 200.dp),
-        shape = AppShapes.container(ContainerLevel.Card),
-        color = Color.Black.copy(alpha = 0.85f),
-        shadowElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 标题
-            AppText(
-                text = "画面比例",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            // 比例选项
-            VideoAspectRatio.entries.forEach { ratio ->
-                val isSelected = ratio == currentRatio
-                AppSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    shape = AppShapes.container(ContainerLevel.Chip),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
-                    onClick = {
-                        onRatioSelected(ratio)
-                        onDismiss()
-                    }
-                ) {
-                    AppText(
-                        text = ratio.displayName,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
-                    )
-                }
-            }
         }
     }
 }

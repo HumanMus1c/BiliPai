@@ -495,7 +495,10 @@ fun VideoContentSection(
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+        .collectAsStateWithLifecycle(
+            // Avoid a one-frame glass tab bar while the persisted setting is loading.
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
+        )
     val tabs = listOf("简介", "评论")
     val scope = rememberCoroutineScope()
     TrackJankStateFlag(
@@ -1709,7 +1712,10 @@ private fun VideoContentTabBar(
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+        .collectAsStateWithLifecycle(
+            // Avoid a one-frame glass tab bar while the persisted setting is loading.
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
+        )
     val configuration = LocalConfiguration.current
     val layoutSpec = remember(configuration.screenWidthDp) {
         resolveVideoContentTabBarLayoutSpec(widthDp = configuration.screenWidthDp)

@@ -113,6 +113,18 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
+    fun portraitRedirectsResolveBeforeReservingNavigationDebounce() {
+        val videoNavigation = appNavigationSource()
+            .substringAfter("fun navigateToVideoRouteInNavigation3(")
+            .substringBefore("fun navigateToVideoInNavigation3(")
+        val debounceIndex = videoNavigation.indexOf("if (!canNavigate(false)) return")
+        assertTrue(debounceIndex > videoNavigation.indexOf("navigateToPortraitStoryInNavigation3(seed"))
+        assertTrue(debounceIndex > videoNavigation.indexOf("VideoRepository.isVerticalVideo(videoKey.bvid)"))
+        assertTrue(debounceIndex < videoNavigation.indexOf("pushNavigation3Key(key)"))
+        assertTrue(videoNavigation.contains("route = videoKey.copy("))
+    }
+
+    @Test
     fun videoCardOpeningIsPrearmedBeforeTheDetailDestinationMounts() {
         val source = appNavigationSource()
         val prearmHelper = source
@@ -487,7 +499,7 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringAfter("BiliPaiNavEntryContentRole.MAIN_HOST -> {")
             .substringBefore("BiliPaiNavEntryContentRole.HOME ->")
         val sourceContent = source
-            .substringAfter(".miuixLayerBackdrop(bottomBarBackdrop)")
+            .substringAfter(".then(bottomBarBackdropSource.modifier)")
             .substringBefore("} // End of Content Box")
         val bottomBarOverlay = source
             .substringAfter("if (bottomBarCanMount)")

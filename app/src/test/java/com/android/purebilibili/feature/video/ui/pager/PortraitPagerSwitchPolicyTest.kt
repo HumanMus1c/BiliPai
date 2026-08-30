@@ -255,8 +255,8 @@ class PortraitPagerSwitchPolicyTest {
     }
 
     @Test
-    fun shouldShowPortraitCover_showOnlyWhenLoadingOrNotReady() {
-        assertTrue(
+    fun shouldShowPortraitCover_neverCoversTheActivePlayerSurface() {
+        assertFalse(
             shouldShowPortraitCover(
                 isLoading = true,
                 isCurrentPage = true,
@@ -283,7 +283,7 @@ class PortraitPagerSwitchPolicyTest {
             )
         )
 
-        assertTrue(
+        assertFalse(
             shouldShowPortraitCover(
                 isLoading = false,
                 isCurrentPage = true,
@@ -458,6 +458,28 @@ class PortraitPagerSwitchPolicyTest {
                 committedPage = -1,
                 totalItemsCount = 5,
                 isLoadingMoreRecommendations = false
+            )
+        )
+    }
+
+    @Test
+    fun verticalRecommendations_startLoadingBeforeTheShortFilteredFeedRunsOut() {
+        assertEquals(
+            4,
+            resolvePortraitRecommendationPrefetchThreshold(
+                onlyVerticalRecommendations = true,
+            )
+        )
+        assertEquals(
+            3,
+            resolvePortraitRecommendationFetchAttemptLimit(
+                onlyVerticalRecommendations = true,
+            )
+        )
+        assertEquals(
+            1,
+            resolvePortraitRecommendationPrefetchThreshold(
+                onlyVerticalRecommendations = false,
             )
         )
     }
@@ -672,7 +694,8 @@ class PortraitPagerSwitchPolicyTest {
                 pic = "https://example.com/cover.jpg",
                 owner = Owner(mid = 6L, name = "up"),
                 stat = Stat(view = 10, like = 5),
-                duration = 99
+                duration = 99,
+                isVertical = true,
             )
         )
 
@@ -681,6 +704,7 @@ class PortraitPagerSwitchPolicyTest {
         assertEquals(82L, related?.cid)
         assertEquals("sample", related?.title)
         assertEquals(99, related?.duration)
+        assertEquals(true, related?.isVertical)
     }
 
     @Test

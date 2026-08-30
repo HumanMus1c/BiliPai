@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.audio.screen
 
-import android.graphics.drawable.BitmapDrawable
+import coil3.request.allowHardware
+
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -101,11 +102,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.android.purebilibili.core.lifecycle.BackgroundManager
 import com.android.purebilibili.feature.audio.lyrics.LyricLine
 import com.android.purebilibili.feature.audio.lyrics.resolveActiveLyricIndex
@@ -1549,7 +1550,7 @@ private suspend fun loadMusicArtwork(
             .size(512, 512)
             .build()
         val result = imageLoader.execute(request) as SuccessResult
-        val bitmap = (result.drawable as BitmapDrawable).bitmap
+        val bitmap = (result.image as coil3.BitmapImage).bitmap
         val palette = Palette.from(bitmap).clearFilters().generate()
         val colorInt = palette.mutedSwatch?.rgb
             ?: palette.darkMutedSwatch?.rgb

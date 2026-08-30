@@ -326,7 +326,9 @@ class TopTabMotionVelocityTest {
         val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
         val homeSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
 
-        assertTrue(headerSource.contains("translationY = searchContentTranslationYPx"))
+        assertTrue(headerSource.contains("alpha = searchContentAlphaProvider.value"))
+        assertTrue(headerSource.contains("translationY = searchContentTranslationProvider.value()"))
+        assertFalse(headerSource.contains("searchContentTranslationYPx"))
         assertFalse(headerSource.contains("onIndicatorClearanceChanged = { clearance ->"))
         assertFalse(homeSource.contains("topTabIndicatorClearance"))
         assertFalse(homeSource.contains("baseListTopPadding +"))

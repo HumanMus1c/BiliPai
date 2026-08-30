@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
@@ -51,6 +51,8 @@ import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoshotData
+import com.android.purebilibili.data.model.response.UgcSeason
+import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
@@ -80,6 +82,9 @@ internal fun resolvePortraitProgressTimeLabel(
 @Composable
 fun PortraitFullscreenOverlay(
     title: String,
+    ugcSeason: UgcSeason? = null,
+    currentBvid: String = "",
+    currentCid: Long = 0L,
     authorName: String = "",
     authorFace: String = "",
     isPlaying: Boolean,
@@ -257,6 +262,11 @@ fun PortraitFullscreenOverlay(
                         authorName = authorName,
                         authorFace = authorFace,
                         title = title,
+                        ugcSeason = ugcSeason,
+                        currentBvid = currentBvid,
+                        currentCid = currentCid,
+                        isPlaying = isPlaying,
+                        onCollectionClick = onDetailClick,
                         isFollowing = isFollowing,
                         onFollowClick = onFollowClick,
                         onTitleClick = onTitleClick,
@@ -441,7 +451,8 @@ private fun PortraitProgressControlStrip(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.height(40.dp),
+        // Keep the time readout closer to the progress bar on portrait video.
+        modifier = modifier.height(46.dp).padding(top = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AppText(
@@ -628,6 +639,11 @@ private fun PortraitVideoInfo(
     authorName: String,
     authorFace: String,
     title: String,
+    ugcSeason: UgcSeason? = null,
+    currentBvid: String = "",
+    currentCid: Long = 0L,
+    isPlaying: Boolean = false,
+    onCollectionClick: () -> Unit = {},
     isFollowing: Boolean,
     onFollowClick: () -> Unit,
     onTitleClick: () -> Unit,
@@ -718,5 +734,16 @@ private fun PortraitVideoInfo(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.clickable { onTitleClick() }
         )
+        if (ugcSeason != null && ugcSeason.id > 0L) {
+            CollectionRow(
+                    ugcSeason = ugcSeason,
+                    currentBvid = currentBvid,
+                    currentCid = currentCid,
+                    isPlaying = isPlaying,
+                    immersive = true,
+                    onClick = onCollectionClick,
+                    modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
     }
 }

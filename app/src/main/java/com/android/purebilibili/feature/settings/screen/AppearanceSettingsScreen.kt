@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.animation.ExperimentalAnimationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.android.purebilibili.feature.settings
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.AppIconStyle
 import com.android.purebilibili.core.ui.AppListItemStyle
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -58,7 +60,7 @@ import com.android.purebilibili.core.store.HomeWallpaperEffectScope
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.ThemeModeRoleOverrides
 import com.android.purebilibili.core.store.ThemeRoleOverrides
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.theme.deleteStoredAppFont
 import com.android.purebilibili.core.theme.importAppFontFromUri
 import com.android.purebilibili.core.theme.*
@@ -1098,7 +1100,7 @@ fun AppearanceSettingsContent(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     splashRandomPoolPreview.previewUris.forEach { previewUri ->
                                         AsyncImage(
-                                            model = coil.request.ImageRequest.Builder(context)
+                                            model = coil3.request.ImageRequest.Builder(context)
                                                 .data(previewUri)
                                                 .crossfade(true)
                                                 .build(),
@@ -1161,7 +1163,7 @@ fun AppearanceSettingsContent(
                                 ) {
                                     if (hasSplashWallpaper) {
                                         AsyncImage(
-                                            model = coil.request.ImageRequest.Builder(context)
+                                            model = coil3.request.ImageRequest.Builder(context)
                                                 .data(splashWallpaperUri)
                                                 .crossfade(true)
                                                 .build(),
@@ -1401,7 +1403,7 @@ fun AppearanceSettingsContent(
                             ) {
                                 if (resolvedHomeWallpaperUri.isNotBlank()) {
                                     AsyncImage(
-                                        model = coil.request.ImageRequest.Builder(context)
+                                        model = coil3.request.ImageRequest.Builder(context)
                                             .data(resolvedHomeWallpaperUri)
                                             .crossfade(true)
                                             .build(),

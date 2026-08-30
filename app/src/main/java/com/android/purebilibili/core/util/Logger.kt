@@ -314,6 +314,10 @@ object Logger {
         return LogCollector.getPendingCrashSnapshotFile()?.absolutePath
     }
 
+    /** Returns whether a crash snapshot is waiting for the user to review/share. */
+    fun hasPendingCrashSnapshot(context: Context): Boolean =
+        getPendingCrashSnapshotPath(context) != null
+
     fun clearPendingCrashSnapshot(context: Context) {
         init(context)
         LogCollector.clearPendingCrashSnapshot()

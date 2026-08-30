@@ -43,7 +43,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPa
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.DynamicPublishSkinDecoration
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import java.io.File
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur

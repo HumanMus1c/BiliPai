@@ -5,10 +5,17 @@ import com.android.purebilibili.data.model.response.Page
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.model.response.ViewInfo
+import com.android.purebilibili.data.repository.VideoRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlin.random.Random
 import kotlin.math.abs
 
 private const val PORTRAIT_RECOMMENDATION_PREFETCH_THRESHOLD = 1
+private const val PORTRAIT_VERTICAL_RECOMMENDATION_PREFETCH_THRESHOLD = 4
+private const val PORTRAIT_VERTICAL_FILTER_CONCURRENCY = 8
+private const val PORTRAIT_VERTICAL_RECOMMENDATION_FETCH_ATTEMPTS = 3
 private const val PORTRAIT_RECENT_DIVERSITY_WINDOW_SIZE = 12
 private const val PORTRAIT_MAX_RECENT_ITEMS_PER_OWNER = 2
 private val PORTRAIT_RECOMMENDATION_STOP_WORDS = setOf(
@@ -76,10 +83,11 @@ internal fun shouldShowPortraitCover(
     isPlayerReadyForThisVideo: Boolean,
     hasRenderedFirstFrame: Boolean
 ): Boolean {
-    if (isLoading) return true
     if (!isCurrentPage) return true
     if (!isPlayerReadyForThisVideo) return true
-    if (!hasRenderedFirstFrame) return true
+    // Once the target page owns the player, keep the Surface visible while it prepares.
+    // PlayerView supplies a black shutter/buffering UI; putting the cover back on top causes
+    // the immersive feed to flash a poster after every swipe.
     return false
 }
 
@@ -176,6 +184,22 @@ internal fun shouldLoadMorePortraitRecommendations(
     if (committedPage < 0 || totalItemsCount <= 0) return false
     val lastTriggerIndex = (totalItemsCount - 1 - prefetchThreshold).coerceAtLeast(0)
     return committedPage >= lastTriggerIndex
+}
+
+internal fun resolvePortraitRecommendationPrefetchThreshold(
+    onlyVerticalRecommendations: Boolean,
+): Int = if (onlyVerticalRecommendations) {
+    PORTRAIT_VERTICAL_RECOMMENDATION_PREFETCH_THRESHOLD
+} else {
+    PORTRAIT_RECOMMENDATION_PREFETCH_THRESHOLD
+}
+
+internal fun resolvePortraitRecommendationFetchAttemptLimit(
+    onlyVerticalRecommendations: Boolean,
+): Int = if (onlyVerticalRecommendations) {
+    PORTRAIT_VERTICAL_RECOMMENDATION_FETCH_ATTEMPTS
+} else {
+    1
 }
 
 internal fun mergePortraitRecommendationAppendItems(
@@ -283,6 +307,35 @@ internal fun shufflePortraitRecommendations(
     return arranged
 }
 
+/** Filters a portrait feed to videos whose actual media dimensions are portrait. */
+internal suspend fun filterPortraitOnlyVerticalRecommendations(
+    recommendations: List<RelatedVideo>,
+    enabled: Boolean,
+): List<RelatedVideo> {
+    if (!enabled || recommendations.isEmpty()) return recommendations
+    // Detail lookup is required because lightweight recommendation cards do not consistently
+    // carry dimensions. Bound concurrency so filtering finishes before insertion without
+    // turning a feed page into an unbounded request burst.
+    return recommendations.chunked(PORTRAIT_VERTICAL_FILTER_CONCURRENCY).flatMap { batch ->
+        coroutineScope {
+            batch.map { candidate ->
+                async {
+                    when (candidate.isVertical) {
+                        true -> candidate
+                        false -> null
+                        null -> candidate.takeIf {
+                            VideoRepository.isVerticalVideo(
+                                bvid = candidate.bvid,
+                                aid = candidate.aid,
+                            )
+                        }
+                    }
+                }
+            }.awaitAll().filterNotNull()
+        }
+    }
+}
+
 private fun violatesPortraitRecentOwnerDiversity(
     acceptedRecommendations: List<RelatedVideo>,
     candidate: RelatedVideo,
@@ -310,6 +363,9 @@ internal fun toRelatedVideoForPortraitRecommendation(item: VideoItem): RelatedVi
         stat = item.stat,
         duration = item.duration,
         pubdate = item.pubdate,
+        // false can also mean the lightweight feed omitted dimensions, so only propagate a
+        // positive fact; unknown candidates still receive the detail lookup below.
+        isVertical = true.takeIf { item.isVertical },
     )
 }
 

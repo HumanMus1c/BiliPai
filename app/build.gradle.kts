@@ -118,8 +118,8 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 326
-        versionName = "0.2.3-beta.16"
+        versionCode = 327
+        versionName = "0.2.3-beta.17"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -401,8 +401,10 @@ dependencies {
     implementation("org.brotli:dec:0.1.2")
 
     // --- 3. Image (图片加载) ---
-    implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("io.coil-kt:coil-gif:2.7.0")  // 🔥 GIF 动图支持
+    implementation("io.coil-kt.coil3:coil-compose:3.5.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+    implementation("io.coil-kt.coil3:coil-network-cache-control:3.5.0")
+    implementation("io.coil-kt.coil3:coil-gif:3.5.0")  // 🔥 GIF 动图支持
     
     // --- 3.1 Palette (颜色提取 - 动态取色) ---
     implementation("androidx.palette:palette-ktx:1.0.0")

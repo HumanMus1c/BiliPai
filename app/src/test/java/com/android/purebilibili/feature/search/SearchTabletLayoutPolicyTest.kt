@@ -7,6 +7,17 @@ import kotlin.test.assertTrue
 class SearchTabletLayoutPolicyTest {
 
     @Test
+    fun coverWidth_accountsForPhoneColumnsPaddingAndSpacing() {
+        assertEquals(184.5f, resolveSearchGridCardWidthDp(393f, 160f, 8f, 8f))
+    }
+
+    @Test
+    fun coverWidth_usesActualNarrowPaneInsteadOfDeviceWidth() {
+        assertEquals(264f, resolveSearchGridCardWidthDp(280f, 200f, 8f, 8f))
+        assertEquals(223f, resolveSearchGridCardWidthDp(960f, 220f, 16f, 12f))
+    }
+
+    @Test
     fun compactWidth_usesPhoneDefaults() {
         val policy = resolveSearchLayoutPolicy(widthDp = 393)
 

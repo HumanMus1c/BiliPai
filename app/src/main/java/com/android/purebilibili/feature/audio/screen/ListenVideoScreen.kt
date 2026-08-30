@@ -70,7 +70,7 @@ import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.feature.audio.library.ListenVideoAlbum
 import com.android.purebilibili.feature.audio.library.ListenVideoArtist
 import com.android.purebilibili.feature.audio.library.ListenVideoPlaylist

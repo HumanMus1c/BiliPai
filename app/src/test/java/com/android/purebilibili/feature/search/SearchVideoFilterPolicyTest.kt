@@ -14,6 +14,20 @@ import kotlin.test.assertTrue
 class SearchVideoFilterPolicyTest {
 
     @Test
+    fun videoOrderOptions_matchPiliPlusLabelsAndApiOrder() {
+        val options = resolveSearchVideoOrderOptions()
+        assertEquals(
+            listOf("默认排序", "播放多", "新发布", "弹幕多", "收藏多", "评论多"),
+            options.map(::resolveSearchOrderChipLabel)
+        )
+        assertEquals(
+            listOf("totalrank", "click", "pubdate", "dm", "stow", "scores"),
+            options.map { it.value }
+        )
+        assertFalse(SearchOrder.ATTENTION in options)
+    }
+
+    @Test
     fun orderChipLabels_matchBiliPai() {
         assertEquals("默认排序", resolveSearchOrderChipLabel(SearchOrder.TOTALRANK))
         assertEquals("播放多", resolveSearchOrderChipLabel(SearchOrder.CLICK))

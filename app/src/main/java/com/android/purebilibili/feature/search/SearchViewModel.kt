@@ -406,6 +406,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     
     //  设置搜索排序
     fun setSearchOrder(order: SearchOrder) {
+        if (_uiState.value.searchOrder == order) return
         _uiState.update { it.copy(searchOrder = order) }
         if (_uiState.value.query.isNotBlank() && _uiState.value.showResults) {
             search(_uiState.value.query)
@@ -545,7 +546,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 hasMoreResults = false,
                 isLoadingMore = false,
                 emptyStateReason = SearchEmptyStateReason.NONE,
-                searchResults = if (shouldClearCachedPages) emptyList() else it.searchResults,
+                searchResults = if (shouldClearCachedPages || searchType == SearchType.VIDEO) emptyList() else it.searchResults,
                 upResults = if (shouldClearCachedPages) emptyList() else it.upResults,
                 bangumiResults = if (shouldClearCachedPages) emptyList() else it.bangumiResults,
                 liveResults = if (shouldClearCachedPages) emptyList() else it.liveResults,

@@ -1735,6 +1735,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private var pageSwitchJob: Job? = null
     private var pageSwitchGeneration: Long = 0L
     private var pendingPageSwitchCid: Long? = null
+    private var onPageIdentityCommitted: ((String, Long) -> Unit)? = null
     private var playerInfoJob: Job? = null
     private var aiSummaryJob: Job? = null
     private var videoNoteJob: Job? = null
@@ -7237,11 +7238,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
     
     // ========== Page Switch ==========
+
+    internal fun setPageIdentityCommitListener(listener: ((String, Long) -> Unit)?) {
+        onPageIdentityCommitted = listener
+    }
     
     fun switchPage(
         pageIndex: Int,
         ignoreSavedProgress: Boolean = false,
-        onIdentityCommitted: ((String, Long) -> Unit)? = null,
     ) {
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
         val page = current.info.pages.getOrNull(pageIndex) ?: return
@@ -7355,7 +7359,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         // Commit both the media identity and its UI state before replacing the
                         // player source. Media3 may dispatch synchronous source callbacks; those
                         // callbacks must already observe the target page rather than stale P1.
-                        onIdentityCommitted?.invoke(targetBvid, page.cid)
+                        // Automatic continuation and media controls also call switchPage directly.
+                        // Notify the mounted detail screen for every successful switch, otherwise
+                        // its internal-CID guard can reload the previous part after auto-advance.
+                        onPageIdentityCommitted?.invoke(targetBvid, page.cid)
                         currentCid = page.cid
                         _uiState.value = switchedState
                         playResolvedPlayback(
@@ -8623,6 +8630,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     
     override fun onCleared() {
         super.onCleared()
+        onPageIdentityCommitted = null
         recordCreatorWatchProgressSnapshot()
         heartbeatJob?.cancel()
         clearHeartbeatSession()

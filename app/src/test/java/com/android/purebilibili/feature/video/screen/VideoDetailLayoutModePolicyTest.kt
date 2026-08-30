@@ -486,18 +486,20 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneOrientationPolicy_autoRotateDisabled_preservesCurrentExactLandscapeSide() {
-        assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-            resolvePhoneVideoRequestedOrientation(
-                autoRotateEnabled = false,
-                fullscreenMode = FullscreenMode.AUTO,
-                isCompactDevice = true,
-                isOrientationDrivenFullscreen = true,
-                isFullscreenMode = true,
-                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+    fun autoRotateDisabled_preservesCurrentExactLandscapeSideOnBothScreens() {
+        for (isCompactDevice in listOf(true, false)) {
+            assertEquals(
+                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+                resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = false,
+                    fullscreenMode = FullscreenMode.AUTO,
+                    isCompactDevice = isCompactDevice,
+                    isOrientationDrivenFullscreen = isCompactDevice,
+                    isFullscreenMode = true,
+                    currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                )
             )
-        )
+        }
     }
 
     @Test
@@ -620,7 +622,7 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 48,
                 isCurrentlyLandscape = true
@@ -636,7 +638,7 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun autoRotateSensorPolicy_usesExactLandscapeSideForRightTilt() {
+    fun autoRotateSensorPolicy_entersRightSideThenLetsSystemTrackLandscape() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
@@ -645,7 +647,7 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 312,
                 isCurrentlyLandscape = true
@@ -702,18 +704,37 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneOrientationPolicy_autoRotateFullscreen_preservesExactLandscapeSide() {
-        assertEquals(
+    fun autoRotateFullscreen_releasesFixedSideAcrossInnerAndOuterScreenChanges() {
+        for (initialOrientation in listOf(
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
-            resolvePhoneVideoRequestedOrientation(
-                autoRotateEnabled = true,
-                fullscreenMode = FullscreenMode.AUTO,
-                isCompactDevice = true,
-                isOrientationDrivenFullscreen = true,
-                isFullscreenMode = true,
-                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+        )) {
+            var requestedOrientation = initialOrientation
+            // Start on the cover screen, unfold, and fold again while still fullscreen.
+            for (isCompactDevice in listOf(true, false, true)) {
+                requestedOrientation = requireNotNull(resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.AUTO,
+                    isCompactDevice = isCompactDevice,
+                    isOrientationDrivenFullscreen = isCompactDevice,
+                    isFullscreenMode = true,
+                    currentRequestedOrientation = requestedOrientation
+                ))
+                assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, requestedOrientation)
+            }
+        }
+    }
+
+    @Test
+    fun autoRotateSensorPolicy_doesNotRelockFullscreenDuringHalfTurn() {
+        for (orientationDegrees in listOf(90, 270, 90)) {
+            val requestedOrientation = resolvePhoneAutoRotateRequestedOrientation(
+                orientationDegrees = orientationDegrees,
+                isCurrentlyLandscape = true
             )
-        )
+            assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, requestedOrientation)
+            assertTrue(isLandscapeRequestedOrientation(requireNotNull(requestedOrientation)))
+        }
     }
 
     @Test
@@ -1115,6 +1136,40 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
     }
+
+    @Test
+    fun directPortraitSetting_recoversMissingRouteHintAfterDirectionLoads() {
+        assertTrue(shouldEnterFromSetting())
+        assertFalse(shouldEnterFromSetting(enabled = false))
+        assertFalse(shouldEnterFromSetting(vertical = false))
+        assertFalse(shouldEnterFromSetting(loaded = false))
+        assertFalse(shouldEnterFromSetting(audio = true))
+        assertFalse(shouldEnterFromSetting(alreadyEntered = true))
+        assertFalse(shouldEnterFromSetting(fullscreen = true))
+        assertFalse(shouldEnterFromSetting(allowAutoEnter = false))
+    }
+
+    private fun shouldEnterFromSetting(
+        enabled: Boolean = true,
+        vertical: Boolean = true,
+        loaded: Boolean = true,
+        audio: Boolean = false,
+        alreadyEntered: Boolean = false,
+        fullscreen: Boolean = false,
+        allowAutoEnter: Boolean = true,
+    ): Boolean = shouldAutoEnterPortraitFullscreenFromRoute(
+        autoEnterPortraitFromRoute = false,
+        startAudioFromRoute = audio,
+        portraitExperienceEnabled = true,
+        useOfficialInlinePortraitDetailExperience = true,
+        allowStandalonePortraitAutoEnter = allowAutoEnter,
+        isCurrentRouteVideoLoaded = loaded,
+        isVerticalVideo = vertical,
+        isPortraitFullscreen = fullscreen,
+        hasAutoEnteredPortraitFromRoute = alreadyEntered,
+        directPortraitEntryFromRoute = false,
+        directPortraitEntryEnabled = enabled,
+    )
 
     @Test
     fun startPortraitHint_onlyDirectPortraitEntryStartsInFullscreen() {

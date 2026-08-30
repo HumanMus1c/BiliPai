@@ -1,6 +1,15 @@
 // 文件路径: app/PureApplication.kt
 package com.android.purebilibili.app
 
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.network.cachecontrol.CacheControlCacheStrategy
+import coil3.disk.directory
+import coil3.request.addLastModifiedToFileCacheKey
+import coil3.request.maxBitmapSize
+
+import coil3.request.crossfade
+import coil3.request.allowRgb565
+
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -14,13 +23,13 @@ import android.os.Looper
 import android.os.StrictMode
 import androidx.profileinstaller.ProfileInstaller
 import com.android.purebilibili.BuildConfig
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.decode.GifDecoder
-import coil.decode.ImageDecoderDecoder
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.gif.GifDecoder
+import coil3.gif.AnimatedImageDecoder
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
 import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.core.lifecycle.BackgroundManager
 import com.android.purebilibili.core.network.NetworkModule
@@ -68,9 +77,9 @@ internal fun shouldRefreshLauncherIconForNightModeChange(
     return previousNightMode != currentNightMode
 }
 
-//  实现 ImageLoaderFactory 以提供自定义 Coil 配置
+//  实现 SingletonImageLoader.Factory 以提供自定义 Coil 配置
 //  实现 ComponentCallbacks2 响应系统内存警告
-class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
+class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCallbacks2 {
     
     companion object {
         lateinit var instance: PureApplication
@@ -87,21 +96,28 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
     private val startupOrchestrator by lazy { AppStartupOrchestrator() }
     
     //  Coil 图片加载器 - 优化内存和磁盘缓存
-    override fun newImageLoader(): ImageLoader {
+    override fun newImageLoader(context: android.content.Context): ImageLoader {
         val memoryCachePercent = PureApplicationRuntimeConfig.resolveImageMemoryCachePercent()
         val diskCacheBytes = 150L * 1024 * 1024
         return ImageLoader.Builder(this)
             .components {
+                // 共享网络客户端及 DNS 策略，保留 HTTP 缓存头语义。
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = { NetworkModule.okHttpClient },
+                        cacheStrategy = { CacheControlCacheStrategy() },
+                    )
+                )
                 if (Build.VERSION.SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
+                    add(AnimatedImageDecoder.Factory())
                 } else {
                     add(GifDecoder.Factory())
                 }
             }
             //  内存缓存预算（移动/平板主仓）
             .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(memoryCachePercent)
+                MemoryCache.Builder()
+                    .maxSizePercent(context, memoryCachePercent)
                     .build()
             }
             //  磁盘缓存预算（移动/平板主仓）
@@ -111,11 +127,13 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
                     .maxSizeBytes(diskCacheBytes)
                     .build()
             }
-            .okHttpClient { NetworkModule.okHttpClient } // 🔥 [Fix] 共享 OkHttpClient 以获得 DNS 修复
+            // 保留本地文件更新失效策略与原图请求，避免长图/预览雪碧图被默认 4096px 上限截小。
+            .addLastModifiedToFileCacheKey(true)
+            .maxBitmapSize(coil3.size.Size.ORIGINAL)
             //  优先使用缓存
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            //  启用 Bitmap 复用减少内存分配
+            //  允许适用图片使用 RGB_565，降低内存占用
             .allowRgb565(true)
             .crossfade(true)
             .build()
@@ -124,6 +142,13 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
     
     override fun onCreate() {
         instance = this
+
+        // Install the local crash path before theme, StrictMode, or any other startup work. This
+        // ensures even an early initialization exception has a private snapshot for feedback.
+        Logger.init(this)
+        CrashReporter.installGlobalExceptionHandler()
+        com.android.purebilibili.core.performance.Android17Diagnostics
+            .persistLatestAbnormalExitSnapshot(this)
 
         // StrictMode 必须装在任何业务代码之前，否则紧接着的 applyThemePreference()
         // 里那次同步偏好读取就漏检了——而那恰恰是最该被看见的一处。
@@ -135,8 +160,6 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
         
         super.onCreate()
         launcherIconUiModeSnapshot = resources.configuration.uiMode
-        Logger.init(this)
-        CrashReporter.installGlobalExceptionHandler()
         AppScope.ioScope.launch {
             CacheUtils.clearCacheAutomaticallyIfDue(this@PureApplication)
         }
@@ -350,7 +373,14 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
         super.onTrimMemory(level)
         val plan = PureApplicationRuntimeConfig.resolveBackgroundMemoryTrimPlan(level)
         if (plan.imageCacheTrimLevel != null) {
-            _imageLoader?.memoryCache?.trimMemory(plan.imageCacheTrimLevel)
+            _imageLoader?.memoryCache?.apply {
+                when {
+                    plan.imageCacheTrimLevel >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> clear()
+                    plan.imageCacheTrimLevel >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW &&
+                        plan.imageCacheTrimLevel != ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ->
+                        trimToSize(size / 2)
+                }
+            }
             if (plan.requestGcHint) {
                 System.gc()
             }

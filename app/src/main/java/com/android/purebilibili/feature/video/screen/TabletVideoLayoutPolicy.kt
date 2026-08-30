@@ -103,6 +103,14 @@ internal fun shouldShowTabletCinemaDanmakuActions(
     curtainState: TabletSideCurtainState
 ): Boolean = curtainState == TabletSideCurtainState.OPEN
 
+internal fun resolveCinemaPlayerViewportWidthDp(
+    availableWidthDp: Int,
+    playerMaxWidthDp: Int,
+): Int = minOf(
+    availableWidthDp.coerceAtLeast(1),
+    playerMaxWidthDp.coerceAtLeast(1),
+)
+
 fun resolveTabletCinemaLayoutPolicy(
     widthDp: Int,
     commentWidthPreset: TabletCommentPanelWidthPreset = TabletCommentPanelWidthPreset.STANDARD,

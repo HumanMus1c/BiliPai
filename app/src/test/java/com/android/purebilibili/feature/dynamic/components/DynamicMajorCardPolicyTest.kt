@@ -2,7 +2,9 @@ package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.data.model.response.CoursesMajor
 import com.android.purebilibili.data.model.response.DynamicMajor
+import com.android.purebilibili.data.model.response.DynamicMajorBadge
 import com.android.purebilibili.data.model.response.DynamicThemeImage
+import com.android.purebilibili.data.model.response.MedialistMajor
 import com.android.purebilibili.data.model.response.MusicMajor
 import com.android.purebilibili.data.model.response.UpowerCommonMajor
 import kotlin.test.Test
@@ -44,5 +46,23 @@ class DynamicMajorCardPolicyTest {
 
         assertEquals("dark", resolveDynamicMajorCard(major, darkTheme = true)?.cover)
         assertEquals("light", resolveDynamicMajorCard(major, darkTheme = false)?.cover)
+    }
+
+    @Test
+    fun mediaListUsesServerSubtitleAndBadge() {
+        val card = resolveDynamicMajorCard(
+            DynamicMajor(
+                type = "MAJOR_TYPE_MEDIALIST",
+                medialist = MedialistMajor(
+                    title = "稍后慢慢看",
+                    sub_title = "共 12 个视频",
+                    badge = DynamicMajorBadge(text = "收藏夹"),
+                ),
+            ),
+            darkTheme = false,
+        )
+
+        assertEquals("共 12 个视频", card?.subtitle)
+        assertEquals("收藏夹", card?.kindLabel)
     }
 }

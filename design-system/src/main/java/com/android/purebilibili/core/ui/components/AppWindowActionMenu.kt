@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
@@ -16,15 +17,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
-import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.menu.WindowIconDropdownMenu
+import top.yukonga.miuix.kmp.window.WindowListPopup
 
 /**
  * An action exposed from a page-level overflow menu.
  *
- * [children] are rendered by Miuix as a cascading window popup, which keeps secondary choices
- * (for example a sort order) in the same interaction model as settings dropdowns.
+ * [children] open a secondary level inside the same window popup (for example a sort order).
  */
 @Immutable
 data class AppWindowAction(
@@ -103,27 +105,76 @@ fun AppWindowActionMenu(
         return
     }
 
-    val entries = groups
-        .filter { it.isNotEmpty() }
-        .map { actions -> DropdownEntry(items = actions.map(AppWindowAction::toDropdownItem)) }
+    // Own action dispatch here: the dependency's grouped window dropdown does not open
+    // DropdownItem.children. Keep native rows/appearance, but explicitly handle each click.
+    var expanded by remember { mutableStateOf(false) }
+    var parentActions by remember { mutableStateOf(emptyList<AppWindowAction>()) }
+    val visibleGroups = parentActions.lastOrNull()?.let { listOf(it.children) }
+        ?: groups.filter { it.isNotEmpty() }
 
-    WindowIconDropdownMenu(
-        entries = entries,
-        modifier = modifier,
-        enabled = enabled,
-        collapseOnSelection = true,
-        onExpandedChange = onExpandedChange,
-        minHeight = 48.dp,
-        minWidth = 48.dp,
-        content = content,
-    )
+    Box(modifier = modifier) {
+        AppIconButton(
+            enabled = enabled && groups.any { it.isNotEmpty() },
+            onClick = {
+                parentActions = emptyList()
+                expanded = true
+                onExpandedChange?.invoke(true)
+            },
+        ) { content() }
+        WindowListPopup(
+            show = expanded,
+            alignment = PopupPositionProvider.Align.End,
+            onDismissRequest = {
+                expanded = false
+                onExpandedChange?.invoke(false)
+            },
+        ) {
+            ListPopupColumn {
+                if (parentActions.isNotEmpty()) {
+                    AppDropdownMenuItem(
+                        text = { AppText("返回") },
+                        onClick = { parentActions = parentActions.dropLast(1) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    )
+                }
+                visibleGroups.forEachIndexed { groupIndex, actions ->
+                    if (groupIndex > 0) {
+                        AppHorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+                    }
+                    actions.forEachIndexed { actionIndex, action ->
+                        DropdownImpl(
+                            item = action.toDropdownItem(),
+                            optionSize = actions.size,
+                            isSelected = action.selected,
+                            index = actionIndex,
+                            enabled = action.enabled,
+                            hasSubmenu = action.children.isNotEmpty(),
+                            isFirst = parentActions.isEmpty() && groupIndex == 0 && actionIndex == 0,
+                            isLast = groupIndex == visibleGroups.lastIndex && actionIndex == actions.lastIndex,
+                            onSelectedIndexChange = {
+                                if (expanded && action.enabled) {
+                                    if (action.children.isNotEmpty()) {
+                                        parentActions = parentActions + action
+                                    } else {
+                                        // Close before invoking: one selection must never toggle twice.
+                                        expanded = false
+                                        onExpandedChange?.invoke(false)
+                                        action.onClick?.invoke()
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun AppWindowAction.toDropdownItem(): DropdownItem = DropdownItem(
     text = label,
     enabled = enabled,
     selected = selected,
-    onClick = onClick,
     icon = icon?.let { imageVector ->
         { modifier ->
             if (iconTint == null) {

@@ -1,5 +1,10 @@
 // 文件路径: feature/dynamic/components/ImagePreviewDialog.kt
 package com.android.purebilibili.feature.dynamic.components
+
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
@@ -63,10 +68,10 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -700,7 +705,7 @@ private fun ImagePreviewOverlayContent(
                                 .data(imageUrl)
                                 // 预览必须采样解码，避免超大原图超过 Canvas 单位图绘制上限。
                                 .size(decodeSize.widthPx, decodeSize.heightPx)
-                                .addHeader("Referer", "https://www.bilibili.com/")
+                                .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
                                 // 退出 morph 时关闭 crossfade，避免尺寸变化触发二次淡入发黏。
                                 .crossfade(!isDismissing)
                                 .build(),
@@ -1739,7 +1744,7 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
             val imageLoader = context.imageLoader
             val request = ImageRequest.Builder(context)
                 .data(imageUrl)
-                .addHeader("Referer", "https://www.bilibili.com/")
+                .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
                 .build()
             
             val result = imageLoader.execute(request)
@@ -1748,7 +1753,7 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
                 return@withContext false
             }
             
-            val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+            val bitmap = (result.image as? coil3.BitmapImage)?.bitmap
             if (bitmap == null) {
                 Log.e("ImagePreview", "Failed to convert drawable to bitmap")
                 return@withContext false

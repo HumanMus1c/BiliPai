@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.danmaku
 
+import coil3.request.allowHardware
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -8,9 +10,9 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.TextPaint
-import androidx.core.graphics.drawable.toBitmap
-import coil.imageLoader
-import coil.request.ImageRequest
+import coil3.toBitmap
+import coil3.imageLoader
+import coil3.request.ImageRequest
 import com.android.purebilibili.danmaku.engine.DanmakuItem
 import com.android.purebilibili.feature.live.components.DanmakuEmoticonMapper
 import java.util.regex.Pattern

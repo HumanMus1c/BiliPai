@@ -1,8 +1,8 @@
 package com.android.purebilibili.core.util
 
 import android.content.Context
-import coil.Coil
-import coil.request.ImageRequest
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
 
 /**
  * 首页封面「返回预热」注册表。
@@ -78,7 +78,7 @@ internal fun resolveHomeCoverReturnPrefetchCandidates(
 }
 
 /**
- * 执行封面预热：与首页 [coil.compose.AsyncImage] 完全一致的 data + memoryCacheKey +
+ * 执行封面预热：与首页 [coil3.compose.AsyncImage] 完全一致的 data + memoryCacheKey +
  * diskCacheKey，保证命中同一缓存条目。Coil 对相同 key 的并发请求会合并，
  * 重复触发幂等；内存/磁盘命中时不会产生网络请求。
  */
@@ -87,7 +87,7 @@ internal fun prefetchHomeCoverImages(
     entries: List<HomeCoverReturnPrefetchEntry>,
 ) {
     if (entries.isEmpty()) return
-    val imageLoader = Coil.imageLoader(context)
+    val imageLoader = SingletonImageLoader.get(context)
     entries.forEach { entry ->
         imageLoader.enqueue(
             ImageRequest.Builder(context)

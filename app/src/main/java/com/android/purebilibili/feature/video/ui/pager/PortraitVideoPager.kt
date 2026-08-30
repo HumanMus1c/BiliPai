@@ -1,3 +1,8 @@
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
+
 package com.android.purebilibili.feature.video.ui.pager
 
 import androidx.compose.foundation.Canvas
@@ -24,6 +29,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -119,7 +126,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.plugin.PluginManager
@@ -137,6 +144,7 @@ import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.data.model.response.Dash
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.Stat
+import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.feature.video.player.PlaylistManager
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
@@ -204,6 +212,8 @@ import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackEndAction
 import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -254,10 +264,13 @@ fun PortraitVideoPager(
     initialBvid: String,
     initialInfo: ViewInfo,
     recommendations: List<RelatedVideo>,
+    onlyVerticalRecommendations: Boolean = true,
     isActive: Boolean = true,
     onBack: () -> Unit,
     onHomeClick: () -> Unit = onBack,
     onVideoChange: (String) -> Unit,
+    /** 播放器准备切换媒体时同步：(bvid, requested/resolved cid, coverUrl)。 */
+    onPlaybackIdentityChange: (String, Long, String) -> Unit = { _, _, _ -> },
     viewModel: VideoPlaybackViewModel,
     engagementViewModel: VideoEngagementViewModel,
     sharedPlayer: ExoPlayer? = null,
@@ -464,7 +477,10 @@ fun PortraitVideoPager(
     val pageItems = remember(initialInfo.bvid) {
         mutableStateListOf<Any>(initialInfo)
     }
-    var seededInitialRecommendations by remember(initialInfo.bvid) { mutableStateOf(false) }
+    var seededInitialRecommendations by remember(
+        initialInfo.bvid,
+        onlyVerticalRecommendations,
+    ) { mutableStateOf(false) }
     val knownVideoAspectRatios = remember(initialInfo.bvid) {
         mutableStateMapOf<String, Float>().apply {
             resolveAspectRatioFromDimension(initialInfo.dimension)?.let { aspectRatio ->
@@ -483,11 +499,15 @@ fun PortraitVideoPager(
         mutableStateOf(initialInfo.bvid)
     }
 
-    LaunchedEffect(initialInfo.bvid, recommendations) {
+    LaunchedEffect(initialInfo.bvid, recommendations, onlyVerticalRecommendations) {
+        val filteredRecommendations = filterPortraitOnlyVerticalRecommendations(
+            recommendations = recommendations,
+            enabled = onlyVerticalRecommendations,
+        )
         if (!seededInitialRecommendations) {
             val seeded = shufflePortraitRecommendations(
                 seed = recommendationShuffleSeed,
-                recommendations = recommendations,
+                recommendations = filteredRecommendations,
                 precedingOwnerMid = initialInfo.owner.mid
             )
             recommendationItems.clear()
@@ -502,7 +522,7 @@ fun PortraitVideoPager(
         val appendItems = resolvePortraitExternalRecommendationAppendItems(
             currentInitialBvid = initialInfo.bvid,
             existingBvids = existingBvids,
-            externalRecommendations = recommendations
+            externalRecommendations = filteredRecommendations
         )
         if (appendItems.isEmpty()) return@LaunchedEffect
         val shuffledAppend = shufflePortraitRecommendations(
@@ -537,12 +557,15 @@ fun PortraitVideoPager(
             }
     }
 
-    LaunchedEffect(watchLaterVideos) {
+    LaunchedEffect(watchLaterVideos, onlyVerticalRecommendations) {
         if (watchLaterVideos.isEmpty()) return@LaunchedEffect
         val existingBvids = withContext(Dispatchers.Main.immediate) {
             snapshotPortraitPageBvids(pageItems)
         }
-        val appendItems = watchLaterVideos.filter { it.bvid !in existingBvids }
+        val appendItems = filterPortraitOnlyVerticalRecommendations(
+            recommendations = watchLaterVideos.filter { it.bvid !in existingBvids },
+            enabled = onlyVerticalRecommendations,
+        )
         if (appendItems.isNotEmpty()) {
             withContext(Dispatchers.Main.immediate) {
                 pageItems.addAll(
@@ -565,19 +588,23 @@ fun PortraitVideoPager(
     val pagerState = rememberPagerState(initialPage = initialPageIndex) {
         pageItems.size
     }
-    LaunchedEffect(initialInfo.bvid) {
+    LaunchedEffect(initialInfo.bvid, onlyVerticalRecommendations) {
         val discoveryRecommendations = VideoRepository.getHomeVideos(idx = 0)
             .getOrNull()
             .orEmpty()
             .mapNotNull(::toRelatedVideoForPortraitRecommendation)
         if (discoveryRecommendations.isEmpty()) return@LaunchedEffect
 
+        val filteredDiscoveryRecommendations = filterPortraitOnlyVerticalRecommendations(
+            recommendations = discoveryRecommendations,
+            enabled = onlyVerticalRecommendations,
+        )
         val shuffledDiscoveryRecommendations = shufflePortraitRecommendations(
             seed = resolvePortraitRecommendationAppendSeed(
                 baseSeed = recommendationShuffleSeed,
                 currentBvid = initialInfo.bvid
             ),
-            recommendations = discoveryRecommendations,
+            recommendations = filteredDiscoveryRecommendations,
             precedingOwnerMid = initialInfo.owner.mid
         )
         val insertion = withContext(Dispatchers.Main.immediate) {
@@ -946,6 +973,11 @@ fun PortraitVideoPager(
         val bvid = playbackIdentity.bvid
         val aid = playbackIdentity.aid
         val requestedCid = playbackIdentity.cid
+        val targetCover = when (item) {
+            is ViewInfo -> item.pic
+            is RelatedVideo -> item.pic
+            else -> ""
+        }
         val targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
         val targetAudioQuality = if (forceReload) {
             portraitRequestedAudioQuality
@@ -990,6 +1022,7 @@ fun PortraitVideoPager(
         currentPlayingBvid = bvid
         currentPlayingCid = 0L
         currentPlayingAid = 0L
+        onPlaybackIdentityChange(bvid, requestedCid, targetCover)
         pendingAutoPlayGeneration = requestGeneration
         renderedFirstFrameGeneration = -1
 
@@ -1088,6 +1121,7 @@ fun PortraitVideoPager(
                             streamUrls.audioSelection?.availableOptions.orEmpty()
                         currentPlayingCid = resolvedCid
                         currentPlayingAid = info.aid
+                        onPlaybackIdentityChange(bvid, resolvedCid, info.pic.ifBlank { targetCover })
 
                         // Keep only parts of the same multi-P video adjacent. UGC season episodes
                         // must not replace the diverse recommendation stream during normal swiping.
@@ -1103,10 +1137,17 @@ fun PortraitVideoPager(
                                 loaded = info
                             )
                         }
-                        val followUps = resolvePortraitCollectionFollowUps(
-                            info = info,
-                            currentCid = resolvedCid
-                        )
+                        val followUps = if (
+                            onlyVerticalRecommendations &&
+                            info.dimension?.isVertical != true
+                        ) {
+                            emptyList()
+                        } else {
+                            resolvePortraitCollectionFollowUps(
+                                info = info,
+                                currentCid = resolvedCid,
+                            )
+                        }
                         val injectItems = resolvePortraitCollectionInjectionPlan(
                             pageItems = pageItems.toList(),
                             currentPage = currentPageIndex,
@@ -1231,9 +1272,9 @@ fun PortraitVideoPager(
             Triple(
                 pagerState.isScrollInProgress,
                 pagerState.currentPage,
-                pagerState.currentPageOffsetFraction
+                lastCommittedPage
             )
-        }.collect { (isScrollInProgress, currentPage, offsetFraction) ->
+        }.collect { (isScrollInProgress, currentPage, committedPage) ->
             if (!isScrollInProgress) {
                 lastEarlyPlaybackPage = -1
                 return@collect
@@ -1243,7 +1284,7 @@ fun PortraitVideoPager(
             val targetPage = resolvePortraitEarlyPlaybackPage(
                 isScrollInProgress = isScrollInProgress,
                 currentPage = currentPage,
-                currentPageOffsetFraction = offsetFraction,
+                lastCommittedPage = committedPage,
                 lastPageIndex = pageItems.lastIndex
             ) ?: return@collect
             if (targetPage == lastEarlyPlaybackPage) return@collect
@@ -1256,7 +1297,7 @@ fun PortraitVideoPager(
         }
     }
 
-    // [核心] 页面 settle 后提交评论/推荐切换；播放流在 settle 或高阈值 early playback 时绑定
+    // 页面停稳后提交评论/推荐；播放在拖动跨过 snap 中点时就立即绑定当前页。
     LaunchedEffect(pagerState, pageItems, isPortraitPlaybackAllowed) {
         snapshotFlow {
             resolveCommittedPage(
@@ -1286,7 +1327,10 @@ fun PortraitVideoPager(
                     shouldLoadMorePortraitRecommendations(
                         committedPage = committedPage,
                         totalItemsCount = pageItems.size,
-                        isLoadingMoreRecommendations = isLoadingMoreRecommendations
+                        isLoadingMoreRecommendations = isLoadingMoreRecommendations,
+                        prefetchThreshold = resolvePortraitRecommendationPrefetchThreshold(
+                            onlyVerticalRecommendations = onlyVerticalRecommendations,
+                        ),
                     ) &&
                     bvid !in appendedRecommendationSeeds
                 ) {
@@ -1294,31 +1338,55 @@ fun PortraitVideoPager(
                     isLoadingMoreRecommendations = true
                     launch {
                         try {
-                            val (existingBvids, existingRecommendations, homeFeedCursor) = withContext(Dispatchers.Main.immediate) {
+                            val (existingBvids, existingRecommendations, startingFeedCursor) = withContext(Dispatchers.Main.immediate) {
                                 Triple(
                                     snapshotPortraitPageBvids(pageItems),
                                     recommendationItems.toList(),
                                     recommendationFeedCursor
                                 )
                             }
-                            val homeFeedRecommendations = VideoRepository.getHomeVideos(idx = homeFeedCursor)
-                                .getOrNull()
-                                .orEmpty()
-                                .mapNotNull(::toRelatedVideoForPortraitRecommendation)
-                            withContext(Dispatchers.Main.immediate) {
-                                recommendationFeedCursor = homeFeedCursor + 1
+                            val verifiedHomeRecommendations = mutableListOf<RelatedVideo>()
+                            var nextFeedCursor = startingFeedCursor
+                            var fetchAttempts = 0
+                            val fetchAttemptLimit = resolvePortraitRecommendationFetchAttemptLimit(
+                                onlyVerticalRecommendations = onlyVerticalRecommendations,
+                            )
+                            while (
+                                fetchAttempts < fetchAttemptLimit &&
+                                verifiedHomeRecommendations.size < 8
+                            ) {
+                                val homeFeedPage = VideoRepository.getHomeVideos(idx = nextFeedCursor)
+                                    .getOrNull()
+                                    .orEmpty()
+                                    .mapNotNull(::toRelatedVideoForPortraitRecommendation)
+                                nextFeedCursor += 1
+                                fetchAttempts += 1
+                                verifiedHomeRecommendations +=
+                                    filterPortraitOnlyVerticalRecommendations(
+                                        recommendations = homeFeedPage,
+                                        enabled = onlyVerticalRecommendations,
+                                    )
                             }
-                            val relatedFallbackRecommendations = if (homeFeedRecommendations.size < 8) {
+                            withContext(Dispatchers.Main.immediate) {
+                                recommendationFeedCursor = nextFeedCursor
+                            }
+                            val relatedFallbackRecommendations = if (verifiedHomeRecommendations.size < 8) {
                                 VideoRepository.getRelatedVideos(bvid)
                             } else {
                                 emptyList()
                             }
+                            val verticalFetchedRecommendations =
+                                filterPortraitOnlyVerticalRecommendations(
+                                    recommendations =
+                                        verifiedHomeRecommendations + relatedFallbackRecommendations,
+                                    enabled = onlyVerticalRecommendations,
+                                )
                             val shuffledFetchedRecommendations = shufflePortraitRecommendations(
                                 seed = resolvePortraitRecommendationAppendSeed(
                                     baseSeed = recommendationShuffleSeed,
                                     currentBvid = bvid
                                 ),
-                                recommendations = homeFeedRecommendations + relatedFallbackRecommendations,
+                                recommendations = verticalFetchedRecommendations,
                                 precedingOwnerMid = withContext(Dispatchers.Main.immediate) {
                                     pageItems.lastOrNull()?.let(::resolvePortraitPageOwnerMid) ?: 0L
                                 }
@@ -1360,26 +1428,29 @@ fun PortraitVideoPager(
                         pageItems = pageSnapshot,
                         preloadCount = preloadCount
                     )
-                    preloadTargets.forEach { target ->
-                        if (!portraitPrefetchedPlayUrlBvids.add(target.bvid)) return@forEach
-                        runCatching {
-                            val targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
-                            val playData = VideoRepository.preloadPortraitPlayUrl(
-                                bvid = target.bvid,
-                                cid = target.cid,
-                                aid = target.aid,
-                                targetQuality = targetQuality
-                            ) ?: error("竖屏预加载未获取到播放地址")
-                            val streamUrls = resolvePortraitPlaybackStreamUrls(
-                                playData = playData,
-                                targetQuality = targetQuality
-                            ) ?: error("竖屏预加载未解析到媒体流")
-                            prefetchPortraitPlaybackHead(context, streamUrls)
-                        }.onFailure { error ->
-                            if (error is CancellationException) throw error
-                            portraitPrefetchedPlayUrlBvids.remove(target.bvid)
+                    preloadTargets.mapNotNull { target ->
+                        if (!portraitPrefetchedPlayUrlBvids.add(target.bvid)) return@mapNotNull null
+                        async {
+                            runCatching {
+                                val targetQuality =
+                                    resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
+                                val playData = VideoRepository.preloadPortraitPlayUrl(
+                                    bvid = target.bvid,
+                                    cid = target.cid,
+                                    aid = target.aid,
+                                    targetQuality = targetQuality
+                                ) ?: error("竖屏预加载未获取到播放地址")
+                                val streamUrls = resolvePortraitPlaybackStreamUrls(
+                                    playData = playData,
+                                    targetQuality = targetQuality
+                                ) ?: error("竖屏预加载未解析到媒体流")
+                                prefetchPortraitPlaybackHead(context, streamUrls)
+                            }.onFailure { error ->
+                                if (error is CancellationException) throw error
+                                portraitPrefetchedPlayUrlBvids.remove(target.bvid)
+                            }
                         }
-                    }
+                    }.awaitAll()
                 }
             }
     }
@@ -1495,6 +1566,8 @@ fun PortraitVideoPager(
                 recommendationVideos = recommendationItems,
                 knownVideoAspectRatio = knownVideoAspectRatios[itemBvid]
                     ?: (item as? ViewInfo)?.dimension?.let(::resolveAspectRatioFromDimension),
+                loadedPageInfo = lastLoadedCollectionInfo
+                    ?.takeIf { loadedInfo -> loadedInfo.bvid == itemBvid },
                 qualityLabel = portraitQualityLabel,
                 selectedQualityId = portraitSelectedQuality,
                 availableQualityIds = portraitAvailableQualityIds,
@@ -1578,13 +1651,19 @@ fun PortraitVideoPager(
                         }
                     }
                 },
-                onRequestCollectionItem = { targetBvid, targetCid ->
+                onRequestCollectionItem = { targetBvid, targetCid, collectionContext ->
                     val targetIndex = resolvePortraitCollectionPageIndex(
                         pageItems = pageItems,
                         targetBvid = targetBvid,
                         targetCid = targetCid
                     )
                     if (targetIndex >= 0) {
+                        pageItems[targetIndex] = buildPortraitCollectionPageItem(
+                            existing = pageItems[targetIndex],
+                            targetBvid = targetBvid,
+                            targetCid = targetCid,
+                            collectionContext = collectionContext,
+                        )
                         scope.launch {
                             pagerState.animateScrollToPage(targetIndex)
                         }
@@ -1592,17 +1671,20 @@ fun PortraitVideoPager(
                     }
                     // Not yet in the pager list: insert as a dedicated page after current, then jump.
                     val insertAt = (pagerState.currentPage + 1).coerceIn(0, pageItems.size)
-                    val item = RelatedVideo(
-                        bvid = targetBvid.trim(),
-                        cid = targetCid.coerceAtLeast(0L),
-                        title = targetBvid
+                    val item = buildPortraitCollectionPageItem(
+                        existing = null,
+                        targetBvid = targetBvid,
+                        targetCid = targetCid,
+                        collectionContext = collectionContext,
                     )
-                    val key = portraitCollectionIdentityKey(item.bvid, item.cid)
+                    val itemIdentity = resolvePortraitPagePlaybackIdentity(item)
+                        ?: return@VideoPageItem
+                    val key = portraitCollectionIdentityKey(itemIdentity.bvid, itemIdentity.cid)
                     val exists = pageItems.any { candidate ->
                         val identity = resolvePortraitPagePlaybackIdentity(candidate) ?: return@any false
                         portraitCollectionIdentityKey(identity.bvid, identity.cid) == key
                     }
-                    if (!exists && item.bvid.isNotBlank()) {
+                    if (!exists && itemIdentity.bvid.isNotBlank()) {
                         pageItems.add(insertAt, item)
                         scope.launch {
                             pagerState.animateScrollToPage(insertAt)
@@ -1657,6 +1739,7 @@ private fun VideoPageItem(
     watchLaterVideos: List<RelatedVideo>,
     recommendationVideos: List<RelatedVideo>,
     knownVideoAspectRatio: Float?,
+    loadedPageInfo: ViewInfo?,
     qualityLabel: String,
     selectedQualityId: Int,
     availableQualityIds: List<Int>,
@@ -1678,7 +1761,7 @@ private fun VideoPageItem(
     portraitOverlayVisible: Boolean,
     onPortraitOverlayVisibleChange: (Boolean) -> Unit,
     onRequestVideoChange: (String) -> Unit,
-    onRequestCollectionItem: (bvid: String, cid: Long) -> Unit
+    onRequestCollectionItem: (bvid: String, cid: Long, collectionContext: UgcSeason?) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -2464,8 +2547,16 @@ private fun VideoPageItem(
                 translationX = panX
                 translationY = panY
             }
+        // The portrait pager hides system bars for immersive playback. In that state the
+        // visible status-bar inset becomes zero even though the camera cutout still occupies
+        // the top edge. Keep the danmaku page surface below the largest relevant safe inset.
         val pageDanmakuTopInset = with(density) {
-            WindowInsets.statusBars.getTop(this).toDp()
+            resolvePortraitDanmakuTopInsetPx(
+                visibleStatusBarTopPx = WindowInsets.statusBars.getTop(this),
+                statusBarsIgnoringVisibilityTopPx =
+                    WindowInsets.statusBarsIgnoringVisibility.getTop(this),
+                displayCutoutTopPx = WindowInsets.displayCutout.getTop(this),
+            ).toDp()
         }
 
         // 横屏 letterbox 上下黑边：照搬播放页沉浸状态栏的动态 haze（默认可关）
@@ -2948,11 +3039,12 @@ private fun VideoPageItem(
         is RelatedVideo -> toViewInfoForPortraitDetail(item)
         else -> null
     }
-    val portraitDetailInfo = if (isCurrentModelVideo && currentSuccess != null) {
-        currentSuccess.info
-    } else {
-        fallbackDetailInfo
-    }
+    val portraitDetailInfo = resolvePortraitDetailInfo(
+        targetBvid = bvid,
+        sharedInfo = currentSuccess?.info,
+        loadedPageInfo = loadedPageInfo,
+        fallbackInfo = fallbackDetailInfo,
+    )
     // seed 进场可能没有 owner；加载成功后用 Success.info 补齐 UP 名/头像。
     val authorName = portraitDetailInfo?.owner?.name?.takeIf { it.isNotBlank() } ?: seedAuthorName
     val authorFace = portraitDetailInfo?.owner?.face?.takeIf { it.isNotBlank() } ?: seedAuthorFace
@@ -3016,6 +3108,9 @@ private fun VideoPageItem(
 
     PortraitFullscreenOverlay(
             title = title,
+            ugcSeason = portraitDetailInfo?.ugc_season,
+            currentBvid = bvid,
+            currentCid = portraitDetailInfo?.cid ?: 0L,
             authorName = authorName,
             authorFace = authorFace,
             isPlaying = if (isCurrentPage) {
@@ -3317,7 +3412,16 @@ private fun VideoPageItem(
         )
 
         if (showQualityMenu && isCurrentPage) {
-            val qualityIds = availableQualityIds.ifEmpty { listOf(selectedQualityId) }
+            val detailQualityIds = if (isCurrentModelVideo) {
+                currentSuccess?.qualityIds.orEmpty()
+            } else {
+                emptyList()
+            }
+            val qualityIds = resolvePortraitQualityMenuIds(
+                portraitQualityIds = availableQualityIds,
+                detailQualityIds = detailQualityIds,
+                selectedQualityId = selectedQualityId,
+            )
             QualitySelectionMenu(
                 qualities = resolvePortraitQualityMenuLabels(qualityIds),
                 qualityIds = qualityIds,
@@ -3347,22 +3451,14 @@ private fun VideoPageItem(
         }
 
         if (showRatioMenu && isCurrentPage) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { showRatioMenu = false },
-                contentAlignment = Alignment.Center
-            ) {
-                AspectRatioMenu(
-                    currentRatio = aspectRatio,
-                    onRatioSelected = { ratio ->
-                        onAspectRatioChange(ratio)
-                        showRatioMenu = false
-                    },
-                    onDismiss = { showRatioMenu = false }
-                )
-            }
+            AspectRatioMenu(
+                currentRatio = aspectRatio,
+                onRatioSelected = { ratio ->
+                    onAspectRatioChange(ratio)
+                    showRatioMenu = false
+                },
+                onDismiss = { showRatioMenu = false }
+            )
         }
 
         if (showSpeedMenu && isCurrentPage) {
@@ -3477,7 +3573,11 @@ private fun VideoPageItem(
             },
             onCollectionItemClick = { targetBvid, targetCid ->
                 showDetailSheet = false
-                onRequestCollectionItem(targetBvid, targetCid)
+                onRequestCollectionItem(
+                    targetBvid,
+                    targetCid,
+                    portraitDetailInfo?.ugc_season,
+                )
             },
             onAuthorClick = { mid ->
                 showDetailSheet = false
@@ -3647,6 +3747,24 @@ internal fun shouldInsetPortraitDanmakuFromStatusBar(
 ): Boolean {
     return surfaceMode == PortraitDanmakuSurfaceMode.Page
 }
+
+/**
+ * Resolves the top safe inset for the page-level portrait danmaku surface.
+ *
+ * During immersive fullscreen, [WindowInsets.statusBars] reports zero because the bar is
+ * hidden. The ignoring-visibility and display-cutout insets preserve the physical area that
+ * can still be covered by system chrome or a camera hole/notch.
+ */
+internal fun resolvePortraitDanmakuTopInsetPx(
+    visibleStatusBarTopPx: Int,
+    statusBarsIgnoringVisibilityTopPx: Int,
+    displayCutoutTopPx: Int,
+): Int = maxOf(
+    visibleStatusBarTopPx,
+    statusBarsIgnoringVisibilityTopPx,
+    displayCutoutTopPx,
+    0,
+)
 
 internal fun shouldLoadPortraitDanmaku(
     settingsLoaded: Boolean,

@@ -278,9 +278,9 @@ class PortraitVideoLoadPolicyTest {
     }
 
     @Test
-    fun playUrlPreloadCount_defaultsToOneOnWifiWithoutExperimentalFlag() {
+    fun playUrlPreloadCount_keepsTwoPagesWarmOnWifiByDefault() {
         assertEquals(
-            1,
+            2,
             resolvePortraitPlayUrlPreloadCount(
                 prefetchVideoEnabled = false,
                 isWifi = true,
@@ -290,9 +290,9 @@ class PortraitVideoLoadPolicyTest {
     }
 
     @Test
-    fun playUrlPreloadCount_expandsToTwoWhenExperimentalFlagEnabled() {
+    fun playUrlPreloadCount_expandsToThreeWhenPrefetchIsEnabled() {
         assertEquals(
-            2,
+            3,
             resolvePortraitPlayUrlPreloadCount(
                 prefetchVideoEnabled = true,
                 isWifi = true,
@@ -302,11 +302,19 @@ class PortraitVideoLoadPolicyTest {
     }
 
     @Test
-    fun playUrlPreloadCount_skipsCellularAndEmptyTargets() {
+    fun playUrlPreloadCount_warmsOneCellularPageOnlyWhenExplicitlyEnabled() {
+        assertEquals(
+            1,
+            resolvePortraitPlayUrlPreloadCount(
+                prefetchVideoEnabled = true,
+                isWifi = false,
+                availableTargets = 3
+            )
+        )
         assertEquals(
             0,
             resolvePortraitPlayUrlPreloadCount(
-                prefetchVideoEnabled = true,
+                prefetchVideoEnabled = false,
                 isWifi = false,
                 availableTargets = 3
             )
@@ -319,6 +327,12 @@ class PortraitVideoLoadPolicyTest {
                 availableTargets = 0
             )
         )
+    }
+
+    @Test
+    fun playbackHeadPrefetch_hasEnoughOpeningMediaForFastSwipes() {
+        assertEquals(1536L * 1024L, PORTRAIT_VIDEO_HEAD_PREFETCH_BYTES)
+        assertEquals(256L * 1024L, PORTRAIT_AUDIO_HEAD_PREFETCH_BYTES)
     }
 
     @Test
@@ -368,12 +382,12 @@ class PortraitVideoLoadPolicyTest {
     }
 
     @Test
-    fun earlyPlaybackPage_requiresHigherOffsetThanPrefetch() {
+    fun earlyPlaybackPage_bindsAsSoonAsPagerCrossesToTheTargetPage() {
         assertNull(
             resolvePortraitEarlyPlaybackPage(
                 isScrollInProgress = true,
                 currentPage = 1,
-                currentPageOffsetFraction = -0.3f,
+                lastCommittedPage = 1,
                 lastPageIndex = 4
             )
         )
@@ -381,8 +395,17 @@ class PortraitVideoLoadPolicyTest {
             2,
             resolvePortraitEarlyPlaybackPage(
                 isScrollInProgress = true,
-                currentPage = 1,
-                currentPageOffsetFraction = -0.6f,
+                currentPage = 2,
+                lastCommittedPage = 1,
+                lastPageIndex = 4
+            )
+        )
+        assertEquals(
+            0,
+            resolvePortraitEarlyPlaybackPage(
+                isScrollInProgress = true,
+                currentPage = 0,
+                lastCommittedPage = 1,
                 lastPageIndex = 4
             )
         )

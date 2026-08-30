@@ -56,12 +56,20 @@ internal fun shouldApplyDeferredPortraitRestoreOnResume(
     return hasDeferredRestore && !isPortraitFullscreen
 }
 
+internal fun shouldReplaceVideoDetailRouteAfterPortraitExit(
+    routeBvid: String,
+    portraitBvid: String,
+): Boolean {
+    return routeBvid.isNotBlank() &&
+        portraitBvid.isNotBlank() &&
+        routeBvid != portraitBvid
+}
+
 internal fun resolvePortraitExitRestoreTarget(
     pendingMainReloadBvidAfterPortrait: String?,
     portraitPendingSelectionBvid: String?,
     portraitSyncSnapshotBvid: String?,
     portraitSyncSnapshotCid: Long,
-    currentBvidCid: Long
 ): PortraitExitRestoreTarget? {
     val targetBvid = pendingMainReloadBvidAfterPortrait
         ?: portraitPendingSelectionBvid
@@ -70,7 +78,10 @@ internal fun resolvePortraitExitRestoreTarget(
     val targetCid = if (targetBvid == portraitSyncSnapshotBvid) {
         portraitSyncSnapshotCid
     } else {
-        currentBvidCid
+        // currentBvidCid still belongs to the inline detail subject until the portrait
+        // selection is committed. Reusing it for a new bvid can load metadata for one
+        // video while the shared player is already showing another.
+        0L
     }
     return PortraitExitRestoreTarget(
         bvid = targetBvid,

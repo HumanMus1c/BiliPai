@@ -45,7 +45,7 @@ class FeedLayoutTokenAdoptionTest {
         ).readText()
         assertTrue(
             dynamicSource.indexOf(".responsiveContentWidth(maxWidth = resolveDynamicTimelineMaxWidth())") <
-                dynamicSource.indexOf(".fillMaxSize()", startIndex = dynamicSource.indexOf("LazyVerticalStaggeredGrid(")),
+                dynamicSource.indexOf(".fillMaxSize()", startIndex = dynamicSource.indexOf("FeedVerticalStaggeredGrid(")),
             "动态宽屏约束必须位于 fillMaxSize 外层，否则最大宽度不会生效",
         )
     }

@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.profile
 
+import coil3.request.crossfade
+
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppText
@@ -29,8 +31,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.android.purebilibili.core.ui.wallpaper.ProfileWallpaperTransform
 import com.android.purebilibili.core.ui.wallpaper.applyGestureToProfileWallpaperTransform
 import com.android.purebilibili.core.ui.wallpaper.sanitizeProfileWallpaperTransform
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppCardShape

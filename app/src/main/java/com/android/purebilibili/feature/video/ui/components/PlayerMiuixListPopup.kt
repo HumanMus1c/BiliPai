@@ -73,6 +73,7 @@ private val PlayerEndBottomPopupPositionProvider = object : PopupPositionProvide
 fun PlayerMiuixListPopup(
     title: String,
     onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
     placement: PlayerListPopupPlacement = PlayerListPopupPlacement.CENTER,
     maxHeight: Dp? = 440.dp,
     minWidth: Dp = ListPopupDefaults.MinWidth,
@@ -121,7 +122,7 @@ fun PlayerMiuixListPopup(
                 },
             ) {
                 AppSurface(
-                    modifier = Modifier
+                    modifier = modifier
                         .widthIn(min = minWidth, max = 320.dp)
                         .then(if (maxHeight != null) Modifier.heightIn(max = maxHeight) else Modifier),
                 ) { popupContent() }
@@ -132,6 +133,7 @@ fun PlayerMiuixListPopup(
 
     WindowListPopup(
         show = true,
+        popupModifier = modifier,
         popupPositionProvider = when (placement) {
             PlayerListPopupPlacement.CENTER -> PlayerCenterPopupPositionProvider
             PlayerListPopupPlacement.END_BOTTOM -> PlayerEndBottomPopupPositionProvider

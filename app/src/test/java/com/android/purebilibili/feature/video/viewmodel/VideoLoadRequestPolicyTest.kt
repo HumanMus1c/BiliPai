@@ -24,7 +24,7 @@ class VideoLoadRequestPolicyTest {
             .substringBefore("fun dismissResumePlaybackSuggestion()")
         val uiCommitIndex = switchBlock.indexOf("_uiState.value = switchedState")
         val playerReplaceIndex = switchBlock.indexOf("playResolvedPlayback(")
-        val identityCallbackIndex = switchBlock.indexOf("onIdentityCommitted?.invoke(targetBvid, page.cid)")
+        val identityCallbackIndex = switchBlock.indexOf("onPageIdentityCommitted?.invoke(targetBvid, page.cid)")
 
         assertTrue(uiCommitIndex >= 0)
         assertTrue(playerReplaceIndex > uiCommitIndex)
@@ -37,6 +37,26 @@ class VideoLoadRequestPolicyTest {
         )
         assertTrue(switchBlock.contains("info = current.info.copy(cid = page.cid)"))
         assertTrue(switchBlock.contains("currentCid = previousCid"))
+    }
+
+    @Test
+    fun `page identity synchronization is registered for automatic switches as well as clicks`() {
+        val sourceRoot = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/video"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/video"),
+        ).first { it.exists() }
+        val viewModelSource = sourceRoot.resolve("viewmodel/VideoPlaybackViewModel.kt").readText()
+        val screenSource = sourceRoot.resolve("screen/VideoDetailScreenStateHolder.kt").readText()
+        val switchParameters = viewModelSource.substringAfter("fun switchPage(").substringBefore(") {")
+        val registration = screenSource
+            .substringAfter("DisposableEffect(viewModel, presentationState) {")
+            .substringBefore("val playbackActions")
+
+        // End-of-playback calls do not supply a per-click callback. The listener must belong
+        // to the mounted screen, and be removed when that screen leaves composition.
+        assertFalse(switchParameters.contains("onIdentityCommitted"))
+        assertContains(registration, "setPageIdentityCommitListener(presentationState::syncPlaybackIdentity)")
+        assertContains(registration.substringAfter("onDispose {"), "setPageIdentityCommitListener(null)")
     }
 
     @Test

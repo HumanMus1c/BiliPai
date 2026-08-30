@@ -45,6 +45,15 @@ internal fun resolveProcessExitReasonLabel(reason: Int): String = when (reason) 
     else -> "未知原因($reason)"
 }
 
+internal fun isAbnormalProcessExitReason(reason: Int): Boolean = reason in setOf(
+    ApplicationExitInfo.REASON_CRASH,
+    ApplicationExitInfo.REASON_CRASH_NATIVE,
+    ApplicationExitInfo.REASON_ANR,
+    ApplicationExitInfo.REASON_LOW_MEMORY,
+    ApplicationExitInfo.REASON_SIGNALED,
+    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
+)
+
 internal fun selectProfilingArtifactPathsToKeep(
     artifacts: List<ProfilingArtifactSnapshot>,
     maxArtifacts: Int,
@@ -70,6 +79,7 @@ internal object Android17Diagnostics {
     private const val MAX_TOTAL_BYTES = 128L * 1024L * 1024L
     private const val PREFS_NAME = "android17_diagnostics"
     private const val KEY_LAST_EXIT_TIMESTAMP = "last_exit_timestamp"
+    private const val KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP = "last_crash_snapshot_timestamp"
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     @Volatile private var initialized = false
@@ -153,6 +163,52 @@ internal object Android17Diagnostics {
         }.onFailure { error ->
             Logger.w(TAG, "Failed to read historical process exit reasons", error)
         }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Persists the previous process' abnormal termination when the Java uncaught handler could
+     * not run (native crash, ANR, LMK, or a signal). ApplicationExitInfo is available to ordinary
+     * apps through ActivityManager; root is not required. The timestamp gate prevents repeating
+     * the same snapshot on every subsequent launch.
+     */
+    fun persistLatestAbnormalExitSnapshot(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val appContext = context.applicationContext
+        // A Java uncaught handler may already have written a richer snapshot. Preserve it and
+        // only synthesize one when the process died before that handler could run.
+        if (Logger.hasPendingCrashSnapshot(appContext)) return
+        val manager = appContext.getSystemService(ActivityManager::class.java) ?: return
+        runCatching {
+            val exitInfo = manager.getHistoricalProcessExitReasons(appContext.packageName, 0, 8)
+                .firstOrNull { info ->
+                    isAbnormalProcessExitReason(info.reason)
+                } ?: return
+            val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (prefs.getLong(KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP, 0L) == exitInfo.timestamp) return
+            prefs.edit().putLong(KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP, exitInfo.timestamp).apply()
+
+            val reason = resolveProcessExitReasonLabel(exitInfo.reason)
+            val details = buildString {
+                append("系统记录的上次异常退出：")
+                append(reason)
+                append("；status=")
+                append(exitInfo.status)
+                append("；importance=")
+                append(exitInfo.importance)
+                append("；pss=")
+                append(exitInfo.pss)
+                append("KB；rss=")
+                append(exitInfo.rss)
+                append("KB")
+                exitInfo.description?.trim()?.takeIf(String::isNotEmpty)?.let {
+                    append("；description=")
+                    append(it.take(240))
+                }
+            }
+            Logger.persistCrashSnapshot(RuntimeException(details))
+        }.onFailure { error ->
+            Logger.w(TAG, "Failed to persist historical process exit snapshot", error)
+        }
     }
 
     @RequiresApi(37)

@@ -497,6 +497,14 @@ internal fun resolvePlayerCollapseProgressForLayout(
 internal fun resolveVideoDetailCollapseShadowAlpha(collapseProgress: Float): Float =
     collapseProgress.coerceIn(0f, 1f) * 0.16f
 
+/** Darkens the still-visible media while it collapses, without washing it out in light theme. */
+internal fun resolveCollapsedPlayerMediaScrimAlpha(collapseProgress: Float): Float =
+    collapseProgress.coerceIn(0f, 1f) * 0.42f
+
+/** The solid toolbar should only take over near the end of the user-driven collapse. */
+internal fun resolveCollapsedPlayerToolbarAlpha(collapseProgress: Float): Float =
+    ((collapseProgress.coerceIn(0f, 1f) - 0.55f) / 0.45f).coerceIn(0f, 1f)
+
 internal fun shouldForceBackPreviewPlayerCover(
     keepLoadedContentForBackPreview: Boolean,
     bindLivePlayerForBackPreview: Boolean

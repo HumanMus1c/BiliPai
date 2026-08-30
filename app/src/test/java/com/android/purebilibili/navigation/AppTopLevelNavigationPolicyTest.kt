@@ -12,6 +12,24 @@ import kotlin.test.assertTrue
 class AppTopLevelNavigationPolicyTest {
 
     @Test
+    fun sharedVideoDetailReleasesSidebarSpaceOnlyWhileImmersive() {
+        // Enter fullscreen, then return to the same detail/card transition host.
+        assertTrue(shouldMountSidebarForNavigation(true, true, true, false))
+        assertFalse(shouldMountSidebarForNavigation(true, true, true, true))
+        assertTrue(shouldMountSidebarForNavigation(true, true, true, false))
+    }
+
+    @Test
+    fun sidebarMountPreservesNonSharedAndNonVideoNavigationBehavior() {
+        assertFalse(shouldMountSidebarForNavigation(true, true, false, false))
+        assertTrue(shouldMountSidebarForNavigation(true, false, false, false))
+        // A retained fullscreen detail beneath another destination must not hide its sidebar.
+        assertTrue(shouldMountSidebarForNavigation(true, false, true, true))
+        assertFalse(shouldMountSidebarForNavigation(false, true, true, false))
+        assertFalse(shouldMountSidebarForNavigation(false, false, false, false))
+    }
+
+    @Test
     fun returnsSkip_whenCurrentRouteAlreadyMatchesTarget() {
         val action = resolveTopLevelNavigationAction(
             currentRoute = ScreenRoutes.Profile.route,

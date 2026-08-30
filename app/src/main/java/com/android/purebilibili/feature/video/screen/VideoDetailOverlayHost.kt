@@ -217,7 +217,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeEffectCompat
 import dev.chrisbanes.haze.blur.materials.HazeMaterials

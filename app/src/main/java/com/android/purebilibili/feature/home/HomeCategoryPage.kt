@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.home
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -53,9 +54,8 @@ import com.android.purebilibili.feature.home.components.cards.LiveRoomCard
 import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 
 import androidx.compose.ui.Alignment
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.yield
-import androidx.compose.runtime.snapshots.Snapshot
 
 internal fun resolveHomeCategoryVideoGridKey(
     video: VideoItem,
@@ -214,6 +214,9 @@ internal fun HomeCategoryPageContent(
         scrollableState = gridState,
         stateName = "home:feed:${category.name.lowercase()}"
     )
+    // This is a coarse-grained state (only changes at scroll start/end), so reading it here
+    // updates visible cards without sampling the per-frame scroll offset in composition.
+    val isScrollInProgress = gridState.isScrollInProgress
 
     // Check for load more
     val shouldLoadMore by remember {
@@ -238,11 +241,38 @@ internal fun HomeCategoryPageContent(
         if (shouldLoadMore) onLoadMore()
     }
 
+    val carouselVideos = remember(category, categoryState.videos) {
+        if (category == HomeCategory.RECOMMEND) {
+            selectHomeHeroCarouselItems(categoryState.videos)
+        } else {
+            emptyList()
+        }
+    }
+    val showHeroCarousel = shouldShowHomeHeroCarousel(
+        enabled = homeHeroCarouselEnabled,
+        category = category,
+        itemCount = carouselVideos.size
+    )
+    val visibleGridVideos = remember(categoryState.videos, carouselVideos, showHeroCarousel) {
+        if (showHeroCarousel) {
+            excludeHomeHeroCarouselItems(
+                items = categoryState.videos,
+                carouselItems = carouselVideos,
+                keySelector = ::resolveHomeHeroCarouselDedupKey
+            )
+        } else {
+            categoryState.videos
+        }
+    }
+    val videoGridKeys = remember(visibleGridVideos) {
+        resolveHomeCategoryVideoGridKeys(visibleGridVideos)
+    }
+
     Box(modifier = modifier) {
         CompositionLocalProvider(
             LocalVideoCardSharedElementSourceRoute provides sourceRoute
         ) {
-            LazyVerticalStaggeredGrid(
+            FeedVerticalStaggeredGrid(
                 state = gridState,
                 columns = StaggeredGridCells.Fixed(gridColumns),
                 contentPadding = contentPadding,
@@ -277,26 +307,6 @@ internal fun HomeCategoryPageContent(
             }
         } else {
             // Video Category Content
-            val carouselVideos = if (category == HomeCategory.RECOMMEND) {
-                selectHomeHeroCarouselItems(categoryState.videos)
-            } else {
-                emptyList()
-            }
-            val showHeroCarousel = shouldShowHomeHeroCarousel(
-                enabled = homeHeroCarouselEnabled,
-                category = category,
-                itemCount = carouselVideos.size
-            )
-            val visibleGridVideos = if (showHeroCarousel) {
-                excludeHomeHeroCarouselItems(
-                    items = categoryState.videos,
-                    carouselItems = carouselVideos,
-                    keySelector = ::resolveHomeHeroCarouselDedupKey
-                )
-            } else {
-                categoryState.videos
-            }
-
             if (category == HomeCategory.RECOMMEND) {
                 if (showHeroCarousel) {
                     item(
@@ -358,7 +368,6 @@ internal fun HomeCategoryPageContent(
             }
 
             if (visibleGridVideos.isNotEmpty()) {
-                val videoGridKeys = resolveHomeCategoryVideoGridKeys(visibleGridVideos)
                 val shouldShowOldContentDivider = category == HomeCategory.RECOMMEND &&
                     (
                         (oldContentAnchorBvid != null && visibleGridVideos.any { it.bvid == oldContentAnchorBvid }) ||
@@ -385,11 +394,6 @@ internal fun HomeCategoryPageContent(
                         key = videoGridKeys[index],
                         contentType = "home_video_card"
                     ) {
-                        val mountedDuringScroll = remember(video.bvid, video.id, video.cid) {
-                            Snapshot.withoutReadObservation {
-                                gridState.isScrollInProgress
-                            }
-                        }
                         val isDynamicDetailCard = video.dynamicId.isNotBlank() && !video.bvid.startsWith("BV", ignoreCase = true)
                         val isDissolving = video.bvid in dissolvingVideos
 
@@ -416,7 +420,7 @@ internal fun HomeCategoryPageContent(
                                         transitionEnabled = cardTransitionEnabled,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = mountedDuringScroll,
+                                        scrollLiteModeEnabled = isScrollInProgress,
                                         isDataSaverActive = isDataSaverActive,
                                         preferLowQualityCover = preferLowQualityCover,
                                         coverRequestSpec = coverRequestSpec,
@@ -461,7 +465,7 @@ internal fun HomeCategoryPageContent(
                                         transitionEnabled = cardTransitionEnabled,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = mountedDuringScroll,
+                                        scrollLiteModeEnabled = isScrollInProgress,
                                         showPublishTime = true,
                                         isDataSaverActive = isDataSaverActive,
                                         preferLowQualityCover = preferLowQualityCover,

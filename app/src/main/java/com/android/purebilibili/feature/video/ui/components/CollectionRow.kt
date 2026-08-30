@@ -51,6 +51,7 @@ fun CollectionRow(
     currentBvid: String,
     currentCid: Long = 0L,
     isPlaying: Boolean = false,
+    immersive: Boolean = false,
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -78,6 +79,9 @@ fun CollectionRow(
     )
     val currentPosition = if (currentIndex >= 0) currentIndex + 1 else 0
     val totalCount = allEpisodes.size.takeIf { it > 0 } ?: ugcSeason.ep_count
+    val accentColor = if (immersive) Color.White else MaterialTheme.colorScheme.primary
+    val titleColor = if (immersive) Color.White.copy(alpha = 0.94f) else MaterialTheme.colorScheme.onSurface
+    val secondaryColor = if (immersive) Color.White.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurfaceVariant
     
     AppSurface(
         modifier = modifier
@@ -96,13 +100,13 @@ fun CollectionRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(VideoDetailShapes.compactIcon())
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    .background(accentColor.copy(alpha = if (immersive) 0.18f else 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
                     Icons.Outlined.Folder,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = accentColor,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -115,7 +119,7 @@ fun CollectionRow(
                     AppText(
                         text = "合集",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = accentColor,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -123,13 +127,16 @@ fun CollectionRow(
                         text = ugcSeason.title,
                         modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = titleColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    CollectionPlaybackIndicator(isPlaying = isPlaying)
+                    CollectionPlaybackIndicator(
+                        isPlaying = isPlaying,
+                        color = accentColor,
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -142,7 +149,7 @@ fun CollectionRow(
                         AppText(
                             text = "$currentPosition/$totalCount",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = secondaryColor,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -150,7 +157,7 @@ fun CollectionRow(
                     AppText(
                         text = resolveCollectionSortLabel(sortMode),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+                        color = if (immersive) secondaryColor else accentColor.copy(alpha = 0.88f)
                     )
                 }
             }
@@ -161,7 +168,8 @@ fun CollectionRow(
                 collectionId = collectionSubscriptionId,
                 currentBvid = currentBvid,
                 currentAid = currentAid,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                immersive = immersive,
             )
 
             //  分享按钮
@@ -181,7 +189,7 @@ fun CollectionRow(
                     shareIcon,
                     contentDescription = "分享合集",
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = accentColor.copy(alpha = if (immersive) 0.9f else 1f)
                 )
             }
             
@@ -189,7 +197,7 @@ fun CollectionRow(
             AppIcon(
                 Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = "查看合集",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = secondaryColor.copy(alpha = if (immersive) 0.8f else 0.5f),
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -200,9 +208,9 @@ fun CollectionRow(
 @Composable
 private fun CollectionPlaybackIndicator(
     isPlaying: Boolean,
+    color: Color,
     modifier: Modifier = Modifier,
 ) {
-    val color = MaterialTheme.colorScheme.primary
     val progress = if (isPlaying) {
         val transition = rememberInfiniteTransition(label = "collectionPlayback")
         val animatedProgress by transition.animateFloat(

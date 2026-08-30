@@ -22,6 +22,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import top.yukonga.miuix.kmp.blur.Backdrop
+import kotlinx.coroutines.flow.map
 
 /**
  * App-wide category/page tab contract. The shared renderer keeps MD3's animated underline
@@ -95,10 +96,13 @@ fun <T> AppLiquidAwareTabRow(
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)
+        .map { it as HomeSettings? }
         .collectAsStateWithLifecycle(
-            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = true),
+            // Avoid a visible provisional style before the persisted preference is available.
+            initialValue = null,
         )
-    if (!homeSettings.androidNativeLiquidGlassEnabled) {
+    val resolvedHomeSettings = homeSettings ?: return
+    if (!resolvedHomeSettings.androidNativeLiquidGlassEnabled) {
         AppNativeTabRow(
             options = options,
             selectedValue = selectedValue,

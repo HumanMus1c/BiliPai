@@ -18,8 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.staggeredgrid.*  // 🌊 瀑布流布局
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
-import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
+import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -147,9 +146,10 @@ import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackJankStateValue
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
-import coil.imageLoader
+import coil3.imageLoader
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged  //  性能优化：防止重复触发
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map as mapFlow
@@ -303,7 +303,8 @@ fun HomeScreen(
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
-    val homeMiuixBackdrop = rememberMiuixLayerBackdrop()
+    val homeMiuixBackdropSource = rememberChromeBackdropSource()
+    val homeMiuixBackdrop = homeMiuixBackdropSource.backdrop
     var homeMiuixBackdropReady by remember(homeMiuixBackdrop) { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
@@ -829,15 +830,19 @@ fun HomeScreen(
         val anchorBvid = recommendOldContentAnchorBvid ?: return@LaunchedEffect
         val recommendState = gridStates[HomeCategory.RECOMMEND] ?: return@LaunchedEffect
         viewModel.getCategoryState(HomeCategory.RECOMMEND)
-            .mapFlow { content -> content.videos.indexOfFirst { it.bvid == anchorBvid } }
+            .mapFlow { content ->
+                content.videos.indexOfFirst { it.bvid == anchorBvid } to
+                    resolveHomeCategoryVideoGridKeys(content.videos)
+            }
             .distinctUntilChanged()
-            .collectLatest { anchorIndex ->
+            .collectLatest { (anchorIndex, videoKeys) ->
                 if (anchorIndex <= 0) return@collectLatest
+                val videoIndicesByKey = videoKeys.withIndex().associate { it.value to it.index }
                 snapshotFlow {
-                    val layoutInfo = recommendState.layoutInfo
-                    val reachedByVisible = layoutInfo.visibleItemsInfo.any { it.index == anchorIndex }
-                    val reachedByIndex = recommendState.firstVisibleItemIndex >= anchorIndex
-                    reachedByVisible || reachedByIndex
+                    // Grid indices also include chrome, carousel and divider rows.
+                    recommendState.layoutInfo.visibleItemsInfo.any {
+                        (videoIndicesByKey[it.key] ?: -1) >= anchorIndex
+                    }
                 }.first { it }
                 viewModel.markRecommendOldContentDividerRevealed(targetKey)
             }
@@ -1667,7 +1672,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .miuixLayerBackdrop(homeMiuixBackdrop)
+                            .then(homeMiuixBackdropSource.modifier)
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .hazeSourceCompat(state = hazeState)
                     ) {
@@ -2587,16 +2592,21 @@ fun HomeScreen(
         } ?: return@LaunchedEffect
         
         snapshotFlow {
-            val lastVisibleIndex = currentGridState.layoutInfo.visibleItemsInfo
-                .maxOfOrNull { it.index } ?: -1
-            lastVisibleIndex to currentGridState.isScrollInProgress
+            val visibleKeys = currentGridState.layoutInfo.visibleItemsInfo.map { it.key }
+            visibleKeys to currentGridState.isScrollInProgress
         }
             .distinctUntilChanged()
-            .collect { (lastVisibleIndex, isScrollInProgress) ->
+            // Coalesce the burst of layout updates after a fling and wait until the feed has
+            // been settled briefly. A new scroll event cancels this pending preload batch.
+            .debounce(180)
+            .collect { (visibleKeys, isScrollInProgress) ->
                 val videos = viewModel.getPreloadVideosSnapshot(
                     category = currentCategory,
                     popularSubCategory = popularSubCategory
                 )
+                val visibleKeySet = visibleKeys.toSet()
+                val lastVisibleIndex = resolveHomeCategoryVideoGridKeys(videos)
+                    .indexOfLast { it in visibleKeySet }
                 val preloadRange = resolveHomeCoverPreloadRange(
                     isDataSaverActive = isDataSaverActive,
                     isScrollInProgress = isScrollInProgress,
@@ -2604,18 +2614,22 @@ fun HomeScreen(
                     totalItemCount = videos.size,
                     preloadAheadCount = preloadAheadCount
                 ) ?: return@collect
-                val imageUrls = preloadRange.mapNotNull { index -> videos.getOrNull(index)?.pic }
+                // Avoid enqueueing the same cover more than once when adjacent feed entries share
+                // a URL; Coil still handles caching, but deduping keeps the IO queue smaller.
+                val imageUrls = preloadRange
+                    .mapNotNull { index -> videos.getOrNull(index)?.pic }
+                    .distinct()
                 if (imageUrls.isEmpty()) return@collect
 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     for (imageUrl in imageUrls) {
                         val fixedUrl = com.android.purebilibili.core.util.FormatUtils.fixImageUrl(imageUrl)
 
-                        val request = coil.request.ImageRequest.Builder(context)
+                        val request = coil3.request.ImageRequest.Builder(context)
                             .data(fixedUrl)
                             .size(360, 225)  //  预加载也使用限制尺寸
-                            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                             .build()
                         context.imageLoader.enqueue(request)
                     }

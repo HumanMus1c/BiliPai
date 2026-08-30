@@ -1,12 +1,17 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.data.model.response.DynamicItem
+import com.android.purebilibili.data.model.response.DynamicCreatePic
+import com.android.purebilibili.data.model.response.DynamicPublishDraft
+import com.android.purebilibili.data.model.response.DynamicPublishMention
+import com.android.purebilibili.data.model.response.DynamicPublishTopic
 
 /**
  * 更多菜单的管理动作与参数解析（对齐 BiliPai 作者区 morePanel 的
- * 置顶 / 可见范围 / 评论互动设置 / 临时屏蔽）。
+ * 置顶 / 可见范围 / 评论互动设置 / 不感兴趣 / 屏蔽作者）。
  */
 sealed interface DynamicManageAction {
+    data class NotInterested(val dynamicId: String) : DynamicManageAction
     data class ToggleTop(val dynamicId: String, val isCurrentlyTop: Boolean) : DynamicManageAction
     data class SetVisibility(val dynamicId: String, val dynType: Int, val isPrivate: Boolean) : DynamicManageAction
     data class SetReplySubject(val oid: Long, val replyType: Int, val action: Int) : DynamicManageAction
@@ -16,7 +21,22 @@ sealed interface DynamicManageAction {
         val authorFace: String,
     ) : DynamicManageAction
     data class Report(val dynamicId: String, val authorMid: Long) : DynamicManageAction
-    data class Edit(val dynamicId: String, val initialText: String) : DynamicManageAction
+    data class Edit(val dynamicId: String, val initialDraft: DynamicPublishDraft) : DynamicManageAction
+}
+
+internal fun dispatchDynamicManageAction(
+    action: DynamicManageAction,
+    onReport: (DynamicManageAction.Report) -> Unit,
+    onEdit: (DynamicManageAction.Edit) -> Unit,
+    onNotInterested: (DynamicManageAction.NotInterested) -> Unit,
+    onOther: (DynamicManageAction) -> Unit,
+) {
+    when (action) {
+        is DynamicManageAction.Report -> onReport(action)
+        is DynamicManageAction.Edit -> onEdit(action)
+        is DynamicManageAction.NotInterested -> onNotInterested(action)
+        else -> onOther(action)
+    }
 }
 
 internal data class DynamicMenuCapabilities(
@@ -81,8 +101,67 @@ internal fun resolveDynamicReportReasons(): List<DynamicReportReason> = listOf(
     DynamicReportReason(0, "其他"),
 )
 
-internal fun resolveDynamicEditInitialText(item: DynamicItem): String {
-    return item.modules.module_dynamic?.desc?.text.orEmpty()
+internal fun resolveDynamicEditDraft(item: DynamicItem): DynamicPublishDraft {
+    val dynamic = item.modules.module_dynamic
+    val opus = dynamic?.major?.opus
+    val richNodes = dynamic?.desc?.rich_text_nodes.orEmpty()
+        .ifEmpty { opus?.summary?.rich_text_nodes.orEmpty() }
+    val images = buildList {
+        dynamic?.major?.draw?.items.orEmpty().forEach { image ->
+            if (image.src.isNotBlank()) {
+                add(
+                    DynamicCreatePic(
+                        img_src = image.src,
+                        img_width = image.width,
+                        img_height = image.height,
+                        img_size = 0f,
+                    )
+                )
+            }
+        }
+        opus?.pics.orEmpty().forEach { image ->
+            if (image.url.isNotBlank()) {
+                add(
+                    DynamicCreatePic(
+                        img_src = image.url,
+                        img_width = image.width,
+                        img_height = image.height,
+                        img_size = image.size.toFloat(),
+                    )
+                )
+            }
+        }
+    }.distinctBy { it.img_src }
+    val additional = dynamic?.additional
+    val isPrivate = item.modules.module_more?.three_point_items.orEmpty()
+        .firstOrNull { it.type == "THREE_POINT_PRIVATE" }
+        ?.params
+        ?.status == 1
+    return DynamicPublishDraft(
+        text = dynamic?.desc?.text.orEmpty().ifBlank { opus?.summary?.text.orEmpty() },
+        title = opus?.title.orEmpty(),
+        imageUris = images.map(DynamicCreatePic::img_src),
+        voteId = additional?.vote?.vote_id ?: 0L,
+        voteTitle = additional?.vote?.desc.orEmpty(),
+        reserveId = additional?.reserve?.rid ?: 0L,
+        private = isPrivate,
+        mentions = richNodes.mapNotNull { node ->
+            node.takeIf { it.type.contains("AT", ignoreCase = true) }
+                ?.rid
+                ?.toLongOrNull()
+                ?.takeIf { it > 0L }
+                ?.let { DynamicPublishMention(uid = it, name = node.text.trim().removePrefix("@")) }
+        }.distinctBy(DynamicPublishMention::uid),
+        emotes = richNodes.mapNotNull { node ->
+            node.takeIf { it.type.contains("EMOJI", ignoreCase = true) }
+                ?.let { it.text.ifBlank { it.orig_text }.ifBlank { it.emoji?.text.orEmpty() } }
+                ?.takeIf(String::isNotBlank)
+        }.distinct(),
+        topic = dynamic?.topic?.takeIf { it.id > 0L }?.let {
+            DynamicPublishTopic(id = it.id, name = it.name)
+        },
+        existingImages = images,
+    )
 }
 
 // x/v2/reply/subject/modify 的 action 取值

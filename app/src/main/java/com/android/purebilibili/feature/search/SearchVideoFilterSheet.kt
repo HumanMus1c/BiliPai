@@ -102,7 +102,10 @@ fun SearchVideoFilterBar(
             onSelected = { index ->
                 orderOptions.getOrNull(index)?.let(onOrderChange)
             },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState())
+                .width(72.dp * orderOptions.size),
             height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
             indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
             labelFontSize = 13.sp,
@@ -110,7 +113,8 @@ fun SearchVideoFilterBar(
             miuixBackdrop = miuixBackdrop,
             liquidGlassEffectsEnabled = true,
             tapPressRefractionEnabled = true,
-            dragSelectionEnabled = orderOptions.size > 1,
+            // Horizontal swipes scroll the six sorting labels, as in PiliPlus.
+            dragSelectionEnabled = false,
         )
         VerticalDivider(
             modifier = Modifier

@@ -1,5 +1,10 @@
 // 文件路径: feature/dynamic/components/LiveCard.kt
 package com.android.purebilibili.feature.dynamic.components
+
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -33,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.data.model.response.LiveMajor
 import com.android.purebilibili.data.model.response.LiveRcmdMajor
@@ -93,9 +98,9 @@ fun LiveCard(
                     liveInfo.live_play_info?.cover?.let { coverUrl ->
                         val url = if (coverUrl.startsWith("http://")) coverUrl.replace("http://", "https://") else coverUrl
                         AsyncImage(
-                            model = coil.request.ImageRequest.Builder(context)
+                            model = coil3.request.ImageRequest.Builder(context)
                                 .data(url)
-                                .addHeader("Referer", "https://www.bilibili.com/")
+                                .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
                                 .crossfade(true)
                                 .build(),
                             contentDescription = null,
@@ -219,9 +224,9 @@ fun LiveMajorCard(
                         live.cover
                     }
                     AsyncImage(
-                        model = coil.request.ImageRequest.Builder(context)
+                        model = coil3.request.ImageRequest.Builder(context)
                             .data(url)
-                            .addHeader("Referer", "https://www.bilibili.com/")
+                            .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
                             .crossfade(true)
                             .build(),
                         contentDescription = null,

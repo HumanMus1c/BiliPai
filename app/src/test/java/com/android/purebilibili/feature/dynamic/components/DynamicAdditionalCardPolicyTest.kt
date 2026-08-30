@@ -90,4 +90,60 @@ class DynamicAdditionalCardPolicyTest {
         assertEquals("进入", card?.actionLabel)
         assertEquals("https://www.bilibili.com/blackboard/game", card?.jumpUrl)
     }
+
+    @Test
+    fun reserveCardUsesServerStatusLabelsAndActionParameters() {
+        val card = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_RESERVE",
+                reserve = DynamicAdditionalReserve(
+                    title = "首播预约",
+                    rid = 42L,
+                    reserve_total = 99L,
+                    desc1 = DynamicAdditionalText("明晚 8 点"),
+                    desc2 = DynamicAdditionalText("99 人预约"),
+                    button = DynamicCardButton(
+                        status = 1,
+                        type = 1,
+                        check = DynamicCardButtonStyle(text = "已预约"),
+                        uncheck = DynamicCardButtonStyle(text = "预约", disable = 0),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(42L, card?.reserveId)
+        assertEquals(99L, card?.reserveTotal)
+        assertEquals("已预约", card?.actionLabel)
+        assertEquals("明晚 8 点", card?.reserveDescriptionPrefix)
+        assertEquals(false, card?.reserveButtonDisabled)
+    }
+
+    @Test
+    fun reserveJumpButtonTakesPriorityOverToggleAndKeepsGiftLink() {
+        val card = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_RESERVE",
+                reserve = DynamicAdditionalReserve(
+                    title = "预约抽奖",
+                    rid = 42L,
+                    desc3 = DynamicAdditionalText(
+                        text = "预约后参与抽奖",
+                        jump_url = "https://www.bilibili.com/blackboard/gift",
+                    ),
+                    button = DynamicCardButton(
+                        jump_url = "https://www.bilibili.com/blackboard/reserve",
+                        jump_style = DynamicCardButtonStyle(text = "查看详情"),
+                        uncheck = DynamicCardButtonStyle(text = "预约", disable = 1),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals("查看详情", card?.actionLabel)
+        assertEquals("https://www.bilibili.com/blackboard/reserve", card?.reserveActionJumpUrl)
+        assertEquals("https://www.bilibili.com/blackboard/gift", card?.reserveDescriptionJumpUrl)
+        assertEquals(false, card?.reserveButtonDisabled)
+        assertEquals(true, card?.subtitle.contains("预约后参与抽奖"))
+    }
 }

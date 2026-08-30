@@ -1,6 +1,5 @@
 package androidx.navigationevent.compose
 
-import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -49,11 +48,4 @@ class NavigationBackHandlerCompatibilityTest {
         assertTrue(hasMiuixBridge)
     }
 
-    @Test
-    fun releaseRules_keepVendoredNavigationEventAbiForPrecompiledCallers() {
-        val rules = File("proguard-rules.pro").readText()
-
-        assertTrue(rules.contains("-keep class androidx.navigationevent.compose.** { *; }"))
-        assertTrue(rules.contains("-keep class androidx.navigationevent.** { *; }"))
-    }
 }

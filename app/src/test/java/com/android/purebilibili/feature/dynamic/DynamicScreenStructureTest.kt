@@ -11,7 +11,7 @@ class DynamicScreenStructureTest {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt")
             .readText()
         val gridSource = source
-            .substringAfter("LazyVerticalStaggeredGrid(")
+            .substringAfter("FeedVerticalStaggeredGrid(")
             .substringBefore("@Composable\nprivate fun OldContentDivider")
 
         assertTrue(gridSource.contains("contentType = \"dynamic_empty_state\""))

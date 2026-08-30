@@ -1,6 +1,5 @@
 package com.android.purebilibili.feature.dynamic.components
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppDialogAction
@@ -61,8 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun DynamicPublishComposer(
-    initialText: String,
-    initialTopic: DynamicPublishTopic? = null,
+    initialDraft: DynamicPublishDraft,
     isEditing: Boolean,
     submitting: Boolean,
     errorMessage: String?,
@@ -73,15 +71,27 @@ fun DynamicPublishComposer(
     val homeSettings by SettingsManager.getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val liquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-    var text by remember(initialText) { mutableStateOf(initialText) }
-    var title by remember { mutableStateOf("") }
-    var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var vote by remember { mutableStateOf<DynamicCreatedVote?>(null) }
-    var reserve by remember { mutableStateOf<DynamicCreatedReserve?>(null) }
-    var mentions by remember { mutableStateOf<List<DynamicPublishMention>>(emptyList()) }
-    var emotes by remember { mutableStateOf<List<String>>(emptyList()) }
-    var topic by remember(initialTopic) { mutableStateOf(initialTopic) }
-    var privatePublish by remember { mutableStateOf(false) }
+    var text by remember(initialDraft) { mutableStateOf(initialDraft.text) }
+    var title by remember(initialDraft) { mutableStateOf(initialDraft.title) }
+    var imageUris by remember(initialDraft) { mutableStateOf(initialDraft.imageUris) }
+    var vote by remember(initialDraft) {
+        mutableStateOf(
+            initialDraft.voteId.takeIf { it > 0L }?.let {
+                DynamicCreatedVote(it, initialDraft.voteTitle.ifBlank { "投票" })
+            }
+        )
+    }
+    var reserve by remember(initialDraft) {
+        mutableStateOf(
+            initialDraft.reserveId.takeIf { it > 0L }?.let {
+                DynamicCreatedReserve(it, "预约")
+            }
+        )
+    }
+    var mentions by remember(initialDraft) { mutableStateOf(initialDraft.mentions) }
+    var emotes by remember(initialDraft) { mutableStateOf(initialDraft.emotes) }
+    var topic by remember(initialDraft) { mutableStateOf(initialDraft.topic) }
+    var privatePublish by remember(initialDraft) { mutableStateOf(initialDraft.private) }
     var showVoteDialog by remember { mutableStateOf(false) }
     var showReserveDialog by remember { mutableStateOf(false) }
     var showMentionDialog by remember { mutableStateOf(false) }
@@ -91,7 +101,7 @@ fun DynamicPublishComposer(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
-            imageUris = (imageUris + uris).distinct().take(9)
+            imageUris = (imageUris + uris.map { it.toString() }).distinct().take(9)
         }
     }
 
@@ -122,14 +132,12 @@ fun DynamicPublishComposer(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                 ) {
-                    if (!isEditing) {
-                        AppTextField(
-                            value = title,
-                            onValueChange = { if (it.length <= 20) title = it },
-                            placeholder = "标题，选填 20 字",
-                            singleLine = true
-                        )
-                    }
+                    AppTextField(
+                        value = title,
+                        onValueChange = { if (it.length <= 20) title = it },
+                        placeholder = "标题，选填 20 字",
+                        singleLine = true
+                    )
                     AppTextField(
                         value = text,
                         onValueChange = { text = it },
@@ -137,9 +145,8 @@ fun DynamicPublishComposer(
                         singleLine = false,
                         minLines = 4
                     )
-                    if (!isEditing) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-                            items(imageUris, key = { it.toString() }) { uri ->
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+                            items(imageUris, key = { it }) { uri ->
                                 Box {
                                     AsyncImage(
                                         model = uri,
@@ -163,9 +170,7 @@ fun DynamicPublishComposer(
                                     }
                                 }
                             }
-                        }
                     }
-                if (!isEditing) {
                     BottomBarMatchedReusableLiquidDock(
                         shape = AppShapes.container(ContainerLevel.Pill),
                         modifier = Modifier
@@ -240,7 +245,6 @@ fun DynamicPublishComposer(
                             onSelectionChange = { privatePublish = it },
                         )
                     }
-                }
                 errorMessage?.let { AppText(it) }
                 }
             }
@@ -253,7 +257,7 @@ fun DynamicPublishComposer(
                         DynamicPublishDraft(
                             text = text,
                             title = title,
-                            imageUris = imageUris.map(Uri::toString),
+                            imageUris = imageUris,
                             voteId = vote?.voteId ?: 0L,
                             voteTitle = vote?.title.orEmpty(),
                             reserveId = reserve?.reserveId ?: 0L,
@@ -261,6 +265,7 @@ fun DynamicPublishComposer(
                             mentions = mentions,
                             emotes = emotes,
                             topic = topic,
+                            existingImages = initialDraft.existingImages.filter { it.img_src in imageUris },
                         )
                     )
                 }

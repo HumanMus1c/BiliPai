@@ -27,7 +27,7 @@ import com.android.purebilibili.feature.live.resolveLandscapeLiveChatVisualSpec
 import com.android.purebilibili.feature.live.resolveLiveMedalColor
 import com.android.purebilibili.feature.live.shouldRenderLiveDanmakuImageEmoticon
 import kotlinx.coroutines.flow.SharedFlow
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 
 /**
  * 横屏模式专用 - 透明弹幕覆盖层

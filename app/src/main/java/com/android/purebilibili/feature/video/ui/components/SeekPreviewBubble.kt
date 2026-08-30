@@ -1,6 +1,10 @@
 package com.android.purebilibili.feature.video.ui.components
 
-import android.graphics.drawable.BitmapDrawable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+
+import coil3.request.crossfade
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,11 +39,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
-import coil.request.CachePolicy
-import coil.request.ImageRequest
-import coil.size.Size
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -449,7 +453,8 @@ private fun SeekPreviewImage(
         contentScale = ContentScale.Crop
     )
 
-    when (val painterState = painter.state) {
+    val currentPainterState by painter.state.collectAsState()
+    when (val painterState = currentPainterState) {
         is AsyncImagePainter.State.Loading -> {
             Box(
                 modifier = modifier.background(Color(0xFF1A1A1A)),
@@ -468,7 +473,7 @@ private fun SeekPreviewImage(
         }
         is AsyncImagePainter.State.Success -> {
             Canvas(modifier = modifier) {
-                val bitmap = (painterState.result.drawable as? BitmapDrawable)?.bitmap ?: return@Canvas
+                val bitmap = (painterState.result.image as? coil3.BitmapImage)?.bitmap ?: return@Canvas
 
                 val expectedWidth = (videoshotData.img_x_size * videoshotData.img_x_len).coerceAtLeast(1)
                 val expectedHeight = (videoshotData.img_y_size * videoshotData.img_y_len).coerceAtLeast(1)

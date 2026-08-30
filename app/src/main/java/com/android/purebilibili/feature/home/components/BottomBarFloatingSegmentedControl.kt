@@ -30,6 +30,7 @@ import com.android.purebilibili.feature.home.components.miuix.DampedDragTracking
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import kotlinx.coroutines.flow.map
 
 /**
  * Reuse wrapper around [FloatingBottomBar]. No local drawBackdrop / lens / vibrancy.
@@ -67,22 +68,27 @@ internal fun BottomBarFloatingSegmentedControl(
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+        .map { it as HomeSettings? }
+        .collectAsStateWithLifecycle(
+            // Do not render provisional chrome while the persisted setting is loading.
+            initialValue = null
+        )
+    val resolvedHomeSettings = homeSettings ?: return
     val liquidGlassEnabled = resolveSegmentedControlLiquidGlassEnabled(
-        storedLiquidGlassEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
+        storedLiquidGlassEnabled = resolvedHomeSettings.isBottomBarLiquidGlassEnabled,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         supportsIndependentLiquidGlass = false,
-        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        androidNativeLiquidGlassEnabled = resolvedHomeSettings.androidNativeLiquidGlassEnabled,
     )
     val storedLiquidGlassTuning = remember(
-        homeSettings.liquidGlassProgress,
-        homeSettings.liquidGlassAdvancedSettings,
-        homeSettings.liquidGlassReadabilityMode,
+        resolvedHomeSettings.liquidGlassProgress,
+        resolvedHomeSettings.liquidGlassAdvancedSettings,
+        resolvedHomeSettings.liquidGlassReadabilityMode,
     ) {
         resolveLiquidGlassTuning(
-            homeSettings.liquidGlassProgress,
-            homeSettings.liquidGlassAdvancedSettings,
-            homeSettings.liquidGlassReadabilityMode,
+            resolvedHomeSettings.liquidGlassProgress,
+            resolvedHomeSettings.liquidGlassAdvancedSettings,
+            resolvedHomeSettings.liquidGlassReadabilityMode,
         )
     }
     val liquidGlassTuning = liquidGlassTuningOverride ?: storedLiquidGlassTuning

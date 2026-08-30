@@ -40,7 +40,9 @@ import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 internal fun SpaceLoadingSkeleton(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val settings by SettingsManager.getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+        .collectAsStateWithLifecycle(
+            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
+        )
     val columns = resolveSpaceContentGridColumnCount(
         widthDp = LocalConfiguration.current.screenWidthDp,
         fixedColumnCount = settings.gridColumnCount,

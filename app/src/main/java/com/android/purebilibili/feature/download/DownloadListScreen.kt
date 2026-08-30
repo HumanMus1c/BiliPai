@@ -1,4 +1,9 @@
 package com.android.purebilibili.feature.download
+
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+
+import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -22,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
@@ -213,9 +218,9 @@ private fun DownloadTaskItem(
                         if (url.startsWith("http://")) url.replace("http://", "https://")
                         else url
                     }
-                    coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                         .data(coverUrl)
-                        .addHeader("Referer", "https://www.bilibili.com")
+                        .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com").build())
                         .crossfade(true)
                         .build()
                 }

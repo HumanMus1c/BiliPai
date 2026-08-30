@@ -2,7 +2,9 @@ package com.android.purebilibili.feature.home.components
 
 import android.os.Build
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,10 +57,20 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
     ) {
         return this
     }
-    return progressiveTextureBlur(
-        backdrop = requireNotNull(backdrop),
-        shape = shape,
-        blurRadius = blurRadiusDp,
-        gradient = gradient,
-    )
+    val source = requireNotNull(backdrop)
+    return composed {
+        // The non-composable factory creates new shape/effect callbacks on each call.
+        // Keep their identity while the material is unchanged, so an unrelated header
+        // recomposition does not rebuild the progressive stack and its sharp-end effect.
+        // Geometry changes and source redraws are still handled by Miuix's draw node.
+        val effect = remember(source, shape, blurRadiusDp, gradient) {
+            Modifier.progressiveTextureBlur(
+                backdrop = source,
+                shape = shape,
+                blurRadius = blurRadiusDp,
+                gradient = gradient,
+            )
+        }
+        this.then(effect)
+    }
 }

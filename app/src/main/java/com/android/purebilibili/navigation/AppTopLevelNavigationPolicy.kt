@@ -153,6 +153,17 @@ internal fun shouldShowBottomBarForNavigation(
         !shouldDeferReveal
 }
 
+internal fun shouldMountSidebarForNavigation(
+    routeAllowsSidebar: Boolean,
+    isVideoDetailDestination: Boolean,
+    keepSharedTransitionSlot: Boolean,
+    isImmersivePlayback: Boolean
+): Boolean {
+    if (!routeAllowsSidebar) return false
+    if (!isVideoDetailDestination) return true
+    return keepSharedTransitionSlot && !isImmersivePlayback
+}
+
 internal fun resolveVideoCardSourceRouteForNavigation(
     currentRoute: String?,
     videoBvid: String,

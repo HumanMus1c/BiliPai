@@ -52,10 +52,10 @@ internal fun resolveDynamicMajorCard(
     major.medialist?.takeIf { it.title.isNotBlank() }?.let { medialist ->
         return DynamicMajorCardModel(
             title = medialist.title,
-            subtitle = "播放列表",
+            subtitle = medialist.sub_title.ifBlank { "收藏夹" },
             cover = medialist.cover,
             jumpUrl = medialist.jump_url,
-            kindLabel = "合集",
+            kindLabel = medialist.badge?.text.orEmpty().ifBlank { "收藏夹" },
         )
     }
     major.upower_common?.takeIf { it.title.isNotBlank() }?.let { upower ->

@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.login
 
+import coil3.request.crossfade
+
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.RepeatMode
@@ -78,8 +80,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.SuccessAnimation
 import androidx.compose.material.icons.Icons

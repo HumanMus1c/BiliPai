@@ -14,6 +14,14 @@ import kotlin.test.assertTrue
 class DynamicScreenStatePolicyTest {
 
     @Test
+    fun notInterestedIdsAreNormalizedAndBounded() {
+        assertEquals(
+            setOf("2", "3"),
+            normalizeDynamicNotInterestedIds(listOf(" 1 ", "", "2", "2", "3"), maxSize = 2),
+        )
+    }
+
+    @Test
     fun `dynamic list top padding stays independent from scroll driven chrome collapse`() {
         assertEquals(
             144,

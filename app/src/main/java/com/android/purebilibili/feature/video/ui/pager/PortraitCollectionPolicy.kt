@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.pager
 
 import com.android.purebilibili.data.model.response.RelatedVideo
+import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.ViewInfo
 
 /**
@@ -130,5 +131,50 @@ internal fun resolvePortraitCollectionPageIndex(
     return pageItems.indexOfFirst { candidate ->
         val identity = resolvePortraitPagePlaybackIdentity(candidate) ?: return@indexOfFirst false
         identity.bvid == normalizedBvid
+    }
+}
+
+/**
+ * Keep the UGC-season identity on an explicitly selected collection page.
+ * Recommendation pages normally stay lightweight [RelatedVideo] values, but a collection click
+ * carries screen data that [RelatedVideo] cannot represent and therefore promotes the target to
+ * [ViewInfo]. The subsequent detail response will enrich this seed without dropping the season.
+ */
+internal fun buildPortraitCollectionPageItem(
+    existing: Any?,
+    targetBvid: String,
+    targetCid: Long,
+    collectionContext: UgcSeason?,
+): Any {
+    val normalizedBvid = targetBvid.trim()
+    val normalizedCid = targetCid.coerceAtLeast(0L)
+    return when (existing) {
+        is ViewInfo -> existing.copy(
+            bvid = normalizedBvid.ifBlank { existing.bvid },
+            cid = normalizedCid.takeIf { it > 0L } ?: existing.cid,
+            ugc_season = collectionContext ?: existing.ugc_season,
+        )
+        is RelatedVideo -> {
+            if (collectionContext == null) {
+                existing
+            } else {
+                toViewInfoForPortraitDetail(existing).copy(
+                    cid = normalizedCid.takeIf { it > 0L } ?: existing.cid,
+                    ugc_season = collectionContext,
+                )
+            }
+        }
+        else -> {
+            if (collectionContext == null) {
+                RelatedVideo(bvid = normalizedBvid, cid = normalizedCid, title = normalizedBvid)
+            } else {
+                ViewInfo(
+                    bvid = normalizedBvid,
+                    cid = normalizedCid,
+                    title = normalizedBvid,
+                    ugc_season = collectionContext,
+                )
+            }
+        }
     }
 }

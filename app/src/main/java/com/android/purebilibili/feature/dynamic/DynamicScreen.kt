@@ -1,5 +1,8 @@
 // 文件路径: feature/dynamic/DynamicScreen.kt
 package com.android.purebilibili.feature.dynamic
+
+import coil3.request.crossfade
+import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
@@ -29,7 +32,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
@@ -43,6 +45,8 @@ import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppRadioButton
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.feature.dynamic.components.DynamicPublishComposer
+import com.android.purebilibili.feature.dynamic.components.saveDynamicImageToGallery
+import com.android.purebilibili.feature.dynamic.components.DynamicShareToMessageDialog
 import com.android.purebilibili.feature.dynamic.components.DynamicAdaptiveSegmentedControl
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -63,9 +67,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.imageLoader
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.imageLoader
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -138,6 +142,12 @@ fun DynamicScreen(
     onUserClick: (Long) -> Unit = {},
     onTopicClick: (Long) -> Unit = {},
     onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
+    onMusicClick: ((Long) -> Unit)? = null,
+    onCollectionClick: ((Long, Long, String, String) -> Unit)? = null,
+    onCourseClick: ((String, String) -> Unit)? = null,
+    onSaveDynamicClick: ((com.android.purebilibili.data.model.response.DynamicItem) -> Unit)? = null,
+    onShareToMessageClick: ((com.android.purebilibili.data.model.response.DynamicItem) -> Unit)? = null,
+    onCheckDynamicClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onLoginClick: () -> Unit = {},
     onHomeClick: () -> Unit = {},
@@ -170,6 +180,23 @@ fun DynamicScreen(
     val horizontalUserListState = rememberLazyListState()
     val dynamicScrollChannel = LocalDynamicScrollChannel.current
     val context = LocalContext.current
+    var pendingMessageShare by remember { mutableStateOf<com.android.purebilibili.data.model.response.DynamicItem?>(null) }
+    val dynamicMenuScope = rememberCoroutineScope()
+    val saveDynamicFallback: (com.android.purebilibili.data.model.response.DynamicItem) -> Unit = { item ->
+        dynamicMenuScope.launch {
+            val saved = saveDynamicImageToGallery(context, item)
+            android.widget.Toast.makeText(
+                context,
+                if (saved) "已保存动态图片" else "保存动态失败",
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    val checkDynamicFallback: (String) -> Unit = { id ->
+        viewModel.checkDynamic(id) { _, message ->
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // 侧边栏状态
     val followedUsers by viewModel.followedUsers.collectAsStateWithLifecycle()
@@ -202,11 +229,35 @@ fun DynamicScreen(
 
     //  [新增] 点赞/转发状态
     val likedDynamics by viewModel.likedDynamics.collectAsStateWithLifecycle()
+    val likeOverrides by viewModel.likeOverrides.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }  // 存储要转发的动态ID
     var showPublishDialog by remember { mutableStateOf(false) }
     var editingDynamicId by remember { mutableStateOf<String?>(null) }
-    var editingInitialText by remember { mutableStateOf("") }
+    var editingDraft by remember {
+        mutableStateOf(com.android.purebilibili.data.model.response.DynamicPublishDraft(text = ""))
+    }
     var pendingReport by remember { mutableStateOf<com.android.purebilibili.feature.dynamic.components.DynamicManageAction.Report?>(null) }
+    val manageActionCallback: (com.android.purebilibili.feature.dynamic.components.DynamicManageAction) -> Unit = { action ->
+        com.android.purebilibili.feature.dynamic.components.dispatchDynamicManageAction(
+            action = action,
+            onReport = { pendingReport = it },
+            onEdit = {
+                editingDynamicId = it.dynamicId
+                editingDraft = it.initialDraft
+                showPublishDialog = true
+            },
+            onNotInterested = {
+                viewModel.handleManageAction(it) { _, message ->
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+            onOther = {
+                viewModel.handleManageAction(it) { _, message ->
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+    }
     //  [新增] 动态 Feed 布局模式（瀑布流 / 列表）
     val dynamicFeedLayoutMode by SettingsManager.getDynamicFeedLayoutMode(context)
         .collectAsStateWithLifecycle(initialValue = SettingsManager.DynamicFeedLayoutMode.WATERFALL)
@@ -543,7 +594,13 @@ fun DynamicScreen(
         }
     }
 
-    // 监听列表滚动实现底栏自动隐藏/显示
+    // 瀑布流中首个可见 item 会在不同 lane 间切换，不能用 index 推断滚动方向。
+    // 底栏显隐还会改变 scaffold 的 bottom contentPadding，触发不等高卡片重新分配，
+    // 造成平板端上下滑动时动态位置抽搐。因此瀑布流保持底栏稳定，仅普通列表自动隐藏。
+    val shouldAutoCollapseBottomBar =
+        dynamicFeedLayoutMode != SettingsManager.DynamicFeedLayoutMode.WATERFALL
+
+    // 监听列表滚动实现底栏自动隐藏/显示（仅普通列表）
     var lastFirstVisibleItem by remember { mutableIntStateOf(0) }
     var lastScrollOffset by remember { mutableIntStateOf(0) }
 
@@ -555,13 +612,21 @@ fun DynamicScreen(
         ) {
             setBottomBarVisible(true)
             bottomBarChromeScrollOffset.value = 0f
-            lastFirstVisibleItem = 0
-            lastScrollOffset = 0
+            // 数据刷新/分页后从真实布局位置重新建立基线，避免下一帧被误判为大幅下滑。
+            activeListState?.let { listState ->
+                lastFirstVisibleItem = listState.firstVisibleItemIndex
+                lastScrollOffset = listState.firstVisibleItemScrollOffset
+            }
         }
     }
 
-    LaunchedEffect(activeListState) {
+    LaunchedEffect(activeListState, shouldAutoCollapseBottomBar) {
         val state = activeListState ?: return@LaunchedEffect
+        if (!shouldAutoCollapseBottomBar) {
+            setBottomBarVisible(true)
+            bottomBarChromeScrollOffset.value = 0f
+            return@LaunchedEffect
+        }
         snapshotFlow {
             Pair(state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
         }
@@ -771,6 +836,13 @@ fun DynamicScreen(
                                         onUserClick = onUserClick,
                                         onTopicClick = onTopicClick,
                                         onLiveClick = onLiveClick,
+                                        onMusicClick = onMusicClick,
+                                        onCollectionClick = onCollectionClick,
+                                        onCourseClick = onCourseClick,
+                                        onSaveDynamicClick = onSaveDynamicClick ?: saveDynamicFallback,
+                                        onShareToMessageClick = onShareToMessageClick ?: { pendingMessageShare = it },
+                                        onCheckDynamicClick = onCheckDynamicClick ?: checkDynamicFallback,
+                                        onReserveClick = viewModel::toggleDynamicReserve,
                                         onLoginClick = onLoginClick,
                                         gifImageLoader = gifImageLoader,
                                         onCommentClick = onDynamicDetailClick,
@@ -790,22 +862,9 @@ fun DynamicScreen(
                                                 android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        onManageAction = { action ->
-                                            when (action) {
-                                                is com.android.purebilibili.feature.dynamic.components.DynamicManageAction.Report -> {
-                                                    pendingReport = action
-                                                }
-                                                is com.android.purebilibili.feature.dynamic.components.DynamicManageAction.Edit -> {
-                                                    editingDynamicId = action.dynamicId
-                                                    editingInitialText = action.initialText
-                                                    showPublishDialog = true
-                                                }
-                                                else -> viewModel.handleManageAction(action) { _, msg ->
-                                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        },
+                                        onManageAction = manageActionCallback,
                                         likedDynamics = likedDynamics,
+                                        likeOverrides = likeOverrides,
                                         feedLayoutMode = dynamicFeedLayoutMode,
                                         modifier = Modifier
                                     )
@@ -958,6 +1017,13 @@ fun DynamicScreen(
                                     onUserClick = onUserClick,
                                     onTopicClick = onTopicClick,
                                     onLiveClick = onLiveClick,
+                                    onMusicClick = onMusicClick,
+                                    onCollectionClick = onCollectionClick,
+                                    onCourseClick = onCourseClick,
+                                    onSaveDynamicClick = onSaveDynamicClick ?: saveDynamicFallback,
+                                    onShareToMessageClick = onShareToMessageClick ?: { pendingMessageShare = it },
+                                    onCheckDynamicClick = onCheckDynamicClick ?: checkDynamicFallback,
+                                    onReserveClick = viewModel::toggleDynamicReserve,
                                     onLoginClick = onLoginClick,
                                     gifImageLoader = gifImageLoader,
                                     onCommentClick = onDynamicDetailClick,
@@ -977,25 +1043,12 @@ fun DynamicScreen(
                                             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    onManageAction = { action ->
-                                        when (action) {
-                                            is com.android.purebilibili.feature.dynamic.components.DynamicManageAction.Report -> {
-                                                pendingReport = action
-                                            }
-                                            is com.android.purebilibili.feature.dynamic.components.DynamicManageAction.Edit -> {
-                                                editingDynamicId = action.dynamicId
-                                                editingInitialText = action.initialText
-                                                showPublishDialog = true
-                                            }
-                                            else -> viewModel.handleManageAction(action) { _, msg ->
-                                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
+                                    onManageAction = manageActionCallback,
                                     onLoadReplyInteractionStatus = { oid, type, onLoaded ->
                                         viewModel.loadReplyInteractionStatus(oid, type, onLoaded)
                                     },
                                     likedDynamics = likedDynamics,
+                                    likeOverrides = likeOverrides,
                                     feedLayoutMode = dynamicFeedLayoutMode,
                                     modifier = Modifier
                                 )
@@ -1130,14 +1183,14 @@ fun DynamicScreen(
         var submitting by remember { mutableStateOf(false) }
         var publishError by remember { mutableStateOf<String?>(null) }
         DynamicPublishComposer(
-            initialText = editingInitialText,
+            initialDraft = editingDraft,
             isEditing = isEditing,
             submitting = submitting,
             errorMessage = publishError,
             onDismiss = {
                 showPublishDialog = false
                 editingDynamicId = null
-                editingInitialText = ""
+                editingDraft = com.android.purebilibili.data.model.response.DynamicPublishDraft(text = "")
             },
             onSubmit = { draft ->
                 val editId = editingDynamicId
@@ -1149,19 +1202,19 @@ fun DynamicScreen(
                         submitting = false
                         if (success) {
                             showPublishDialog = false
-                            editingInitialText = ""
+                            editingDraft = com.android.purebilibili.data.model.response.DynamicPublishDraft(text = "")
                         } else {
                             publishError = msg
                         }
                     }
                 } else {
-                    viewModel.editDynamic(editId, draft.text) { success, msg ->
+                    viewModel.editDynamic(context, editId, draft) { success, msg ->
                         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                         submitting = false
                         if (success) {
                             showPublishDialog = false
                             editingDynamicId = null
-                            editingInitialText = ""
+                            editingDraft = com.android.purebilibili.data.model.response.DynamicPublishDraft(text = "")
                         } else {
                             publishError = msg
                         }
@@ -1225,6 +1278,16 @@ fun DynamicScreen(
             }
         )
     }
+
+    pendingMessageShare?.let { shareItem ->
+        DynamicShareToMessageDialog(
+            item = shareItem,
+            onDismiss = { pendingMessageShare = null },
+            onResult = { _, message ->
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
 }
 
 /**
@@ -1256,6 +1319,16 @@ private fun DynamicList(
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
+    onMusicClick: ((Long) -> Unit)?,
+    onCollectionClick: ((Long, Long, String, String) -> Unit)?,
+    onCourseClick: ((String, String) -> Unit)?,
+    onSaveDynamicClick: ((com.android.purebilibili.data.model.response.DynamicItem) -> Unit)?,
+    onShareToMessageClick: ((com.android.purebilibili.data.model.response.DynamicItem) -> Unit)?,
+    onCheckDynamicClick: ((String) -> Unit)?,
+    onReserveClick: (
+        com.android.purebilibili.feature.dynamic.components.DynamicReserveAction,
+        (Result<com.android.purebilibili.feature.dynamic.components.DynamicReserveResult>) -> Unit,
+    ) -> Unit,
     onLoginClick: () -> Unit,
     gifImageLoader: ImageLoader,
     //  [新增] 动态操作回调
@@ -1267,6 +1340,7 @@ private fun DynamicList(
     onManageAction: (com.android.purebilibili.feature.dynamic.components.DynamicManageAction) -> Unit = {},
     onLoadReplyInteractionStatus: ((oid: Long, type: Int, onLoaded: (com.android.purebilibili.data.model.response.ReplyInteractionData?) -> Unit) -> Unit)? = null,
     likedDynamics: Set<String> = emptySet(),
+    likeOverrides: Map<String, Boolean> = emptyMap(),
     feedLayoutMode: SettingsManager.DynamicFeedLayoutMode = SettingsManager.DynamicFeedLayoutMode.WATERFALL,
     modifier: Modifier = Modifier
 ) {
@@ -1280,6 +1354,13 @@ private fun DynamicList(
             onUserClick = onUserClick,
             onTopicClick = onTopicClick,
             onLiveClick = onLiveClick,
+            onMusicClick = onMusicClick,
+            onCollectionClick = onCollectionClick,
+            onCourseClick = onCourseClick,
+            onSaveDynamicClick = { onSaveDynamicClick?.invoke(item) },
+            onShareToMessageClick = { onShareToMessageClick?.invoke(item) },
+            onCheckDynamicClick = { onCheckDynamicClick?.invoke(item.id_str) },
+            onReserveClick = onReserveClick,
             gifImageLoader = gifImageLoader,
             onCommentClick = onCommentClick,
             onRepostClick = onRepostClick,
@@ -1288,7 +1369,8 @@ private fun DynamicList(
             onDeleteClick = onDeleteClick,
             onManageAction = onManageAction,
             onLoadReplyInteractionStatus = onLoadReplyInteractionStatus,
-            isLiked = likedDynamics.contains(item.id_str)
+            isLiked = likedDynamics.contains(item.id_str),
+            likeOverride = likeOverrides[item.id_str],
         )
     }
     val showSkeleton = filteredItems.isEmpty() && activeLoading
@@ -1298,7 +1380,7 @@ private fun DynamicList(
         0f
     }
 
-    LazyVerticalStaggeredGrid(
+    FeedVerticalStaggeredGrid(
         columns = if (feedLayoutMode == SettingsManager.DynamicFeedLayoutMode.LIST) {
             //  [新增] 列表模式：单列居中（对齐 BiliPai dynamicsWaterfallFlow 的列表布局）
             StaggeredGridCells.Fixed(1)
@@ -1665,7 +1747,7 @@ private fun HorizontalUserList(
                                 contentAlignment = Alignment.Center
                             ) {
                                 AsyncImage(
-                                    model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    model = coil3.request.ImageRequest.Builder(LocalContext.current)
                                         .data(user.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
                                         .crossfade(true)
                                         .build(),

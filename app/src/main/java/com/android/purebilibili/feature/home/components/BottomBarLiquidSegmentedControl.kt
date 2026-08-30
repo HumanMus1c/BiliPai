@@ -68,6 +68,7 @@ import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import com.android.purebilibili.core.ui.animation.DampedDragAnimationState
 import com.android.purebilibili.core.ui.animation.DampedDragTrackingMode
@@ -421,11 +422,15 @@ fun BottomBarLiquidSegmentedControl(
     val visualPolicy = rememberAppSemanticVisualPolicy()
     val homeSettings by SettingsManager
         .getHomeSettings(context)
+        .map { it as HomeSettings? }
         .collectAsStateWithLifecycle(
-            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = true),
+            // Do not render a provisional chrome: either choice would visibly switch when
+            // DataStore emits the persisted setting.
+            initialValue = null,
             context = kotlin.coroutines.EmptyCoroutineContext
         )
-    if (!homeSettings.androidNativeLiquidGlassEnabled) {
+    val resolvedHomeSettings = homeSettings ?: return
+    if (!resolvedHomeSettings.androidNativeLiquidGlassEnabled) {
         val nativeOptions = remember(items) {
             items.mapIndexed { index, label -> AppSegmentOption(index, label) }
         }
@@ -446,7 +451,7 @@ fun BottomBarLiquidSegmentedControl(
     val chromeStyle = resolveSegmentedControlChromeStyle(
         uiStyle = LocalAppUiStyle.current,
         prefersNativeChrome = visualPolicy.prefersNativeChrome,
-        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        androidNativeLiquidGlassEnabled = resolvedHomeSettings.androidNativeLiquidGlassEnabled,
         preferInlineContentStyle = preferInlineContentStyle
     )
     if (chromeStyle == SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE) {

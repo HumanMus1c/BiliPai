@@ -574,7 +574,6 @@ fun LazyListScope.dynamicInlineCommentItems(
                 onToggleTopClick = { onToggleTop(reply) },
                 onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
                 onImagePreview = onImagePreview,
-                modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
             )
         }
     }

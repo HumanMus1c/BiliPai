@@ -11,6 +11,7 @@ import com.android.purebilibili.data.model.response.SearchTopicItem
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.model.response.SearchUpItem
 import com.android.purebilibili.data.model.response.LiveRoomSearchItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -86,12 +87,14 @@ object SearchRepository {
                 "search_type" to "video",
                 "order" to order.value,
                 "duration" to duration.value.toString(),
-                "tids" to tids.toString(),
                 "page" to page.toString(),
                 "page_size" to "20",
                 "platform" to "pc",
                 "web_location" to "1430654"
             )
+            if (tids != 0) {
+                params["tids"] = tids.toString()
+            }
             if (pubBegin != null) {
                 params["pubtime_begin_s"] = pubBegin.toString()
             }
@@ -108,29 +111,19 @@ object SearchRepository {
 
             val response = api.search(signedParams)
             if (response.code != 0) {
-                com.android.purebilibili.core.util.Logger.w(
-                    "SearchRepo",
-                    "search(video) primary api failed: code=${response.code}, msg=${response.message}, fallback=all/v2"
-                )
-                return@withContext searchVideoFallback(keyword = keyword, page = page)
+                return@withContext Result.failure(createSearchError(response.code, response.message))
             }
-            
+
             val videoList = response.data?.result
                 ?.map { it.toVideoItem() }
                 ?: emptyList()
-            if (shouldFallbackEmptyFirstPageVideoSearch(page = page, primaryResultCount = videoList.size)) {
-                com.android.purebilibili.core.util.Logger.d(
-                    "SearchRepo",
-                    " search(video) primary first page empty, fallback=all/v2"
-                )
-                return@withContext searchVideoFallback(keyword = keyword, page = page)
-            }
-            val pageInfo = createPageInfo(
+            val pageInfo = resolveVideoSearchPageInfo(
                 requestedPage = page,
                 responsePage = response.data?.page ?: page,
-                totalPages = response.data?.numPages ?: 1,
+                totalPages = response.data?.numPages ?: 0,
                 totalResults = response.data?.numResults ?: videoList.size,
-                fallbackResultCount = videoList.size
+                pageSize = response.data?.pagesize ?: 20,
+                resultCount = videoList.size
             )
             
             com.android.purebilibili.core.util.Logger.d(
@@ -139,14 +132,11 @@ object SearchRepository {
             )
 
             Result.success(Pair(videoList, pageInfo))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            e.printStackTrace()
-            com.android.purebilibili.core.util.Logger.e(
-                "SearchRepo",
-                "search(video) primary api exception, fallback=all/v2",
-                e
-            )
-            searchVideoFallback(keyword = keyword, page = page)
+            com.android.purebilibili.core.util.Logger.e("SearchRepo", "search(video) failed", e)
+            Result.failure(e)
         }
     }
 
@@ -676,6 +666,8 @@ object SearchRepository {
                 )
                 params
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             com.android.purebilibili.core.util.Logger.e(
                 "SearchRepo",
@@ -683,53 +675,6 @@ object SearchRepository {
                 e
             )
             params
-        }
-    }
-
-    private suspend fun searchVideoFallback(
-        keyword: String,
-        page: Int
-    ): Result<Pair<List<VideoItem>, SearchPageInfo>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = api.searchAll(
-                    signWithWbi(
-                        mapOf(
-                        "keyword" to keyword,
-                        "page" to page.toString(),
-                        "page_size" to "20",
-                        "platform" to "pc",
-                        "web_location" to "1430654"
-                        )
-                    )
-                )
-                if (response.code != 0) {
-                    return@withContext Result.failure(createSearchError(response.code, response.message))
-                }
-
-                val videos = response.data?.result
-                    ?.firstOrNull { it.result_type == "video" }
-                    ?.data
-                    ?.map { it.toVideoItem() }
-                    ?: emptyList()
-
-                val pageInfo = SearchPageInfo(
-                    currentPage = page,
-                    totalPages = response.data?.numPages?.takeIf { it > 0 } ?: if (videos.size >= 20) page + 1 else page,
-                    totalResults = response.data?.numResults?.takeIf { it > 0 } ?: videos.size,
-                    hasMore = response.data?.numPages?.let { page < it } ?: (videos.size >= 20)
-                )
-
-                com.android.purebilibili.core.util.Logger.d(
-                    "SearchRepo",
-                    "search(video) fallback result: size=${videos.size}, page=${pageInfo.currentPage}, hasMore=${pageInfo.hasMore}"
-                )
-
-                Result.success(Pair(videos, pageInfo))
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Result.failure(e)
-            }
         }
     }
 

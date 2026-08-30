@@ -13,6 +13,7 @@ import com.android.purebilibili.data.model.response.SeriesMeta
 import com.android.purebilibili.data.model.response.SpaceAggregateCard
 import com.android.purebilibili.data.model.response.SpaceAggregateData
 import com.android.purebilibili.data.model.response.SpaceAggregateImages
+import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceTopArcData
 import com.android.purebilibili.data.model.response.SpaceUserInfo
 import com.android.purebilibili.data.model.response.SpaceVideoItem
@@ -24,6 +25,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SpaceLoadPolicyTest {
+
+    @Test
+    fun `aggregate lazy keys stay unique when api omits archive ids`() {
+        val emptyIdentityItem = SpaceAggregateArchiveItem()
+
+        val firstKey = resolveSpaceAggregateLazyItemKey("coin", 0, emptyIdentityItem)
+        val secondKey = resolveSpaceAggregateLazyItemKey("coin", 1, emptyIdentityItem)
+
+        assertEquals("coin_0__0", firstKey)
+        assertEquals("coin_0__1", secondKey)
+        assertTrue(firstKey != secondKey)
+    }
 
     @Test
     fun `oldest publish sort keeps pubdate api key but exposes dedicated label`() {

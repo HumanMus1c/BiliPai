@@ -226,6 +226,7 @@ internal fun shouldAutoEnterPortraitFullscreenFromRoute(
     hasAutoEnteredPortraitFromRoute: Boolean,
     initialVerticalFromRoute: Boolean = false,
     directPortraitEntryFromRoute: Boolean = false,
+    directPortraitEntryEnabled: Boolean = false,
 ): Boolean {
     if (
         startAudioFromRoute ||
@@ -237,8 +238,9 @@ internal fun shouldAutoEnterPortraitFullscreenFromRoute(
     ) {
         return false
     }
-    // 「竖屏直达」：强制 standalone，不受内联详情拦截。
-    if (directPortraitEntryFromRoute) {
+    // Route metadata can be missing or its direction preflight can fail. Once the player
+    // knows the actual orientation, honor the setting before the inline-detail fallback.
+    if (directPortraitEntryFromRoute || directPortraitEntryEnabled) {
         return isVerticalVideo || initialVerticalFromRoute
     }
     // 手机竖视频默认官方内联详情；autoPortrait/initialVertical 只影响过渡/布局，不自动进 pager。

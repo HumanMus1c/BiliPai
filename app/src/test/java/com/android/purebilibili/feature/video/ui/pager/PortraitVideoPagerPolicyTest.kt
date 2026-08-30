@@ -370,6 +370,26 @@ class PortraitVideoPagerPolicyTest {
     }
 
     @Test
+    fun portraitDanmakuTopInset_keepsHiddenBarsAndCutoutSafeArea() {
+        assertEquals(
+            84,
+            resolvePortraitDanmakuTopInsetPx(
+                visibleStatusBarTopPx = 0,
+                statusBarsIgnoringVisibilityTopPx = 48,
+                displayCutoutTopPx = 84,
+            )
+        )
+        assertEquals(
+            48,
+            resolvePortraitDanmakuTopInsetPx(
+                visibleStatusBarTopPx = 48,
+                statusBarsIgnoringVisibilityTopPx = 0,
+                displayCutoutTopPx = 0,
+            )
+        )
+    }
+
+    @Test
     fun landscapeVideoViewport_isLiftedSlightlyInFitMode() {
         assertEquals(
             -48,

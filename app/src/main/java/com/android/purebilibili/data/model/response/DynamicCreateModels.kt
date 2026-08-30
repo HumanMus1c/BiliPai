@@ -10,6 +10,12 @@ data class DynamicCreateFeedRequest(
 )
 
 @Serializable
+data class DynamicEditFeedRequest(
+    val dyn_req: DynamicCreateFeedReq,
+    val dyn_id_str: String,
+)
+
+@Serializable
 data class DynamicCreateFeedReq(
     val content: DynamicCreateFeedContent,
     val scene: Int,
@@ -131,6 +137,7 @@ data class DynamicPublishDraft(
     val mentions: List<DynamicPublishMention> = emptyList(),
     val emotes: List<String> = emptyList(),
     val topic: DynamicPublishTopic? = null,
+    val existingImages: List<DynamicCreatePic> = emptyList(),
 )
 
 data class DynamicPublishMention(val uid: Long, val name: String)

@@ -128,6 +128,9 @@ class SpaceViewModel(
     private val _uiState = MutableStateFlow<SpaceUiState>(SpaceUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    // Prevent duplicate relation requests while the previous click is still settling.
+    private var followToggleInFlight = false
+
     private val _selectedMainTab = MutableStateFlow(
         savedStateHandle.get<Int>(KEY_SELECTED_MAIN_TAB) ?: 2
     )
@@ -232,6 +235,7 @@ class SpaceViewModel(
                     loadSpaceWatchHistory(mid = mid, requestGeneration = requestGeneration)
                     loadSpaceSupplemental(mid = mid, requestGeneration = requestGeneration)
                     loadSpaceHeaderMetrics(mid = mid, requestGeneration = requestGeneration)
+                    loadSpaceFollowStatus(mid = mid, requestGeneration = requestGeneration)
                     val keys = keysDeferred.await()
                     if (shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration) && keys != null) {
                         cachedImgKey = keys.first
@@ -285,6 +289,9 @@ class SpaceViewModel(
         userCardTopPhoto: Pair<String, String>
     ): Boolean = coroutineScope {
         val infoDeferred = async { fetchSpaceInfo(mid, cachedImgKey, cachedSubKey) }
+        // The space info endpoint is not consistent about including `is_followed`.
+        // Use the relation endpoint as the authoritative initial value when available.
+        val followStatusDeferred = async { ActionRepository.checkFollowStatus(mid) }
         val relationDeferred = async { fetchRelationStat(mid) }
         val upStatDeferred = async { fetchUpStat(mid) }
         val videosDeferred = async {
@@ -299,6 +306,7 @@ class SpaceViewModel(
         }
 
         val userInfoRaw = infoDeferred.await() ?: return@coroutineScope false
+        val followStatus = followStatusDeferred.await()
         val relationStat = relationDeferred.await()
         val upStat = upStatDeferred.await()
         val videosResult = videosDeferred.await()
@@ -311,7 +319,10 @@ class SpaceViewModel(
             cardLargePhoto = userCardTopPhoto.first,
             cardSmallPhoto = userCardTopPhoto.second
         )
-        val userInfo = userInfoRaw.copy(topPhoto = resolvedTopPhoto)
+        val userInfo = userInfoRaw.copy(
+            topPhoto = resolvedTopPhoto,
+            isFollowed = followStatus,
+        )
         currentPage = videosResult?.resolvedPage ?: 1
         val videoData = videosResult?.data
         val videos = videoData?.list?.vlist ?: emptyList()
@@ -374,6 +385,21 @@ class SpaceViewModel(
             } catch (e: Exception) {
                 android.util.Log.e("SpaceVM", "loadSpaceHeaderMetrics error: ${e.message}", e)
             }
+        }
+    }
+
+    private fun loadSpaceFollowStatus(mid: Long, requestGeneration: Long) {
+        viewModelScope.launch {
+            val isFollowed = ActionRepository.checkFollowStatus(mid)
+            if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
+                return@launch
+            }
+            val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
+            val userInfo = currentState.userInfo.copy(isFollowed = isFollowed)
+            _uiState.value = currentState.copy(
+                userInfo = userInfo,
+                headerState = currentState.headerState.copy(userInfo = userInfo),
+            )
         }
     }
 
@@ -1878,9 +1904,11 @@ class SpaceViewModel(
     
     fun toggleFollow() {
         val current = _uiState.value as? SpaceUiState.Success ?: return
+        if (followToggleInFlight) return
         val isFollowing = current.userInfo.isFollowed
         val mid = current.userInfo.mid
-        
+
+        followToggleInFlight = true
         viewModelScope.launch {
             // 1. 乐观更新 UI
             val newUserInfo = current.userInfo.copy(isFollowed = !isFollowing)
@@ -1931,6 +1959,8 @@ class SpaceViewModel(
                     userInfo = current.userInfo,
                     headerState = current.headerState.copy(userInfo = current.userInfo)
                 ) // Revert
+            } finally {
+                followToggleInFlight = false
             }
         }
     }

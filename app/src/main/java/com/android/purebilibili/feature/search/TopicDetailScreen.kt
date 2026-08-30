@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.search
 
+import coil3.request.crossfade
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,9 +45,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -91,6 +93,9 @@ fun TopicDetailScreen(
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
+    onMusicClick: (Long) -> Unit = {},
+    onCollectionClick: (Long, Long, String, String) -> Unit = { _, _, _, _ -> },
+    onCourseClick: (String, String) -> Unit = { _, _ -> },
     onArticleClick: (Long, String) -> Unit,
     onDynamicDetailClick: (String) -> Unit
 ) {
@@ -202,6 +207,9 @@ fun TopicDetailScreen(
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
                                 onLiveClick = onLiveClick,
+                                onMusicClick = onMusicClick,
+                                onCollectionClick = onCollectionClick,
+                                onCourseClick = onCourseClick,
                                 onArticleClick = onArticleClick,
                                 onDynamicDetailClick = onDynamicDetailClick,
                                 onCommentClick = onDynamicDetailClick,
@@ -237,10 +245,12 @@ fun TopicDetailScreen(
     if (showPublishComposer) {
         val topic = state.details?.topicItem
         DynamicPublishComposer(
-            initialText = "",
-            initialTopic = topic?.takeIf { it.id > 0L }?.let {
-                DynamicPublishTopic(id = it.id, name = it.name)
-            },
+            initialDraft = com.android.purebilibili.data.model.response.DynamicPublishDraft(
+                text = "",
+                topic = topic?.takeIf { it.id > 0L }?.let {
+                    DynamicPublishTopic(id = it.id, name = it.name)
+                },
+            ),
             isEditing = false,
             submitting = state.isPublishing,
             errorMessage = state.publishError,

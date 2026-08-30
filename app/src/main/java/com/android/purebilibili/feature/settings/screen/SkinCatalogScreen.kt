@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.settings.screen
 
+import coil3.request.crossfade
+
 import com.android.purebilibili.core.plugin.skin.SkinCatalog
 import com.android.purebilibili.core.plugin.skin.SkinCatalogEntry
 import com.android.purebilibili.core.plugin.skin.SkinCatalogLoader
@@ -48,8 +50,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon

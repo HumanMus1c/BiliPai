@@ -243,6 +243,14 @@ internal fun resolveSpaceArchiveSharedTransitionKey(bvid: String): String? {
     return bvid.trim().takeIf { it.isNotEmpty() }
 }
 
+internal fun resolveSpaceAggregateLazyItemKey(
+    section: String,
+    index: Int,
+    item: SpaceAggregateArchiveItem,
+): String {
+    return "${section}_${item.aid}_${item.bvid}_$index"
+}
+
 internal fun resolveInitialSpaceVideoPage(
     order: VideoSortOrder,
     totalCount: Int,

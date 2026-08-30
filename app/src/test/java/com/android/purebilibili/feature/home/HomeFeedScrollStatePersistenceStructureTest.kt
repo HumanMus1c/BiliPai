@@ -27,7 +27,7 @@ class HomeFeedScrollStatePersistenceStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt"
         )
 
-        assertTrue(pageSource.contains("LazyVerticalStaggeredGrid("))
+        assertTrue(pageSource.contains("FeedVerticalStaggeredGrid("))
         assertTrue(pageSource.contains("StaggeredGridCells.Fixed(gridColumns)"))
         assertTrue(pageSource.contains("StaggeredGridItemSpan.FullLine"))
         assertTrue(pageSource.contains("verticalItemSpacing = cardLayout.verticalItemSpacingDp.dp"))

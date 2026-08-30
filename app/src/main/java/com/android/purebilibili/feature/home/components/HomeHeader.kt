@@ -49,7 +49,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.iOSTapEffect
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -1864,11 +1864,11 @@ fun HomeHeader(
             usesImmediateReveal = usesImmediateSearchReveal
         )
     }
-    val searchContentTranslationYPx = remember(
-        searchRevealFraction,
-        searchBarHeightPx,
-        usesImmediateSearchReveal
-    ) {
+    // Search content is already constrained by the measured height above. Keep the
+    // frame-rate alpha/translation reads in the layer block so the child row is not
+    // invalidated for a draw-only change while the header follows a fast swipe.
+    val searchContentAlphaProvider = rememberUpdatedState(searchAlpha)
+    val searchContentTranslationProvider = rememberUpdatedState {
         resolveHomeTopSearchContentTranslationYPx(
             searchRevealFraction = searchRevealFraction,
             searchBarHeightPx = searchBarHeightPx,
@@ -2379,8 +2379,8 @@ fun HomeHeader(
                             .fillMaxWidth()
                             .height(currentSearchHeight)
                             .graphicsLayer {
-                                alpha = searchAlpha
-                                translationY = searchContentTranslationYPx
+                                alpha = searchContentAlphaProvider.value
+                                translationY = searchContentTranslationProvider.value()
                             }
                             .clip(androidx.compose.ui.graphics.RectangleShape)
                     ) {

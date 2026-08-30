@@ -6,7 +6,7 @@
 // Three layers:
 //   Box (caller owns width; do not force IntrinsicSize.Min or fillMaxWidth)
 //   ├─ Base Row (unselected)     // dropShadow + drawBackdrop(vibrancy+blur+lens) + shellHeight
-//   ├─ Foreground Row (active)   // alpha=0 + layerBackdrop(tabsBackdrop) + drawBackdrop + indicatorHeight
+//   ├─ Foreground Row (active)   // alpha=0 + replayed capture + drawBackdrop + indicatorHeight
 //   └─ Moving indicator Box      // combinedBackdrop + lens(depth, chromatic) + innerShadow
 //
 // BiliPai-only knobs: nullable backdrop, shellHeight / indicatorHeight parameters.
@@ -97,8 +97,7 @@ import top.yukonga.miuix.kmp.blur.highlight.BloomStroke
 import top.yukonga.miuix.kmp.blur.highlight.Highlight
 import top.yukonga.miuix.kmp.blur.highlight.LightPosition
 import top.yukonga.miuix.kmp.blur.highlight.LightSource
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
 import top.yukonga.miuix.kmp.blur.sensor.rememberDeviceTilt
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.material3.LocalContentColor as M3LocalContentColor
@@ -412,7 +411,8 @@ fun FloatingBottomBar(
             colors.containerColor
         }
 
-    val tabsBackdrop = rememberLayerBackdrop()
+    val tabsBackdropSource = rememberChromeBackdropSource()
+    val tabsBackdrop = tabsBackdropSource.backdrop
     val density = LocalDensity.current
     val shellLensDp = resolveCompactDockLensDp(shellHeight.value)
     val pressBloomDp = resolveCompactDockPressBloomDp(shellHeight.value)
@@ -864,7 +864,7 @@ fun FloatingBottomBar(
                     Modifier
                         .clearAndSetSemantics {}
                         .alpha(0f)
-                        .layerBackdrop(tabsBackdrop)
+                        .then(tabsBackdropSource.modifier)
                         .graphicsLayer {
                             translationX = panelOffset
                             clip = false

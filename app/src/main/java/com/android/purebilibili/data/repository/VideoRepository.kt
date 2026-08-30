@@ -1099,12 +1099,13 @@ object VideoRepository {
         }
     }
 
-    suspend fun isVerticalVideo(bvid: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun isVerticalVideo(bvid: String, aid: Long = 0L): Boolean = withContext(Dispatchers.IO) {
         val normalizedBvid = bvid.trim()
-        if (normalizedBvid.isEmpty()) return@withContext false
-        verticalVideoCache[normalizedBvid]?.let { return@withContext it }
+        if (normalizedBvid.isEmpty() && aid <= 0L) return@withContext false
+        val cacheKey = normalizedBvid.ifEmpty { "av$aid" }
+        verticalVideoCache[cacheKey]?.let { return@withContext it }
         try {
-            val lookup = resolveVideoInfoLookupInput(rawBvid = normalizedBvid, aid = 0L)
+            val lookup = resolveVideoInfoLookupInput(rawBvid = normalizedBvid, aid = aid)
                 ?: return@withContext false
             val viewResp = if (lookup.bvid.isNotEmpty()) {
                 api.getVideoInfo(lookup.bvid)
@@ -1112,7 +1113,7 @@ object VideoRepository {
                 api.getVideoInfoByAid(lookup.aid)
             }
             val isVertical = viewResp.data?.dimension?.isVertical == true
-            verticalVideoCache[normalizedBvid] = isVertical
+            verticalVideoCache[cacheKey] = isVertical
             isVertical
         } catch (_: Exception) {
             false

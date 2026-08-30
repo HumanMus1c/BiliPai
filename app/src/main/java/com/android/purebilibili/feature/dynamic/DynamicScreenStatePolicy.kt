@@ -12,6 +12,16 @@ internal const val DynamicHorizontalExpandedHeaderReservedHeightDp =
     DynamicTopBarReservedHeightDp + DynamicHorizontalUserListReservedHeightDp
 internal const val DynamicHeaderCollapseTriggerPx = 0
 
+internal fun normalizeDynamicNotInterestedIds(
+    ids: Iterable<String>,
+    maxSize: Int = 500,
+): Set<String> = ids
+    .map(String::trim)
+    .filter(String::isNotBlank)
+    .distinct()
+    .takeLast(maxSize.coerceAtLeast(0))
+    .toSet()
+
 internal data class DynamicPagePresentation(
     val items: List<DynamicItem>,
     val isLoading: Boolean,

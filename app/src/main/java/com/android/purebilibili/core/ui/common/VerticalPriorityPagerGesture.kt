@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -183,12 +184,17 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
             val gestureStartPage = state.currentPage
 
             var totalDrag = Offset.Zero
+            var availableHorizontalDrag = 0f
             var direction = PagerGestureDirection.UNDECIDED
             var trackedPointerId = down.id
             var horizontalLockChange: PointerInputChange? = null
 
             while (direction == PagerGestureDirection.UNDECIDED) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
+                // Observe after descendants have had a chance to consume the gesture. This
+                // allows nested horizontalScroll/LazyRow surfaces (for example the video
+                // creator-team row) to keep ownership instead of being hijacked by the
+                // surrounding content pager.
+                val event = awaitPointerEvent(PointerEventPass.Main)
                 if (latestShouldYield.value()) return@gesture
                 val change = event.changes.firstOrNull { it.id == trackedPointerId }
                     ?: event.changes.firstOrNull { it.pressed }
@@ -196,9 +202,9 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                 trackedPointerId = change.id
 
                 if (change.changedToUpIgnoreConsumed() || !change.pressed) return@gesture
-                if (change.isConsumed) return@gesture
-
-                totalDrag += change.positionChangeIgnoreConsumed()
+                val rawPositionChange = change.positionChangeIgnoreConsumed()
+                totalDrag += rawPositionChange
+                availableHorizontalDrag += change.positionChange().x
                 velocityTracker.addPosition(change.uptimeMillis, change.position)
                 direction = resolveVerticalPriorityPagerGestureDirection(
                     totalX = totalDrag.x,
@@ -207,6 +213,11 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                     horizontalLockSlopMultiplier = horizontalLockSlopMultiplier,
                 )
                 if (direction == PagerGestureDirection.HORIZONTAL) {
+                    // A nested horizontal scroller consumed the horizontal delta before this
+                    // parent pager. Leave the gesture with that child instead of switching tabs.
+                    if (abs(availableHorizontalDrag) <= viewConfiguration.touchSlop) {
+                        return@gesture
+                    }
                     horizontalLockChange = change
                 }
             }
@@ -215,7 +226,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
             horizontalLockChange?.consume()
 
             val initialHorizontalDelta = resolvePagerInitialHorizontalDelta(
-                totalX = totalDrag.x,
+                totalX = availableHorizontalDrag,
                 touchSlop = viewConfiguration.touchSlop,
             )
             val scrollDirectionMultiplier = if (reverseDirection) -1f else 1f
@@ -249,7 +260,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
             try {
                 var released = false
                 while (!released) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val event = awaitPointerEvent(PointerEventPass.Main)
                     if (latestShouldYield.value()) {
                         dragSession.cancel()
                         released = true

@@ -158,6 +158,22 @@ class PortraitMainPlayerSyncPolicyTest {
     }
 
     @Test
+    fun portraitExit_shouldReplaceDetailRoute_whenPagerMovedToAnotherVideo() {
+        assertTrue(
+            shouldReplaceVideoDetailRouteAfterPortraitExit(
+                routeBvid = "BV_FIRST",
+                portraitBvid = "BV_SECOND",
+            )
+        )
+        assertFalse(
+            shouldReplaceVideoDetailRouteAfterPortraitExit(
+                routeBvid = "BV_SECOND",
+                portraitBvid = "BV_SECOND",
+            )
+        )
+    }
+
+    @Test
     fun portraitExitRestoreTarget_prefersPendingReloadAndKeepsSnapshotCidForSameVideo() {
         assertEquals(
             PortraitExitRestoreTarget(
@@ -169,24 +185,38 @@ class PortraitMainPlayerSyncPolicyTest {
                 portraitPendingSelectionBvid = "BV_OTHER",
                 portraitSyncSnapshotBvid = "BV_TARGET",
                 portraitSyncSnapshotCid = 202L,
-                currentBvidCid = 303L
             )
         )
     }
 
     @Test
-    fun portraitExitRestoreTarget_fallsBackToSelectionAndUsesCurrentCidForNewVideo() {
+    fun portraitExitRestoreTarget_systemBackKeepsSettledPortraitVideoIdentity() {
+        assertEquals(
+            PortraitExitRestoreTarget(
+                bvid = "BV_SECOND",
+                cid = 302L
+            ),
+            resolvePortraitExitRestoreTarget(
+                pendingMainReloadBvidAfterPortrait = null,
+                portraitPendingSelectionBvid = "BV_SECOND",
+                portraitSyncSnapshotBvid = "BV_SECOND",
+                portraitSyncSnapshotCid = 302L,
+            )
+        )
+    }
+
+    @Test
+    fun portraitExitRestoreTarget_fallsBackToSelectionWithoutReusingOldDetailCid() {
         assertEquals(
             PortraitExitRestoreTarget(
                 bvid = "BV_OTHER",
-                cid = 303L
+                cid = 0L
             ),
             resolvePortraitExitRestoreTarget(
                 pendingMainReloadBvidAfterPortrait = null,
                 portraitPendingSelectionBvid = "BV_OTHER",
                 portraitSyncSnapshotBvid = "BV_TARGET",
                 portraitSyncSnapshotCid = 202L,
-                currentBvidCid = 303L
             )
         )
     }
@@ -200,7 +230,6 @@ class PortraitMainPlayerSyncPolicyTest {
                 portraitPendingSelectionBvid = null,
                 portraitSyncSnapshotBvid = null,
                 portraitSyncSnapshotCid = 202L,
-                currentBvidCid = 303L
             )
         )
     }
