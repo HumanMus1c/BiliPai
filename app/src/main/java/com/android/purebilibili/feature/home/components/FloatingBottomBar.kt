@@ -15,7 +15,6 @@ package com.android.purebilibili.feature.home.components
 import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -89,6 +88,7 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.blur
@@ -578,8 +578,10 @@ fun FloatingBottomBar(
                 if (targetIndex != selected) {
                     onSelectedLatest.value(targetIndex)
                 }
-                animationScope.launch {
-                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                // The indicator position spring already settles the gesture. Keeping a second,
+                // slower rubber-band spring here makes release visibly rebound twice.
+                animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    offsetAnimation.snapTo(0f)
                 }
             },
             onDrag = { _, dragAmount ->
@@ -643,6 +645,8 @@ fun FloatingBottomBar(
                         ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
                     )
                 ) {
+                    // Tap selection keeps the same enlarge/move/shrink process as the home dock.
+                    // The tightened scale springs keep it brief without removing the feedback.
                     dampedDragAnimation.animateToValue(index.toFloat())
                 }
             }
@@ -955,8 +959,7 @@ fun FloatingBottomBar(
                                 scaleX = dampedDragAnimation.scaleX
                                 scaleY = dampedDragAnimation.scaleY
                                 val velocity = dampedDragAnimation.velocity / 10f
-                                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                                scaleX /= 1f - (abs(velocity) * 0.75f).fastCoerceIn(0f, 0.2f)
                             },
                             onDrawSurface = {
                                 val progress = dampedDragAnimation.pressProgress

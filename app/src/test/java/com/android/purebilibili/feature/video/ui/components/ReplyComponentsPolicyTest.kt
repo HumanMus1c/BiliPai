@@ -29,6 +29,20 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReplyComponentsPolicyTest {
+    @Test
+    fun `author history action is present only when the host can navigate to a valid author`() {
+        val withoutEntry = buildReplyActionSheetActions(
+            canDelete = false, canReport = false, canShare = false, canBlockUser = false,
+        )
+        val withEntry = buildReplyActionSheetActions(
+            canDelete = false, canReport = false, canShare = false, canBlockUser = false,
+            canQueryAuthorHistory = true,
+        )
+        assertFalse(withoutEntry.contains(ReplyActionSheetAction.QUERY_AUTHOR_HISTORY))
+        assertTrue(withEntry.contains(ReplyActionSheetAction.QUERY_AUTHOR_HISTORY))
+        assertEquals(withoutEntry, withEntry.filterNot { it == ReplyActionSheetAction.QUERY_AUTHOR_HISTORY })
+    }
+
 
     @Test
     fun `sub reply preview opens its own floor while root opens thread top`() {

@@ -14,8 +14,10 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
 internal const val NavigationSelectionScale = 1.1f
-internal const val FloatingBottomBarSelectionScale = 1.3f
-internal const val FloatingBottomBarSelectionLiftDp = 8f
+// Keep the cross-scale accent inside the compact dock's capture band: a large
+// enlargement combined with an 8dp lift cropped the top of icon+text items.
+internal const val FloatingBottomBarSelectionScale = 1.1f
+internal const val FloatingBottomBarSelectionLiftDp = 2f
 internal const val NavigationSelectionWobbleDegrees = 4f
 internal const val NavigationSelectionCounterWobbleDegrees = -3f
 

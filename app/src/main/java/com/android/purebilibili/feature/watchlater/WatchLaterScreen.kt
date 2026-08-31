@@ -1,6 +1,11 @@
 // 文件路径: feature/watchlater/WatchLaterScreen.kt
 package com.android.purebilibili.feature.watchlater
 
+import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
+import com.android.purebilibili.core.ui.components.resolveVideoListColumns
+import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
+import com.android.purebilibili.core.ui.components.videoListItemModifier
+import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
@@ -647,6 +652,9 @@ fun WatchLaterScreen(
     scrollToTopChannel: Channel<Unit>? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val listLayout = rememberVideoListLayoutControl(
+        defaultSingleColumn = true,
+    )
     val context = LocalContext.current
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
@@ -738,6 +746,11 @@ fun WatchLaterScreen(
                         }
                     },
                     actions = {
+                        VideoListLayoutToggle(
+                            singleColumn = listLayout.singleColumn,
+                            onClick = listLayout.toggle,
+                            enabled = !isBatchMode,
+                        )
                         onOpenSearchDestination?.let { openSearch ->
                             AppIconButton(onClick = { openSearch(searchQuery) }) {
                                 AppIcon(Icons.Rounded.Search, contentDescription = "搜索")
@@ -975,7 +988,7 @@ fun WatchLaterScreen(
             when {
                 state.isLoading -> {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val skeletonColumns = resolveWatchLaterColumnCount(maxWidth.value)
+                        val skeletonColumns = resolveVideoListColumns(listLayout.singleColumn, maxWidth.value)
                         val skeletonBlockColor = com.android.purebilibili.core.ui.skeleton
                             .rememberContentSkeletonBlockColor(
                                 com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse()
@@ -1034,92 +1047,98 @@ fun WatchLaterScreen(
                 }
                 else -> {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(resolveWatchLaterColumnCount(maxWidth.value)),
-                        contentPadding = PaddingValues(
-                            start = AppSpacingTokens.Medium,
-                            end = AppSpacingTokens.Medium,
-                            top = padding.calculateTopPadding() + AppSpacingTokens.Small,
-                            bottom = bottomContentPadding,
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
-                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        itemsIndexed(
-                            items = displayedItems,
-                            key = { index, item ->
-                                resolveIndexedVideoLazyKey(
-                                    namespace = "watch_later_video",
-                                    index = index,
-                                    bvid = item.bvid,
-                                    id = item.id,
-                                    aid = item.aid,
-                                    cid = item.cid
-                                )
-                            }
-                        ) { index, item ->
-                            if (index == displayedItems.lastIndex && state.hasMore && !state.isLoadingMore) {
-                                LaunchedEffect(state.page, displayedItems.size) { viewModel.loadMore() }
-                            }
-                            val isDissolving = item.bvid in state.dissolvingIds
-                            val isSelected = item.bvid in selectedBvids
-
-                            MaybeDissolvableVideoCard(
-                                isDissolving = isDissolving,
-                                onDissolveComplete = { viewModel.completeVideoDissolve(item.bvid) },
-                                cardId = item.bvid,
-                                preset = DissolveAnimationPreset.TELEGRAM_FAST,
-                                modifier = Modifier.jiggleOnDissolve(
-                                    cardId = item.bvid,
-                                    isCurrentCardDissolving = isDissolving
-                                )
-                            ) {
-                                WatchLaterVideoCard(
-                                    item = item,
-                                    isBatchMode = isBatchMode,
-                                    isSelected = isSelected,
-                                    transitionEnabled = homeSettings.cardTransitionEnabled,
-                                    onDelete = { viewModel.startVideoDissolve(item.bvid) },
-                                    onLongClick = {
-                                        isBatchMode = true
-                                        selectedBvids = selectedBvids + item.bvid
-                                    },
-                                    onClick = {
-                                        if (isBatchMode) {
-                                            selectedBvids = if (item.bvid in selectedBvids) {
-                                                selectedBvids - item.bvid
-                                            } else {
-                                                selectedBvids + item.bvid
-                                            }
-                                        } else {
-                                            val externalPlaylist = buildExternalPlaylistFromWatchLater(
-                                                items = displayedItems,
-                                                clickedBvid = item.bvid
-                                            )
-                                            if (externalPlaylist != null) {
-                                                com.android.purebilibili.feature.video.player.PlaylistManager.setExternalPlaylist(
-                                                    externalPlaylist.playlistItems,
-                                                    externalPlaylist.startIndex,
-                                                    source = com.android.purebilibili.feature.video.player.ExternalPlaylistSource.WATCH_LATER
-                                                )
-                                                com.android.purebilibili.feature.video.player.PlaylistManager
-                                                    .setPlayMode(com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL)
-                                            }
-
-                                            val target = resolveWatchLaterPlaybackTargetOrDefault(
-                                                items = displayedItems,
-                                                bvid = item.bvid,
-                                                fallbackCid = item.cid
-                                            )
-                                            onVideoClick(target.bvid, target.cid, target.resumePositionMs)
-                                        }
+                        val columns = resolveVideoListColumns(
+                            listLayout.singleColumn, maxWidth.value,
+                        )
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(columns),
+                            contentPadding = PaddingValues(
+                                start = AppSpacingTokens.Medium,
+                                end = AppSpacingTokens.Medium,
+                                top = padding.calculateTopPadding() + AppSpacingTokens.Small,
+                                bottom = bottomContentPadding,
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
+                            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            itemsIndexed(
+                                items = displayedItems,
+                                key = { index, item ->
+                                    resolveIndexedVideoLazyKey(
+                                        namespace = "watch_later_video",
+                                        index = index,
+                                        bvid = item.bvid,
+                                        id = item.id,
+                                        aid = item.aid,
+                                        cid = item.cid
+                                    )
+                                }
+                            ) { index, item ->
+                                AnimatedVideoListItem(modifier = videoListItemModifier(enabled = homeSettings.cardAnimationEnabled), enabled = homeSettings.cardAnimationEnabled) {
+                                    if (index == displayedItems.lastIndex && state.hasMore && !state.isLoadingMore) {
+                                        LaunchedEffect(state.page, displayedItems.size) { viewModel.loadMore() }
                                     }
-                                )
+                                    val isDissolving = item.bvid in state.dissolvingIds
+                                    val isSelected = item.bvid in selectedBvids
+
+                                    MaybeDissolvableVideoCard(
+                                        isDissolving = isDissolving,
+                                        onDissolveComplete = { viewModel.completeVideoDissolve(item.bvid) },
+                                        cardId = item.bvid,
+                                        preset = DissolveAnimationPreset.TELEGRAM_FAST,
+                                        modifier = Modifier.jiggleOnDissolve(
+                                            cardId = item.bvid,
+                                            isCurrentCardDissolving = isDissolving
+                                        )
+                                    ) {
+                                        WatchLaterVideoCard(
+                                            item = item,
+                                            stacked = columns > 1,
+                                            isBatchMode = isBatchMode,
+                                            isSelected = isSelected,
+                                            transitionEnabled = homeSettings.cardTransitionEnabled,
+                                            onDelete = { viewModel.startVideoDissolve(item.bvid) },
+                                            onLongClick = {
+                                                isBatchMode = true
+                                                selectedBvids = selectedBvids + item.bvid
+                                            },
+                                            onClick = {
+                                                if (isBatchMode) {
+                                                    selectedBvids = if (item.bvid in selectedBvids) {
+                                                        selectedBvids - item.bvid
+                                                    } else {
+                                                        selectedBvids + item.bvid
+                                                    }
+                                                } else {
+                                                    val externalPlaylist = buildExternalPlaylistFromWatchLater(
+                                                        items = displayedItems,
+                                                        clickedBvid = item.bvid
+                                                    )
+                                                    if (externalPlaylist != null) {
+                                                        com.android.purebilibili.feature.video.player.PlaylistManager.setExternalPlaylist(
+                                                            externalPlaylist.playlistItems,
+                                                            externalPlaylist.startIndex,
+                                                            source = com.android.purebilibili.feature.video.player.ExternalPlaylistSource.WATCH_LATER
+                                                        )
+                                                        com.android.purebilibili.feature.video.player.PlaylistManager
+                                                            .setPlayMode(com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL)
+                                                    }
+
+                                                    val target = resolveWatchLaterPlaybackTargetOrDefault(
+                                                        items = displayedItems,
+                                                        bvid = item.bvid,
+                                                        fallbackCid = item.cid
+                                                    )
+                                                    onVideoClick(target.bvid, target.cid, target.resumePositionMs)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
                     }
                 }
             }
@@ -1246,6 +1265,7 @@ fun WatchLaterScreen(
 @Composable
 private fun WatchLaterVideoCard(
     item: VideoItem,
+    stacked: Boolean = false,
     isBatchMode: Boolean,
     isSelected: Boolean,
     transitionEnabled: Boolean,
@@ -1308,7 +1328,7 @@ private fun WatchLaterVideoCard(
                     screenHeight = screenHeightPx,
                     sourceCornerDp = 8,
                     coverBounds = coverBoundsRef.value,
-                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = item.title,
                         ownerName = item.owner.name.ifBlank { "未知UP主" },
@@ -1337,6 +1357,7 @@ private fun WatchLaterVideoCard(
     val cardShellShape = AppShapes.container(ContainerLevel.Card)
 
     PersonalMediaCardFrame(
+        stacked = stacked,
         coverModifier = Modifier.onGloballyPositioned { coordinates ->
             coverBoundsRef.value = coordinates.boundsInRoot()
         },

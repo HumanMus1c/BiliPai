@@ -152,6 +152,11 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data class AicuQuery(val uid: Long = 0L, val category: String = "COMMENT") : BiliPaiNavKey {
+        override val routeBase: String = "aicu"
+    }
+
+    @Serializable
     data object History : BiliPaiNavKey {
         override val routeBase: String = "history"
     }

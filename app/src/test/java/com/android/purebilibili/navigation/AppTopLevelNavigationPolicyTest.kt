@@ -12,21 +12,22 @@ import kotlin.test.assertTrue
 class AppTopLevelNavigationPolicyTest {
 
     @Test
-    fun sharedVideoDetailReleasesSidebarSpaceOnlyWhileImmersive() {
-        // Enter fullscreen, then return to the same detail/card transition host.
-        assertTrue(shouldMountSidebarForNavigation(true, true, true, false))
-        assertFalse(shouldMountSidebarForNavigation(true, true, true, true))
-        assertTrue(shouldMountSidebarForNavigation(true, true, true, false))
+    fun videoDetailNeverReservesSidebarSpace() {
+        // Ordinary playback also needs the full width, even when launched from a sidebar tab.
+        assertFalse(shouldMountSidebarForNavigation(true, true))
+        assertFalse(shouldMountSidebarForNavigation(false, true))
     }
 
     @Test
-    fun sidebarMountPreservesNonSharedAndNonVideoNavigationBehavior() {
-        assertFalse(shouldMountSidebarForNavigation(true, true, false, false))
-        assertTrue(shouldMountSidebarForNavigation(true, false, false, false))
-        // A retained fullscreen detail beneath another destination must not hide its sidebar.
-        assertTrue(shouldMountSidebarForNavigation(true, false, true, true))
-        assertFalse(shouldMountSidebarForNavigation(false, true, true, false))
-        assertFalse(shouldMountSidebarForNavigation(false, false, false, false))
+    fun returningFromVideoRestoresSidebarOnAnEligibleDestination() {
+        assertTrue(shouldMountSidebarForNavigation(true, false))
+        assertFalse(shouldMountSidebarForNavigation(true, true))
+        assertTrue(shouldMountSidebarForNavigation(true, false))
+    }
+
+    @Test
+    fun destinationsWithoutSidebarRemainWithoutSidebar() {
+        assertFalse(shouldMountSidebarForNavigation(false, false))
     }
 
     @Test

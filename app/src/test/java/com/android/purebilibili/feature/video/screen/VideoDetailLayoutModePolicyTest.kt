@@ -784,6 +784,20 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun phoneOrientationObserverPolicy_keepsCoverScreenSensorActiveWhenAppAutoRotateIsOff() {
+        assertTrue(
+            shouldObservePhoneAutoRotate(
+                autoRotateEnabled = false,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                fullscreenMode = FullscreenMode.AUTO,
+                manualPortraitHoldActive = false,
+                observeWhenAutoRotateDisabled = true,
+            )
+        )
+    }
+
+    @Test
     fun phoneOrientationObserverPolicy_doesNotListenInPictureInPicture() {
         assertFalse(
             shouldObservePhoneAutoRotate(

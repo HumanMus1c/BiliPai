@@ -518,6 +518,7 @@ fun DynamicDetailScreen(
                     state = subReplyState,
                     onDismiss = interactionViewModel::closeSubReply,
                     onLoadMore = interactionViewModel::loadMoreSubReplies,
+                    onSortModeChange = interactionViewModel::setSubReplySortMode,
                     onUserClick = onUserClick,
                     onReplyClick = { reply -> interactionViewModel.startCommentReply(reply) },
                     onCommentLike = { rpid -> interactionViewModel.likeComment(rpid) },

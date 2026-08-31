@@ -1,4 +1,9 @@
 package com.android.purebilibili.feature.list
+import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
+import com.android.purebilibili.core.ui.components.resolveVideoListColumns
+import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
+import com.android.purebilibili.core.ui.components.videoListItemModifier
+import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppAlertDialog
@@ -143,9 +148,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.VideoGridItemSkeleton
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
-import com.android.purebilibili.feature.personal.resolvePersonalListColumnCount
 import com.android.purebilibili.core.util.LocalWindowSizeClass
-import com.android.purebilibili.core.util.rememberAdaptiveGridColumns
 import com.android.purebilibili.core.util.rememberResponsiveSpacing
 import com.android.purebilibili.data.model.response.HistoryBusiness
 import com.android.purebilibili.data.model.response.HistoryItem
@@ -229,6 +232,10 @@ fun CommonListScreen(
     favoriteCollectionSharedElementRoute: FavoriteCollectionRoute? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val listLayout = rememberVideoListLayoutControl(
+        defaultSingleColumn = viewModel is HistoryViewModel || viewModel is FavoriteViewModel,
+        key = viewModel,
+    )
     val primaryGridState = rememberLazyGridState()
     val subscribedFolderListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val favoritePagerGridStates = remember { mutableStateMapOf<Int, androidx.compose.foundation.lazy.grid.LazyGridState>() }
@@ -260,20 +267,16 @@ fun CommonListScreen(
     val favoriteCollectionSharedTransitionEnabled =
         homeSettings.cardTransitionEnabled && LocalSharedTransitionEnabled.current
 
-    val minColWidth = remember(windowSizeClass.isExpandedScreen) {
-        resolveCommonListGridMinColumnWidth(windowSizeClass.isExpandedScreen)
-    }
-    val adaptiveColumns = rememberAdaptiveGridColumns(minColumnWidth = minColWidth)
-
-    // [新增] 优先使用用户设置的列数
-    val columns = if (homeSettings.gridColumnCount > 0) homeSettings.gridColumnCount else adaptiveColumns
+    // Video lists expose an explicit single/double-column choice, independent of home.
+    val columns = resolveVideoListColumns(
+        listLayout.singleColumn,
+        LocalConfiguration.current.screenWidthDp.toFloat(),
+    )
     val configuration = LocalConfiguration.current
     val commonListViewportWidthPx = with(density) {
         configuration.screenWidthDp.dp.roundToPx()
     }
-    val personalListColumns = remember(configuration.screenWidthDp) {
-        resolvePersonalListColumnCount(configuration.screenWidthDp.toFloat())
-    }
+    val personalListColumns = columns
     val spacing = rememberResponsiveSpacing()
 
     //  [修复] 分页支持：收藏 + 历史记录
@@ -1248,9 +1251,22 @@ fun CommonListScreen(
                             }
                         },
                         actions = {
-                            onOpenSearchDestination?.let { openSearch ->
-                                AppIconButton(onClick = { openSearch(searchQuery) }) {
-                                    AppIcon(Icons.Rounded.Search, contentDescription = "搜索")
+                            val isBatchActionMode = isFavoriteBatchMode || isHistoryBatchMode
+                            if (
+                                !isBatchActionMode &&
+                                !isSubscribedBrowse &&
+                                (favoriteViewModel == null || favoriteSection == FavoriteSection.VIDEO)
+                            ) {
+                                VideoListLayoutToggle(
+                                    singleColumn = listLayout.singleColumn,
+                                    onClick = listLayout.toggle,
+                                )
+                            }
+                            if (!isBatchActionMode) {
+                                onOpenSearchDestination?.let { openSearch ->
+                                    AppIconButton(onClick = { openSearch(searchQuery) }) {
+                                        AppIcon(Icons.Rounded.Search, contentDescription = "搜索")
+                                    }
                                 }
                             }
                             if (favoriteViewModel != null && favoriteSection == FavoriteSection.VIDEO) {
@@ -2437,197 +2453,202 @@ private fun CommonListContent(
                         if (item.isCollectionResource) GridItemSpan(columns) else GridItemSpan(1)
                     }
                 ) { index, video ->
-                    val historyKey = resolveHistoryItemKey(video)
-                    val historyItem = resolveHistoryItem?.invoke(video)
-                    val historyCardPresentation = remember(historyItem) {
-                        resolveHistoryCardPresentation(historyItem)
-                    }
-                    val displayedVideo = historyCardPresentation?.videoItem ?: video
-                    val supportsHistoryDissolve = onHistoryLongDelete != null && onHistoryDissolveComplete != null
-                    val isDissolving = supportsHistoryDissolve &&
-                        historyKey in resolveActiveHistoryDeleteKeys(historyDeleteSession)
-                    val shouldKeepPlaceholderHidden = supportsHistoryDissolve &&
-                        shouldKeepHistoryDeletePlaceholderHidden(historyDeleteSession, historyKey)
-                    val isSelected = historyBatchMode && historyKey in historySelectedKeys
-                    val historyDeleteAnimationMode = historyDeleteSession?.animationMode
-                        ?: HistoryDeleteAnimationMode.SINGLE_DISSOLVE
-                    val historySelectionShape = if (historyItem?.business == HistoryBusiness.ARTICLE) {
-                        AppShapes.container(ContainerLevel.Sheet)
-                    } else {
-                        AppShapes.container(ContainerLevel.Card)
-                    }
+                    AnimatedVideoListItem(modifier = videoListItemModifier(enabled = cardAnimationEnabled), enabled = cardAnimationEnabled) {
+                        val historyKey = resolveHistoryItemKey(video)
+                        val historyItem = resolveHistoryItem?.invoke(video)
+                        val historyCardPresentation = remember(historyItem) {
+                            resolveHistoryCardPresentation(historyItem)
+                        }
+                        val displayedVideo = historyCardPresentation?.videoItem ?: video
+                        val supportsHistoryDissolve = onHistoryLongDelete != null && onHistoryDissolveComplete != null
+                        val isDissolving = supportsHistoryDissolve &&
+                            historyKey in resolveActiveHistoryDeleteKeys(historyDeleteSession)
+                        val shouldKeepPlaceholderHidden = supportsHistoryDissolve &&
+                            shouldKeepHistoryDeletePlaceholderHidden(historyDeleteSession, historyKey)
+                        val isSelected = historyBatchMode && historyKey in historySelectedKeys
+                        val historyDeleteAnimationMode = historyDeleteSession?.animationMode
+                            ?: HistoryDeleteAnimationMode.SINGLE_DISSOLVE
+                        val historySelectionShape = if (historyItem?.business == HistoryBusiness.ARTICLE) {
+                            AppShapes.container(ContainerLevel.Sheet)
+                        } else {
+                            AppShapes.container(ContainerLevel.Card)
+                        }
 
-                    val cardContent: @Composable () -> Unit = {
-                        Box {
-                            if (video.isCollectionResource) {
-                                FavoriteCollectionRow(
-                                    item = video,
-                                    onClick = {
-                                        resolveFavoriteCollectionRoute(video)?.let { route ->
-                                            onCollectionClick?.invoke(route)
-                                        }
-                                    }
-                                )
-                            } else if (historyItem != null) {
-                                HistoryPersonalCard(
-                                    item = historyItem,
-                                    selected = isSelected,
-                                    batchMode = historyBatchMode,
-                                    transitionEnabled = cardTransitionEnabled,
-                                    onClick = {
-                                        if (historyBatchMode) {
-                                            onHistoryToggleSelect?.invoke(historyKey)
-                                        } else {
-                                            resolveCommonListVideoNavigationRequest(
-                                                video = video,
-                                                fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
-                                            )?.let { request ->
-                                                onVideoClick(
-                                                    request.lookupKey,
-                                                    request.cid,
-                                                    request.coverUrl,
-                                                    request.isVertical
-                                                )
+                        val cardContent: @Composable () -> Unit = {
+                            Box {
+                                if (video.isCollectionResource) {
+                                    FavoriteCollectionRow(
+                                        item = video,
+                                        onClick = {
+                                            resolveFavoriteCollectionRoute(video)?.let { route ->
+                                                onCollectionClick?.invoke(route)
                                             }
                                         }
-                                    },
-                                    onLongClick = { onHistoryLongDelete?.invoke(historyKey) },
-                                    onUpClick = historyItem.videoItem.owner.mid
-                                        .takeIf { it > 0L }
-                                        ?.let { mid -> { onUpClick?.invoke(mid) } },
-                                    onAddToWatchLater = historyItem
-                                        .takeIf(::canAddHistoryToWatchLater)
-                                        ?.let { eligible -> { onHistoryAddToWatchLater?.invoke(eligible) } },
-                                    onDelete = { onHistoryDelete?.invoke(historyKey) },
-                                )
-                            } else if (isFavoritePersonalList) {
-                                FavoritePersonalCard(
-                                    item = video,
-                                    transitionEnabled = cardTransitionEnabled,
-                                    batchMode = favoriteBatchMode,
-                                    selected = video.id in favoriteSelectedResourceIds,
-                                    canRemove = onUnfavorite != null,
-                                    onClick = {
-                                        if (favoriteBatchMode) {
-                                            onFavoriteToggleSelect?.invoke(video.id)
-                                        } else {
-                                            resolveCommonListVideoNavigationRequest(
-                                                video = video,
-                                                fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
-                                            )?.let { request ->
-                                                onVideoClick(
-                                                    request.lookupKey,
-                                                    request.cid,
-                                                    request.coverUrl,
-                                                    request.isVertical
-                                                )
+                                    )
+                                } else if (historyItem != null) {
+                                    HistoryPersonalCard(
+                                        item = historyItem,
+                                        stacked = columns > 1,
+                                        selected = isSelected,
+                                        batchMode = historyBatchMode,
+                                        transitionEnabled = cardTransitionEnabled,
+                                        onClick = {
+                                            if (historyBatchMode) {
+                                                onHistoryToggleSelect?.invoke(historyKey)
+                                            } else {
+                                                resolveCommonListVideoNavigationRequest(
+                                                    video = video,
+                                                    fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
+                                                )?.let { request ->
+                                                    onVideoClick(
+                                                        request.lookupKey,
+                                                        request.cid,
+                                                        request.coverUrl,
+                                                        request.isVertical
+                                                    )
+                                                }
                                             }
-                                        }
-                                    },
-                                    onLongClick = { onFavoriteLongPress?.invoke(video.id) },
-                                    onRemove = onUnfavorite?.let { remove ->
-                                        { remove(video) }
-                                    },
-                                )
-                            } else {
-                                ElegantVideoCard(
-                                    video = displayedVideo,
-                                    index = index,
-                                    animationEnabled = cardAnimationEnabled,
-                                    motionTier = cardMotionTier,
-                                    transitionEnabled = cardTransitionEnabled,
-                                    glassEnabled = videoCardAppearance.glassEnabled,
-                                    blurEnabled = videoCardAppearance.blurEnabled,
-                                    showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
-                                    showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
-                                    showUpBadge = historyCardPresentation?.showUpBadge,
-                                    coverAspectRatio = cardLayout.coverAspectRatio,
-                                    compactMetadata = cardLayout.compactMetadata,
-                                    homeDurationStyle = homeDurationStyle,
-                                    showOnlineCount = showOnlineCount,
-                                    onClick = { _, _ ->
-                                        if (historyBatchMode) {
-                                            onHistoryToggleSelect?.invoke(historyKey)
-                                        } else {
-                                            resolveCommonListVideoNavigationRequest(
-                                                video = video,
-                                                fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
-                                            )?.let { request ->
-                                                onVideoClick(
-                                                    request.lookupKey,
-                                                    request.cid,
-                                                    request.coverUrl,
-                                                    request.isVertical
-                                                )
+                                        },
+                                        onLongClick = { onHistoryLongDelete?.invoke(historyKey) },
+                                        onUpClick = historyItem.videoItem.owner.mid
+                                            .takeIf { it > 0L }
+                                            ?.let { mid -> { onUpClick?.invoke(mid) } },
+                                        onAddToWatchLater = historyItem
+                                            .takeIf(::canAddHistoryToWatchLater)
+                                            ?.let { eligible -> { onHistoryAddToWatchLater?.invoke(eligible) } },
+                                        onDelete = { onHistoryDelete?.invoke(historyKey) },
+                                    )
+                                } else if (isFavoritePersonalList) {
+                                    FavoritePersonalCard(
+                                        item = video,
+                                        stacked = columns > 1,
+                                        transitionEnabled = cardTransitionEnabled,
+                                        batchMode = favoriteBatchMode,
+                                        selected = video.id in favoriteSelectedResourceIds,
+                                        canRemove = onUnfavorite != null,
+                                        onClick = {
+                                            if (favoriteBatchMode) {
+                                                onFavoriteToggleSelect?.invoke(video.id)
+                                            } else {
+                                                resolveCommonListVideoNavigationRequest(
+                                                    video = video,
+                                                    fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
+                                                )?.let { request ->
+                                                    onVideoClick(
+                                                        request.lookupKey,
+                                                        request.cid,
+                                                        request.coverUrl,
+                                                        request.isVertical
+                                                    )
+                                                }
                                             }
-                                        }
-                                    },
-                                    onUnfavorite = if (onUnfavorite != null) { { onUnfavorite(video) } } else null,
-                                    onUpClick = onUpClick,
-                                    onLongClick = if (!historyBatchMode && supportsHistoryDissolve) {
-                                        { onHistoryLongDelete(historyKey) }
-                                    } else null
-                                )
-                            }
+                                        },
+                                        onLongClick = { onFavoriteLongPress?.invoke(video.id) },
+                                        onRemove = onUnfavorite?.let { remove ->
+                                            { remove(video) }
+                                        },
+                                    )
+                                } else {
+                                    ElegantVideoCard(
+                                        video = displayedVideo,
+                                        singleColumn = columns == 1,
+                                        index = index,
+                                        animationEnabled = false, // The stable item wrapper owns column-switch motion.
+                                        motionTier = cardMotionTier,
+                                        transitionEnabled = cardTransitionEnabled,
+                                        glassEnabled = videoCardAppearance.glassEnabled,
+                                        blurEnabled = videoCardAppearance.blurEnabled,
+                                        showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
+                                        showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
+                                        showUpBadge = historyCardPresentation?.showUpBadge,
+                                        coverAspectRatio = cardLayout.coverAspectRatio,
+                                        compactMetadata = cardLayout.compactMetadata,
+                                        homeDurationStyle = homeDurationStyle,
+                                        showOnlineCount = showOnlineCount,
+                                        onClick = { _, _ ->
+                                            if (historyBatchMode) {
+                                                onHistoryToggleSelect?.invoke(historyKey)
+                                            } else {
+                                                resolveCommonListVideoNavigationRequest(
+                                                    video = video,
+                                                    fallbackLookupKey = resolveHistoryLookupKey?.invoke(video)
+                                                )?.let { request ->
+                                                    onVideoClick(
+                                                        request.lookupKey,
+                                                        request.cid,
+                                                        request.coverUrl,
+                                                        request.isVertical
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onUnfavorite = if (onUnfavorite != null) { { onUnfavorite(video) } } else null,
+                                        onUpClick = onUpClick,
+                                        onLongClick = if (!historyBatchMode && supportsHistoryDissolve) {
+                                            { onHistoryLongDelete(historyKey) }
+                                        } else null
+                                    )
+                                }
 
-                            if (historyBatchMode && historyItem == null) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .border(
-                                            width = if (isSelected) AppSpacingTokens.Micro else AppSpacingTokens.Micro / 2,
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
-                                            },
-                                            shape = historySelectionShape
-                                        )
-                                        .background(
-                                            if (isSelected) {
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-                                            } else {
-                                                Color.Transparent
-                                            },
-                                            shape = historySelectionShape
-                                        )
-                                )
-                                AppIcon(
-                                    imageVector = if (isSelected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                    contentDescription = if (isSelected) "已选择" else "未选择",
-                                    tint = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(AppSpacingTokens.Small)
-                                )
+                                if (historyBatchMode && historyItem == null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .border(
+                                                width = if (isSelected) AppSpacingTokens.Micro else AppSpacingTokens.Micro / 2,
+                                                color = if (isSelected) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+                                                },
+                                                shape = historySelectionShape
+                                            )
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                                } else {
+                                                    Color.Transparent
+                                                },
+                                                shape = historySelectionShape
+                                            )
+                                    )
+                                    AppIcon(
+                                        imageVector = if (isSelected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                        contentDescription = if (isSelected) "已选择" else "未选择",
+                                        tint = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(AppSpacingTokens.Small)
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    if (supportsHistoryDissolve) {
-                        MaybeDissolvableVideoCard(
-                            isDissolving = isDissolving,
-                            onDissolveComplete = { onHistoryDissolveComplete(historyKey) },
-                            cardId = historyKey,
-                            preset = DissolveAnimationPreset.TELEGRAM_FAST,
-                            collapseAfterDissolve = shouldCollapseHistoryDeleteCard(historyDeleteAnimationMode),
-                            publishGlobalDissolveState = shouldJiggleHistoryDeleteCards(historyDeleteAnimationMode),
-                            keepInvisibleAfterDissolve = shouldKeepPlaceholderHidden ||
-                                historyDeleteAnimationMode == HistoryDeleteAnimationMode.DIRECT_DELETE,
-                            modifier = Modifier.jiggleOnDissolve(
+                        if (supportsHistoryDissolve) {
+                            MaybeDissolvableVideoCard(
+                                isDissolving = isDissolving,
+                                onDissolveComplete = { onHistoryDissolveComplete(historyKey) },
                                 cardId = historyKey,
-                                enabled = shouldJiggleHistoryDeleteCards(historyDeleteAnimationMode),
-                                isCurrentCardDissolving = isDissolving
-                            )
-                        ) {
+                                preset = DissolveAnimationPreset.TELEGRAM_FAST,
+                                collapseAfterDissolve = shouldCollapseHistoryDeleteCard(historyDeleteAnimationMode),
+                                publishGlobalDissolveState = shouldJiggleHistoryDeleteCards(historyDeleteAnimationMode),
+                                keepInvisibleAfterDissolve = shouldKeepPlaceholderHidden ||
+                                    historyDeleteAnimationMode == HistoryDeleteAnimationMode.DIRECT_DELETE,
+                                modifier = Modifier.jiggleOnDissolve(
+                                    cardId = historyKey,
+                                    enabled = shouldJiggleHistoryDeleteCards(historyDeleteAnimationMode),
+                                    isCurrentCardDissolving = isDissolving
+                                )
+                            ) {
+                                cardContent()
+                            }
+                        } else {
                             cardContent()
                         }
-                    } else {
-                        cardContent()
                     }
                 }
             }

@@ -286,7 +286,7 @@ internal fun shouldShowMoreActionsButtonInControlBar(
     showEpisodeInMoreActions: Boolean = false,
     showNextEpisodeButton: Boolean,
     showPlaybackOrderLabel: Boolean,
-    showAspectRatioButton: Boolean,
+    showAudioQualityButton: Boolean,
     showPortraitSwitchButton: Boolean,
     showAnime4KToggle: Boolean = false
 ): Boolean {
@@ -294,7 +294,7 @@ internal fun shouldShowMoreActionsButtonInControlBar(
         showEpisodeInMoreActions ||
             showNextEpisodeButton ||
             showPlaybackOrderLabel ||
-            showAspectRatioButton ||
+            showAudioQualityButton ||
             showPortraitSwitchButton ||
             showAnime4KToggle
         )
@@ -613,7 +613,6 @@ fun BottomControlBar(
         showEpisodeInMoreActions,
         showNextEpisodeButton,
         showPlaybackOrderLabel,
-        showAspectRatioButton,
         showPortraitSwitchButton,
         anime4kAvailable
     ) {
@@ -622,7 +621,7 @@ fun BottomControlBar(
             showEpisodeInMoreActions = showEpisodeInMoreActions,
             showNextEpisodeButton = showNextEpisodeButton,
             showPlaybackOrderLabel = showPlaybackOrderLabel,
-            showAspectRatioButton = showAspectRatioButton,
+            showAudioQualityButton = isFullscreen,
             showPortraitSwitchButton = showPortraitSwitchButton,
             showAnime4KToggle = anime4kAvailable
         )
@@ -819,24 +818,40 @@ fun BottomControlBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(layoutPolicy.rightActionSpacingDp.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable(onClick = onAudioQualityClick),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    AppText(
-                        text = currentAudioQualityLabel.ifBlank { "音质" },
-                        color = Color.White,
-                        fontSize = layoutPolicy.actionTextFontSp.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (isHiResAudioSelected) {
-                        HiResBadge()
+                if (showAspectRatioButton) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .clickable(onClick = onRatioClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppText(
+                            text = currentRatio.displayName,
+                            color = Color.White,
+                            fontSize = layoutPolicy.actionTextFontSp.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
-                    if (isDolbyAudioSelected) {
-                        DolbyBadge()
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clickable(onClick = onAudioQualityClick),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        AppText(
+                            text = currentAudioQualityLabel.ifBlank { "音质" },
+                            color = Color.White,
+                            fontSize = layoutPolicy.actionTextFontSp.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (isHiResAudioSelected) {
+                            HiResBadge()
+                        }
+                        if (isDolbyAudioSelected) {
+                            DolbyBadge()
+                        }
                     }
                 }
 
@@ -902,6 +917,84 @@ fun BottomControlBar(
                             )
                         )
                     }
+                }
+
+                if (showMoreActionsButton) {
+                    AppWindowActionMenu(
+                        groups = listOf(
+                            listOfNotNull(
+                                if (showEpisodeInMoreActions) {
+                                    AppWindowAction(label = "分集", onClick = {
+                                            showMoreActionsPanel = false
+                                            onEpisodeClick()
+                                        })
+                                } else null,
+                                if (showNextEpisodeButton) {
+                                    AppWindowAction(label = "下集", onClick = {
+                                            showMoreActionsPanel = false
+                                            onNextEpisodeClick()
+                                        })
+                                } else null,
+                                if (showPlaybackOrderLabel) {
+                                    AppWindowAction(label = playbackOrderLabel, selected = playbackOrderLabel != "自动连播", onClick = {
+                                            showMoreActionsPanel = false
+                                            onPlaybackOrderClick()
+                                        })
+                                } else null,
+                                AppWindowAction(
+                                    label = if (currentAudioQualityLabel.isBlank() || currentAudioQualityLabel == "音质") {
+                                        "音质"
+                                    } else {
+                                        "音质 · $currentAudioQualityLabel"
+                                    },
+                                    selected = isHiResAudioSelected || isDolbyAudioSelected,
+                                    onClick = {
+                                        showMoreActionsPanel = false
+                                        onAudioQualityClick()
+                                    }
+                                ),
+                                if (showPortraitSwitchButton) {
+                                    AppWindowAction(label = "竖屏", onClick = {
+                                            showMoreActionsPanel = false
+                                            onPortraitFullscreen()
+                                        })
+                                } else null,
+                                if (anime4kAvailable) {
+                                    AppWindowAction(label = "画质增强", selected = anime4kEnabled, onClick = {
+                                            showMoreActionsPanel = false
+                                            showVideoEnhancementPanel = true
+                                        })
+                                } else null,
+                                if (
+                                    com.android.purebilibili.feature.video.ui.components.shouldShowDanmakuSendInMoreActions(
+                                        isFullscreen = isFullscreen,
+                                        showInlineDanmakuInput = showDanmakuInput
+                                    )
+                                ) {
+                                    AppWindowAction(label = if (isLoggedIn) "发弹幕" else "登录发弹幕", onClick = {
+                                            showMoreActionsPanel = false
+                                            onDanmakuInputClick()
+                                        })
+                                } else null
+                            )
+                        ),
+                        onExpandedChange = { expanded -> showMoreActionsPanel = expanded },
+                        content = {
+                            AppText(
+                                text = "更多",
+                                color = if (showMoreActionsPanel) MaterialTheme.colorScheme.primary else Color.White,
+                                fontSize = layoutPolicy.actionTextFontSp.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                // AppIconButton supplies a compact 48dp target. Keep the label
+                                // on one line so the final overflow action is never split as
+                                // “更”/“多” in landscape.
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip,
+                                modifier = Modifier.padding(vertical = layoutPolicy.actionChipVerticalPaddingDp.dp)
+                            )
+                        }
+                    )
                 }
 
                 // 📱 [修复] 竖屏全屏按钮 - 仅在非全屏模式下显示
@@ -1052,73 +1145,6 @@ fun BottomControlBar(
                 }
             }
         }
-    }
-
-    if (showMoreActionsButton && shouldConsumeFloatingPanelBackground) {
-        AppWindowActionMenu(
-            groups = listOf(
-                listOfNotNull(
-                    if (showEpisodeInMoreActions) {
-                        AppWindowAction(label = "分集", onClick = {
-                                showMoreActionsPanel = false
-                                onEpisodeClick()
-                            })
-                    } else null,
-                    if (showNextEpisodeButton) {
-                        AppWindowAction(label = "下集", onClick = {
-                                showMoreActionsPanel = false
-                                onNextEpisodeClick()
-                            })
-                    } else null,
-                    if (showPlaybackOrderLabel) {
-                        AppWindowAction(label = playbackOrderLabel, selected = playbackOrderLabel != "自动连播", onClick = {
-                                showMoreActionsPanel = false
-                                onPlaybackOrderClick()
-                            })
-                    } else null,
-                    if (showAspectRatioButton) {
-                        AppWindowAction(label = currentRatio.displayName, selected = currentRatio != VideoAspectRatio.FIT, onClick = {
-                                showMoreActionsPanel = false
-                                onRatioClick()
-                            })
-                    } else null,
-                    if (showPortraitSwitchButton) {
-                        AppWindowAction(label = "竖屏", onClick = {
-                                showMoreActionsPanel = false
-                                onPortraitFullscreen()
-                            })
-                    } else null,
-                    if (anime4kAvailable) {
-                        AppWindowAction(label = "画质增强", selected = anime4kEnabled, onClick = {
-                                showMoreActionsPanel = false
-                                showVideoEnhancementPanel = true
-                            })
-                    } else null,
-                    if (
-                        com.android.purebilibili.feature.video.ui.components.shouldShowDanmakuSendInMoreActions(
-                            isFullscreen = isFullscreen,
-                            showInlineDanmakuInput = showDanmakuInput
-                        )
-                    ) {
-                        AppWindowAction(label = if (isLoggedIn) "发弹幕" else "登录发弹幕", onClick = {
-                                showMoreActionsPanel = false
-                                onDanmakuInputClick()
-                            })
-                    } else null
-                )
-            ),
-            modifier = Modifier.padding(end = moreActionsPanelEndPaddingDp.dp, bottom = floatingPanelBottomOffsetDp.dp),
-            onExpandedChange = { expanded -> showMoreActionsPanel = expanded },
-            content = {
-                AppText(
-                    text = "更多",
-                    color = if (showMoreActionsPanel) MaterialTheme.colorScheme.primary else Color.White,
-                    fontSize = layoutPolicy.actionTextFontSp.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = layoutPolicy.actionChipHorizontalPaddingDp.dp, vertical = layoutPolicy.actionChipVerticalPaddingDp.dp)
-                )
-            }
-        )
     }
 
     if (showVideoEnhancementPanel && anime4kAvailable) {

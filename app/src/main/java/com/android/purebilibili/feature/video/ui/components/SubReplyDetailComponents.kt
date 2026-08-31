@@ -90,6 +90,7 @@ import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material.icons.outlined.Delete
@@ -220,27 +221,6 @@ internal fun resolveSubReplyDetailSectionTitle(
     } else {
         "相关回复共${total}条"
     }
-}
-
-internal enum class SubReplySortMode(val label: String) {
-    TIME("按时间"),
-    HOT("按热度");
-
-    fun toggled(): SubReplySortMode = if (this == TIME) HOT else TIME
-}
-
-internal fun sortSubReplies(
-    replies: List<ReplyItem>,
-    mode: SubReplySortMode,
-): List<ReplyItem> = when (mode) {
-    SubReplySortMode.TIME -> replies.sortedWith(
-        compareByDescending<ReplyItem> { it.ctime }.thenByDescending { it.rpid }
-    )
-    SubReplySortMode.HOT -> replies.sortedWith(
-        compareByDescending<ReplyItem> { it.like }
-            .thenByDescending { it.ctime }
-            .thenByDescending { it.rpid }
-    )
 }
 
 internal fun resolveLazyListCanScrollForward(
@@ -427,6 +407,7 @@ internal fun VideoInlineSubReplyDetailContent(
     emoteMap: Map<String, String>,
     maxTimestampMs: Long?,
     onLoadMore: () -> Unit,
+    onSortModeChange: (SubReplySortMode) -> Unit,
     onDismiss: () -> Unit,
     onRootCommentClick: () -> Unit,
     onTimestampClick: ((Long) -> Unit)?,
@@ -454,6 +435,9 @@ internal fun VideoInlineSubReplyDetailContent(
     SubReplyDetailContent(
         rootReply = rootReply,
         subReplies = state.items,
+        sortMode = state.sortMode,
+        error = state.error,
+        onSortModeChange = onSortModeChange,
         remoteReplyCount = state.totalCount,
         isLoading = state.isLoading,
         isEnd = state.isEnd,
@@ -492,10 +476,13 @@ internal fun VideoInlineSubReplyDetailContent(
 internal fun SubReplyDetailContent(
     rootReply: ReplyItem,
     subReplies: List<ReplyItem>,
+    sortMode: SubReplySortMode,
+    error: String?,
     isLoading: Boolean,
     isEnd: Boolean,
     emoteMap: Map<String, String>,
     onLoadMore: () -> Unit,
+    onSortModeChange: (SubReplySortMode) -> Unit,
     onDismiss: () -> Unit,
     applyStatusBarPadding: Boolean = false,
     onRootCommentClick: (() -> Unit)? = null,
@@ -532,7 +519,6 @@ internal fun SubReplyDetailContent(
     val showLoadedReplyCount by com.android.purebilibili.core.store.SettingsManager
         .getSubReplyLoadedCountEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
-    var sortMode by remember(rootReply.rpid) { mutableStateOf(SubReplySortMode.TIME) }
     val unusedShowUpFlag = showUpFlag
     val listState = rememberLazyListState()
     var highlightedTargetId by remember(rootReply.rpid) { mutableLongStateOf(0L) }
@@ -541,14 +527,10 @@ internal fun SubReplyDetailContent(
     var savedListScroll by remember(rootReply.rpid) {
         mutableStateOf<SubReplyDetailSavedScrollPosition?>(null)
     }
-    val visibleReplies = remember(subReplies, conversationAnchor, isConversationMode, sortMode) {
+    val visibleReplies = remember(subReplies, conversationAnchor, isConversationMode) {
         val anchor = conversationAnchor
         if (anchor == null || isConversationMode) {
-            if (anchor == null && !isConversationMode) {
-                sortSubReplies(subReplies, sortMode)
-            } else {
-                subReplies
-            }
+            subReplies
         } else {
             resolveSubReplyConversationItems(
                 anchorReply = anchor,
@@ -603,10 +585,10 @@ internal fun SubReplyDetailContent(
             viewportEndOffset = viewportEndOffset
         )
     }
-    val shouldLoadMore by remember {
+    val shouldLoadMore by remember(isLoading, isEnd, error, localConversationMode) {
         derivedStateOf {
             val (lastVisibleIndex, _, totalAndViewport) = listScrollMetrics
-            !localConversationMode &&
+            error == null && !localConversationMode &&
                 shouldLoadMoreSubReplyList(
                     lastVisibleIndex = lastVisibleIndex,
                     totalItemsCount = totalAndViewport.first,
@@ -615,9 +597,11 @@ internal fun SubReplyDetailContent(
                 )
         }
     }
-    val shouldPrefetchShortList by remember {
+    val shouldPrefetchShortList by remember(
+        isLoading, isEnd, error, localConversationMode, visibleReplies.size, detailReplyDisplayCount
+    ) {
         derivedStateOf {
-            !localConversationMode &&
+            error == null && !localConversationMode &&
                 shouldPrefetchSubRepliesWhenListNotScrollable(
                     loadedReplyCount = visibleReplies.size,
                     totalReplyCount = detailReplyDisplayCount,
@@ -648,7 +632,7 @@ internal fun SubReplyDetailContent(
     LaunchedEffect(shouldPrefetchShortList, visibleReplies.size, detailReplyDisplayCount) {
         if (shouldPrefetchShortList) onLoadMore()
     }
-    LaunchedEffect(listScrollResetKey) {
+    LaunchedEffect(listScrollResetKey, sortMode) {
         val previousMode = previousConversationMode
         val currentMode = listScrollResetKey.conversationMode
         when (
@@ -835,7 +819,7 @@ internal fun SubReplyDetailContent(
                                 Row(
                                     modifier = Modifier
                                         .testTag(SUB_REPLY_DETAIL_SORT_TAG)
-                                        .clickable { sortMode = sortMode.toggled() }
+                                        .clickable(enabled = !isLoading) { onSortModeChange(sortMode.toggled()) }
                                         .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                         .padding(horizontal = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -928,6 +912,18 @@ internal fun SubReplyDetailContent(
 
             item(key = "footer") {
                 when {
+                    error != null && !isLoading -> {
+                        AppText(
+                            text = "$error，点击重试",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onLoadMore)
+                                .sizeIn(minHeight = 48.dp)
+                                .padding(16.dp),
+                            textAlign = TextAlign.Center,
+                            color = appearance.sortTint,
+                        )
+                    }
                     isLoading && visibleReplies.isNotEmpty() -> {
                         Box(
                             modifier = Modifier
@@ -1103,6 +1099,7 @@ private fun SubReplyDetailItem(
 
     if (showActionSheet) {
         ReplyActionSheet(
+            queryAuthorUid = replyMemberMid,
             canDelete = onDeleteClick != null,
             canReport = onReportClick != null,
             canShare = shouldSupportReplyShare(item),

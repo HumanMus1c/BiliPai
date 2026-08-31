@@ -522,9 +522,47 @@ internal fun ElegantVideoCard(
     dismissMenuText: String = "\uD83D\uDEAB 不感兴趣", //  [新增] 自定义长按菜单删除文案
     onLongClick: ((VideoItem) -> Unit)? = null, // [Feature] Long Press Preview
     onUpClick: ((Long) -> Unit)? = null,
+    singleColumn: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: (String, Long) -> Unit
 ) {
+    if (singleColumn) {
+        val actions = buildList {
+            onUpClick?.let { visit ->
+                add(com.android.purebilibili.core.ui.components.AppWindowAction(
+                    label = "访问UP主", onClick = { visit(video.owner.mid) },
+                ))
+            }
+            onWatchLater?.let {
+                add(com.android.purebilibili.core.ui.components.AppWindowAction(label = "加入稍后再看", onClick = it))
+            }
+            onUnfavorite?.let {
+                add(com.android.purebilibili.core.ui.components.AppWindowAction(label = "取消收藏", onClick = it))
+            }
+            onDismiss?.let {
+                add(com.android.purebilibili.core.ui.components.AppWindowAction(label = dismissMenuText, onClick = it))
+            }
+        }
+        HomeStyleSingleColumnVideoCard(
+            video = video,
+            sourceRoute = sharedElementSourceRoute
+                ?: com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute.current.orEmpty(),
+            coverAspectRatio = coverAspectRatio,
+            transitionEnabled = transitionEnabled,
+            isFollowing = isFollowing,
+            showUpBadge = showUpBadge ?: com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current.showBadges,
+            modifier = modifier,
+            highlightedTitle = highlightedTitle,
+            onClick = { onClick(video.bvid, video.cid) },
+            onLongClick = onLongClick?.let { callback -> { callback(video) } },
+            trailingContent = if (actions.isEmpty()) null else ({
+                com.android.purebilibili.core.ui.components.AppWindowActionMenu(groups = listOf(actions)) {
+                    AppIcon(Icons.Outlined.MoreVert, contentDescription = "更多操作")
+                }
+            }),
+        )
+        return
+    }
     val haptic = rememberHapticFeedback()
     val contentTypography = feedContentTypography()
     val scope = rememberCoroutineScope()

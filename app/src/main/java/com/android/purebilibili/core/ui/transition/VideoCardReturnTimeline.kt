@@ -49,6 +49,18 @@ internal object VideoCardTransitionVisualTimeline {
     const val REDUCED_MOTION_DURATION_MILLIS = 140
 }
 
+/** Spatial landing compression never enters this coordinate system. Do not ease it a second time. */
+internal fun resolveVisualProgress(
+    morphProgress: Float,
+    phase: VideoCardTransitionBackgroundPhase,
+    direction: VideoSharedTransitionDirection,
+): Float {
+    val depth = if (phase == VideoCardTransitionBackgroundPhase.IDLE) 0f else {
+        morphProgress.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
+    }
+    return if (direction == VideoSharedTransitionDirection.RETURN) 1f - depth else depth
+}
+
 /**
  * Frozen source-page snapshot release progress during a Miuix return.
  *
@@ -182,7 +194,7 @@ internal fun resolveVideoCardContentHandoffProgress(
     phase: VideoCardTransitionBackgroundPhase,
     isReturnGestureInProgress: Boolean,
 ): Float {
-    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    val depth = resolveVisualProgress(morphDepthProgress, phase, VideoSharedTransitionDirection.ENTER)
     if (!isVideoCardReturnContentYieldActive(
             phase = phase,
             isReturnGestureInProgress = isReturnGestureInProgress,
@@ -199,7 +211,7 @@ internal fun resolveVideoCardDetailChromeAlpha(
     phase: VideoCardTransitionBackgroundPhase,
     isReturnGestureInProgress: Boolean,
 ): Float {
-    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    val depth = resolveVisualProgress(morphDepthProgress, phase, VideoSharedTransitionDirection.ENTER)
     val handoff = resolveVideoCardContentHandoffProgress(
         morphDepthProgress = depth,
         phase = phase,
@@ -230,7 +242,7 @@ internal fun resolveVideoCardSecondaryContentVisualFrame(
     motionTier: MotionTier,
     sourceLayout: VideoCardSourceLayout = VideoCardSourceLayout.STACKED,
 ): VideoCardSecondaryContentVisualFrame {
-    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    val depth = resolveVisualProgress(morphDepthProgress, phase, VideoSharedTransitionDirection.ENTER)
     val returning = isVideoCardReturnContentYieldActive(
         phase = phase,
         isReturnGestureInProgress = isReturnGestureInProgress,
@@ -407,7 +419,8 @@ internal fun canCoexistLiveSurfaceStableCoverAndChromeOnReturn(): Boolean = true
  * chrome / 详情正文 / 景深 **只读这一路**，禁止再 max(AVS, depth)。
  */
 internal fun resolveVideoCardReturnSettleFromMorphDepth(morphDepthProgress: Float): Float {
-    return (1f - morphDepthProgress.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+    return resolveVisualProgress(morphDepthProgress, VideoCardTransitionBackgroundPhase.RETURNING,
+        VideoSharedTransitionDirection.RETURN)
 }
 
 /**

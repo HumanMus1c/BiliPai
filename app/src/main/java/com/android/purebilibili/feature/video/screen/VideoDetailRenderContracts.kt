@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 
 @Immutable
@@ -72,6 +73,7 @@ internal data class VideoDetailCommentActions(
     val deleteComment: (Long) -> Unit,
     val startDissolve: (Long) -> Unit,
     val loadMoreSubReplies: () -> Unit,
+    val setSubReplySortMode: (SubReplySortMode) -> Unit,
     val openSubReply: (ReplyItem, Long) -> Unit,
     val openSubReplyConversation: (ReplyItem) -> Unit,
     val closeSubReplyConversation: () -> Unit,

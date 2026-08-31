@@ -7,6 +7,9 @@ import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.data.model.CommentFraudStatus
 import com.android.purebilibili.data.model.response.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -497,6 +500,36 @@ object CommentRepository {
             page = page,
             ps = ps
         )
+    }
+
+    // PiliPlus uses DetailList mode + cursor for thread sorting. REST pn pages cannot be
+    // mixed into this sequence: they do not preserve the selected server ranking.
+    suspend fun getSortedSubCommentsForSubject(
+        oid: Long,
+        type: Int,
+        rootId: Long,
+        mode: Int,
+        paginationOffset: String? = null,
+        targetReplyId: Long = 0L
+    ): Result<ReplyData> = withContext(Dispatchers.IO) {
+        try {
+            require(mode == CommentGrpcRepository.MODE_TIME || mode == CommentGrpcRepository.MODE_HOT)
+            VideoRepository.ensureBuvid3()
+            val result = CommentGrpcRepository.getDetailList(
+                oid = oid,
+                type = type,
+                root = rootId,
+                rpid = targetReplyId,
+                mode = mode,
+                nextOffset = paginationOffset
+            )
+            currentCoroutineContext().ensureActive()
+            result
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getSubCommentsForSubject(

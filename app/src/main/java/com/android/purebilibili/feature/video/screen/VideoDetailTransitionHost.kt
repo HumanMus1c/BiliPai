@@ -86,7 +86,10 @@ internal fun rememberVideoDetailTransitionState(
         animatedVisibilityTargetIsPostExit =
             animatedVisibilityScope?.transition?.targetState == EnterExitState.PostExit,
         videoCardBackgroundPhase = scopedVideoCardPhase,
-    ) || (entryMiuixTransitionEnabled && miuixCardTransition.isGestureInProgressProvider())
+    ) || (entryMiuixTransitionEnabled && (
+        miuixCardTransition.isGestureInProgressProvider() ||
+            videoCardClock?.gestureRestoreInProgress == true
+    ))
     val detailShellSharedBoundsEnabled = if (miuixCardTransition.enabled) {
         entryMiuixTransitionEnabled
     } else {

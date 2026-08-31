@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import top.yukonga.miuix.kmp.nav.gesture.WindowNavigationEventBridge
 
@@ -21,6 +22,7 @@ fun SubReplySheet(
     onDismiss: () -> Unit,
     onRootCommentClick: (() -> Unit)? = null,
     onLoadMore: () -> Unit,
+    onSortModeChange: (SubReplySortMode) -> Unit,
     maxHeightFraction: Float = 1f,
     scrimAlpha: Float = 0.32f,
     onTimestampClick: ((Long) -> Unit)? = null,
@@ -54,6 +56,9 @@ fun SubReplySheet(
             SubReplyDetailContent(
                 rootReply = rootReply,
                 subReplies = state.items,
+                sortMode = state.sortMode,
+                error = state.error,
+                onSortModeChange = onSortModeChange,
                 remoteReplyCount = state.totalCount,
                 isLoading = state.isLoading,
                 isEnd = state.isEnd,

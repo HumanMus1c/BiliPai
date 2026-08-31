@@ -8,11 +8,16 @@ internal const val LARGE_SCREEN_SMALLEST_WIDTH_DP = 600
 
 internal fun shouldRequestPhysicalPlayerOrientation(
     smallestScreenWidthDp: Int,
+    currentWindowWidthDp: Int? = null,
+    currentWindowHeightDp: Int? = null,
     platformIgnoresLargeScreenOrientationRequests: Boolean =
         Build.VERSION.SDK_INT >= 36,
 ): Boolean {
     val isLargeScreen = smallestScreenWidthDp >= LARGE_SCREEN_SMALLEST_WIDTH_DP
-    return !isLargeScreen || !platformIgnoresLargeScreenOrientationRequests
+    val isFoldableCoverWindow = isLargeScreen &&
+        currentWindowWidthDp != null && currentWindowHeightDp != null &&
+        minOf(currentWindowWidthDp, currentWindowHeightDp) < LARGE_SCREEN_SMALLEST_WIDTH_DP
+    return !isLargeScreen || isFoldableCoverWindow || !platformIgnoresLargeScreenOrientationRequests
 }
 
 /**
@@ -22,7 +27,11 @@ internal fun shouldRequestPhysicalPlayerOrientation(
  */
 internal fun Activity.applyPlayerRequestedOrientation(requestedOrientation: Int): Boolean {
     val effectiveOrientation = if (
-        shouldRequestPhysicalPlayerOrientation(resources.configuration.smallestScreenWidthDp)
+        shouldRequestPhysicalPlayerOrientation(
+            smallestScreenWidthDp = resources.configuration.smallestScreenWidthDp,
+            currentWindowWidthDp = resources.configuration.screenWidthDp,
+            currentWindowHeightDp = resources.configuration.screenHeightDp,
+        )
     ) {
         requestedOrientation
     } else {

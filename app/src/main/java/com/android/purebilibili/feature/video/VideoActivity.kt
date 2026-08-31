@@ -193,6 +193,12 @@ class VideoActivity : ComponentActivity() {
                 ProvideRuntimeVisualGuard(widthSizeClass = windowWidthSizeClass) {
                 com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity {
                 CompositionLocalProvider(
+                    com.android.purebilibili.feature.aicu.LocalAicuNavigation provides { uid: Long? ->
+                        startActivity(android.content.Intent(this@VideoActivity, com.android.purebilibili.MainActivity::class.java).apply {
+                            putExtra(com.android.purebilibili.EXTRA_PENDING_NAVIGATION_ROUTE,
+                                com.android.purebilibili.navigation.ScreenRoutes.AicuQuery.createRoute(uid))
+                        })
+                    },
                     LocalWindowSizeClass provides windowSizeClass,
                     LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
                     LocalVideoTransitionAdaptiveInfo provides videoTransitionAdaptiveInfo,

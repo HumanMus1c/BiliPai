@@ -524,46 +524,12 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `top tab viewport does not yank an already visible last item`() {
-        assertFalse(
-            shouldAnimateTopTabViewportToSelection(
-                selectedIndex = 3,
-                firstVisibleIndex = 0,
-                firstVisibleOffset = 0,
-                lastVisibleIndex = 3,
-                lastVisibleEndOffset = 400,
-                viewportEndOffset = 400,
-            )
-        )
-        assertTrue(
-            shouldAnimateTopTabViewportToSelection(
-                selectedIndex = 3,
-                firstVisibleIndex = 0,
-                firstVisibleOffset = 0,
-                lastVisibleIndex = 2,
-                lastVisibleEndOffset = 300,
-                viewportEndOffset = 400,
-            )
-        )
-        assertTrue(
-            shouldAnimateTopTabViewportToSelection(
-                selectedIndex = 3,
-                firstVisibleIndex = 1,
-                firstVisibleOffset = 0,
-                lastVisibleIndex = 3,
-                lastVisibleEndOffset = 420,
-                viewportEndOffset = 400,
-            )
-        )
-    }
-
-    @Test
     fun `top tab viewport follows selection without indicator drag state`() {
         val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
 
         assertFalse(source.contains("LaunchedEffect(topTabDragActive"))
         assertFalse(source.contains("topTabDragTargetIndex"))
-        assertTrue(source.contains("listState.animateScrollToItem(targetIndex)"))
+        assertTrue(source.contains("KeepLazyTabSelectionVisible(listState, selectedIndex)"))
     }
 
     @Test

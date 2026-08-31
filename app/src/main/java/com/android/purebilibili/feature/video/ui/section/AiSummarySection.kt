@@ -5,6 +5,11 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -21,7 +30,6 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppContentCard
-import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.data.model.response.AiSummaryData
@@ -31,6 +39,14 @@ import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptTone
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import top.yukonga.miuix.kmp.anim.folmeSpring
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
 /**
  * AI Video Summary Card — adaptive native card (M3 Card / Miuix Card).
@@ -49,57 +65,85 @@ fun AiSummaryCard(
         modelResult.summary.takeIf { it.isNotBlank() } ?: "查看分段总结和时间点"
     }
     var expanded by remember { mutableStateOf(false) }
+    val useMiuix = LocalAppUiStyle.current == AppUiStyle.MIUIX
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     AppContentCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .animateContentSize(),
+            // The Miuix expansion owns its height animation; do not animate it twice.
+            .then(if (useMiuix) Modifier else Modifier.animateContentSize()),
         containerColor = containerColor,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            LeadingIconBadge(
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-            ) {
-                AppIcon(
-                    imageVector = Icons.Filled.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                AppText(
-                    text = "AI 总结",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                AppText(
-                    text = collapsedPreview,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = if (expanded) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            AppIcon(
-                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                contentDescription = if (expanded) "收起" else "展开",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
+        if (useMiuix) {
+            MiuixAiSummaryHeader(
+                preview = collapsedPreview,
+                expanded = expanded,
+                onToggle = { expanded = !expanded }
             )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                LeadingIconBadge(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                ) {
+                    AppIcon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    AppText(
+                        text = "AI 总结",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    AppText(
+                        text = collapsedPreview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (expanded) 2 else 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                AppIcon(
+                    imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = if (expanded) "收起" else "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
 
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = if (useMiuix) {
+                expandVertically(
+                    animationSpec = folmeSpring(damping = 1f, response = 0.35f),
+                    expandFrom = Alignment.Top
+                ) + fadeIn(animationSpec = folmeSpring(damping = 1f, response = 0.25f))
+            } else {
+                fadeIn() + expandVertically()
+            },
+            exit = if (useMiuix) {
+                shrinkVertically(
+                    animationSpec = folmeSpring(damping = 1f, response = 0.35f),
+                    shrinkTowards = Alignment.Top
+                ) + fadeOut(animationSpec = folmeSpring(damping = 1f, response = 0.25f))
+            } else {
+                fadeOut() + shrinkVertically()
+            }
+        ) {
             Column(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
             ) {
@@ -140,7 +184,7 @@ fun AiSummaryCard(
 
                 if (onCreateNoteDraftClick != null) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    AppOutlinedButton(
+                    VideoDetailSecondaryButton(
                         onClick = onCreateNoteDraftClick,
                         modifier = Modifier.align(Alignment.End),
                     ) {
@@ -155,6 +199,62 @@ fun AiSummaryCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixAiSummaryHeader(
+    preview: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val arrowRotation = animateFloatAsState(
+        targetValue = if (expanded) 270f else 90f,
+        animationSpec = folmeSpring(damping = 1f, response = 0.35f),
+        label = "ai-summary-expand-arrow"
+    )
+    // BasicComponent supplies Miuix's native row layout, touch target and indication.
+    // Body content stays outside its clickable area so timestamps do not collapse it.
+    BasicComponent(
+        modifier = modifier.semantics { stateDescription = if (expanded) "已展开" else "已收起" },
+        onClick = onToggle,
+        onClickLabel = if (expanded) "收起 AI 总结" else "展开 AI 总结",
+        role = Role.Button,
+        startAction = {
+            LeadingIconBadge(containerColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+                AppIcon(
+                    imageVector = Icons.Filled.AutoAwesome,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        },
+        endActions = {
+            AppIcon(
+                imageVector = MiuixIcons.Basic.ArrowRight,
+                contentDescription = null,
+                tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                modifier = Modifier
+                    .size(20.dp)
+                    .graphicsLayer { rotationZ = arrowRotation.value }
+            )
+        }
+    ) {
+        MiuixText(
+            text = "AI 总结",
+            style = MiuixTheme.textStyles.headline1,
+            fontWeight = FontWeight.Medium,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+        MiuixText(
+            text = preview,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

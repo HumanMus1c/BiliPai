@@ -78,7 +78,7 @@ class DampedDragAnimationPolicyTest {
         // 9.0.0 速度飞掷投影
         assertTrue(releaseSource.contains("resolveDampedDragReleaseTargetIndex("))
         assertTrue(releaseSource.contains("velocityPxPerSecond = velocityX"))
-        assertTrue(releaseSource.contains("offsetAnimation.animateTo(0f"))
+        assertTrue(releaseSource.contains("offsetAnimation.snapTo(0f)"))
         // 首页 BiliPai 分支：拖拽 spring-follow（animateTo，对齐 FloatingBottomBar），
         // 释放时就近吸附，不做速度投影。
         assertTrue(source.contains("DampedDragTrackingMode.BILIPAI_SPRING"))

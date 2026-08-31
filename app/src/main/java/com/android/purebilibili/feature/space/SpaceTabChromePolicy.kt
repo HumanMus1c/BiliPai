@@ -184,18 +184,6 @@ internal fun resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
         .coerceAtLeast(SPACE_SCROLLABLE_CONTRIBUTION_ITEM_EMERGENCY_MIN_WIDTH_DP)
 }
 
-internal fun resolveSpaceContributionTabCenteredScrollOffsetPx(
-    selectedIndex: Int,
-    itemWidthPx: Float,
-    viewportWidthPx: Float
-): Int {
-    if (selectedIndex <= 0 || itemWidthPx <= 0f || viewportWidthPx <= 0f) return 0
-    val itemStartPx = selectedIndex * itemWidthPx
-    return (itemStartPx - (viewportWidthPx - itemWidthPx) / 2f)
-        .roundToInt()
-        .coerceAtLeast(0)
-}
-
 internal fun resolveSpaceSecondarySwitchDragScrollDeltaPx(
     indicatorPosition: Float,
     itemWidthPx: Float,

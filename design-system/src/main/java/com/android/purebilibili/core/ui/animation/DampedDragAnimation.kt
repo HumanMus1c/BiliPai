@@ -26,6 +26,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import com.android.purebilibili.core.ui.motion.BottomBarMotionSpec
 import com.android.purebilibili.core.ui.motion.resolveBottomBarMotionSpec
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.filter
@@ -116,9 +117,8 @@ class DampedDragAnimationState internal constructor(
     private val valueAnimationSpec = spring(1f, 1000f, 0.001f)
     private val velocityAnimationSpec = spring(0.5f, 300f, 0.01f)
     private val pressProgressAnimationSpec = spring(1f, 1000f, 0.001f)
-    private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)
-    private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)
-    private val offsetSnapAnimationSpec = spring(1f, 300f, 0.5f)
+    private val scaleXAnimationSpec = spring(0.82f, 520f, 0.001f)
+    private val scaleYAnimationSpec = spring(0.86f, 560f, 0.001f)
 
     private val valueAnimation = Animatable(initialIndex.toFloat(), 0.001f)
     private val velocityAnimation = Animatable(0f, 5f)
@@ -221,10 +221,14 @@ class DampedDragAnimationState internal constructor(
         }
     }
 
-    fun animateToValue(value: Float, onSettled: (() -> Unit)? = null) {
+    fun animateToValue(
+        value: Float,
+        onSettled: (() -> Unit)? = null,
+        animatePress: Boolean = true,
+    ) {
         scope.launch {
             mutatorMutex.mutate {
-                press()
+                if (animatePress) press()
                 val nextTarget = value.fastCoerceIn(0f, (itemCount - 1).toFloat())
                 targetIndex = nextTarget.roundToInt().coerceIn(0, itemCount - 1)
                 valueJob?.cancel()
@@ -342,18 +346,22 @@ class DampedDragAnimationState internal constructor(
         if (notifyIndexChanged && notifyIndexChangedOnReleaseStart) {
             onIndexChanged(releaseTargetIndex)
         }
-        animateToValue(releaseTargetIndex.toFloat()) {
-            if (generation == motionGeneration) {
-                velocityPxPerSecond = 0f
-                settledReleaseCount += 1
-                if (notifyIndexChanged && !notifyIndexChangedOnReleaseStart) {
-                    onIndexChanged(releaseTargetIndex)
+        animateToValue(
+            value = releaseTargetIndex.toFloat(),
+            onSettled = {
+                if (generation == motionGeneration) {
+                    velocityPxPerSecond = 0f
+                    settledReleaseCount += 1
+                    if (notifyIndexChanged && !notifyIndexChangedOnReleaseStart) {
+                        onIndexChanged(releaseTargetIndex)
+                    }
                 }
-            }
-        }
+            },
+            animatePress = false,
+        )
         offsetJob?.cancel()
-        offsetJob = scope.launch {
-            offsetAnimation.animateTo(0f, offsetSnapAnimationSpec)
+        offsetJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            offsetAnimation.snapTo(0f)
         }
     }
 
@@ -372,9 +380,10 @@ class DampedDragAnimationState internal constructor(
         targetIndex = safeIndex
         desiredValue = safeIndex.toFloat()
         velocityPxPerSecond = 0f
-        animateToValue(safeIndex.toFloat()) {
-            settledSelectionCount += 1
-        }
+        animateToValue(
+            value = safeIndex.toFloat(),
+            onSettled = { settledSelectionCount += 1 },
+        )
     }
 }
 

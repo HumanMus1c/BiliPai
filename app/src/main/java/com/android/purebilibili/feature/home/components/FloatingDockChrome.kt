@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
+import kotlin.math.abs
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import com.android.purebilibili.feature.home.components.liquid.InnerShadow
@@ -303,8 +304,7 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
                                 this.scaleX = scaleX
                                 this.scaleY = scaleY
                                 val v = velocity / 10f
-                                this.scaleX /= 1f - (v * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                                this.scaleY *= 1f - (v * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                                this.scaleX /= 1f - (abs(v) * 0.75f).fastCoerceIn(0f, 0.2f)
                             },
                             onDrawSurface = {
                                 val progress = pressProgress

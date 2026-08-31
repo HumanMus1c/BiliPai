@@ -44,8 +44,8 @@ class DynamicScreenStructureTest {
         assertTrue(!source.contains("dynamicFeedBackdrop"))
         assertTrue(source.contains("val dynamicDockBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains(".layerBackdrop(dynamicDockBackdrop)"))
-        assertTrue(!source.contains("hazeSourceCompat("))
-        assertTrue(!source.contains("rememberRecoverableHazeState("))
+        assertTrue(source.contains("hazeSourceCompat(state = dynamicTopBarHazeState)"))
+        assertTrue(source.contains("rememberRecoverableHazeState("))
         val topBarSource = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         ).readText()
@@ -61,7 +61,7 @@ class DynamicScreenStructureTest {
         assertTrue(topBarSource.contains("homeSettings.liquidGlassReadabilityMode"))
         assertTrue(!topBarSource.contains("resolveLiquidGlassTuning(progress = 0f)"))
         assertTrue(!topBarSource.contains("copy(backdropBlurRadius = 0f)"))
-        assertTrue(!topBarSource.contains("unifiedBlur("))
+        assertTrue(topBarSource.contains("unifiedBlur("))
         assertTrue(!source.contains("activeListState?.isScrollInProgress == true ||"))
         assertTrue(topBarSource.contains("isScrollInProgressProvider = { false }"))
         val segmentedControlSource = File(

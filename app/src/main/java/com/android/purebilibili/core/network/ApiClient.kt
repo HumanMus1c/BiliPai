@@ -519,8 +519,7 @@ interface BilibiliApi {
 
     @GET("x/web-interface/ranking/v2")
     suspend fun getRankingVideos(
-        @Query("rid") rid: Int = 0,
-        @Query("type") type: String = "all"
+        @QueryMap params: Map<String, String>
     ): RankingResponse
 
     @GET("x/web-interface/popular/precious")
@@ -542,6 +541,15 @@ interface BilibiliApi {
         @Query("pn") pn: Int = 1,
         @Query("ps") ps: Int = 30
     ): DynamicRegionResponse
+
+    /** Legacy region feed used by the 资讯 main region, which is not exposed
+     * consistently by dynamic/region on current Bilibili responses. */
+    @GET("x/web-interface/newlist")
+    suspend fun getLegacyRegionVideos(
+        @Query("rid") rid: Int,
+        @Query("pn") pn: Int = 1,
+        @Query("ps") ps: Int = 30
+    ): RegionVideosResponse
     
     // ==================== 直播模块 ====================
     // 直播列表 - 使用 v3 API (经测试确认可用)
@@ -2347,6 +2355,16 @@ interface PassportApi {
     suspend fun pollTvQrCode(
         @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): TvPollResponse
+
+    /** Confirm a TV QR scanned by an already logged-in BiliPai client. */
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/confirm")
+    suspend fun confirmTvQrCode(
+        @retrofit2.http.Field("auth_code") authCode: String,
+        @Header(FORCE_COOKIE_HEADER) cookieHeader: String,
+        @retrofit2.http.Field("build") build: Int = 7082000,
+        @retrofit2.http.Field("csrf") csrf: String,
+    ): com.android.purebilibili.data.model.response.SimpleApiResponse
 
     //  [新增] TV 端刷新 Token
     @retrofit2.http.FormUrlEncoded

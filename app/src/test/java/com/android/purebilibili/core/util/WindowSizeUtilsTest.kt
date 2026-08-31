@@ -56,6 +56,32 @@ class WindowSizeUtilsTest {
     }
 
     @Test
+    fun `narrow current window on tablet device is recognized as foldable cover screen`() {
+        val cover = WindowSizeClass(
+            widthSizeClass = WindowWidthSizeClass.Medium,
+            heightSizeClass = WindowHeightSizeClass.Compact,
+            widthDp = 672.dp,
+            heightDp = 459.dp,
+            deviceWidthSizeClass = WindowWidthSizeClass.Large,
+        )
+
+        assertTrue(cover.isFoldableCoverScreen)
+    }
+
+    @Test
+    fun `tablet-sized current window is not recognized as foldable cover screen`() {
+        val inner = WindowSizeClass(
+            widthSizeClass = WindowWidthSizeClass.Expanded,
+            heightSizeClass = WindowHeightSizeClass.Medium,
+            widthDp = 940.dp,
+            heightDp = 665.dp,
+            deviceWidthSizeClass = WindowWidthSizeClass.Large,
+        )
+
+        assertFalse(inner.isFoldableCoverScreen)
+    }
+
+    @Test
     fun `responsive content claims parent width before centering constrained child`() {
         val source = locateSource().readText()
         val functionBody = source

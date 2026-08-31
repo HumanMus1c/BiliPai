@@ -1455,7 +1455,6 @@ internal fun resolveBottomBarCaptureSafeInsetDp(
 }
 private const val BILIPAI_INDICATOR_VELOCITY_NORMALIZATION_DIVISOR = 10f
 private const val BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f
-private const val BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER = 0.25f
 private const val BILIPAI_INDICATOR_VELOCITY_CLAMP = 0.2f
 internal fun resolveBottomBarIndicatorVisualPolicyWithHold(
     basePolicy: BottomBarIndicatorVisualPolicy,
@@ -1661,13 +1660,13 @@ internal fun resolveBottomBarIndicatorLayerTransform(
     } else {
         0f
     }
-    val velocityScaleX = (velocity * BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
-        .coerceIn(-BILIPAI_INDICATOR_VELOCITY_CLAMP, BILIPAI_INDICATOR_VELOCITY_CLAMP)
-    val velocityScaleY = (velocity * BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER)
-        .coerceIn(-BILIPAI_INDICATOR_VELOCITY_CLAMP, BILIPAI_INDICATOR_VELOCITY_CLAMP)
+    // Direction changes which edge leads, not the capsule's thickness. Stretch along the
+    // travel axis with speed magnitude and keep the cross-axis at its press scale.
+    val velocityScaleX = (abs(velocity) * BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
+        .coerceIn(0f, BILIPAI_INDICATOR_VELOCITY_CLAMP)
     return BottomBarIndicatorLayerTransform(
         scaleX = baseScaleX / (1f - velocityScaleX),
-        scaleY = baseScaleY * (1f - velocityScaleY)
+        scaleY = baseScaleY
     )
 }
 

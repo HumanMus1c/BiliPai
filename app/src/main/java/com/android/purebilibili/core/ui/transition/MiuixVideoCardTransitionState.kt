@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Rect
 @Immutable
 internal data class MiuixVideoCardTransitionState(
     val enabled: Boolean = false,
+    val motionSpec: VideoHeroMotionSpec? = null,
     val progressProvider: () -> Float = { 1f },
     val isGestureInProgressProvider: () -> Boolean = { false },
     /**

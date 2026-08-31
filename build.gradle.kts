@@ -5,9 +5,9 @@
 plugins {
     // 1. Android 插件 (版本号要固定)
     // AGP ≥ 9.1 required by Compose BOM 2026.06 / Material3 alpha25 / Lifecycle 2.11 / Nav3 1.2
-    id("com.android.application") version "9.3.1" apply false
-    id("com.android.library") version "9.3.1" apply false
-    id("com.android.test") version "9.3.1" apply false
+    id("com.android.application") version "9.3.2" apply false
+    id("com.android.library") version "9.3.2" apply false
+    id("com.android.test") version "9.3.2" apply false
 
     id("com.google.devtools.ksp") version "2.3.10" apply false
 

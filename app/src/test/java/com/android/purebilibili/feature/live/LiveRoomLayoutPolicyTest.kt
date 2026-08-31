@@ -199,8 +199,8 @@ class LiveRoomLayoutPolicyTest {
             metrics = metrics
         )
 
-        assertEquals(0.38f, metrics.panelHeightFraction)
-        assertTrue(panelHeight <= (844 * 0.40f).toInt())
+        assertEquals(0.26f, metrics.panelHeightFraction)
+        assertTrue(panelHeight <= (844 * 0.30f).toInt())
         assertTrue(844 - panelHeight >= metrics.minPlayerClearanceDp)
         assertTrue(metrics.playerControlsGapDp >= 8)
     }

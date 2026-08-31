@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.profile
 
 import coil3.request.crossfade
+import coil3.request.allowHardware
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
@@ -38,8 +39,10 @@ import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.util.Logger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +53,16 @@ fun WallpaperAdjustmentSheet(
     onSave: (mobileBias: Float, tabletBias: Float) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var previewLoaded by remember(imageUri) { mutableStateOf(false) }
+    var previewFailed by remember(imageUri) { mutableStateOf(false) }
+    val previewRequest = remember(context, imageUri) {
+        ImageRequest.Builder(context)
+            .data(imageUri)
+            .allowHardware(false)
+            .crossfade(true)
+            .build()
+    }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Mobile, 1: Tablet
     var mobileBias by remember { mutableFloatStateOf(initialMobileBias) }
     var tabletBias by remember { mutableFloatStateOf(initialTabletBias) }
@@ -90,14 +103,13 @@ fun WallpaperAdjustmentSheet(
                     modifier = Modifier.align(Alignment.Center)
                 )
                 
-                AppText(
-                    text = "保存",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .clickable { onSave(mobileBias, tabletBias) },
-                    color = MaterialTheme.colorScheme.primary
-                )
+                AppTextButton(
+                    onClick = { onSave(mobileBias, tabletBias) },
+                    enabled = previewLoaded && !previewFailed,
+                    modifier = Modifier.align(Alignment.CenterEnd).sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                ) {
+                    AppText(text = "保存", fontWeight = FontWeight.Bold)
+                }
             }
             
             // Device target switcher follows the active native theme; liquid glass reuses the
@@ -135,10 +147,20 @@ fun WallpaperAdjustmentSheet(
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(imageUri)
-                                .crossfade(true)
-                                .build(),
+                            model = previewRequest,
+                            onLoading = {
+                                previewLoaded = false
+                                previewFailed = false
+                            },
+                            onSuccess = {
+                                previewLoaded = true
+                                previewFailed = false
+                            },
+                            onError = {
+                                previewLoaded = false
+                                previewFailed = true
+                                Logger.w("WallpaperAdjustment", "Wallpaper preview failed", it.result.throwable)
+                            },
                             contentDescription = null,
                             alignment = androidx.compose.ui.BiasAlignment(0f, currentBias),
                             contentScale = ContentScale.Crop,
@@ -159,15 +181,36 @@ fun WallpaperAdjustmentSheet(
                         )
                         
                         // Text Overlay hint
-                        AppText(
-                            text = "预览效果",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 10.sp,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))
-                                .padding(4.dp)
-                        )
+                        if (previewLoaded) {
+                            AppText(
+                                text = "预览效果",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 10.sp,
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))
+                                    .padding(4.dp)
+                            )
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                if (!previewFailed) {
+                                    AppCircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(12.dp))
+                                }
+                                AppText(
+                                    text = if (previewFailed) "图片加载失败，请返回重新选择" else "正在加载图片…",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
                     }
                 }
             }

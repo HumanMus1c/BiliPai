@@ -454,6 +454,7 @@ internal enum class ReplyActionSheetAction {
     COPY_ALL,
     FREE_COPY,
     COPY_USERNAME,
+    QUERY_AUTHOR_HISTORY,
     SAVE,
     SHARE,
     REPLY,
@@ -470,6 +471,7 @@ internal fun buildReplyActionSheetActions(
     canBlockUser: Boolean,
     topActionLabel: String? = null,
     canCopyUsername: Boolean = true,
+    canQueryAuthorHistory: Boolean = false,
 ): List<ReplyActionSheetAction> {
     return buildList {
         add(ReplyActionSheetAction.COPY_ALL)
@@ -477,6 +479,7 @@ internal fun buildReplyActionSheetActions(
         if (canCopyUsername) {
             add(ReplyActionSheetAction.COPY_USERNAME)
         }
+        if (canQueryAuthorHistory) add(ReplyActionSheetAction.QUERY_AUTHOR_HISTORY)
         add(ReplyActionSheetAction.SAVE)
         if (canShare) {
             add(ReplyActionSheetAction.SHARE)
@@ -505,6 +508,7 @@ private fun resolveReplyActionSheetLabel(
         ReplyActionSheetAction.COPY_ALL -> "复制全部"
         ReplyActionSheetAction.FREE_COPY -> "自由复制"
         ReplyActionSheetAction.COPY_USERNAME -> "复制用户名"
+        ReplyActionSheetAction.QUERY_AUTHOR_HISTORY -> "查询作者历史"
         ReplyActionSheetAction.SAVE -> "保存评论"
         ReplyActionSheetAction.SHARE -> "分享评论"
         ReplyActionSheetAction.REPLY -> "回复"
@@ -1292,6 +1296,7 @@ fun ReplyItemView(
 
     if (showActionSheet) {
         ReplyActionSheet(
+            queryAuthorUid = replyMemberMid,
             canDelete = onDeleteClick != null,
             canReport = onReportClick != null,
             canShare = shouldSupportReplyShare(item),
@@ -2552,6 +2557,7 @@ private fun ReplyTextAction(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReplyActionSheet(
+    queryAuthorUid: Long = 0L,
     canDelete: Boolean,
     canReport: Boolean,
     canShare: Boolean = true,
@@ -2570,7 +2576,10 @@ internal fun ReplyActionSheet(
     onToggleTop: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val queryAicu = com.android.purebilibili.feature.aicu.LocalAicuNavigation.current
+    val canQueryAuthorHistory = queryAicu != null && queryAuthorUid > 0
     val actions = remember(
+        canQueryAuthorHistory,
         canDelete,
         canReport,
         canShare,
@@ -2585,6 +2594,7 @@ internal fun ReplyActionSheet(
             canBlockUser = canBlockUser,
             topActionLabel = topActionLabel,
             canCopyUsername = canCopyUsername,
+            canQueryAuthorHistory = canQueryAuthorHistory,
         )
     }
     AppModalBottomSheet(onDismissRequest = onDismiss) {
@@ -2603,6 +2613,7 @@ internal fun ReplyActionSheet(
                             ReplyActionSheetAction.COPY_ALL -> onCopyAll()
                             ReplyActionSheetAction.FREE_COPY -> onFreeCopy()
                             ReplyActionSheetAction.COPY_USERNAME -> onCopyUsername()
+                            ReplyActionSheetAction.QUERY_AUTHOR_HISTORY -> queryAicu?.invoke(queryAuthorUid)
                             ReplyActionSheetAction.SAVE -> onSave()
                             ReplyActionSheetAction.SHARE -> onShare()
                             ReplyActionSheetAction.REPLY -> onReply()

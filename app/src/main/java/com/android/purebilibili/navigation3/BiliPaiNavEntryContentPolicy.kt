@@ -27,6 +27,7 @@ internal enum class BiliPaiNavEntryContentRole {
     TIPS_SETTINGS,
     PROFILE,
     VIDEO_DETAIL,
+    AICU_QUERY,
     HISTORY,
     FAVORITE,
     LIKED_VIDEOS,
@@ -93,6 +94,7 @@ internal fun resolveBiliPaiNavEntryContentRole(key: BiliPaiNavKey): BiliPaiNavEn
         BiliPaiNavKey.TipsSettings -> BiliPaiNavEntryContentRole.TIPS_SETTINGS
         BiliPaiNavKey.Profile -> BiliPaiNavEntryContentRole.PROFILE
         is BiliPaiNavKey.VideoDetail -> BiliPaiNavEntryContentRole.VIDEO_DETAIL
+        is BiliPaiNavKey.AicuQuery -> BiliPaiNavEntryContentRole.AICU_QUERY
         BiliPaiNavKey.History -> BiliPaiNavEntryContentRole.HISTORY
         is BiliPaiNavKey.HistorySearch -> BiliPaiNavEntryContentRole.HISTORY
         BiliPaiNavKey.Favorite -> BiliPaiNavEntryContentRole.FAVORITE

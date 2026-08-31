@@ -4,7 +4,7 @@ import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
-import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,6 +50,10 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.util.Logger
+import java.io.File
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /**
  * 🖼️ 开屏壁纸选择器 (用于设置页)
@@ -73,6 +77,13 @@ fun SplashWallpaperPickerSheet(
     var selectedUrl by remember { mutableStateOf<String?>(null) }
     var saveToGallery by remember { mutableStateOf(false) }
     var showSplashAdjustmentSheet by remember { mutableStateOf(false) }
+    var isImportingWallpaper by remember { mutableStateOf(false) }
+    var importedWallpaper by remember { mutableStateOf<File?>(null) }
+    val importScope = rememberCoroutineScope()
+    DisposableEffect(importedWallpaper) {
+        val previewFile = importedWallpaper
+        onDispose { previewFile?.delete() }
+    }
     val initialSplashMobileBias by viewModel.getSplashAlignment(false).collectAsStateWithLifecycle(initialValue = 0f
         )
     val initialSplashTabletBias by viewModel.getSplashAlignment(true).collectAsStateWithLifecycle(initialValue = 0f
@@ -81,21 +92,36 @@ fun SplashWallpaperPickerSheet(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+            isImportingWallpaper = true
+            showSplashAdjustmentSheet = false
+            importScope.launch {
+                try {
+                    val file = importWallpaperImage(
+                        context = context,
+                        source = uri,
+                        destinationDirectory = File(context.cacheDir, "wallpaper_imports"),
+                    )
+                    importedWallpaper = file
+                    selectedUrl = Uri.fromFile(file).toString()
+                    saveToGallery = false
+                    showSplashAdjustmentSheet = target == WallpaperPickerTarget.SPLASH
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Logger.w("SplashWallpaperPicker", "Unable to import selected wallpaper", error)
+                    Toast.makeText(context, "无法导入图片，请确认图片已下载到本机并重新选择", Toast.LENGTH_LONG).show()
+                } finally {
+                    isImportingWallpaper = false
+                }
             }
-            selectedUrl = uri.toString()
-            saveToGallery = false
-            showSplashAdjustmentSheet = target == WallpaperPickerTarget.SPLASH
         }
     }
     val openCustomWallpaperPicker = {
-        customWallpaperPickerLauncher.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-        )
+        if (!isImportingWallpaper) {
+            customWallpaperPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
     }
     val titleText = when (target) {
         WallpaperPickerTarget.SPLASH -> "选择开屏壁纸"
@@ -283,7 +309,7 @@ fun SplashWallpaperPickerSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    val isSaving = saveState is WallpaperSaveState.Loading
+                    val isSaving = saveState is WallpaperSaveState.Loading || isImportingWallpaper
                     val saveSelectedWallpaper = {
                         selectedUrl?.let { url ->
                             when (target) {

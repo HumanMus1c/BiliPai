@@ -7,13 +7,13 @@ import kotlin.test.assertEquals
 class WallpaperPresentationPolicyTest {
 
     @Test
-    fun compactSplashUsesPosterCardOnlyForLargeAspectMismatch() {
+    fun compactSplashKeepsFullCropForTallWallpapers() {
         assertEquals(
             SplashWallpaperLayout.FULL_CROP,
             resolveSplashWallpaperLayout(AdaptiveWidthClass.Compact),
         )
         assertEquals(
-            SplashWallpaperLayout.POSTER_CARD_BLUR_BG,
+            SplashWallpaperLayout.FULL_CROP,
             resolveSplashWallpaperLayout(
                 widthClass = AdaptiveWidthClass.Compact,
                 imageAspectRatio = 0.42f,

@@ -36,7 +36,9 @@ import com.android.purebilibili.feature.dynamic.components.buildDynamicVisibilit
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicVisibilityAction
 import com.android.purebilibili.feature.video.viewmodel.resolveRoutedCommentRootReply
 import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyLoadedTotalCount
-import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyPageEnd
+import com.android.purebilibili.feature.video.viewmodel.isSortedSubReplyPageEnd
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
+import com.android.purebilibili.feature.video.viewmodel.resetForSort
 import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyRemoteTotalCount
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
@@ -52,6 +54,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -998,6 +1001,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private val _dynamicCommentSortMode = MutableStateFlow(CommentSortMode.HOT)
     val dynamicCommentSortMode: StateFlow<CommentSortMode> = _dynamicCommentSortMode.asStateFlow()
 
+    private var subReplyLoadJob: Job? = null
     private val _subReplyState = MutableStateFlow(SubReplyUiState())
     val subReplyState: StateFlow<SubReplyUiState> = _subReplyState.asStateFlow()
 
@@ -1076,6 +1080,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         _selectedDynamic.value = null
         _selectedCommentTarget.value = null
         _comments.value = emptyList()
+        subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState()
         _commentReplyTarget.value = null
         _commentsLoadingMore.value = false
@@ -1301,6 +1306,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
     fun openSubReply(rootReply: ReplyItem, targetReplyId: Long = 0L) {
         val target = _selectedCommentTarget.value ?: return
+        subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState(
             visible = true,
             rootReply = rootReply,
@@ -1327,6 +1333,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
         if (openLoadedRoutedSubReply(rootReplyId, targetReplyId)) return true
 
+        subReplyLoadJob?.cancel()
         markRoutedSubReplyLoading(rootReplyId, targetReplyId)
         loadRoutedSubReplyFromRemote(target, rootReplyId, targetReplyId)
         return true
@@ -1358,16 +1365,18 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         rootReplyId: Long,
         targetReplyId: Long
     ) {
-        viewModelScope.launch {
-            CommentRepository.getSubCommentsForSubject(
+        subReplyLoadJob = viewModelScope.launch {
+            CommentRepository.getSortedSubCommentsForSubject(
                 oid = target.oid,
                 type = target.type,
                 rootId = rootReplyId,
-                page = 1,
-                ps = 20
+                mode = SubReplySortMode.TIME.apiMode,
+                targetReplyId = targetReplyId
             ).onSuccess { data ->
+                if (_selectedCommentTarget.value != target) return@onSuccess
                 showRoutedSubReply(data, rootReplyId, targetReplyId)
             }.onFailure { error ->
+                if (_selectedCommentTarget.value != target) return@onFailure
                 _subReplyState.value = _subReplyState.value.copy(
                     isLoading = false,
                     error = error.message ?: "回复加载失败"
@@ -1400,14 +1409,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             loadedReplyCount = items.size,
             remoteReplyCount = remoteTotalCount
         )
-        val isEnd = resolveSubReplyPageEnd(
-            cursorIsEnd = data.cursor.isEnd,
-            fetchedReplyCount = items.size,
-            loadedReplyCount = items.size,
-            remoteReplyCount = totalCount,
-            requestedPage = 1,
-            restPage = data.page
-        )
+        val isEnd = isSortedSubReplyPageEnd(data.cursor.isEnd, data.grpcNextOffset)
         _subReplyState.value = SubReplyUiState(
             visible = true,
             rootReply = rootReply,
@@ -1419,12 +1421,25 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             basePage = 1,
             isEnd = isEnd,
             baseIsEnd = isEnd,
+            grpcNextOffset = data.grpcNextOffset,
+            baseGrpcNextOffset = data.grpcNextOffset,
             targetReplyId = targetReplyId.takeIf { it != rootReplyId } ?: 0L
         )
     }
 
     fun closeSubReply() {
-        _subReplyState.value = _subReplyState.value.copy(visible = false)
+        subReplyLoadJob?.cancel()
+        _subReplyState.value = _subReplyState.value.copy(visible = false, isLoading = false)
+    }
+
+    fun setSubReplySortMode(mode: SubReplySortMode) {
+        val state = _subReplyState.value
+        val target = _selectedCommentTarget.value ?: return
+        val root = state.rootReply ?: return
+        if (!state.visible || state.sortMode == mode) return
+        subReplyLoadJob?.cancel()
+        _subReplyState.update { it.resetForSort(mode) }
+        loadSubReplies(target.oid, target.type, root.rpid, page = 1, paginationOffset = null)
     }
 
     fun loadMoreSubReplies() {
@@ -1432,8 +1447,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         val target = _selectedCommentTarget.value ?: return
         val rootReply = state.rootReply ?: return
         if (state.isLoading || state.isEnd) return
-        val nextPage = state.page + 1
-        _subReplyState.value = state.copy(isLoading = true)
+        val nextPage = if (state.error != null && state.items.isEmpty()) 1 else state.page + 1
+        _subReplyState.value = state.copy(isLoading = true, error = null)
         loadSubReplies(
             oid = target.oid,
             type = target.type,
@@ -1450,16 +1465,24 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         page: Int,
         paginationOffset: String? = _subReplyState.value.grpcNextOffset
     ) {
-        viewModelScope.launch {
-            val result = CommentRepository.getSubCommentsForSubject(
+        val sortMode = _subReplyState.value.sortMode
+        val targetReplyId = _subReplyState.value.targetReplyId.takeIf { page == 1 } ?: 0L
+        subReplyLoadJob?.cancel()
+        subReplyLoadJob = viewModelScope.launch {
+            val result = CommentRepository.getSortedSubCommentsForSubject(
                 oid = oid,
                 type = type,
                 rootId = rootId,
-                page = page,
+                mode = sortMode.apiMode,
+                targetReplyId = targetReplyId,
                 paginationOffset = paginationOffset
             )
             result.onSuccess { data ->
                 val current = _subReplyState.value
+                val target = _selectedCommentTarget.value
+                if (!current.visible || current.rootReply?.rpid != rootId ||
+                    target?.oid != oid || target?.type != type || current.sortMode != sortMode
+                ) return@onSuccess
                 val newItems = data.replies.orEmpty()
                 val updatedItems = if (page == 1) {
                     newItems
@@ -1476,26 +1499,23 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     remoteReplyCount = remoteTotalCount,
                     previousTotalCount = current.totalCount
                 )
-                val isEnd = resolveSubReplyPageEnd(
-                    cursorIsEnd = data.cursor.isEnd,
-                    fetchedReplyCount = newItems.size,
-                    loadedReplyCount = updatedItems.size,
-                    remoteReplyCount = totalCount,
-                    requestedPage = page,
-                    restPage = data.page
-                )
+                val isEnd = isSortedSubReplyPageEnd(data.cursor.isEnd, data.grpcNextOffset)
                 _subReplyState.value = resolveDynamicSubReplyStateAfterSuccess(
                     currentState = current,
                     newItems = newItems,
                     page = page,
                     isEnd = isEnd,
                     totalCount = totalCount,
-                    grpcNextOffset = null
+                    grpcNextOffset = data.grpcNextOffset
                 )
             }.onFailure { error ->
+                val target = _selectedCommentTarget.value
+                if (!_subReplyState.value.visible || _subReplyState.value.rootReply?.rpid != rootId ||
+                    target?.oid != oid || target?.type != type
+                ) return@onFailure
                 _subReplyState.value = resolveDynamicSubReplyStateAfterFailure(
                     currentState = _subReplyState.value,
-                    errorMessage = error.message
+                    errorMessage = error.message ?: "回复加载失败"
                 )
             }
         }

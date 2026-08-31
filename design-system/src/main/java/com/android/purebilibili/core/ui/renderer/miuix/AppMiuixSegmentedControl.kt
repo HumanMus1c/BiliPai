@@ -20,6 +20,7 @@ import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionI
 import com.android.purebilibili.core.ui.resolveRoundedControlVisualGeometry
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
 internal fun <T> AppMiuixSegmentedControl(
@@ -104,7 +105,9 @@ internal fun <T> AppMiuixTabRow(
         },
         // Respect the caller's measured width so compact two-option controls do not
         // expand to the full parent and consume the adjacent action area.
-        modifier = modifier,
+        // Upstream paints a rectangular track and only rounds the selected item.
+        // Clip the stationary viewport as well, including during horizontal scrolling.
+        modifier = modifier.squircleClip(geometry.cornerRadius),
         colors = TabRowDefaults.tabRowColors(
             backgroundColor = tabColors.backgroundColor,
             contentColor = tabColors.contentColor,

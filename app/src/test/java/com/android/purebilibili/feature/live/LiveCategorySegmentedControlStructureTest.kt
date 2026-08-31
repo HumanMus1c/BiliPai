@@ -64,11 +64,12 @@ class LiveCategorySegmentedControlStructureTest {
         assertTrue(source.contains("rememberPagerState"))
         assertTrue(source.contains("HorizontalPager("))
         assertTrue(source.contains("pagerState.animateScrollToPage"))
-        assertTrue(source.contains("selectedIndex = pagerState.currentPage"))
+        assertTrue(source.contains("AppThemeAdaptiveTabRow("))
+        assertTrue(source.contains("selectedValue = pagerState.currentPage"))
     }
 
     @Test
-    fun `live room interaction panel is collapsed by default and gated before rendering`() {
+    fun `full interaction panel remains opt in alongside the portrait chat preview`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"
         )
@@ -76,7 +77,8 @@ class LiveCategorySegmentedControlStructureTest {
         assertTrue(source.contains("defaultLiveInteractionPanelVisible()"))
         assertTrue(source.contains("isInteractionPanelVisible"))
         assertTrue(source.contains("shouldReserveLivePortraitInteractionPanel("))
-        assertTrue(source.contains("if (isInteractionPanelVisible)"))
+        assertTrue(source.contains("if (portraitPresentation.showChatPreview)"))
+        assertTrue(source.contains("portraitPresentation.showChrome && showPortraitInteractionSheet"))
         assertFalse(source.contains("var isChatVisible by remember { mutableStateOf(true) }"))
     }
 

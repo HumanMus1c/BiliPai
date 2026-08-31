@@ -1,5 +1,12 @@
 package com.android.purebilibili.feature.profile
 
+import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
+import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
+import com.android.purebilibili.core.ui.components.resolveVideoListColumns
+import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
+import com.android.purebilibili.core.ui.components.videoListBoundsAnimation
+import androidx.compose.ui.layout.LookaheadScope
+import androidx.compose.runtime.key
 import coil3.request.crossfade
 import coil3.request.placeholder
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
@@ -2314,6 +2321,7 @@ private fun ProfileBangumiList(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfileVideoList(
     videos: List<SpaceVideoItem>,
@@ -2346,14 +2354,60 @@ private fun ProfileVideoList(
         }
         ProfileContributionContentState.CONTENT -> Unit
     }
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        videos.forEach { video ->
-            ProfileSpaceListRow(
-                title = video.title,
-                subtitle = "${FormatUtils.formatStat(video.play.toLong())} 播放 · ${video.length}",
-                imageUrl = video.pic,
-                onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+    val listLayout = rememberVideoListLayoutControl(defaultSingleColumn = true)
+    val columns = resolveVideoListColumns(
+        listLayout.singleColumn, LocalConfiguration.current.screenWidthDp.toFloat(),
+    )
+    Column(modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            VideoListLayoutToggle(
+                singleColumn = listLayout.singleColumn,
+                onClick = listLayout.toggle,
             )
+        }
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val cardWidth = (maxWidth - 10.dp * (columns - 1)) / columns
+            LookaheadScope {
+                FlowRow(
+                    maxItemsInEachRow = columns,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    videos.forEach { video ->
+                        key(video.bvid, video.aid) {
+                            Box(modifier = Modifier.videoListBoundsAnimation(
+                                scope = this@LookaheadScope,
+                                targetModifier = Modifier.width(cardWidth),
+                            )) {
+                                if (columns == 1) {
+                                    ProfileSpaceListRow(
+                                        title = video.title,
+                                        subtitle = "${FormatUtils.formatStat(video.play.toLong())} 播放 · ${video.length}",
+                                        imageUrl = video.pic,
+                                        onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) },
+                                    )
+                                } else {
+                                    PersonalMediaCardFrame(
+                                        stacked = true,
+                                        headlineContent = {
+                                            AppText(video.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        },
+                                        supportingContent = {
+                                            AppText("${FormatUtils.formatStat(video.play.toLong())} 播放 · ${video.length}",
+                                                style = MaterialTheme.typography.bodySmall)
+                                        },
+                                        coverContent = {
+                                            AsyncImage(model = video.pic, contentDescription = null,
+                                                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        },
+                                        onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -3906,6 +3960,7 @@ fun ServicesSection(
     isTablet: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val queryAicu = com.android.purebilibili.feature.aicu.LocalAicuNavigation.current
     val downloadIcon = rememberAppDownloadIcon()
     val historyIcon = rememberAppHistoryIcon()
     val bookmarkIcon = rememberAppBookmarkIcon()
@@ -3933,6 +3988,7 @@ fun ServicesSection(
             if (showFavoriteService) add(Triple("我的收藏", bookmarkIcon, onFavoriteClick))
             add(Triple("稍后再看", watchLaterIcon, onWatchLaterClick))
             add(Triple("消息中心", inboxIcon, onInboxClick))
+            if (queryAicu != null) add(Triple("评论与弹幕查询", historyIcon) { queryAicu(null) })
             add(Triple("账号切换", accountIcon, onAccountManageClick))
         }
 
@@ -3984,6 +4040,16 @@ fun ServicesSection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val serviceRows: @Composable ColumnScope.() -> Unit = {
+                    if (queryAicu != null) {
+                        ProfileServiceRow(
+                            icon = historyIcon,
+                            title = "评论与弹幕查询",
+                            onClick = { queryAicu(null) },
+                            iconTint = secondaryAccent,
+                            textColor = contentColor,
+                        )
+                        ProfileServiceDivider(contentColor)
+                    }
                     ProfileServiceRow(
                         icon = downloadIcon,
                         title = "离线缓存",
@@ -4069,6 +4135,10 @@ fun ServicesSection(
                 tonalElevation = 0.dp // Ensure no extra overlay
             ) {
                 Column {
+                    if (queryAicu != null) {
+                        AppPreference(icon = historyIcon, title = "评论与弹幕查询",
+                            onClick = { queryAicu(null) }, iconTint = secondaryAccent, textColor = contentColor)
+                    }
                     AppPreference(
                         icon = downloadIcon,
                         title = "离线缓存",

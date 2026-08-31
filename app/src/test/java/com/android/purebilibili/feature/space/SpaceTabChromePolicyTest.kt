@@ -190,26 +190,6 @@ class SpaceTabChromePolicyTest {
     }
 
     @Test
-    fun `contribution tab scroll offset centers selected item like main tab indicator`() {
-        assertEquals(
-            0,
-            resolveSpaceContributionTabCenteredScrollOffsetPx(
-                selectedIndex = 0,
-                itemWidthPx = 160f,
-                viewportWidthPx = 360f
-            )
-        )
-        assertEquals(
-            220,
-            resolveSpaceContributionTabCenteredScrollOffsetPx(
-                selectedIndex = 2,
-                itemWidthPx = 160f,
-                viewportWidthPx = 360f
-            )
-        )
-    }
-
-    @Test
     fun `dragged secondary indicator asks rail to follow only near viewport edges`() {
         assertEquals(
             0f,

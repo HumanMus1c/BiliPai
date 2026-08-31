@@ -222,7 +222,7 @@ class BottomControlBarPolicyTest {
                 showEpisodeInMoreActions = true,
                 showNextEpisodeButton = false,
                 showPlaybackOrderLabel = false,
-                showAspectRatioButton = false,
+                showAudioQualityButton = false,
                 showPortraitSwitchButton = false
             )
         )
@@ -231,7 +231,7 @@ class BottomControlBarPolicyTest {
                 isFullscreen = true,
                 showNextEpisodeButton = false,
                 showPlaybackOrderLabel = false,
-                showAspectRatioButton = false,
+                showAudioQualityButton = false,
                 showPortraitSwitchButton = true
             )
         )
@@ -240,7 +240,7 @@ class BottomControlBarPolicyTest {
                 isFullscreen = true,
                 showNextEpisodeButton = false,
                 showPlaybackOrderLabel = false,
-                showAspectRatioButton = false,
+                showAudioQualityButton = false,
                 showPortraitSwitchButton = false
             )
         )
@@ -249,7 +249,7 @@ class BottomControlBarPolicyTest {
                 isFullscreen = false,
                 showNextEpisodeButton = true,
                 showPlaybackOrderLabel = true,
-                showAspectRatioButton = true,
+                showAudioQualityButton = true,
                 showPortraitSwitchButton = true
             )
         )

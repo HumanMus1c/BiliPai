@@ -7,6 +7,8 @@ import com.android.purebilibili.core.ui.MediaContrastPalette
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,7 +78,7 @@ import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeStyleSingleColumnVideoCard(
     video: VideoItem,
@@ -89,6 +91,9 @@ internal fun HomeStyleSingleColumnVideoCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onMoreClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    highlightedTitle: androidx.compose.ui.text.AnnotatedString? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
@@ -170,7 +175,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                         .resolveVideoCardSourceInfoPresentation(
                             publishTimeText = "",
                             showStatsInInfo = true,
-                            showOverflowMenu = onMoreClick != null,
+                            showOverflowMenu = onMoreClick != null || trailingContent != null,
                         ),
                     coverUrl = stationaryCoverUrl,
                     coverCacheKey = stationaryCoverUrl,
@@ -209,7 +214,7 @@ internal fun HomeStyleSingleColumnVideoCard(
             )
             .clip(cardShape)
             .background(AppSurfaceTokens.cardContainer())
-            .clickable(onClick = triggerClick)
+            .combinedClickable(onClick = triggerClick, onLongClick = onLongClick)
             .padding(AppSpacingTokens.Small),
         horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
         verticalAlignment = Alignment.Top,
@@ -252,7 +257,7 @@ internal fun HomeStyleSingleColumnVideoCard(
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
         ) {
             AppText(
-                text = video.title,
+                text = highlightedTitle ?: androidx.compose.ui.text.AnnotatedString(video.title),
                 modifier = Modifier.fillMaxWidth(),
                 style = contentTypography.title,
                 maxLines = videoCardTitleMaxLines(),
@@ -291,10 +296,13 @@ internal fun HomeStyleSingleColumnVideoCard(
             )
         }
 
-        if (onMoreClick != null) {
+        if (trailingContent != null) {
+            Box(modifier = Modifier.align(Alignment.Bottom)) { trailingContent() }
+        } else if (onMoreClick != null) {
             val moreHaptic = rememberHapticFeedback()
             Box(
                 modifier = Modifier
+                    .align(Alignment.Bottom)
                     .size(AppChromeSizeTokens.MinimumTouchTarget)
                     .clip(CircleShape)
                     .semantics { contentDescription = "更多操作" }

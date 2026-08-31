@@ -6,6 +6,19 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BiliPaiNavDisplayHostStructureTest {
+    @Test
+    fun miuixHeroHasOneOwnerForGeometryEffectsAndLifetime() {
+        val source = navDisplayHostSource()
+        assertTrue(source.contains("resolveVideoHeroMotionSpec("))
+        assertTrue(source.contains("heroMotionSpec = heroMotion"))
+        assertTrue(source.contains("bindNavigationDriver("))
+        assertTrue(source.contains("remember(sourceMetadata.sourceKey) { MiuixVideoCardTransitionProgress() }"))
+        assertTrue(source.contains("followNavigationDriver("))
+        assertTrue(source.contains("snapshotFlow { videoCardTransitionProgress.settleStateOrNull() }"))
+        assertFalse(source.contains("animateFallbackTo("))
+        assertTrue(source.contains("LocalMiuixVideoCardTransitionState provides miuixCardTransitionState"))
+        assertTrue(source.contains("ProvideMiuixNavViewModelApplicationExtras(application)"))
+    }
 
     @Test
     fun navDisplayHostOwnsNavigation3RenderingAndSharedTransitionScope() {

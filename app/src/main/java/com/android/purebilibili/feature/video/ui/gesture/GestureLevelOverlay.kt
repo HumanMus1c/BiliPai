@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.gesture
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -15,8 +16,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,11 +29,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +46,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +60,7 @@ import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
+import com.android.purebilibili.feature.video.ui.components.CircularGesturePercentText
 import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveVideoGestureMotionSpec
@@ -60,7 +68,7 @@ import kotlin.math.roundToInt
 
 /**
  * Theme-native volume / brightness feedback:
- * - MD3: centered vertical material pill
+ * - MD3: centered, theme-colored circular indicator
  * - iOS: centered frosted capsule
  * - MIUIX: edge vertical system-style rail
  */
@@ -77,8 +85,14 @@ fun BoxScope.GestureLevelOverlayHost(
         resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     val motionSpec = remember { resolveVideoGestureMotionSpec() }
-    val spec = remember(style, kind, percent) {
-        resolveGestureLevelOverlaySpec(style = style, kind = kind, percent = percent)
+    val colorScheme = MaterialTheme.colorScheme
+    val spec = remember(style, kind, percent, colorScheme) {
+        resolveGestureLevelOverlaySpec(
+            style = style,
+            kind = kind,
+            percent = percent,
+            colorScheme = colorScheme
+        )
     }
     val progress by animateFloatAsState(
         targetValue = percent.coerceIn(0f, 1f),
@@ -89,6 +103,7 @@ fun BoxScope.GestureLevelOverlayHost(
     val percentInt = (percent.coerceIn(0f, 1f) * 100f).roundToInt().coerceIn(0, 100)
     GestureLevelStepHaptics(
         style = style,
+        kind = kind,
         percent = percentInt,
         active = visible
     )
@@ -99,7 +114,7 @@ fun BoxScope.GestureLevelOverlayHost(
             .align(spec.alignment)
             .then(
                 when (style) {
-                    GestureLevelOverlayStyle.Md3 -> Modifier.padding(horizontal = 24.dp)
+                    GestureLevelOverlayStyle.Md3 -> Modifier
                     GestureLevelOverlayStyle.Miuix -> Modifier.padding(horizontal = 22.dp)
                     GestureLevelOverlayStyle.Ios -> Modifier.padding(horizontal = 22.dp)
                 }
@@ -125,10 +140,10 @@ fun BoxScope.GestureLevelOverlayHost(
             )
     ) {
         when (style) {
-            GestureLevelOverlayStyle.Md3 -> Md3GestureLevelRail(
+            GestureLevelOverlayStyle.Md3 -> Md3GestureLevelIndicator(
                 spec = spec,
                 icon = icon,
-                progress = progress,
+                progress = { progress },
                 percent = percentInt
             )
             GestureLevelOverlayStyle.Ios -> IosGestureLevelCapsule(
@@ -147,63 +162,60 @@ fun BoxScope.GestureLevelOverlayHost(
 }
 
 @Composable
-private fun Md3GestureLevelRail(
+private fun Md3GestureLevelIndicator(
     spec: GestureLevelOverlaySpec,
     icon: ImageVector,
-    progress: Float,
-    percent: Int
+    progress: () -> Float,
+    percent: Int,
+    modifier: Modifier = Modifier
 ) {
-    val shape = AppShapes.container(ContainerLevel.Floating)
-    AppSurface(
-        shape = shape,
-        color = spec.containerColor,
-        shadowElevation = 8.dp,
-        tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, spec.borderColor)
-    ) {
-        Column(
-            modifier = Modifier
-                .width(spec.railWidthDp.dp)
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+    // Use player bounds, not device orientation: embedded and split-screen players
+    // can have much less height than the window in either orientation.
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+        val diameter = resolveMd3GestureLevelDiameterDp(maxWidth.value, maxHeight.value)
+        val compact = diameter < 112f
+        AppSurface(
+            modifier = Modifier.size(diameter.dp),
+            shape = CircleShape,
+            color = spec.containerColor,
+            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, spec.borderColor)
         ) {
-            GestureLevelIconSlot(
-                icon = icon,
-                tint = spec.iconTint,
-                sizeDp = spec.iconSizeDp,
-                glowColor = spec.fillColor.copy(alpha = 0.28f)
-            )
             Box(
-                modifier = Modifier
-                    .width(18.dp)
-                    .height((spec.railHeightDp - 78).dp)
-                    .clip(CircleShape)
-                    .background(spec.trackColor)
+                modifier = Modifier.padding(8.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
+                CircularWavyProgressIndicator(
+                    progress = progress,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .fillMaxHeight(progress)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    spec.fillColor.copy(alpha = 0.72f),
-                                    spec.fillColor
-                                )
+                        .fillMaxSize()
+                        .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
+                    color = spec.fillColor,
+                    trackColor = spec.trackColor
+                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    GestureLevelIconSlot(
+                        icon = icon,
+                        tint = spec.iconTint,
+                        sizeDp = if (compact) 18 else spec.iconSizeDp,
+                        glowColor = spec.accentColor.copy(alpha = 0.12f)
+                    )
+                    key(spec.kind) {
+                        CircularGesturePercentText(
+                            percent = percent,
+                            color = spec.textColor,
+                            textStyle = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = if (compact) 14.sp else 18.sp
                             )
                         )
-                )
+                    }
+                }
             }
-            AppText(
-                text = "$percent",
-                color = spec.textColor,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-            )
         }
     }
 }
@@ -395,15 +407,28 @@ private fun GestureLevelIconSlot(
 
 /**
  * Stepped haptics for all three skins while dragging volume / brightness.
- * MD3 & iOS: every 5%. MIUIX: every ~7% (closer to system stream steps).
+ * MD3: throttled 5% ticks with boundary confirmation. iOS: every 5%.
+ * MIUIX: every ~7% (closer to system stream steps).
  */
 @Composable
 private fun GestureLevelStepHaptics(
     style: GestureLevelOverlayStyle,
+    kind: GestureLevelKind,
     percent: Int,
     active: Boolean
 ) {
     val haptic = rememberHapticFeedback()
+    if (style == GestureLevelOverlayStyle.Md3) {
+        val policy = remember(kind) { Md3GestureLevelHapticPolicy() }
+        LaunchedEffect(active, percent, policy) {
+            when (policy.update(percent, active, SystemClock.uptimeMillis())) {
+                GestureLevelHapticFeedback.Tick -> haptic(HapticType.SELECTION)
+                GestureLevelHapticFeedback.Boundary -> haptic(HapticType.LIGHT)
+                null -> Unit
+            }
+        }
+        return
+    }
     var previousPercent by remember { mutableIntStateOf(percent) }
     val stepPercent = when (style) {
         GestureLevelOverlayStyle.Miuix -> 7
@@ -444,8 +469,14 @@ fun GestureLevelOverlayContent(
 ) {
     val kind = resolveGestureLevelKind(mode) ?: return
     val motionSpec = remember { resolveVideoGestureMotionSpec() }
-    val spec = remember(style, kind, percent) {
-        resolveGestureLevelOverlaySpec(style = style, kind = kind, percent = percent)
+    val colorScheme = MaterialTheme.colorScheme
+    val spec = remember(style, kind, percent, colorScheme) {
+        resolveGestureLevelOverlaySpec(
+            style = style,
+            kind = kind,
+            percent = percent,
+            colorScheme = colorScheme
+        )
     }
     val progress by animateFloatAsState(
         targetValue = percent.coerceIn(0f, 1f),
@@ -456,16 +487,17 @@ fun GestureLevelOverlayContent(
     val percentInt = (percent.coerceIn(0f, 1f) * 100f).roundToInt().coerceIn(0, 100)
     GestureLevelStepHaptics(
         style = style,
+        kind = kind,
         percent = percentInt,
         active = true
     )
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (style) {
-            GestureLevelOverlayStyle.Md3 -> Md3GestureLevelRail(
+            GestureLevelOverlayStyle.Md3 -> Md3GestureLevelIndicator(
                 spec = spec,
                 icon = icon,
-                progress = progress,
+                progress = { progress },
                 percent = percentInt
             )
             GestureLevelOverlayStyle.Ios -> IosGestureLevelCapsule(

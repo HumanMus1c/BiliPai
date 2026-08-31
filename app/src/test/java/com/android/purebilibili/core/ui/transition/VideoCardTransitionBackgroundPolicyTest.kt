@@ -8,6 +8,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoCardTransitionBackgroundPolicyTest {
+    @Test
+    fun blurEffectsAreCachedForTheSnapshotSessionAndReleasedWithIt() {
+        val state = VideoCardTransitionSnapshotLayerState()
+        val first = state.blurEffect(12f, sdkInt = 35)
+        kotlin.test.assertSame(first, state.blurEffect(12f, sdkInt = 35))
+        assertEquals(null, state.blurEffect(0f, sdkInt = 35))
+        assertEquals(null, state.blurEffect(12f, sdkInt = 30))
+        state.reset()
+        kotlin.test.assertNotSame(first, state.blurEffect(12f, sdkInt = 35))
+    }
 
     @Test
     fun detachedSourceInvalidatesRecordedSnapshotBeforeBackPreview() {

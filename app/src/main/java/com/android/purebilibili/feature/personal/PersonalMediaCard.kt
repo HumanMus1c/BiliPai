@@ -54,6 +54,7 @@ internal fun PersonalMediaCardFrame(
     modifier: Modifier = Modifier,
     coverModifier: Modifier = Modifier,
     selected: Boolean = false,
+    stacked: Boolean = false,
     enabled: Boolean = true,
     coverAspectRatio: Float = PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO,
     coverWidth: Dp? = null,
@@ -81,40 +82,64 @@ internal fun PersonalMediaCardFrame(
         color = AppSurfaceTokens.cardContainer(),
     ) {
         Box {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                val resolvedCoverWidth = coverWidth ?: (minimumHeight * coverAspectRatio)
-                Box(
-                    modifier = coverModifier
-                        .width(resolvedCoverWidth)
-                        .aspectRatio(coverAspectRatio)
-                        .clip(cardShape),
-                ) {
-                    coverContent()
-                    coverOverlayContent?.invoke(this)
+            if (stacked) {
+                Column {
+                    Box(
+                        modifier = coverModifier.fillMaxWidth().aspectRatio(coverAspectRatio).clip(cardShape),
+                    ) {
+                        coverContent()
+                        coverOverlayContent?.invoke(this)
+                    }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Column(
+                            modifier = Modifier.weight(1f).padding(AppSpacingTokens.Small),
+                            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
+                        ) {
+                            overlineContent?.invoke()
+                            headlineContent()
+                            supportingContent?.invoke()
+                        }
+                        trailingContent?.let { content ->
+                            Row(modifier = Modifier.padding(end = AppSpacingTokens.Small), content = content)
+                        }
+                    }
                 }
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(AppSpacingTokens.Medium),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    overlineContent?.invoke()
-                    headlineContent()
-                    supportingContent?.invoke()
-                }
+                    val resolvedCoverWidth = coverWidth ?: (minimumHeight * coverAspectRatio)
+                    Box(
+                        modifier = coverModifier
+                            .width(resolvedCoverWidth)
+                            .aspectRatio(coverAspectRatio)
+                            .clip(cardShape),
+                    ) {
+                        coverContent()
+                        coverOverlayContent?.invoke(this)
+                    }
 
-                trailingContent?.let { content ->
-                    Row(
+                    Column(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(end = AppSpacingTokens.Small),
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = content,
-                    )
+                            .weight(1f)
+                            .padding(AppSpacingTokens.Medium),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                    ) {
+                        overlineContent?.invoke()
+                        headlineContent()
+                        supportingContent?.invoke()
+                    }
+
+                    trailingContent?.let { content ->
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.Bottom)
+                                .padding(end = AppSpacingTokens.Small),
+                            verticalAlignment = Alignment.Bottom,
+                            content = content,
+                        )
+                    }
                 }
             }
 

@@ -378,7 +378,7 @@ fun RelatedVideoItem(
                         modifier = Modifier
                             .fillMaxWidth()
                             // Keep the follow badge clear of the trailing overflow action.
-                            .padding(end = if (onMoreClick != null) 32.dp else 0.dp),
+                            .padding(end = if (onMoreClick != null) 48.dp else 0.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     ) {
@@ -452,7 +452,7 @@ fun RelatedVideoItem(
                     HorizontalVideoStatRow(
                         playText = FormatUtils.formatStat(video.stat.view.toLong()),
                         danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
-                        modifier = Modifier.padding(end = if (onMoreClick != null) 32.dp else 0.dp),
+                        modifier = Modifier.padding(end = if (onMoreClick != null) 48.dp else 0.dp),
                     )
                 }
             }
@@ -463,7 +463,7 @@ fun RelatedVideoItem(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(32.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },

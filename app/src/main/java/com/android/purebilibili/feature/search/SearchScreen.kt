@@ -1,6 +1,10 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
 
+import com.android.purebilibili.core.ui.components.resolveVideoListColumns
+import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
+import com.android.purebilibili.core.ui.components.videoListItemModifier
+import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppBackToTopButton
@@ -620,6 +624,8 @@ fun SearchScreen(
     val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
     val searchChromeSpec = remember(topChromePolicy) { resolveSearchChromeVisualSpec(topChromePolicy) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val listLayout = rememberVideoListLayoutControl()
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val configuration = LocalConfiguration.current
@@ -1050,6 +1056,8 @@ fun SearchScreen(
                             ) {
                                 if (state.searchType == SearchType.VIDEO) {
                                     SearchVideoFilterBar(
+                                        singleColumn = listLayout.singleColumn,
+                                        onLayoutToggle = listLayout.toggle,
                                         currentOrder = state.searchOrder,
                                         currentDurations = state.searchDurations,
                                         currentVideoTid = state.videoTid,
@@ -1259,8 +1267,9 @@ fun SearchScreen(
                             com.android.purebilibili.data.model.response.SearchType.VIDEO -> {
                                 // Size cover requests against the actual result pane, including split windows.
                                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                    val videoGridColumns = resolveVideoListColumns(listLayout.singleColumn, maxWidth.value)
                                     val searchCoverRequestSpec = remember(
-                                        maxWidth, density.density, cardLayout, searchLayoutPolicy
+                                        maxWidth, density.density, cardLayout, searchLayoutPolicy, videoGridColumns
                                     ) {
                                         resolveHomeCoverRequestSpec(
                                             cardWidthDp = resolveSearchGridCardWidthDp(
@@ -1268,13 +1277,14 @@ fun SearchScreen(
                                                 minItemWidthDp = searchLayoutPolicy.resultGridMinItemWidthDp.toFloat(),
                                                 horizontalPaddingDp = cardLayout.outerPaddingDp.toFloat(),
                                                 spacingDp = cardLayout.itemSpacingDp.toFloat(),
+                                                fixedColumnCount = videoGridColumns,
                                             ),
                                             density = density.density,
                                             useLowQualityCover = false,
                                         )
                                     }
                                 LazyVerticalGrid(
-                                    columns = GridCells.Adaptive(minSize = searchLayoutPolicy.resultGridMinItemWidthDp.dp),
+                                    columns = GridCells.Fixed(videoGridColumns),
                                     state = activePageGridState,
                                     contentPadding = PaddingValues(
                                         top = 0.dp,
@@ -1299,58 +1309,56 @@ fun SearchScreen(
                                         )
                                     }
                                 ) { index, video ->
-                                        val highlightedTitle = rememberSearchHighlightedTitle(video)
-                                        ElegantVideoCard(
-                                            video = video,
-                                            index = index,
-                                            animationEnabled = cardAnimationEnabled,
-                                            motionTier = cardMotionTier,
-                                            transitionEnabled = effectiveCardTransitionEnabled,
-                                            isReturningFromVideoDetail = isReturningFromVideoDetail,
-                                            isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                            showPublishTime = true,
-                                            coverRequestSpec = searchCoverRequestSpec,
-                                            glassEnabled = videoCardAppearance.glassEnabled,
-                                            blurEnabled = videoCardAppearance.blurEnabled,
-                                            showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
-                                            showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
-                                            coverAspectRatio = cardLayout.coverAspectRatio,
-                                            compactMetadata = cardLayout.compactMetadata,
-                                            compactStatsOnCover = compactVideoStatsOnCover,
-                                            titleMinLines = 1,
-                                            homeDurationStyle = homeDurationStyle,
-                                            highlightedTitle = highlightedTitle,
-                                            showOnlineCount = showOnlineCount,
-                                            modifier = if (cardAnimationEnabled) {
-                                                Modifier.animateItem()
-                                            } else {
-                                                Modifier
-                                            },
-                                            //  [交互优化] 传递 onWatchLater 用于显示菜单选项
-                                            onWatchLater = if (video.bvid.isNotBlank()) {
-                                                { viewModel.addToWatchLater(video.bvid, video.id) }
-                                            } else {
-                                                null
-                                            },
-                                            onUpClick = onUpClick,
-                                            onClick = { _, _ ->
-                                                when (
-                                                    val target = resolveVideoSearchNavigationTarget(
-                                                        bvid = video.bvid,
-                                                        contentType = video.contentType,
-                                                        navigationUrl = video.navigationUrl,
-                                                        title = video.title
-                                                    )
-                                                ) {
-                                                    is SearchResultNavigationTarget.Video ->
-                                                        onVideoClick(target.bvid, 0, video.pic)
-                                                    is SearchResultNavigationTarget.Web ->
-                                                        onWebClick(target.url, target.title)
-                                                    else -> Unit
+                                        AnimatedVideoListItem(modifier = videoListItemModifier(enabled = cardAnimationEnabled), enabled = cardAnimationEnabled) {
+                                            val highlightedTitle = rememberSearchHighlightedTitle(video)
+                                            ElegantVideoCard(
+                                                video = video,
+                                                singleColumn = videoGridColumns == 1,
+                                                index = index,
+                                                animationEnabled = false, // The stable item wrapper owns column-switch motion.
+                                                motionTier = cardMotionTier,
+                                                transitionEnabled = effectiveCardTransitionEnabled,
+                                                isReturningFromVideoDetail = isReturningFromVideoDetail,
+                                                isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
+                                                showPublishTime = true,
+                                                coverRequestSpec = searchCoverRequestSpec,
+                                                glassEnabled = videoCardAppearance.glassEnabled,
+                                                blurEnabled = videoCardAppearance.blurEnabled,
+                                                showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
+                                                showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
+                                                coverAspectRatio = cardLayout.coverAspectRatio,
+                                                compactMetadata = cardLayout.compactMetadata,
+                                                compactStatsOnCover = compactVideoStatsOnCover,
+                                                titleMinLines = 1,
+                                                homeDurationStyle = homeDurationStyle,
+                                                highlightedTitle = highlightedTitle,
+                                                showOnlineCount = showOnlineCount,
+                                                //  [交互优化] 传递 onWatchLater 用于显示菜单选项
+                                                onWatchLater = if (video.bvid.isNotBlank()) {
+                                                    { viewModel.addToWatchLater(video.bvid, video.id) }
+                                                } else {
+                                                    null
+                                                },
+                                                onUpClick = onUpClick,
+                                                onClick = { _, _ ->
+                                                    when (
+                                                        val target = resolveVideoSearchNavigationTarget(
+                                                            bvid = video.bvid,
+                                                            contentType = video.contentType,
+                                                            navigationUrl = video.navigationUrl,
+                                                            title = video.title
+                                                        )
+                                                    ) {
+                                                        is SearchResultNavigationTarget.Video ->
+                                                            onVideoClick(target.bvid, 0, video.pic)
+                                                        is SearchResultNavigationTarget.Web ->
+                                                            onWebClick(target.url, target.title)
+                                                        else -> Unit
+                                                    }
                                                 }
-                                            }
-                                        )
-                                        
+                                            )
+
+                                        }
                                     }
                                     
                                     // [新增] 空状态提示 (提示可能被屏蔽)

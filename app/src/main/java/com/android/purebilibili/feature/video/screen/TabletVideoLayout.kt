@@ -853,6 +853,7 @@ private fun TabletSecondaryContent(
                             emoteMap = success.emoteMap,
                             maxTimestampMs = success.videoDurationMs.takeIf { it > 0L },
                             onLoadMore = commentActions.loadMoreSubReplies,
+                            onSortModeChange = commentActions.setSubReplySortMode,
                             onDismiss = commentActions.closeSubReply,
                             onRootCommentClick = playbackActions.openRootCommentComposer,
                             onTimestampClick = { positionMs ->

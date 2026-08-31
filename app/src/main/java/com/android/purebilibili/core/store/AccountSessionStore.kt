@@ -38,6 +38,7 @@ object AccountSessionStore {
         val raw = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
             .getString(KEY_ACCOUNTS, null)
             .orEmpty()
+            .let(SessionStorageCipher::decrypt)
         if (raw.isBlank()) return emptyList()
         return runCatching {
             json.decodeFromString<List<StoredAccountSession>>(raw)
@@ -167,6 +168,27 @@ object AccountSessionStore {
         return true
     }
 
+    /** Imports a session received through an authenticated BiliPai transfer. */
+    suspend fun importTransferredSession(
+        context: Context,
+        bundle: com.android.purebilibili.feature.login.BiliPaiSessionBundle,
+    ): Boolean {
+        if (bundle.mid <= 0L || bundle.sessData.isBlank()) return false
+        NetworkModule.clearRuntimeCookies()
+        TokenManager.applyStoredSession(
+            context = context,
+            sessData = bundle.sessData,
+            csrf = bundle.csrf,
+            mid = bundle.mid,
+            accessToken = bundle.accessToken,
+            refreshToken = bundle.refreshToken,
+            accessTokenPlatform = bundle.accessTokenPlatform,
+            buvid3 = bundle.buvid3,
+            isVip = bundle.isVip,
+        )
+        return upsertCurrentAccount(context)?.mid == bundle.mid
+    }
+
     private fun persistAccounts(
         context: Context,
         accounts: List<StoredAccountSession>
@@ -174,7 +196,7 @@ object AccountSessionStore {
         val payload = json.encodeToString(accounts)
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_ACCOUNTS, payload)
+            .putString(KEY_ACCOUNTS, SessionStorageCipher.encrypt(payload))
             .apply()
     }
 

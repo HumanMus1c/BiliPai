@@ -721,6 +721,9 @@ fun VideoCommentSheetHost(
                                     SubReplyDetailContent(
                                         rootReply = rootReply,
                                         subReplies = subReplyState.items,
+                                        sortMode = subReplyState.sortMode,
+                                        error = subReplyState.error,
+                                        onSortModeChange = commentViewModel::setSubReplySortMode,
                                         remoteReplyCount = subReplyState.totalCount,
                                         isLoading = subReplyState.isLoading,
                                         isEnd = subReplyState.isEnd,

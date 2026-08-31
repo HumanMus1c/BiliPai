@@ -38,11 +38,11 @@ import kotlin.math.roundToInt
 // 4) scrim 压暗：聚焦/可读
 // - 冻结层：首帧 record 一次后只改 BlurEffect，禁止 live 重录
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
-// - 返回：景深 progress 与 shared morph 同墙钟、同 Linear
+// - 返回：景深读取主驱动的已缓动进度，空间 landing pulse 不进入 effects
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
-private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
+private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = VideoHeroMotionTokens.OPEN_BLUR_QUANTUM_PX
 /** 返回消糊段更粗量化，降低 BlurEffect 每帧更新次数。 */
-internal const val VIDEO_CARD_TRANSITION_RETURN_BLUR_QUANTUM_PX = 4f
+internal const val VIDEO_CARD_TRANSITION_RETURN_BLUR_QUANTUM_PX = VideoHeroMotionTokens.RETURN_BLUR_QUANTUM_PX
 // 页面整体只后退 1.5%；被点击卡片由 shared overlay 自己放大，避免双重缩放。
 internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0.015f
 private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION =
@@ -784,6 +784,15 @@ internal class VideoCardTransitionBackgroundFrameCache {
  * 更新 scale / BlurEffect / scrim，实现「看起来实时的动态模糊」与稳帧共存。
  */
 internal class VideoCardTransitionSnapshotLayerState {
+    // Reused by both source and host renderers for the lifetime of the captured display list.
+    private val blurEffects = LinkedHashMap<Float, BlurEffect>()
+    fun blurEffect(radiusPx: Float, sdkInt: Int = Build.VERSION.SDK_INT): BlurEffect? {
+        if (radiusPx <= 0.01f || !radiusPx.isFinite() || sdkInt < 31) return null
+        return blurEffects.getOrPut(radiusPx) {
+            if (blurEffects.size >= 256) blurEffects.remove(blurEffects.keys.first())
+            BlurEffect(radiusX = radiusPx, radiusY = radiusPx, edgeTreatment = TileMode.Clamp)
+        }
+    }
     val frameCache = VideoCardTransitionBackgroundFrameCache()
     var freezeRecording: Boolean = false
     var hasRecordedContent: Boolean = false
@@ -802,6 +811,7 @@ internal class VideoCardTransitionSnapshotLayerState {
     var lastCornerRadiusPx: Float = Float.NaN
 
     fun invalidateRecordedContent() {
+        blurEffects.clear()
         freezeRecording = false
         hasRecordedContent = false
         displayListStale = false
@@ -886,15 +896,7 @@ internal fun applyVideoCardTransitionSnapshotFrame(
     }
     if (frame.blurRadiusPx != snapshotState.lastBlurRadiusPx) {
         snapshotState.lastBlurRadiusPx = frame.blurRadiusPx
-        contentLayer.renderEffect = if (frame.blurRadiusPx > 0.01f) {
-            BlurEffect(
-                radiusX = frame.blurRadiusPx,
-                radiusY = frame.blurRadiusPx,
-                edgeTreatment = TileMode.Clamp,
-            )
-        } else {
-            null
-        }
+        contentLayer.renderEffect = snapshotState.blurEffect(frame.blurRadiusPx)
         VideoCardTransitionDiagnostics.onBlurEffectUpdated()
     }
 }
@@ -1288,16 +1290,14 @@ internal fun shouldPrimeLiveContentForHazeDuringDepthDraw(
 /**
  * 进场/持有/返回：景深 progress 一律线性同源。
  *
- * 返回不再做 soft-clear 二次映射——shared morph 是 Linear，再 remap 会让模糊层
+ * 返回不再做 soft-clear 二次映射——主驱动已应用曲线，再 remap 会让模糊层
  * 落后于壳落位。遗留 [softClearVideoCardTransitionDepth] 仅供测试/兼容读取。
  */
 internal fun resolveVideoCardTransitionDepthProgress(
     progress: Float,
     phase: VideoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
 ): Float {
-    @Suppress("UNUSED_PARAMETER")
-    val ignored = phase
-    return progress.coerceIn(0f, 1f)
+    return resolveVisualProgress(progress, phase, VideoSharedTransitionDirection.ENTER)
 }
 
 /**

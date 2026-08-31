@@ -375,6 +375,9 @@ fun CinematicVideoCard(
 
                 // 数据层 (一直显示)
                 Row(
+                    modifier = Modifier.padding(end = if (onDismiss != null || onWatchLater != null) {
+                        AppChromeSizeTokens.MinimumTouchTarget
+                    } else AppSpacingTokens.None),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                 ) {
@@ -424,12 +427,12 @@ fun CinematicVideoCard(
             }
         }
         
-        // 更多操作按钮 (右上角)
+        // 更多操作按钮（右下角）
          val hasMenu = onDismiss != null || onWatchLater != null
          if (hasMenu) {
              Box(
                  modifier = Modifier
-                     .align(Alignment.TopEnd)
+                     .align(Alignment.BottomEnd)
                      .padding(AppSpacingTokens.Medium)
                      .size(AppChromeSizeTokens.MinimumTouchTarget)
                      .semantics { contentDescription = "更多操作" }

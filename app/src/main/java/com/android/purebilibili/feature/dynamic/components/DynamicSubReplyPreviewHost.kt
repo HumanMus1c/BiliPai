@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.video.ui.components.SubReplySheet
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 
 @Composable
@@ -17,6 +18,7 @@ fun DynamicSubReplyPreviewHost(
     state: SubReplyUiState,
     onDismiss: () -> Unit,
     onLoadMore: () -> Unit,
+    onSortModeChange: (SubReplySortMode) -> Unit,
     onUserClick: (Long) -> Unit,
     onReplyClick: ((ReplyItem) -> Unit)? = null,
     onCommentLike: ((Long) -> Unit)? = null,
@@ -54,6 +56,7 @@ fun DynamicSubReplyPreviewHost(
         emoteMap = emoteMap,
         onDismiss = onDismiss,
         onLoadMore = onLoadMore,
+        onSortModeChange = onSortModeChange,
         onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
         onReplyClick = onReplyClick,
         onCommentLike = onCommentLike,

@@ -7,6 +7,20 @@ import org.junit.Test
 class TopTabIndicatorGeometryTest {
 
     @Test
+    fun `liquid capsule width interpolates between adjacent labels`() {
+        assertEquals(
+            54f,
+            resolveTopTabInterpolatedIndicatorWidthDp(
+                position = 0.5f,
+                itemWidthDp = 100f,
+                horizontalGapDp = 2f,
+                contentWidthsDp = listOf(30f, 70f),
+            ),
+            0.01f,
+        )
+    }
+
+    @Test
     fun `icon only top tab uses a compact side indicator`() {
         assertEquals(24.dp, resolveIconOnlyTopTabIndicatorWidth())
     }

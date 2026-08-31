@@ -428,6 +428,7 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
         emoteMap = emptyMap(),
         onDismiss = commentViewModel::closeSubReply,
         onLoadMore = commentViewModel::loadMoreSubReplies,
+        onSortModeChange = commentViewModel::setSubReplySortMode,
         onCommentLike = commentViewModel::likeComment,
         likedComments = commentState.likedComments,
         currentMid = commentState.currentMid,

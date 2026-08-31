@@ -96,15 +96,19 @@ class VideoCommentViewModelTest {
     }
 
     @Test
-    fun `sub reply loading uses rest pn paging and clears grpc offset`() {
-        val viewModelSource = File("src/main/java/com/android/purebilibili/feature/video/viewmodel/VideoCommentViewModel.kt")
-            .readText()
-        val repositorySource = File("src/main/java/com/android/purebilibili/data/repository/CommentRepository.kt")
-            .readText()
+    fun `sub reply loading preserves server sort and pagination cursor`() {
+        val viewModelSource = listOf(
+            File("src/main/java/com/android/purebilibili/feature/video/viewmodel/VideoCommentViewModel.kt"),
+            File("app/src/main/java/com/android/purebilibili/feature/video/viewmodel/VideoCommentViewModel.kt")
+        ).first { it.exists() }.readText()
+        val loadingSource = viewModelSource.substringAfter("private fun loadSubReplies(")
+            .substringBefore("private fun loadConversationReplies(")
 
-        assertFalse(viewModelSource.contains("loadSubReplies(requestSubject, rootReply.rpid, 1, paginationOffset = null)"))
-        assertTrue(viewModelSource.contains("paginationOffset = paginationOffset"))
-        assertTrue(viewModelSource.contains("grpcNextOffset = null"))
-        assertTrue(repositorySource.contains("preferRestPaging: Boolean = true"))
+        assertTrue(loadingSource.contains("CommentRepository.getSortedSubCommentsForSubject("))
+        assertTrue(loadingSource.contains("mode = sortMode.apiMode"))
+        assertTrue(loadingSource.contains("paginationOffset = paginationOffset"))
+        assertTrue(loadingSource.contains("grpcNextOffset = data.grpcNextOffset"))
+        assertTrue(loadingSource.contains("subReplyLoadJob?.cancel()"))
+        assertFalse(loadingSource.contains("grpcNextOffset = null"))
     }
 }

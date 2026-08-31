@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
@@ -115,6 +116,7 @@ data class CommentUiState(
 
 // 二级评论状态 (从 VideoPlaybackViewModel 移过来)
 data class SubReplyUiState(
+    val sortMode: SubReplySortMode = SubReplySortMode.TIME,
     val visible: Boolean = false,
     val rootReply: ReplyItem? = null,
     val items: ImmutableList<ReplyItem> = persistentListOf(),
@@ -223,6 +225,7 @@ class VideoCommentViewModel : ViewModel() {
     private val _commentState = MutableStateFlow(CommentUiState())
     val commentState = _commentState.asStateFlow()
 
+    private var subReplyLoadJob: Job? = null
     private val _subReplyState = MutableStateFlow(SubReplyUiState())
     val subReplyState = _subReplyState.asStateFlow()
 
@@ -246,6 +249,7 @@ class VideoCommentViewModel : ViewModel() {
         _commentState.value = CommentUiState(
             currentMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
         )
+        subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState()
     }
 
@@ -277,6 +281,7 @@ class VideoCommentViewModel : ViewModel() {
             currentMid = myMid,
             replyCount = expectedReplyCount.coerceAtLeast(0)
         )
+        subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState()
         loadComments()
     }
@@ -409,6 +414,7 @@ class VideoCommentViewModel : ViewModel() {
     fun openSubReply(rootReply: ReplyItem, targetReplyId: Long = 0L) {
         val requestSubject = currentSubject
         if (!requestSubject.isValid) return
+        subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState(
             visible = true,
             rootReply = rootReply,
@@ -442,6 +448,7 @@ class VideoCommentViewModel : ViewModel() {
             return true
         }
 
+        subReplyLoadJob?.cancel()
         val routeSubject = currentSubject
         _subReplyState.value = _subReplyState.value.copy(
             visible = false,
@@ -450,13 +457,13 @@ class VideoCommentViewModel : ViewModel() {
             targetReplyId = targetReplyId.takeIf { it != rootReplyId } ?: 0L
         )
 
-        viewModelScope.launch {
-            CommentRepository.getSubCommentsForSubject(
+        subReplyLoadJob = viewModelScope.launch {
+            CommentRepository.getSortedSubCommentsForSubject(
                 oid = routeSubject.oid,
                 type = routeSubject.type,
                 rootId = rootReplyId,
-                page = 1,
-                ps = SUB_REPLY_PAGE_SIZE
+                mode = SubReplySortMode.TIME.apiMode,
+                targetReplyId = targetReplyId
             ).onSuccess { data ->
                 if (!shouldApplyCommentSubjectResult(routeSubject, currentSubject)) {
                     return@onSuccess
@@ -484,14 +491,7 @@ class VideoCommentViewModel : ViewModel() {
                     loadedReplyCount = items.size,
                     remoteReplyCount = remoteTotalCount
                 )
-                val isEnd = resolveSubReplyPageEnd(
-                    cursorIsEnd = data.cursor.isEnd,
-                    fetchedReplyCount = items.size,
-                    loadedReplyCount = items.size,
-                    remoteReplyCount = totalCount,
-                    requestedPage = 1,
-                    restPage = data.page
-                )
+                val isEnd = isSortedSubReplyPageEnd(data.cursor.isEnd, data.grpcNextOffset)
                 _subReplyState.value = SubReplyUiState(
                     visible = true,
                     rootReply = rootReply,
@@ -503,6 +503,8 @@ class VideoCommentViewModel : ViewModel() {
                     basePage = 1,
                     isEnd = isEnd,
                     baseIsEnd = isEnd,
+                    grpcNextOffset = data.grpcNextOffset,
+                    baseGrpcNextOffset = data.grpcNextOffset,
                     upMid = _commentState.value.upMid,
                     targetReplyId = targetReplyId.takeIf { it != rootReplyId } ?: 0L
                 )
@@ -520,6 +522,7 @@ class VideoCommentViewModel : ViewModel() {
     }
 
     fun closeSubReply() {
+        subReplyLoadJob?.cancel()
         _subReplyState.update { current ->
             current.copy(
                 visible = false,
@@ -613,11 +616,20 @@ class VideoCommentViewModel : ViewModel() {
         }
     }
 
+    fun setSubReplySortMode(mode: SubReplySortMode) {
+        val state = _subReplyState.value
+        val root = state.rootReply ?: return
+        if (!state.visible || state.conversationAnchor != null || state.sortMode == mode) return
+        subReplyLoadJob?.cancel()
+        _subReplyState.update { it.resetForSort(mode) }
+        loadSubReplies(currentSubject, root.rpid, page = 1, paginationOffset = null)
+    }
+
     fun loadMoreSubReplies() {
         val state = _subReplyState.value
         if (state.isLoading || state.isEnd || state.rootReply == null) return
-        val nextPage = state.page + 1
-        _subReplyState.value = state.copy(isLoading = true)
+        val nextPage = if (state.error != null && state.items.isEmpty()) 1 else state.page + 1
+        _subReplyState.value = state.copy(isLoading = true, error = null)
         val anchor = state.conversationAnchor
         if (anchor != null) {
             loadConversationReplies(anchor, nextPage)
@@ -632,6 +644,7 @@ class VideoCommentViewModel : ViewModel() {
     }
 
     fun openSubReplyConversation(anchorReply: ReplyItem) {
+        subReplyLoadJob?.cancel()
         val current = _subReplyState.value
         val rootReply = current.rootReply ?: return
         val baseItems = current.baseItems.ifEmpty { current.items }
@@ -676,13 +689,16 @@ class VideoCommentViewModel : ViewModel() {
         paginationOffset: String? = _subReplyState.value.grpcNextOffset
     ) {
         if (!subject.isValid || rootId <= 0L) return
-        viewModelScope.launch {
-            val result = CommentRepository.getSubCommentsForSubject(
+        val sortMode = _subReplyState.value.sortMode
+        val targetReplyId = _subReplyState.value.targetReplyId.takeIf { page == 1 } ?: 0L
+        subReplyLoadJob?.cancel()
+        subReplyLoadJob = viewModelScope.launch {
+            val result = CommentRepository.getSortedSubCommentsForSubject(
                 oid = subject.oid,
                 type = subject.type,
                 rootId = rootId,
-                page = page,
-                ps = SUB_REPLY_PAGE_SIZE,
+                mode = sortMode.apiMode,
+                targetReplyId = targetReplyId,
                 paginationOffset = paginationOffset
             )
             result.onSuccess { data ->
@@ -709,14 +725,7 @@ class VideoCommentViewModel : ViewModel() {
                     remoteReplyCount = remoteTotalCount,
                     previousTotalCount = current.totalCount
                 )
-                val isEnd = resolveSubReplyPageEnd(
-                    cursorIsEnd = data.cursor.isEnd,
-                    fetchedReplyCount = newItems.size,
-                    loadedReplyCount = updatedItems.size,
-                    remoteReplyCount = totalCount,
-                    requestedPage = page,
-                    restPage = data.page
-                )
+                val isEnd = isSortedSubReplyPageEnd(data.cursor.isEnd, data.grpcNextOffset)
 
                 _subReplyState.value = current.copy(
                     items = updatedItems.toImmutableList(),
@@ -728,8 +737,8 @@ class VideoCommentViewModel : ViewModel() {
                     isEnd = isEnd,
                     baseIsEnd = isEnd,
                     error = null,
-                    grpcNextOffset = null,
-                    baseGrpcNextOffset = null
+                    grpcNextOffset = data.grpcNextOffset,
+                    baseGrpcNextOffset = data.grpcNextOffset
                 )
                 val commentState = _commentState.value
                 _commentState.value = commentState.copy(
@@ -750,7 +759,7 @@ class VideoCommentViewModel : ViewModel() {
                 }
                 _subReplyState.value = _subReplyState.value.copy(
                     isLoading = false,
-                    error = it.message
+                    error = it.message ?: "回复加载失败"
                 )
             }
         }

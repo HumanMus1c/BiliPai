@@ -38,6 +38,7 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
@@ -66,15 +67,35 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.android.purebilibili.core.store.TokenManager
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import android.graphics.Bitmap
+import android.graphics.Color
+import kotlinx.coroutines.launch
 
 enum class LoginMethod {
+    /** Official Bilibili TV QR login; the phone confirms on Bilibili's servers. */
     TV_QR,
+    OFFICIAL_TV_SCAN,
     PASSWORD,
     SMS,
-    COOKIE_IMPORT
+    COOKIE_IMPORT,
+    BILIPAI_TRANSFER
 }
 
-internal fun resolveAvailableLoginMethods(): List<LoginMethod> = LoginMethod.entries
+// 暂时隐藏设备间传输入口：当前测试环境为模拟机 + 真机。
+// TV_QR remains the only QR login path and uses Bilibili's official TV API.
+private const val ENABLE_BILIPAI_TRANSFER = false
+// Temporarily hide the Bilibili-side QR confirmation entry while that flow is
+// being reworked. The implementation remains available for a later re-enable.
+private const val ENABLE_OFFICIAL_TV_SCAN = false
+
+internal fun resolveAvailableLoginMethods(): List<LoginMethod> =
+    LoginMethod.entries.filter {
+        (ENABLE_BILIPAI_TRANSFER || it != LoginMethod.BILIPAI_TRANSFER) &&
+            (ENABLE_OFFICIAL_TV_SCAN || it != LoginMethod.OFFICIAL_TV_SCAN)
+    }
 
 internal fun resolveQrLoginReason(): String {
     return "推荐使用 TV 扫码登录，可获得更完整的播放登录态并解锁高画质播放能力。"
@@ -95,6 +116,7 @@ fun LoginScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val phoneRegions by viewModel.phoneRegions.collectAsStateWithLifecycle()
     var selectedMethod by rememberSaveable { mutableStateOf(LoginMethod.TV_QR) }
+    var transferVisible by rememberSaveable { mutableStateOf(false) }
     var captchaRequest by remember { mutableStateOf<CaptchaRequest?>(null) }
     var captchaManager by remember { mutableStateOf<CaptchaManager?>(null) }
     val activity = LocalActivity.current
@@ -104,6 +126,10 @@ fun LoginScreen(
     }
 
     LaunchedEffect(selectedMethod) {
+        if (selectedMethod == LoginMethod.BILIPAI_TRANSFER && !ENABLE_BILIPAI_TRANSFER) {
+            selectedMethod = LoginMethod.TV_QR
+            return@LaunchedEffect
+        }
         captchaRequest = null
         viewModel.stopPolling()
         if (selectedMethod == LoginMethod.TV_QR) {
@@ -185,6 +211,7 @@ fun LoginScreen(
         onMethodSelected = { selectedMethod = it },
         onClose = onClose,
         onRefreshQr = viewModel::loadTvQrCode,
+        onConfirmOfficialTvQr = viewModel::confirmOfficialTvQr,
         onRequestSms = { phone, countryCid ->
             captchaRequest = CaptchaRequest.Sms(phone = phone, countryCid = countryCid)
             viewModel.beginSmsCodeRequest(phone = phone, countryCode = countryCid)
@@ -195,11 +222,15 @@ fun LoginScreen(
             viewModel.beginPasswordLogin(phone, password)
         },
         onImportCookie = viewModel::loginByCookie,
+        onOpenTransfer = { transferVisible = true },
         onContinueWithStandardSession = viewModel::continueWithStandardSession,
         onAuthorizeHighQuality = { selectedMethod = LoginMethod.TV_QR },
         onPrepareRiskSms = viewModel::prepareRiskSmsCaptcha,
         onVerifyRiskSms = viewModel::verifyRiskSmsCode,
     )
+    if (transferVisible) {
+        BiliPaiTransferDialog(onDismiss = { transferVisible = false })
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -211,10 +242,12 @@ internal fun LoginPage(
     onMethodSelected: (LoginMethod) -> Unit,
     onClose: () -> Unit,
     onRefreshQr: () -> Unit,
+    onConfirmOfficialTvQr: (String) -> Unit = {},
     onRequestSms: (phone: String, countryCid: Int) -> Unit,
     onSubmitSms: (Int) -> Unit,
     onRequestPassword: (String, String) -> Unit,
     onImportCookie: (String) -> Unit,
+    onOpenTransfer: () -> Unit = {},
     onContinueWithStandardSession: () -> Unit,
     onAuthorizeHighQuality: () -> Unit,
     onPrepareRiskSms: () -> Unit = {},
@@ -276,6 +309,7 @@ internal fun LoginPage(
                     item {
                         when (selectedMethod) {
                             LoginMethod.TV_QR -> TvQrLoginContent(state, onRefreshQr)
+                            LoginMethod.OFFICIAL_TV_SCAN -> OfficialTvScanContent(state, onConfirmOfficialTvQr)
                             LoginMethod.PASSWORD -> PasswordLoginContent(
                                 state = state,
                                 onSubmit = onRequestPassword,
@@ -289,6 +323,7 @@ internal fun LoginPage(
                                 onSubmitCode = onSubmitSms,
                             )
                             LoginMethod.COOKIE_IMPORT -> CookieImportContent(state, onImportCookie)
+                            LoginMethod.BILIPAI_TRANSFER -> BiliPaiTransferEntry(onOpenTransfer)
                         }
                     }
                     item {
@@ -337,9 +372,11 @@ private fun LoginMethodTabs(
 
 private fun loginMethodLabel(method: LoginMethod): String = when (method) {
     LoginMethod.TV_QR -> "扫码登录"
+    LoginMethod.OFFICIAL_TV_SCAN -> "B站扫码确认"
     LoginMethod.PASSWORD -> "密码登录"
     LoginMethod.SMS -> "短信登录"
     LoginMethod.COOKIE_IMPORT -> "Cookie 导入"
+    LoginMethod.BILIPAI_TRANSFER -> "BiliPai 传输"
 }
 
 @Composable
@@ -356,6 +393,128 @@ private fun LoginStateMessage(state: LoginState, modifier: Modifier = Modifier) 
             modifier = Modifier.padding(16.dp)
         )
     }
+}
+
+@Composable
+private fun BiliPaiTransferEntry(onOpen: () -> Unit) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppText("在两台 BiliPai 设备之间加密迁移登录会话", style = MaterialTheme.typography.titleMedium)
+            AppText("Cookie 只在设备端加密和解密，不经过服务器。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { AppText("开始传输") }
+        }
+    }
+}
+
+@Composable
+private fun OfficialTvScanContent(state: LoginState, onConfirm: (String) -> Unit) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppText("扫描另一台设备上的 B 站 TV 登录二维码", style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center)
+            AppText("本设备需要已经登录 B 站账号；确认后对方设备会完成登录。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            BiliPaiTransferScanner(onCode = onConfirm, modifier = Modifier.size(260.dp))
+            if (state is LoginState.Error) AppText(state.msg, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+@Composable
+private fun BiliPaiTransferDialog(onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val session = remember { BiliPaiTransferSession(context) }
+    var receiving by rememberSaveable { mutableStateOf(true) }
+    var qrText by remember { mutableStateOf<String?>(null) }
+    var scanned by remember { mutableStateOf(false) }
+    var pendingBundle by remember { mutableStateOf<BiliPaiSessionBundle?>(null) }
+    var message by remember { mutableStateOf("选择接收或发送") }
+
+
+    androidx.compose.runtime.LaunchedEffect(receiving) {
+        if (receiving) {
+            val request = session.beginReceive()
+            qrText = BiliPaiTransferCodec.encodeRequest(request)
+            message = "请让发送设备扫描此二维码"
+        } else {
+            qrText = null
+            message = "请扫描接收设备的请求二维码"
+        }
+        scanned = false
+        pendingBundle = null
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { AppText("BiliPai 安全传输") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppOutlinedButton(onClick = { receiving = true }) { AppText("接收账号") }
+                    AppOutlinedButton(onClick = { receiving = false }) { AppText("发送账号") }
+                }
+                AppText(message, textAlign = TextAlign.Center)
+                qrText?.let { value ->
+                    val bitmap = remember(value) { runCatching { transferQrBitmap(value) }.getOrNull() }
+                    if (bitmap != null) {
+                        Image(bitmap = bitmap.asImageBitmap(), contentDescription = "BiliPai 传输二维码", modifier = Modifier.size(220.dp))
+                    } else {
+                        AppText(
+                            "加密会话过大，无法通过单个二维码传输。请改用 Cookie 导入或其他登录方式。",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+                if (!scanned) {
+                    BiliPaiTransferScanner(
+                        onCode = { raw ->
+                            runCatching {
+                                if (receiving) {
+                                    require(BiliPaiTransferChunks.parse(raw) == null) { "此版本不支持分片二维码，请使用单个加密二维码" }
+                                    pendingBundle = session.acceptEnvelope(raw)
+                                    scanned = true
+                                    message = "已解密账号，请确认导入"
+                                } else {
+                                    session.acceptRequest(raw)
+                                    val bundle = BiliPaiSessionBundle(
+                                        mid = TokenManager.midCache ?: 0L,
+                                        sessData = TokenManager.sessDataCache.orEmpty(),
+                                        csrf = TokenManager.csrfCache.orEmpty(),
+                                        // Do not transfer long-lived app tokens in a QR. Cookie + CSRF
+                                        // is sufficient to establish the account session and keeps
+                                        // the encrypted payload within a single QR's capacity.
+                                        accessToken = "",
+                                        refreshToken = "",
+                                        accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_TV,
+                                        buvid3 = TokenManager.buvid3Cache.orEmpty(),
+                                        isVip = TokenManager.isVipCache,
+                                    )
+                                    require(bundle.mid > 0 && bundle.sessData.isNotBlank()) { "当前设备没有可传输的登录会话" }
+                                    qrText = BiliPaiTransferCodec.encodeEnvelope(session.createEnvelope(bundle))
+                                    scanned = true
+                                    message = "请让接收设备扫描此加密二维码"
+                                }
+                            }.onFailure { message = it.message ?: "二维码无效" }
+                        }, modifier = Modifier.size(180.dp))
+                }
+                pendingBundle?.let { bundle ->
+                    AppButton(onClick = { scope.launch { if (session.confirmImport(bundle)) onDismiss() else message = "导入失败" } }) {
+                        AppText("确认导入 MID ${bundle.mid}")
+                    }
+                }
+            }
+        },
+        confirmButton = { AppTextButton(onClick = onDismiss) { AppText("取消") } },
+    )
+}
+
+private fun transferQrBitmap(content: String): Bitmap {
+    val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, 512, 512)
+    val bitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.RGB_565)
+    for (x in 0 until 512) for (y in 0 until 512) bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
+    return bitmap
 }
 
 @Composable

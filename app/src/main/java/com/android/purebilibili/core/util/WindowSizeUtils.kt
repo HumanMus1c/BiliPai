@@ -93,6 +93,13 @@ data class WindowSizeClass(
     val heightDp: Dp,
     val deviceWidthSizeClass: WindowWidthSizeClass = widthSizeClass
 ) {
+    /**
+     * A foldable cover display can be narrow even though the maximum (inner) display is a
+     * tablet-sized window.  Orientation handling must follow the currently visible display.
+     */
+    val isFoldableCoverScreen: Boolean
+        get() = isTabletDevice && min(widthDp.value, heightDp.value) < 600f
+
     /** 是否为当前窗口意义上的平板宽度布局 */
     val isTablet: Boolean
         get() = widthSizeClass != WindowWidthSizeClass.Compact

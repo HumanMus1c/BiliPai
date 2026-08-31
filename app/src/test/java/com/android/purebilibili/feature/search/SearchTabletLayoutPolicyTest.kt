@@ -7,6 +7,12 @@ import kotlin.test.assertTrue
 class SearchTabletLayoutPolicyTest {
 
     @Test
+    fun coverWidth_followsExplicitColumnsOnLargeScreens() {
+        assertEquals(458f, resolveSearchGridCardWidthDp(960f, 220f, 16f, 12f, fixedColumnCount = 2))
+        assertEquals(928f, resolveSearchGridCardWidthDp(960f, 220f, 16f, 12f, fixedColumnCount = 1))
+    }
+
+    @Test
     fun coverWidth_accountsForPhoneColumnsPaddingAndSpacing() {
         assertEquals(184.5f, resolveSearchGridCardWidthDp(393f, 160f, 8f, 8f))
     }

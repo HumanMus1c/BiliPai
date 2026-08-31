@@ -66,6 +66,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("resolveSpaceContributionVideoItemKey("))
         assertTrue(source.contains("SpaceContributionVideoLayoutMode.SINGLE_COLUMN"))
         assertTrue(source.contains("SpaceArchiveListItemRow("))
+        assertTrue(contributionVideoItems.contains("AnimatedVideoListItem(modifier = videoListItemModifier("))
         assertFalse(contributionVideoItems.contains("Modifier.animateItem()"))
         assertFalse(contributionVideoItems.contains("AnimatedContent("))
         assertFalse(contributionVideoItems.contains("SizeTransform("))

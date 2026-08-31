@@ -35,7 +35,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
-import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -49,9 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.feature.video.note.VideoNoteBlock
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.VideoNoteLoadStatus
@@ -62,7 +64,9 @@ import com.android.purebilibili.feature.video.note.resolveVideoNotePrimaryAction
 import com.android.purebilibili.feature.video.note.resolveVideoNoteEmptyMessage
 import com.android.purebilibili.feature.video.note.shouldShowVideoNoteBody
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.BasicRichTextEditor
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun VideoNoteCard(
@@ -162,7 +166,7 @@ fun VideoNoteCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     noteState.privateNoteDocument?.let { privateDocument ->
-                        AppOutlinedButton(
+                        VideoDetailSecondaryButton(
                             onClick = { onShareClick(privateDocument) },
                         ) {
                             AppIcon(
@@ -173,7 +177,7 @@ fun VideoNoteCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             AppText("分享")
                         }
-                        AppOutlinedButton(
+                        VideoDetailSecondaryButton(
                             onClick = onDeleteClick,
                             enabled = !noteState.deleting,
                         ) {
@@ -231,10 +235,14 @@ private fun VideoNotePrimaryActionButton(
     AppButton(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colorScheme.primaryContainer,
-            contentColor = colorScheme.onPrimaryContainer,
-        ),
+        colors = if (LocalAppUiStyle.current == AppUiStyle.MATERIAL3) {
+            ButtonDefaults.buttonColors(
+                containerColor = colorScheme.primaryContainer,
+                contentColor = colorScheme.onPrimaryContainer,
+            )
+        } else {
+            null // AppButton selects the native Miuix primary colors.
+        },
     ) {
         if (label != "新建") {
             AppIcon(
@@ -289,6 +297,7 @@ fun VideoNoteEditorSheet(
                 value = title,
                 onValueChange = { title = it },
                 label = { AppText("标题") },
+                labelText = "标题",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -317,15 +326,32 @@ fun VideoNoteEditorSheet(
                 }
             )
             Spacer(modifier = Modifier.height(10.dp))
-            RichTextEditor(
-                state = richTextState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(VideoDetailShapes.field())
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .padding(10.dp)
-            )
+            if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+                // Keep the same rich-text state/history, with Miuix field colors and shape.
+                BasicRichTextEditor(
+                    state = richTextState,
+                    textStyle = MiuixTheme.textStyles.body1.copy(
+                        color = MiuixTheme.colorScheme.onSecondaryContainer
+                    ),
+                    cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(VideoDetailShapes.field())
+                        .background(MiuixTheme.colorScheme.secondaryContainer)
+                        .padding(10.dp)
+                )
+            } else {
+                RichTextEditor(
+                    state = richTextState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(VideoDetailShapes.field())
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .padding(10.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(10.dp))
             VideoNoteTimestampChips(
                 document = noteState.editorDocument,
@@ -344,7 +370,7 @@ fun VideoNoteEditorSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                AppOutlinedButton(
+                VideoDetailSecondaryButton(
                     onClick = {
                         val document = markdownToDocument(
                             title = title,
@@ -469,17 +495,31 @@ private fun VideoNoteTimestampChips(
     if (timestamps.isEmpty()) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         timestamps.forEach { timestamp ->
-            AppAssistChip(
-                onClick = { onTimestampClick(timestamp.seconds * 1000L) },
-                label = { AppText(timestamp.label) },
-                leadingIcon = {
+            if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+                VideoDetailSecondaryButton(
+                    onClick = { onTimestampClick(timestamp.seconds * 1000L) }
+                ) {
                     AppIcon(
                         imageVector = Icons.Outlined.AccessTime,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    AppText(timestamp.label)
                 }
-            )
+            } else {
+                AppAssistChip(
+                    onClick = { onTimestampClick(timestamp.seconds * 1000L) },
+                    label = { AppText(timestamp.label) },
+                    leadingIcon = {
+                        AppIcon(
+                            imageVector = Icons.Outlined.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                )
+            }
         }
     }
 }

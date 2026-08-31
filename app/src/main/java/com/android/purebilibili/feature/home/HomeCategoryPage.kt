@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.home
+import com.android.purebilibili.core.ui.components.videoListItemModifier
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 
@@ -403,7 +404,7 @@ internal fun HomeCategoryPageContent(
                             cardId = video.bvid,
                             preset = DissolveAnimationPreset.TELEGRAM_FAST,
                             preserveContentLayerWhenIdle = cardTransitionEnabled,
-                            modifier = Modifier
+                            modifier = videoListItemModifier(enabled = cardAnimationEnabled)
                                 .jiggleOnDissolve(
                                     cardId = video.bvid,
                                     isCurrentCardDissolving = isDissolving

@@ -1093,4 +1093,56 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun stopTvPolling() {
         isTvPolling = false
     }
+
+    private val tvConfirmationInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Confirms a TV QR scanned on another device using this logged-in BiliPai session. */
+    fun confirmOfficialTvQr(rawPayload: String) {
+        val authCode = extractTvAuthCode(rawPayload)
+            ?: run { _state.value = LoginState.Error("不是有效的 B 站 TV 登录二维码"); return }
+        if (!tvConfirmationInFlight.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                val sessData = TokenManager.sessDataCache.orEmpty()
+                val csrf = TokenManager.csrfCache.orEmpty()
+                val mid = TokenManager.midCache
+                val cookie = buildTvQrConfirmationCookie(sessData, csrf, mid)
+                val validation = NetworkModule.passportApi.validateCookieSession(cookie)
+                val account = validation.data
+                Logger.d("TvQrConfirm", "Session validation code=${validation.code}, isLogin=${account?.isLogin == true}")
+                if (validation.code != 0 || account == null || !account.isLogin || account.mid <= 0L) {
+                    _state.value = LoginState.Error(
+                        if (validation.code == 0 || validation.code == -101)
+                            "B站校验当前 Cookie 未登录或已失效；本地头像不代表会话仍有效，请重新登录"
+                        else "登录态校验失败（${validation.code}），请稍后重试"
+                    )
+                    return@launch
+                }
+                if ((mid != null && mid > 0L && mid != account.mid) ||
+                    TokenManager.sessDataCache != sessData || TokenManager.csrfCache != csrf ||
+                    TokenManager.midCache != mid
+                ) {
+                    _state.value = LoginState.Error("当前账号已变化，请返回后重新扫码")
+                    return@launch
+                }
+                val response = NetworkModule.passportApi.confirmTvQrCode(
+                    authCode = authCode,
+                    cookieHeader = buildTvQrConfirmationCookie(sessData, csrf, account.mid),
+                    csrf = csrf,
+                )
+                Logger.d("TvQrConfirm", "Confirmation code=${response.code}")
+                if (response.code == 0) _state.value = LoginState.Success
+                else if (response.code == -101) _state.value = LoginState.Error(
+                    "当前 Cookie 已通过登录校验，但 TV 授权接口拒绝登录态（-101）；请使用官方客户端确认"
+                )
+                else _state.value = LoginState.Error(response.message.ifBlank { "扫码确认失败" })
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: IllegalArgumentException) {
+                _state.value = LoginState.Error(error.message ?: "登录凭据无效")
+            } catch (_: Exception) {
+                _state.value = LoginState.Error("扫码确认请求失败，请检查网络后重试")
+            }
+        }.invokeOnCompletion { tvConfirmationInFlight.set(false) }
+    }
 }

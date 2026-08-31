@@ -18,6 +18,10 @@ sealed class ScreenRoutes(val route: String) {
     object Profile : ScreenRoutes("profile")
 
     //  新增路由：历史记录和收藏
+    object AicuQuery : ScreenRoutes("aicu?uid={uid}&category={category}") {
+        fun createRoute(uid: Long? = null, category: String = "COMMENT"): String =
+            "aicu?uid=${uid?.takeIf { it > 0 } ?: 0}&category=${URLEncoder.encode(category, StandardCharsets.UTF_8.name())}"
+    }
     object History : ScreenRoutes("history")
     object Favorite : ScreenRoutes("favorite")
     object LikedVideos : ScreenRoutes("liked_videos")

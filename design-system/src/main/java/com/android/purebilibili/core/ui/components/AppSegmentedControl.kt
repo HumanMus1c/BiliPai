@@ -93,7 +93,15 @@ fun resolveReadableNativeTabMinWidth(
 ): Dp {
     if (!allowLabelOverflow || labels.isEmpty()) return requestedMinWidth
     val longestLabelLength = labels.maxOf(String::length)
-    return maxOf(requestedMinWidth, (longestLabelLength * 16 + 24).dp)
+    // Short labels retain the compact tab sizing. Long CJK/compound titles (for
+    // example UP-space collection names) need extra glyph breathing room because
+    // their measured width is noticeably larger than a simple character estimate.
+    val estimatedWidthDp = if (longestLabelLength >= 7) {
+        longestLabelLength * 20 + 32
+    } else {
+        longestLabelLength * 16 + 24
+    }
+    return maxOf(requestedMinWidth, estimatedWidthDp.dp)
 }
 
 fun resolveAppLiquidSegmentedControlSpec(

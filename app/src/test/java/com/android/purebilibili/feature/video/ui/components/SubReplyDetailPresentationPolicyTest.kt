@@ -46,25 +46,6 @@ class SubReplyDetailPresentationPolicyTest {
     }
 
     @Test
-    fun `sub reply sorting switches between newest and hottest`() {
-        val replies = listOf(
-            ReplyItem(rpid = 1, ctime = 100, like = 2),
-            ReplyItem(rpid = 2, ctime = 300, like = 1),
-            ReplyItem(rpid = 3, ctime = 200, like = 8),
-        )
-
-        assertEquals(
-            listOf(2L, 3L, 1L),
-            sortSubReplies(replies, SubReplySortMode.TIME).map { it.rpid },
-        )
-        assertEquals(
-            listOf(3L, 1L, 2L),
-            sortSubReplies(replies, SubReplySortMode.HOT).map { it.rpid },
-        )
-        assertEquals(SubReplySortMode.HOT, SubReplySortMode.TIME.toggled())
-    }
-
-    @Test
     fun `sub reply prefetch continues when list cannot scroll but more replies remain`() {
         assertTrue(
             shouldPrefetchSubRepliesWhenListNotScrollable(

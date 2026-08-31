@@ -63,6 +63,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         BiliPaiNavKey.TipsSettings -> ScreenRoutes.TipsSettings.route
         BiliPaiNavKey.Login -> ScreenRoutes.Login.route
         BiliPaiNavKey.Profile -> ScreenRoutes.Profile.route
+        is BiliPaiNavKey.AicuQuery -> ScreenRoutes.AicuQuery.createRoute(uid, category)
         BiliPaiNavKey.History -> ScreenRoutes.History.route
         is BiliPaiNavKey.HistorySearch -> "history_search?query=${encodeRouteValue(query)}"
         BiliPaiNavKey.Favorite -> ScreenRoutes.Favorite.route
@@ -178,6 +179,10 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         normalized == ScreenRoutes.TipsSettings.route -> BiliPaiNavKey.TipsSettings
         normalized == ScreenRoutes.Login.route -> BiliPaiNavKey.Login
         normalized == ScreenRoutes.Profile.route -> BiliPaiNavKey.Profile
+        routeBase == "aicu" -> BiliPaiNavKey.AicuQuery(
+            uid = query["uid"]?.toLongOrNull()?.takeIf { it > 0 } ?: 0L,
+            category = com.android.purebilibili.data.model.response.AicuCategory.fromRoute(query["category"]).name,
+        )
         normalized == ScreenRoutes.History.route -> BiliPaiNavKey.History
         routeBase == "history_search" -> BiliPaiNavKey.HistorySearch(query["query"].orEmpty())
         normalized == ScreenRoutes.Favorite.route -> BiliPaiNavKey.Favorite

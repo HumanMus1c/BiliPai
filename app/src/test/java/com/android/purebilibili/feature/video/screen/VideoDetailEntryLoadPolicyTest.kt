@@ -6,6 +6,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoDetailEntryLoadPolicyTest {
+    @Test
+    fun heroEntryGateObservesDriverBeforeLegacyTimeoutIsCreated() {
+        val source = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailEntryTransitionObserver.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailEntryTransitionObserver.kt"),
+        ).first { it.exists() }.readText()
+        val hero = source.substringAfter("if (heroDriver != null)").substringBefore("var hasObservedActiveTransition")
+        assertTrue(hero.contains("heroDriver.progressProvider()"))
+        assertTrue(hero.contains(".first { it }"))
+        assertTrue(hero.contains("return@LaunchedEffect"))
+        assertFalse(hero.contains("delay("))
+    }
 
     @Test
     fun deferLoad_requiresCardShellTransitionWithoutMiniPlayerReuse() {

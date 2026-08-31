@@ -46,7 +46,6 @@ class BottomInputBarStructureTest {
         assertTrue(source.contains("黑虾线防回归"))
         assertTrue(source.contains("不能合成长壳"))
         assertTrue(source.contains("直接关 lens 会损失液态玻璃"))
-        assertTrue(source.contains("AppSurfaceTokens.background()"))
         assertTrue(source.contains("itemSize = 32.dp"))
         assertTrue(source.contains("iconSize = 19.dp"))
         assertTrue(source.contains("spreadItems = true"))
@@ -59,6 +58,23 @@ class BottomInputBarStructureTest {
         assertTrue(!source.contains("resolveAndroidNativeFloatingBottomBarContainerColor("))
         assertTrue(!source.contains("commentFieldContainerColor"))
         assertTrue(source.contains("backdrop: Backdrop? = null"))
+    }
+
+    @Test
+    fun floatingCommentBar_keepsGestureAreaTransparentAndCapsulesInset() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/BottomInputBar.kt")
+            .readText()
+        val floatingBar = source.substringAfter("private fun FloatingLiquidBottomInputBar(")
+            .substringBefore("private fun BottomInputBarContentRow(")
+
+        assertFalse(floatingBar.contains(".height(navigationBarBottomPadding)"))
+        assertFalse(floatingBar.contains(".background("))
+        assertTrue(floatingBar.contains("val bottomInset = 12.dp + navigationBarBottomPadding"))
+        assertTrue(floatingBar.contains(".padding(bottom = bottomInset)"))
+        // The non-floating bar still owns its full-width surface and safe-area padding.
+        val dockedBar = source.substringAfter("private fun DockedSolidBottomInputBar(")
+            .substringBefore("private fun FloatingLiquidBottomInputBar(")
+        assertTrue(dockedBar.contains(".navigationBarsPadding()"))
     }
 
     @Test

@@ -15,6 +15,95 @@ import com.android.purebilibili.core.ui.adaptive.toAdaptiveWidthClass
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
+import kotlin.math.hypot
+import kotlin.math.abs
+
+/** Internal tokens only: no preference key or user-selectable curve is introduced. */
+internal object VideoHeroMotionTokens {
+    const val RETURN_RATIO = 0.86f
+    const val RETURN_MIN_MS = 220
+    const val GEOMETRY_MIN_RATIO = 0.78f
+    const val GEOMETRY_MAX_RATIO = 1.22f
+    const val LANDING_COMPRESSION = 0.0125f
+    const val OPEN_BLUR_QUANTUM_PX = 1f
+    const val RETURN_BLUR_QUANTUM_PX = 4f
+    const val SPRING_DAMPING = 1f
+    // Critical spring reaches the Nav driver's 0.0025 threshold at ~8.3 / omega seconds.
+    const val SPRING_SETTLING_FACTOR = 8.3f
+}
+
+internal data class VideoHeroMotionSpec(
+    val enterDurationMillis: Int,
+    val returnDurationMillis: Int,
+    val cancelDurationMillis: Int,
+    val reducedMotion: Boolean = false,
+) {
+    val enterSpatialSpec: Easing get() = AppMotionEasing.Continuity
+    // The driver itself must NOT overshoot: Miuix unloads an entry at relativeDepth <= -1.
+    // A bounded, single landing pulse is applied only to the flying layer (see landingScale).
+    val returnSpatialSpec: Easing get() = AppMotionEasing.Continuity
+    val predictiveSeekSpec: Easing get() = LinearEasing
+    val effectsEasing: Easing get() = LinearEasing // progress is already eased by the owner
+    val handoffTimeline get() = VideoCardTransitionVisualTimeline
+    val commitStiffness: Float get() = stiffness(returnDurationMillis)
+    val cancelStiffness: Float get() = stiffness(cancelDurationMillis)
+
+    private fun stiffness(duration: Int): Float {
+        val omega = VideoHeroMotionTokens.SPRING_SETTLING_FACTOR * 1000f / duration.coerceAtLeast(1)
+        return omega * omega
+    }
+
+    fun remainingDuration(from: Float, to: Float, cancel: Boolean = false): Int =
+        ((if (cancel) cancelDurationMillis else returnDurationMillis) *
+            abs(to.coerceIn(0f, 1f) - from.coerceIn(0f, 1f))).roundToInt()
+}
+
+/** Bounds are host-local px; normalize by density exactly once, before any animation starts. */
+internal fun resolveVideoHeroMotionSpec(
+    baseDurationMillis: Int,
+    sourceBounds: Rect? = null,
+    targetBounds: Rect? = null,
+    density: Float = 1f,
+    reducedMotion: Boolean = false,
+): VideoHeroMotionSpec {
+    if (baseDurationMillis <= 0) return VideoHeroMotionSpec(0, 0, 0, reducedMotion)
+    if (reducedMotion) {
+        val duration = VideoCardTransitionVisualTimeline.REDUCED_MOTION_DURATION_MILLIS
+        return VideoHeroMotionSpec(duration, duration, duration, true)
+    }
+    val enter = (baseDurationMillis * resolveVideoSharedTransitionGeometryRatio(
+        sourceBounds, targetBounds, density,
+    )).roundToInt()
+    val returning = (enter * VideoHeroMotionTokens.RETURN_RATIO).roundToInt()
+        .coerceAtLeast(VideoHeroMotionTokens.RETURN_MIN_MS)
+    return VideoHeroMotionSpec(enter, returning, returning)
+}
+
+internal fun resolveVideoSharedTransitionGeometryRatio(
+    sourceBounds: Rect?,
+    targetBounds: Rect?,
+    density: Float = 1f,
+): Float {
+    fun Rect.usable() = listOf(left, top, right, bottom).all { it.isFinite() } &&
+        width > 0f && height > 0f
+    if (sourceBounds == null || targetBounds == null || !sourceBounds.usable() ||
+        !targetBounds.usable() || !density.isFinite() || density <= 0f
+    ) return 1f
+    val travelDp = (hypot(targetBounds.center.x - sourceBounds.center.x,
+        targetBounds.center.y - sourceBounds.center.y) +
+        hypot(targetBounds.width - sourceBounds.width, targetBounds.height - sourceBounds.height)) / density
+    val geometryDurationMs = 208f + travelDp.coerceIn(0f, 500f) / 3f
+    return (geometryDurationMs / VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS)
+        .coerceIn(VideoHeroMotionTokens.GEOMETRY_MIN_RATIO, VideoHeroMotionTokens.GEOMETRY_MAX_RATIO)
+}
+
+/** A single smooth compression pulse, bounded relative to the FINAL card, not the full screen. */
+internal fun resolveVideoHeroLandingScale(depth: Float, autoReturning: Boolean): Float {
+    if (!autoReturning) return 1f
+    val u = ((1f - depth.coerceIn(0f, 1f) - 0.82f) / 0.18f).coerceIn(0f, 1f)
+    val pulse = 16f * u * u * (1f - u) * (1f - u)
+    return 1f - VideoHeroMotionTokens.LANDING_COMPRESSION * pulse
+}
 
 /** 设备自适应信息，用于视频卡片过渡差异化。 */
 internal data class VideoTransitionAdaptiveInfo(
@@ -620,10 +709,12 @@ internal fun videoSharedElementReturnSpringSpec(
  */
 internal fun videoSharedElementReturnTweenSpec(
     durationMillis: Int,
+    interactive: Boolean = true,
 ): FiniteAnimationSpec<Rect> {
+    val hero = resolveVideoHeroMotionSpec(durationMillis)
     return tween(
-        durationMillis = durationMillis.coerceAtLeast(0),
-        easing = LinearEasing,
+        durationMillis = if (interactive) hero.enterDurationMillis else hero.returnDurationMillis,
+        easing = if (interactive) hero.predictiveSeekSpec else hero.returnSpatialSpec,
     )
 }
 
@@ -631,15 +722,19 @@ internal fun videoSharedElementBoundsTransformSpec(
     motion: VideoSharedTransitionMotionSpec,
     initialBounds: Rect,
     targetBounds: Rect,
-    durationMillis: Int = motion.durationMillis
+    durationMillis: Int = motion.durationMillis,
+    // Legacy sharedBounds callers use seekable AVS; the Miuix path does not mount them.
+    interactive: Boolean = true,
 ): FiniteAnimationSpec<Rect> {
+    val hero = resolveVideoHeroMotionSpec(durationMillis)
     return when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
         VideoSharedTransitionDirection.ENTER -> tween(
-            durationMillis = durationMillis.coerceAtLeast(0),
-            easing = resolveVideoCardSharedTransitionSpatialEasing(),
+            durationMillis = hero.enterDurationMillis,
+            easing = hero.enterSpatialSpec,
         )
         VideoSharedTransitionDirection.RETURN -> videoSharedElementReturnTweenSpec(
             durationMillis = durationMillis,
+            interactive = interactive,
         )
     }
 }

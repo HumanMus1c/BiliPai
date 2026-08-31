@@ -1,5 +1,8 @@
 package com.android.purebilibili.feature.space
 
+import com.android.purebilibili.core.ui.components.resolveVideoListColumns
+import com.android.purebilibili.core.ui.components.videoListItemModifier
+import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
@@ -123,6 +126,7 @@ import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppNativeTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
@@ -207,6 +211,7 @@ fun SpaceScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
+    val queryAicu = com.android.purebilibili.feature.aicu.LocalAicuNavigation.current
     val copyToClipboard = rememberClipboardCopyHandler()
     val playbackProgressManager = remember(context) {
         PlaybackProgressManager.getInstance(context)
@@ -406,6 +411,13 @@ fun SpaceScreen(
                                             ),
                                         )
                                     )
+                                }
+                                if (queryAicu != null && mid > 0) {
+                                    add(listOf(AppWindowAction(
+                                        label = "评论与弹幕查询",
+                                        icon = Icons.Outlined.Search,
+                                        onClick = { queryAicu(mid) },
+                                    )))
                                 }
                                 add(
                                     listOf(
@@ -1159,14 +1171,23 @@ private fun SpaceContent(
             }
         }
 
-        // 投稿/首页视频网格与首页信息流共用列数与卡片布局策略：用户固定列数优先，
-        // 其次按卡宽预设自适应；间距与封面比例跟随首页卡片风格，保证与首页 feed 排版一致。
-        val gridColumns = resolveSpaceContentGridColumnCount(
+        // 投稿视频使用独立单双列选择；其他空间网格继续跟随首页的自适应列数。
+        // 间距与封面比例仍沿用首页卡片风格。
+        val preferredGridColumns = resolveSpaceContentGridColumnCount(
             widthDp = LocalConfiguration.current.screenWidthDp,
             fixedColumnCount = homeSettings.gridColumnCount,
             cardWidthPreset = homeSettings.homeFeedCardWidthPreset,
             widthSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current.widthSizeClass,
         )
+        val gridColumns = if (
+            state.tabShellState.selectedTab == SpaceMainTab.CONTRIBUTION &&
+            state.selectedSubTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
+        ) {
+            resolveVideoListColumns(
+                singleColumn = false,
+                availableWidthDp = LocalConfiguration.current.screenWidthDp.toFloat(),
+            )
+        } else preferredGridColumns
         val spaceFeedCardLayout = resolveHomeFeedCardLayout(
             style = homeSettings.homeFeedCardStyle,
             gridColumns = gridColumns,
@@ -1674,46 +1695,48 @@ private fun SpaceContent(
                             }
                         ) { video ->
                             val localProgressMs = videoProgressLookup(video.bvid)
-                            when (contributionVideoLayoutMode) {
-                                SpaceContributionVideoLayoutMode.GRID -> {
-                                    SpaceHomeVideoCard(
-                                        video = video,
-                                        progressState = resolveSpaceVideoProgressState(
+                            AnimatedVideoListItem(modifier = videoListItemModifier(enabled = homeSettings.cardAnimationEnabled), enabled = homeSettings.cardAnimationEnabled) {
+                                when (contributionVideoLayoutMode) {
+                                    SpaceContributionVideoLayoutMode.GRID -> {
+                                        SpaceHomeVideoCard(
                                             video = video,
-                                            localPositionMs = localProgressMs,
-                                            syncedProgress = state.watchProgressByBvid[video.bvid]
-                                        ),
-                                        coverAspectRatio = spaceFeedCoverAspectRatio,
-                                        badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
-                                        isLocateHighlight = highlightedLocateBvid == video.bvid &&
-                                            isLocateHighlightVisible,
-                                        onClick = { playVideoFromSpace(video.bvid) },
-                                        sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
-                                        sharedTransitionScope = lazyGridSharedTransitionScope,
-                                        animatedVisibilityScope = lazyGridAnimatedVisibilityScope
-                                    )
-                                }
-                                SpaceContributionVideoLayoutMode.SINGLE_COLUMN -> {
-                                    SpaceArchiveListItemRow(
-                                        title = video.title,
-                                        cover = video.pic,
-                                        duration = video.length,
-                                        publishTime = FormatUtils.formatPublishTime(video.created),
-                                        play = video.play.toLong(),
-                                        secondaryCount = video.comment.toLong(),
-                                        progressState = resolveSpaceVideoProgressState(
-                                            video = video,
-                                            localPositionMs = localProgressMs,
-                                            syncedProgress = state.watchProgressByBvid[video.bvid]
-                                        ),
-                                        badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
-                                        isLocateHighlight = highlightedLocateBvid == video.bvid &&
-                                            isLocateHighlightVisible,
-                                        onClick = { playVideoFromSpace(video.bvid) },
-                                        sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
-                                        sharedTransitionScope = lazyGridSharedTransitionScope,
-                                        animatedVisibilityScope = lazyGridAnimatedVisibilityScope
-                                    )
+                                            progressState = resolveSpaceVideoProgressState(
+                                                video = video,
+                                                localPositionMs = localProgressMs,
+                                                syncedProgress = state.watchProgressByBvid[video.bvid]
+                                            ),
+                                            coverAspectRatio = spaceFeedCoverAspectRatio,
+                                            badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
+                                            isLocateHighlight = highlightedLocateBvid == video.bvid &&
+                                                isLocateHighlightVisible,
+                                            onClick = { playVideoFromSpace(video.bvid) },
+                                            sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
+                                            sharedTransitionScope = lazyGridSharedTransitionScope,
+                                            animatedVisibilityScope = lazyGridAnimatedVisibilityScope
+                                        )
+                                    }
+                                    SpaceContributionVideoLayoutMode.SINGLE_COLUMN -> {
+                                        SpaceArchiveListItemRow(
+                                            title = video.title,
+                                            cover = video.pic,
+                                            duration = video.length,
+                                            publishTime = FormatUtils.formatPublishTime(video.created),
+                                            play = video.play.toLong(),
+                                            secondaryCount = video.comment.toLong(),
+                                            progressState = resolveSpaceVideoProgressState(
+                                                video = video,
+                                                localPositionMs = localProgressMs,
+                                                syncedProgress = state.watchProgressByBvid[video.bvid]
+                                            ),
+                                            badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
+                                            isLocateHighlight = highlightedLocateBvid == video.bvid &&
+                                                isLocateHighlightVisible,
+                                            onClick = { playVideoFromSpace(video.bvid) },
+                                            sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
+                                            sharedTransitionScope = lazyGridSharedTransitionScope,
+                                            animatedVisibilityScope = lazyGridAnimatedVisibilityScope
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2601,19 +2624,13 @@ private fun SpaceSecondarySwitchRow(
         val containerHorizontalPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() }
         val dragFollowEdgePaddingPx = with(density) { 12.dp.toPx() }
 
-        LaunchedEffect(spec.selectedIndex, useScrollableRail, itemWidthPx, viewportWidthPx) {
-            if (useScrollableRail) {
-                scrollState.animateScrollTo(
-                    resolveSpaceContributionTabCenteredScrollOffsetPx(
-                        selectedIndex = spec.selectedIndex,
-                        itemWidthPx = itemWidthPx,
-                        viewportWidthPx = viewportWidthPx
-                    )
-                )
-            } else {
-                scrollState.scrollTo(0)
-            }
-        }
+        KeepScrollableTabSelectionVisible(
+            scrollState = scrollState,
+            selectedIndex = if (useScrollableRail) spec.selectedIndex else 0,
+            itemWidthPx = itemWidthPx,
+            viewportWidthPx = viewportWidthPx,
+            contentPaddingPx = containerHorizontalPaddingPx,
+        )
 
         if (homeSettings.androidNativeLiquidGlassEnabled) {
             BottomBarLiquidSegmentedControl(
@@ -3554,6 +3571,7 @@ private fun SpaceArchiveListItemRow(
         Column(
             modifier = Modifier
                 .weight(1f)
+                .heightIn(min = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
                 .videoCardShellReturnChromeAlpha(
                     enabled = useCardShellSharedBounds,
                     bvid = sharedTransitionKey.orEmpty(),
@@ -3561,40 +3579,37 @@ private fun SpaceArchiveListItemRow(
                 ),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
+            AppText(
+                text = title,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                AppText(
-                    text = title,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = videoCardTitleMaxLines(),
-                    overflow = videoCardTitleOverflow(),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                AppIcon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .size(18.dp)
-                )
-            }
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = videoCardTitleMaxLines(),
+                overflow = videoCardTitleOverflow(),
+                color = MaterialTheme.colorScheme.onSurface
+            )
             AppText(
                 text = if (progressState?.progressSec == -1) "$publishTime · 已看完" else publishTime,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            HorizontalVideoStatRow(
-                playText = FormatUtils.formatStat(play),
-                danmakuText = FormatUtils.formatStat(secondaryCount),
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                HorizontalVideoStatRow(
+                    playText = FormatUtils.formatStat(play),
+                    danmakuText = FormatUtils.formatStat(secondaryCount),
+                    modifier = Modifier.weight(1f),
+                )
+                AppIcon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }

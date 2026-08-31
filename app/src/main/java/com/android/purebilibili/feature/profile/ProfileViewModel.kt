@@ -1011,7 +1011,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             _splashSaveState.value = WallpaperSaveState.Loading
             try {
                 val context = getApplication<Application>()
-                SettingsManager.setSplashWallpaperUri(context, uri)
+                val wallpaper = importWallpaperImage(context, Uri.parse(uri), File(context.filesDir, "splash"))
+                SettingsManager.setSplashWallpaperUri(context, Uri.fromFile(wallpaper).toString())
                 SettingsManager.setSplashEnabled(context, true)
                 SettingsManager.setSplashRandomEnabled(context, false)
                 mobileBias?.let { SettingsManager.setSplashAlignment(context, isTablet = false, bias = it) }
@@ -1021,6 +1022,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     _splashSaveState.value = WallpaperSaveState.Success
                     onComplete()
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 e.printStackTrace()
                 _splashSaveState.value = WallpaperSaveState.Error(e.message ?: "保存出错")
@@ -1093,12 +1096,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             _splashSaveState.value = WallpaperSaveState.Loading
             try {
                 val context = getApplication<Application>()
-                SettingsManager.setHomeWallpaperUri(context, uri)
+                val wallpaper = importWallpaperImage(context, Uri.parse(uri), File(context.filesDir, "home_wallpaper"))
+                SettingsManager.setHomeWallpaperUri(context, Uri.fromFile(wallpaper).toString())
 
                 withContext(Dispatchers.Main) {
                     _splashSaveState.value = WallpaperSaveState.Success
                     onComplete()
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 e.printStackTrace()
                 _splashSaveState.value = WallpaperSaveState.Error(e.message ?: "保存出错")

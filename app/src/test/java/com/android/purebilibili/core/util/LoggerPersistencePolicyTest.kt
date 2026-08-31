@@ -57,20 +57,20 @@ class LoggerPersistencePolicyTest {
     }
 
     @Test
-    fun runtimeLogDiskPersistenceRequiresExplicitOptIn() {
+    fun warningsAndErrorsPersistWithoutEnhancedLoggingButVerboseLogsRequireOptIn() {
         assertFalse(
             shouldPersistRuntimeLogEntry(
                 level = "D",
                 verboseRuntimeLogPersistenceEnabled = false
             )
         )
-        assertFalse(
+        assertTrue(
             shouldPersistRuntimeLogEntry(
                 level = "W",
                 verboseRuntimeLogPersistenceEnabled = false
             )
         )
-        assertFalse(
+        assertTrue(
             shouldPersistRuntimeLogEntry(
                 level = "E",
                 verboseRuntimeLogPersistenceEnabled = false
@@ -121,6 +121,10 @@ class LoggerPersistencePolicyTest {
             resolveLogPersistenceDir(baseDir)
         )
         assertEquals(
+            File("/tmp/bilipai/logs/basic.log"),
+            resolveBasicLogFile(baseDir)
+        )
+        assertEquals(
             File("/tmp/bilipai/logs/runtime.log"),
             resolveRuntimeLogFile(baseDir)
         )
@@ -136,6 +140,32 @@ class LoggerPersistencePolicyTest {
             "player_diagnostic_20260329_155725.txt",
             resolvePlayerDiagnosticExportFileName(1_774_771_045_000L)
         )
+    }
+
+    @Test
+    fun exportIncludesCrashOnlyOrSystemOnlyEvidenceWithoutRuntimeEntries() {
+        assertTrue(hasExportableDiagnostics(0, true, 0, 0))
+        assertTrue(hasExportableDiagnostics(0, false, 1, 0))
+        assertTrue(hasExportableDiagnostics(0, false, 0, 1))
+        assertTrue(hasExportableDiagnostics(1, false, 0, 0))
+        assertFalse(hasExportableDiagnostics(0, false, 0, 0))
+    }
+
+    @Test
+    fun rollingFilesBoundUtf8BytesAndKeepMostRecentEvidence() {
+        val file = File.createTempFile("bilipai-log", ".txt")
+        try {
+            repeat(30) { appendRollingDiagnosticLog(file, "故障线索-$it\n", 128) }
+            assertTrue(file.length() <= 128)
+            assertTrue(file.readText().contains("故障线索-29"))
+            assertFalse(file.readText().contains('\uFFFD'))
+            appendRollingDiagnosticLog(file, "异常".repeat(200) + "END", 128)
+            assertTrue(file.length() <= 128)
+            assertTrue(file.readText().endsWith("END"))
+            assertFalse(file.readText().contains('\uFFFD'))
+        } finally {
+            file.delete()
+        }
     }
 
     @Test

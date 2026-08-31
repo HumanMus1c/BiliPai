@@ -78,9 +78,7 @@ import androidx.media3.ui.PlayerView
 import androidx.metrics.performance.JankStats
 import androidx.window.layout.WindowMetrics
 import androidx.window.layout.WindowMetricsCalculator
-import coil3.compose.AsyncImagePainter
 import coil3.compose.AsyncImage
-import coil3.compose.rememberAsyncImagePainter
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.coroutines.AppScope
 
@@ -97,6 +95,8 @@ import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.plugin.EyeProtectionOverlay
 import com.android.purebilibili.feature.plugin.PluginEffectHintHost
+import com.android.purebilibili.app.StartupRecovery
+import com.android.purebilibili.feature.settings.diagnostics.StartupRecoveryActivity
 import com.android.purebilibili.feature.settings.AppUpdateAutoCheckGate
 import com.android.purebilibili.feature.settings.AppUpdateCheckResult
 import com.android.purebilibili.feature.settings.AppUpdateChecker
@@ -802,6 +802,7 @@ internal fun shouldRefreshMainActivitySystemThemeSnapshot(
 
 @OptIn(UnstableApi::class) // 解决 UnsafeOptInUsageError，因为 AppNavigation 内部使用了不稳定的 API
 open class MainActivity : AppCompatActivity() {
+    private var startupRecoveryRedirected = false
     
     //  PiP 状态
     var isInPipMode by mutableStateOf(false)
@@ -940,6 +941,20 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (StartupRecovery.isRecoveryMode) {
+            startupRecoveryRedirected = true
+            // Do not restore Compose/navigation/player state on the emergency route.
+            // Launcher aliases use a SplashScreen theme until installSplashScreen runs;
+            // explicitly select the AppCompat host theme since we bypass that path here.
+            setTheme(R.style.Theme_PureBiliBili_Main)
+            super.onCreate(null)
+            startActivity(Intent(this, StartupRecoveryActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            })
+            finish()
+            return
+        }
+        Logger.recordStartupStage("main_create")
         applyAppLanguage(SettingsManager.getAppLanguageSync(this))
         //  安装 SplashScreen
         val splashScreen = installSplashScreen()
@@ -1718,21 +1733,9 @@ open class MainActivity : AppCompatActivity() {
                     val splashTailScrimAlpha = customSplashOverlayScrimAlpha(splashFadeProgress)
 
                     if (customSplashShouldRender(showSplash, splashOverlayAlpha) && splashUri.isNotEmpty()) {
-                        val splashProbePainter = rememberAsyncImagePainter(model = splashUri)
-                        val splashProbeState by splashProbePainter.state.collectAsState()
-                        val splashAspectRatio = remember(splashProbeState) {
-                            when (val state = splashProbeState) {
-                                is AsyncImagePainter.State.Success -> resolveDrawableAspectRatio(
-                                    width = state.result.image.width,
-                                    height = state.result.image.height
-                                )
-                                else -> null
-                            }
-                        }
-                        val splashWallpaperLayout = remember(windowSizeClass.widthSizeClass, splashAspectRatio) {
+                        val splashWallpaperLayout = remember(windowSizeClass.widthSizeClass) {
                             resolveSplashWallpaperLayout(
-                                widthSizeClass = windowSizeClass.widthSizeClass,
-                                imageAspectRatio = splashAspectRatio
+                                widthSizeClass = windowSizeClass.widthSizeClass
                             )
                         }
                         Box(
@@ -2123,12 +2126,14 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (startupRecoveryRedirected) return
         windowMetrics = WindowMetricsCalculator.getOrCreate().computeMaximumWindowMetrics(this)
         refreshSystemThemeSnapshot(reason = "configuration")
     }
 
     override fun onStart() {
         super.onStart()
+        if (startupRecoveryRedirected) return
         AppRuntimeVisualGuardTracker.activateSession(runtimeVisualGuardSession)
         val existingJankStats = runtimeJankStats
         if (existingJankStats != null) {
@@ -2155,6 +2160,11 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        if (startupRecoveryRedirected) {
+            super.onStop()
+            return
+        }
+        StartupRecovery.onMainStopped(this)
         AppRuntimeVisualGuardTracker.discardActiveWindow(runtimeVisualGuardSession)
         runtimeJankStats?.isTrackingEnabled = false
         super.onStop()
@@ -2162,6 +2172,7 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (startupRecoveryRedirected) return
         refreshAndroid17HandoffAvailability()
         refreshSystemThemeSnapshot(reason = "resume")
         miniPlayerManager.clearUserLeaveHint()
@@ -2186,11 +2197,20 @@ open class MainActivity : AppCompatActivity() {
         if (!hasCompletedInitialResume) {
             hasCompletedInitialResume = true
         }
+        StartupRecovery.onMainResumed(this)
+    }
+
+    override fun onPause() {
+        if (!startupRecoveryRedirected) {
+            StartupRecovery.onMainPaused()
+        }
+        super.onPause()
     }
     
     //  用户按 Home 键或切换应用时触发
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (startupRecoveryRedirected) return
         
         Logger.d(
             TAG,
@@ -2283,6 +2303,7 @@ open class MainActivity : AppCompatActivity() {
     //  PiP 模式变化回调
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (startupRecoveryRedirected) return
         isInPipMode = isInPictureInPictureMode
         miniPlayerManager.updateSystemPipActive(isInPictureInPictureMode)
         Logger.d(TAG, " PiP 模式变化: $isInPictureInPictureMode")
@@ -2291,6 +2312,7 @@ open class MainActivity : AppCompatActivity() {
     //  [新增] 处理 singleTop 模式下的新 Intent
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (startupRecoveryRedirected) return
         setIntent(intent)
         handleIntent(intent)
     }
@@ -2430,6 +2452,10 @@ open class MainActivity : AppCompatActivity() {
     }
     
     override fun onDestroy() {
+        if (startupRecoveryRedirected) {
+            super.onDestroy()
+            return
+        }
         PlaybackHandoffRegistry.setAvailabilityListener(null)
         if (Build.VERSION.SDK_INT >= 37 && android17HandoffEnabled) {
             setHandoffEnabled(false, null)

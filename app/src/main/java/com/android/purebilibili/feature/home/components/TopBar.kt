@@ -39,6 +39,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -120,6 +121,7 @@ import androidx.compose.ui.semantics.semantics
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
+import com.android.purebilibili.core.ui.components.KeepLazyTabSelectionVisible
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.combinedClickable // [Added]
@@ -186,6 +188,25 @@ internal fun resolveTopTabDockIndicatorWidthDp(
         .coerceAtLeast(0f)
     val minWidth = minWidthDp.coerceIn(0f, itemWidthDp)
     return maxWidth.coerceAtLeast(minWidth)
+}
+
+/** Interpolates liquid capsule width between adjacent tab labels during pager motion. */
+internal fun resolveTopTabInterpolatedIndicatorWidthDp(
+    position: Float,
+    itemWidthDp: Float,
+    horizontalGapDp: Float,
+    contentWidthsDp: List<Float>,
+): Float {
+    if (itemWidthDp <= 0f) return 0f
+    val slotMax = resolveTopTabDockIndicatorWidthDp(itemWidthDp, horizontalGapDp)
+    if (contentWidthsDp.isEmpty()) return slotMax
+    val clamped = position.coerceIn(0f, contentWidthsDp.lastIndex.toFloat())
+    val start = clamped.toInt()
+    val end = (start + 1).coerceAtMost(contentWidthsDp.lastIndex)
+    val contentWidth = androidx.compose.ui.util.lerp(
+        contentWidthsDp[start], contentWidthsDp[end], clamped - start
+    ) + horizontalGapDp * 2f
+    return contentWidth.coerceIn(horizontalGapDp * 2f + 1f, slotMax)
 }
 
 internal fun resolveTopTabDockIndicatorHeightDp(
@@ -1104,25 +1125,8 @@ private fun LightweightHomeTopTabs(
 
     LaunchedEffect(selectedIndex, categories.size) {
         selectedItemLeftInWindowPx = Float.NaN
-        if (categories.isEmpty()) return@LaunchedEffect
-        val targetIndex = selectedIndex.coerceIn(0, categories.lastIndex)
-        val info = snapshotFlow { listState.layoutInfo }
-            .first { it.visibleItemsInfo.isNotEmpty() }
-        val first = info.visibleItemsInfo.first()
-        val last = info.visibleItemsInfo.last()
-        if (
-            shouldAnimateTopTabViewportToSelection(
-                selectedIndex = targetIndex,
-                firstVisibleIndex = first.index,
-                firstVisibleOffset = first.offset,
-                lastVisibleIndex = last.index,
-                lastVisibleEndOffset = last.offset + last.size,
-                viewportEndOffset = info.viewportEndOffset,
-            )
-        ) {
-            listState.animateScrollToItem(targetIndex)
-        }
     }
+    KeepLazyTabSelectionVisible(listState, selectedIndex)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -1431,10 +1435,11 @@ private fun LightweightHomeTopTabs(
         // Pager swipes have no direct press event. Reuse the bottom-bar drag-scale animation
         // as their effective press so the indicator surface fades and lens ramps identically.
         val topTabLensProgress = topTabIndicatorLayerScaleProgress
-        val md3LiquidCapsuleWidth = resolveTopTabDockIndicatorWidthDp(
+        val md3LiquidCapsuleWidth = resolveTopTabInterpolatedIndicatorWidthDp(
+            position = topTabIndicatorPosition,
             itemWidthDp = itemWidth.value,
             horizontalGapDp = dockIndicatorHorizontalGap.value,
-            minWidthDp = md3IndicatorWidth.value
+            contentWidthsDp = md3ContentWidths.map { it.value },
         ).dp
         val dockIndicatorHeight = resolveTopTabDockIndicatorHeightDp(
             rowHeightDp = rowHeight.value,
@@ -1589,7 +1594,14 @@ private fun LightweightHomeTopTabs(
         )
         val animatedIosCapsuleTranslationXPx by animateFloatAsState(
             targetValue = iosCapsuleTargetTranslationXPx,
-            animationSpec = iosTopTabCapsuleMotionSpec(),
+            // Pager/indicator drags already provide a continuous position. Keep the backing
+            // animation snapped to that position while they own motion, otherwise switching
+            // back to the animated value can expose a second, delayed settle.
+            animationSpec = if (shouldAnimateIosCapsule) {
+                iosTopTabCapsuleMotionSpec()
+            } else {
+                snap()
+            },
             label = "iosTopTabCapsuleTranslation"
         )
         val iosCapsuleTranslationXPx = if (shouldAnimateIosCapsule) {
@@ -2084,21 +2096,6 @@ internal fun resolveTopTabVisibleContentAlpha(
 internal fun resolveTopTabUsesGlassExportForSelectedGlyphs(
     liquidGlassEnabled: Boolean,
 ): Boolean = liquidGlassEnabled
-
-internal fun shouldAnimateTopTabViewportToSelection(
-    selectedIndex: Int,
-    firstVisibleIndex: Int,
-    firstVisibleOffset: Int,
-    lastVisibleIndex: Int,
-    lastVisibleEndOffset: Int,
-    viewportEndOffset: Int,
-): Boolean {
-    if (selectedIndex < firstVisibleIndex) return true
-    if (selectedIndex == firstVisibleIndex && firstVisibleOffset > 0) return true
-    if (selectedIndex > lastVisibleIndex) return true
-    if (selectedIndex == lastVisibleIndex && lastVisibleEndOffset > viewportEndOffset) return true
-    return false
-}
 
 @Composable
 private fun LightweightTopTabItem(

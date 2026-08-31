@@ -15,6 +15,61 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class VideoSharedTransitionPolicyTest {
+    @Test
+    fun heroGeometryUsesDpNotPixelsAndKeepsMissingBoundsFallback() {
+        val card = Rect(0f, 0f, 100f, 60f)
+        val target = Rect(0f, 0f, 200f, 220f)
+        val small = resolveVideoHeroMotionSpec(360, card, card)
+        val large = resolveVideoHeroMotionSpec(360, card, target)
+        val dense = resolveVideoHeroMotionSpec(360, Rect(0f, 0f, 300f, 180f),
+            Rect(0f, 0f, 600f, 660f), density = 3f)
+        assertTrue(large.enterDurationMillis > small.enterDurationMillis)
+        assertEquals(large, dense)
+        assertEquals(360, resolveVideoHeroMotionSpec(360, null, target).enterDurationMillis)
+        assertEquals(360, resolveVideoHeroMotionSpec(360, Rect.Zero, target).enterDurationMillis)
+        assertEquals(360, resolveVideoHeroMotionSpec(360, card, target, Float.NaN).enterDurationMillis)
+    }
+
+    @Test
+    fun heroKeepsSpeedPreferencesAndNoAnimationZeroDuration() {
+        for (base in listOf(280, 360, 480, 240, 900)) {
+            val spec = resolveVideoHeroMotionSpec(base)
+            assertEquals(base, spec.enterDurationMillis)
+            assertTrue(spec.returnDurationMillis >= 220)
+            assertTrue(spec.returnDurationMillis <= spec.enterDurationMillis)
+            assertEquals(spec.returnDurationMillis / 2f,
+                spec.remainingDuration(.5f, 0f).toFloat(), .5f)
+        }
+        assertEquals(0, resolveVideoHeroMotionSpec(0).returnDurationMillis)
+        assertEquals(140, resolveVideoHeroMotionSpec(900, reducedMotion = true).enterDurationMillis)
+    }
+
+    @Test
+    fun heroEffectsAndSeekAreMonotonicAndSpatialPulseIsBounded() {
+        val spec = resolveVideoHeroMotionSpec(360)
+        for (i in 0..1000) {
+            val p = i / 1000f
+            assertEquals(p, spec.predictiveSeekSpec.transform(p))
+            assertTrue(spec.effectsEasing.transform(p) in 0f..1f)
+            assertTrue(resolveVideoHeroLandingScale(p, true) in .985f..1f)
+            assertEquals(1f, resolveVideoHeroLandingScale(p, false))
+        }
+        assertEquals(1f, resolveVideoHeroLandingScale(0f, true))
+        assertEquals(1f, resolveVideoHeroLandingScale(1f, true))
+    }
+
+    @Test
+    fun legacySharedBoundsSeekAndProgrammaticSpecsAreExplicit() {
+        val motion = resolveVideoCardSharedTransitionMotionSpec("home", true)
+        val detail = Rect(0f, 0f, 360f, 800f)
+        val card = Rect(0f, 0f, 120f, 80f)
+        val seek = videoSharedElementBoundsTransformSpec(motion, detail, card) as TweenSpec<*>
+        val auto = videoSharedElementBoundsTransformSpec(motion, detail, card,
+            interactive = false) as TweenSpec<*>
+        assertSame(LinearEasing, seek.easing)
+        assertEquals(resolveVideoHeroMotionSpec(motion.durationMillis).returnDurationMillis, auto.durationMillis)
+        assertSame(AppMotionEasing.Continuity, auto.easing)
+    }
 
     @Test
     fun videoSharedTransitionUsesContinuityCurveForEnterAndReturnAlpha() {

@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,7 +26,7 @@ import androidx.compose.material.icons.filled.LightMode
  * Layout, placement, icon family and motion all differ by style.
  */
 enum class GestureLevelOverlayStyle {
-    /** Material 3: edge vertical pill with bottom-up fill. */
+    /** Material 3: centered, theme-colored circular indicator. */
     Md3,
     /** iOS: centered frosted capsule with SF-style glyphs. */
     Ios,
@@ -78,7 +80,8 @@ fun resolveGestureLevelKind(mode: VideoGestureMode): GestureLevelKind? {
 fun resolveGestureLevelOverlaySpec(
     style: GestureLevelOverlayStyle,
     kind: GestureLevelKind,
-    percent: Float
+    percent: Float,
+    colorScheme: ColorScheme = darkColorScheme()
 ): GestureLevelOverlaySpec {
     val progress = percent.coerceIn(0f, 1f)
     val isVolume = kind == GestureLevelKind.Volume
@@ -86,22 +89,20 @@ fun resolveGestureLevelOverlaySpec(
         GestureLevelOverlayStyle.Md3 -> GestureLevelOverlaySpec(
             style = style,
             kind = kind,
-            // Keep the video center clear: brightness follows the left gesture zone,
-            // volume follows the right gesture zone.
-            alignment = if (isVolume) Alignment.CenterEnd else Alignment.CenterStart,
+            alignment = Alignment.Center,
             showLabel = false,
             showPercentText = true,
-            verticalRail = true,
-            accentColor = if (isVolume) Color(0xFF80CBC4) else Color(0xFFFFCC80),
-            trackColor = Color.White.copy(alpha = 0.16f),
-            fillColor = if (isVolume) Color(0xFF4DB6AC) else Color(0xFFFFB74D),
-            containerColor = Color(0xFF1C1B1F).copy(alpha = 0.88f),
-            borderColor = Color.White.copy(alpha = 0.08f),
-            iconTint = Color.White,
-            textColor = Color.White,
-            railWidthDp = 58,
-            railHeightDp = 168,
-            capsuleMinWidthDp = 58,
+            verticalRail = false,
+            accentColor = colorScheme.primary,
+            trackColor = colorScheme.primary.copy(alpha = 0.16f),
+            fillColor = colorScheme.primary,
+            containerColor = colorScheme.surfaceContainerHigh,
+            borderColor = colorScheme.outlineVariant,
+            iconTint = colorScheme.primary,
+            textColor = colorScheme.onSurface,
+            railWidthDp = 0,
+            railHeightDp = 0,
+            capsuleMinWidthDp = 0,
             iconSizeDp = 26
         )
         GestureLevelOverlayStyle.Ios -> GestureLevelOverlaySpec(
@@ -144,6 +145,19 @@ fun resolveGestureLevelOverlaySpec(
             iconSizeDp = 22
         )
     }
+}
+
+internal fun resolveMd3GestureLevelDiameterDp(
+    availableWidthDp: Float,
+    availableHeightDp: Float
+): Float {
+    val shortSide = minOf(availableWidthDp, availableHeightDp).coerceAtLeast(0f)
+    val preferred = when {
+        shortSide < 300f -> 112f
+        shortSide < 600f -> 136f
+        else -> 160f
+    }
+    return minOf(preferred, (shortSide - 16f).coerceAtLeast(0f))
 }
 
 fun resolveGestureLevelIcon(

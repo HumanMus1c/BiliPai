@@ -5,9 +5,10 @@ internal fun resolveSearchGridCardWidthDp(
     minItemWidthDp: Float,
     horizontalPaddingDp: Float,
     spacingDp: Float,
+    fixedColumnCount: Int? = null,
 ): Float {
     val contentWidth = (availableWidthDp - 2 * horizontalPaddingDp).coerceAtLeast(0f)
-    val columns = ((contentWidth + spacingDp) / (minItemWidthDp + spacingDp))
+    val columns = fixedColumnCount?.coerceAtLeast(1) ?: ((contentWidth + spacingDp) / (minItemWidthDp + spacingDp))
         .toInt().coerceAtLeast(1)
     return ((contentWidth - spacingDp * (columns - 1)) / columns).coerceAtLeast(0f)
 }

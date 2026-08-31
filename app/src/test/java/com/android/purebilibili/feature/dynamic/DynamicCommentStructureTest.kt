@@ -19,13 +19,14 @@ class DynamicCommentStructureTest {
     }
 
     @Test
-    fun `dynamic sub replies use rest pn paging for detail list`() {
+    fun `dynamic sub replies use server sorting and cursor paging`() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt")
             .readText()
 
         assertTrue(source.contains("paginationOffset = state.grpcNextOffset"))
-        assertTrue(source.contains("restPage = data.page"))
-        assertTrue(source.contains("grpcNextOffset = null"))
+        assertTrue(source.contains("CommentRepository.getSortedSubCommentsForSubject("))
+        assertTrue(source.contains("mode = sortMode.apiMode"))
+        assertTrue(source.contains("grpcNextOffset = data.grpcNextOffset"))
     }
 
     @Test

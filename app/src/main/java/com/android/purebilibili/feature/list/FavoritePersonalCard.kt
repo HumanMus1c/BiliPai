@@ -64,6 +64,7 @@ internal fun resolveFavoriteDateLabel(
 @Composable
 internal fun FavoritePersonalCard(
     item: VideoItem,
+    stacked: Boolean = false,
     transitionEnabled: Boolean,
     batchMode: Boolean,
     selected: Boolean,
@@ -126,7 +127,7 @@ internal fun FavoritePersonalCard(
                     screenHeight = configuration.screenHeightDp * density.density,
                     sourceCornerDp = cardCornerRadiusDp,
                     coverBounds = coverBounds.value,
-                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = item.title,
                         ownerName = item.owner.name.ifBlank { "未知UP主" },
@@ -151,6 +152,7 @@ internal fun FavoritePersonalCard(
     }
 
     PersonalMediaCardFrame(
+        stacked = stacked,
         coverModifier = Modifier.onGloballyPositioned {
             coverBounds.value = it.boundsInRoot()
         },

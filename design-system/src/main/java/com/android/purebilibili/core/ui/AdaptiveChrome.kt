@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -209,6 +211,15 @@ fun AdaptiveTopAppBar(
     style: AdaptiveTopAppBarStyle = AdaptiveTopAppBarStyle.SMALL,
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
+    // Keep crowded phone chrome readable: long dynamic titles must not collapse into
+    // one-character-per-line text when actions consume the remaining width.
+    val narrowTitle = LocalConfiguration.current.screenWidthDp < 600
+    val displayTitle = remember(title, narrowTitle) {
+        if (narrowTitle && title.length > 12) title.take(11) + "…" else title
+    }
+    val displayLargeTitle = remember(largeTitle, narrowTitle) {
+        if (narrowTitle && largeTitle.length > 12) largeTitle.take(11) + "…" else largeTitle
+    }
     val uiStyle = LocalAppUiStyle.current
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val chromeSpec = resolveAdaptiveTopAppBarChromeSpec(uiStyle)
@@ -251,8 +262,8 @@ fun AdaptiveTopAppBar(
         when (style) {
             AdaptiveTopAppBarStyle.LARGE -> {
                 MiuixTopAppBar(
-                    title = title,
-                    largeTitle = largeTitle,
+                    title = displayTitle,
+                    largeTitle = displayLargeTitle,
                     modifier = modifier,
                     color = topAppBarColors.containerColor,
                     navigationIcon = navigationContent,
@@ -268,7 +279,7 @@ fun AdaptiveTopAppBar(
             AdaptiveTopAppBarStyle.SMALL,
             AdaptiveTopAppBarStyle.CENTERED -> {
                 MiuixSmallTopAppBar(
-                    title = title,
+                    title = displayTitle,
                     modifier = modifier,
                     color = topAppBarColors.containerColor,
                     navigationIcon = navigationContent,
@@ -287,7 +298,7 @@ fun AdaptiveTopAppBar(
         AdaptiveTopAppBarStyle.SMALL -> {
             TopAppBar(
                 modifier = modifier,
-                title = { Text(title) },
+                title = { Text(displayTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = navigationIcon,
                 actions = actions,
                 colors = topAppBarColors,
@@ -299,7 +310,7 @@ fun AdaptiveTopAppBar(
         AdaptiveTopAppBarStyle.CENTERED -> {
             CenterAlignedTopAppBar(
                 modifier = modifier,
-                title = { Text(title) },
+                title = { Text(displayTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = navigationIcon,
                 actions = actions,
                 colors = topAppBarColors,
@@ -311,7 +322,7 @@ fun AdaptiveTopAppBar(
         AdaptiveTopAppBarStyle.LARGE -> {
             TopAppBar(
                 modifier = modifier,
-                title = { Text(largeTitle, style = MaterialTheme.typography.titleLarge) },
+                title = { Text(displayLargeTitle, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = navigationIcon,
                 actions = actions,
                 colors = topAppBarColors,

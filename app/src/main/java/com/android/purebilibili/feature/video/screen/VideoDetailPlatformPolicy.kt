@@ -851,9 +851,10 @@ internal fun shouldObservePhoneAutoRotate(
     manualPortraitHoldActive: Boolean,
     isInMultiWindowMode: Boolean = false,
     isInPictureInPictureMode: Boolean = false,
-    isPortraitFullscreen: Boolean = false
+    isPortraitFullscreen: Boolean = false,
+    observeWhenAutoRotateDisabled: Boolean = false,
 ): Boolean {
-    if (!autoRotateEnabled) return false
+    if (!autoRotateEnabled && !observeWhenAutoRotateDisabled) return false
     if (isInMultiWindowMode || isInPictureInPictureMode) return false
     // BiliPai-style: vertical immersive FS is not kicked by gravity / sensor landscape.
     if (isPortraitFullscreen) return false

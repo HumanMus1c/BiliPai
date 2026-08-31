@@ -16,6 +16,7 @@ import java.util.concurrent.Executors
 
 private const val LOG_DIRECTORY_NAME = "logs"
 private const val RUNTIME_LOG_FILE_NAME = "runtime.log"
+private const val BASIC_LOG_FILE_NAME = "basic.log"
 private const val CRASH_SNAPSHOT_FILE_NAME = "last_crash_log.txt"
 private const val CRASH_SNAPSHOT_MARKER_FILE_NAME = "pending_crash.marker"
 private const val DOWNLOAD_LOG_RELATIVE_PATH = "Download/BiliPai/logs"
@@ -26,6 +27,9 @@ internal fun resolveLogPersistenceDir(baseDir: File): File = File(baseDir, LOG_D
 
 internal fun resolveRuntimeLogFile(baseDir: File): File =
     File(resolveLogPersistenceDir(baseDir), RUNTIME_LOG_FILE_NAME)
+
+internal fun resolveBasicLogFile(baseDir: File): File =
+    File(resolveLogPersistenceDir(baseDir), BASIC_LOG_FILE_NAME)
 
 internal fun resolveCrashSnapshotFile(baseDir: File): File =
     File(resolveLogPersistenceDir(baseDir), CRASH_SNAPSHOT_FILE_NAME)
@@ -62,7 +66,31 @@ internal fun shouldCaptureRuntimeLogEntry(
 internal fun shouldPersistRuntimeLogEntry(
     level: String,
     verboseRuntimeLogPersistenceEnabled: Boolean
-): Boolean = verboseRuntimeLogPersistenceEnabled
+): Boolean = level == "W" || level == "E" || verboseRuntimeLogPersistenceEnabled
+
+internal fun hasExportableDiagnostics(
+    logCount: Int,
+    hasCrashSnapshot: Boolean,
+    processExitCount: Int,
+    profilingArtifactCount: Int
+): Boolean = logCount > 0 || hasCrashSnapshot || processExitCount > 0 || profilingArtifactCount > 0
+
+/** Limits bytes, including multibyte UTF-8 messages and a single oversized entry. */
+internal fun appendRollingDiagnosticLog(file: File, text: String, maxBytes: Int) {
+    require(maxBytes > 0)
+    file.parentFile?.mkdirs()
+    val incoming = text.toByteArray(Charsets.UTF_8)
+    if (file.length() + incoming.size <= maxBytes) {
+        file.appendBytes(incoming)
+        return
+    }
+    val existing = if (file.isFile) file.readBytes() else byteArrayOf()
+    val combined = existing + incoming
+    var start = (combined.size - maxBytes / 2).coerceAtLeast(0)
+    // Do not begin a retained file in the middle of a UTF-8 code point.
+    while (start < combined.size && (combined[start].toInt() and 0xC0) == 0x80) start++
+    file.writeBytes(combined.copyOfRange(start, combined.size))
+}
 
 internal fun sanitizeLogMessage(message: String): String =
     LogCollector.sanitizeMessage(message)
@@ -89,7 +117,9 @@ internal fun buildCrashSnapshotContent(
     manufacturer: String,
     model: String,
     androidRelease: String,
-    apiLevel: Int
+    apiLevel: Int,
+    buildType: String = "unknown",
+    buildCommit: String = "unknown"
 ): String {
     val headerDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
     return buildString {
@@ -98,6 +128,7 @@ internal fun buildCrashSnapshotContent(
         appendLine("========================================")
         appendLine("生成时间: ${headerDateFormat.format(Date(exportedAtMillis))}")
         appendLine("应用版本: $appVersionName ($versionCode)")
+        appendLine("构建: $buildType / $buildCommit")
         appendLine("设备信息: $manufacturer $model")
         appendLine("Android版本: $androidRelease (API $apiLevel)")
         appendLine("异常类型: ${throwable.javaClass.simpleName}")
@@ -114,10 +145,24 @@ internal fun buildCrashSnapshotContent(
 /**
  *  统一日志工具类
  * 
- * Release 默认只保留警告和错误；用户主动开启增强诊断后，会在应用私有目录中
+ * 默认在私有目录滚动保留警告、错误及最小启动诊断；用户主动开启增强诊断后，另行
  * 滚动保存脱敏后的 Debug/Info 日志，支持导出供用户反馈。
  */
 object Logger {
+
+    /** Fixed startup stage names only; no links, account identifiers or user input. */
+    fun recordStartupStage(stage: String) {
+        LogCollector.add(
+            level = "I",
+            tag = "StartupDiagnostics",
+            message = "stage=$stage, app=${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE}), " +
+                "build=${BuildConfig.BUILD_TYPE}/${BuildConfig.BUILD_COMMIT_SHA.take(12)}, " +
+                "android=${android.os.Build.VERSION.RELEASE}(API ${android.os.Build.VERSION.SDK_INT}), " +
+                "device=${android.os.Build.MANUFACTURER}/${android.os.Build.MODEL}",
+            persistToDisk = true,
+            basicDiagnostic = true,
+        )
+    }
 
     private val debugVerboseLogsEnabled = shouldEmitVerboseLogcat(
         isDebugBuild = BuildConfig.DEBUG,
@@ -380,7 +425,7 @@ object LogCollector {
     private const val MAX_ENTRIES = 1000
     private const val DUPLICATE_SUPPRESS_WINDOW_MS = 250L
     private const val MAX_PERSISTED_LOG_BYTES = 256 * 1024
-    private const val PERSISTED_LOG_TRIM_TARGET_BYTES = 128 * 1024
+    private const val MAX_BASIC_LOG_BYTES = 64 * 1024
     private const val MAX_LOG_MESSAGE_CHARS = 16 * 1024
     private val lock = Any()
     private val buffer = ArrayDeque<LogEntry>(MAX_ENTRIES)
@@ -402,7 +447,7 @@ object LogCollector {
         val message: String
     ) {
         fun format(): String {
-            val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(timestamp))
+            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date(timestamp))
             return "[$time] $level/$tag: $message"
         }
     }
@@ -410,7 +455,13 @@ object LogCollector {
     /**
      * 添加日志条目。敏感信息在进入内存和磁盘前即被移除，导出时再做一次纵深防御。
      */
-    fun add(level: String, tag: String, message: String, persistToDisk: Boolean = true) {
+    fun add(
+        level: String,
+        tag: String,
+        message: String,
+        persistToDisk: Boolean = true,
+        basicDiagnostic: Boolean = false,
+    ) {
         val now = System.currentTimeMillis()
         val sanitizedTag = sanitizeMessage(tag).take(80)
         val sanitizedMessage = sanitizeMessage(message).let { value ->
@@ -448,7 +499,7 @@ object LogCollector {
         }
 
         if (persistToDisk) {
-            entryToPersist?.let { appendEntryToRuntimeFile(it) }
+            entryToPersist?.let { appendEntryToRuntimeFile(it, basicDiagnostic) }
         }
     }
 
@@ -645,7 +696,10 @@ object LogCollector {
     }
 
     fun clearRuntimeDiagnostics() {
-        clear()
+        synchronized(lock) {
+            buffer.removeAll { it.level != "W" && it.level != "E" && it.tag != "StartupDiagnostics" }
+            lastEntryFingerprint = null
+        }
         val context = appContext ?: return
         diskWriter.execute {
             runCatching {
@@ -671,7 +725,9 @@ object LogCollector {
                 manufacturer = android.os.Build.MANUFACTURER,
                 model = android.os.Build.MODEL,
                 androidRelease = android.os.Build.VERSION.RELEASE,
-                apiLevel = android.os.Build.VERSION.SDK_INT
+                apiLevel = android.os.Build.VERSION.SDK_INT,
+                buildType = BuildConfig.BUILD_TYPE,
+                buildCommit = BuildConfig.BUILD_COMMIT_SHA,
             )
             val snapshotFile = resolveCrashSnapshotFile(context.filesDir)
             val markerFile = resolveCrashSnapshotMarkerFile(context.filesDir)
@@ -724,94 +780,84 @@ object LogCollector {
      * 
      * 日志会保存到 Download/BiliPai/logs/ 目录，方便 MT 管理器等工具直接访问
      */
-    fun exportAndShare(context: Context) {
-        try {
-            val entries = getEntries()
-            val persistedLines = runCatching {
-                resolveRuntimeLogFile(context.filesDir)
-                    .takeIf { it.isFile }
-                    ?.readLines()
-                    .orEmpty()
-            }.getOrDefault(emptyList())
-            val logLines = (persistedLines + entries.map { entry ->
-                entry.copy(message = sanitizeMessage(entry.message)).format()
-            })
-                .filter { it.isNotBlank() }
-                .distinct()
-            if (logLines.isEmpty()) {
-                Toast.makeText(context, "暂无日志记录", Toast.LENGTH_SHORT).show()
-                return
-            }
-            
-            // 生成日志内容
-            val recentProcessExits = Android17Diagnostics.recentProcessExitSummaries(context)
-            val header = buildString {
-                appendLine("========================================")
-                appendLine("BiliPai 应用日志导出")
-                appendLine("========================================")
-                appendLine("导出时间: ${dateFormat.format(Date())}")
-                appendLine("应用版本: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-                appendLine("设备信息: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
-                appendLine("Android版本: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
-                appendLine("日志条数: ${logLines.size}")
-                appendLine("增强诊断: ${if (Logger.areVerboseRuntimeLogsEnabled()) "已开启" else "未开启"}")
-                appendLine("历史进程退出记录: ${if (recentProcessExits.isEmpty()) "系统未提供" else "${recentProcessExits.size} 条"}")
-                recentProcessExits.forEach(::appendLine)
-                appendLine("隐私说明: 凭据、账号标识、内容标识、搜索词和用户输入已脱敏")
-                appendLine("========================================")
-                appendLine()
-            }
-            
-            val content = header + logLines.joinToString("\n") { sanitizeMessage(it) }
-            val fileName = "bilipai_log_${fileDateFormat.format(Date())}.txt"
-            
-            //  [优化] 保存到外部 Download 目录，MT 管理器可直接访问
-            val savedPath = saveToExternalDownload(context, fileName, content)
-            val shareCacheDir = File(context.cacheDir, LOG_DIRECTORY_NAME).apply { mkdirs() }
-            val shareFile = File(shareCacheDir, fileName).apply { writeText(content) }
-            val pendingCrashShareFile = getPendingCrashSnapshotFile()?.let { snapshotFile ->
-                runCatching {
-                    File(shareCacheDir, CRASH_SNAPSHOT_FILE_NAME).also { target ->
-                        snapshotFile.copyTo(target, overwrite = true)
-                    }
-                }.onFailure { error ->
-                    Log.e("LogCollector", "附加崩溃快照失败", error)
-                }.getOrNull()
-            }
-            val baseShareFiles = listOfNotNull(shareFile, pendingCrashShareFile)
-            
-            if (savedPath != null) {
-                // 保存成功，显示路径并提供分享选项
-                val displayPath = savedPath.substringAfter("Download/")
-                Toast.makeText(
-                    context, 
-                    "📁 已保存到: Download/$displayPath\n\n点击分享按钮可发送给开发者", 
-                    Toast.LENGTH_LONG
-                ).show()
-                
-            } else {
-                // 外部存储不可用，回退到内部缓存
-                Toast.makeText(context, "日志已保存，点击分享发送", Toast.LENGTH_SHORT).show()
-            }
-            // 性能 trace 可能较大，始终流式复制且不阻塞 UI 线程。
-            val retainedProfilingArtifacts = Android17Diagnostics.retainedArtifacts(context)
-            if (retainedProfilingArtifacts.isEmpty()) {
-                shareLogFilesFromCache(context, baseShareFiles)
-            } else {
-                diskWriter.execute {
-                    val profilingArtifacts = Android17Diagnostics.copyRetainedArtifactsTo(
-                        context = context,
-                        targetDirectory = shareCacheDir
-                    )
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        shareLogFilesFromCache(context, baseShareFiles + profilingArtifacts)
+    fun exportAndShare(context: Context, includeSystemDiagnostics: Boolean = true) {
+        init(context)
+        // Queue behind pending writes: exporting immediately after an error must include it.
+        // File reads, MediaStore writes and trace copies must not block the recovery UI.
+        diskWriter.execute {
+            try {
+                val persistedLines = listOf(
+                    resolveBasicLogFile(context.filesDir),
+                    resolveRuntimeLogFile(context.filesDir),
+                ).flatMap { file ->
+                    runCatching { if (file.isFile) file.readLines() else emptyList() }
+                        .getOrDefault(emptyList())
+                }
+                val logLines = (persistedLines + getEntries().map { it.format() })
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                // Dismissing the prompt only clears its marker, not the retained evidence.
+                val crashContent = resolveCrashSnapshotFile(context.filesDir)
+                    .takeIf(File::isFile)?.readText()?.let(::sanitizeMessage)
+                val recentProcessExits = if (includeSystemDiagnostics) {
+                    Android17Diagnostics.recentProcessExitSummaries(context)
+                } else emptyList()
+                val retainedProfiles = if (includeSystemDiagnostics) {
+                    Android17Diagnostics.retainedArtifacts(context)
+                } else emptyList()
+                if (!hasExportableDiagnostics(
+                        logCount = logLines.size,
+                        hasCrashSnapshot = !crashContent.isNullOrBlank(),
+                        processExitCount = recentProcessExits.size,
+                        profilingArtifactCount = retainedProfiles.size,
+                    )) {
+                    showExportToast(context, "暂无日志记录")
+                    return@execute
+                }
+                val content = buildString {
+                    appendLine("BiliPai 应用日志导出")
+                    appendLine("导出时间: ${dateFormat.format(Date())}")
+                    appendLine("应用版本: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                    appendLine("构建: ${BuildConfig.BUILD_TYPE} / ${BuildConfig.BUILD_COMMIT_SHA}")
+                    appendLine("设备信息: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                    appendLine("Android版本: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+                    appendLine("基础诊断: 默认保留，滚动上限 64KB")
+                    appendLine("增强诊断: ${if (Logger.areVerboseRuntimeLogsEnabled()) "已开启" else "未开启"}")
+                    appendLine("历史进程退出记录: ${recentProcessExits.size} 条")
+                    recentProcessExits.forEach { appendLine(sanitizeMessage(it)) }
+                    appendLine("隐私说明: 日志已脱敏，仅在用户主动导出时分享")
+                    appendLine("----- 运行日志（${logLines.size} 条）-----")
+                    logLines.forEach { appendLine(sanitizeMessage(it)) }
+                    if (!crashContent.isNullOrBlank()) {
+                        appendLine("----- 最近一次崩溃快照 -----")
+                        appendLine(crashContent)
                     }
                 }
+                val fileName = "bilipai_log_${fileDateFormat.format(Date())}.txt"
+                val savedPath = saveToExternalDownload(context, fileName, content)
+                val shareCacheDir = File(context.cacheDir, LOG_DIRECTORY_NAME).apply { mkdirs() }
+                val shareFile = File(shareCacheDir, fileName).apply { writeText(content) }
+                val profilingFiles = if (retainedProfiles.isNotEmpty()) {
+                    Android17Diagnostics.copyRetainedArtifactsTo(context, shareCacheDir)
+                } else emptyList()
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (context is android.app.Activity && (context.isFinishing || context.isDestroyed)) {
+                        return@post
+                    }
+                    val message = if (savedPath != null) "日志已保存到 $savedPath" else "日志已准备好，请选择分享方式"
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    shareLogFilesFromCache(context, listOf(shareFile) + profilingFiles)
+                }
+            } catch (error: Exception) {
+                Log.e("LogCollector", "导出日志失败", error)
+                showExportToast(context, "日志导出失败，请重试")
             }
-            
-        } catch (e: Exception) {
-            Log.e("LogCollector", "导出日志失败", e)
-            Toast.makeText(context, "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showExportToast(context: Context, message: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -958,35 +1004,22 @@ object LogCollector {
         }
     }
 
-    private fun appendEntryToRuntimeFile(entry: LogEntry) {
+    private fun appendEntryToRuntimeFile(entry: LogEntry, basicDiagnostic: Boolean = false) {
         val context = appContext ?: return
         val sanitizedEntry = entry.copy(message = sanitizeMessage(entry.message)).format() + "\n"
         diskWriter.execute {
             runCatching {
-                val runtimeLogFile = resolveRuntimeLogFile(context.filesDir)
-                runtimeLogFile.parentFile?.mkdirs()
-                appendTextWithRollingLimit(runtimeLogFile, sanitizedEntry)
+                val isBasic = basicDiagnostic || entry.level == "W" || entry.level == "E"
+                appendRollingDiagnosticLog(
+                    file = if (isBasic) resolveBasicLogFile(context.filesDir)
+                        else resolveRuntimeLogFile(context.filesDir),
+                    text = sanitizedEntry,
+                    maxBytes = if (isBasic) MAX_BASIC_LOG_BYTES else MAX_PERSISTED_LOG_BYTES,
+                )
             }.onFailure {
                 Log.e("LogCollector", "持久化运行日志失败", it)
             }
         }
     }
 
-    private fun appendTextWithRollingLimit(file: File, text: String) {
-        if (!file.exists()) {
-            file.writeText(text)
-            return
-        }
-
-        if (file.length() + text.toByteArray().size <= MAX_PERSISTED_LOG_BYTES) {
-            file.appendText(text)
-            return
-        }
-
-        val retained = runCatching {
-            val current = file.readText()
-            current.takeLast(PERSISTED_LOG_TRIM_TARGET_BYTES)
-        }.getOrDefault("")
-        file.writeText(retained + text)
-    }
 }

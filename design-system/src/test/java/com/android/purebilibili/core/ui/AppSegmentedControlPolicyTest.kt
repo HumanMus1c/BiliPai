@@ -143,6 +143,20 @@ class AppSegmentedControlPolicyTest {
         assertTrue(tabRow.contains("indicatorPositionProvider = indicatorPositionProvider"))
     }
 
+    @Test
+    fun `miuix tab viewport clips scrolling content and background to its corners`() {
+        val source = loadSource(
+            "src/main/java/com/android/purebilibili/core/ui/renderer/miuix/" +
+                "AppMiuixSegmentedControl.kt"
+        )
+        val tabRow = source.substringAfter("internal fun <T> AppMiuixTabRow(")
+
+        assertTrue(source.contains("import top.yukonga.miuix.kmp.squircle.squircleClip"))
+        assertTrue(tabRow.contains("modifier = modifier.squircleClip(geometry.cornerRadius)"))
+        assertTrue(tabRow.contains("cornerRadius = geometry.cornerRadius"))
+        assertTrue(tabRow.contains("listState = if (scrollable) scrollState else null"))
+    }
+
     private fun loadSource(path: String): String = listOf(
         File(path),
         File("design-system/$path"),

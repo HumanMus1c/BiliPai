@@ -6,6 +6,40 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoCardTransitionClockTest {
+    @Test
+    fun navigationOwnerCannotBePreemptedBySharedOrFallbackCompletion() {
+        val clock = VideoCardTransitionClock()
+        clock.beginOpening("home")
+        var depth = .6f
+        clock.bindNavigationDriver { depth }
+        clock.followNavigationDriver(VideoCardTransitionSettleState.AutoEnter)
+        clock.reportSharedMorphProgress(1f, false)
+        clock.markHeld()
+        assertEquals(VideoCardTransitionBackgroundPhase.OPENING, clock.phase)
+        assertEquals(.6f, clock.depthProgress())
+        clock.beginReturning("home", clock.depthProgress())
+        clock.followNavigationDriver(VideoCardTransitionSettleState.AutoReturn, -2f)
+        assertEquals(.6f, clock.depthProgress())
+        assertEquals(-2f, clock.initialVelocity)
+        clock.markIdle()
+        assertEquals(VideoCardTransitionBackgroundPhase.RETURNING, clock.phase)
+        depth = 0f
+        clock.followNavigationDriver(VideoCardTransitionSettleState.Idle)
+        assertEquals(VideoCardTransitionBackgroundPhase.IDLE, clock.phase)
+    }
+
+    @Test
+    fun predictiveCancelRestoresFromCurrentPositionWithoutOpeningReset() {
+        val clock = VideoCardTransitionClock()
+        clock.bindNavigationDriver { .4f }
+        clock.followNavigationDriver(VideoCardTransitionSettleState.InteractiveSeek)
+        clock.followNavigationDriver(VideoCardTransitionSettleState.CancelRestore, 1f)
+        assertEquals(.4f, clock.depthProgress())
+        assertTrue(clock.gestureRestoreInProgress)
+        assertEquals(VideoCardTransitionSettleState.CancelRestore, clock.settleState)
+        clock.followNavigationDriver(VideoCardTransitionSettleState.Held)
+        assertFalse(clock.gestureRestoreInProgress)
+    }
 
     @Test
     fun depthPriority_gestureBeatsSharedBeatsFallback() {

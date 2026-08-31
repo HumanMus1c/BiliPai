@@ -394,104 +394,221 @@ internal fun resolveVideoContentTabBarCollapsePxWhenListLeavesTop(
  * 视频详情内容区域
  * 从 VideoDetailScreen.kt 提取出来，提高代码可维护性
  */
+internal class VideoContentData(
+    val info: ViewInfo,
+    val introListState: LazyListState,
+    val commentListState: LazyListState,
+    val pagerState: PagerState,
+    val relatedVideos: List<RelatedVideo>,
+    val replies: List<ReplyItem>,
+    val replyCount: Int,
+    val emoteMap: Map<String, String>,
+    val followingMids: Set<Long>,
+    val videoTags: List<VideoTag>,
+    val bgmInfo: BgmInfo?,
+    val bgmInfoList: List<BgmInfo>,
+)
+
+internal class VideoContentEngagementState(
+    val isLoggedIn: Boolean,
+    val isFollowing: Boolean,
+    val isFavorited: Boolean,
+    val isLiked: Boolean,
+    val coinCount: Int,
+    val currentPageIndex: Int,
+    val downloadProgress: Float,
+    val isInWatchLater: Boolean,
+)
+
+internal class VideoContentCommentState(
+    val isRepliesLoading: Boolean,
+    val isRepliesEnd: Boolean,
+    val sortMode: CommentSortMode,
+    val currentMid: Long,
+    val showUpFlag: Boolean,
+    val showIdentityDecorations: Boolean,
+    val dissolvingIds: Set<Long>,
+    val likedComments: Set<Long>,
+    val hatedComments: Set<Long>,
+)
+
+internal class VideoContentNoteState(
+    val aiSummary: AiSummaryData?,
+    val aiSummaryPrompt: com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState?,
+    val videoNoteState: VideoNoteUiState,
+)
+
+internal class VideoContentPresentationState(
+    val danmakuEnabled: Boolean,
+    val transitionEnabled: Boolean,
+    val isQuickReturnLimitedForSharedElements: Boolean,
+    val sourceRouteForSharedElement: String?,
+    val isPlayerCollapsed: Boolean,
+    val onlineCount: String,
+    val showOnlineCount: Boolean,
+    val ownerFollowerCount: Int?,
+    val ownerVideoCount: Int?,
+    val showUpBadge: Boolean,
+    val showInteractionActions: Boolean,
+    val isVideoPlaying: Boolean,
+    val bottomContentPadding: Dp,
+)
+
+internal class VideoContentPrimaryActions(
+    val onFollowClick: () -> Unit,
+    val onFavoriteClick: () -> Unit,
+    val onLikeClick: () -> Unit,
+    val onCoinClick: () -> Unit,
+    val onTripleClick: () -> Unit,
+    val onPageSelect: (Int) -> Unit,
+    val onUpClick: (Long) -> Unit,
+    val onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
+    val onDownloadClick: () -> Unit,
+    val onWatchLaterClick: () -> Unit,
+    val onShareClick: () -> Unit,
+    val onTimestampClick: ((Long) -> Unit)?,
+    val onDanmakuSendClick: () -> Unit,
+    val onDanmakuToggle: () -> Unit,
+    val onFavoriteLongClick: () -> Unit,
+    val onBgmClick: (BgmInfo) -> Unit,
+)
+
+internal class VideoContentCommentActions(
+    val onSortModeChange: (CommentSortMode) -> Unit,
+    val onSubReplyClick: (ReplyItem, Long) -> Unit,
+    val onCommentReplyClick: (ReplyItem) -> Unit,
+    val onLoadMoreReplies: () -> Unit,
+    val onDeleteComment: (Long) -> Unit,
+    val onDissolveStart: (Long) -> Unit,
+    val onCommentLike: (Long) -> Unit,
+    val onCommentHate: (Long) -> Unit,
+    val onCommentUrlClick: (String) -> Unit,
+    val onDescriptionUrlClick: ((String) -> Unit)?,
+    val onSearchKeywordClick: (String) -> Unit,
+    val onReportComment: (Long, Int) -> Unit,
+    val onToggleTopComment: (ReplyItem) -> Unit,
+)
+
+internal class VideoContentNoteActions(
+    val onRetryAiSummary: () -> Unit,
+    val onCreateNoteDraftFromAiSummary: () -> Unit,
+    val onOpenVideoNoteEditor: () -> Unit,
+    val onCloseVideoNoteEditor: () -> Unit,
+    val onVideoNoteDocumentChange: (VideoNoteEditorDocument) -> Unit,
+    val onInsertVideoNoteTimestamp: () -> Unit,
+    val onVideoNoteTimestampClick: (Long) -> Unit,
+    val onSaveVideoNote: (VideoNoteEditorDocument) -> Unit,
+    val onDeleteVideoNote: () -> Unit,
+    val onRetryVideoNote: () -> Unit,
+    val onPublicVideoNoteClick: (Long, String) -> Unit,
+)
+
+internal class VideoContentUiActions(
+    val onSelectedTabChange: (Int) -> Unit,
+    val onIntroScrollThresholdChange: (Boolean) -> Unit,
+    val onCommentScrollStateChange: (Int, Int) -> Unit,
+)
+
 @Composable
-fun VideoContentSection(
-    info: ViewInfo,
-    introListState: LazyListState,
-    commentListState: LazyListState,
-    pagerState: PagerState,
-    relatedVideos: List<RelatedVideo>,
-    replies: List<ReplyItem>,
-    replyCount: Int,
-    emoteMap: Map<String, String>,
-    isRepliesLoading: Boolean,
-    isRepliesEnd: Boolean = false,
-    isLoggedIn: Boolean = false,
-    isFollowing: Boolean,
-    isFavorited: Boolean,
-    isLiked: Boolean,
-    coinCount: Int,
-    currentPageIndex: Int,
-    downloadProgress: Float = -1f,
-    isInWatchLater: Boolean = false,
-    followingMids: Set<Long> = emptySet(),
-    videoTags: List<VideoTag> = emptyList(),
-    sortMode: CommentSortMode = CommentSortMode.HOT,
-    onSortModeChange: (CommentSortMode) -> Unit = {},
-    onFollowClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
-    onLikeClick: () -> Unit,
-    onCoinClick: () -> Unit,
-    onTripleClick: () -> Unit,
-    onPageSelect: (Int) -> Unit,
-    onUpClick: (Long) -> Unit,
-    onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
-    onSubReplyClick: (ReplyItem, Long) -> Unit,
-    onCommentReplyClick: (ReplyItem) -> Unit = {},
-    onLoadMoreReplies: () -> Unit,
-    onDownloadClick: () -> Unit = {},
-    onWatchLaterClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
-    onTimestampClick: ((Long) -> Unit)? = null,
-    onDanmakuSendClick: () -> Unit = {},
-    danmakuEnabled: Boolean = true,
-    onDanmakuToggle: () -> Unit = {},
-    // [新增] 删除与动画参数
-    currentMid: Long = 0,
-    showUpFlag: Boolean = false,
-    showIdentityDecorations: Boolean = false,
-    dissolvingIds: Set<Long> = emptySet(),
-    onDeleteComment: (Long) -> Unit = {},
-    onDissolveStart: (Long) -> Unit = {},
-    // [新增] 点赞回调
-    onCommentLike: (Long) -> Unit = {},
-    onCommentHate: (Long) -> Unit = {},
-    // [新增] 已点赞的评论 ID 集合
-    likedComments: Set<Long> = emptySet(),
-    hatedComments: Set<Long> = emptySet(),
-    onCommentUrlClick: (String) -> Unit = {},
-    onDescriptionUrlClick: ((String) -> Unit)? = null,
-    onSearchKeywordClick: (String) -> Unit = {},
-    onReportComment: (Long, Int) -> Unit = { _, _ -> },
-    onToggleTopComment: (ReplyItem) -> Unit = {},
-    // 🔗 [新增] 共享元素过渡开关
-    transitionEnabled: Boolean = false,
-    isQuickReturnLimitedForSharedElements: Boolean = false,
-    sourceRouteForSharedElement: String? = null,
-    // [新增] 收藏夹相关参数
-    onFavoriteLongClick: () -> Unit = {},
-    // [新增] 恢复播放器 (音频模式 -> 视频模式)
-    isPlayerCollapsed: Boolean = false,
-    // [新增] AI Summary & BGM
-    aiSummary: AiSummaryData? = null,
-    aiSummaryPrompt: com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState? = null,
-    onRetryAiSummary: () -> Unit = {},
-    onCreateNoteDraftFromAiSummary: () -> Unit = {},
-    videoNoteState: VideoNoteUiState = VideoNoteUiState(),
-    onOpenVideoNoteEditor: () -> Unit = {},
-    onCloseVideoNoteEditor: () -> Unit = {},
-    onVideoNoteDocumentChange: (VideoNoteEditorDocument) -> Unit = {},
-    onInsertVideoNoteTimestamp: () -> Unit = {},
-    onVideoNoteTimestampClick: (Long) -> Unit = {},
-    onSaveVideoNote: (VideoNoteEditorDocument) -> Unit = {},
-    onDeleteVideoNote: () -> Unit = {},
-    onRetryVideoNote: () -> Unit = {},
-    onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
-    bgmInfo: BgmInfo? = null,
-    bgmInfoList: List<BgmInfo> = emptyList(),
-    onBgmClick: (BgmInfo) -> Unit = {},
-    onlineCount: String = "",
-    showOnlineCount: Boolean = true,
-    ownerFollowerCount: Int? = null,
-    ownerVideoCount: Int? = null,
-    showUpBadge: Boolean = true,
-    showInteractionActions: Boolean = true,
-    isVideoPlaying: Boolean = false,
-    onSelectedTabChange: (Int) -> Unit = {},
-    onIntroScrollThresholdChange: (Boolean) -> Unit = {},
-    onCommentScrollStateChange: (Int, Int) -> Unit = { _, _ -> },
-    bottomContentPadding: Dp = if (showInteractionActions) 84.dp else 12.dp
+internal fun VideoContentSection(
+    data: VideoContentData,
+    engagementState: VideoContentEngagementState,
+    commentState: VideoContentCommentState,
+    noteState: VideoContentNoteState,
+    presentationState: VideoContentPresentationState,
+    primaryActions: VideoContentPrimaryActions,
+    commentActions: VideoContentCommentActions,
+    noteActions: VideoContentNoteActions,
+    uiActions: VideoContentUiActions,
 ) {
+    val info = data.info
+    val introListState = data.introListState
+    val commentListState = data.commentListState
+    val pagerState = data.pagerState
+    val relatedVideos = data.relatedVideos
+    val replies = data.replies
+    val replyCount = data.replyCount
+    val emoteMap = data.emoteMap
+    val followingMids = data.followingMids
+    val videoTags = data.videoTags
+    val bgmInfo = data.bgmInfo
+    val bgmInfoList = data.bgmInfoList
+    val isLoggedIn = engagementState.isLoggedIn
+    val isFollowing = engagementState.isFollowing
+    val isFavorited = engagementState.isFavorited
+    val isLiked = engagementState.isLiked
+    val coinCount = engagementState.coinCount
+    val currentPageIndex = engagementState.currentPageIndex
+    val downloadProgress = engagementState.downloadProgress
+    val isInWatchLater = engagementState.isInWatchLater
+    val isRepliesLoading = commentState.isRepliesLoading
+    val isRepliesEnd = commentState.isRepliesEnd
+    val sortMode = commentState.sortMode
+    val currentMid = commentState.currentMid
+    val showUpFlag = commentState.showUpFlag
+    val showIdentityDecorations = commentState.showIdentityDecorations
+    val dissolvingIds = commentState.dissolvingIds
+    val likedComments = commentState.likedComments
+    val hatedComments = commentState.hatedComments
+    val aiSummary = noteState.aiSummary
+    val aiSummaryPrompt = noteState.aiSummaryPrompt
+    val videoNoteState = noteState.videoNoteState
+    val danmakuEnabled = presentationState.danmakuEnabled
+    val transitionEnabled = presentationState.transitionEnabled
+    val isQuickReturnLimitedForSharedElements = presentationState.isQuickReturnLimitedForSharedElements
+    val sourceRouteForSharedElement = presentationState.sourceRouteForSharedElement
+    val isPlayerCollapsed = presentationState.isPlayerCollapsed
+    val onlineCount = presentationState.onlineCount
+    val showOnlineCount = presentationState.showOnlineCount
+    val ownerFollowerCount = presentationState.ownerFollowerCount
+    val ownerVideoCount = presentationState.ownerVideoCount
+    val showUpBadge = presentationState.showUpBadge
+    val showInteractionActions = presentationState.showInteractionActions
+    val isVideoPlaying = presentationState.isVideoPlaying
+    val bottomContentPadding = presentationState.bottomContentPadding
+    val onFollowClick = primaryActions.onFollowClick
+    val onFavoriteClick = primaryActions.onFavoriteClick
+    val onLikeClick = primaryActions.onLikeClick
+    val onCoinClick = primaryActions.onCoinClick
+    val onTripleClick = primaryActions.onTripleClick
+    val onPageSelect = primaryActions.onPageSelect
+    val onUpClick = primaryActions.onUpClick
+    val onRelatedVideoClick = primaryActions.onRelatedVideoClick
+    val onDownloadClick = primaryActions.onDownloadClick
+    val onWatchLaterClick = primaryActions.onWatchLaterClick
+    val onShareClick = primaryActions.onShareClick
+    val onTimestampClick = primaryActions.onTimestampClick
+    val onDanmakuSendClick = primaryActions.onDanmakuSendClick
+    val onDanmakuToggle = primaryActions.onDanmakuToggle
+    val onFavoriteLongClick = primaryActions.onFavoriteLongClick
+    val onBgmClick = primaryActions.onBgmClick
+    val onSortModeChange = commentActions.onSortModeChange
+    val onSubReplyClick = commentActions.onSubReplyClick
+    val onCommentReplyClick = commentActions.onCommentReplyClick
+    val onLoadMoreReplies = commentActions.onLoadMoreReplies
+    val onDeleteComment = commentActions.onDeleteComment
+    val onDissolveStart = commentActions.onDissolveStart
+    val onCommentLike = commentActions.onCommentLike
+    val onCommentHate = commentActions.onCommentHate
+    val onCommentUrlClick = commentActions.onCommentUrlClick
+    val onDescriptionUrlClick = commentActions.onDescriptionUrlClick
+    val onSearchKeywordClick = commentActions.onSearchKeywordClick
+    val onReportComment = commentActions.onReportComment
+    val onToggleTopComment = commentActions.onToggleTopComment
+    val onRetryAiSummary = noteActions.onRetryAiSummary
+    val onCreateNoteDraftFromAiSummary = noteActions.onCreateNoteDraftFromAiSummary
+    val onOpenVideoNoteEditor = noteActions.onOpenVideoNoteEditor
+    val onCloseVideoNoteEditor = noteActions.onCloseVideoNoteEditor
+    val onVideoNoteDocumentChange = noteActions.onVideoNoteDocumentChange
+    val onInsertVideoNoteTimestamp = noteActions.onInsertVideoNoteTimestamp
+    val onVideoNoteTimestampClick = noteActions.onVideoNoteTimestampClick
+    val onSaveVideoNote = noteActions.onSaveVideoNote
+    val onDeleteVideoNote = noteActions.onDeleteVideoNote
+    val onRetryVideoNote = noteActions.onRetryVideoNote
+    val onPublicVideoNoteClick = noteActions.onPublicVideoNoteClick
+    val onSelectedTabChange = uiActions.onSelectedTabChange
+    val onIntroScrollThresholdChange = uiActions.onIntroScrollThresholdChange
+    val onCommentScrollStateChange = uiActions.onCommentScrollStateChange
     val context = LocalContext.current
     val homeSettings by SettingsManager
         .getHomeSettings(context)

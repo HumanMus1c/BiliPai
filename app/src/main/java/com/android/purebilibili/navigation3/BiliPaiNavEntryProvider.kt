@@ -39,6 +39,7 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     entry<BiliPaiNavKey.TipsSettings>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Login>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Profile>(swipeDismiss = swipeBackDirection, content = content)
+    entry<BiliPaiNavKey.AicuQuery>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.History>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.HistorySearch>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Favorite>(swipeDismiss = swipeBackDirection, content = content)

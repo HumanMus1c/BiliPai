@@ -54,9 +54,9 @@ class DampedDragAnimation(
     private val pressProgressAnimationSpec =
         spring(1f, 1000f, 0.001f)
     private val scaleXAnimationSpec =
-        spring(0.6f, 250f, 0.001f)
+        spring(0.82f, 520f, 0.001f)
     private val scaleYAnimationSpec =
-        spring(0.7f, 250f, 0.001f)
+        spring(0.86f, 560f, 0.001f)
 
     private val valueAnimation =
         Animatable(initialValue, visibilityThreshold)

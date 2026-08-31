@@ -47,6 +47,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.live.resolveLiveVisualSpec
 import com.android.purebilibili.feature.live.LiveStatusPalette
+import com.android.purebilibili.feature.live.LivePlayerGesturePolicy
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayHost
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
@@ -138,9 +139,9 @@ private fun LivePlayerIconButton(
  * 支持：
  * 1. 左 1/3 亮度调节手势
  * 2. 右 1/3 音量调节手势
- * 3. 中间 1/3 上下滑切换全屏
+ * 3. 非竖向直播：中间 1/3 上下滑切换全屏
  * 4. 单击显示/隐藏控制器
- * 5. 双击暂停/播放
+ * 5. 非竖向直播：双击暂停/播放；竖向直播：轻点清屏，长按更多
  * 6. 全屏锁定/解锁、截图
  */
 
@@ -194,7 +195,12 @@ fun LivePlayerControls(
     // [新增] 全屏锁屏：锁定后隐藏控制栏并禁用全部手势，仅保留解锁按钮
     showLockButton: Boolean = false,
     // [新增] 截图当前帧并保存到相册
-    onCaptureScreenshot: () -> Unit = {}
+    onCaptureScreenshot: () -> Unit = {},
+    gesturePolicy: LivePlayerGesturePolicy = LivePlayerGesturePolicy(true, true),
+    usePortraitControls: Boolean = false,
+    isClearScreen: Boolean = false,
+    onPortraitTap: () -> Unit = {},
+    onOpenPortraitMore: () -> Unit = {},
 ) {
     var isControlsVisible by remember { mutableStateOf(true) }
     // 全屏锁屏状态（仅 showLockButton 场景生效）
@@ -230,12 +236,16 @@ fun LivePlayerControls(
     val refreshIcon = rememberAppRefreshIcon()
     var gestureKind by remember { mutableStateOf(GestureLevelKind.Volume) }
     var gesturePercent by remember { mutableFloatStateOf(0f) }
-    // [新增] 手势分区：左 1/3 亮度、右 1/3 音量、中间 1/3 上下滑切换全屏
+    // 竖向直播不响应中间区域的全屏手势。
     var gestureZone by remember { mutableStateOf(LiveGestureZone.None) }
     var centerDragAccumulator by remember { mutableFloatStateOf(0f) }
+    val latestPlayPause by rememberUpdatedState(onPlayPause)
+    val latestToggleFullscreen by rememberUpdatedState(onToggleFullscreen)
+    val latestPortraitTap by rememberUpdatedState(onPortraitTap)
+    val latestOpenPortraitMore by rememberUpdatedState(onOpenPortraitMore)
     
     // 锁定时控制栏强制隐藏
-    val effectiveControlsVisible = isControlsVisible && !isLocked
+    val effectiveControlsVisible = isControlsVisible && !isLocked && !usePortraitControls
 
     Box(
         modifier = modifier
@@ -246,13 +256,22 @@ fun LivePlayerControls(
                     Modifier
                 } else {
                     Modifier
-                        .pointerInput(Unit) {
+                        .pointerInput(usePortraitControls, gesturePolicy.doubleTapPlayback) {
                             detectTapGestures(
-                                onTap = { isControlsVisible = !isControlsVisible },
-                                onDoubleTap = { onPlayPause() }
+                                onTap = {
+                                    if (usePortraitControls) latestPortraitTap()
+                                    else isControlsVisible = !isControlsVisible
+                                },
+                                onDoubleTap = {
+                                    // Consume portrait double taps without pausing or toggling chrome twice.
+                                    if (gesturePolicy.doubleTapPlayback) latestPlayPause()
+                                },
+                                onLongPress = if (usePortraitControls) {
+                                    { latestOpenPortraitMore() }
+                                } else null,
                             )
                         }
-                        .pointerInput(Unit) {
+                        .pointerInput(gesturePolicy.centerDragFullscreen, isClearScreen) {
                             val screenHeight = size.height.toFloat()
                             val screenWidth = size.width.toFloat()
 
@@ -266,9 +285,11 @@ fun LivePlayerControls(
                                 onDragStart = { offset ->
                                     // 三分区：左 1/3 亮度、右 1/3 音量、中间 1/3 上下滑切换全屏
                                     gestureZone = when {
+                                        isClearScreen -> LiveGestureZone.None
                                         offset.x < screenWidth / 3f -> LiveGestureZone.Brightness
                                         offset.x > 2f * screenWidth / 3f -> LiveGestureZone.Volume
-                                        else -> LiveGestureZone.FullscreenToggle
+                                        gesturePolicy.centerDragFullscreen -> LiveGestureZone.FullscreenToggle
+                                        else -> LiveGestureZone.None
                                     }
                                     centerDragAccumulator = 0f
                                     when (gestureZone) {
@@ -297,15 +318,20 @@ fun LivePlayerControls(
                                         }
                                         else -> {}
                                     }
-                                    isGestureVisible = gestureZone != LiveGestureZone.FullscreenToggle
+                                    isGestureVisible = gestureZone == LiveGestureZone.Brightness ||
+                                        gestureZone == LiveGestureZone.Volume
                                 },
                                 onDragEnd = {
                                     // 中间区域：上下滑动超过阈值则切换全屏
                                     if (gestureZone == LiveGestureZone.FullscreenToggle &&
                                         kotlin.math.abs(centerDragAccumulator) > screenHeight * 0.15f
                                     ) {
-                                        onToggleFullscreen()
+                                        latestToggleFullscreen()
                                     }
+                                    isGestureVisible = false
+                                    gestureZone = LiveGestureZone.None
+                                },
+                                onDragCancel = {
                                     isGestureVisible = false
                                     gestureZone = LiveGestureZone.None
                                 },

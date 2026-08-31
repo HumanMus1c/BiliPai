@@ -7,6 +7,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoCardReturnTimelineTest {
+    @Test
+    fun effectsStayClampedAndHandoffRemainsComplementaryDuringLanding() {
+        for (i in -10..1010) {
+            val depth = i / 1000f
+            val visual = resolveVisualProgress(depth, VideoCardTransitionBackgroundPhase.RETURNING,
+                VideoSharedTransitionDirection.RETURN)
+            assertTrue(visual in 0f..1f)
+            val source = resolveVideoCardSourceChromeReturnAlpha(depth)
+            val detail = resolveVideoCardDetailChromeAlpha(depth,
+                VideoCardTransitionBackgroundPhase.RETURNING, false)
+            assertEquals(1f, source + detail, .0001f)
+            assertEquals(source, resolveVideoCardLiveReturnVisualHandoffAlpha(depth), .0001f)
+        }
+        assertEquals(0f, resolveVisualProgress(.4f, VideoCardTransitionBackgroundPhase.IDLE,
+            VideoSharedTransitionDirection.ENTER))
+    }
 
     @Test
     fun morphRemainingDuration_matchesNavDisplaySeekCompleteFormula() {

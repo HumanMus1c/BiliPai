@@ -720,6 +720,7 @@ private fun CommentItem(
     subReplyState: SubReplyUiState = SubReplyUiState(),
     modifier: Modifier = Modifier,
 ) {
+    val queryAicu = com.android.purebilibili.feature.aicu.LocalAicuNavigation.current
     val member = reply.member
     val actionCapabilities = remember(reply, dynamicAuthorMid, currentUserMid) {
         resolveDynamicCommentActionCapabilities(reply, dynamicAuthorMid, currentUserMid)
@@ -859,6 +860,13 @@ private fun CommentItem(
                             expanded = showActions,
                             onDismissRequest = { showActions = false },
                         ) {
+                            val authorUid = member.mid.toLongOrNull()?.takeIf { it > 0 } ?: reply.mid
+                            if (queryAicu != null && authorUid > 0) {
+                                AppDropdownMenuItem(
+                                    text = { AppText("查询作者历史") },
+                                    onClick = { showActions = false; queryAicu(authorUid) },
+                                )
+                            }
                             if (actionCapabilities.canToggleTop) {
                                 AppDropdownMenuItem(
                                     text = {

@@ -118,8 +118,8 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 327
-        versionName = "0.2.3-beta.17"
+        versionCode = 337
+        versionName = "0.2.3-beta.21"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -465,6 +465,10 @@ dependencies {
     // --- 8. Utils (工具类) ---
     // 二维码生成
     implementation("com.google.zxing:core:3.5.4")
+    // BiliPai 设备间二维码传输扫码
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
     // Pinyin 拼音转换 (用于模糊搜索)
     implementation("com.belerweb:pinyin4j:2.5.0")
     // Core KTX

@@ -2,8 +2,8 @@ package com.android.purebilibili.core.ui.transition
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
@@ -11,7 +11,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import kotlin.math.roundToInt
 
 /**
@@ -24,7 +23,8 @@ import kotlin.math.roundToInt
  * 元素 scale、背景 blur / scrim、chrome settle、壁纸 depth **只读** [depthProgress]，
  * 不再各自 Animatable 并行。
  *
- * ## 驱动优先级（高 → 低）
+ * Miuix 主链路：只跟随 NavDisplay，包含预测 seek/commit/cancel 和真实结束帧。
+ * ## 无 Nav 主驱动的兼容路径优先级（高 → 低）
  * 1. **预测手势** [gestureBackProgress]
  * 2. **Shared morph**（详情 AVS 与 sharedBounds 同一 Transition 的 progress）
  * 3. **Host fallback Animatable**（无 shared / 首帧详情未挂上时）
@@ -35,6 +35,42 @@ import kotlin.math.roundToInt
  */
 @Stable
 internal class VideoCardTransitionClock {
+    private var navigationDepthProvider: (() -> Float?)? = null
+    private var navigationSettleState: VideoCardTransitionSettleState? by mutableStateOf(null)
+    var initialVelocity: Float = 0f
+        private set
+
+    val settleState: VideoCardTransitionSettleState
+        get() = navigationSettleState ?: when {
+            gestureRestoreInProgress -> VideoCardTransitionSettleState.CancelRestore
+            gestureBackProgress != null -> VideoCardTransitionSettleState.InteractiveSeek
+            phase == VideoCardTransitionBackgroundPhase.OPENING -> VideoCardTransitionSettleState.AutoEnter
+            phase == VideoCardTransitionBackgroundPhase.RETURNING -> VideoCardTransitionSettleState.AutoReturn
+            phase == VideoCardTransitionBackgroundPhase.HELD -> VideoCardTransitionSettleState.Held
+            else -> VideoCardTransitionSettleState.Idle
+        }
+
+    /** Miuix owns position AND lifetime. Do not start a hidden fallback alongside it. */
+    fun bindNavigationDriver(provider: (() -> Float?)?) {
+        navigationDepthProvider = provider
+        if (provider == null) navigationSettleState = null
+    }
+
+    fun followNavigationDriver(state: VideoCardTransitionSettleState, velocity: Float = 0f) {
+        navigationSettleState = state
+        initialVelocity = velocity.takeIf { it.isFinite() } ?: 0f
+        gestureRestoreInProgress = state == VideoCardTransitionSettleState.CancelRestore
+        phase = when (state) {
+            VideoCardTransitionSettleState.AutoEnter -> VideoCardTransitionBackgroundPhase.OPENING
+            VideoCardTransitionSettleState.AutoReturn -> VideoCardTransitionBackgroundPhase.RETURNING
+            VideoCardTransitionSettleState.Idle -> VideoCardTransitionBackgroundPhase.IDLE
+            else -> VideoCardTransitionBackgroundPhase.HELD
+        }
+        if (state == VideoCardTransitionSettleState.Idle) {
+            sourceRoute = null
+            returnDepthFloor = null
+        }
+    }
     var phase: VideoCardTransitionBackgroundPhase by mutableStateOf(
         VideoCardTransitionBackgroundPhase.IDLE,
     )
@@ -79,6 +115,7 @@ internal class VideoCardTransitionClock {
      * 所有视觉层必须走这里，禁止再读独立 Animatable。
      */
     fun depthProgress(): Float {
+        navigationDepthProvider?.invoke()?.let { return it.coerceIn(0f, 1f) }
         return resolveVideoCardClockDepthProgress(
             gestureBackProgress = gestureBackProgress,
             gestureStartDepth = gestureStartDepth,
@@ -98,6 +135,7 @@ internal class VideoCardTransitionClock {
      * 相位仍由 Host 的 beginOpening/beginReturning/mark* 拥有；此处只灌 fraction。
      */
     fun reportSharedMorphProgress(morphFraction: Float, active: Boolean) {
+        if (navigationDepthProvider != null) return
         sharedMorphActive = active
         sharedMorphFraction = if (active) {
             morphFraction.coerceIn(0f, 1f)
@@ -166,6 +204,7 @@ internal class VideoCardTransitionClock {
     }
 
     fun markHeld() {
+        if (navigationDepthProvider != null) return
         if (phase == VideoCardTransitionBackgroundPhase.OPENING ||
             phase == VideoCardTransitionBackgroundPhase.RETURNING
         ) {
@@ -175,6 +214,7 @@ internal class VideoCardTransitionClock {
     }
 
     fun markIdle() {
+        if (navigationDepthProvider != null) return
         phase = VideoCardTransitionBackgroundPhase.IDLE
         sourceRoute = null
         gestureBackProgress = null
@@ -207,6 +247,7 @@ internal class VideoCardTransitionClock {
     }
 
     suspend fun snapFallback(value: Float) {
+        if (navigationDepthProvider != null) return
         fallback.snapTo(value.coerceIn(0f, 1f))
         // fallback 已接管；清 floor 才能继续 animate 到 0。
         returnDepthFloor = null
@@ -221,6 +262,7 @@ internal class VideoCardTransitionClock {
         durationMillis: Int,
         easing: Easing,
     ) {
+        if (navigationDepthProvider != null) return
         val safeDuration = durationMillis.coerceAtLeast(0)
         if (safeDuration <= 0) {
             fallback.snapTo(target.coerceIn(0f, 1f))
@@ -233,6 +275,41 @@ internal class VideoCardTransitionClock {
         )
     }
 
+    /** Legacy/non-Nav driver: start at the visible position and keep its release velocity. */
+    suspend fun settleFromCurrent(
+        target: Float,
+        motion: VideoHeroMotionSpec,
+        releaseVelocity: Float = fallback.velocity,
+    ) {
+        if (navigationDepthProvider != null) return
+        val current = depthProgress()
+        initialVelocity = releaseVelocity.takeIf { it.isFinite() } ?: 0f
+        val cancel = target > current
+        if (cancel) beginGestureRestore() else beginReturning(sourceRoute, current)
+        gestureBackProgress = null
+        clearSharedMorphProgress()
+        snapFallback(current)
+        if (motion.returnDurationMillis == 0 || motion.reducedMotion) {
+            animateFallbackTo(target, motion.remainingDuration(current, target, cancel), motion.effectsEasing)
+        } else {
+            fallback.animateTo(
+                targetValue = target.coerceIn(0f, 1f),
+                animationSpec = spring(
+                    dampingRatio = VideoHeroMotionTokens.SPRING_DAMPING,
+                    stiffness = if (cancel) motion.cancelStiffness else motion.commitStiffness,
+                    visibilityThreshold = 0.0025f,
+                ),
+                initialVelocity = initialVelocity,
+            )
+        }
+        if (cancel) {
+            endGestureRestore()
+            markHeld()
+        } else {
+            markIdle()
+        }
+    }
+
     suspend fun snapClearAndIdle() {
         clearSharedMorphProgress()
         gestureBackProgress = null
@@ -241,6 +318,10 @@ internal class VideoCardTransitionClock {
         fallback.snapTo(0f)
         phase = VideoCardTransitionBackgroundPhase.IDLE
     }
+}
+
+internal enum class VideoCardTransitionSettleState {
+    Idle, InteractiveSeek, AutoEnter, Held, AutoReturn, CancelRestore,
 }
 
 /**
@@ -266,10 +347,11 @@ internal data class VideoCardTransitionTimelineSpec(
 ) {
     companion object {
         fun fromDurationMillis(durationMillis: Int): VideoCardTransitionTimelineSpec {
+            val hero = resolveVideoHeroMotionSpec(durationMillis)
             return VideoCardTransitionTimelineSpec(
-                durationMillis = durationMillis.coerceAtLeast(0),
-                enterEasing = AppMotionEasing.Continuity,
-                returnEasing = LinearEasing,
+                durationMillis = hero.enterDurationMillis,
+                enterEasing = hero.enterSpatialSpec,
+                returnEasing = hero.predictiveSeekSpec,
             )
         }
     }

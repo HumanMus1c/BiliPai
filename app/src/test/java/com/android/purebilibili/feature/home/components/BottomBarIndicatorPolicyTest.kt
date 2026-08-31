@@ -641,7 +641,7 @@ class BottomBarIndicatorPolicyTest {
         assertTrue(source.contains("BottomBarReferencePressedScale"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_NORMALIZATION_DIVISOR = 10f"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f"))
-        assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER = 0.25f"))
+        assertFalse(source.contains("BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_CLAMP = 0.2f"))
     }
 
@@ -687,7 +687,7 @@ class BottomBarIndicatorPolicyTest {
         assertEquals(78f / 48f, partial.scaleX, 0.001f)
         assertEquals(78f / 48f, partial.scaleY, 0.001f)
         assertTrue(deformed.scaleX > partial.scaleX)
-        assertTrue(deformed.scaleY < partial.scaleY)
+        assertEquals(partial.scaleY, deformed.scaleY, 0.001f)
     }
 
     @Test
@@ -746,7 +746,7 @@ class BottomBarIndicatorPolicyTest {
         )
 
         assertEquals(baseScale / (1f - ((2f / 10f) * 0.75f)), transform.scaleX, 0.001f)
-        assertEquals(baseScale * (1f - ((2f / 10f) * 0.25f)), transform.scaleY, 0.001f)
+        assertEquals(baseScale, transform.scaleY, 0.001f)
     }
 
     @Test
@@ -758,8 +758,8 @@ class BottomBarIndicatorPolicyTest {
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("BottomBarReferencePressedScale"))
-        assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)"))
-        assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)"))
+        assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.82f, 520f, 0.001f)"))
+        assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.86f, 560f, 0.001f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))
         assertTrue(source.contains("scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec)"))
     }

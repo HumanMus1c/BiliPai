@@ -71,7 +71,6 @@ import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCa
 import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.blur.Backdrop
 import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -309,14 +308,8 @@ private fun FloatingLiquidBottomInputBar(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // 悬浮胶囊不再铺满系统导航区，这里补一层页面底色，避免露出窗口黑边。
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(navigationBarBottomPadding)
-                .background(AppSurfaceTokens.background())
-        )
+        // Keep the gesture area transparent so the detail list can draw beneath it.
+        // Only the interactive capsules are inset; the page already owns the background.
         Row(
             modifier = Modifier
                 .padding(horizontal = 24.dp)

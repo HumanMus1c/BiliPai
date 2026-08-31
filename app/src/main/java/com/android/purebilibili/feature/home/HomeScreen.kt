@@ -4,6 +4,7 @@ import com.android.purebilibili.core.ui.components.AppText
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animate
@@ -1452,8 +1453,17 @@ fun HomeScreen(
     } else {
         searchBarHeightDp + homeTopPresetStyle.searchToTabsSpacing + tabRowHeightDp
     }
+    // Android 12 (and older) may extend the legacy blur/glass fallback below its
+    // measured bounds by a few pixels. Reserve a small safety gap so the first
+    // content row cannot slide underneath the top dock on those devices.
+    val legacyTopChromeSafetyGap = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S) {
+        AppSpacingTokens.Medium
+    } else {
+        AppSpacingTokens.None
+    }
     val listTopPadding = statusBarHeight + chromeHeight +
-        homeTopPresetStyle.tabsToContentSpacing + floatingDockLift
+        homeTopPresetStyle.tabsToContentSpacing + floatingDockLift +
+        legacyTopChromeSafetyGap
     
     // Pixels
     val searchCollapseDistancePx = with(density) { searchCollapseDistanceDp.toPx() }

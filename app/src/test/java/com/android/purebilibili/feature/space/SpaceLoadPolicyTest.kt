@@ -527,7 +527,7 @@ class SpaceLoadPolicyTest {
     }
 
     @Test
-    fun `contribution video item key changes with layout mode`() {
+    fun `contribution video item key survives layout changes for continuous reflow`() {
         val gridKey = resolveSpaceContributionVideoItemKey(
             layoutMode = SpaceContributionVideoLayoutMode.GRID,
             bvid = "BV1xx",
@@ -539,8 +539,8 @@ class SpaceLoadPolicyTest {
             aid = 123
         )
 
-        assertEquals("space_video_GRID_BV1xx_123", gridKey)
-        assertEquals("space_video_SINGLE_COLUMN_BV1xx_123", singleColumnKey)
+        assertEquals("space_video_BV1xx_123", gridKey)
+        assertEquals(gridKey, singleColumnKey)
     }
 
     @Test

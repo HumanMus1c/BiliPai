@@ -42,6 +42,32 @@ private val UGC_MAIN_REGION_TIDS = setOf(
     1, 3, 4, 5, 36, 119, 129, 155, 160, 181, 188, 202, 211, 217, 223, 234
 )
 
+/**
+ * The ranking endpoint uses v2 region ids (100x), while the region feed uses
+ * the legacy tid ids.  Keep the conversion in one place for the fallback so
+ * a main region does not turn into a -400/-404 request (notably 资讯=202).
+ */
+private val REGION_TID_TO_RANKING_RID = mapOf(
+    1 to 1005,   // 动画
+    3 to 1003,   // 音乐
+    4 to 1008,   // 游戏
+    5 to 1002,   // 娱乐
+    36 to 1010,  // 知识
+    119 to 1007, // 鬼畜
+    129 to 1004, // 舞蹈
+    155 to 1014, // 时尚
+    160 to 1015, // 生活
+    181 to 1001, // 影视
+    188 to 1012, // 科技
+    202 to 1009, // 资讯
+    211 to 1020, // 美食
+    217 to 1024, // 动物圈
+    223 to 1013, // 汽车
+    234 to 1018  // 运动
+)
+
+internal fun resolveRegionRankingRid(tid: Int): Int? = REGION_TID_TO_RANKING_RID[tid]
+
 internal fun shouldStartHomePreload(
     hasPreloadedData: Boolean,
     hasActivePreloadTask: Boolean
@@ -855,7 +881,13 @@ object VideoRepository {
 
     suspend fun getRankingVideos(rid: Int = 0, type: String = "all"): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
         try {
-            val resp = api.getRankingVideos(rid = rid, type = type)
+            val keys = WbiKeyManager.getWbiKeys().getOrElse { throw it }
+            val signedParams = WbiUtils.sign(
+                params = mapOf("rid" to rid.toString(), "type" to type),
+                imgKey = keys.first,
+                subKey = keys.second,
+            )
+            val resp = api.getRankingVideos(signedParams)
             if (resp.code != 0) {
                 return@withContext Result.failure(Exception(resp.message.ifBlank { "排行榜加载失败(${resp.code})" }))
             }
@@ -935,8 +967,22 @@ object VideoRepository {
                     latestResponseCode = resp.code
                 )
             ) {
+                if (tid == 202) {
+                    val legacy = api.getLegacyRegionVideos(rid = tid, pn = page, ps = 30)
+                    if (legacy.code == 0) {
+                        return@withContext Result.success(
+                            legacy.data?.archives
+                                ?.map { it.toVideoItem() }
+                                ?.filter { it.bvid.isNotEmpty() }
+                                ?: emptyList()
+                        )
+                    }
+                }
                 // dynamic/region 只稳定支持子分区；一级分区用排行榜兜底，避免标签页空白。
-                return@withContext getRankingVideos(rid = tid)
+                val rankingRid = resolveRegionRankingRid(tid)
+                if (rankingRid != null) {
+                    return@withContext getRankingVideos(rid = rankingRid)
+                }
             }
             if (resp.code != 0) {
                 return@withContext Result.failure(Exception(resp.message.ifBlank { "分区视频加载失败(${resp.code})" }))

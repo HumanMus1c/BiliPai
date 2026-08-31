@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -118,6 +119,8 @@ import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -352,6 +355,9 @@ fun DynamicScreen(
 
     // Dock 只采集内容用于折射，顶部 tuning 将 blur 半径固定为 0。
     val dynamicDockBackdrop = rememberLayerBackdrop()
+    // 顶部高斯模糊使用独立 Haze 源；液态玻璃的 Backdrop 渐进模糊仍单独由
+    // DynamicTopBarWithTabs 根据安卓原生液态玻璃开关控制。
+    val dynamicTopBarHazeState = rememberRecoverableHazeState(initialBlurEnabled = true)
     val scope = rememberCoroutineScope()
     val onDynamicTabSelected: (Int) -> Unit = { visibleIndex ->
         scope.launch {
@@ -754,6 +760,7 @@ fun DynamicScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .layerBackdrop(dynamicDockBackdrop)
+                                    .hazeSourceCompat(state = dynamicTopBarHazeState)
                                     .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                             ) {
                             HorizontalPager(
@@ -888,6 +895,7 @@ fun DynamicScreen(
                                     onPublishClick = { showPublishDialog = true },
                                     publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
+                                    hazeState = dynamicTopBarHazeState,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                     isScrollInProgressProvider = dynamicTabScrollInProgressProvider,
                                 )
@@ -935,6 +943,7 @@ fun DynamicScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .layerBackdrop(dynamicDockBackdrop)
+                                .hazeSourceCompat(state = dynamicTopBarHazeState)
                                 .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                         ) {
                         HorizontalPager(
@@ -1078,6 +1087,7 @@ fun DynamicScreen(
                                     onPublishClick = { showPublishDialog = true },
                                     publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
+                                    hazeState = dynamicTopBarHazeState,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                     isScrollInProgressProvider = dynamicTabScrollInProgressProvider,
                                 )
@@ -1101,8 +1111,7 @@ fun DynamicScreen(
                                     onToggleHidden = { viewModel.toggleHiddenUser(it) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        // 与首页顶部一致：滚动逐帧压缩占位，并让固定内容向
-                                        // Dock 方向移动；Dock 保持在更高层覆盖收起中的内容。
+                                        // 收缩可见区域并裁掉移出的头像，避免穿透透明顶栏和状态栏。
                                         .dynamicScrollCollapseLayout(
                                             expandedHeightPx = expandedUserListHeightPx,
                                             listStateProvider = { activeListState },
@@ -1817,7 +1826,7 @@ private fun HorizontalUserList(
 private fun Modifier.dynamicScrollCollapseLayout(
     expandedHeightPx: Int,
     listStateProvider: () -> LazyStaggeredGridState?,
-): Modifier = layout { measurable, constraints ->
+): Modifier = clipToBounds().layout { measurable, constraints ->
     val fixedHeightPx = expandedHeightPx.coerceIn(constraints.minHeight, constraints.maxHeight)
     val placeable = measurable.measure(
         constraints.copy(minHeight = fixedHeightPx, maxHeight = fixedHeightPx)
@@ -1828,7 +1837,8 @@ private fun Modifier.dynamicScrollCollapseLayout(
         firstVisibleItemIndex = state?.firstVisibleItemIndex ?: 0,
         firstVisibleItemScrollOffset = state?.firstVisibleItemScrollOffset ?: 0,
     )
-    layout(placeable.width, fixedHeightPx) {
+    val visibleHeightPx = (fixedHeightPx + contentOffsetYPx).coerceAtLeast(0)
+    layout(placeable.width, visibleHeightPx) {
         placeable.placeRelative(0, contentOffsetYPx)
     }
 }

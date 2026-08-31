@@ -48,6 +48,7 @@ import com.android.purebilibili.core.store.supportsAppIconAppearance
 import com.android.purebilibili.core.util.AnalyticsHelper
 import com.android.purebilibili.core.util.CacheUtils
 import com.android.purebilibili.core.util.CrashReporter
+import com.android.purebilibili.core.util.LogCollector
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.settings.applyAppLanguage
 import com.android.purebilibili.feature.settings.AppThemeMode
@@ -90,8 +91,9 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     private var _imageLoader: ImageLoader? = null
     private var launcherIconUiModeSnapshot: Int? = null
 
-    private val telemetryListener =
+    private val telemetryListener by lazy {
         PureApplicationRuntimeConfig.createTelemetryBackgroundStateListener()
+    }
 
     private val startupOrchestrator by lazy { AppStartupOrchestrator() }
     
@@ -145,8 +147,14 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
 
         // Install the local crash path before theme, StrictMode, or any other startup work. This
         // ensures even an early initialization exception has a private snapshot for feedback.
-        Logger.init(this)
+        LogCollector.init(this)
         CrashReporter.installGlobalExceptionHandler()
+        StartupRecovery.beginLaunch(this)
+        if (StartupRecovery.isRecoveryMode) {
+            super.onCreate()
+            return
+        }
+        Logger.init(this)
         com.android.purebilibili.core.performance.Android17Diagnostics
             .persistLatestAbnormalExitSnapshot(this)
 
@@ -159,6 +167,20 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
         applyThemePreference()
         
         super.onCreate()
+        initializeNormalRuntime()
+    }
+
+    /** Called only by the private recovery Activity after an explicit user retry. */
+    internal fun retryStartupFromRecovery() {
+        if (!StartupRecovery.isRecoveryMode) return
+        StartupRecovery.prepareRetry(this)
+        Logger.init(this)
+        installStrictModeForDebugBuilds()
+        applyThemePreference()
+        initializeNormalRuntime()
+    }
+
+    private fun initializeNormalRuntime() {
         launcherIconUiModeSnapshot = resources.configuration.uiMode
         AppScope.ioScope.launch {
             CacheUtils.clearCacheAutomaticallyIfDue(this@PureApplication)
@@ -217,6 +239,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     override fun onConfigurationChanged(newConfig: Configuration) {
         val previousUiMode = launcherIconUiModeSnapshot
         super.onConfigurationChanged(newConfig)
+        if (StartupRecovery.isRecoveryMode) return
         launcherIconUiModeSnapshot = newConfig.uiMode
         if (
             previousUiMode != null &&
@@ -227,6 +250,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     }
 
     private fun runStartupTask(task: AppStartupTask) {
+        Logger.recordStartupStage(task.id)
         when (task.id) {
             "network_module_init" -> NetworkModule.init(this)
             "token_manager_init" -> TokenManager.init(this)
@@ -371,6 +395,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     // [后台内存优化] 响应系统内存警告
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+        if (StartupRecovery.isRecoveryMode) return
         val plan = PureApplicationRuntimeConfig.resolveBackgroundMemoryTrimPlan(level)
         if (plan.imageCacheTrimLevel != null) {
             _imageLoader?.memoryCache?.apply {
@@ -408,6 +433,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     
     override fun onLowMemory() {
         super.onLowMemory()
+        if (StartupRecovery.isRecoveryMode) return
         val plan = PureApplicationRuntimeConfig.resolveBackgroundMemoryTrimPlan(
             ComponentCallbacks2.TRIM_MEMORY_COMPLETE
         )

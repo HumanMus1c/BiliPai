@@ -151,8 +151,8 @@ fun resolveLivePortraitOverlayMetrics(
 ): LivePortraitOverlayMetrics {
     val compactHeight = screenHeightDp < 720
     return LivePortraitOverlayMetrics(
-        panelHeightFraction = if (compactHeight) 0.35f else 0.38f,
-        minPanelHeightDp = if (compactHeight) 220 else 260,
+        panelHeightFraction = if (compactHeight) 0.24f else 0.26f,
+        minPanelHeightDp = if (compactHeight) 144 else 180,
         minPlayerClearanceDp = if (compactHeight) 380 else 460,
         playerControlsGapDp = 10,
         topChromeReserveDp = if (compactHeight) 86 else 96,

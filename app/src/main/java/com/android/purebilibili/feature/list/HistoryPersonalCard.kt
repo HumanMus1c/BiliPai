@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.list
 
+import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
 import coil3.request.crossfade
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -172,6 +173,7 @@ internal fun HistoryPersonalCard(
     onAddToWatchLater: (() -> Unit)?,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    stacked: Boolean = false,
 ) {
     val video = item.videoItem
     val context = LocalContext.current
@@ -231,7 +233,7 @@ internal fun HistoryPersonalCard(
                     screenHeight = screenHeightPx,
                     sourceCornerDp = 12,
                     coverBounds = coverBounds.value,
-                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = video.title,
                         ownerName = video.owner.name.takeIf { it.isNotBlank() }
@@ -269,6 +271,100 @@ internal fun HistoryPersonalCard(
         ?: if (item.business == HistoryBusiness.PGC) "番剧" else "未知作者"
     val viewedAt = FormatUtils.formatPublishTime(video.view_at)
     val titleMaxLines = if (item.page > 1) 1 else 2
+
+    val actionContent: @Composable () -> Unit = {
+        if (!batchMode) {
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .width(48.dp),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                AppWindowActionMenu(
+                    groups = listOf(
+                        buildList {
+                            if (onUpClick != null) {
+                                add(AppWindowAction(
+                                    label = "访问UP主",
+                                    icon = Icons.Outlined.PersonOutline,
+                                    onClick = onUpClick,
+                                ))
+                            }
+                            if (onAddToWatchLater != null) {
+                                add(AppWindowAction(
+                                    label = "加入稍后再看",
+                                    icon = Icons.Outlined.WatchLater,
+                                    onClick = onAddToWatchLater,
+                                ))
+                            }
+                        },
+                        listOf(
+                            AppWindowAction(
+                                label = "删除记录",
+                                icon = Icons.Outlined.DeleteOutline,
+                                iconTint = MaterialTheme.colorScheme.error,
+                                onClick = onDelete,
+                            ),
+                        ),
+                    ),
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    AppIcon(
+                        Icons.Outlined.MoreVert,
+                        contentDescription = "历史记录操作",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+    if (stacked) {
+        PersonalMediaCardFrame(
+            stacked = true,
+            selected = selected,
+            modifier = modifier
+                .videoCardShellSharedBoundsOrEmpty(
+                    enabled = useSharedBounds,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    bvid = video.bvid,
+                    sourceRoute = sourceRoute,
+                    motionSpec = motionSpec,
+                    clipShape = coverShape,
+                    crossfadeSourceContent = true,
+                )
+                .onGloballyPositioned { cardBounds.value = it.boundsInRoot() },
+            coverModifier = Modifier.onGloballyPositioned { coverBounds.value = it.boundsInRoot() },
+            headlineContent = {
+                AppText(text = video.title, style = contentTypography.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            },
+            supportingContent = {
+                AppText(text = owner, style = contentTypography.author, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                AppText(text = viewedAt, style = contentTypography.author)
+            },
+            coverContent = {
+                AsyncImage(model = stationaryCoverRequest, contentDescription = null,
+                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            },
+            coverOverlayContent = {
+                AppText(
+                    text = resolveHistoryProgressLabel(item.progress, video.duration),
+                    color = MediaContrastPalette.Foreground,
+                    style = contentTypography.coverBadge.merge(coverOverlayTextStyle),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                )
+                if (progressState.showProgressBar) {
+                    AppLinearProgressIndicator(progress = { progressState.progressFraction },
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth())
+                }
+            },
+            trailingContent = { actionContent() },
+            onClick = triggerClick,
+            onLongClick = onLongClick,
+        )
+        return
+    }
 
     Row(
         modifier = modifier
@@ -367,50 +463,6 @@ internal fun HistoryPersonalCard(
                 )
             }
         }
-        if (!batchMode) {
-            Box(
-                modifier = Modifier
-                    .heightIn(min = coverHeight)
-                    .width(29.dp),
-                contentAlignment = Alignment.BottomCenter,
-            ) {
-                AppWindowActionMenu(
-                    groups = listOf(
-                        buildList {
-                            if (onUpClick != null) {
-                                add(AppWindowAction(
-                                    label = "访问UP主",
-                                    icon = Icons.Outlined.PersonOutline,
-                                    onClick = onUpClick,
-                                ))
-                            }
-                            if (onAddToWatchLater != null) {
-                                add(AppWindowAction(
-                                    label = "加入稍后再看",
-                                    icon = Icons.Outlined.WatchLater,
-                                    onClick = onAddToWatchLater,
-                                ))
-                            }
-                        },
-                        listOf(
-                            AppWindowAction(
-                                label = "删除记录",
-                                icon = Icons.Outlined.DeleteOutline,
-                                iconTint = MaterialTheme.colorScheme.error,
-                                onClick = onDelete,
-                            ),
-                        ),
-                    ),
-                    modifier = Modifier.size(29.dp),
-                ) {
-                    AppIcon(
-                        Icons.Outlined.MoreVert,
-                        contentDescription = "历史记录操作",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-        }
+        Box(modifier = Modifier.align(Alignment.Bottom)) { actionContent() }
     }
 }

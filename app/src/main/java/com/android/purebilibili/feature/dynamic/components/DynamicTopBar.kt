@@ -51,6 +51,9 @@ import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.Backdrop
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.unifiedBlur
+import dev.chrisbanes.haze.HazeState
 
 //  动态页面布局模式
 enum class DynamicDisplayMode {
@@ -94,6 +97,7 @@ fun DynamicTopBarWithTabs(
     onPublishClick: (() -> Unit)? = null,
     publishSkinDecoration: DynamicPublishSkinDecoration? = null,
     dockBackdrop: Backdrop? = null,
+    hazeState: HazeState? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
 ) {
@@ -123,6 +127,13 @@ fun DynamicTopBarWithTabs(
         modifier = modifier.biliPaiProgressiveTopBlur(
             backdrop = dockBackdrop,
             enabled = liquidGlassEnabled,
+        ).then(
+            if (!liquidGlassEnabled && hazeState != null) {
+                Modifier.unifiedBlur(
+                    hazeState = hazeState,
+                    surfaceType = BlurSurfaceType.HEADER,
+                )
+            } else Modifier
         ),
     ) {
         Spacer(modifier = Modifier.height(statusBarHeight))

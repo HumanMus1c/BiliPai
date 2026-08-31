@@ -46,4 +46,16 @@ class PlayerOrientationPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `Android 16 plus foldable cover window retains physical orientation requests`() {
+        assertTrue(
+            shouldRequestPhysicalPlayerOrientation(
+                smallestScreenWidthDp = 720,
+                currentWindowWidthDp = 672,
+                currentWindowHeightDp = 459,
+                platformIgnoresLargeScreenOrientationRequests = true,
+            )
+        )
+    }
 }

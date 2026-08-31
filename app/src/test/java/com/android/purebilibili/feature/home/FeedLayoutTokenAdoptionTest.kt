@@ -56,9 +56,9 @@ class FeedLayoutTokenAdoptionTest {
             "src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt" to
                 "resolveHomeFeedMaxContentWidth()",
             "src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt" to
-                "resolveCommonListGridMinColumnWidth(windowSizeClass.isExpandedScreen)",
+                "resolveVideoListColumns(",
             "src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt" to
-                "resolveWatchLaterColumnCount(maxWidth.value)",
+                "resolveVideoListColumns(",
             "src/main/java/com/android/purebilibili/feature/following/FollowingListScreen.kt" to
                 "resolveFollowingBatchGroupDialogMaxHeight()",
         )

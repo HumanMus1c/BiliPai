@@ -68,6 +68,7 @@ import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -486,6 +487,8 @@ fun AppOutlinedTextField(
         supportingText?.invoke()
         return
     }
+    val resolvedLabel = label ?: labelText?.let { text -> { Text(text) } }
+    val resolvedPlaceholder = placeholder ?: placeholderText?.let { text -> { Text(text) } }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -493,8 +496,8 @@ fun AppOutlinedTextField(
         enabled = enabled,
         readOnly = readOnly,
         textStyle = textStyle,
-        label = label,
-        placeholder = placeholder,
+        label = resolvedLabel,
+        placeholder = resolvedPlaceholder,
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         prefix = prefix,
