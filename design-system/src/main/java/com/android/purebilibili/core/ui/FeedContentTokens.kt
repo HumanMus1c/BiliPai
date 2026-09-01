@@ -45,11 +45,14 @@ fun feedContentTypography(
                 lineHeight = bodyMedium.fontSize * 1.38f,
             )
     }
+    val nonGlassMiuix = isMiuixNonGlassEnabled()
     val author = MaterialTheme.typography.labelMedium
     return FeedContentTypography(
         title = titleStyle,
         author = author.copy(lineHeight = author.fontSize * 1.5f),
-        statistic = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-        coverBadge = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+        statistic = if (nonGlassMiuix) MaterialTheme.typography.labelMedium
+            else MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+        coverBadge = (if (nonGlassMiuix) MaterialTheme.typography.labelMedium
+            else MaterialTheme.typography.labelSmall).copy(fontWeight = FontWeight.Medium),
     )
 }

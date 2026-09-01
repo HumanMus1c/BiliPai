@@ -1570,6 +1570,22 @@ internal fun resolveMediaSwitchSurfaceRebindAction(
     return MediaSwitchSurfaceRebindAction.REBIND
 }
 
+internal fun shouldRetryMediaSwitchSurfaceRebind(
+    hasRenderedFirstFrame: Boolean,
+    shouldBindInlinePlayerView: Boolean,
+    isInPipMode: Boolean,
+    hasPlayerView: Boolean,
+    playWhenReady: Boolean,
+    playbackState: Int
+): Boolean {
+    return !hasRenderedFirstFrame &&
+        shouldBindInlinePlayerView &&
+        !isInPipMode &&
+        hasPlayerView &&
+        playWhenReady &&
+        playbackState == Player.STATE_READY
+}
+
 internal fun shouldRebindPlayerSurfaceOnForeground(
     hasPlayerView: Boolean,
     isInPipMode: Boolean,

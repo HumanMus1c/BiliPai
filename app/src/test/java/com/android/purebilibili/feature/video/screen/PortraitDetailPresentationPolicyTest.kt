@@ -537,6 +537,17 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
+    fun inlinePortraitPlayer_restoreUsesDedicatedAnimatedProgress() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
+        ).readText()
+
+        assertTrue(source.contains("label = \"inline_portrait_player_restore\""))
+        assertTrue(source.contains("manualOrCompactCollapseProgress = animatedCollapseProgress"))
+        assertTrue(source.contains("if (inlinePlayerCollapseState.restoreRequested)"))
+    }
+
+    @Test
     fun standalonePortraitPagerMotionSpec_keepsExitTransitionShortAndTight() {
         val spec = resolveStandalonePortraitPagerMotionSpec()
 

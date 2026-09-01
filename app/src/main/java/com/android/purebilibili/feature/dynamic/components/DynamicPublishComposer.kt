@@ -109,7 +109,7 @@ fun DynamicPublishComposer(
         onDismissRequest = onDismiss,
         title = { AppText(if (isEditing) "编辑动态" else "发布动态") },
         text = {
-            val publishChromeBackdrop = rememberLayerBackdrop()
+            val publishChromeBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
             val visibilityLabels = remember { listOf("公开", "仅自己可见") }
             val visibilityOptions = remember {
                 listOf(
@@ -122,7 +122,13 @@ fun DynamicPublishComposer(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .layerBackdrop(publishChromeBackdrop)
+                            .then(
+                                if (publishChromeBackdrop != null) {
+                                    Modifier.layerBackdrop(publishChromeBackdrop)
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .background(AppSurfaceTokens.background())
                     )
                 }

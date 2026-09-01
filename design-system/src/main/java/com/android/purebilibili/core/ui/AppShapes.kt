@@ -22,6 +22,8 @@ enum class ContainerLevel {
     Field,
     /** Standard surface cards. base = 12dp. */
     Card,
+    /** Dense media cover; retains the legacy Card geometry outside non-glass MIUIX. */
+    MediaCover,
     /** Prominent media / hero cards with a full large-radius outline. base = 20dp. */
     ProminentCard,
     /** Alert / confirm dialog containers. base = 14dp. */
@@ -47,6 +49,7 @@ object AppShapes {
         ContainerLevel.Chip -> 6f
         ContainerLevel.Field -> 10f
         ContainerLevel.Card -> 12f
+        ContainerLevel.MediaCover -> 12f
         ContainerLevel.ProminentCard -> 20f
         ContainerLevel.Dialog -> 14f
         ContainerLevel.Sheet -> 20f
@@ -56,8 +59,17 @@ object AppShapes {
 
     fun resolveContainerCornerDp(
         level: ContainerLevel,
-        uiStyle: AppUiStyle
+        uiStyle: AppUiStyle,
+        liquidGlassEnabled: Boolean = true,
     ): Dp {
+        if (isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)) {
+            when (level) {
+                ContainerLevel.Card -> return 16.dp
+                ContainerLevel.MediaCover -> return 12.dp
+                ContainerLevel.ProminentCard -> return 20.dp
+                else -> Unit
+            }
+        }
         if (level == ContainerLevel.Pill) {
             return resolveAndroidNativeChromeTokens(uiStyle).pillCornerRadiusDp.dp
         }
@@ -67,9 +79,10 @@ object AppShapes {
 
     fun resolveContainerShape(
         level: ContainerLevel,
-        uiStyle: AppUiStyle
+        uiStyle: AppUiStyle,
+        liquidGlassEnabled: Boolean = true,
     ): Shape {
-        val dp = resolveContainerCornerDp(level, uiStyle)
+        val dp = resolveContainerCornerDp(level, uiStyle, liquidGlassEnabled)
         return if (level == ContainerLevel.Sheet) {
             topRounded(dp)
         } else {
@@ -84,9 +97,10 @@ object AppShapes {
      */
     fun resolveBorderedContainerShape(
         level: ContainerLevel,
-        uiStyle: AppUiStyle
+        uiStyle: AppUiStyle,
+        liquidGlassEnabled: Boolean = true,
     ): Shape {
-        val dp = resolveContainerCornerDp(level, uiStyle)
+        val dp = resolveContainerCornerDp(level, uiStyle, liquidGlassEnabled)
         return if (level == ContainerLevel.Sheet) {
             topRounded(dp)
         } else {
@@ -145,20 +159,51 @@ object AppShapes {
     @Composable
     fun container(level: ContainerLevel): Shape = resolveContainerShape(
         level = level,
-        uiStyle = LocalAppUiStyle.current
+        uiStyle = LocalAppUiStyle.current,
+        liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
     )
 
     @Composable
     fun borderedContainer(level: ContainerLevel): Shape = resolveBorderedContainerShape(
         level = level,
-        uiStyle = LocalAppUiStyle.current
+        uiStyle = LocalAppUiStyle.current,
+        liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
     )
 
     @Composable
     fun containerCornerDp(level: ContainerLevel): Dp = resolveContainerCornerDp(
         level = level,
-        uiStyle = LocalAppUiStyle.current
+        uiStyle = LocalAppUiStyle.current,
+        liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
     )
+
+    /** Uses the 12dp media role only in non-glass Miuix and preserves each legacy shape. */
+    @Composable
+    fun mediaCover(
+        legacyLevel: ContainerLevel = ContainerLevel.Card,
+    ): Shape = if (isMiuixNonGlassEnabled()) {
+        container(ContainerLevel.MediaCover)
+    } else {
+        container(legacyLevel)
+    }
+
+    @Composable
+    fun borderedMediaCover(
+        legacyLevel: ContainerLevel = ContainerLevel.Card,
+    ): Shape = if (isMiuixNonGlassEnabled()) {
+        borderedContainer(ContainerLevel.MediaCover)
+    } else {
+        borderedContainer(legacyLevel)
+    }
+
+    @Composable
+    fun mediaCoverCornerDp(
+        legacyLevel: ContainerLevel = ContainerLevel.Card,
+    ): Dp = if (isMiuixNonGlassEnabled()) {
+        containerCornerDp(ContainerLevel.MediaCover)
+    } else {
+        containerCornerDp(legacyLevel)
+    }
 
     /** Scale a semantic radius (e.g. long-press hint size multiplier). */
     @Composable

@@ -1,16 +1,12 @@
 package com.android.purebilibili.feature.settings
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.components.AppNativeSegmentedControl
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSegmentedChrome
@@ -39,14 +35,11 @@ internal fun <T> AppSegmentedControl(
 ) {
     if (options.isEmpty()) return
     val policy = rememberAppSegmentedControlPolicy()
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val liquidGlassEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     when (
         resolveAppSegmentedChrome(
             usesMaterialFallback = policy.usesMaterialFallback,
-            nativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+            nativeLiquidGlassEnabled = liquidGlassEnabled,
         )
     ) {
         AppSegmentedChrome.NATIVE -> AppNativeSegmentedControl(

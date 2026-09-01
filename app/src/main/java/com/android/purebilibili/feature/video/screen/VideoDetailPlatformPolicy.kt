@@ -438,8 +438,9 @@ internal fun resolveIsPlaybackPausedForCollapse(
     playWhenReady: Boolean,
     playbackState: Int
 ): Boolean {
-    // 这里按用户暂停意图判断，而不是按 isPlaying，避免缓冲态误判为“暂停时可缩小”。
-    return !playWhenReady && playbackState != Player.STATE_ENDED
+    // 播放结束后 Media3 可能仍保留 playWhenReady=true，但对折叠交互来说它已是静止态。
+    // 其余情况仍按用户暂停意图判断，避免把缓冲态误判为“暂停时可缩小”。
+    return playbackState == Player.STATE_ENDED || !playWhenReady
 }
 
 internal fun shouldUseTabletVideoLayout(
@@ -636,15 +637,25 @@ internal fun resolvePhoneVideoRequestedOrientation(
     ) {
         return when {
             manualFullscreenRequested -> {
-                resolvePhoneFullscreenEnterOrientation(
+                val fullscreenOrientation = resolvePhoneFullscreenEnterOrientation(
                     fullscreenMode = fullscreenMode,
                     isVerticalVideo = isVerticalVideo,
                     preferPortraitForFlatFoldable = preferPortraitForFoldableInnerScreen
                 ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                preserveCurrentExactLandscapeSideWhileFullscreen(
+                    requestedOrientation = fullscreenOrientation,
+                    currentRequestedOrientation = currentRequestedOrientation,
+                    isFullscreenMode = isFullscreenMode
+                )
             }
-            // Match the large-screen path: retaining LANDSCAPE/REVERSE_LANDSCAPE here locks
-            // the cover screen to one side even though app auto-rotation is enabled.
-            isFullscreenMode -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            // The orientation listener has already resolved the physical side on compact screens.
+            // Replacing that exact request with SENSOR_LANDSCAPE here can make some ROMs snap back
+            // to their default landscape side without emitting another sensor event to correct it.
+            isFullscreenMode -> preserveCurrentExactLandscapeSideWhileFullscreen(
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                currentRequestedOrientation = currentRequestedOrientation,
+                isFullscreenMode = true
+            )
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -714,9 +725,10 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     )
 
     return when {
-        // Choose an exact side only when entering from portrait. Once landscape is active,
-        // let the system handle 180-degree turns instead of repeatedly locking a sensor side.
-        isCurrentlyLandscape && exactLandscapeKeep != null -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        // Keep emitting the physical landscape side after entry. Some foldable cover displays
+        // accept SENSOR_LANDSCAPE but keep the first 90-degree rotation indefinitely; an exact
+        // request gives those devices a real orientation change when gravity crosses 180°.
+        isCurrentlyLandscape && exactLandscapeKeep != null -> exactLandscapeKeep
         portraitStable -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         !isCurrentlyLandscape && exactLandscapeEntry != null -> exactLandscapeEntry
         else -> null
@@ -749,6 +761,21 @@ private fun resolveCurrentExactLandscapeOrientation(currentRequestedOrientation:
         ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> currentRequestedOrientation
         else -> null
     }
+}
+
+private fun preserveCurrentExactLandscapeSideWhileFullscreen(
+    requestedOrientation: Int,
+    currentRequestedOrientation: Int?,
+    isFullscreenMode: Boolean
+): Int {
+    if (
+        !isFullscreenMode ||
+        requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    ) {
+        return requestedOrientation
+    }
+    return resolveCurrentExactLandscapeOrientation(currentRequestedOrientation)
+        ?: requestedOrientation
 }
 
 private fun resolveExactLandscapeOrientation(

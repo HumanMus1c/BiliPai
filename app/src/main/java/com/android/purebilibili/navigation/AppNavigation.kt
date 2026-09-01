@@ -1614,8 +1614,14 @@ fun AppNavigation(
         // [LayerBackdrop] Create backdrop for bottom bar refraction effect.
         // Capture the wallpaper and navigation content together so transparent wallpaper-aware
         // pages feed the same background into the floating dock as Home.
-        val bottomBarBackdropSource = rememberChromeBackdropSource()
-        val bottomBarBackdrop = bottomBarBackdropSource.backdrop
+        val shouldCaptureBottomBarBackdrop =
+            homeSettings.androidNativeLiquidGlassEnabled || isBottomBarBlurEnabled
+        val bottomBarBackdropSource = if (shouldCaptureBottomBarBackdrop) {
+            rememberChromeBackdropSource()
+        } else {
+            null
+        }
+        val bottomBarBackdrop = bottomBarBackdropSource?.backdrop
         CompositionLocalProvider(
             com.android.purebilibili.feature.aicu.LocalAicuNavigation provides { uid: Long? ->
                 pushNavigation3Key(BiliPaiNavKey.AicuQuery(uid = uid ?: 0L))
@@ -1807,7 +1813,7 @@ fun AppNavigation(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(bottomBarBackdropSource.modifier)
+                        .then(bottomBarBackdropSource?.modifier ?: Modifier)
                         // [Fix] 将内容标记为全局底栏模糊的源
                         // 必须添加 hazeSource，否则底栏的 hazeEffect 无法获取背景内容，导致模糊失效
                         .then(
@@ -3748,6 +3754,8 @@ fun AppNavigation(
                     predictiveBackExitDirection = predictiveBackExitDirection,
                     miuixTransitionBlurEnabled =
                         appNavigationSettings.miuixTransitionBlurEnabled,
+                    miuixPredictiveBackMaxProgressPercent =
+                        appNavigationSettings.miuixPredictiveBackMaxProgressPercent,
                     videoSharedReturnGestureFollowEnabled =
                         appNavigationSettings.videoSharedReturnGestureFollowEnabled,
                     sourceMetadata = navigation3SourceMetadata,

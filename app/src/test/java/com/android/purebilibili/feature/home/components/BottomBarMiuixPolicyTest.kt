@@ -11,6 +11,23 @@ import kotlin.test.assertTrue
 class BottomBarMiuixPolicyTest {
 
     @Test
+    fun `plain Miuix floating bar is used only without glass and blur`() {
+        assertTrue(shouldUsePlainMiuixFloatingBar(glassEnabled = false, blurEnabled = false))
+        assertFalse(shouldUsePlainMiuixFloatingBar(glassEnabled = true, blurEnabled = false))
+        assertFalse(shouldUsePlainMiuixFloatingBar(glassEnabled = false, blurEnabled = true))
+
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
+        val plain = source.substringAfter("fun PlainMiuixFloatingBottomBar(")
+            .substringBefore("val FloatingBottomBarIndicatorHeight")
+        assertFalse(plain.contains("rememberChromeBackdropSource"))
+        assertFalse(plain.contains("drawBackdrop"))
+        assertFalse(plain.contains("lens("))
+        assertTrue(plain.contains("DampedDragAnimation("))
+        assertTrue(plain.contains("dragAnimation.modifier"))
+        assertTrue(plain.contains("onSelectedLatest.value(targetIndex)"))
+    }
+
+    @Test
     fun `runtime low blur budget disables expensive liquid glass effects`() {
         assertTrue(
             shouldRenderBottomBarLiquidGlassEffects(

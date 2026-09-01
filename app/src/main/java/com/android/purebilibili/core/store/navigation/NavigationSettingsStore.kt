@@ -3,6 +3,7 @@ package com.android.purebilibili.core.store.navigation
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.android.purebilibili.core.store.AppNavigationSettings
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 internal val bottomBarItemLabelsPreferencesKey = stringPreferencesKey("bottom_bar_item_labels")
+internal val miuixPredictiveBackMaxProgressPercentPreferencesKey =
+    intPreferencesKey("miuix_predictive_back_max_progress_percent")
 
 private fun normalizeBottomBarLabelItemId(rawId: String): String {
     val id = rawId.trim()
@@ -203,6 +206,13 @@ object NavigationSettingsStore {
     suspend fun setMiuixTransitionBlurEnabled(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[keyMiuixTransitionBlurEnabled] = enabled
+        }
+    }
+
+    suspend fun setMiuixPredictiveBackMaxProgressPercent(context: Context, percent: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[miuixPredictiveBackMaxProgressPercentPreferencesKey] =
+                percent.coerceIn(0, 100)
         }
     }
 

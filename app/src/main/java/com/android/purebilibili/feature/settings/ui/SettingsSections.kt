@@ -106,6 +106,7 @@ import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.components.AppPreferenceDivider as SettingsDivider
 import com.android.purebilibili.core.ui.components.AppSliderDialogPreference as SettingSliderItem
 import com.android.purebilibili.core.ui.components.AppPreferenceGroupPresentation
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 
 
 
@@ -124,7 +125,11 @@ private fun SettingsCardGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
     SettingsGroup(
-        presentation = AppPreferenceGroupPresentation.FLAT,
+        presentation = if (isMiuixNonGlassEnabled()) {
+            AppPreferenceGroupPresentation.CARD
+        } else {
+            AppPreferenceGroupPresentation.FLAT
+        },
     ) {
         content()
     }

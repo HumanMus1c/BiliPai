@@ -13,6 +13,8 @@ object AppChromeSizeTokens {
     const val MiuixNativeCompactControlHeightDp = 36
     const val MiuixNativeCompactControlMinWidthDp = 52
     const val MiuixNativeCompactCornerRadiusDp = 10
+    const val MiuixNativeTabHeightDp = 42
+    const val MiuixNativeTabCornerRadiusDp = 12
     // Compact liquid docks keep the home bottom-bar rest fill (48/64).
     const val BottomBarMatchedSegmentedControlHeightDp = 40
     const val BottomBarMatchedSegmentedIndicatorHeightDp = 30

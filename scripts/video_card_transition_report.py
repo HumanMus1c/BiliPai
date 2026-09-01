@@ -16,7 +16,12 @@ from pathlib import Path
 PHASES = ("OPENING", "RETURNING", "PredictiveCommit", "PredictiveCancel")
 COUNTERS = ("blur_effect_updates", "snapshot_records", "nav_backdrop_draws")
 PLATFORM = {"missed_vsync": "Number Missed Vsync", "slow_ui": "Number Slow UI thread",
-            "slow_bitmap": "Number Slow bitmap uploads", "slow_draw": "Number Slow issue draw commands"}
+            "slow_bitmap": "Number Slow bitmap uploads", "slow_draw": "Number Slow issue draw commands",
+            "total_frames": "Total frames rendered", "janky_frames": "Janky frames",
+            "janky_frames_legacy": "Janky frames (legacy)", "deadline_missed": "Number Frame deadline missed"}
+# Observed on Xiaomi ROMs; preserve this flag in the report rather than calling it zero.
+# Still exclude AOSP SkippedFrame (0x08), special-frame flags and unknown vendor bits.
+ACCEPTED_FRAME_FLAGS = (0, 0x20)
 
 
 def percentile(values, fraction):
@@ -25,9 +30,14 @@ def percentile(values, fraction):
 
 def parse_frames(text, refresh_rate=None):
     frames, header, active, rejected = {}, None, False, 0
+    capture_spans, capture_rows = [], []
     for raw in text.splitlines():
         line = raw.strip()
         if line == "---PROFILEDATA---":
+            if active and capture_rows:
+                capture_spans.append([min(r["IntendedVsync"] for r in capture_rows),
+                                      max(r["FrameCompleted"] for r in capture_rows)])
+            capture_rows = []
             active, header = not active, None
             continue
         if not active or not line:
@@ -43,8 +53,9 @@ def parse_frames(text, refresh_rate=None):
                 raise ValueError()
             row = dict(zip(header, values))
             start, end = row["IntendedVsync"], row["FrameCompleted"]
-            if row.get("Flags", 0) != 0 or start <= 0 or end < start or end >= 2**63 - 1:
+            if row.get("Flags", 0) not in ACCEPTED_FRAME_FLAGS or start <= 0 or end < start or end >= 2**63 - 1:
                 raise ValueError()
+            capture_rows.append(row)
             if start not in frames or end > frames[start]["FrameCompleted"]:
                 frames[start] = row
         except (ValueError, KeyError):
@@ -72,7 +83,9 @@ def parse_frames(text, refresh_rate=None):
         row["latency_ms"] = (row["FrameCompleted"] - row["IntendedVsync"]) / 1e6
         row["budget_ms"] = budget / 1e6 if budget else None
     return rows, {"hz": 1e9 / interval if interval else None, "evidence": evidence,
-                  "observed_hz": sorted({round(1e9 / i, 2) for i in intervals}), "rejected_rows": rejected}
+                  "observed_hz": sorted({round(1e9 / i, 2) for i in intervals}), "rejected_rows": rejected,
+                  "accepted_flags": sorted({r.get("Flags", 0) for r in rows}),
+                  "capture_spans_ns": capture_spans}
 
 
 def metrics(rows):
@@ -99,12 +112,18 @@ def parse_events(text):
     return sorted(events, key=lambda e: e["timestamp_ns"])
 
 
-def phase_metrics(rows, events, declared_phase=None):
+def phase_metrics(rows, events, declared_phase=None, capture_spans=()):
     result = {phase: None for phase in PHASES}
     if declared_phase:
         result[declared_phase] = dict(metrics(rows), attribution="user_declared_single_phase")
         return result
     starts = [e["timestamp_ns"] for e in events]
+    spans = []
+    for start, end in sorted(capture_spans):
+        if spans and start <= spans[-1][1]:
+            spans[-1][1] = max(end, spans[-1][1])
+        else:
+            spans.append([start, end])
     groups = {p: [] for p in PHASES}
     for row in rows:
         index = bisect.bisect_right(starts, row["IntendedVsync"]) - 1
@@ -116,6 +135,15 @@ def phase_metrics(rows, events, declared_phase=None):
         if not intervals:
             continue
         deltas = {}
+        incomplete = 0
+        for a, b in intervals:
+            retained = [r for r in groups[phase] if a["timestamp_ns"] <= r["IntendedVsync"] < b["timestamp_ns"]]
+            # Check buffer retention, not cadence: a slow first frame is jank, not lost data.
+            periods = [r["FrameInterval"] for r in retained if 0 < r.get("FrameInterval", 0) < 100_000_000]
+            tolerance = statistics.median(periods) * 2 if periods else 0
+            if not retained or not any(start - tolerance <= a["timestamp_ns"] and
+                                       end + tolerance >= b["timestamp_ns"] for start, end in spans):
+                incomplete += 1
         for key in COUNTERS:
             valid = []
             for a, b in intervals:
@@ -128,6 +156,7 @@ def phase_metrics(rows, events, declared_phase=None):
             deltas[key] = sum(valid) if valid else None
         result[phase] = dict(metrics(groups[phase]), counter_deltas=deltas,
                              attribution="monotonic_diagnostics",
+                             interval_count=len(intervals), incomplete_intervals=incomplete,
                              motion_records=[a for a, _ in intervals])
     return result
 
@@ -141,6 +170,9 @@ def parse_pss(text):
 
 def gate(report, max_over=5, max_two=1, max_pss=16):
     failures = []
+    for phase, data in report["phases"].items():
+        if data and data.get("incomplete_intervals", 0):
+            failures.append(f"{phase}: {data['incomplete_intervals']}/{data['interval_count']} phase intervals lack frame coverage; capture a checkpoint immediately after each transition")
     summary = report["aggregate"]
     for key, limit in (("over_budget_percent", max_over), ("over_2x_budget_percent", max_two)):
         value = summary[key]
@@ -162,8 +194,10 @@ def gate(report, max_over=5, max_two=1, max_pss=16):
             "limits": {"over_budget_percent": max_over, "over_2x_budget_percent": max_two, "pss_delta_mib": max_pss}}
 
 
-def build_report(gfx, before="", after="", diagnostics="", label="", config=None, refresh_rate=None, phase=None):
-    rows, refresh = parse_frames(gfx, refresh_rate)
+def build_report(gfx, before="", after="", diagnostics="", label="", config=None, refresh_rate=None, phase=None,
+                 additional_gfx=()):
+    # Only merge frame rows. Window counters below must come from the final dump, not a checkpoint.
+    rows, refresh = parse_frames("\n".join([gfx, *additional_gfx]), refresh_rate)
     pss_before, pss_after = parse_pss(before), parse_pss(after)
     platform = {}
     for key, name in PLATFORM.items():
@@ -179,12 +213,14 @@ def build_report(gfx, before="", after="", diagnostics="", label="", config=None
             configuration[key] = values[-1] if len(values) == 1 else "changed_during_sample"
             observed[key] = values
     configuration["refresh_rate_hz"] = refresh["hz"]
-    return {"schema_version": 1, "label": label, "configuration": configuration, "observed_settings": observed,
+    return {"schema_version": 2, "label": label, "configuration": configuration, "observed_settings": observed,
             "refresh_rate": refresh, "aggregate": metrics(rows), "platform_window_counters": platform,
             "memory": {"pss_before_mib": pss_before, "pss_after_mib": pss_after,
                        "pss_delta_mib": pss_after - pss_before if None not in (pss_before, pss_after) else None},
-            "phases": phase_metrics(rows, events, phase),
+            "phases": phase_metrics(rows, events, phase, refresh["capture_spans_ns"]),
             "notes": ["gfxinfo framestats is a bounded ring buffer; aggregate counters may cover a longer window.",
+                      "Accepted frame flags: " + str(refresh["accepted_flags"]) + "; 32 is an observed vendor compatibility flag, not proof of zero jank.",
+                      "Checkpoint frame rows are merged and deduplicated by IntendedVsync; final window counters are not summed.",
                       "Window missed-vsync/slow counters cannot be assigned to individual phases without a trace.",
                       "Missing phase data is null, never a zero-jank measurement."]}
 
@@ -206,6 +242,9 @@ def markdown(report):
         values += [number(data[k]) + "%" for k in ("over_budget_percent", "over_2x_budget_percent")]
         lines.append(f"| {phase} | {data['frame_count']} | " + " | ".join(values) + " |")
     lines += ["", "Latencies are milliseconds.", "",
+              "Phase coverage (incomplete/observed): " + ", ".join(
+                  f"{name} {data['incomplete_intervals']}/{data['interval_count']}"
+                  for name, data in report["phases"].items() if data and "interval_count" in data), "",
               "Window counters: " + json.dumps(report["platform_window_counters"]), "",
               "Gate: " + ("PASS" if report["gate"]["passed"] else "FAIL"), ""]
     lines += [f"- {failure}" for failure in report["gate"]["failures"]]
@@ -215,6 +254,8 @@ def markdown(report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("gfxinfo", type=Path)
+    parser.add_argument("--additional-gfxinfo", type=Path, action="append", default=[],
+                        help="Frame checkpoint captured at a transition boundary; repeatable. Final counters use the positional gfxinfo only.")
     parser.add_argument("--mem-before", type=Path)
     parser.add_argument("--mem-after", type=Path)
     parser.add_argument("--diagnostics", type=Path)
@@ -235,7 +276,7 @@ def main():
         report = build_report(read(args.gfxinfo), read(args.mem_before), read(args.mem_after),
                               read(args.diagnostics), args.label,
                               json.loads(read(args.config)) if args.config else None,
-                              args.refresh_rate, args.phase)
+                              args.refresh_rate, args.phase, [read(path) for path in args.additional_gfxinfo])
         report["gate"] = gate(report, args.max_over_budget, args.max_over_two, args.max_pss)
         for path, payload in ((args.json_out, json.dumps(report, indent=2, ensure_ascii=False) + "\n"),
                               (args.markdown_out, markdown(report))):

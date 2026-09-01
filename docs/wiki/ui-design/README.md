@@ -1,9 +1,9 @@
 # BiliPai UI 设计规范
 
 > 文档编号：UI-INDEX  
-> 规范版本：1.0.0-draft  
+> 规范版本：1.1.1-draft
 > 状态：草案  
-> 最后核对日期：2026-08-02  
+> 最后核对日期：2026-09-01
 > 适用提交：4443e72ff  
 > 维护角色：设计系统维护者  
 > 相关文档：[Miuix 对齐记录](../MIUIX_ALIGNMENT.md) · [架构说明](../ARCHITECTURE.md) · [QA 手册](../QA.md)
@@ -11,6 +11,10 @@
 ## 初学者解释
 
 这套手册是 BiliPai 前端 UI 的正式设计合同。它同时回答三类问题：界面元素**是什么**（What）、为什么要这样设计（Why）、设计与 Compose 代码应当怎样落地（How）。它不修改当前 UI，也不把当前代码中的每个写法都当成正确标准。
+
+## 本轮适配边界
+
+1.1 规范只调整 **MIUIX 且液态玻璃关闭**的视觉，保留 Material 3 和玻璃开启体验。普通模糊仍由原有开关控制；导航形态、标签、搜索、皮肤、品牌色、动态取色和字体偏好不迁移。官方默认值和 BiliPai 业务适配值分别标注，API 以锁定依赖为准。实施状态见差距台账；未编译、未设备验收不能标记为验证通过。
 
 ## 初学者怎样阅读
 
@@ -47,9 +51,9 @@ flowchart LR
 | 文档 | 解决的问题 |
 |---|---|
 | [00 术语表](00_GLOSSARY.md) | Compose、Token、状态、母版等词是什么意思 |
-| [01 设计方向](01_DIRECTION.md) | 为什么以 Miuix 为主，以及三风格的共同边界 |
+| [01 设计方向](01_DIRECTION.md) | 为什么以 Miuix 为主，以及双预设的共同边界 |
 | [02 基础令牌](02_FOUNDATIONS.md) | 颜色、间距、形状、尺寸和图标怎样统一 |
-| [03 主题与三风格](03_THEMES.md) | Miuix、iOS、Material 3 如何映射 |
+| [03 主题与双预设](03_THEMES.md) | Miuix、Material 3 如何映射 |
 | [04 排版与文案](04_TYPOGRAPHY_CONTENT.md) | 字号、层级、截断和中文文案怎样写 |
 | [05 布局与自适应](05_LAYOUT_ADAPTIVE.md) | 手机、平板、宽屏怎样共用信息结构 |
 | [06 动效与效果](06_MOTION_EFFECTS.md) | 动画、模糊、玻璃和降级怎样处理 |
@@ -92,16 +96,16 @@ flowchart LR
 | 事实 | 当前入口 |
 |---|---|
 | Navigation 3 的 61 个页面 Key | `BiliPaiNavKey.kt` 中的 `BiliPaiNavKey` |
-| 三种 UI 风格 | `UiStyle.IOS`、`UiStyle.MATERIAL3`、`UiStyle.MIUIX` |
+| 两种运行时 UI 预设 | `AppUiStyle.MATERIAL3`、`AppUiStyle.MIUIX` |
 | 共享设计系统 | `design-system/src/main/java/com/android/purebilibili/core/` |
-| Miuix 依赖版本 | `app/build.gradle.kts` 与 `design-system/build.gradle.kts` 中的 `0.9.3` |
+| Miuix 依赖版本 | `gradle/libs.versions.toml` 中的 `0.9.4-4f86de92-SNAPSHOT` |
 | Miuix 技术接入进度 | [MIUIX_ALIGNMENT.md](../MIUIX_ALIGNMENT.md) |
 
 代码映射只使用文件名与符号名，避免文档因行号变化立刻失效。需要定位符号时，优先使用 CodeGraph。
 
 ## 当前差距
 
-规范首版仍处于草案状态，实际 UI 尚未完成全部组件收口和三风格验收。已知问题包括同名组件重复、部分页面继续使用硬编码尺寸、响应式断点由页面各自维护。它们是整改输入，不是允许继续复制的先例。
+规范首版仍处于草案状态，实际 UI 尚未完成全部组件收口和双预设验收。已知问题包括同名组件重复、部分页面继续使用硬编码尺寸、响应式断点由页面各自维护。它们是整改输入，不是允许继续复制的先例。
 
 ## 验收方法
 

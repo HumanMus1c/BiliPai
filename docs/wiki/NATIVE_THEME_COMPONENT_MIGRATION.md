@@ -3,6 +3,10 @@
 最后更新：2026-08-24  
 状态：实施中（阶段 1；基础视觉、选择与反馈控件并行推进）
 
+## 当前适配边界（2026-08-31）
+
+无玻璃 Miuix 按 [UI 规范](ui-design/README.md) 1.1 分批适配；不扩大玻璃例外集合，不修改 MD3 和玻璃开启分支。本页 2026-08-24 的数量与工期是历史快照，本轮状态见 [差距台账](ui-design/10_GAP_LEDGER.md)。
+
 ## 目标合同
 
 业务页面只依赖中性的 `App*` 入口。设计系统根据 `AppUiStyle` 选择渲染器：
@@ -94,8 +98,8 @@ feature UI
 | 已双原生化 | `AppCircularProgressIndicator` / `AppLinearProgressIndicator` | 颜色与线宽默认使用中立 sentinel；MD3 保留 provider 延迟读取，MIUIX 在最终 renderer 边界求值；feature 直调归零 |
 | 已双原生化 | `AppCard` | `AppCardShape` 仅接受语义层级或显式均匀半径；MD3 使用原生 `Card` / `ElevatedCard`，MIUIX 使用原生 `Card`；21 个既有调用、反诈历史与启动壁纸裸 Card 已收口 |
 | 已双原生化 | `AppIconButton` / `AppFilledIconButton` | 190 个标准与 4 个 Filled 调用按主题进入原生组件；7 处自定义颜色改用中立 colors，app 原生直调与厂商 defaults 引用归零 |
-| 已完成几何收敛 | 分段控制 | 视觉高度与圆角共同解析，不再把 48dp 触控下限写成固定视觉高度 |
-| 已完成几何收敛 | `AppIconButton` | 22 处固定 48dp / 最小触控 token 根尺寸已移除；保留 55 处角色或策略尺寸，默认视觉尺寸与圆角交还原生组件 |
+| 已完成几何收敛 | 分段控制 | 圆角与字体高度共同解析；锁定版 Miuix `TabRow` 因 selectable 与组件等高，实际高度至少 48dp，短标签最小项宽 48dp，放不下时滚动 |
+| 已完成几何收敛 | `AppIconButton` | 图标视觉尺寸保留角色或页面策略；无玻璃 Miuix 渲染器统一约束至少 48×48dp selectable，避免调用方的 32/36/40dp 精确尺寸覆盖官方 40dp 下限 |
 
 `AppPrimitiveComponents.kt` 的 Material 3 import 棘轮已由 78 降至 47。已迁移 facade
 均不导入 Material 3 或 Miuix 可见组件；厂商 import 只存在于对应 renderer。

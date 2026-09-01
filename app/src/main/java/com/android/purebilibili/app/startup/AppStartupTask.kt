@@ -64,6 +64,16 @@ internal fun defaultAppStartupTasks(
     }
 
     val tasks = mutableListOf(
+        // UI can toggle a plugin before the deferred registration pass reaches the main-loop
+        // idle queue. Install the cheap Application context dependency synchronously so those
+        // early writes are safely retained as pending overrides instead of touching an
+        // uninitialized lateinit property.
+        AppStartupTask(
+            id = "plugin_manager_context_init",
+            phase = StartupPhase.BEFORE_FIRST_INTERACTIVE,
+            criticality = StartupCriticality.REQUIRED,
+            thread = StartupThread.MAIN
+        ),
         AppStartupTask(
             id = "network_module_init",
             phase = StartupPhase.BEFORE_FIRST_INTERACTIVE,

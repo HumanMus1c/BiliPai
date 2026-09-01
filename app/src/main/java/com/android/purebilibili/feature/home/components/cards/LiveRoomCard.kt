@@ -59,7 +59,7 @@ fun LiveRoomCard(
 ) {
     val haptic = rememberHapticFeedback()
     
-    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val cardShape = AppShapes.mediaCover()
     val tagShape = AppShapes.container(ContainerLevel.Tag)
     
     // Shared Element Transition Scopes

@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.15-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.15" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.22-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.22" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -33,7 +33,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-08-15 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-09-01 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -189,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.15-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.15.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.22-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.22.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -210,14 +210,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.15 / versionCode 324`；最新完整发布记录为 `v0.2.3-beta.15`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.22 / versionCode 338`；最新完整发布记录为 `v0.2.3-beta.22`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 完成手机、平板、折叠屏、桌面与电视多级适配，并统一 Material 3/Miuix 原生控件渲染。
-- 视频详情新增手势跟随共享转场，可关闭相关推荐转场并恢复默认效果；导航与液态玻璃指示器同步完善。
-- 动态发布与评论、番剧媒体和播放能力、皮肤目录搜索及大屏内容布局得到补全。
-- 播放器新增全局具名 CDN 选择；画质取流严格按实际 DASH 轨道判断并补齐智能修复、HDR Vivid。
-- 修复高画质误弹窗、“仅提示一次”失效、弹幕分段、字幕位置及多项导航和界面稳定性问题。
-- 完整 beta.14 → beta.15 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 修复全屏左右方向保留、自动连播画面恢复及播放器折叠后的放大返回动画。
+- 新增非玻璃 Miuix 展示与可选卡片深度预测返回，完善原生顶栏滚动和可访问性。
+- 动态顶部操作区支持折叠，增量刷新保留阅读位置。
+- 优化页面 Chrome 捕获与转场性能报告，收紧非活动页面的渲染开销。
+- 修复插件延迟注册的 Context 初始化时序。
+- 完整 beta.21 → beta.22 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

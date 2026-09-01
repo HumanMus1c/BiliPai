@@ -2,7 +2,10 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 
 /**
@@ -19,7 +22,32 @@ data class AppThemeConfig(
     val uiEntranceAnimationEnabled: Boolean = true,
     val runtimeVisualGuardEnabled: Boolean = true,
     val nativeMiuixPopupsEnabled: Boolean = true,
+    // Matches the persisted default; each application host supplies the observed preference.
+    val liquidGlassEnabled: Boolean = true,
 )
+
+fun isMiuixNonGlassEnabled(uiStyle: AppUiStyle, liquidGlassEnabled: Boolean): Boolean =
+    uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled
+
+@Composable
+@ReadOnlyComposable
+fun isMiuixNonGlassEnabled(): Boolean = isMiuixNonGlassEnabled(
+    LocalAppUiStyle.current,
+    LocalAppThemeConfig.current.liquidGlassEnabled,
+)
+
+enum class AppChromeMaterial { SOLID, BLUR, LIQUID_GLASS }
+
+/** Callers resolve hardware/runtime capability before requesting glass or blur. */
+fun resolveAppChromeMaterial(
+    liquidGlassEnabled: Boolean,
+    blurEnabled: Boolean,
+    blurAvailable: Boolean,
+): AppChromeMaterial = when {
+    liquidGlassEnabled -> AppChromeMaterial.LIQUID_GLASS
+    blurEnabled && blurAvailable -> AppChromeMaterial.BLUR
+    else -> AppChromeMaterial.SOLID
+}
 
 val LocalAppThemeConfig = staticCompositionLocalOf { AppThemeConfig() }
 

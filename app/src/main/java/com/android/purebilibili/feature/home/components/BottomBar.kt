@@ -1028,6 +1028,11 @@ internal fun shouldRenderBottomBarLiquidGlassEffects(
     forceLowBlurBudget: Boolean,
 ): Boolean = glassEnabled && !forceLowBlurBudget
 
+internal fun shouldUsePlainMiuixFloatingBar(
+    glassEnabled: Boolean,
+    blurEnabled: Boolean,
+): Boolean = !glassEnabled && !blurEnabled
+
 internal fun Modifier.biliPaiMiuixFloatingDockSurface(
     shape: androidx.compose.ui.graphics.Shape,
     backdrop: MiuixBackdrop?,
@@ -1069,7 +1074,11 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
         pressProgress = materialPressProgress,
         liquidGlassTuning = liquidGlassTuning
     )
-    val baseHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+    val baseHighlight = if (renderGlassEffects) {
+        rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+    } else {
+        null
+    }
     val effectiveShellLensIntensity = shellLensIntensity.coerceIn(0f, 1f)
 
     this
@@ -1148,7 +1157,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                             }
                         },
                         highlight = {
-                            baseHighlight.copy(
+                            baseHighlight?.copy(
                                 alpha = if (renderGlassEffects) {
                                     0.75f * materialSpec.highlightWidthScale *
                                         effectiveShellLensIntensity
@@ -3270,11 +3279,19 @@ private fun BiliPaiFloatingBottomBar(
         blurEnabled && miuixBackdrop != null -> FloatingBottomBarMode.Blur
         else -> FloatingBottomBarMode.None
     }
-    val floatingContainerColor = resolveFloatingBottomBarContainerColor(
-        defaultColor = biliPaiContainerColor,
-        mode = floatingMode,
-        hasUiSkinDecoration = uiSkinDecoration != null,
+    val usePlainMiuixFloatingBar = shouldUsePlainMiuixFloatingBar(
+        glassEnabled = effectiveGlassEnabled,
+        blurEnabled = blurEnabled,
     )
+    val floatingContainerColor = if (usePlainMiuixFloatingBar) {
+        biliPaiContainerColor.copy(alpha = 1f)
+    } else {
+        resolveFloatingBottomBarContainerColor(
+            defaultColor = biliPaiContainerColor,
+            mode = floatingMode,
+            hasUiSkinDecoration = uiSkinDecoration != null,
+        )
+    }
     val floatingColors = FloatingBottomBarColors(
         containerColor = floatingContainerColor,
         indicatorColor = selectedColor,
@@ -3431,26 +3448,12 @@ private fun BiliPaiFloatingBottomBar(
                         clipShape = resolveSharedBottomBarCapsuleShape()
                     )
                     if (shouldComposeDockContent) {
-                        FloatingBottomBar(
-                            selectedIndex = floatingSelectedIndex,
-                            onSelected = floatingOnSelected,
-                            onReselected = floatingOnReselected,
-                            backdrop = miuixBackdrop,
-                            tabsCount = totalItems,
-                            modifier = Modifier
-                                .width(dockWidth)
-                                .height(dockHeight)
-                                .alpha(dockContentAlpha)
-                                .graphicsLayer { clip = false },
-                            mode = floatingMode,
-                            colors = floatingColors,
-                            shellHeight = dockHeight,
-                            indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
-                            minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
-                            indicatorPositionProvider = indicatorPositionProvider,
-                            isScrollInProgressProvider = isPagerScrollInProgressProvider,
-                            liquidGlassTuning = liquidGlassTuning
-                        ) {
+                        val dockModifier = Modifier
+                            .width(dockWidth)
+                            .height(dockHeight)
+                            .alpha(dockContentAlpha)
+                            .graphicsLayer { clip = false }
+                        val dockContent: @Composable RowScope.() -> Unit = {
                             visibleItems.forEachIndexed { index, item ->
                                 val label = resolveBottomNavItemLabel(item, itemLabels)
                                 val routeSelected = currentItem == item
@@ -3458,17 +3461,10 @@ private fun BiliPaiFloatingBottomBar(
                                     LocalFloatingBottomBarActiveContent.current
                                 val skinIconPath = uiSkinDecoration?.iconPathFor(
                                     item,
-                                    // The indicator export layer marks every sampled item active
-                                    // while dragging. Asset choice must follow the committed route,
-                                    // otherwise the lens swaps to a different selected illustration.
                                     selected = routeSelected
                                 )
                                 val reminderBadgeText = formatBottomBarDynamicReminderBadge(
-                                    if (shouldShowBottomBarDynamicReminderBadge(
-                                            item,
-                                            dynamicUnreadCount
-                                        )
-                                    ) {
+                                    if (shouldShowBottomBarDynamicReminderBadge(item, dynamicUnreadCount)) {
                                         dynamicUnreadCount
                                     } else {
                                         0
@@ -3518,6 +3514,36 @@ private fun BiliPaiFloatingBottomBar(
                                         reminderBadgeText = null
                                     )
                                 }
+                            }
+                        }
+                        if (usePlainMiuixFloatingBar) {
+                            PlainMiuixFloatingBottomBar(
+                                selectedIndex = selectedIndexForBar,
+                                onSelected = floatingOnSelected,
+                                onReselected = floatingOnReselected,
+                                tabsCount = totalItems,
+                                modifier = dockModifier,
+                                colors = floatingColors,
+                                content = dockContent,
+                            )
+                        } else {
+                            FloatingBottomBar(
+                                selectedIndex = floatingSelectedIndex,
+                                onSelected = floatingOnSelected,
+                                onReselected = floatingOnReselected,
+                                backdrop = miuixBackdrop,
+                                tabsCount = totalItems,
+                                modifier = dockModifier,
+                                mode = floatingMode,
+                                colors = floatingColors,
+                                shellHeight = dockHeight,
+                                indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
+                                minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
+                                indicatorPositionProvider = indicatorPositionProvider,
+                                isScrollInProgressProvider = isPagerScrollInProgressProvider,
+                                liquidGlassTuning = liquidGlassTuning,
+                            ) {
+                                dockContent()
                             }
                         }
                     }
@@ -3680,10 +3706,12 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
     reminderBadgeText: String?
 ) {
     val localColor = LocalFloatingBottomBarContentColor.current
-    val contentColor = if (localColor == Color.Unspecified) {
-        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        localColor
+    val selectedContentColor = LocalFloatingBottomBarSelectedContentColor.current
+    val contentColor = when {
+        selected && selectedContentColor != Color.Unspecified -> selectedContentColor
+        localColor != Color.Unspecified -> localColor
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val selectedAlpha = if (selected) 1f else 0f
     val selectionScale = LocalFloatingBottomBarItemSelectionScale.current

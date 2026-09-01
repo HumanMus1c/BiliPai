@@ -64,10 +64,11 @@ fun shouldUseMiuixSmoothRounding(
 ): Boolean = uiStyle == AppUiStyle.MIUIX
 
 fun resolveMaterialTypography(
-    uiStyle: AppUiStyle
+    uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean = true,
 ): Typography = when (uiStyle) {
     // Miuix owns its typography object; only its numeric density follows the MD3 baseline.
-    AppUiStyle.MIUIX -> CompactMiuixTypography
+    AppUiStyle.MIUIX -> if (liquidGlassEnabled) CompactMiuixTypography else BiliMiuixTypography
     AppUiStyle.MATERIAL3 -> Md3Typography
 }
 

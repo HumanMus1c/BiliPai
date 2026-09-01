@@ -249,9 +249,9 @@ internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): V
     val compact = widthDp < 400
     return VideoContentTabBarDanmakuActionLayoutPolicy(
         toggleIconSizeDp = 22,
-        toggleButtonSizeDp = 38,
+        toggleButtonSizeDp = AppChromeSizeTokens.MinimumTouchTarget.value.toInt(),
         toggleTrailingPaddingDp = if (compact) 4 else 6,
-        sendMinHeightDp = 32,
+        sendMinHeightDp = AppChromeSizeTokens.MinimumTouchTarget.value.toInt(),
         sendTextSizeSp = 12,
         sendLabel = "发弹幕",
     )
@@ -1922,7 +1922,10 @@ private fun VideoContentTabBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         tapToCopyEnabled = false,
                         modifier = Modifier
-                            .heightIn(min = danmakuActionLayoutPolicy.sendMinHeightDp.dp)
+                            .sizeIn(
+                                minWidth = AppChromeSizeTokens.MinimumTouchTarget,
+                                minHeight = danmakuActionLayoutPolicy.sendMinHeightDp.dp,
+                            )
                             .wrapContentHeight(align = Alignment.CenterVertically)
                             .clickable(onClick = onDanmakuSendClick),
                     )

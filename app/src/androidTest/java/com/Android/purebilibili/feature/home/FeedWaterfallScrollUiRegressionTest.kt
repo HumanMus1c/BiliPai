@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -40,6 +44,88 @@ class FeedWaterfallScrollUiRegressionTest {
     @Test
     fun singleLane_preservesTopInsetAndScrollToTop() {
         assertSlowScrollStability(columns = 1)
+    }
+
+    @Test
+    fun singleLane_incrementalRefreshKeepsReadingPosition() {
+        assertIncrementalRefreshStability(columns = 1)
+    }
+
+    @Test
+    fun twoUnevenLanes_incrementalRefreshKeepsReadingPosition() {
+        assertIncrementalRefreshStability(columns = 2)
+    }
+
+    @Test
+    fun threeUnevenLanes_incrementalRefreshKeepsReadingPosition() {
+        assertIncrementalRefreshStability(columns = 3)
+    }
+
+    private fun assertIncrementalRefreshStability(columns: Int) {
+        lateinit var state: LazyStaggeredGridState
+        var cards by mutableStateOf(List(40) { "old_$it" })
+        var dividerIndex by mutableStateOf(-1)
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f)) {
+                state = rememberLazyStaggeredGridState()
+                FeedVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(columns),
+                    state = state,
+                    modifier = Modifier.requiredSize(720.dp, 480.dp),
+                    contentPadding = PaddingValues(top = 84.dp, bottom = 80.dp),
+                    verticalItemSpacing = 12.dp,
+                    prependItemKeys = cards,
+                    prependDividerIndex = dividerIndex,
+                ) {
+                    cards.forEachIndexed { index, key ->
+                        if (index == dividerIndex) {
+                            item(key = "old_content_divider", span = StaggeredGridItemSpan.FullLine) {
+                                Box(Modifier.fillMaxWidth().height(36.dp))
+                            }
+                        }
+                        item(key = key) {
+                            val height = listOf(110, 330, 160, 490, 220)[key.substringAfterLast('_').toInt() % 5]
+                            Box(Modifier.fillMaxWidth().height(height.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        fun cardY(key: Any): Int = state.layoutInfo.visibleItemsInfo.first { it.key == key }.offset.y
+        var readingKey: Any = "old_0"
+        var readingY = 84
+
+        // A one-item prepend makes the destination overlap the OLD visible index range.
+        // Repeat with larger batches while the old card/divider remains in the viewport.
+        for (batchSize in listOf(1, 7, 2)) {
+            composeRule.runOnIdle {
+                val readingCard = state.layoutInfo.visibleItemsInfo.first {
+                    it.key in cards && it.offset.y + it.size.height > 84
+                }
+                readingKey = readingCard.key
+                readingY = readingCard.offset.y
+                cards = List(batchSize) { "batch${cards.size}_$it" } + cards
+                dividerIndex = batchSize
+            }
+            composeRule.runOnIdle {
+                assertEquals("Refresh must preserve the reading card's pixel position", readingY, cardY(readingKey))
+                val newIndex = cards.indexOf(readingKey) + 2 // Chrome + divider.
+                assertEquals(newIndex, state.layoutInfo.visibleItemsInfo.first { it.key == readingKey }.index)
+                assertTrue("New content must be reachable above the old card", state.canScrollBackward)
+            }
+        }
+
+        composeRule.runOnIdle {
+            cards = cards + List(10) { "next_$it" }
+        }
+        composeRule.runOnIdle {
+            assertEquals("Loading another page must not move the viewport", readingY, cardY(readingKey))
+        }
+        composeRule.runOnIdle { state.dispatchRawDelta(35f) }
+        composeRule.runOnIdle {
+            assertEquals("Scrolling must remain usable after restoration", readingY - 35, cardY(readingKey))
+        }
     }
 
     private fun assertSlowScrollStability(columns: Int) {

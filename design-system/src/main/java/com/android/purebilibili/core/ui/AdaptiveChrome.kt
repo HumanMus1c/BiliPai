@@ -21,12 +21,15 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +37,8 @@ import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior as rememberMiuixTopAppBarScrollBehavior
+import top.yukonga.miuix.kmp.basic.ScrollBehavior as MiuixTopAppBarScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar as MiuixSmallTopAppBar
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.utils.MiuixPopupUtils
@@ -53,6 +58,28 @@ enum class AdaptiveTopAppBarStyle {
     SMALL,
     CENTERED,
     LARGE
+}
+
+/** Neutral app-owned handle that keeps Miuix scroll types out of feature code. */
+@Stable
+class AppTopBarCollapseBehavior internal constructor(
+    internal val miuixScrollBehavior: MiuixTopAppBarScrollBehavior,
+)
+
+@Composable
+fun rememberAppTopBarCollapseBehavior(): AppTopBarCollapseBehavior {
+    val miuixScrollBehavior = rememberMiuixTopAppBarScrollBehavior()
+    return remember(miuixScrollBehavior) {
+        AppTopBarCollapseBehavior(miuixScrollBehavior)
+    }
+}
+
+fun Modifier.appTopBarNestedScroll(
+    behavior: AppTopBarCollapseBehavior?,
+): Modifier = if (behavior != null) {
+    nestedScroll(behavior.miuixScrollBehavior.nestedScrollConnection)
+} else {
+    this
 }
 
 data class AdaptiveTopAppBarChromeSpec(
@@ -209,7 +236,8 @@ fun AdaptiveTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
     style: AdaptiveTopAppBarStyle = AdaptiveTopAppBarStyle.SMALL,
-    scrollBehavior: TopAppBarScrollBehavior? = null
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    collapseBehavior: AppTopBarCollapseBehavior? = null,
 ) {
     // Keep crowded phone chrome readable: long dynamic titles must not collapse into
     // one-character-per-line text when actions consume the remaining width.
@@ -244,6 +272,15 @@ fun AdaptiveTopAppBar(
     val topAppBarColors = effectiveColors
 
     if (rememberIsNativeMiuixEnabled()) {
+        SideEffect {
+            // Native Miuix bars do not consume the caller's Material scroll state. Leaving its
+            // default unbounded limit lets enterAlways swallow every vertical drag indefinitely.
+            // Match the native bar's fixed height, including state restored from another theme.
+            if (collapseBehavior == null) scrollBehavior?.state?.let { state ->
+                state.heightOffsetLimit = 0f
+                state.heightOffset = 0f
+            }
+        }
         val navigationContent =
             @Composable {
                 CompositionLocalProvider(
@@ -268,6 +305,7 @@ fun AdaptiveTopAppBar(
                     color = topAppBarColors.containerColor,
                     navigationIcon = navigationContent,
                     actions = actionsContent,
+                    scrollBehavior = collapseBehavior?.miuixScrollBehavior,
                     // Miuix 标题可用宽度 = (总宽 - 导航 - actions) × 0.9 - titlePadding×2；
                     // 默认 26dp×2 + 多 actions 会把标题挤到省略号。压紧 padding 把空间还给标题。
                     titlePadding = 0.dp,
@@ -428,6 +466,7 @@ fun AppTopBar(
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
     style: AppTopBarStyle = AppTopBarStyle.SMALL,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    collapseBehavior: AppTopBarCollapseBehavior? = null,
 ) = AdaptiveTopAppBar(
     title = title,
     modifier = modifier,
@@ -442,4 +481,5 @@ fun AppTopBar(
         AppTopBarStyle.LARGE -> AdaptiveTopAppBarStyle.LARGE
     },
     scrollBehavior = scrollBehavior,
+    collapseBehavior = collapseBehavior,
 )

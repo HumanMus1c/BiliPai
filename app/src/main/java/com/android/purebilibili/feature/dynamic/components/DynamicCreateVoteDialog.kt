@@ -49,14 +49,22 @@ fun DynamicCreateVoteDialog(
         onDismissRequest = onDismiss,
         title = { AppText("发起投票") },
         text = {
-            val voteChromeBackdrop = rememberLayerBackdrop()
+            val liquidGlassEnabled =
+                com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
+            val voteChromeBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
             val choiceLabels = remember { listOf("单选", "多选") }
             val durationLabels = remember { listOf("1 天", "3 天", "7 天") }
             Box(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .layerBackdrop(voteChromeBackdrop)
+                        .then(
+                            if (voteChromeBackdrop != null) {
+                                Modifier.layerBackdrop(voteChromeBackdrop)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .background(AppSurfaceTokens.background())
                 )
                 Column(

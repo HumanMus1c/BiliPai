@@ -285,6 +285,22 @@ internal fun shouldSyncMainPlayerToInternalBvid(
     return resolvedLoadedCid != targetCid
 }
 
+/**
+ * Whether a mismatch between the presentation identity and the freshly loaded player identity is
+ * the *expected* result of a player-initiated in-page advance (season/playlist auto-continue).
+ * In that case the detail screen must neither reload the old video nor sync presentation:
+ * auto-advance keeps the presentation identity stale exactly like route-driven playback does,
+ * and syncing mid-playback would restart bvid-keyed UI state (cover reveal, controls) that the
+ * screen has no fresh first-frame event to recover from.
+ */
+internal fun shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+    loadedBvid: String,
+    inPageInitiatedBvid: String?
+): Boolean {
+    val pendingBvid = inPageInitiatedBvid?.trim().takeUnless { it.isNullOrEmpty() } ?: return false
+    return pendingBvid == loadedBvid.trim()
+}
+
 internal fun resolveVideoDetailPlaybackTargetCid(
     routeBvid: String,
     routeCid: Long,

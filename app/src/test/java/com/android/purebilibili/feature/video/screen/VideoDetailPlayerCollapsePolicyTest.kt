@@ -85,7 +85,7 @@ class VideoDetailPlayerCollapsePolicyTest {
     }
 
     @Test
-    fun `resolveIsPlaybackPausedForCollapse follows explicit pause intent only`() {
+    fun `resolveIsPlaybackPausedForCollapse accepts explicit pause and ended playback`() {
         assertTrue(
             resolveIsPlaybackPausedForCollapse(
                 playWhenReady = false,
@@ -98,7 +98,13 @@ class VideoDetailPlayerCollapsePolicyTest {
                 playbackState = Player.STATE_BUFFERING
             )
         )
-        assertFalse(
+        assertTrue(
+            resolveIsPlaybackPausedForCollapse(
+                playWhenReady = true,
+                playbackState = Player.STATE_ENDED
+            )
+        )
+        assertTrue(
             resolveIsPlaybackPausedForCollapse(
                 playWhenReady = false,
                 playbackState = Player.STATE_ENDED

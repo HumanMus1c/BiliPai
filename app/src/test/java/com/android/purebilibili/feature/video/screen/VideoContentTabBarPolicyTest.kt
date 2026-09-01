@@ -158,7 +158,7 @@ class VideoContentTabBarPolicyTest {
         assertTrue(spec.tabsRowScrollable)
         assertEquals(12, spec.containerHorizontalPaddingDp)
         assertEquals(12, spec.tabHorizontalPaddingDp)
-        assertEquals(36, spec.segmentedControlHeightDp)
+        assertEquals(40, spec.segmentedControlHeightDp)
         assertEquals(30, spec.segmentedControlIndicatorHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
@@ -198,9 +198,9 @@ class VideoContentTabBarPolicyTest {
 
         assertEquals("发弹幕", policy.sendLabel)
         assertEquals(12, policy.sendTextSizeSp)
-        assertEquals(32, policy.sendMinHeightDp)
+        assertEquals(48, policy.sendMinHeightDp)
         assertEquals(22, policy.toggleIconSizeDp)
-        assertEquals(38, policy.toggleButtonSizeDp)
+        assertEquals(48, policy.toggleButtonSizeDp)
     }
 
     @Test
@@ -211,8 +211,8 @@ class VideoContentTabBarPolicyTest {
         assertEquals(8, spec.containerHorizontalPaddingDp)
         assertEquals(8, spec.tabHorizontalPaddingDp)
         assertEquals(10, spec.tabSpacingDp)
-        assertEquals(14, spec.selectedTabFontSizeSp)
-        assertEquals(32, spec.segmentedControlHeightDp)
+        assertEquals(16, spec.selectedTabFontSizeSp)
+        assertEquals(40, spec.segmentedControlHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
                 containerHeightDp = spec.segmentedControlHeightDp,
@@ -221,9 +221,9 @@ class VideoContentTabBarPolicyTest {
         )
         assertEquals("发弹幕", policy.sendLabel)
         assertEquals(12, policy.sendTextSizeSp)
-        assertEquals(32, policy.sendMinHeightDp)
+        assertEquals(48, policy.sendMinHeightDp)
         assertEquals(22, policy.toggleIconSizeDp)
-        assertEquals(38, policy.toggleButtonSizeDp)
+        assertEquals(48, policy.toggleButtonSizeDp)
         assertEquals(4, policy.toggleTrailingPaddingDp)
     }
 
@@ -234,8 +234,8 @@ class VideoContentTabBarPolicyTest {
 
         listOf(compact, regular).forEach { policy ->
             assertEquals(22, policy.toggleIconSizeDp)
-            assertEquals(38, policy.toggleButtonSizeDp)
-            assertEquals(32, policy.sendMinHeightDp)
+            assertEquals(48, policy.toggleButtonSizeDp)
+            assertEquals(48, policy.sendMinHeightDp)
             assertEquals(12, policy.sendTextSizeSp)
             assertEquals("发弹幕", policy.sendLabel)
         }

@@ -1736,6 +1736,25 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private var pageSwitchGeneration: Long = 0L
     private var pendingPageSwitchCid: Long? = null
     private var onPageIdentityCommitted: ((String, Long) -> Unit)? = null
+
+    /**
+     * 最近一次由播放器内部发起的原地换片身份（bvid to cid，如合集/队列自动连播）。
+     * 详情页 presentation 守卫用它区分“VM 自己推进了身份”（预期错位：既不重载旧视频，
+     * 也不同步 presentation，保持与直开场景一致的陈旧 identity）
+     * 与“presentation 领先于 VM”（如从子详情页返回，应恢复旧视频）。
+     * UI 发起的切换（合集面板选集等）在调用 loadVideo 前已同步 presentation，不打此标记。
+     */
+    @Volatile
+    private var inPageInitiatedPlaybackIdentity: Pair<String, Long>? = null
+
+    internal fun peekInPageInitiatedPlaybackIdentityBvid(): String? {
+        return inPageInitiatedPlaybackIdentity?.first
+    }
+
+    private fun markInPageInitiatedPlayback(bvid: String, cid: Long) {
+        inPageInitiatedPlaybackIdentity = bvid to cid
+    }
+
     private var playerInfoJob: Job? = null
     private var aiSummaryJob: Job? = null
     private var videoNoteJob: Job? = null
@@ -2438,6 +2457,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 toast("正在播放: ${nextItem.title}")
             }
             // 加载新视频 (Auto-play next always forces true)
+            markInPageInitiatedPlayback(nextItem.bvid, nextItem.cid)
             loadVideo(
                 nextItem.bvid,
                 cid = nextItem.cid,
@@ -2495,6 +2515,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
 
         val target = PlaylistManager.playAt(nextIndex) ?: return false
+        markInPageInitiatedPlayback(target.bvid, target.cid)
         loadVideo(
             target.bvid,
             cid = target.cid,
@@ -2521,6 +2542,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         if (previousIndex !in items.indices) return false
 
         val target = PlaylistManager.playAt(previousIndex) ?: return false
+        markInPageInitiatedPlayback(target.bvid, target.cid)
         loadVideo(
             target.bvid,
             cid = target.cid,
@@ -2637,6 +2659,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 viewModelScope.launch {
                     toast("播放合集下一集: ${nextEpisode.title}")
                 }
+                markInPageInitiatedPlayback(nextEpisode.bvid, nextEpisode.cid)
                 loadVideo(
                     nextEpisode.bvid,
                     autoPlay = true,
@@ -2701,6 +2724,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 viewModelScope.launch {
                     toast("播放合集上一集: ${previousEpisode.title}")
                 }
+                markInPageInitiatedPlayback(previousEpisode.bvid, previousEpisode.cid)
                 loadVideo(
                     previousEpisode.bvid,
                     autoPlay = true,
@@ -2853,6 +2877,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             toast("正在播放: ${item.title}")
         }
+        markInPageInitiatedPlayback(item.bvid, item.cid)
         loadVideo(
             bvid = item.bvid,
             cid = item.cid,
@@ -2869,6 +2894,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             viewModelScope.launch {
                 toast("正在播放: ${prevItem.title}")
             }
+            markInPageInitiatedPlayback(prevItem.bvid, prevItem.cid)
             loadVideo(
                 prevItem.bvid,
                 cid = prevItem.cid,
@@ -7430,6 +7456,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             }
         }
 
+        markInPageInitiatedPlayback(suggestion.targetBvid, suggestion.targetCid)
         loadVideo(
             bvid = suggestion.targetBvid,
             cid = suggestion.targetCid,

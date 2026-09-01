@@ -167,7 +167,10 @@ class VideoActivity : ComponentActivity() {
             val runtimeVisualGuardEnabled by SettingsManager
                 .getRuntimeVisualGuardEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
+            val liquidGlassEnabled by SettingsManager.getAndroidNativeLiquidGlassEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
             val appThemeConfig = remember(
+                liquidGlassEnabled,
                 blurIntensity,
                 headerBlurEnabled,
                 bottomBarBlurEnabled,
@@ -177,6 +180,7 @@ class VideoActivity : ComponentActivity() {
                 runtimeVisualGuardEnabled,
             ) {
                 AppThemeConfig(
+                    liquidGlassEnabled = liquidGlassEnabled,
                     blurIntensity = blurIntensity,
                     headerBlurEnabled = headerBlurEnabled,
                     bottomBarBlurEnabled = bottomBarBlurEnabled,

@@ -6,23 +6,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import top.yukonga.miuix.kmp.blur.Backdrop
-import kotlinx.coroutines.flow.map
 
 /**
  * App-wide category/page tab contract. The shared renderer keeps MD3's animated underline
@@ -37,7 +31,7 @@ fun <T> AppThemeAdaptiveTabRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollable: Boolean = false,
-    minTabWidth: Dp = 72.dp,
+    minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget,
     compactMiuixWhenTwoOptions: Boolean = true,
     height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
     indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
@@ -81,7 +75,7 @@ fun <T> AppLiquidAwareTabRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollable: Boolean = false,
-    minTabWidth: Dp = 72.dp,
+    minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget,
     compactMiuixWhenTwoOptions: Boolean = true,
     height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
     indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
@@ -93,16 +87,8 @@ fun <T> AppLiquidAwareTabRow(
     isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     if (options.isEmpty()) return
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .map { it as HomeSettings? }
-        .collectAsStateWithLifecycle(
-            // Avoid a visible provisional style before the persisted preference is available.
-            initialValue = null,
-        )
-    val resolvedHomeSettings = homeSettings ?: return
-    if (!resolvedHomeSettings.androidNativeLiquidGlassEnabled) {
+    val liquidGlassEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
+    if (!liquidGlassEnabled) {
         AppNativeTabRow(
             options = options,
             selectedValue = selectedValue,

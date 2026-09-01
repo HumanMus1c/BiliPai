@@ -252,6 +252,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     private fun runStartupTask(task: AppStartupTask) {
         Logger.recordStartupStage(task.id)
         when (task.id) {
+            "plugin_manager_context_init" -> PluginManager.initialize(this)
             "network_module_init" -> NetworkModule.init(this)
             "token_manager_init" -> TokenManager.init(this)
             "wbi_key_restore" -> WbiKeyManager.restoreFromStorage(this)
@@ -285,7 +286,6 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     }
 
     private fun initPluginStackNow() {
-        PluginManager.initialize(this)
         PluginManager.register(SponsorBlockPlugin())
         PluginManager.register(AdFilterPlugin())
         PluginManager.register(Anime4KPlugin())

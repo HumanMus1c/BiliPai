@@ -296,18 +296,9 @@ fun HomeScreen(
     var liveScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var bangumiScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var partitionScrollToTopRequestId by remember { mutableIntStateOf(0) }
-    val localHazeState = rememberRecoverableHazeState(initialBlurEnabled = true)
-    // 首页使用独立 HazeState，避免命中外层全局 source 的祖先过滤规则导致无模糊。
-    val hazeState = localHazeState
-
-
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
-    val homeMiuixBackdropSource = rememberChromeBackdropSource()
-    val homeMiuixBackdrop = homeMiuixBackdropSource.backdrop
-    var homeMiuixBackdropReady by remember(homeMiuixBackdrop) { mutableStateOf(false) }
-
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
     val pageSwitchMotionSpec = AppMotionTokens.emphasizedSpec<Float>()
@@ -960,11 +951,29 @@ fun HomeScreen(
         )
     }
     val isLiquidGlassEnabled = homePerformanceConfig.isAnyLiquidGlassEnabled
+    val shouldCaptureHomeHaze = isLiquidGlassEnabled ||
+        isHeaderBlurEnabled || isBottomBarBlurEnabled
+    // 首页使用独立 HazeState，避免命中外层全局 source 的祖先过滤规则导致无模糊。
+    // 实色路径不创建 source；普通模糊或玻璃路径才承担背景采样成本。
+    val hazeState = if (shouldCaptureHomeHaze) {
+        rememberRecoverableHazeState(initialBlurEnabled = true)
+    } else {
+        null
+    }
+    val shouldCaptureHomeChromeBackdrop = isLiquidGlassEnabled ||
+        isHeaderBlurEnabled || isBottomBarBlurEnabled
+    val homeMiuixBackdropSource = if (shouldCaptureHomeChromeBackdrop) {
+        rememberChromeBackdropSource()
+    } else {
+        null
+    }
+    val homeMiuixBackdrop = homeMiuixBackdropSource?.backdrop
+    var homeMiuixBackdropReady by remember(homeMiuixBackdrop) { mutableStateOf(false) }
     // The layer source records during draw. On a cold launch the header can otherwise consume
     // the backdrop before that first recording exists and stay blank until a lifecycle redraw.
-    LaunchedEffect(homeMiuixBackdrop, isLiquidGlassEnabled) {
+    LaunchedEffect(homeMiuixBackdrop, shouldCaptureHomeChromeBackdrop) {
         homeMiuixBackdropReady = false
-        if (isLiquidGlassEnabled) {
+        if (homeMiuixBackdrop != null && shouldCaptureHomeChromeBackdrop) {
             withFrameNanos { }
             withFrameNanos { }
             homeMiuixBackdropReady = true
@@ -1682,9 +1691,15 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(homeMiuixBackdropSource.modifier)
+                            .then(homeMiuixBackdropSource?.modifier ?: Modifier)
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
-                            .hazeSourceCompat(state = hazeState)
+                            .then(
+                                if (hazeState != null) {
+                                    Modifier.hazeSourceCompat(state = hazeState)
+                                } else {
+                                    Modifier
+                                }
+                            )
                     ) {
                     HomeWallpaperBackdrop(
                         wallpaperUri = homeWallpaperUri,

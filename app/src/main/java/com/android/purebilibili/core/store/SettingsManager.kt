@@ -25,6 +25,7 @@ import com.android.purebilibili.core.store.home.HomeSettingsStore
 import com.android.purebilibili.core.store.home.liquidGlassReadabilityModePreferencesKey
 import com.android.purebilibili.core.store.navigation.NavigationSettingsStore
 import com.android.purebilibili.core.store.navigation.bottomBarItemLabelsPreferencesKey
+import com.android.purebilibili.core.store.navigation.miuixPredictiveBackMaxProgressPercentPreferencesKey
 import com.android.purebilibili.core.store.navigation.parseBottomBarItemLabels
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.store.player.defaultAudioQualityPreferenceKey
@@ -968,6 +969,7 @@ data class AppNavigationSettings(
     val predictiveBackAnimationStyle: String = "miuix",
     val predictiveBackExitDirection: String = "always_right",
     val miuixTransitionBlurEnabled: Boolean = true,
+    val miuixPredictiveBackMaxProgressPercent: Int = 100,
     val videoSharedReturnGestureFollowEnabled: Boolean = true,
 )
 
@@ -6880,6 +6882,9 @@ object SettingsManager {
             predictiveBackExitDirection =
                 preferences[KEY_PREDICTIVE_BACK_EXIT_DIRECTION] ?: "always_right",
             miuixTransitionBlurEnabled = preferences[KEY_MIUIX_TRANSITION_BLUR_ENABLED] ?: true,
+            miuixPredictiveBackMaxProgressPercent =
+                (preferences[miuixPredictiveBackMaxProgressPercentPreferencesKey] ?: 100)
+                    .coerceIn(0, 100),
             videoSharedReturnGestureFollowEnabled =
                 preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED] ?: true,
         )
@@ -6925,6 +6930,10 @@ object SettingsManager {
 
     suspend fun setMiuixTransitionBlurEnabled(context: Context, enabled: Boolean) {
         NavigationSettingsStore.setMiuixTransitionBlurEnabled(context, enabled)
+    }
+
+    suspend fun setMiuixPredictiveBackMaxProgressPercent(context: Context, percent: Int) {
+        NavigationSettingsStore.setMiuixPredictiveBackMaxProgressPercent(context, percent)
     }
 
     suspend fun setVideoSharedReturnGestureFollowEnabled(context: Context, enabled: Boolean) {
@@ -7256,6 +7265,10 @@ object SettingsManager {
             ),
             BooleanShareablePreferenceDefinition(
                 KEY_MIUIX_TRANSITION_BLUR_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
+            IntShareablePreferenceDefinition(
+                miuixPredictiveBackMaxProgressPercentPreferencesKey,
                 SettingsShareSection.APPEARANCE,
             ),
             BooleanShareablePreferenceDefinition(

@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.components.AppCardColors
 import com.android.purebilibili.core.ui.components.AppCardShape
 import top.yukonga.miuix.kmp.basic.Card
@@ -34,10 +35,12 @@ internal fun AppMiuixCard(
     content = content,
 )
 
+@Composable
 private fun AppCardShape.toMiuixCornerRadius(): Dp = when (this) {
     is AppCardShape.Semantic -> AppShapes.resolveContainerCornerDp(
         level = level,
         uiStyle = AppUiStyle.MIUIX,
+        liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
     )
     is AppCardShape.Uniform -> cornerRadius
 }

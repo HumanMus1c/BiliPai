@@ -32,6 +32,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.EnterExitState
@@ -2675,6 +2676,18 @@ internal fun VideoDetailScreenStateHolder(
             presentationState.switchVideo(managerBvid, managerCid)
             return@LaunchedEffect
         }
+        if (
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = success.info.bvid,
+                inPageInitiatedBvid = viewModel.peekInPageInitiatedPlaybackIdentityBvid()
+            )
+        ) {
+            // 播放器内部已自动推进（合集/队列下一集等）：身份错位是预期状态。
+            // 既不能像“presentation 领先”那样重载旧视频，也不能把 presentation 同步到新集数——
+            // 后者会中途改写 bvid 键控的 UI 状态（封面揭示/控制层），而此时没有新的首帧事件可恢复。
+            // 保持 presentation 原样与直开场景的行为一致。
+            return@LaunchedEffect
+        }
         if (!shouldSyncMainPlayerToInternalBvid(
                 isPortraitFullscreen = isPortraitFullscreen,
                 routeBvid = bvid,
@@ -3886,6 +3899,23 @@ internal fun VideoDetailScreenStateHolder(
                             compactForCommentTabProgress = commentTabCollapseProgress,
                             restoreRequested = inlinePlayerCollapseState.restoreRequested
                         )
+                        // Drag/scroll collapse stays directly coupled to the finger. Only an
+                        // explicit restore ("立即播放" / comment back-to-top) eases the player from
+                        // the 56dp toolbar back to its full viewport instead of jumping in one frame.
+                        val animatedCollapseProgress by animateFloatAsState(
+                            targetValue = effectiveCollapseProgress,
+                            animationSpec = if (inlinePlayerCollapseState.restoreRequested) {
+                                tween(
+                                    durationMillis = resolveInlinePortraitPlayerCommentCollapseDurationMillis(
+                                        videoContentTabSwitchAnimationSpec
+                                    ),
+                                    easing = FastOutSlowInEasing
+                                )
+                            } else {
+                                snap()
+                            },
+                            label = "inline_portrait_player_restore"
+                        )
                         // 下滑折叠后返回：布局必须先展开完整封面，否则 Crop 只显示一截。
                         // 读手势/phase 用 derivedStateOf，预测返回首帧就能展开，不依赖整页重组。
                         val miuixReturnState =
@@ -3933,7 +3963,7 @@ internal fun VideoDetailScreenStateHolder(
                             }
                         }
                         val layoutCollapseProgress = resolvePlayerCollapseProgressForLayout(
-                            manualOrCompactCollapseProgress = effectiveCollapseProgress,
+                            manualOrCompactCollapseProgress = animatedCollapseProgress,
                             expandForSharedReturn = expandPlayerForSharedReturn,
                         )
                         SideEffect {

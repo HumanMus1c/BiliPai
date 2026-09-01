@@ -13,6 +13,20 @@ data class RoundedControlVisualGeometry(
     val cornerRadius: Dp,
 )
 
+/** Text metrics are already converted through Density, including the user's font scale. */
+fun resolveMiuixNonGlassControlGeometry(
+    compact: Boolean,
+    textHeight: Dp,
+): RoundedControlVisualGeometry = RoundedControlVisualGeometry(
+    height = maxOf(
+        (if (compact) AppChromeSizeTokens.MiuixNativeCompactControlHeightDp
+        else AppChromeSizeTokens.MiuixNativeTabHeightDp).dp,
+        textHeight + 16.dp,
+    ),
+    cornerRadius = (if (compact) AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp
+    else AppChromeSizeTokens.MiuixNativeTabCornerRadiusDp).dp,
+)
+
 /**
  * Resolves visual geometry without treating the accessibility touch target as component height.
  *

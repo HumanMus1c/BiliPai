@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.store.resolveGlobalLiquidGlassReuseEnabled
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.adaptive.MotionTier
@@ -297,20 +297,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
     isScrollInProgressProvider: () -> Boolean = { false },
     content: @Composable BoxScope.(liquidChromeActive: Boolean) -> Unit
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(
-            initialValue = HomeSettings(),
-            context = kotlin.coroutines.EmptyCoroutineContext
-        )
-    val reuseAllowed = resolveGlobalLiquidGlassReuseEnabled(
-        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
-    )
-    val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
-        liquidGlassEnabled = reuseEnabled && reuseAllowed,
-        blurEnabled = true
-    )
+    val reuseAllowed = LocalAppThemeConfig.current.liquidGlassEnabled
     if (!reuseEnabled || !reuseAllowed || !liquidGlassEffectsEnabled) {
         Box(modifier = modifier) {
             content(false)
@@ -318,6 +305,17 @@ internal fun BottomBarMatchedReusableLiquidDock(
         return
     }
 
+    val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(
+            initialValue = HomeSettings(),
+            context = kotlin.coroutines.EmptyCoroutineContext
+        )
+    val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
+        liquidGlassEnabled = reuseEnabled && reuseAllowed,
+        blurEnabled = true
+    )
     val localBackdrop = rememberLayerBackdrop()
     val effectiveBackdrop = if (backdrop != null) {
         rememberCombinedBackdrop(localBackdrop, backdrop)

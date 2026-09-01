@@ -30,7 +30,7 @@ enum class GestureLevelOverlayStyle {
     Md3,
     /** iOS: centered frosted capsule with SF-style glyphs. */
     Ios,
-    /** MIUIX: edge vertical rail (brightness left / volume right). */
+    /** MIUIX: centered native animated vertical slider. */
     Miuix
 }
 
@@ -127,8 +127,7 @@ fun resolveGestureLevelOverlaySpec(
         GestureLevelOverlayStyle.Miuix -> GestureLevelOverlaySpec(
             style = style,
             kind = kind,
-            // MIUI-like: brightness rail on left, volume on right.
-            alignment = if (isVolume) Alignment.CenterEnd else Alignment.CenterStart,
+            alignment = Alignment.Center,
             showLabel = false,
             showPercentText = false,
             verticalRail = true,

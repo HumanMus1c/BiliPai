@@ -235,6 +235,7 @@ fun DynamicScreen(
     val likeOverrides by viewModel.likeOverrides.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }  // 存储要转发的动态ID
     var showPublishDialog by remember { mutableStateOf(false) }
+    var dynamicTopActionsCollapsed by rememberSaveable { mutableStateOf(false) }
     var editingDynamicId by remember { mutableStateOf<String?>(null) }
     var editingDraft by remember {
         mutableStateOf(com.android.purebilibili.data.model.response.DynamicPublishDraft(text = ""))
@@ -353,11 +354,18 @@ fun DynamicScreen(
         )
     }
 
+    val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     // Dock 只采集内容用于折射，顶部 tuning 将 blur 半径固定为 0。
-    val dynamicDockBackdrop = rememberLayerBackdrop()
+    val dynamicDockBackdrop = if (appThemeConfig.liquidGlassEnabled) rememberLayerBackdrop() else null
     // 顶部高斯模糊使用独立 Haze 源；液态玻璃的 Backdrop 渐进模糊仍单独由
     // DynamicTopBarWithTabs 根据安卓原生液态玻璃开关控制。
-    val dynamicTopBarHazeState = rememberRecoverableHazeState(initialBlurEnabled = true)
+    val dynamicTopBarHazeState = if (
+        appThemeConfig.liquidGlassEnabled || appThemeConfig.headerBlurEnabled
+    ) {
+        rememberRecoverableHazeState(initialBlurEnabled = true)
+    } else {
+        null
+    }
     val scope = rememberCoroutineScope()
     val onDynamicTabSelected: (Int) -> Unit = { visibleIndex ->
         scope.launch {
@@ -759,8 +767,20 @@ fun DynamicScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .layerBackdrop(dynamicDockBackdrop)
-                                    .hazeSourceCompat(state = dynamicTopBarHazeState)
+                                    .then(
+                                        if (dynamicDockBackdrop != null) {
+                                            Modifier.layerBackdrop(dynamicDockBackdrop)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .then(
+                                        if (dynamicTopBarHazeState != null) {
+                                            Modifier.hazeSourceCompat(state = dynamicTopBarHazeState)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                             ) {
                             HorizontalPager(
@@ -893,6 +913,8 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     onPublishClick = { showPublishDialog = true },
+                                    actionDockCollapsed = dynamicTopActionsCollapsed,
+                                    onActionDockCollapsedChange = { dynamicTopActionsCollapsed = it },
                                     publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
                                     hazeState = dynamicTopBarHazeState,
@@ -942,8 +964,20 @@ fun DynamicScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .layerBackdrop(dynamicDockBackdrop)
-                                .hazeSourceCompat(state = dynamicTopBarHazeState)
+                                .then(
+                                    if (dynamicDockBackdrop != null) {
+                                        Modifier.layerBackdrop(dynamicDockBackdrop)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .then(
+                                    if (dynamicTopBarHazeState != null) {
+                                        Modifier.hazeSourceCompat(state = dynamicTopBarHazeState)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                                 .globalWallpaperAwareBackground(AppSurfaceTokens.background())
                         ) {
                         HorizontalPager(
@@ -1085,6 +1119,8 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     onPublishClick = { showPublishDialog = true },
+                                    actionDockCollapsed = dynamicTopActionsCollapsed,
+                                    onActionDockCollapsedChange = { dynamicTopActionsCollapsed = it },
                                     publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
                                     hazeState = dynamicTopBarHazeState,
@@ -1383,6 +1419,9 @@ private fun DynamicList(
         )
     }
     val showSkeleton = filteredItems.isEmpty() && activeLoading
+    val dynamicGridKeys = remember(filteredItems) {
+        filteredItems.map { "dynamic_${dynamicFeedItemKey(it)}" }
+    }
     val skeletonPulse = if (showSkeleton) {
         com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse()
     } else {
@@ -1397,6 +1436,8 @@ private fun DynamicList(
             StaggeredGridCells.Adaptive(resolveDynamicTimelineMinColumnWidth())
         },
         state = listState,
+        prependItemKeys = dynamicGridKeys,
+        prependDividerIndex = if (isSelectedUserTabActive) -1 else oldContentDividerIndex,
         contentPadding = PaddingValues(
             top = statusBarHeight + topPaddingExtra,
             bottom = bottomPadding
@@ -1473,7 +1514,7 @@ private fun DynamicList(
         if (oldContentDividerIndex in 0..filteredItems.size) {
             items(
                 count = oldContentDividerIndex,
-                key = { index -> "dynamic_${dynamicFeedItemKey(filteredItems[index])}" },
+                key = { index -> dynamicGridKeys[index] },
                 contentType = { "dynamic_card" }
             ) { index ->
                 dynamicCard(filteredItems[index])
@@ -1489,7 +1530,7 @@ private fun DynamicList(
                 count = filteredItems.size - oldContentDividerIndex,
                 key = { offset ->
                     val index = oldContentDividerIndex + offset
-                    "dynamic_${dynamicFeedItemKey(filteredItems[index])}"
+                    dynamicGridKeys[index]
                 },
                 contentType = { "dynamic_card" }
             ) { offset ->
@@ -1498,7 +1539,7 @@ private fun DynamicList(
         } else {
             items(
                 count = filteredItems.size,
-                key = { index -> "dynamic_${dynamicFeedItemKey(filteredItems[index])}" },
+                key = { index -> dynamicGridKeys[index] },
                 contentType = { "dynamic_card" }
             ) { index ->
                 dynamicCard(filteredItems[index])

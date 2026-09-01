@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
 import android.os.Build
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -442,7 +443,9 @@ fun BottomBarLiquidSegmentedControl(
             enabled = enabled,
             scrollable = itemWidth != null,
             forceEqualWidth = forceEqualWidth,
-            minTabWidth = itemWidth ?: 72.dp,
+            // Short native tabs size from their label while retaining a real 48dp minimum
+            // hit width. The former 72dp liquid-dock default overflowed compact sibling rows.
+            minTabWidth = itemWidth ?: AppChromeSizeTokens.MinimumTouchTarget,
             allowLabelOverflow = allowNativeLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
         )

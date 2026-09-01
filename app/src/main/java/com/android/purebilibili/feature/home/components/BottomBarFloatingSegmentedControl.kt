@@ -112,7 +112,11 @@ internal fun BottomBarFloatingSegmentedControl(
     // with a local source can make MIUI's native background-blur graph sample itself when
     // nested pages mount another backdrop (for example Bangumi/Film), overflowing RenderThread.
     // Keep the local source strictly as a fallback so visual blur remains real in both paths.
-    val localBackdrop = rememberLayerBackdrop()
+    val localBackdrop = if (liquidGlassEnabled && miuixBackdrop == null) {
+        rememberLayerBackdrop()
+    } else {
+        null
+    }
     val effectiveBackdrop = if (liquidGlassEnabled) {
         miuixBackdrop ?: localBackdrop
     } else {
@@ -152,7 +156,7 @@ internal fun BottomBarFloatingSegmentedControl(
             requestedIndicatorHeightDp = indicatorHeight.value,
             indicatorWidthDp = fittedSegmentedIndicatorWidth.value,
         )
-        if (effectiveBackdrop != null && miuixBackdrop == null) {
+        if (effectiveBackdrop != null && miuixBackdrop == null && localBackdrop != null) {
             Box(
                 modifier = Modifier
                     .matchParentSize()

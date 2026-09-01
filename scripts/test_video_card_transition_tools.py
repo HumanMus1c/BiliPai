@@ -12,9 +12,9 @@ import video_card_transition_report as report
 import video_card_transition_curve_probe as probe
 
 
-def gfx(latencies=(5, 7, 8), interval=16_666_667, budget=16_666_667):
+def gfx(latencies=(5, 7, 8), interval=16_666_667, budget=16_666_667, flags=0, start=1_000_000_000):
     header = "Flags,IntendedVsync,FrameCompleted,FrameInterval,WorkloadTarget,"
-    rows = ["0,{},{},{},{},".format(1_000_000_000+i*interval, 1_000_000_000+i*interval+int(ms*1e6),
+    rows = ["{},{},{},{},{},".format(flags, start+i*interval, start+i*interval+int(ms*1e6),
                                    interval, budget) for i, ms in enumerate(latencies)]
     return "\n".join(["Number Missed Vsync: 2", "Number Slow UI thread: 3",
                       "---PROFILEDATA---", header, *rows, "---PROFILEDATA---"])
@@ -78,6 +78,61 @@ class TransitionReportTest(unittest.TestCase):
         rows, refresh = report.parse_frames(text)
         self.assertEqual(2, len(rows))
         self.assertEqual(1, refresh["rejected_rows"])
+
+    def test_vendor_bit_32_is_supported_without_accepting_other_flags(self):
+        for flags in (0, 32):
+            rows, refresh = report.parse_frames(gfx(flags=flags))
+            self.assertEqual(3, len(rows))
+            self.assertEqual([flags], refresh["accepted_flags"])
+            self.assertEqual(8, report.metrics(rows)["completion_latency_ms"]["p90"])
+        for flags in (1, 8, 33, 40, 64, -1):
+            rows, refresh = report.parse_frames(gfx(flags=flags))
+            self.assertEqual([], rows, flags)
+            self.assertEqual(3, refresh["rejected_rows"])
+
+    def test_checkpoint_retains_transition_and_uses_final_window_counters(self):
+        checkpoint = gfx(flags=32)
+        final = gfx(flags=32, start=2_000_000_000).replace("Number Missed Vsync: 2", "Number Missed Vsync: 9")
+        diagnostics = "monotonic_ns=999000000 phase=OPENING\nmonotonic_ns=1040000000 phase=HELD"
+        result = report.build_report(final, diagnostics=diagnostics, additional_gfx=[checkpoint, checkpoint])
+        self.assertEqual(6, result["aggregate"]["frame_count"])
+        self.assertEqual(3, result["phases"]["OPENING"]["frame_count"])
+        self.assertEqual(9, result["platform_window_counters"]["missed_vsync"])
+        self.assertEqual(0, result["phases"]["OPENING"]["incomplete_intervals"])
+
+    def test_overwritten_phase_cannot_pass_on_idle_frames(self):
+        diagnostics = "monotonic_ns=999000000 phase=OPENING\nmonotonic_ns=1040000000 phase=HELD"
+        result = report.build_report(gfx(start=2_000_000_000), "TOTAL PSS: 100", "TOTAL PSS: 100",
+                                     diagnostics=diagnostics)
+        self.assertEqual(1, result["phases"]["OPENING"]["incomplete_intervals"])
+        self.assertFalse(report.gate(result)["passed"])
+        self.assertIn("OPENING", " ".join(report.gate(result)["failures"]))
+
+    def test_partial_phase_is_reported_as_incomplete(self):
+        diagnostics = "monotonic_ns=900000000 phase=OPENING\nmonotonic_ns=1040000000 phase=HELD"
+        result = report.build_report(gfx(), diagnostics=diagnostics)
+        self.assertEqual(3, result["phases"]["OPENING"]["frame_count"])
+        self.assertEqual(1, result["phases"]["OPENING"]["incomplete_intervals"])
+
+    def test_slow_first_frame_is_not_mistaken_for_overwritten_buffer(self):
+        frames = gfx((5, 80, 5), interval=100_000_000)
+        diagnostics = "monotonic_ns=1010000000 phase=OPENING\nmonotonic_ns=1190000000 phase=HELD"
+        result = report.build_report(frames, diagnostics=diagnostics)
+        self.assertEqual(1, result["phases"]["OPENING"]["frame_count"])
+        self.assertEqual(0, result["phases"]["OPENING"]["incomplete_intervals"])
+
+    def test_disjoint_checkpoints_do_not_claim_coverage_across_a_gap(self):
+        diagnostics = "monotonic_ns=999000000 phase=OPENING\nmonotonic_ns=2040000000 phase=HELD"
+        result = report.build_report(gfx(start=2_000_000_000), diagnostics=diagnostics,
+                                     additional_gfx=[gfx()])
+        self.assertEqual(1, result["phases"]["OPENING"]["incomplete_intervals"])
+
+    def test_modern_and_legacy_platform_counters_are_kept_separate(self):
+        result = report.build_report("Total frames rendered: 100\nJanky frames: 0 (0%)\n"
+                                     "Janky frames (legacy): 23 (23%)\n" + gfx())
+        self.assertEqual(100, result["platform_window_counters"]["total_frames"])
+        self.assertEqual(0, result["platform_window_counters"]["janky_frames"])
+        self.assertEqual(23, result["platform_window_counters"]["janky_frames_legacy"])
 
     def test_duplicate_window_uses_latest_completion(self):
         rows, _ = report.parse_frames(gfx((5,)) + "\n" + gfx((9,)))
@@ -149,6 +204,13 @@ elif 'setprop' in joined:
                                     "--report-dir", str(directory / "reports")], env=env, cwd=folder,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.assertEqual(0, start.returncode, start.stderr.decode())
+            checkpoint = subprocess.run(["bash", script, "checkpoint"], env=env, cwd=folder,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual(0, checkpoint.returncode, checkpoint.stderr.decode())
+            self.assertNotIn('setprop log.tag.VideoCardMotion ""', calls.read_text())
+            self.assertEqual(1, len(list((directory / "raw").glob("*-checkpoint-*"))))
+            # Final ring contains only idle frames; the checkpoint must preserve OPENING.
+            env["MOCK_GFX"] = gfx(start=2_000_000_000)
             stop = subprocess.run(["bash", script, "stop"], env=env, cwd=folder,
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.assertEqual(0, stop.returncode, stop.stderr.decode())
@@ -157,6 +219,7 @@ elif 'setprop' in joined:
             data = json.loads(results[0].read_text())
             self.assertEqual("before build", data["label"])
             self.assertEqual(3, data["phases"]["OPENING"]["frame_count"])
+            self.assertEqual(6, data["aggregate"]["frame_count"])
             self.assertFalse((directory / "raw/video-card-hero-test.session").exists())
             self.assertIn('setprop log.tag.VideoCardMotion ""', calls.read_text())
 

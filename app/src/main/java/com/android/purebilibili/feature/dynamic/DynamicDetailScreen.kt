@@ -130,7 +130,7 @@ fun DynamicDetailScreen(
     val liquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
     // Only scrolling content captures this backdrop. The comment controls remain sibling
     // overlays, matching video detail and preventing a RenderNode backdrop cycle.
-    val detailCommentBackdrop = rememberLayerBackdrop()
+    val detailCommentBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
     val gifImageLoader = context.imageLoader
     val likedDynamics by interactionViewModel.likedDynamics.collectAsStateWithLifecycle()
     val likeOverrides by interactionViewModel.likeOverrides.collectAsStateWithLifecycle()
@@ -418,7 +418,13 @@ fun DynamicDetailScreen(
                                         state = commentListState,
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .layerBackdrop(detailCommentBackdrop),
+                                            .then(
+                                                if (detailCommentBackdrop != null) {
+                                                    Modifier.layerBackdrop(detailCommentBackdrop)
+                                                } else {
+                                                    Modifier
+                                                }
+                                            ),
                                         contentPadding = PaddingValues(bottom = commentContentBottomPadding),
                                     ) {
                                         commentContent()
@@ -474,7 +480,7 @@ fun DynamicDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(
-                                    if (floatingCommentComposer) {
+                                    if (floatingCommentComposer && detailCommentBackdrop != null) {
                                         Modifier.layerBackdrop(detailCommentBackdrop)
                                     } else {
                                         Modifier

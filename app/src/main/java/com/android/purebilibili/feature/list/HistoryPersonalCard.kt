@@ -266,7 +266,7 @@ internal fun HistoryPersonalCard(
     val coverWidth = PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP.dp
     val coverHeight =
         (PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP / PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO).dp
-    val coverShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.mediaCover()
     val owner = video.owner.name.takeIf { it.isNotBlank() }
         ?: if (item.business == HistoryBusiness.PGC) "番剧" else "未知作者"
     val viewedAt = FormatUtils.formatPublishTime(video.view_at)

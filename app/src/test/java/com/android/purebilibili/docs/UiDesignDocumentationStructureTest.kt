@@ -269,7 +269,7 @@ class UiDesignDocumentationStructureTest {
             "文案",
             "无障碍",
             "响应式",
-            "三风格",
+            "双预设",
             "Compose 入口",
             "当前差距",
             "验收",

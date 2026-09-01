@@ -13,7 +13,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -65,12 +64,14 @@ import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesture
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveVideoGestureMotionSpec
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.SliderDefaults
+import top.yukonga.miuix.kmp.basic.VerticalSlider
 
 /**
  * Theme-native volume / brightness feedback:
  * - MD3: centered, theme-colored circular indicator
  * - iOS: centered frosted capsule
- * - MIUIX: edge vertical system-style rail
+ * - MIUIX: centered native animated vertical slider
  */
 @Composable
 fun BoxScope.GestureLevelOverlayHost(
@@ -115,7 +116,7 @@ fun BoxScope.GestureLevelOverlayHost(
             .then(
                 when (style) {
                     GestureLevelOverlayStyle.Md3 -> Modifier
-                    GestureLevelOverlayStyle.Miuix -> Modifier.padding(horizontal = 22.dp)
+                    GestureLevelOverlayStyle.Miuix -> Modifier
                     GestureLevelOverlayStyle.Ios -> Modifier.padding(horizontal = 22.dp)
                 }
             )
@@ -152,7 +153,7 @@ fun BoxScope.GestureLevelOverlayHost(
                 progress = progress,
                 percent = percentInt
             )
-            GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelRail(
+            GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelSlider(
                 spec = spec,
                 icon = icon,
                 progress = progress
@@ -290,71 +291,65 @@ private fun IosGestureLevelCapsule(
 }
 
 @Composable
-private fun MiuixGestureLevelRail(
+private fun MiuixGestureLevelSlider(
     spec: GestureLevelOverlaySpec,
     icon: ImageVector,
     progress: Float
 ) {
-    val shape = CircleShape
     val standardMotion = AppMotionTokens.standardSpec<Float>()
     val emphasizedMotion = AppMotionTokens.emphasizedSpec<Float>()
     val expressiveMotion = AppMotionTokens.expressiveSpec<Float>()
+    val sliderColors = SliderDefaults.sliderColors(
+        foregroundColor = spec.fillColor,
+        disabledForegroundColor = spec.fillColor,
+        backgroundColor = spec.containerColor,
+        disabledBackgroundColor = spec.containerColor,
+        thumbColor = spec.iconTint,
+        disabledThumbColor = spec.iconTint
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
+        VerticalSlider(
+            value = progress,
+            onValueChange = {},
             modifier = Modifier
                 .width(spec.railWidthDp.dp)
                 .height(spec.railHeightDp.dp)
-                .clip(shape)
-                .background(spec.containerColor)
-                .border(1.dp, spec.borderColor, shape)
+                .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
+            enabled = false,
+            width = spec.railWidthDp.dp,
+            colors = sliderColors,
+            effect = true
+        )
+        Box(
+            modifier = Modifier
+                .size((spec.iconSizeDp + 14).dp)
+                .background(spec.containerColor, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .fillMaxHeight(progress)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                spec.fillColor.copy(alpha = 0.78f),
-                                spec.fillColor
-                            )
+            AnimatedContent(
+                targetState = icon,
+                transitionSpec = {
+                    (fadeIn(standardMotion) +
+                        scaleIn(initialScale = 0.82f, animationSpec = emphasizedMotion))
+                        .togetherWith(
+                            fadeOut(expressiveMotion) +
+                                scaleOut(
+                                    targetScale = 1.12f,
+                                    animationSpec = standardMotion
+                                )
                         )
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 14.dp)
-                    .size((spec.iconSizeDp + 10).dp)
-                    .background(Color.Black.copy(alpha = 0.22f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                AnimatedContent(
-                    targetState = icon,
-                    transitionSpec = {
-                        (fadeIn(standardMotion) +
-                            scaleIn(initialScale = 0.82f, animationSpec = emphasizedMotion))
-                            .togetherWith(
-                                fadeOut(expressiveMotion) +
-                                    scaleOut(
-                                        targetScale = 1.12f,
-                                        animationSpec = standardMotion
-                                    )
-                            )
-                    },
-                    label = "miuix-gesture-icon"
-                ) { target ->
-                    AppIcon(
-                        imageVector = target,
-                        contentDescription = null,
-                        tint = spec.iconTint,
-                        modifier = Modifier.size(spec.iconSizeDp.dp)
-                    )
-                }
+                },
+                label = "miuix-gesture-icon"
+            ) { target ->
+                AppIcon(
+                    imageVector = target,
+                    contentDescription = null,
+                    tint = spec.iconTint,
+                    modifier = Modifier.size(spec.iconSizeDp.dp)
+                )
             }
         }
     }
@@ -506,7 +501,7 @@ fun GestureLevelOverlayContent(
                 progress = progress,
                 percent = percentInt
             )
-            GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelRail(
+            GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelSlider(
                 spec = spec,
                 icon = icon,
                 progress = progress

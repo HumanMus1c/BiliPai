@@ -1,13 +1,23 @@
 package com.android.purebilibili.core.ui.renderer.miuix
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.adaptiveSquircleBackground
@@ -18,9 +28,12 @@ import com.android.purebilibili.core.ui.components.AppSegmentedControlColors
 import com.android.purebilibili.core.ui.components.resolveAppMiuixSegmentedColors
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionIndex
 import com.android.purebilibili.core.ui.resolveRoundedControlVisualGeometry
+import com.android.purebilibili.core.ui.resolveMiuixNonGlassControlGeometry
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
 import top.yukonga.miuix.kmp.squircle.squircleClip
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 internal fun <T> AppMiuixSegmentedControl(
@@ -33,6 +46,18 @@ internal fun <T> AppMiuixSegmentedControl(
     modifier: Modifier,
     onSelectionChange: (T) -> Unit,
 ) {
+    if (isMiuixNonGlassEnabled()) {
+        AppMiuixNonGlassTabs(
+            options = options,
+            selectedValue = selectedValue,
+            enabled = enabled,
+            compact = true,
+            minTabWidth = 0.dp,
+            modifier = modifier,
+            onSelectionChange = onSelectionChange,
+        )
+        return
+    }
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val tabColors = resolveAppMiuixSegmentedColors(colors)
     val itemGeometry = resolveRoundedControlVisualGeometry(
@@ -90,6 +115,18 @@ internal fun <T> AppMiuixTabRow(
     indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
+    if (isMiuixNonGlassEnabled()) {
+        AppMiuixNonGlassTabs(
+            options = options,
+            selectedValue = selectedValue,
+            enabled = enabled,
+            compact = false,
+            minTabWidth = minTabWidth,
+            modifier = modifier,
+            onSelectionChange = onSelectionChange,
+        )
+        return
+    }
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val scrollState = rememberLazyListState()
     val tabColors = resolveAppMiuixSegmentedColors(colors)
@@ -131,6 +168,72 @@ internal fun <T> AppMiuixTabRow(
         if (selectedIndex == 0 || selectedIndex == options.lastIndex) {
             withFrameNanos { }
             scrollState.scrollToItem(selectedIndex)
+        }
+    }
+}
+
+/** Native tabs own selection/press feedback; the wrapper only supplies measured geometry. */
+@Composable
+private fun <T> AppMiuixNonGlassTabs(
+    options: List<AppSegmentOption<T>>,
+    selectedValue: T,
+    enabled: Boolean,
+    compact: Boolean,
+    minTabWidth: Dp,
+    modifier: Modifier,
+    onSelectionChange: (T) -> Unit,
+) {
+    val labels = options.map { it.label }
+    val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    // Match upstream TabItem: main text with body1 size, bold when selected.
+    val style = MiuixTheme.textStyles.main.copy(
+        fontSize = MiuixTheme.textStyles.body1.fontSize,
+        fontWeight = FontWeight.Bold,
+    )
+    val labelSizes = remember(labels, style, measurer, density) {
+        labels.map { measurer.measure(AnnotatedString(it), style, maxLines = 1).size }
+    }
+    val textHeight = with(density) { (labelSizes.maxOfOrNull { it.height } ?: 0).toDp() }
+    val labelWidth = with(density) { (labelSizes.maxOfOrNull { it.width } ?: 0).toDp() }
+    val geometry = resolveMiuixNonGlassControlGeometry(compact, textHeight)
+    val interactiveHeight = maxOf(geometry.height, AppChromeSizeTokens.MinimumTouchTarget)
+    val readableWidth = maxOf(
+        AppChromeSizeTokens.MinimumTouchTarget,
+        minTabWidth,
+        labelWidth + 24.dp,
+    )
+    val scrollState = rememberLazyListState()
+    BoxWithConstraints(
+        modifier = modifier
+            .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
+            .then(if (!enabled) Modifier.semantics { disabled() } else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        val needsScroll = readableWidth * options.size + 8.dp * (options.size - 1) > maxWidth
+        TabRow(
+            tabs = labels,
+            selectedTabIndex = selectedIndex,
+            onTabSelected = { index ->
+                if (enabled) options.getOrNull(index)?.let { onSelectionChange(it.value) }
+            },
+            modifier = Modifier.squircleClip(geometry.cornerRadius),
+            minWidth = readableWidth,
+            maxWidth = Dp.Infinity,
+            // Miuix 0.9.4 attaches selectable to the full TabRow height and does not expose a
+            // separate hit slop API. Use the accessibility minimum as the actual native row
+            // height; an outer 48dp wrapper alone leaves the selectable area at 36/42dp.
+            height = interactiveHeight,
+            cornerRadius = geometry.cornerRadius,
+            itemSpacing = 8.dp,
+            listState = scrollState,
+        )
+        LaunchedEffect(needsScroll, selectedIndex, options.size) {
+            if (needsScroll && (selectedIndex == 0 || selectedIndex == options.lastIndex)) {
+                withFrameNanos { }
+                scrollState.scrollToItem(selectedIndex)
+            }
         }
     }
 }

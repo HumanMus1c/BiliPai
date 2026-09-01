@@ -1294,7 +1294,10 @@ open class MainActivity : AppCompatActivity() {
             val nativeMiuixPopupsEnabled by com.android.purebilibili.core.store.player.PlayerSettingsStore
                 .getNativeMiuixPlayerPopups(context)
                 .collectAsStateWithLifecycle(initialValue = true)
+            val liquidGlassEnabled by SettingsManager.getAndroidNativeLiquidGlassEnabled(context)
+                .collectAsStateWithLifecycle(initialValue = true)
             val appThemeConfig = remember(
+                liquidGlassEnabled,
                 blurIntensity,
                 headerBlurEnabled,
                 bottomBarBlurEnabled,
@@ -1305,6 +1308,7 @@ open class MainActivity : AppCompatActivity() {
                 nativeMiuixPopupsEnabled,
             ) {
                 AppThemeConfig(
+                    liquidGlassEnabled = liquidGlassEnabled,
                     blurIntensity = blurIntensity,
                     headerBlurEnabled = headerBlurEnabled,
                     bottomBarBlurEnabled = bottomBarBlurEnabled,
@@ -1386,6 +1390,7 @@ open class MainActivity : AppCompatActivity() {
 
             // 6. 传入参数
             PureBiliBiliTheme(
+                liquidGlassEnabled = liquidGlassEnabled,
                 uiStyle = appThemeSettings.uiStyle,
                 themeMode = themeMode,
                 darkTheme = useDarkTheme,

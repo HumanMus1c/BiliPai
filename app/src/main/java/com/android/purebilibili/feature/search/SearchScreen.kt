@@ -733,9 +733,8 @@ fun SearchScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val hotSearchEnabled by SettingsManager.getSearchHotSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val discoverSectionEnabled by SettingsManager.getSearchDiscoverSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
-    val androidNativeLiquidGlassEnabled by SettingsManager
-        .getAndroidNativeLiquidGlassEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
+    val androidNativeLiquidGlassEnabled =
+        com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     val effectiveLiquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
         androidNativeEnabled = androidNativeLiquidGlassEnabled,
     )
@@ -979,11 +978,21 @@ fun SearchScreen(
                 .globalWallpaperAwareBackground()
                 .padding(padding)
         ) {
-            val searchChromeBackdrop = rememberLayerBackdrop()
+            val searchChromeBackdrop = if (effectiveLiquidGlassEnabled) {
+                rememberLayerBackdrop()
+            } else {
+                null
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .layerBackdrop(searchChromeBackdrop)
+                    .then(
+                        if (searchChromeBackdrop != null) {
+                            Modifier.layerBackdrop(searchChromeBackdrop)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .globalWallpaperAwareBackground(),
             )
             // --- 列表内容层 ---
@@ -3165,7 +3174,7 @@ fun SearchResultCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 10f)
-                .clip(AppShapes.container(ContainerLevel.Card))
+                .clip(AppShapes.mediaCover())
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(

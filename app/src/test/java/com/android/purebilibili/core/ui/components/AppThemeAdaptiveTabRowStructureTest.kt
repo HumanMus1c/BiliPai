@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui.components
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -21,11 +22,18 @@ class AppThemeAdaptiveTabRowStructureTest {
         assertTrue(adaptiveEntry.contains("tapPressRefractionEnabled = tapPressRefractionEnabled"))
         assertTrue(adaptiveEntry.contains("height = height"))
         assertTrue(adaptiveEntry.contains("indicatorHeight = indicatorHeight"))
+        assertEquals(
+            2,
+            source.lineSequence().count {
+                it.contains("minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget")
+            },
+        )
         assertFalse(adaptiveEntry.contains("AppNativeTabRow("))
         assertFalse(adaptiveEntry.contains("LocalAppUiStyle"))
 
         val adaptiveRenderer = source.substringAfter("fun <T> AppLiquidAwareTabRow(")
-        assertTrue(adaptiveRenderer.contains("!homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(adaptiveRenderer.contains("LocalAppThemeConfig.current.liquidGlassEnabled"))
+        assertTrue(adaptiveRenderer.contains("!liquidGlassEnabled"))
         assertTrue(adaptiveRenderer.contains("AppNativeTabRow("))
         assertTrue(adaptiveRenderer.contains("allowLabelOverflow = true"))
         assertTrue(adaptiveRenderer.contains("indicatorPositionProvider = indicatorPositionProvider"))

@@ -35,15 +35,13 @@ class FeedSettingsSelectionPolicyTest {
     }
 
     @Test
-    fun `settings pages use flat preference groups`() {
+    fun `non glass Miuix settings use grouped cards while legacy paths remain flat`() {
         val source = locate("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsPageScaffold.kt")
             .readText()
 
-        assertTrue(
-            source.contains(
-                "LocalAppPreferenceGroupPresentation provides AppPreferenceGroupPresentation.FLAT"
-            )
-        )
+        assertTrue(source.contains("LocalAppPreferenceGroupPresentation provides if (nonGlassMiuix)"))
+        assertTrue(source.contains("AppPreferenceGroupPresentation.CARD"))
+        assertTrue(source.contains("AppPreferenceGroupPresentation.FLAT"))
     }
 
     private fun locate(path: String): File {

@@ -928,6 +928,7 @@ fun PureBiliBiliTheme(
     appFontFileName: String = "",
     appIconStyle: AppIconStyle = AppIconStyle.AUTO,
     appListItemStyle: AppListItemStyle = AppListItemStyle.AUTO,
+    liquidGlassEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -951,7 +952,7 @@ fun PureBiliBiliTheme(
     val appFontFamily = remember(context, appFontFileName) {
         loadStoredAppFontFamily(context, appFontFileName)
     }
-    val materialTypography = resolveMaterialTypography(uiStyle)
+    val materialTypography = resolveMaterialTypography(uiStyle, liquidGlassEnabled)
         .scaled(fontSizePreset.multiplier)
         .withFontFamily(appFontFamily)
     val materialMotionScheme = remember(uiStyle) {

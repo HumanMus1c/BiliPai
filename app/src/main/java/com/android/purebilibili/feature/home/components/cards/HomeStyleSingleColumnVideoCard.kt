@@ -134,7 +134,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     val coverBounds = remember { object { var value: Rect? = null } }
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
-    val coverShape = AppShapes.container(ContainerLevel.Field)
+    val coverShape = AppShapes.mediaCover(legacyLevel = ContainerLevel.Field)
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedReady,

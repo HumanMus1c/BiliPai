@@ -640,6 +640,8 @@ private const val DANMAKU_DURATION_WAIT_INTERVAL_MS = 200L
 // 避免一次性检查 mediaItemCount=0 后永远错过 Surface 重绑。
 private const val MEDIA_SWITCH_SURFACE_REBIND_ATTEMPTS = 40
 private const val MEDIA_SWITCH_SURFACE_REBIND_INTERVAL_MS = 50L
+private const val MEDIA_SWITCH_SURFACE_RETRY_ATTEMPTS = 2
+private const val MEDIA_SWITCH_SURFACE_RETRY_INTERVAL_MS = 750L
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -1273,6 +1275,7 @@ fun VideoPlayerSection(
     // 📱 [优化] 复用 VideoPlayerState 中的视频尺寸状态，避免重复监听
     val videoSizeState by playerState.videoSize.collectAsStateWithLifecycle()
     val debugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
+    val latestDebugInfo = rememberUpdatedState(debugInfo)
     val diagnosticEvents by playerState.diagnosticEvents.collectAsStateWithLifecycle()
     val pendingUserAction by playerState.pendingUserAction.collectAsStateWithLifecycle()
     val playerDiagnosticLoggingEnabled by SettingsManager
@@ -2947,6 +2950,49 @@ fun VideoPlayerSection(
             }
             Logger.d("VideoPlayerSection") {
                 "🎬 In-page media switch surface rebind: bvid=$bvid identity=$successPlaybackIdentity"
+            }
+
+            // Some ROMs accept the first rebind while the new decoder output is not ready yet.
+            // Audio and Compose gestures then continue normally, but no frame reaches PlayerView.
+            // Retry only while the same keyed media identity is READY and still has no first-frame
+            // callback. A new identity cancels this effect before it can touch the next video.
+            repeat(MEDIA_SWITCH_SURFACE_RETRY_ATTEMPTS) { retryIndex ->
+                delay(MEDIA_SWITCH_SURFACE_RETRY_INTERVAL_MS)
+                val currentPlayer = playerState.player
+                val hasRenderedFirstFrame = latestDebugInfo.value.firstFrame.equals(
+                    "rendered",
+                    ignoreCase = true
+                )
+                if (
+                    !hasRenderedFirstFrame &&
+                    currentPlayer.playWhenReady &&
+                    currentPlayer.playbackState == Player.STATE_BUFFERING
+                ) {
+                    return@repeat
+                }
+                if (!shouldRetryMediaSwitchSurfaceRebind(
+                        hasRenderedFirstFrame = hasRenderedFirstFrame,
+                        shouldBindInlinePlayerView = shouldBindInlinePlayerView,
+                        isInPipMode = isInPipMode,
+                        hasPlayerView = playerViewRef != null,
+                        playWhenReady = currentPlayer.playWhenReady,
+                        playbackState = currentPlayer.playbackState
+                    )
+                ) {
+                    return@LaunchedEffect
+                }
+                videoOutputRouter.update(
+                    playerView = playerViewRef,
+                    inputSurface = anime4kInputSurface,
+                    shouldBindDirectPlayerView = shouldBindInlinePlayerView,
+                    shouldUseAnime4K = shouldUseAnime4kPipeline
+                )
+                videoOutputRouter.rebindDirectSurfaceIfNeeded()
+                Logger.w(
+                    "VideoPlayerSection",
+                    "⚠️ Retrying media-switch surface rebind ${retryIndex + 1}/" +
+                        "$MEDIA_SWITCH_SURFACE_RETRY_ATTEMPTS: identity=$successPlaybackIdentity"
+                )
             }
         }
 

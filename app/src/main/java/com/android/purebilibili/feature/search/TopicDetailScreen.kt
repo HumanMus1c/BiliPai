@@ -68,8 +68,6 @@ import com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSk
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.R
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
@@ -102,12 +100,10 @@ fun TopicDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val context = LocalContext.current
-    val homeSettings by SettingsManager.getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val liquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
-        androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        androidNativeEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled,
     )
-    val topicBackdrop = rememberLayerBackdrop()
+    val topicBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
     var showPublishComposer by remember { mutableStateOf(false) }
 
     LaunchedEffect(topicId) {
@@ -146,7 +142,7 @@ fun TopicDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .globalWallpaperAwareBackground()
-                .layerBackdrop(topicBackdrop)
+                .then(if (topicBackdrop != null) Modifier.layerBackdrop(topicBackdrop) else Modifier)
                 .padding(padding)
         ) {
             when {
@@ -371,7 +367,7 @@ private fun TopicSortControl(
 @Composable
 private fun TopicParticipateButton(
     liquidGlassEnabled: Boolean,
-    backdrop: top.yukonga.miuix.kmp.blur.Backdrop,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

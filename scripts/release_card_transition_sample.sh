@@ -13,6 +13,7 @@ usage() {
   cat <<'EOF'
 Usage:
   release_card_transition_sample.sh start [--device SERIAL] [--label NAME] [--report-dir DIR] [--config JSON]
+  release_card_transition_sample.sh checkpoint [--device SERIAL]
   release_card_transition_sample.sh stop  [--device SERIAL] [--phase OPENING|RETURNING|PredictiveCommit|PredictiveCancel]
   release_card_transition_sample.sh abort [--device SERIAL]
 
@@ -20,14 +21,16 @@ Only release/dev packages. Set PKG=com.android.purebilibili.dev for dev.
 Keep the same OUT_DIR for start/stop. Report directory and label are saved in the session.
 --config adds manually recorded settings; unavailable settings are "unknown", never guessed.
 --phase is ONLY for a deliberately single-phase sample; normally diagnostics attribute phases.
-Use short samples: gfxinfo framestats is a bounded ring buffer.
-No compilation, packaging, install, recording or active sampling-window ADB reads occur.
+Use checkpoint immediately AFTER each transition settles, before the next action.
+It saves the bounded frame ring before idle/video frames overwrite the transition.
+Stop merges checkpoints and the final dump without duplicating frames or window counters.
+No compilation, packaging, install, recording or continuous ADB polling occurs.
 Exit 2 means a performance gate failed; raw files and both reports are still saved.
 EOF
 }
 MODE="${1:-}"
 [[ $# == 0 ]] || shift
-case "$MODE" in start|stop|abort) ;; -h|--help|"") usage; exit 0 ;; *) usage >&2; exit 1 ;; esac
+case "$MODE" in start|checkpoint|stop|abort) ;; -h|--help|"") usage; exit 0 ;; *) usage >&2; exit 1 ;; esac
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --device|--label|--report-dir|--config|--phase)
@@ -114,6 +117,20 @@ START_EPOCH="$(read_session START_EPOCH)"
 case "$PKG" in com.android.purebilibili|com.android.purebilibili.dev) ;; *) echo "Invalid session package" >&2; exit 1 ;; esac
 [[ "$LOG_LEVEL" =~ ^[A-Za-z0-9]*$ ]] || { echo "Invalid saved log property" >&2; exit 1; }
 restore_log_level() { adb_cmd shell "setprop log.tag.VideoCardMotion \"$LOG_LEVEL\"" >/dev/null 2>&1 || true; }
+if [[ "$MODE" == checkpoint ]]; then
+  require_foreground
+  [[ "$(adb_cmd shell pidof "$PKG" | tr -d '\r')" == "$PID" ]] || {
+    echo "App restarted: invalid sample, session retained." >&2; exit 1;
+  }
+  CHECKPOINT="$(mktemp "${BASE}-checkpoint-XXXXXX")"
+  if ! adb_cmd shell dumpsys gfxinfo "$PKG" framestats > "$CHECKPOINT" ||
+      ! grep -q '^---PROFILEDATA---' "$CHECKPOINT" || grep -q 'Failure while dumping the app' "$CHECKPOINT"; then
+    mv "$CHECKPOINT" "${CHECKPOINT}.invalid"
+    echo "Checkpoint frame data unavailable; session retained." >&2; exit 1
+  fi
+  echo "Saved frame checkpoint: $CHECKPOINT"
+  exit 0
+fi
 trap restore_log_level EXIT
 if [[ "$MODE" == abort ]]; then
   mv "$STATE_FILE" "${BASE}-aborted.session"
@@ -135,6 +152,10 @@ set -- python3 -B "$SCRIPT_DIR/video_card_transition_report.py" "${BASE}-gfxinfo
   --diagnostics "${BASE}-diagnostics.txt" --config "${BASE}-config.json" --label "$LABEL" \
   --json-out "${REPORT_BASE}.json" --markdown-out "${REPORT_BASE}.md"
 [[ -z "$PHASE" ]] || set -- "$@" --phase "$PHASE"
+for checkpoint in "${BASE}"-checkpoint-*; do
+  [[ -f "$checkpoint" && "$checkpoint" != *.invalid ]] || continue
+  set -- "$@" --additional-gfxinfo "$checkpoint"
+done
 "$@" || RESULT=$?
 if [[ "$RESULT" == 0 || "$RESULT" == 2 ]] && [[ -f "${REPORT_BASE}.json" ]]; then
   mv "$STATE_FILE" "${BASE}-completed.session"

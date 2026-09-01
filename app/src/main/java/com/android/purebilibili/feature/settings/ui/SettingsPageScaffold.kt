@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
+import com.android.purebilibili.core.ui.AppTopBarStyle
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
@@ -40,6 +41,9 @@ import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.appTopBarNestedScroll
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
+import com.android.purebilibili.core.ui.rememberAppTopBarCollapseBehavior
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppPreferenceIconTreatment
@@ -106,6 +110,7 @@ internal fun SettingsPageScaffold(
     listState: LazyListState = rememberLazyListState(),
     scrollHost: SettingsPageScrollHost = SettingsPageScrollHost.LazyColumn,
     topBarBlurEnabled: Boolean? = null,
+    topBarStyle: AppTopBarStyle = AppTopBarStyle.SMALL,
     actions: @Composable RowScope.() -> Unit = {},
     header: (@Composable () -> Unit)? = null,
     lazyListContent: (LazyListScope.() -> Unit)? = null,
@@ -123,10 +128,22 @@ internal fun SettingsPageScaffold(
         .getHeaderBlurEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
     val effectiveTopBarBlurEnabled = topBarBlurEnabled ?: globalTopBarBlurEnabled
-    val hazeState = rememberRecoverableHazeState()
+    val nonGlassMiuix = isMiuixNonGlassEnabled()
+    val collapseBehavior = if (
+        nonGlassMiuix &&
+        topBarStyle == AppTopBarStyle.LARGE &&
+        scrollHost == SettingsPageScrollHost.LazyColumn
+    ) {
+        rememberAppTopBarCollapseBehavior()
+    } else {
+        null
+    }
+    val hazeState = if (effectiveTopBarBlurEnabled) rememberRecoverableHazeState() else null
     val blurIntensity = currentUnifiedBlurIntensity()
     val topBarSurfaceAlpha = if (effectiveTopBarBlurEnabled) {
         BlurStyles.getBackgroundAlpha(blurIntensity)
+    } else if (nonGlassMiuix) {
+        1f
     } else {
         0.86f
     }
@@ -134,10 +151,14 @@ internal fun SettingsPageScaffold(
 
     CompositionLocalProvider(
         LocalAppPreferenceIconTreatment provides AppPreferenceIconTreatment.FILLED,
-        LocalAppPreferenceGroupPresentation provides AppPreferenceGroupPresentation.FLAT,
+        LocalAppPreferenceGroupPresentation provides if (nonGlassMiuix) {
+            AppPreferenceGroupPresentation.CARD
+        } else {
+            AppPreferenceGroupPresentation.FLAT
+        },
     ) {
         AppScaffold(
-            modifier = modifier,
+            modifier = modifier.appTopBarNestedScroll(collapseBehavior),
             topBar = {
                 Box {
                     TopReadabilityChrome(
@@ -159,11 +180,17 @@ internal fun SettingsPageScaffold(
                         },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent,
+                            containerColor = if (nonGlassMiuix && !effectiveTopBarBlurEnabled) {
+                                pageContainerColor
+                            } else {
+                                Color.Transparent
+                            },
                             titleContentColor = MaterialTheme.colorScheme.onSurface,
                             navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                             actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                         ),
+                        style = topBarStyle,
+                        collapseBehavior = collapseBehavior,
                     )
                 }
             },
@@ -174,7 +201,7 @@ internal fun SettingsPageScaffold(
                 .padding(padding)
                 .fillMaxSize()
                 .then(
-                    if (effectiveTopBarBlurEnabled) {
+                    if (effectiveTopBarBlurEnabled && hazeState != null) {
                         Modifier.hazeSourceCompat(state = hazeState)
                     } else {
                         Modifier

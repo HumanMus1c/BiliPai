@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.section
 
+import androidx.media3.common.Player
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -276,6 +277,64 @@ class VideoPlayerSurfacePolicyTest {
                 isInPipMode = false,
                 hasPlayerView = true,
                 mediaItemCount = 1
+            )
+        )
+    }
+
+    @Test
+    fun `collection switch retries surface when ready playback still has no first frame`() {
+        assertTrue(
+            shouldRetryMediaSwitchSurfaceRebind(
+                hasRenderedFirstFrame = false,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = false,
+                hasPlayerView = true,
+                playWhenReady = true,
+                playbackState = Player.STATE_READY
+            )
+        )
+    }
+
+    @Test
+    fun `collection switch stops surface retries after frame or outside active host`() {
+        assertFalse(
+            shouldRetryMediaSwitchSurfaceRebind(
+                hasRenderedFirstFrame = true,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = false,
+                hasPlayerView = true,
+                playWhenReady = true,
+                playbackState = Player.STATE_READY
+            )
+        )
+        assertFalse(
+            shouldRetryMediaSwitchSurfaceRebind(
+                hasRenderedFirstFrame = false,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = true,
+                hasPlayerView = true,
+                playWhenReady = true,
+                playbackState = Player.STATE_READY
+            )
+        )
+        assertFalse(
+            shouldRetryMediaSwitchSurfaceRebind(
+                hasRenderedFirstFrame = false,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = false,
+                hasPlayerView = true,
+                playWhenReady = false,
+                playbackState = Player.STATE_READY
+            )
+        )
+        assertFalse(
+            shouldRetryMediaSwitchSurfaceRebind(
+                hasRenderedFirstFrame = false,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = false,
+                hasPlayerView = true,
+                playWhenReady = true,
+                playbackState = Player.STATE_BUFFERING
             )
         )
     }

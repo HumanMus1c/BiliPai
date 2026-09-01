@@ -281,7 +281,8 @@ fun <T> AppNativeTabRow(
             colors = colors,
             preferredCornerRadius = policy.preferredCornerRadius,
             height = height,
-            modifier = if (!effectiveScrollable && options.size == 2) {
+            modifier = if (!com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() &&
+                !effectiveScrollable && options.size == 2) {
                 viewportBoundedModifier.requiredWidth(readableMinTabWidth * options.size)
             } else {
                 viewportBoundedModifier

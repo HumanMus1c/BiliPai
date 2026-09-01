@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -278,7 +277,7 @@ fun RelatedVideoItem(
         onClick()
         Unit
     }
-    val coverShape = RoundedCornerShape(10.dp)
+    val coverShape = AppShapes.mediaCover(legacyLevel = ContainerLevel.Field)
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     val coverHeight = coverWidth / coverAspectRatio
     // 排版对齐首页单列卡片:标题用 feed 紧凑级,统计用 labelSmall。

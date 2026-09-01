@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastRoundToInt
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
+import top.yukonga.miuix.kmp.nav.transition.NavMotion
 import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.NavTransitionScope
 
@@ -21,10 +22,23 @@ internal fun biliPaiMiuixNavTransition(
     exitDirection: BiliPaiPredictiveBackExitDirection,
     isLightBackground: Boolean,
     miuixTransitionBlurEnabled: Boolean = true,
+    miuixPredictiveBackMaxProgressPercent: Int =
+        MIUIX_PREDICTIVE_BACK_DEFAULT_MAX_PROGRESS_PERCENT,
+    miuixPredictiveBackProgressEnabled: Boolean = true,
 ): NavTransition {
+    val progressControlEnabled = shouldUseMiuixPredictiveBackProgress(
+        animation = animation,
+        enabled = miuixPredictiveBackProgressEnabled,
+    )
+    val maxPreviewFraction =
+        miuixPredictiveBackMaxProgressPercent.coerceIn(0, 100) / 100f
     val baseTransition = when (animation) {
         BiliPaiPredictiveBackAnimationStyle.NONE -> return NoPredictiveBackTransition
-        BiliPaiPredictiveBackAnimationStyle.MIUIX -> miuixDepthNavTransition()
+        BiliPaiPredictiveBackAnimationStyle.MIUIX -> if (progressControlEnabled) {
+            miuixPredictiveBackProgressTransition(maxPreviewFraction)
+        } else {
+            miuixDepthNavTransition()
+        }
         BiliPaiPredictiveBackAnimationStyle.AOSP -> AospNavTransition
         BiliPaiPredictiveBackAnimationStyle.SCALE -> scaleNavTransition(exitDirection)
         BiliPaiPredictiveBackAnimationStyle.CLASSIC -> ClassicNavTransition
@@ -33,8 +47,15 @@ internal fun biliPaiMiuixNavTransition(
         baseTransition = baseTransition,
         isLightBackground = isLightBackground,
         blurEnabled = miuixTransitionBlurEnabled,
+        progressControlEnabled = progressControlEnabled,
+        maxPreviewFraction = maxPreviewFraction,
     )
 }
+
+internal fun shouldUseMiuixPredictiveBackProgress(
+    animation: BiliPaiPredictiveBackAnimationStyle,
+    enabled: Boolean,
+): Boolean = enabled && animation == BiliPaiPredictiveBackAnimationStyle.MIUIX
 
 /**
  * Adds MIUI-style depth blur to the retained page below every animated top entry.
@@ -67,8 +88,25 @@ private fun realtimeCoveredBlurTransition(
     baseTransition: NavTransition,
     isLightBackground: Boolean,
     blurEnabled: Boolean,
+    progressControlEnabled: Boolean,
+    maxPreviewFraction: Float,
 ): NavTransition {
     return object : NavTransition {
+        override val motion: NavMotion
+            get() = if (progressControlEnabled) {
+                baseTransition.motion
+            } else {
+                NavMotion.Default
+            }
+
+        override fun scrimFraction(scope: NavTransitionScope): Float = if (
+            progressControlEnabled
+        ) {
+            baseTransition.scrimFraction(scope)
+        } else {
+            scope.relativeDepth.coerceIn(0f, 1f)
+        }
+
         override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
             val renderEffectCache = MiuixCoveredBlurRenderEffectCache()
             val transformed = with(baseTransition) {
@@ -78,7 +116,17 @@ private fun realtimeCoveredBlurTransition(
                 renderEffect = if (blurEnabled) {
                     val blurFrame = resolvePredictiveBackBlurFrame(
                         progress = if (scope.gesture != null || scope.settle != null) {
-                            resolveMiuixNavCoveredBlurProgress(scope.relativeDepth)
+                            val coveredDepth = if (
+                                progressControlEnabled && scope.relativeDepth > 0f
+                            ) {
+                                resolveMiuixPredictiveBackCoveredDepth(
+                                    scope = scope,
+                                    maxPreviewFraction = maxPreviewFraction,
+                                )
+                            } else {
+                                scope.relativeDepth
+                            }
+                            resolveMiuixNavCoveredBlurProgress(coveredDepth)
                         } else {
                             0f
                         },

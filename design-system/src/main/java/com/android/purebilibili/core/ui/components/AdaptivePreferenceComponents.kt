@@ -51,6 +51,8 @@ import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.LocalDynamicColorActive
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
@@ -146,20 +148,22 @@ data class AdaptiveListVisualCapabilities(
 )
 
 internal fun resolveAdaptiveListComponentVisualSpec(
-    uiStyle: AppUiStyle
+    uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean = true,
 ): AdaptiveListComponentVisualSpec {
     val chromeTokens = resolveAndroidNativeChromeTokens(uiStyle)
     val compactChrome = resolveCompactCapsuleChromeSpec(uiStyle)
+    val nonGlassMiuix = isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)
     return if (uiStyle == AppUiStyle.MIUIX) {
         AdaptiveListComponentVisualSpec(
             sectionStartPaddingDp = chromeTokens.denseHorizontalSpacingDp,
-            groupCornerRadiusDp = chromeTokens.containerCornerRadiusDp,
+            groupCornerRadiusDp = if (nonGlassMiuix) 16 else chromeTokens.containerCornerRadiusDp,
             groupTonalElevationDp = chromeTokens.tonalSurfaceElevationDp,
             iconCornerRadiusDp = 10,
             iconContainerSizeDp = 38,
             iconGlyphSizeDp = 20,
             iconBackgroundAlpha = chromeTokens.selectedContainerAlpha,
-            gridCornerRadiusDp = chromeTokens.containerCornerRadiusDp,
+            gridCornerRadiusDp = if (nonGlassMiuix) 16 else chromeTokens.containerCornerRadiusDp,
             searchBarCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
             searchBarHeightDp = compactChrome.primaryHeightDp,
             dividerThicknessDp = 0f,
@@ -183,8 +187,23 @@ internal fun resolveAdaptiveListComponentVisualSpec(
     }
 }
 
+@Composable
+private fun rememberAdaptiveListComponentVisualSpec(): AdaptiveListComponentVisualSpec {
+    val style = LocalAppUiStyle.current
+    val glass = LocalAppThemeConfig.current.liquidGlassEnabled
+    return remember(style, glass) { resolveAdaptiveListComponentVisualSpec(style, glass) }
+}
+
+@Composable
+private fun rememberAdaptiveListRowVisualSpec(): AdaptiveListRowVisualSpec {
+    val style = LocalAppUiStyle.current
+    val glass = LocalAppThemeConfig.current.liquidGlassEnabled
+    return remember(style, glass) { resolveAdaptiveListRowVisualSpec(style, glass) }
+}
+
 internal fun resolveAdaptiveListRowVisualSpec(
-    uiStyle: AppUiStyle
+    uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean = true,
 ): AdaptiveListRowVisualSpec {
     val chromeTokens = resolveAndroidNativeChromeTokens(uiStyle)
     return if (uiStyle == AppUiStyle.MIUIX) {
@@ -193,7 +212,8 @@ internal fun resolveAdaptiveListRowVisualSpec(
             insideVerticalPaddingDp = 14,
             trailingIconSizeDp = 14,
             trailingSpacingDp = 6,
-            minTouchTargetHeightDp = chromeTokens.rowMinTouchTargetDp
+            minTouchTargetHeightDp = if (isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)) 48
+                else chromeTokens.rowMinTouchTargetDp
         )
     } else {
         AdaptiveListRowVisualSpec(
@@ -208,17 +228,19 @@ internal fun resolveAdaptiveListRowVisualSpec(
 
 internal fun resolveAdaptiveListVisualCapabilities(
     uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean = true,
 ): AdaptiveListVisualCapabilities = AdaptiveListVisualCapabilities(
-    componentSpec = resolveAdaptiveListComponentVisualSpec(uiStyle),
-    rowSpec = resolveAdaptiveListRowVisualSpec(uiStyle),
+    componentSpec = resolveAdaptiveListComponentVisualSpec(uiStyle, liquidGlassEnabled),
+    rowSpec = resolveAdaptiveListRowVisualSpec(uiStyle, liquidGlassEnabled),
     showExplicitActionChevron = !shouldUseNativeMiuixSearchBar(uiStyle),
 )
 
 @Composable
 fun rememberAdaptiveListVisualCapabilities(): AdaptiveListVisualCapabilities {
     val uiStyle = LocalAppUiStyle.current
-    return remember(uiStyle) {
-        resolveAdaptiveListVisualCapabilities(uiStyle)
+    val glass = LocalAppThemeConfig.current.liquidGlassEnabled
+    return remember(uiStyle, glass) {
+        resolveAdaptiveListVisualCapabilities(uiStyle, glass)
     }
 }
 
@@ -457,9 +479,7 @@ fun AppAdaptiveSwitch(
 @Composable
 fun AdaptivePreferenceSectionTitleRenderer(title: String) {
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
     if (uiStyle == AppUiStyle.MIUIX) {
         SmallTitle(
             text = title,
@@ -507,21 +527,19 @@ fun AdaptivePreferenceGroupRenderer(
     }
 
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
     val colorScheme = MaterialTheme.colorScheme
     val defaultShape = RoundedCornerShape(visualSpec.groupCornerRadiusDp.dp)
     val appliedShape = shape ?: defaultShape
     val resolvedContainerColor = resolveAdaptiveGroupContainerColor(
         uiStyle = uiStyle,
         colorScheme = colorScheme,
-        globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
+        globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current && !isMiuixNonGlassEnabled()
     )
 
     if (uiStyle == AppUiStyle.MIUIX) {
         MiuixCard(
-            modifier = modifier.padding(horizontal = 14.dp),
+            modifier = modifier.padding(horizontal = if (isMiuixNonGlassEnabled()) 16.dp else 14.dp),
             cornerRadius = visualSpec.groupCornerRadiusDp.dp,
             insideMargin = PaddingValues(0.dp),
             colors = MiuixCardDefaults.defaultColors(color = resolvedContainerColor)
@@ -559,12 +577,8 @@ internal fun AdaptiveSwitchPreferenceContent(
     subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
-    val rowSpec = remember(uiStyle) {
-        resolveAdaptiveListRowVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
+    val rowSpec = rememberAdaptiveListRowVisualSpec()
     val iconTreatment = LocalAppPreferenceIconTreatment.current
     val iconStyle = rememberResolvedAppIconStyle()
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
@@ -751,12 +765,8 @@ fun AdaptiveSliderPreferenceRenderer(
     valueColor: Color = MaterialTheme.colorScheme.primary
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
-    val rowSpec = remember(uiStyle) {
-        resolveAdaptiveListRowVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
+    val rowSpec = rememberAdaptiveListRowVisualSpec()
     val iconTreatment = LocalAppPreferenceIconTreatment.current
     val iconStyle = rememberResolvedAppIconStyle()
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
@@ -1005,12 +1015,8 @@ internal fun AdaptivePreferenceContent(
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
-    val rowSpec = remember(uiStyle) {
-        resolveAdaptiveListRowVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
+    val rowSpec = rememberAdaptiveListRowVisualSpec()
     val iconTreatment = LocalAppPreferenceIconTreatment.current
     val iconStyle = rememberResolvedAppIconStyle()
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
@@ -1499,9 +1505,7 @@ fun AdaptivePreferenceGridItemRenderer(
     modifier: Modifier = Modifier
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
     val iconTreatment = LocalAppPreferenceIconTreatment.current
     val iconStyle = rememberResolvedAppIconStyle()
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
@@ -1584,9 +1588,7 @@ fun AdaptiveSearchFieldRenderer(
 ) {
     val uiStyle = LocalAppUiStyle.current
     val colorScheme = MaterialTheme.colorScheme
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveListComponentVisualSpec(uiStyle)
-    }
+    val visualSpec = rememberAdaptiveListComponentVisualSpec()
     val searchBarCornerRadius = visualSpec.searchBarCornerRadiusDp.dp
     val searchBarShape = shapeOverride ?: RoundedCornerShape(searchBarCornerRadius)
     val resolvedContainerColor = if (containerColor == Color.Unspecified) {

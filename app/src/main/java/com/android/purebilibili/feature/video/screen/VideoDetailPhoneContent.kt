@@ -155,7 +155,11 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                         )
                         // Capture scrolling detail content only; BottomInputBar stays outside
                         // the source so neither blur nor backdrop samples the bar itself.
-                        val bottomInputBarBackdrop = rememberLayerBackdrop()
+                        val bottomInputBarBackdrop = if (floatingLiquidBottomInputBar) {
+                            rememberLayerBackdrop()
+                        } else {
+                            null
+                        }
                         val showExternalPlaylistQueueBarOnCurrentTab =
                             shouldShowExternalPlaylistQueueBarOnContentTab(
                                 queueAvailable = shouldShowExternalPlaylistQueueBar,
@@ -185,7 +189,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(
-                                    if (floatingLiquidBottomInputBar) {
+                                    if (floatingLiquidBottomInputBar && bottomInputBarBackdrop != null) {
                                         Modifier.layerBackdrop(bottomInputBarBackdrop)
                                     } else {
                                         Modifier

@@ -2585,12 +2585,8 @@ private fun SpaceSecondarySwitchRow(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(
-            initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
-        )
+    val liquidGlassEnabled =
+        com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     val spec = remember(items, selectedId) {
         resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
     }
@@ -2632,7 +2628,7 @@ private fun SpaceSecondarySwitchRow(
             contentPaddingPx = containerHorizontalPaddingPx,
         )
 
-        if (homeSettings.androidNativeLiquidGlassEnabled) {
+        if (liquidGlassEnabled) {
             BottomBarLiquidSegmentedControl(
                 items = items.map { it.title },
                 selectedIndex = spec.selectedIndex,
@@ -2849,7 +2845,7 @@ private fun SpaceHomeVideoCard(
             .build()
     }
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
-    val coverShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    val coverShape = AppShapes.borderedMediaCover()
     val coverOverlayTextStyle = remember {
         androidx.compose.ui.text.TextStyle(
             shadow = resolveVideoCardCoverOverlayTextShadow()
@@ -3090,7 +3086,7 @@ private fun SpaceAggregateMediaCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.mediaCover()
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
@@ -3256,7 +3252,7 @@ private fun SpaceTopVideoCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.mediaCover()
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
@@ -3448,7 +3444,7 @@ private fun SpaceArchiveListItemRow(
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
-    val coverShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.mediaCover()
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&

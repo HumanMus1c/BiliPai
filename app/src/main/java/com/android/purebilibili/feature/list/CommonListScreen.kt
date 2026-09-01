@@ -594,10 +594,6 @@ fun CommonListScreen(
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    // [Fix] 这里的模糊冲突核心：顶栏需要自己的独立 HazeState
-    val localHazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
-    val commonListChromeBackdrop = rememberLayerBackdrop()
-
     // 🔍 搜索状态
     var searchQuery by rememberSaveable { androidx.compose.runtime.mutableStateOf(initialSearchQuery) }
     var favoriteSearchScope by rememberSaveable {
@@ -787,6 +783,13 @@ fun CommonListScreen(
             homeSettings = homeSettings,
         )
     }
+    // 实色列表不创建背景采样；玻璃和普通顶栏模糊分别按需保留各自 source。
+    val localHazeState = if (isHeaderBlurEnabled) {
+        com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
+    } else {
+        null
+    }
+    val commonListChromeBackdrop = if (liquidGlassEnabled) rememberLayerBackdrop() else null
     val videoCardAppearance = remember(homeSettings, liquidGlassEnabled) {
         resolveCommonListVideoCardAppearance(
             homeSettings = homeSettings,
@@ -831,10 +834,10 @@ fun CommonListScreen(
 
     // 决定顶栏背景 (使用私有的 localHazeState)
     val useProgressiveHeaderBlur = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = homeSettings.androidNativeLiquidGlassEnabled,
-        hasBackdrop = true,
+        enabled = liquidGlassEnabled,
+        hasBackdrop = commonListChromeBackdrop != null,
     )
-    val topBarBackgroundModifier = if (useProgressiveHeaderBlur) {
+    val topBarBackgroundModifier = if (useProgressiveHeaderBlur && commonListChromeBackdrop != null) {
         Modifier
             .fillMaxWidth()
             .biliPaiProgressiveTopBlur(
@@ -848,7 +851,7 @@ fun CommonListScreen(
     } else if (historyUsesFloatingLiquidDocks) {
         // 悬浮 Dock 必须直接采样下方列表；整块顶栏背景会把动态折射退化成纯色壳。
         Modifier.fillMaxWidth()
-    } else if (shouldUseHeaderLocalBlur) {
+    } else if (shouldUseHeaderLocalBlur && localHazeState != null) {
         Modifier
             .fillMaxWidth()
             .unifiedBlur(
@@ -921,8 +924,20 @@ fun CommonListScreen(
             // 改为半透明保护色，让根层壁纸透出来。
             val contentModifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(commonListChromeBackdrop)
-                .hazeSourceCompat(state = localHazeState)
+                .then(
+                    if (commonListChromeBackdrop != null) {
+                        Modifier.layerBackdrop(commonListChromeBackdrop)
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(
+                    if (localHazeState != null) {
+                        Modifier.hazeSourceCompat(state = localHazeState)
+                    } else {
+                        Modifier
+                    }
+                )
                 .globalWallpaperAwareBackground(AppSurfaceTokens.groupedListContainer())
 
             Box(modifier = contentModifier) {
@@ -2890,7 +2905,7 @@ private fun FavoriteSubscribedFolderPreview(
     coverUrl: String?,
     title: String
 ) {
-    val shape = AppShapes.container(ContainerLevel.Card)
+    val shape = AppShapes.mediaCover()
     Box(
         modifier = Modifier
             .width(resolveFavoriteSubscribedFolderPreviewWidth())

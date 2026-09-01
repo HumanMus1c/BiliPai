@@ -145,6 +145,52 @@ class VideoDetailInternalBvidSyncPolicyTest {
     }
 
     @Test
+    fun loadedVideoMatchesInPageInitiatedBvid_shouldSkipInternalSync() {
+        assertTrue(
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = "BV_NEXT",
+                inPageInitiatedBvid = "BV_NEXT"
+            )
+        )
+    }
+
+    @Test
+    fun loadedVideoDiffersFromInPageInitiatedBvid_shouldKeepRestoreGuard() {
+        assertFalse(
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = "BV_CHILD",
+                inPageInitiatedBvid = "BV_NEXT"
+            )
+        )
+    }
+
+    @Test
+    fun blankOrMissingInPageInitiatedBvid_shouldKeepRestoreGuard() {
+        assertFalse(
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = "BV_NEXT",
+                inPageInitiatedBvid = null
+            )
+        )
+        assertFalse(
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = "BV_NEXT",
+                inPageInitiatedBvid = " "
+            )
+        )
+    }
+
+    @Test
+    fun inPageInitiatedBvidComparison_shouldTrimWhitespace() {
+        assertTrue(
+            shouldSkipInternalBvidSyncForPlayerInitiatedAdvance(
+                loadedBvid = "BV_NEXT",
+                inPageInitiatedBvid = " BV_NEXT "
+            )
+        )
+    }
+
+    @Test
     fun normalInternalSync_shouldRespectUserSettingByNotForcingAutoplay() {
         assertEquals(
             null,

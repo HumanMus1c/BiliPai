@@ -501,6 +501,7 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .heightIn(min = 48.dp)
                                 .clickable {
                                     val nextValue = !onceForCurrentDialog
                                     onceForCurrentDialog = nextValue
@@ -511,6 +512,11 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            AppText(
+                                text = "仅提示一次",
+                                modifier = Modifier.weight(1f),
+                                tapToCopyEnabled = false
+                            )
                             AppCheckbox(
                                 checked = onceForCurrentDialog,
                                 onCheckedChange = { checked ->
@@ -521,7 +527,6 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                                     }
                                 }
                             )
-                            AppText("仅提示一次")
                         }
                     }
                 },

@@ -659,8 +659,13 @@ fun WatchLaterScreen(
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
     )
-    val hazeState = rememberRecoverableHazeState()
-    val watchLaterChromeBackdrop = rememberLayerBackdrop()
+    val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
+    val hazeState = if (appThemeConfig.headerBlurEnabled) rememberRecoverableHazeState() else null
+    val watchLaterChromeBackdrop = if (appThemeConfig.liquidGlassEnabled) {
+        rememberLayerBackdrop()
+    } else {
+        null
+    }
     val topChromePolicy = rememberAppTopChromePolicy()
     val watchLaterFilterChrome = remember(homeSettings, topChromePolicy) {
         resolveHistoryFilterTabChromeSpec(
@@ -714,25 +719,32 @@ fun WatchLaterScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .biliPaiProgressiveTopBlur(
-                        backdrop = watchLaterChromeBackdrop,
-                        enabled = homeSettings.androidNativeLiquidGlassEnabled,
-                    )
                     .then(
-                        if (homeSettings.androidNativeLiquidGlassEnabled) {
-                            Modifier
-                        } else {
+                        if (appThemeConfig.liquidGlassEnabled && watchLaterChromeBackdrop != null) {
+                            Modifier.biliPaiProgressiveTopBlur(
+                                backdrop = watchLaterChromeBackdrop,
+                                enabled = true,
+                            )
+                        } else if (appThemeConfig.headerBlurEnabled && hazeState != null) {
                             Modifier.unifiedBlur(
                                 hazeState = hazeState,
                                 surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
                             )
+                        } else {
+                            Modifier
                         }
                     )
             ) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .layerBackdrop(watchLaterChromeBackdrop)
+                        .then(
+                            if (watchLaterChromeBackdrop != null) {
+                                Modifier.layerBackdrop(watchLaterChromeBackdrop)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .background(AppSurfaceTokens.groupedListContainer()),
                 )
                 Column {
@@ -983,7 +995,13 @@ fun WatchLaterScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSourceCompat(state = hazeState) // 内容作为模糊源（全局源由根层提供）
+                .then(
+                    if (hazeState != null) {
+                        Modifier.hazeSourceCompat(state = hazeState)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             when {
                 state.isLoading -> {
