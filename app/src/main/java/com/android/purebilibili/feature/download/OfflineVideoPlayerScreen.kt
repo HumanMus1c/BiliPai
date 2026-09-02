@@ -63,7 +63,7 @@ import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon
-import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.rememberGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import androidx.compose.material.icons.Icons
@@ -108,9 +108,8 @@ fun OfflineVideoPlayerScreen(
     val backIcon = rememberAppBackIcon()
     val commentIcon = rememberAppCommentIcon()
     val playIcon = rememberAppPlayIcon()
-    val gestureLevelOverlayStyle = remember(playerChromeProfile.tabPresentation) {
-        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
-    }
+    val gestureLevelOverlayStyle =
+        rememberGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     
     val tasks by DownloadManager.tasks.collectAsStateWithLifecycle()
     var currentTaskId by remember(taskId) { mutableStateOf(taskId) }

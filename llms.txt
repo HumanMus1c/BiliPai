@@ -23,7 +23,6 @@ Current sync target / 当前同步目标：`2026-08-26 · build 0.2.3-beta.13 (3
 | `docs/wiki/ARCHITECTURE.md` | architecture / 架构说明 |
 | `docs/wiki/FEATURE_MATRIX.md` | feature status and boundaries / 功能状态与边界 |
 | `docs/wiki/QA.md` | QA checklist / QA 清单 |
-| `docs/wiki/ui-design/README.md` | UI contracts and acceptance / UI 规范与验收入口 |
 | `docs/wiki/RELEASE_WORKFLOW.md` | release workflow / 发布流程 |
 | `docs/wiki/VERSIONING.md` | versioning policy / 版本规范 |
 | `docs/PLUGIN_DEVELOPMENT.md` | JSON plugin guide / JSON 插件指南 |
@@ -42,7 +41,6 @@ Current sync target / 当前同步目标：`2026-08-26 · build 0.2.3-beta.13 (3
 | architecture / 架构 | `docs/wiki/ARCHITECTURE.md` |
 | feature availability or boundary / 功能可用性与边界 | `docs/wiki/FEATURE_MATRIX.md` |
 | QA or regression / QA 与回归 | `docs/wiki/QA.md` |
-| UI, theme, adaptive layout or accessibility / UI、主题、自适应与无障碍 | `docs/wiki/ui-design/README.md` |
 | release workflow / 发布流程 | `docs/wiki/RELEASE_WORKFLOW.md` |
 | versioning policy / 版本规范 | `docs/wiki/VERSIONING.md` |
 | AI repository map / AI 仓库导航 | `docs/wiki/AI.md` |

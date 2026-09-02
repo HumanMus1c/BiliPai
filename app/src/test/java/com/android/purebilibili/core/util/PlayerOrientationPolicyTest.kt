@@ -6,6 +6,24 @@ import kotlin.test.assertTrue
 
 class PlayerOrientationPolicyTest {
     @Test
+    fun `large foldable cover window is distinguished from its inner display`() {
+        assertTrue(
+            isFoldableCoverWindow(
+                smallestScreenWidthDp = 665,
+                currentWindowWidthDp = 672,
+                currentWindowHeightDp = 459,
+            )
+        )
+        assertFalse(
+            isFoldableCoverWindow(
+                smallestScreenWidthDp = 665,
+                currentWindowWidthDp = 940,
+                currentWindowHeightDp = 665,
+            )
+        )
+    }
+
+    @Test
     fun `physical orientation remains available below 600dp`() {
         assertTrue(
             shouldRequestPhysicalPlayerOrientation(

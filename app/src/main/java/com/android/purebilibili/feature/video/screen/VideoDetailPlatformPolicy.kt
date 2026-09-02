@@ -20,6 +20,7 @@ import androidx.media3.common.Player
 import androidx.window.layout.WindowMetricsCalculator
 import kotlin.math.abs
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
+import com.android.purebilibili.core.util.isFoldableCoverWindow
 import com.android.purebilibili.core.ui.setWindowNavigationBarColor
 import com.android.purebilibili.core.ui.setWindowStatusBarColor
 import com.android.purebilibili.core.ui.adaptive.AdaptiveFoldPosture
@@ -303,12 +304,20 @@ internal fun isWindowBoundsSmallerThanMaximum(
         currentHeight + tolerancePx < maximumHeight
 }
 
+internal fun shouldInferFloatingWindowFromBounds(
+    currentBoundsSmallerThanMaximum: Boolean,
+    isFoldableCoverWindow: Boolean,
+): Boolean = currentBoundsSmallerThanMaximum && !isFoldableCoverWindow
+
 /**
  * 部分 vivo/iQOO 系统悬浮窗不会稳定上报 [Activity.isInMultiWindowMode]。
  * 此时以当前窗口小于最大可用窗口作为兜底，避免把浮窗误当成普通全屏 Activity，
  * 继而写入横屏方向请求并触发系统窗口瞬时展开后回弹。
  */
-internal fun isActivityInMultiWindowOrFloatingMode(activity: Activity): Boolean {
+internal fun isActivityInMultiWindowOrFloatingMode(
+    activity: Activity,
+    isKnownFoldableCoverScreen: Boolean = false,
+): Boolean {
     // PiP 有独立播放与方向策略，不能仅因窗口边界较小而归入普通悬浮窗。
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity.isInPictureInPictureMode) {
         return false
@@ -318,14 +327,23 @@ internal fun isActivityInMultiWindowOrFloatingMode(activity: Activity): Boolean 
     }
 
     return runCatching {
+        val configuration = activity.resources.configuration
+        val isCoverWindow = isFoldableCoverWindow(
+            smallestScreenWidthDp = configuration.smallestScreenWidthDp,
+            currentWindowWidthDp = configuration.screenWidthDp,
+            currentWindowHeightDp = configuration.screenHeightDp,
+        )
         val calculator = WindowMetricsCalculator.getOrCreate()
         val currentBounds = calculator.computeCurrentWindowMetrics(activity).bounds
         val maximumBounds = calculator.computeMaximumWindowMetrics(activity).bounds
-        isWindowBoundsSmallerThanMaximum(
-            currentWidth = currentBounds.width(),
-            currentHeight = currentBounds.height(),
-            maximumWidth = maximumBounds.width(),
-            maximumHeight = maximumBounds.height()
+        shouldInferFloatingWindowFromBounds(
+            currentBoundsSmallerThanMaximum = isWindowBoundsSmallerThanMaximum(
+                currentWidth = currentBounds.width(),
+                currentHeight = currentBounds.height(),
+                maximumWidth = maximumBounds.width(),
+                maximumHeight = maximumBounds.height()
+            ),
+            isFoldableCoverWindow = isKnownFoldableCoverScreen || isCoverWindow,
         )
     }.getOrDefault(false)
 }
@@ -339,6 +357,7 @@ internal fun toggleVideoDetailFullscreen(
     fullscreenMode: com.android.purebilibili.core.store.FullscreenMode,
     isVerticalVideo: Boolean,
     preferPortraitForFlatFoldable: Boolean = false,
+    isFoldableCoverScreen: Boolean = false,
     portraitExperienceEnabled: Boolean,
     onEnterPortraitFullscreen: () -> Unit,
     onUserRequestedFullscreenChange: (Boolean) -> Unit,
@@ -346,7 +365,10 @@ internal fun toggleVideoDetailFullscreen(
 ) {
     if (activity == null) return
 
-    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(activity)
+    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(
+        activity = activity,
+        isKnownFoldableCoverScreen = isFoldableCoverScreen,
+    )
     val isInPictureInPictureMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
         activity.isInPictureInPictureMode
     if (shouldUseInWindowFullscreenForSystemMultiWindow(
@@ -583,7 +605,8 @@ internal fun resolvePhoneVideoRequestedOrientation(
     currentRequestedOrientation: Int? = null,
     isInMultiWindowMode: Boolean = false,
     isInPictureInPictureMode: Boolean = false,
-    preferPortraitForFlatFoldable: Boolean = false
+    preferPortraitForFlatFoldable: Boolean = false,
+    preserveExactLandscapeSide: Boolean = false,
 ): Int? {
     // A size class alone can classify a tablet or a large phone as a foldable. Keep this
     // preference out of compact layouts even if an upstream caller misclassifies the device.
@@ -645,16 +668,17 @@ internal fun resolvePhoneVideoRequestedOrientation(
                 preserveCurrentExactLandscapeSideWhileFullscreen(
                     requestedOrientation = fullscreenOrientation,
                     currentRequestedOrientation = currentRequestedOrientation,
-                    isFullscreenMode = isFullscreenMode
+                    isFullscreenMode = isFullscreenMode,
+                    preserveExactLandscapeSide = preserveExactLandscapeSide,
                 )
             }
-            // The orientation listener has already resolved the physical side on compact screens.
-            // Replacing that exact request with SENSOR_LANDSCAPE here can make some ROMs snap back
-            // to their default landscape side without emitting another sensor event to correct it.
+            // Foldable cover displays may need the listener's exact side preserved. Regular
+            // phones deliberately release an earlier exact request back to SENSOR_LANDSCAPE.
             isFullscreenMode -> preserveCurrentExactLandscapeSideWhileFullscreen(
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
                 currentRequestedOrientation = currentRequestedOrientation,
-                isFullscreenMode = true
+                isFullscreenMode = true,
+                preserveExactLandscapeSide = preserveExactLandscapeSide,
             )
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -696,6 +720,7 @@ private fun resolveStableOrientationWhenAutoRotateDisabled(
 internal fun resolvePhoneAutoRotateRequestedOrientation(
     orientationDegrees: Int,
     isCurrentlyLandscape: Boolean,
+    useExactLandscapeSide: Boolean = false,
     portraitSnapDegrees: Int = 25,
     landscapeEnterMinDegrees: Int = 60,
     landscapeEnterMaxDegrees: Int = 120,
@@ -725,12 +750,21 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     )
 
     return when {
-        // Keep emitting the physical landscape side after entry. Some foldable cover displays
-        // accept SENSOR_LANDSCAPE but keep the first 90-degree rotation indefinitely; an exact
-        // request gives those devices a real orientation change when gravity crosses 180°.
-        isCurrentlyLandscape && exactLandscapeKeep != null -> exactLandscapeKeep
+        // Regular phones should stay on SENSOR_LANDSCAPE so the platform can rotate between
+        // both sides without a fixed-side request racing a configuration update. Some foldable
+        // cover displays ignore that sensor request after the first turn, so only those windows
+        // receive the exact physical side as a fallback.
+        isCurrentlyLandscape && exactLandscapeKeep != null -> if (useExactLandscapeSide) {
+            exactLandscapeKeep
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         portraitStable -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        !isCurrentlyLandscape && exactLandscapeEntry != null -> exactLandscapeEntry
+        !isCurrentlyLandscape && exactLandscapeEntry != null -> if (useExactLandscapeSide) {
+            exactLandscapeEntry
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         else -> null
     }
 }
@@ -766,9 +800,11 @@ private fun resolveCurrentExactLandscapeOrientation(currentRequestedOrientation:
 private fun preserveCurrentExactLandscapeSideWhileFullscreen(
     requestedOrientation: Int,
     currentRequestedOrientation: Int?,
-    isFullscreenMode: Boolean
+    isFullscreenMode: Boolean,
+    preserveExactLandscapeSide: Boolean,
 ): Int {
     if (
+        !preserveExactLandscapeSide ||
         !isFullscreenMode ||
         requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     ) {

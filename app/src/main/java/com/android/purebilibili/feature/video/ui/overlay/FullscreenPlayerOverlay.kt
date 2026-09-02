@@ -96,7 +96,7 @@ import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayCont
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
-import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.rememberGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
@@ -1547,9 +1547,7 @@ private fun GestureIndicator(
     modifier: Modifier = Modifier
 ) {
     val playerChromeProfile = rememberAppPlayerChromeProfile()
-    val overlayStyle = remember(playerChromeProfile.tabPresentation) {
-        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
-    }
+    val overlayStyle = rememberGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     val overlayShape = AppShapes.container(ContainerLevel.Card)
     if (mode == FullscreenGestureMode.Seek) {
         AppSurface(

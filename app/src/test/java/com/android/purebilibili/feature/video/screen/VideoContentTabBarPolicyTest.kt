@@ -260,6 +260,7 @@ class VideoContentTabBarPolicyTest {
         assertTrue(tabBarBlock.contains("tapToCopyEnabled = false"))
         assertTrue(tabBarBlock.contains(".clickable(onClick = onDanmakuSendClick)"))
         assertFalse(tabBarBlock.contains("RoundedCornerShape("))
+        assertFalse(tabBarBlock.contains("AppHorizontalDivider("))
         assertFalse(tabBarBlock.contains("\"开\""))
         assertFalse(tabBarBlock.contains("\"关\""))
         assertFalse(tabBarBlock.contains("rememberAppCommentIcon()"))
@@ -479,6 +480,14 @@ class VideoContentTabBarPolicyTest {
         assertEquals(
             spec.itemWidthDp,
             resolveVideoContentTabBarDockItemWidthDp(nativeSpec.labelFontSizeSp),
+        )
+
+        val contentSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
+        )
+        assertFalse(
+            contentSource.contains("minTabWidth = liquidChromeSpec.itemWidthDp?.dp"),
+            "The video tab row must inherit beta.21 liquid geometry from the shared renderer",
         )
     }
 

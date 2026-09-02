@@ -6,6 +6,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 
@@ -90,6 +91,7 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -627,6 +629,7 @@ private fun DynamicCommentComposer(
     backdrop: MiuixBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
+    val useMiuixNonGlassInput = isMiuixNonGlassEnabled()
     val dockShape = resolveSharedBottomBarCapsuleShape()
     val composerHeight = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small
     val composerLensIntensity = resolveFloatingDockGeometryScale(composerHeight.value)
@@ -652,42 +655,57 @@ private fun DynamicCommentComposer(
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxSize(),
-                placeholder = {
-                    AppText(
-                        text = hint,
-                        color = placeholderColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            val keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send)
+            val keyboardActions = KeyboardActions(
+                onSend = {
+                    resolveDynamicCommentImeSubmission(value)?.let(onSubmit)
                 },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        resolveDynamicCommentImeSubmission(value)?.let(onSubmit)
-                    },
-                ),
-                shape = dockShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = fieldColor,
-                    unfocusedContainerColor = fieldColor,
-                    disabledContainerColor = fieldColor,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    disabledBorderColor = Color.Transparent,
-                    focusedTextColor = fieldTextColor,
-                    unfocusedTextColor = fieldTextColor,
-                    disabledTextColor = fieldTextColor.copy(alpha = 0.72f),
-                    focusedPlaceholderColor = placeholderColor,
-                    unfocusedPlaceholderColor = placeholderColor,
-                    disabledPlaceholderColor = placeholderColor,
-                    cursorColor = fieldTextColor,
-                ),
             )
+            if (useMiuixNonGlassInput) {
+                AppOutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxSize(),
+                    placeholderText = hint,
+                    singleLine = true,
+                    keyboardOptions = keyboardOptions,
+                    keyboardActions = keyboardActions,
+                    shape = dockShape,
+                )
+            } else {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxSize(),
+                    placeholder = {
+                        AppText(
+                            text = hint,
+                            color = placeholderColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = keyboardOptions,
+                    keyboardActions = keyboardActions,
+                    shape = dockShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = fieldColor,
+                        unfocusedContainerColor = fieldColor,
+                        disabledContainerColor = fieldColor,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        disabledBorderColor = Color.Transparent,
+                        focusedTextColor = fieldTextColor,
+                        unfocusedTextColor = fieldTextColor,
+                        disabledTextColor = fieldTextColor.copy(alpha = 0.72f),
+                        focusedPlaceholderColor = placeholderColor,
+                        unfocusedPlaceholderColor = placeholderColor,
+                        disabledPlaceholderColor = placeholderColor,
+                        cursorColor = fieldTextColor,
+                    ),
+                )
+            }
         }
         if (onClearReplyTarget != null) {
             AppIconButton(onClick = onClearReplyTarget) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BugReport
@@ -36,8 +37,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -90,6 +93,11 @@ fun OnboardingScreen(
         AppScaffold(
             bottomBar = {
                 val actionColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
+                val acknowledgeButtonShape = if (isMiuixNonGlassEnabled()) {
+                    RoundedCornerShape(AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp)
+                } else {
+                    ButtonDefaults.outlinedShape
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,6 +128,7 @@ fun OnboardingScreen(
                     AppOutlinedButton(
                         onClick = onFinish,
                         enabled = canAcknowledge,
+                        shape = acknowledgeButtonShape,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)

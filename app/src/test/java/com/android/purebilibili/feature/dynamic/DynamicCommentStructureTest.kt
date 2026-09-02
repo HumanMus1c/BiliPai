@@ -7,6 +7,25 @@ import kotlin.test.assertTrue
 class DynamicCommentStructureTest {
 
     @Test
+    fun `comment input uses Miuix text field only in non glass mode`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val composer = source
+            .substringAfter("private fun DynamicCommentComposer(")
+            .substringBefore("/**\n *  单条评论项")
+
+        assertTrue(composer.contains("val useMiuixNonGlassInput = isMiuixNonGlassEnabled()"))
+        assertTrue(composer.contains("if (useMiuixNonGlassInput)"))
+        assertTrue(composer.contains("AppOutlinedTextField("))
+        assertTrue(composer.contains("placeholderText = hint"))
+        assertTrue(composer.contains("OutlinedTextField("))
+        assertTrue(composer.contains("focusedContainerColor = fieldColor"))
+        assertTrue(composer.contains("KeyboardOptions(imeAction = ImeAction.Send)"))
+        assertTrue(composer.contains("resolveDynamicCommentImeSubmission(value)?.let(onSubmit)"))
+    }
+
+    @Test
     fun `dynamic comments expose sort mode state and reset pagination when it changes`() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt")
             .readText()

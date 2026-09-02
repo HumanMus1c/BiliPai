@@ -12,6 +12,40 @@ import kotlin.test.assertTrue
 class SearchScreenPolicyTest {
 
     @Test
+    fun searchResultCardsUseSemanticTypographyOnlyForMiuixNonGlassMode() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
+        val typographyFacade = source
+            .substringAfter("private enum class SearchResultTextRole")
+            .substringBefore("/**\n *  搜索结果卡片")
+
+        assertTrue(typographyFacade.contains("if (isMiuixNonGlassEnabled())"))
+        assertTrue(typographyFacade.contains("MaterialTheme.typography.titleSmall"))
+        assertTrue(typographyFacade.contains("MaterialTheme.typography.bodySmall"))
+        assertTrue(typographyFacade.contains("MaterialTheme.typography.labelMedium"))
+        assertTrue(typographyFacade.contains("MaterialTheme.typography.labelSmall"))
+        assertTrue(typographyFacade.contains("fontSize = legacyFontSize"))
+        assertTrue(typographyFacade.contains("lineHeight = legacyLineHeight"))
+
+        listOf(
+            "fun SearchResultCard(",
+            "internal fun UpSearchResultCard(",
+            "internal fun BangumiSearchResultCard(",
+            "internal fun LiveSearchResultCard(",
+            "internal fun LiveUserSearchResultCard(",
+            "internal fun TopicSearchResultCard(",
+            "internal fun PhotoSearchResultCard(",
+            "internal fun ArticleSearchResultCard(",
+        ).forEach { signature ->
+            val card = source.substringAfter(signature).substringBefore("\n}\n")
+            assertTrue(card.contains("SearchResultText("), "$signature should use semantic text facade")
+        }
+
+        assertTrue(source.contains("AppSpacingTokens.Medium"))
+        assertTrue(source.contains("AppSpacingTokens.ExtraSmall"))
+        assertTrue(source.contains("if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 14.dp"))
+    }
+
+    @Test
     fun resetSearchScroll_onlyWhenShowingNonBlankResults() {
         assertTrue(
             shouldResetSearchResultScroll(

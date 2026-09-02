@@ -14,11 +14,12 @@ class GestureLevelOverlayStructureTest {
     }
 
     @Test
-    fun `miuix feedback uses native animated vertical slider`() {
-        assertTrue(source.contains("import top.yukonga.miuix.kmp.basic.VerticalSlider"))
+    fun `miuix feedback uses native animated horizontal slider`() {
+        assertTrue(source.contains("import top.yukonga.miuix.kmp.basic.Slider"))
         assertTrue(source.contains("private fun MiuixGestureLevelSlider("))
-        assertTrue(source.contains("VerticalSlider("))
-        assertTrue(source.contains("effect = true"))
+        assertTrue(source.contains("\n        Slider("))
+        assertFalse(source.contains("VerticalSlider("))
+        assertTrue(source.contains("Modifier.padding(top = spec.topInsetDp.dp)"))
         assertFalse(source.contains("private fun MiuixGestureLevelRail("))
     }
 

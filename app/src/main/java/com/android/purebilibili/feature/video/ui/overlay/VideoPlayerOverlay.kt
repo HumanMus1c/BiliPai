@@ -3,6 +3,9 @@ package com.android.purebilibili.feature.video.ui.overlay
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 
 import android.content.ClipData
 import android.content.Context
@@ -2393,6 +2396,7 @@ private fun PortraitTopBar(
     modifier: Modifier = Modifier
 ) {
     var showMoreMenu by remember { mutableStateOf(false) }
+    val useMiuixNonGlassChrome = isMiuixNonGlassEnabled()
     val configuration = LocalConfiguration.current
     val uiLayoutWidthDp = remember(configuration.screenWidthDp, viewportWidthDpOverride) {
         (viewportWidthDpOverride ?: configuration.screenWidthDp).coerceAtLeast(1)
@@ -2512,22 +2516,42 @@ private fun PortraitTopBar(
                 )
             }
 
-            DropdownMenu(
-                expanded = showMoreMenu,
-                onDismissRequest = { showMoreMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("播放设置") },
-                    onClick = { showMoreMenu = false; onSettings() }
-                )
-                DropdownMenuItem(
-                    text = { Text(if (isAudioOnly) "退出听视频" else "听视频") },
-                    onClick = { showMoreMenu = false; onAudioMode() }
-                )
-                DropdownMenuItem(
-                    text = { Text("分享") },
-                    onClick = { showMoreMenu = false; onShare() }
-                )
+            if (useMiuixNonGlassChrome) {
+                AppDropdownMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false },
+                ) {
+                    AppDropdownMenuItem(
+                        text = { AppText("播放设置") },
+                        onClick = { showMoreMenu = false; onSettings() },
+                    )
+                    AppDropdownMenuItem(
+                        text = { AppText(if (isAudioOnly) "退出听视频" else "听视频") },
+                        onClick = { showMoreMenu = false; onAudioMode() },
+                    )
+                    AppDropdownMenuItem(
+                        text = { AppText("分享") },
+                        onClick = { showMoreMenu = false; onShare() },
+                    )
+                }
+            } else {
+                DropdownMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("播放设置") },
+                        onClick = { showMoreMenu = false; onSettings() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (isAudioOnly) "退出听视频" else "听视频") },
+                        onClick = { showMoreMenu = false; onAudioMode() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("分享") },
+                        onClick = { showMoreMenu = false; onShare() }
+                    )
+                }
             }
             
             // 分享按钮 - 无背景

@@ -1,11 +1,60 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import androidx.compose.ui.unit.dp
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class VideoSettingsPanelActionPolicyTest {
+
+    @Test
+    fun nonGlassMiuixPanelUsesSemanticSpacingWithoutChangingLegacySpecs() {
+        val miuixNonGlass = resolveVideoSettingsPanelVisualSpec(
+            usesTonalContainerTreatment = false,
+            useMiuixNonGlassPresentation = true,
+        )
+        assertEquals(16.dp, miuixNonGlass.rowHorizontalPadding)
+        assertEquals(12.dp, miuixNonGlass.rowVerticalPadding)
+        assertEquals(20.dp, miuixNonGlass.iconSize)
+        assertEquals(12.dp, miuixNonGlass.iconGap)
+        assertEquals(12.dp, miuixNonGlass.chipHorizontalPadding)
+        assertEquals(8.dp, miuixNonGlass.chipSpacing)
+
+        val legacyTonal = resolveVideoSettingsPanelVisualSpec(
+            usesTonalContainerTreatment = true,
+            useMiuixNonGlassPresentation = false,
+        )
+        assertEquals(13.dp, legacyTonal.chipHorizontalPadding)
+        assertEquals(7.dp, legacyTonal.chipSpacing)
+
+        val legacyMaterial = resolveVideoSettingsPanelVisualSpec(
+            usesTonalContainerTreatment = false,
+            useMiuixNonGlassPresentation = false,
+        )
+        assertEquals(14.dp, legacyMaterial.rowVerticalPadding)
+        assertEquals(24.dp, legacyMaterial.iconSize)
+        assertEquals(16.dp, legacyMaterial.iconGap)
+        assertEquals(8.dp, legacyMaterial.chipSpacing)
+    }
+
+    @Test
+    fun customPanelTextKeepsLegacyTypographyOutsideMiuixNonGlassMode() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/VideoSettingsPanel.kt")
+            .readText()
+        val textFacade = source
+            .substringAfter("private enum class VideoSettingsPanelTextRole")
+            .substringBefore("internal data class VideoSettingsPanelVisualSpec")
+
+        assertTrue(textFacade.contains("if (isMiuixNonGlassEnabled())"))
+        assertTrue(textFacade.contains("MaterialTheme.typography.titleSmall"))
+        assertTrue(textFacade.contains("MaterialTheme.typography.bodySmall"))
+        assertTrue(textFacade.contains("MaterialTheme.typography.labelMedium"))
+        assertTrue(textFacade.contains("MaterialTheme.typography.labelSmall"))
+        assertTrue(textFacade.contains("fontSize = legacyFontSize"))
+        assertEquals(1, source.windowed("fontSize =".length).count { it == "fontSize =" })
+        assertTrue(source.contains("val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()"))
+    }
 
     @Test
     fun compactPhone_usesDenseScrollablePills() {

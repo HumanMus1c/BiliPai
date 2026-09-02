@@ -34,7 +34,7 @@
 | --- | --- |
 | Download and try BiliPai | [Install](#-download--install) · [Changelog](CHANGELOG.md) · [Telegram channel](https://t.me/bilipai666) · [FAQ](docs/wiki/FAQ.md) |
 | Explore the project | [Device previews](#-preview) · [Features](#-features) · [Feature matrix](docs/wiki/FEATURE_MATRIX.md) · [Roadmap](docs/wiki/ROADMAP.md) |
-| Read the docs | [Wiki home](docs/wiki/README.md) · [Architecture](docs/wiki/ARCHITECTURE.md) · [UI design guide](docs/wiki/ui-design/README.md) · [QA guide](docs/wiki/QA.md) |
+| Read the docs | [Wiki home](docs/wiki/README.md) · [Architecture](docs/wiki/ARCHITECTURE.md) · [QA guide](docs/wiki/QA.md) |
 | Build and develop | [Build](#️-build) · [Structure guidelines](STRUCTURE_GUIDELINES.adoc) · [Versioning](docs/wiki/VERSIONING.md) · [Release workflow](docs/wiki/RELEASE_WORKFLOW.md) |
 | Develop plugins | [JSON plugin guide](docs/PLUGIN_DEVELOPMENT.md) · [Native plugin guide](docs/NATIVE_PLUGIN_DEVELOPMENT.md) · [Plugin SDK](plugins/sdk/README.md) · [Samples](plugins/samples/) |
 | Contribute | [Contributing](#-contributing) · [Open an issue](https://github.com/jay3-yy/BiliPai/issues/new/choose) · [Pull requests](https://github.com/jay3-yy/BiliPai/pulls) · [AI / LLM entry](llms.txt) |
@@ -452,14 +452,14 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.22 · 2026-09-01)
+### Current source build (v0.2.3-beta.22 · 2026-09-02)
 
-- Current source build: `0.2.3-beta.22` / `versionCode 338`.
-- Fullscreen orientation now preserves both landscape sides; auto-advance restores the video surface, and collapsed playback returns with a scale-up animation.
-- Non-glass Miuix presentation and optional card-depth predictive back are added, with native top-bar scrolling and accessibility fixes.
+- Current source build: `0.2.3-beta.22` / `versionCode 339`.
+- Fullscreen orientation, auto-advance surface and gesture recovery, end-of-playback collapse, and scale-up restoration are fixed.
+- Non-glass Miuix presentation and optional card-depth predictive back are added, with tab dragging, top-bar scrolling, and control styling fixes.
+- MD3 and Miuix update dialogs now use theme-native layouts, keep download actions visible, and scroll long changelogs independently.
 - Dynamic top actions can be collapsed, while incremental refresh preserves the reading position.
-- Page chrome capture and transition performance reporting are refined to reduce inactive rendering work.
-- Deferred plugin registration now initializes its Context before use.
+- Page chrome capture and transition reporting are refined, and deferred plugin registration now initializes its Context before use.
 - See [CHANGELOG.md](CHANGELOG.md) for the complete beta.21 → beta.22 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 

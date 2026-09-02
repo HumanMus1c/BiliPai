@@ -29,7 +29,6 @@ Current sync target / 当前同步目标：`2026-08-28 · build 0.2.3-beta.15 (3
 | Latest release notes / 最新发布说明 | `CHANGELOG.md` |
 | Architecture / 架构 | `docs/wiki/ARCHITECTURE.md` |
 | QA / regression / QA 与回归 | `docs/wiki/QA.md` |
-| UI contracts / UI 设计约束 | `docs/wiki/ui-design/README.md` |
 | Repository structure rules / 仓库结构约束 | `STRUCTURE_GUIDELINES.adoc` |
 
 ## Rules / 使用规则

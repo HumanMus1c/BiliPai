@@ -287,6 +287,19 @@ internal fun shouldShowDynamicLoadingFooter(
     return isLoading && activeItemsCount > 0
 }
 
+internal fun shouldLoadMoreDynamicFeed(
+    furthestVisibleItemIndex: Int?,
+    totalItemsCount: Int,
+    allowAutomaticLoadMore: Boolean,
+    isLoading: Boolean,
+    hasMore: Boolean,
+    prefetchDistance: Int = 3,
+): Boolean {
+    if (!allowAutomaticLoadMore || isLoading || !hasMore || totalItemsCount <= 0) return false
+    val visibleIndex = furthestVisibleItemIndex ?: return false
+    return visibleIndex >= totalItemsCount - prefetchDistance.coerceAtLeast(1)
+}
+
 internal fun shouldShowDynamicNoMoreFooter(
     hasMore: Boolean,
     activeItemsCount: Int

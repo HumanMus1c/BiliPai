@@ -216,6 +216,61 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
+    fun `dynamic feed loads more from furthest visible waterfall lane`() {
+        val visibleLaneIndices = listOf(18, 22, 20)
+
+        assertTrue(
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = visibleLaneIndices.maxOrNull(),
+                totalItemsCount = 25,
+                allowAutomaticLoadMore = true,
+                isLoading = false,
+                hasMore = true,
+            )
+        )
+        assertFalse(
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = 20,
+                totalItemsCount = 25,
+                allowAutomaticLoadMore = true,
+                isLoading = false,
+                hasMore = true,
+            )
+        )
+    }
+
+    @Test
+    fun `dynamic feed does not load more when pagination is unavailable`() {
+        assertFalse(
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = 22,
+                totalItemsCount = 25,
+                allowAutomaticLoadMore = false,
+                isLoading = false,
+                hasMore = true,
+            )
+        )
+        assertFalse(
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = 22,
+                totalItemsCount = 25,
+                allowAutomaticLoadMore = true,
+                isLoading = true,
+                hasMore = true,
+            )
+        )
+        assertFalse(
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = 22,
+                totalItemsCount = 25,
+                allowAutomaticLoadMore = true,
+                isLoading = false,
+                hasMore = false,
+            )
+        )
+    }
+
+    @Test
     fun `no more footer should follow active hasMore and list size`() {
         assertTrue(shouldShowDynamicNoMoreFooter(hasMore = false, activeItemsCount = 1))
         assertFalse(shouldShowDynamicNoMoreFooter(hasMore = true, activeItemsCount = 1))

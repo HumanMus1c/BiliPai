@@ -12,14 +12,18 @@ import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
-import androidx.compose.material.icons.filled.LightMode
 
 /**
  * Three fully distinct volume/brightness feedback skins.
@@ -30,7 +34,7 @@ enum class GestureLevelOverlayStyle {
     Md3,
     /** iOS: centered frosted capsule with SF-style glyphs. */
     Ios,
-    /** MIUIX: centered native animated vertical slider. */
+    /** MIUIX: native animated horizontal slider at the top of the player. */
     Miuix
 }
 
@@ -56,16 +60,32 @@ data class GestureLevelOverlaySpec(
     val railWidthDp: Int,
     val railHeightDp: Int,
     val capsuleMinWidthDp: Int,
-    val iconSizeDp: Int
+    val iconSizeDp: Int,
+    val topInsetDp: Int
 )
 
 fun resolveGestureLevelOverlayStyle(
     presentation: AppTopTabPresentation,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
 ): GestureLevelOverlayStyle {
+    if (uiStyle == AppUiStyle.MIUIX) return GestureLevelOverlayStyle.Miuix
     return when (presentation) {
         AppTopTabPresentation.TONAL_CAPSULE -> GestureLevelOverlayStyle.Miuix
         AppTopTabPresentation.MOVING_CAPSULE -> GestureLevelOverlayStyle.Ios
         AppTopTabPresentation.MATERIAL_UNDERLINE -> GestureLevelOverlayStyle.Md3
+    }
+}
+
+@Composable
+fun rememberGestureLevelOverlayStyle(
+    presentation: AppTopTabPresentation,
+): GestureLevelOverlayStyle {
+    val uiStyle = LocalAppUiStyle.current
+    return remember(uiStyle, presentation) {
+        resolveGestureLevelOverlayStyle(
+            presentation = presentation,
+            uiStyle = uiStyle,
+        )
     }
 }
 
@@ -81,7 +101,9 @@ fun resolveGestureLevelOverlaySpec(
     style: GestureLevelOverlayStyle,
     kind: GestureLevelKind,
     percent: Float,
-    colorScheme: ColorScheme = darkColorScheme()
+    colorScheme: ColorScheme = darkColorScheme(),
+    miuixContainerColor: Color = Color(0xE61A1A1A),
+    miuixContentColor: Color = Color.White
 ): GestureLevelOverlaySpec {
     val progress = percent.coerceIn(0f, 1f)
     val isVolume = kind == GestureLevelKind.Volume
@@ -103,7 +125,8 @@ fun resolveGestureLevelOverlaySpec(
             railWidthDp = 0,
             railHeightDp = 0,
             capsuleMinWidthDp = 0,
-            iconSizeDp = 26
+            iconSizeDp = 26,
+            topInsetDp = 0
         )
         GestureLevelOverlayStyle.Ios -> GestureLevelOverlaySpec(
             style = style,
@@ -122,26 +145,28 @@ fun resolveGestureLevelOverlaySpec(
             railWidthDp = 0,
             railHeightDp = 0,
             capsuleMinWidthDp = 148,
-            iconSizeDp = 34
+            iconSizeDp = 34,
+            topInsetDp = 0
         )
         GestureLevelOverlayStyle.Miuix -> GestureLevelOverlaySpec(
             style = style,
             kind = kind,
-            alignment = Alignment.Center,
+            alignment = Alignment.TopCenter,
             showLabel = false,
             showPercentText = false,
-            verticalRail = true,
+            verticalRail = false,
             accentColor = if (isVolume) Color(0xFF0D84FF) else Color(0xFFFFC107),
             trackColor = Color.White.copy(alpha = 0.18f),
             fillColor = if (isVolume) Color(0xFF0D84FF) else Color(0xFFFFC107),
-            containerColor = Color(0xE61A1A1A),
+            containerColor = miuixContainerColor,
             borderColor = Color.White.copy(alpha = 0.06f),
-            iconTint = Color.White,
-            textColor = Color.White,
-            railWidthDp = 40,
-            railHeightDp = 186,
+            iconTint = miuixContentColor,
+            textColor = miuixContentColor,
+            railWidthDp = 186,
+            railHeightDp = 40,
             capsuleMinWidthDp = 40,
-            iconSizeDp = 22
+            iconSizeDp = 22,
+            topInsetDp = 32
         )
     }
 }

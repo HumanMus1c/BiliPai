@@ -12,8 +12,12 @@ class AppShapesTest {
 
     @Test
     fun nonGlassMiuix_usesRoleCornersWithoutChangingOtherModes() {
-        val expected = mapOf(ContainerLevel.Card to 16.dp, ContainerLevel.MediaCover to 12.dp,
-            ContainerLevel.ProminentCard to 20.dp)
+        val expected = mapOf(
+            ContainerLevel.Card to 16.dp,
+            ContainerLevel.MediaCover to 12.dp,
+            ContainerLevel.ProminentCard to 20.dp,
+            ContainerLevel.Chip to 10.dp,
+        )
         expected.forEach { (role, radius) ->
             assertEquals(radius, AppShapes.resolveContainerCornerDp(role, AppUiStyle.MIUIX, false))
             assertEquals(AppShapes.resolveContainerCornerDp(role, AppUiStyle.MATERIAL3),

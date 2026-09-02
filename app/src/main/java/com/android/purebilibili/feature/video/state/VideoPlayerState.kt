@@ -1539,19 +1539,19 @@ fun rememberVideoPlayerState(
             }
         }
         
-        // 3️⃣ 如果没有恢复成功，则调用 loadVideo
-        if (!restored) {
-            Logger.w(
-                "VideoReturnTrace",
-                "player state requests load: $bvid/$cid, entryFinished=$entryTransitionFinished"
-            )
-            com.android.purebilibili.core.util.Logger.d("VideoPlayerState", "SUB_DBG call loadVideo: request=$bvid/$cid")
-            viewModel.loadVideo(
-                bvid = bvid,
-                cid = cid,
-                fallbackResumePositionMs = fallbackResumePositionMs
-            )
-        }
+        // 3️⃣ 无论 UI 是否从缓存恢复，都让 ViewModel 校正当前 player 会话。
+        // 从视频详情进入 UP 主页后再点同一视频时，复用的 player 可能已被非活跃会话暂停/静音。
+        // loadVideo 内部会保留已恢复的 Success UI，只恢复健康 player，失效时才重新 prepare。
+        Logger.w(
+            "VideoReturnTrace",
+            "player state reconciles load: $bvid/$cid, cachedUiRestored=$restored, entryFinished=$entryTransitionFinished"
+        )
+        com.android.purebilibili.core.util.Logger.d("VideoPlayerState", "SUB_DBG call loadVideo: request=$bvid/$cid")
+        viewModel.loadVideo(
+            bvid = bvid,
+            cid = cid,
+            fallbackResumePositionMs = fallbackResumePositionMs
+        )
     }
 
     return holder

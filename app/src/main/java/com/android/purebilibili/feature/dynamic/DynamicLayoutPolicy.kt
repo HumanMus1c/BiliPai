@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.dynamic
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.store.SettingsManager
 
 internal enum class DynamicVideoCardLayoutMode {
     VERTICAL,
@@ -17,6 +18,10 @@ internal fun resolveDynamicTimelineMinColumnWidth(): Dp = 360.dp
 internal fun resolveDynamicTimelineHorizontalSpacing(): Dp = 18.dp
 
 internal fun resolveDynamicTimelineVerticalSpacing(): Dp = 10.dp
+
+internal fun shouldUseDynamicManualPrependAnchor(
+    feedLayoutMode: SettingsManager.DynamicFeedLayoutMode,
+): Boolean = feedLayoutMode == SettingsManager.DynamicFeedLayoutMode.LIST
 
 internal fun resolveDynamicVideoCardLayoutMode(containerWidthDp: Int): DynamicVideoCardLayoutMode {
     return DynamicVideoCardLayoutMode.VERTICAL

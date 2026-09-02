@@ -92,6 +92,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -106,6 +107,7 @@ import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
@@ -3148,6 +3150,59 @@ private fun SearchResultCardSurface(
     }
 }
 
+private enum class SearchResultTextRole {
+    DENSE_TITLE,
+    TITLE,
+    BODY,
+    METADATA,
+    BADGE,
+}
+
+@Composable
+private fun SearchResultText(
+    text: String,
+    role: SearchResultTextRole,
+    legacyFontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    legacyFontWeight: FontWeight? = null,
+    legacyLineHeight: TextUnit = TextUnit.Unspecified,
+    minLines: Int = 1,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    if (isMiuixNonGlassEnabled()) {
+        val style = when (role) {
+            SearchResultTextRole.DENSE_TITLE -> MaterialTheme.typography.bodySmall
+            SearchResultTextRole.TITLE -> MaterialTheme.typography.titleSmall
+            SearchResultTextRole.BODY -> MaterialTheme.typography.bodySmall
+            SearchResultTextRole.METADATA -> MaterialTheme.typography.labelMedium
+            SearchResultTextRole.BADGE -> MaterialTheme.typography.labelSmall
+        }
+        AppText(
+            text = text,
+            modifier = modifier,
+            color = color,
+            style = style,
+            minLines = minLines,
+            maxLines = maxLines,
+            overflow = overflow,
+        )
+    } else {
+        AppText(
+            text = text,
+            modifier = modifier,
+            color = color,
+            fontSize = legacyFontSize,
+            fontWeight = legacyFontWeight,
+            lineHeight = legacyLineHeight,
+            minLines = minLines,
+            maxLines = maxLines,
+            overflow = overflow,
+        )
+    }
+}
+
 /**
  *  搜索结果卡片 (显示发布时间)
  */
@@ -3158,6 +3213,7 @@ fun SearchResultCard(
     index: Int,
     onClick: (String) -> Unit
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     val coverUrl = remember(video.bvid) {
         FormatUtils.fixImageUrl(if (video.pic.startsWith("//")) "https:${video.pic}" else video.pic)
     }
@@ -3167,7 +3223,7 @@ fun SearchResultCard(
             .fillMaxWidth()
             .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick(video.bvid) }
-            .padding(bottom = 8.dp)
+            .padding(bottom = if (useMiuixNonGlassPresentation) AppSpacingTokens.Small else 8.dp)
     ) {
         // 封面
         Box(
@@ -3213,22 +3269,31 @@ fun SearchResultCard(
             
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(
+            modifier = Modifier.height(
+                if (useMiuixNonGlassPresentation) AppSpacingTokens.Small else 8.dp
+            )
+        )
         
         // 标题
-        AppText(
+        SearchResultText(
             text = video.title,
+            role = SearchResultTextRole.DENSE_TITLE,
+            legacyFontSize = 13.sp,
             minLines = 1,
             maxLines = videoCardTitleMaxLines(),
             overflow = videoCardTitleOverflow(),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            lineHeight = 18.sp,
+            legacyFontWeight = FontWeight.Medium,
+            legacyLineHeight = 18.sp,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 2.dp)
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(
+            modifier = Modifier.height(
+                if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 6.dp
+            )
+        )
         HorizontalVideoStatRow(
             playText = FormatUtils.formatStat(video.stat.view.toLong()),
             danmakuText = if (video.stat.danmaku > 0) {
@@ -3239,14 +3304,22 @@ fun SearchResultCard(
             modifier = Modifier.padding(horizontal = 2.dp),
         )
         
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(
+            modifier = Modifier.height(
+                if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 6.dp
+            )
+        )
         
         // UP主 + 发布时间
         FlowRow(
             modifier = Modifier.padding(horizontal = 2.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            horizontalArrangement = Arrangement.spacedBy(
+                if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(
+                if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
+            )
         ) {
             UpBadgeName(
                 name = video.owner.name,
@@ -3268,7 +3341,11 @@ fun SearchResultCard(
                         )
                     }
                 } else null,
-                nameStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                nameStyle = if (useMiuixNonGlassPresentation) {
+                    MaterialTheme.typography.labelSmall
+                } else {
+                    MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+                },
                 nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
@@ -3279,9 +3356,10 @@ fun SearchResultCard(
             
             //  显示发布时间
             if (video.pubdate > 0) {
-                AppText(
+                SearchResultText(
                     text = "· ${FormatUtils.formatPublishTime(video.pubdate)}",
-                    fontSize = 11.sp,
+                    role = SearchResultTextRole.BADGE,
+                    legacyFontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
@@ -3298,7 +3376,7 @@ internal fun UpSearchResultCard(
     appearance: SearchResultCardAppearance,
     onClick: () -> Unit
 ) {
-
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     val cleanedItem = remember(upItem.mid) { upItem.cleanupFields() }
     
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -3312,7 +3390,9 @@ internal fun UpSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 头像
@@ -3350,20 +3430,27 @@ internal fun UpSearchResultCard(
                 }
             }
             
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(
+                modifier = Modifier.width(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 10.dp
+                )
+            )
             
             // UP主信息
             Column(modifier = Modifier.weight(1f)) {
                 // 名称 + 官方等级标志
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(
+                        if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 6.dp
+                    )
                 ) {
-                    AppText(
+                    SearchResultText(
                         text = cleanedItem.uname,
+                        role = SearchResultTextRole.TITLE,
+                        legacyFontSize = 14.sp,
                         modifier = Modifier.weight(1f, fill = false),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
+                        legacyFontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -3375,19 +3462,29 @@ internal fun UpSearchResultCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
-                AppText(
+                Spacer(
+                    modifier = Modifier.height(
+                        if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
+                    )
+                )
+                SearchResultText(
                     text = "粉丝：${FormatUtils.formatStat(cleanedItem.fans.toLong())}  " +
                         "视频：${cleanedItem.videos}",
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 if (verifyBadge != null && verifyBadge.text.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    AppText(
+                    Spacer(
+                        modifier = Modifier.height(
+                            if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
+                        )
+                    )
+                    SearchResultText(
                         text = verifyBadge.text,
-                        fontSize = 12.sp,
+                        role = SearchResultTextRole.METADATA,
+                        legacyFontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -3409,6 +3506,7 @@ internal fun BangumiSearchResultCard(
     onClick: () -> Unit,
     categoryLabel: String? = null
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     SearchResultCardSurface(
         appearance = appearance,
         onClick = onClick
@@ -3416,7 +3514,9 @@ internal fun BangumiSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.Top
         ) {
             // 封面
@@ -3434,7 +3534,7 @@ internal fun BangumiSearchResultCard(
                 contentScale = ContentScale.Crop
             )
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             
             // 番剧信息
             Column(modifier = Modifier.weight(1f)) {
@@ -3443,43 +3543,47 @@ internal fun BangumiSearchResultCard(
                         onClick = {},
                         enabled = false,
                         label = {
-                            AppText(
+                            SearchResultText(
                                 text = categoryLabel,
-                                fontSize = 11.sp
+                                role = SearchResultTextRole.BADGE,
+                                legacyFontSize = 11.sp,
                             )
                         },
                         modifier = Modifier.height(24.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 }
-                AppText(
+                SearchResultText(
                     text = item.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
+                    role = SearchResultTextRole.TITLE,
+                    legacyFontSize = 15.sp,
+                    legacyFontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 
                 // 类型 + 集数
                 Row {
                     if (item.seasonTypeName.isNotBlank()) {
-                        AppText(
+                        SearchResultText(
                             text = item.seasonTypeName,
-                            fontSize = 12.sp,
+                            role = SearchResultTextRole.METADATA,
+                            legacyFontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                     }
                     if (item.indexShow.isNotBlank()) {
-                        AppText(
+                        SearchResultText(
                             text = item.indexShow,
-                            fontSize = 12.sp,
+                            role = SearchResultTextRole.METADATA,
+                            legacyFontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -3490,17 +3594,19 @@ internal fun BangumiSearchResultCard(
                 // 评分
                 item.mediaScore?.let { score ->
                     if (score.score > 0) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            AppText(
+                            SearchResultText(
                                 text = "⭐ ${score.score}",
-                                fontSize = 12.sp,
+                                role = SearchResultTextRole.METADATA,
+                                legacyFontSize = 12.sp,
                                 color = Color(0xFFFF9800)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            AppText(
+                            Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                            SearchResultText(
                                 text = "${score.userCount}人评分",
-                                fontSize = 11.sp,
+                                role = SearchResultTextRole.BADGE,
+                                legacyFontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                         }
@@ -3509,10 +3615,11 @@ internal fun BangumiSearchResultCard(
                 
                 // 简介
                 if (item.desc.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    AppText(
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                    SearchResultText(
                         text = item.desc,
-                        fontSize = 11.sp,
+                        role = SearchResultTextRole.BODY,
+                        legacyFontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -3532,6 +3639,7 @@ internal fun LiveSearchResultCard(
     appearance: SearchResultCardAppearance,
     onClick: () -> Unit
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     SearchResultCardSurface(
         appearance = appearance,
         onClick = onClick
@@ -3539,7 +3647,9 @@ internal fun LiveSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 封面
@@ -3563,15 +3673,19 @@ internal fun LiveSearchResultCard(
                     AppSurface(
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(4.dp),
+                            .padding(AppSpacingTokens.ExtraSmall),
                         color = MaterialTheme.colorScheme.error,
                         shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
-                        AppText(
+                        SearchResultText(
                             text = "直播中",
-                            fontSize = 10.sp,
+                            role = SearchResultTextRole.BADGE,
+                            legacyFontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onError,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(
+                                horizontal = AppSpacingTokens.ExtraSmall,
+                                vertical = AppSpacingTokens.Micro,
+                            )
                         )
                     }
                 }
@@ -3581,51 +3695,62 @@ internal fun LiveSearchResultCard(
                     AppSurface(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(4.dp),
+                            .padding(AppSpacingTokens.ExtraSmall),
                         color = Color.Black.copy(alpha = 0.6f),
                         shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
-                        AppText(
+                        SearchResultText(
                             text = FormatUtils.formatStat(item.online.toLong()),
-                            fontSize = 10.sp,
+                            role = SearchResultTextRole.BADGE,
+                            legacyFontSize = 10.sp,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(
+                                horizontal = AppSpacingTokens.ExtraSmall,
+                                vertical = AppSpacingTokens.Micro,
+                            )
                         )
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             
             // 直播信息
             Column(modifier = Modifier.weight(1f)) {
-                AppText(
+                SearchResultText(
                     text = item.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    role = SearchResultTextRole.TITLE,
+                    legacyFontSize = 14.sp,
+                    legacyFontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 
                 // 主播名
-                AppText(
+                SearchResultText(
                     text = item.uname,
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(
+                    modifier = Modifier.height(
+                        if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
+                    )
+                )
                 
                 // 分区
                 if (item.area_v2_name.isNotBlank()) {
-                    AppText(
+                    SearchResultText(
                         text = "${item.area_v2_parent_name} · ${item.area_v2_name}",
-                        fontSize = 11.sp,
+                        role = SearchResultTextRole.BADGE,
+                        legacyFontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -3704,6 +3829,7 @@ internal fun LiveUserSearchResultCard(
     appearance: SearchResultCardAppearance,
     onClick: () -> Unit
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     val cleaned = remember(item.uid, item.uname, item.uface) { item.cleanupFields() }
     SearchResultCardSurface(
         appearance = appearance,
@@ -3712,7 +3838,9 @@ internal fun LiveUserSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -3727,37 +3855,43 @@ internal fun LiveUserSearchResultCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppText(
+                    SearchResultText(
                         text = cleaned.uname,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
+                        role = SearchResultTextRole.TITLE,
+                        legacyFontSize = 16.sp,
+                        legacyFontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     if (cleaned.isLive || cleaned.liveStatus == 1) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                         AppSurface(
                             color = MaterialTheme.colorScheme.error,
                             shape = AppShapes.container(ContainerLevel.Tag)
                         ) {
-                            AppText(
+                            SearchResultText(
                                 text = "直播中",
-                                fontSize = 10.sp,
+                                role = SearchResultTextRole.BADGE,
+                                legacyFontSize = 10.sp,
                                 color = Color.White,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(
+                                    horizontal = AppSpacingTokens.ExtraSmall,
+                                    vertical = AppSpacingTokens.Micro,
+                                )
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                SearchResultText(
                     text = "粉丝 ${FormatUtils.formatStat(cleaned.attentions.toLong())}",
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -3771,6 +3905,7 @@ internal fun TopicSearchResultCard(
     appearance: SearchResultCardAppearance,
     onClick: () -> Unit
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     val cleaned = remember(item.topicId, item.title, item.cover) { item.cleanupFields() }
     SearchResultCardSurface(
         appearance = appearance,
@@ -3779,7 +3914,9 @@ internal fun TopicSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -3794,30 +3931,33 @@ internal fun TopicSearchResultCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
-                AppText(
+                SearchResultText(
                     text = cleaned.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
+                    role = SearchResultTextRole.TITLE,
+                    legacyFontSize = 15.sp,
+                    legacyFontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (cleaned.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    AppText(
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                    SearchResultText(
                         text = cleaned.description,
-                        fontSize = 12.sp,
+                        role = SearchResultTextRole.BODY,
+                        legacyFontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                SearchResultText(
                     text = "浏览 ${FormatUtils.formatStat(cleaned.view.toLong())}",
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
                 )
             }
@@ -3830,6 +3970,7 @@ internal fun PhotoSearchResultCard(
     item: SearchPhotoItem,
     appearance: SearchResultCardAppearance
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     val cleaned = remember(item.id, item.title, item.cover) { item.cleanupFields() }
     SearchResultCardSurface(
         appearance = appearance.copy(
@@ -3840,7 +3981,9 @@ internal fun PhotoSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 12.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -3855,36 +3998,40 @@ internal fun PhotoSearchResultCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
-                AppText(
+                SearchResultText(
                     text = cleaned.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
+                    role = SearchResultTextRole.TITLE,
+                    legacyFontSize = 15.sp,
+                    legacyFontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                SearchResultText(
                     text = cleaned.uname,
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                SearchResultText(
                     text = "图片 ${cleaned.count} · 浏览 ${FormatUtils.formatStat(cleaned.view.toLong())} · 喜欢 ${FormatUtils.formatStat(cleaned.like.toLong())}",
-                    fontSize = 11.sp,
+                    role = SearchResultTextRole.BADGE,
+                    legacyFontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                SearchResultText(
                     text = "暂不支持打开",
-                    fontSize = 11.sp,
+                    role = SearchResultTextRole.BADGE,
+                    legacyFontSize = 11.sp,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
@@ -3898,6 +4045,7 @@ internal fun ArticleSearchResultCard(
     appearance: SearchResultCardAppearance,
     onClick: () -> Unit
 ) {
+    val useMiuixNonGlassPresentation = isMiuixNonGlassEnabled()
     SearchResultCardSurface(
         appearance = appearance,
         onClick = onClick
@@ -3905,8 +4053,10 @@ internal fun ArticleSearchResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(
+                    if (useMiuixNonGlassPresentation) AppSpacingTokens.Medium else 14.dp
+                ),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
             verticalAlignment = Alignment.Top
         ) {
             if (item.imageUrls.isNotEmpty()) {
@@ -3926,21 +4076,23 @@ internal fun ArticleSearchResultCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
             ) {
-                AppText(
+                SearchResultText(
                     text = item.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    role = SearchResultTextRole.TITLE,
+                    legacyFontSize = 15.sp,
+                    legacyFontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 if (item.description.isNotBlank()) {
-                    AppText(
+                    SearchResultText(
                         text = item.description,
-                        fontSize = 12.sp,
+                        role = SearchResultTextRole.BODY,
+                        legacyFontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -3958,16 +4110,18 @@ internal fun ArticleSearchResultCard(
                     }
                 }
                 if (metaLine.isNotBlank()) {
-                    AppText(
+                    SearchResultText(
                         text = metaLine,
-                        fontSize = 12.sp,
+                        role = SearchResultTextRole.METADATA,
+                        legacyFontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                AppText(
+                SearchResultText(
                     text = "${FormatUtils.formatStat(item.view.toLong())}浏览 · ${FormatUtils.formatStat(item.reply.toLong())}评论 · ${FormatUtils.formatStat(item.like.toLong())}点赞",
-                    fontSize = 12.sp,
+                    role = SearchResultTextRole.METADATA,
+                    legacyFontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }

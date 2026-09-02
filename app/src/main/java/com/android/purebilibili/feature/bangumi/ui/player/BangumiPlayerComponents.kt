@@ -73,7 +73,7 @@ import com.android.purebilibili.feature.video.ui.components.toAnime4KDisplayScal
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
-import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.rememberGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.overlay.PlaybackDebugInfo
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybackParameters
@@ -742,9 +742,7 @@ fun BangumiGestureIndicator(
     modifier: Modifier = Modifier
 ) {
     val playerChromeProfile = rememberAppPlayerChromeProfile()
-    val overlayStyle = remember(playerChromeProfile.tabPresentation) {
-        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
-    }
+    val overlayStyle = rememberGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     when (mode) {
         BangumiGestureMode.Brightness, BangumiGestureMode.Volume -> {
             val mappedMode = if (mode == BangumiGestureMode.Brightness) {

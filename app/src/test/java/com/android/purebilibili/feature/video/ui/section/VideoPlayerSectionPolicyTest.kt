@@ -111,6 +111,26 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun playerInteractionIdentity_tracksActualMediaAcrossAutoAdvance() {
+        assertEquals(
+            "BV-next_202",
+            resolvePlayerInteractionIdentity(
+                routeBvid = "BV-route",
+                playbackBvid = "BV-next",
+                playbackCid = 202L
+            )
+        )
+        assertEquals(
+            "BV-route_303",
+            resolvePlayerInteractionIdentity(
+                routeBvid = "BV-route",
+                playbackBvid = "",
+                playbackCid = 303L
+            )
+        )
+    }
+
+    @Test
     fun dragStart_ignoresBottomControlZone() {
         assertTrue(
             shouldIgnoreVideoPlayerDragStart(

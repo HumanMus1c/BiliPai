@@ -1,5 +1,8 @@
 package com.android.purebilibili.core.ui.components
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.theme.AppUiStyle
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +28,7 @@ class AppThemeAdaptiveTabRowStructureTest {
         assertEquals(
             2,
             source.lineSequence().count {
-                it.contains("minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget")
+                it.contains("minTabWidth: Dp = Dp.Unspecified")
             },
         )
         assertFalse(adaptiveEntry.contains("AppNativeTabRow("))
@@ -40,8 +43,45 @@ class AppThemeAdaptiveTabRowStructureTest {
         assertTrue(adaptiveRenderer.contains("isScrollInProgressProvider = isScrollInProgressProvider"))
         assertTrue(adaptiveRenderer.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(adaptiveRenderer.contains("resolvedDragSelectionEnabled"))
+        assertTrue(adaptiveRenderer.contains("readableTabWidth > resolvedMinTabWidth"))
         assertTrue(adaptiveRenderer.contains("tapPressRefractionEnabled = tapPressRefractionEnabled"))
         assertTrue(adaptiveRenderer.contains("height = height"))
         assertTrue(adaptiveRenderer.contains("indicatorHeight = indicatorHeight"))
+    }
+
+    @Test
+    fun `adaptive tabs keep beta21 liquid width without reverting non glass accessibility`() {
+        assertEquals(
+            72.dp,
+            resolveAppAdaptiveTabMinWidth(
+                requestedMinTabWidth = Dp.Unspecified,
+                uiStyle = AppUiStyle.MIUIX,
+                liquidGlassEnabled = true,
+            ),
+        )
+        assertEquals(
+            48.dp,
+            resolveAppAdaptiveTabMinWidth(
+                requestedMinTabWidth = Dp.Unspecified,
+                uiStyle = AppUiStyle.MIUIX,
+                liquidGlassEnabled = false,
+            ),
+        )
+        assertEquals(
+            72.dp,
+            resolveAppAdaptiveTabMinWidth(
+                requestedMinTabWidth = Dp.Unspecified,
+                uiStyle = AppUiStyle.MATERIAL3,
+                liquidGlassEnabled = false,
+            ),
+        )
+        assertEquals(
+            60.dp,
+            resolveAppAdaptiveTabMinWidth(
+                requestedMinTabWidth = 60.dp,
+                uiStyle = AppUiStyle.MATERIAL3,
+                liquidGlassEnabled = true,
+            ),
+        )
     }
 }

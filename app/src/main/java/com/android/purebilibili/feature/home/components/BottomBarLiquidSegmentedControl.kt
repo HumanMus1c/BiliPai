@@ -76,6 +76,7 @@ import com.android.purebilibili.core.ui.animation.DampedDragTrackingMode
 import com.android.purebilibili.feature.home.components.miuix.inspectDragGestures
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
+import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.ui.motion.BottomBarMotionProfile
 import com.android.purebilibili.core.ui.motion.BottomBarMotionSpec
 import com.android.purebilibili.core.ui.motion.resolveBottomBarMotionSpec
@@ -98,13 +99,14 @@ internal fun resolveSegmentedControlLiquidGlassEnabled(
     storedLiquidGlassEnabled: Boolean,
     liquidGlassEffectsEnabled: Boolean,
     supportsIndependentLiquidGlass: Boolean,
-    androidNativeLiquidGlassEnabled: Boolean
+    androidNativeLiquidGlassEnabled: Boolean,
+    sdkInt: Int = Build.VERSION.SDK_INT,
 ): Boolean {
     @Suppress("UNUSED_PARAMETER")
     val ignoredStored = storedLiquidGlassEnabled
     @Suppress("UNUSED_PARAMETER")
     val ignoredIndependent = supportsIndependentLiquidGlass
-    if (!liquidGlassEffectsEnabled) return false
+    if (!liquidGlassEffectsEnabled || !shouldAllowHomeChromeLiquidGlass(sdkInt)) return false
     return androidNativeLiquidGlassEnabled
 }
 

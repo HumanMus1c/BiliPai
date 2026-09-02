@@ -12,6 +12,24 @@ import kotlin.test.assertTrue
 class VideoDetailScreenPolicyTest {
 
     @Test
+    fun collapsedPlayerNavigationBarScopesMiuixFacadeToNonGlassMode() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
+            .readText()
+        val navigationBar = source
+            .substringAfter("private fun CollapsedPlayerNavigationBar(")
+            .substringBefore("@androidx.annotation.OptIn")
+
+        assertTrue(navigationBar.contains("val useMiuixNonGlassChrome = isMiuixNonGlassEnabled()"))
+        assertTrue(navigationBar.contains("AppIconButton("))
+        assertTrue(navigationBar.contains("AppIcon("))
+        assertTrue(navigationBar.contains("AppText(\"立即播放\""))
+        assertTrue(navigationBar.contains("AppChromeSizeTokens.MinimumTouchTarget"))
+        assertTrue(navigationBar.contains("IconButton(onClick = onBack"))
+        assertTrue(navigationBar.contains("size(width = 42.dp, height = 34.dp)"))
+        assertTrue(navigationBar.contains("Text(\"立即播放\""))
+    }
+
+    @Test
     fun localBack_prefersPortraitFullscreenOverLandscapeFullscreen() {
         assertEquals(
             VideoDetailLocalBackTarget.EXIT_PORTRAIT_FULLSCREEN,

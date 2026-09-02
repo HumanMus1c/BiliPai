@@ -13,10 +13,28 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import top.yukonga.miuix.kmp.blur.Backdrop
+
+private val beta21AdaptiveTabMinWidth = 72.dp
+
+internal fun resolveAppAdaptiveTabMinWidth(
+    requestedMinTabWidth: Dp,
+    uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean,
+): Dp {
+    if (requestedMinTabWidth.isSpecified) return requestedMinTabWidth
+    return if (uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled) {
+        AppChromeSizeTokens.MinimumTouchTarget
+    } else {
+        beta21AdaptiveTabMinWidth
+    }
+}
 
 /**
  * App-wide category/page tab contract. The shared renderer keeps MD3's animated underline
@@ -31,7 +49,7 @@ fun <T> AppThemeAdaptiveTabRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollable: Boolean = false,
-    minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget,
+    minTabWidth: Dp = Dp.Unspecified,
     compactMiuixWhenTwoOptions: Boolean = true,
     height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
     indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
@@ -75,7 +93,7 @@ fun <T> AppLiquidAwareTabRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollable: Boolean = false,
-    minTabWidth: Dp = AppChromeSizeTokens.MinimumTouchTarget,
+    minTabWidth: Dp = Dp.Unspecified,
     compactMiuixWhenTwoOptions: Boolean = true,
     height: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
     indicatorHeight: Dp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
@@ -87,7 +105,13 @@ fun <T> AppLiquidAwareTabRow(
     isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     if (options.isEmpty()) return
+    val uiStyle = LocalAppUiStyle.current
     val liquidGlassEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
+    val resolvedMinTabWidth = resolveAppAdaptiveTabMinWidth(
+        requestedMinTabWidth = minTabWidth,
+        uiStyle = uiStyle,
+        liquidGlassEnabled = liquidGlassEnabled,
+    )
     if (!liquidGlassEnabled) {
         AppNativeTabRow(
             options = options,
@@ -96,7 +120,7 @@ fun <T> AppLiquidAwareTabRow(
             modifier = modifier,
             enabled = enabled,
             scrollable = scrollable,
-            minTabWidth = minTabWidth,
+            minTabWidth = resolvedMinTabWidth,
             compactMiuixWhenTwoOptions = compactMiuixWhenTwoOptions,
             height = height,
             allowLabelOverflow = true,
@@ -110,15 +134,17 @@ fun <T> AppLiquidAwareTabRow(
     // horizontally scrollable, so labels are never ellipsized or clipped on
     // narrow phones; this also applies to shared rows such as UP space tabs.
     val readableTabWidth = resolveReadableNativeTabMinWidth(
-        requestedMinWidth = minTabWidth,
+        requestedMinWidth = resolvedMinTabWidth,
         labels = options.map { it.label },
         allowLabelOverflow = true,
     )
-    val needsHorizontalScroll = scrollable || readableTabWidth > minTabWidth
+    val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp
+    // Liquid rows and MD3 retain beta.21's 72dp default and overflow contract. Only the
+    // non-glass Miuix renderer uses beta.22's 48dp accessibility minimum.
+    val needsHorizontalScroll = scrollable || readableTabWidth > resolvedMinTabWidth
     if (needsHorizontalScroll) {
         val scrollState = rememberScrollState()
         val density = LocalDensity.current
-        val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp
         BoxWithConstraints(
             modifier = modifier
                 .widthIn(max = viewportMaxWidth)

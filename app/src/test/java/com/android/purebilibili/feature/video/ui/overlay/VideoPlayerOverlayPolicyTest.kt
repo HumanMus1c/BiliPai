@@ -19,6 +19,24 @@ import androidx.compose.ui.graphics.luminance
 class VideoPlayerOverlayPolicyTest {
 
     @Test
+    fun portraitMoreMenuUsesMiuixPopupOnlyInNonGlassMode() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/overlay/VideoPlayerOverlay.kt")
+            .readText()
+        val topBar = source
+            .substringAfter("private fun PortraitTopBar(")
+            .substringBefore("private fun PlaybackInsightPanel(")
+
+        assertTrue(topBar.contains("val useMiuixNonGlassChrome = isMiuixNonGlassEnabled()"))
+        assertTrue(topBar.contains("if (useMiuixNonGlassChrome)"))
+        assertTrue(topBar.contains("AppDropdownMenu("))
+        assertTrue(topBar.contains("AppDropdownMenuItem("))
+        assertTrue(topBar.contains("text = { AppText(\"播放设置\") }"))
+        assertTrue(topBar.contains("DropdownMenu("))
+        assertTrue(topBar.contains("DropdownMenuItem("))
+        assertTrue(topBar.contains("text = { Text(\"播放设置\") }"))
+    }
+
+    @Test
     fun `long press speed keeps shared progress snapshot at high frequency`() {
         assertEquals(
             100L,

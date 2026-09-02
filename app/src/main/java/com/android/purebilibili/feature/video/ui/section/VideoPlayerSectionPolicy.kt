@@ -22,6 +22,15 @@ import kotlin.math.roundToInt
 internal const val INITIAL_PLAYER_CONTROLS_VISIBLE = false
 internal const val INITIAL_PLAYER_CHROME_AUTO_HIDE_HANDLED = true
 
+internal fun resolvePlayerInteractionIdentity(
+    routeBvid: String,
+    playbackBvid: String?,
+    playbackCid: Long?
+): String {
+    val effectiveBvid = playbackBvid?.takeIf { it.isNotBlank() } ?: routeBvid
+    return "${effectiveBvid}_${playbackCid?.coerceAtLeast(0L) ?: 0L}"
+}
+
 enum class VideoGestureMode { None, Brightness, Volume, Seek, SwipeToFullscreen }
 
 private const val PLAYER_DRAG_GESTURE_BOTTOM_EXCLUSION_BUFFER_DP = 12

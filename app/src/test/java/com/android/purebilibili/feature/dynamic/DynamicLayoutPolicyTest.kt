@@ -1,11 +1,24 @@
 package com.android.purebilibili.feature.dynamic
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.store.SettingsManager
 
 class DynamicLayoutPolicyTest {
+
+    @Test
+    fun `manual prepend anchor is limited to the single-column list`() {
+        assertFalse(
+            shouldUseDynamicManualPrependAnchor(SettingsManager.DynamicFeedLayoutMode.WATERFALL)
+        )
+        assertTrue(
+            shouldUseDynamicManualPrependAnchor(SettingsManager.DynamicFeedLayoutMode.LIST)
+        )
+    }
 
     @Test
     fun `dynamic feed uses the compact single-column content width`() {

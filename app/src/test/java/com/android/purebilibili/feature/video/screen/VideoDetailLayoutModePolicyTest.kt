@@ -10,6 +10,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoDetailLayoutModePolicyTest {
+    @Test
+    fun foldableCoverWindow_isNotInferredAsFloatingFromInnerDisplayBounds() {
+        assertFalse(
+            shouldInferFloatingWindowFromBounds(
+                currentBoundsSmallerThanMaximum = true,
+                isFoldableCoverWindow = true,
+            )
+        )
+        assertTrue(
+            shouldInferFloatingWindowFromBounds(
+                currentBoundsSmallerThanMaximum = true,
+                isFoldableCoverWindow = false,
+            )
+        )
+    }
 
     @Test
     fun expanded_usesTabletLayout() {
@@ -591,7 +606,39 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneOrientationPolicy_autoRotatePreservesDetectedLandscapeSideWhileFullscreen() {
+    fun phoneOrientationPolicy_regularPhoneReleasesDetectedSideToSensorLandscape() {
+        for (exactLandscape in listOf(
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+        )) {
+            assertEquals(
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.AUTO,
+                    isCompactDevice = true,
+                    isOrientationDrivenFullscreen = true,
+                    isFullscreenMode = true,
+                    currentRequestedOrientation = exactLandscape
+                )
+            )
+            assertEquals(
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.AUTO,
+                    isCompactDevice = true,
+                    isOrientationDrivenFullscreen = true,
+                    isFullscreenMode = true,
+                    manualFullscreenRequested = true,
+                    currentRequestedOrientation = exactLandscape
+                )
+            )
+        }
+    }
+
+    @Test
+    fun phoneOrientationPolicy_coverScreenPreservesDetectedLandscapeSideWhileFullscreen() {
         for (exactLandscape in listOf(
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
@@ -604,19 +651,8 @@ class VideoDetailLayoutModePolicyTest {
                     isCompactDevice = true,
                     isOrientationDrivenFullscreen = true,
                     isFullscreenMode = true,
-                    currentRequestedOrientation = exactLandscape
-                )
-            )
-            assertEquals(
-                exactLandscape,
-                resolvePhoneVideoRequestedOrientation(
-                    autoRotateEnabled = true,
-                    fullscreenMode = FullscreenMode.AUTO,
-                    isCompactDevice = true,
-                    isOrientationDrivenFullscreen = true,
-                    isFullscreenMode = true,
-                    manualFullscreenRequested = true,
-                    currentRequestedOrientation = exactLandscape
+                    currentRequestedOrientation = exactLandscape,
+                    preserveExactLandscapeSide = true,
                 )
             )
         }
@@ -647,14 +683,14 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 90,
                 isCurrentlyLandscape = false
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 48,
                 isCurrentlyLandscape = true
@@ -670,19 +706,39 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun autoRotateSensorPolicy_entersRightSideThenLetsSystemTrackLandscape() {
+    fun autoRotateSensorPolicy_regularPhoneLetsSystemTrackBothLandscapeSides() {
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 270,
                 isCurrentlyLandscape = false
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 312,
                 isCurrentlyLandscape = true
+            )
+        )
+    }
+
+    @Test
+    fun autoRotateSensorPolicy_coverScreenUsesExactDetectedLandscapeSide() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            resolvePhoneAutoRotateRequestedOrientation(
+                orientationDegrees = 270,
+                isCurrentlyLandscape = false,
+                useExactLandscapeSide = true,
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            resolvePhoneAutoRotateRequestedOrientation(
+                orientationDegrees = 90,
+                isCurrentlyLandscape = true,
+                useExactLandscapeSide = true,
             )
         )
     }
@@ -789,7 +845,8 @@ class VideoDetailLayoutModePolicyTest {
         ) {
             val requestedOrientation = resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = orientationDegrees,
-                isCurrentlyLandscape = true
+                isCurrentlyLandscape = true,
+                useExactLandscapeSide = true,
             )
             assertEquals(expectedOrientation, requestedOrientation)
             assertTrue(isLandscapeRequestedOrientation(requireNotNull(requestedOrientation)))

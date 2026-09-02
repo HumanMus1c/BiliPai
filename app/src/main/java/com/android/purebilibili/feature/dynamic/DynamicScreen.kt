@@ -549,12 +549,16 @@ fun DynamicScreen(
             val state = activeListState ?: return@derivedStateOf false
             val layoutInfo = state.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            allowAutomaticLoadMore &&
-                totalItems > 0 &&
-                lastVisibleItemIndex >= totalItems - 3 &&
-                !activeLoading &&
-                currentHasMore
+            // Staggered-grid visible items are lane-oriented; their list order is not a
+            // pagination contract. Use the furthest adapter index across every visible lane.
+            val furthestVisibleItemIndex = layoutInfo.visibleItemsInfo.maxOfOrNull { it.index }
+            shouldLoadMoreDynamicFeed(
+                furthestVisibleItemIndex = furthestVisibleItemIndex,
+                totalItemsCount = totalItems,
+                allowAutomaticLoadMore = allowAutomaticLoadMore,
+                isLoading = activeLoading,
+                hasMore = currentHasMore,
+            )
         }
     }
     //  [埋点] 页面浏览追踪
@@ -1422,6 +1426,9 @@ private fun DynamicList(
     val dynamicGridKeys = remember(filteredItems) {
         filteredItems.map { "dynamic_${dynamicFeedItemKey(it)}" }
     }
+    val useManualPrependAnchor = remember(feedLayoutMode) {
+        shouldUseDynamicManualPrependAnchor(feedLayoutMode)
+    }
     val skeletonPulse = if (showSkeleton) {
         com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse()
     } else {
@@ -1436,8 +1443,14 @@ private fun DynamicList(
             StaggeredGridCells.Adaptive(resolveDynamicTimelineMinColumnWidth())
         },
         state = listState,
-        prependItemKeys = dynamicGridKeys,
-        prependDividerIndex = if (isSelectedUserTabActive) -1 else oldContentDividerIndex,
+        // Keyed masonry lanes retain their visible content across prepends. Re-anchoring with
+        // scrollToItem after lane balancing can rebuild a tablet viewport from another lane.
+        prependItemKeys = if (useManualPrependAnchor) dynamicGridKeys else emptyList(),
+        prependDividerIndex = if (useManualPrependAnchor && !isSelectedUserTabActive) {
+            oldContentDividerIndex
+        } else {
+            -1
+        },
         contentPadding = PaddingValues(
             top = statusBarHeight + topPaddingExtra,
             bottom = bottomPadding

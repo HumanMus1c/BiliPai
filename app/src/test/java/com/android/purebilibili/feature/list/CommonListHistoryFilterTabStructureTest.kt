@@ -43,9 +43,12 @@ class CommonListHistoryFilterTabStructureTest {
             "关闭液态玻璃后应允许原生标签行横向滚动，避免窄屏强制均分导致文字省略"
         )
         assertTrue(
-            historyFilterSection.contains("minTabWidth = (historyFilterChrome.itemWidthDp ?: 0).dp"),
-            "原生标签行必须使用历史筛选策略提供的最小标签宽度"
+            historyFilterSection.contains(
+                "minTabWidth = historyFilterChrome.itemWidthDp?.dp ?: Dp.Unspecified"
+            ),
+            "原生标签行使用策略宽度，液态标签行必须保留 beta.21 的未指定宽度语义"
         )
+        assertFalse(historyFilterSection.contains("itemWidthDp ?: 0"))
         assertTrue(historyFilterSection.contains("height = historyFilterChrome.heightDp.dp"))
         assertTrue(historyFilterSection.contains("indicatorHeight = historyFilterChrome.indicatorHeightDp.dp"))
         assertTrue(

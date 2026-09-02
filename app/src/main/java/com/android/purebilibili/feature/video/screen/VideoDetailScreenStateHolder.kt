@@ -5,7 +5,11 @@ import coil3.request.crossfade
 import kotlinx.coroutines.flow.first
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.refresh.HistoryRefreshSuppression
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 
@@ -281,6 +285,7 @@ private fun CollapsedPlayerNavigationBar(
     modifier: Modifier = Modifier,
 ) {
     if (scrollRatio > 0f) {
+        val useMiuixNonGlassChrome = isMiuixNonGlassEnabled()
         val mediaScrimAlpha = resolveCollapsedPlayerMediaScrimAlpha(scrollRatio)
         val toolbarAlpha = resolveCollapsedPlayerToolbarAlpha(scrollRatio)
         Box(
@@ -314,19 +319,45 @@ private fun CollapsedPlayerNavigationBar(
                         modifier = Modifier.align(Alignment.CenterStart),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(onClick = onBack, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
-                            Icon(
-                                Icons.Filled.ArrowBack,
-                                contentDescription = "返回",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
+                        if (useMiuixNonGlassChrome) {
+                            AppIconButton(
+                                onClick = onBack,
+                                modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
+                            ) {
+                                AppIcon(
+                                    Icons.Filled.ArrowBack,
+                                    contentDescription = "返回",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onBack, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
+                                Icon(
+                                    Icons.Filled.ArrowBack,
+                                    contentDescription = "返回",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
-                        IconButton(onClick = onHomeClick, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
-                            Icon(
-                                Icons.Filled.Home,
-                                contentDescription = "首页",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
+                        if (useMiuixNonGlassChrome) {
+                            AppIconButton(
+                                onClick = onHomeClick,
+                                modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
+                            ) {
+                                AppIcon(
+                                    Icons.Filled.Home,
+                                    contentDescription = "首页",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onHomeClick, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
+                                Icon(
+                                    Icons.Filled.Home,
+                                    contentDescription = "首页",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
                     Row(
@@ -334,24 +365,48 @@ private fun CollapsedPlayerNavigationBar(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text("立即播放", color = MaterialTheme.colorScheme.primary)
+                        if (useMiuixNonGlassChrome) {
+                            AppIcon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            AppText("立即播放", color = MaterialTheme.colorScheme.primary)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text("立即播放", color = MaterialTheme.colorScheme.primary)
+                        }
                     }
-                    IconButton(
-                        onClick = onMoreClick,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(width = 42.dp, height = 34.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            contentDescription = "更多设置",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
+                    if (useMiuixNonGlassChrome) {
+                        AppIconButton(
+                            onClick = onMoreClick,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(AppChromeSizeTokens.MinimumTouchTarget),
+                        ) {
+                            AppIcon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "更多设置",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onMoreClick,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(width = 42.dp, height = 34.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "更多设置",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
             }
@@ -1156,7 +1211,12 @@ internal fun VideoDetailScreenStateHolder(
     var preserveCurrentFrameOnFullscreenChange by remember { mutableStateOf(false) }
     var pendingFullscreenPositionRestoreMs by remember { mutableLongStateOf(-1L) }
     val activity = remember { context.findActivity() }
-    val isActivityInMultiWindowMode = activity?.let(::isActivityInMultiWindowOrFloatingMode) ?: false
+    val isActivityInMultiWindowMode = activity?.let {
+        isActivityInMultiWindowOrFloatingMode(
+            activity = it,
+            isKnownFoldableCoverScreen = windowSizeClass.isFoldableCoverScreen,
+        )
+    } ?: false
 
     // 📐 全屏模式逻辑：
     // - 紧凑窗口：横放时自动进入全屏
@@ -1295,7 +1355,10 @@ internal fun VideoDetailScreenStateHolder(
                 userRequestedFullscreen = true
             } else {
                 context.findActivity()?.let { activity ->
-                    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(activity)
+                    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(
+                        activity = activity,
+                        isKnownFoldableCoverScreen = windowSizeClass.isFoldableCoverScreen,
+                    )
                     if (!shouldApplyStartFullscreenOrientationRequest(
                             startInFullscreen = startInFullscreen,
                             isOrientationDrivenFullscreen = isOrientationDrivenFullscreen,
@@ -2316,7 +2379,8 @@ internal fun VideoDetailScreenStateHolder(
         userRequestedFullscreen,
         manualPortraitHoldActive,
         isVerticalVideo,
-        isPortraitFullscreen
+        isPortraitFullscreen,
+        windowSizeClass.isFoldableCoverScreen,
     ) {
         val requestedOrientation = resolvePhoneVideoRequestedOrientation(
             autoRotateEnabled = autoRotateEnabled,
@@ -2332,7 +2396,8 @@ internal fun VideoDetailScreenStateHolder(
             isInMultiWindowMode = isActivityInMultiWindowMode,
             isInPictureInPictureMode = isPipMode,
             // 展开态折叠屏也应遵循用户选择的默认全屏方向。
-            preferPortraitForFlatFoldable = false
+            preferPortraitForFlatFoldable = false,
+            preserveExactLandscapeSide = windowSizeClass.isFoldableCoverScreen,
         ) ?: return@LaunchedEffect
 
         activity?.applyPlayerRequestedOrientation(requestedOrientation)
@@ -2351,7 +2416,8 @@ internal fun VideoDetailScreenStateHolder(
         manualPortraitHoldActive,
         isActivityInMultiWindowMode,
         isPipMode,
-        isPortraitFullscreen
+        isPortraitFullscreen,
+        windowSizeClass.isFoldableCoverScreen,
     ) {
         if (!shouldObservePhoneAutoRotate(
                 autoRotateEnabled = autoRotateEnabled,
@@ -2379,7 +2445,8 @@ internal fun VideoDetailScreenStateHolder(
         manualPortraitHoldActive,
         isActivityInMultiWindowMode,
         isPipMode,
-        isPortraitFullscreen
+        isPortraitFullscreen,
+        windowSizeClass.isFoldableCoverScreen,
     ) {
         val hostActivity = activity
         if (
@@ -2412,7 +2479,8 @@ internal fun VideoDetailScreenStateHolder(
                     hostActivity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val targetOrientation = resolvePhoneAutoRotateRequestedOrientation(
                     orientationDegrees = orientation,
-                    isCurrentlyLandscape = isCurrentlyLandscape
+                    isCurrentlyLandscape = isCurrentlyLandscape,
+                    useExactLandscapeSide = windowSizeClass.isFoldableCoverScreen,
                 )
                 val nowMs = SystemClock.elapsedRealtime()
                 val targetToApply = resolvePhoneAutoRotateTargetToApply(
@@ -2854,6 +2922,7 @@ internal fun VideoDetailScreenStateHolder(
             fullscreenMode = fullscreenMode,
             isVerticalVideo = isVerticalVideo,
             preferPortraitForFlatFoldable = false,
+            isFoldableCoverScreen = windowSizeClass.isFoldableCoverScreen,
             portraitExperienceEnabled = portraitExperienceEnabled,
             onEnterPortraitFullscreen = { enterPortraitFullscreen() },
             onUserRequestedFullscreenChange = { requested -> userRequestedFullscreen = requested },
@@ -4898,7 +4967,10 @@ internal fun VideoDetailScreenStateHolder(
                 if (
                     hostActivity != null &&
                     targetOrientation != null &&
-                    !isActivityInMultiWindowOrFloatingMode(hostActivity)
+                    !isActivityInMultiWindowOrFloatingMode(
+                        activity = hostActivity,
+                        isKnownFoldableCoverScreen = windowSizeClass.isFoldableCoverScreen,
+                    )
                 ) {
                     userRequestedFullscreen = true
                     manualPortraitHoldActive = false

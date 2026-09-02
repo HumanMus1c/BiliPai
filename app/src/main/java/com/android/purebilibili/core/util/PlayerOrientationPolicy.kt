@@ -6,6 +6,16 @@ import android.os.Build
 
 internal const val LARGE_SCREEN_SMALLEST_WIDTH_DP = 600
 
+internal fun isFoldableCoverWindow(
+    smallestScreenWidthDp: Int,
+    currentWindowWidthDp: Int?,
+    currentWindowHeightDp: Int?,
+): Boolean {
+    return smallestScreenWidthDp >= LARGE_SCREEN_SMALLEST_WIDTH_DP &&
+        currentWindowWidthDp != null && currentWindowHeightDp != null &&
+        minOf(currentWindowWidthDp, currentWindowHeightDp) < LARGE_SCREEN_SMALLEST_WIDTH_DP
+}
+
 internal fun shouldRequestPhysicalPlayerOrientation(
     smallestScreenWidthDp: Int,
     currentWindowWidthDp: Int? = null,
@@ -14,10 +24,12 @@ internal fun shouldRequestPhysicalPlayerOrientation(
         Build.VERSION.SDK_INT >= 36,
 ): Boolean {
     val isLargeScreen = smallestScreenWidthDp >= LARGE_SCREEN_SMALLEST_WIDTH_DP
-    val isFoldableCoverWindow = isLargeScreen &&
-        currentWindowWidthDp != null && currentWindowHeightDp != null &&
-        minOf(currentWindowWidthDp, currentWindowHeightDp) < LARGE_SCREEN_SMALLEST_WIDTH_DP
-    return !isLargeScreen || isFoldableCoverWindow || !platformIgnoresLargeScreenOrientationRequests
+    val isCoverWindow = isFoldableCoverWindow(
+        smallestScreenWidthDp = smallestScreenWidthDp,
+        currentWindowWidthDp = currentWindowWidthDp,
+        currentWindowHeightDp = currentWindowHeightDp,
+    )
+    return !isLargeScreen || isCoverWindow || !platformIgnoresLargeScreenOrientationRequests
 }
 
 /**

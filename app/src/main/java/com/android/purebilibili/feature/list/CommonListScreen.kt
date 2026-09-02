@@ -115,6 +115,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -1689,7 +1690,9 @@ fun CommonListScreen(
                             onSelectionChange = onHistoryFilterSelected,
                             enabled = !isHistoryBatchMode,
                             scrollable = historyFilterChrome.itemWidthDp != null,
-                            minTabWidth = (historyFilterChrome.itemWidthDp ?: 0).dp,
+                            // Liquid mode has no fixed item width. Preserve the shared beta.21
+                            // default instead of turning "unspecified" into an explicit 0.dp.
+                            minTabWidth = historyFilterChrome.itemWidthDp?.dp ?: Dp.Unspecified,
                             height = historyFilterChrome.heightDp.dp,
                             indicatorHeight = historyFilterChrome.indicatorHeightDp.dp,
                             labelFontSize = historyFilterChrome.labelFontSizeSp.sp,

@@ -57,6 +57,23 @@ class VideoDetailMiniPlayerSyncStructureTest {
         assertTrue(navigationSource.contains("haltForeignPlaybackForIncomingVideo("))
     }
 
+    @Test
+    fun cachedUiRestoreStillReconcilesReusedPlayerPlayback() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/state/VideoPlayerState.kt"
+        )
+        val entryPlaybackEffect = source
+            .substringAfter("// 2️⃣ 尝试从缓存恢复 UI 状态")
+            .substringBefore("return holder")
+
+        val restoreIndex = entryPlaybackEffect.indexOf("viewModel.restoreUiState(cachedState)")
+        val loadIndex = entryPlaybackEffect.indexOf("viewModel.loadVideo(")
+
+        assertTrue(restoreIndex >= 0)
+        assertTrue(loadIndex > restoreIndex)
+        assertFalse(entryPlaybackEffect.contains("if (!restored)"))
+    }
+
     private fun loadSource(path: String): String {
         val candidates = listOf(
             File(path),

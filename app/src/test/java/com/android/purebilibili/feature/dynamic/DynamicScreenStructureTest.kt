@@ -19,6 +19,8 @@ class DynamicScreenStructureTest {
         assertTrue(gridSource.contains("contentType = \"dynamic_old_content_divider\""))
         assertTrue(gridSource.contains("contentType = \"dynamic_loading_footer\""))
         assertTrue(gridSource.contains("contentType = \"dynamic_no_more_footer\""))
+        assertTrue(source.contains("visibleItemsInfo.maxOfOrNull { it.index }"))
+        assertTrue(source.contains("shouldLoadMoreDynamicFeed("))
     }
 
     @Test

@@ -379,7 +379,8 @@ class BottomBarLiquidSegmentedControlStructureTest {
                 storedLiquidGlassEnabled = false,
                 liquidGlassEffectsEnabled = true,
                 supportsIndependentLiquidGlass = false,
-                androidNativeLiquidGlassEnabled = true
+                androidNativeLiquidGlassEnabled = true,
+                sdkInt = 33,
             )
         )
         assertFalse(
@@ -387,7 +388,8 @@ class BottomBarLiquidSegmentedControlStructureTest {
                 storedLiquidGlassEnabled = true,
                 liquidGlassEffectsEnabled = false,
                 supportsIndependentLiquidGlass = true,
-                androidNativeLiquidGlassEnabled = true
+                androidNativeLiquidGlassEnabled = true,
+                sdkInt = 33,
             )
         )
         assertFalse(
@@ -395,7 +397,30 @@ class BottomBarLiquidSegmentedControlStructureTest {
                 storedLiquidGlassEnabled = true,
                 liquidGlassEffectsEnabled = true,
                 supportsIndependentLiquidGlass = true,
-                androidNativeLiquidGlassEnabled = false
+                androidNativeLiquidGlassEnabled = false,
+                sdkInt = 33,
+            )
+        )
+    }
+
+    @Test
+    fun `segmented liquid glass falls back before Android 13 so selected content stays visible`() {
+        assertFalse(
+            resolveSegmentedControlLiquidGlassEnabled(
+                storedLiquidGlassEnabled = true,
+                liquidGlassEffectsEnabled = true,
+                supportsIndependentLiquidGlass = true,
+                androidNativeLiquidGlassEnabled = true,
+                sdkInt = 32,
+            )
+        )
+        assertTrue(
+            resolveSegmentedControlLiquidGlassEnabled(
+                storedLiquidGlassEnabled = true,
+                liquidGlassEffectsEnabled = true,
+                supportsIndependentLiquidGlass = true,
+                androidNativeLiquidGlassEnabled = true,
+                sdkInt = 33,
             )
         )
     }

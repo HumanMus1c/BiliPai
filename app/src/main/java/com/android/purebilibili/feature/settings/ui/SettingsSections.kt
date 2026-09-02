@@ -1678,6 +1678,8 @@ private fun DiagnosticsSection(
     val context = LocalContext.current
     val siblingTints = remember { resolveSettingsSiblingIconTints(6, paletteOffset = 5) }
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
+    val useMd3ExportLogsDescription = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
+    val exportLogsDescription = "导出前统一脱敏，仅由你主动分享"
     val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
         initialValue = NetworkProxyStore.getSync(context)
     )
@@ -1748,7 +1750,8 @@ private fun DiagnosticsSection(
             icon = exportLogsVisual.icon,
             iconPainter = exportLogsVisual.iconResId?.let { painterResource(id = it) },
             title = "导出日志",
-            value = "导出前统一脱敏，仅由你主动分享",
+            subtitle = exportLogsDescription.takeIf { useMd3ExportLogsDescription },
+            value = exportLogsDescription.takeUnless { useMd3ExportLogsDescription },
             onClick = onExportLogsClick,
             iconTint = siblingTints[5],
         )

@@ -235,9 +235,7 @@ fun GestureIndicator(
         }
         GestureMode.Brightness, GestureMode.Volume -> {
             val playerChromeProfile = rememberAppPlayerChromeProfile()
-            val overlayStyle = remember(playerChromeProfile.tabPresentation) {
-                resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
-            }
+            val overlayStyle = rememberGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
             val mappedMode = if (mode == GestureMode.Brightness) {
                 VideoGestureMode.Brightness
             } else {
