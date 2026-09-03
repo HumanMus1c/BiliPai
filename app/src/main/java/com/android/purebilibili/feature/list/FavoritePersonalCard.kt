@@ -41,6 +41,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -99,6 +100,7 @@ internal fun FavoritePersonalCard(
     val useSharedBounds = shouldUseVideoCardShellSharedBounds(sourceRoute, sharedElementReady)
     val cardBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(item.bvid)
     val progressState = remember(item.progress, item.duration, item.view_at) {
         resolveVideoDisplayProgressState(
             serverProgressSec = item.progress,
@@ -146,6 +148,7 @@ internal fun FavoritePersonalCard(
                         coverCacheKey = stationaryCoverUrl,
                     ),
                 )
+                nativeCardSnapshot.capture()
             }
         }
         onClick()
@@ -168,6 +171,7 @@ internal fun FavoritePersonalCard(
                 crossfadeSourceContent = true,
             )
             .onGloballyPositioned { cardBounds.value = it.boundsInRoot() },
+        nativeSnapshotModifier = nativeCardSnapshot.modifier,
         headlineContent = {
             AppText(
                 text = item.title,

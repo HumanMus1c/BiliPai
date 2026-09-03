@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-09-01 · Current build: 0.2.3-beta.22 · Latest documented release: v0.2.3-beta.22</sub>
+  <sub>Last updated: 2026-09-03 · Current build: 0.2.3-beta.23 · Latest documented release: v0.2.3-beta.23</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.22-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.23-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,15 +452,15 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.22 · 2026-09-02)
+### Current source build (v0.2.3-beta.23 · 2026-09-03)
 
-- Current source build: `0.2.3-beta.22` / `versionCode 339`.
-- Fullscreen orientation, auto-advance surface and gesture recovery, end-of-playback collapse, and scale-up restoration are fixed.
-- Non-glass Miuix presentation and optional card-depth predictive back are added, with tab dragging, top-bar scrolling, and control styling fixes.
-- MD3 and Miuix update dialogs now use theme-native layouts, keep download actions visible, and scroll long changelogs independently.
-- Dynamic top actions can be collapsed, while incremental refresh preserves the reading position.
-- Page chrome capture and transition reporting are refined, and deferred plugin registration now initializes its Context before use.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.21 → beta.22 notes.
+- Current source build: `0.2.3-beta.23` / `versionCode 340`.
+- List-to-detail return now flies the whole card and lands on the real list-card pixels, including title and bottom chrome.
+- Space, related, favorites, history, watch-later, and dynamic cards share the same handoff; on-cover play stats keep their gradient and counters.
+- Cover rotation listening, same-video reload after a space visit, quality fallback when switching parts, and history-delete crashes are fixed.
+- Non-glass buttons and snackbars use native controls, and selected segmented tabs stay visible on older Android.
+- Dynamic waterfall pagination is more stable and no longer jumps the reading position.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.22 → beta.23 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -473,7 +473,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.22-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.22.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.23-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.23.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

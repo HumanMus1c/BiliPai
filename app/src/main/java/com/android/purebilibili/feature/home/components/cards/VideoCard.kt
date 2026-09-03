@@ -101,6 +101,10 @@ import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
+import com.android.purebilibili.core.ui.transition.captureNativeCoverOverlayLayer
+import com.android.purebilibili.core.ui.transition.captureNativeVideoCardImage
+import com.android.purebilibili.core.ui.transition.recordNativeVideoCardLayer
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardLayer
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionVisualSpec
@@ -792,6 +796,9 @@ internal fun ElegantVideoCard(
     }
     val hasOverflowMenu = onDismiss != null || onWatchLater != null
     val hasTrailingCardAction = onUnfavorite != null || hasOverflowMenu
+    val nativeCardLayer = rememberNativeVideoCardLayer()
+    val nativeCoverOverlayLayer = rememberNativeVideoCardLayer()
+    var freezeNativeCardLayer by remember(video.bvid) { mutableStateOf(false) }
     
     val triggerCardClick = {
         cardCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
@@ -878,6 +885,9 @@ internal fun ElegantVideoCard(
                 ),
                 sourceInstanceId = sharedSourceInstanceId,
             )
+            freezeNativeCardLayer = true
+            captureNativeVideoCardImage(nativeCardLayer)
+            captureNativeCoverOverlayLayer(nativeCoverOverlayLayer)
         }
         onClick(video.bvid, video.cid)
     }
@@ -999,7 +1009,14 @@ internal fun ElegantVideoCard(
         // - 外层 Box 量尺寸 + 画 surface（只在源布局层，不进 overlay）
         // - 内层 Column 挂 sharedBounds（封面/标题等，无 solid fill）
         // 若把 cardContainer 画进 sharedBounds，预测返回时会盖住详情壳实时视频 → 大黑块。
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .recordNativeVideoCardLayer(
+                    layer = nativeCardLayer,
+                    freeze = freezeNativeCardLayer,
+                ),
+        ) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -1130,6 +1147,14 @@ internal fun ElegantVideoCard(
                 alignment = Alignment.Center,
             )
 
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .recordNativeVideoCardLayer(
+                        layer = nativeCoverOverlayLayer,
+                        freeze = freezeNativeCardLayer,
+                    ),
+            ) {
             if (premiumBadgeLabel != null) {
                 HomeVideoBadgePill(
                     style = badgeStylePolicy.coverStyle,
@@ -1385,7 +1410,8 @@ internal fun ElegantVideoCard(
                     )
                 }
             }
-            
+            }
+
         }
         
         val infoSurfaceShape = remember(cardCornerRadius) {

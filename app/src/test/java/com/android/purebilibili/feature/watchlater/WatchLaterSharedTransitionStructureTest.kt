@@ -13,6 +13,8 @@ class WatchLaterSharedTransitionStructureTest {
             .readText()
 
         assertTrue(source.contains("CardPositionManager.recordVideoCardPosition"))
+        assertTrue(source.contains("rememberNativeVideoCardSnapshotController("))
+        assertTrue(source.contains("nativeCardSnapshot.capture()"))
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(source.contains("crossfadeSourceContent = true"))
         assertFalse(source.contains("videoTitleSharedElementKey("))

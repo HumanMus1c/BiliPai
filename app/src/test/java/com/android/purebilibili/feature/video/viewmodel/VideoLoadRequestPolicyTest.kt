@@ -32,9 +32,10 @@ class VideoLoadRequestPolicyTest {
         assertTrue(switchBlock.contains("val targetBvid = current.info.bvid"))
         assertTrue(
             switchBlock.contains(
-                "VideoRepository.getPlayUrlData(targetBvid, page.cid, current.currentQuality)"
+                "VideoRepository.getPlayUrlDataForPlaybackTransition("
             )
         )
+        assertTrue(switchBlock.contains("currentQuality = selection.actualQuality"))
         assertTrue(switchBlock.contains("info = current.info.copy(cid = page.cid)"))
         assertTrue(switchBlock.contains("currentCid = previousCid"))
     }

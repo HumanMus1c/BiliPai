@@ -17,9 +17,14 @@ class HomeHeroFlyoutStructureTest {
         assertFalse(source.contains("pendingHeroFlyoutRequest"))
         assertFalse(source.contains("shouldRunHomeHeroFlyoutBeforeNavigation(request)"))
         assertFalse(source.contains("resolveHomeHeroFlyoutNavigationDelayMillis()"))
-        assertTrue(clickWrapperSource.contains("hideTopTabsForForwardDetailNav = true"))
-        assertTrue(clickWrapperSource.contains("setBottomBarVisible(false)"))
+        assertTrue(clickWrapperSource.contains("hideTopTabsForForwardDetailNav = false"))
+        assertFalse(clickWrapperSource.contains("setBottomBarVisible(false)"))
         assertTrue(clickWrapperSource.contains("isVideoNavigating = true"))
+        assertTrue(source.contains("BottomBarMatchedDockVisibility("))
+        assertTrue(source.contains("edge = BottomBarMatchedDockEdge.TOP"))
+        assertTrue(source.contains("shouldShowHomeOverlayChromeDuringVideoCardTransition("))
+        assertTrue(source.contains("shouldHomeFeedOwnVideoCardTransitionSnapshot("))
+        assertTrue(source.contains("videoCardTransitionBackgroundEffect("))
         assertTrue(clickWrapperSource.contains("onVideoClick(request)"))
     }
 

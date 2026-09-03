@@ -2,6 +2,7 @@ package com.android.purebilibili.core.util
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
@@ -63,6 +64,17 @@ object CardPositionManager {
 
     internal var lastClickedVideoSourceChromeSnapshot: VideoCardSourceChromeSnapshot? = null
         private set
+
+    /** Frozen display list of the stationary card; drawn with drawLayer on the flying entry. */
+    internal var lastClickedNativeCardLayer: GraphicsLayer? = null
+        private set
+
+    /**
+     * Frozen cover overlays (gradient, play/danmaku, duration) without the thumbnail.
+     * Drawn over the live flying cover so stats-on-cover cards keep their rest chrome.
+     */
+    internal var lastClickedNativeCoverOverlayLayer: GraphicsLayer? = null
+        private set
     
     /**
      *  是否是单列卡片（故事卡片）
@@ -107,6 +119,8 @@ object CardPositionManager {
         lastClickedCoverBounds = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null
+        lastClickedNativeCardLayer = null
+        lastClickedNativeCoverOverlayLayer = null
         lastClickedCardBounds = bounds
         lastScreenDensity = density
         isSingleColumnCard = isSingleColumn
@@ -172,6 +186,14 @@ object CardPositionManager {
         )
         lastClickedVideoSourceChromeSnapshot = sourceChromeSnapshot
     }
+
+    internal fun recordNativeCardLayer(layer: GraphicsLayer) {
+        lastClickedNativeCardLayer = layer
+    }
+
+    internal fun recordNativeCoverOverlayLayer(layer: GraphicsLayer) {
+        lastClickedNativeCoverOverlayLayer = layer
+    }
     
     /**
      * 清除记录的位置
@@ -185,6 +207,8 @@ object CardPositionManager {
         lastClickedVideoSourceCornerDp = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null
+        lastClickedNativeCardLayer = null
+        lastClickedNativeCoverOverlayLayer = null
     }
 
     /**

@@ -65,7 +65,7 @@ class HomeFeedScrollStatePersistenceStructureTest {
             .substringBefore("val onTodayWatchVideoClick")
 
         val captureIndex = clickSource.indexOf("pendingFeedScrollAnchor = captureHomeFeedScrollAnchor(")
-        val transitionStartIndex = clickSource.indexOf("hideTopTabsForForwardDetailNav = true")
+        val transitionStartIndex = clickSource.indexOf("isVideoNavigating = true")
         val navigationIndex = clickSource.indexOf("onVideoClick(request)")
 
         assertTrue(captureIndex >= 0)

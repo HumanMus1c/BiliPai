@@ -36,6 +36,32 @@ class MiuixVideoCardNavTransitionTest {
     }
 
     @Test
+    fun inverseScaleIsUniformAtLandAndTracksClipDuringMorph() {
+        val sourceX = 0.46f
+        val sourceY = 0.25f
+        val landed = resolveMiuixVideoCardInverseScaleForDepth(sourceX, sourceY, 0f)
+        assertEquals(1f / sourceX, landed.scaleX, 0.0001f)
+        assertEquals(1f / sourceX, landed.scaleY, 0.0001f)
+
+        val mid = resolveMiuixVideoCardInverseScaleForDepth(sourceX, sourceY, 0.18f)
+        assertEquals(1f / sourceX, mid.scaleX, 0.0001f)
+        assertTrue(abs(mid.scaleY - mid.scaleX) > 0.01f)
+
+        val outerY = resolveMiuixVideoCardOuterScale(sourceY, 0.18f, 1f)
+        val compensation = resolveMiuixVideoCardContentCompensation(
+            outerScaleX = resolveMiuixVideoCardOuterScale(sourceX, 0.18f, 1f),
+            outerScaleY = outerY,
+            contentScale = MiuixVideoCardContentScale.FillWidthTop,
+        )
+        // After FillWidthTop + inverse + outer Y, chrome height tracks the current clip.
+        assertEquals(
+            outerY / sourceY,
+            mid.scaleY * compensation.scaleY * outerY,
+            0.0001f,
+        )
+    }
+
+    @Test
     fun landingCompressionIsBoundedRelativeToFinalSizeOnBothAxes() {
         for (sourceScale in listOf(.05f, .2f, .8f, 1f)) {
             for (i in 0..1000) {
@@ -93,6 +119,8 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(true, transform.contains("alpha = 1f"))
         assertEquals(false, transform.contains("visibleHeightFraction"))
         assertEquals(false, transform.contains("outgoingClipFraction"))
+        assertEquals(true, transform.contains("resolveMiuixVideoCardGestureVisualOrigin("))
+        assertEquals(true, source.contains("56.dp.toPx()"))
     }
 
     @Test
@@ -214,6 +242,60 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(true, abs(midFlight.translationX) > 0f)
         assertEquals(true, abs(midFlight.translationY) > 0f)
         assertEquals(true, abs(midFlight.rotationZ) > 0f)
+    }
+
+    @Test
+    fun gestureFollowTiltsFromTheGrabPointEvenWithoutVerticalMove() {
+        val centered = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0.5f,
+            touchY = 1200f,
+            initialTouchY = 1200f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+        assertEquals(0f, centered.translationY, 0.001f)
+        assertEquals(
+            MIUIX_VIDEO_CARD_GESTURE_PEEL_ROTATION_DEGREES,
+            centered.rotationZ,
+            0.01f,
+        )
+        assertTrue(abs(centered.translationX) > 40f)
+        assertEquals(0f, resolveMiuixVideoCardGesturePoseWeight(0f), 0.0001f)
+        assertEquals(0f, resolveMiuixVideoCardGesturePoseWeight(1f), 0.0001f)
+        assertEquals(1f, resolveMiuixVideoCardGesturePoseWeight(0.5f), 0.001f)
+    }
+
+    @Test
+    fun gestureVisualOriginTracksTheFlyingCardInsteadOfTheFullscreenCenter() {
+        val source = androidx.compose.ui.geometry.Rect(80f, 400f, 500f, 900f)
+        val origin = resolveMiuixVideoCardGestureVisualOrigin(
+            sourceBounds = source,
+            layoutWidth = 1080f,
+            layoutHeight = 2400f,
+            morph = 0f,
+            localOrigin = TransformOrigin(0.14f, 0.6f),
+        )
+        assertEquals(
+            (source.left + source.width * 0.14f) / 1080f,
+            origin.pivotFractionX,
+            0.0001f,
+        )
+        assertEquals(
+            (source.top + source.height * 0.6f) / 2400f,
+            origin.pivotFractionY,
+            0.0001f,
+        )
+        val fullscreen = resolveMiuixVideoCardGestureVisualOrigin(
+            sourceBounds = source,
+            layoutWidth = 1080f,
+            layoutHeight = 2400f,
+            morph = 1f,
+            localOrigin = TransformOrigin(0.14f, 0.6f),
+        )
+        assertEquals(0.14f, fullscreen.pivotFractionX, 0.0001f)
+        assertEquals(0.6f, fullscreen.pivotFractionY, 0.0001f)
     }
 
     @Test

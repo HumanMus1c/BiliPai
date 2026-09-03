@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.list
 
 import android.app.Application
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.coroutines.AppScope
@@ -214,8 +215,18 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     }
 
     private fun startDeleteSession(renderKeys: Set<String>) {
-        val session = createHistoryDeleteSession(renderKeys) ?: return
-        _deleteSession.value = session
+        val session = createHistoryDeleteSession(
+            targetKeys = renderKeys,
+            dissolveAnimationSafe = isHistoryDissolveAnimationSafe(
+                sdkInt = Build.VERSION.SDK_INT,
+                manufacturer = Build.MANUFACTURER.orEmpty()
+            )
+        ) ?: return
+        if (session.animationMode == HistoryDeleteAnimationMode.DIRECT_DELETE) {
+            deleteHistoryItems(session.targetKeys)
+        } else {
+            _deleteSession.value = session
+        }
     }
 
     fun completeVideoDissolve(renderKey: String) {

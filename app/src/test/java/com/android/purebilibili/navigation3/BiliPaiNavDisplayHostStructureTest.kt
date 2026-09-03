@@ -305,6 +305,20 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun navDisplayHostPivotsBackgroundScaleAroundTheClickedCard() {
+        val source = navDisplayHostSource()
+        assertTrue(source.contains("sourceBoundsProvider = { sourceMetadata.sourceBounds }"))
+        val hostDepth = source
+            .substringAfter("VideoCardTransitionHostDepthLayer(")
+            .substringBefore("VideoCardTransitionNavBackdrop(")
+        assertTrue(hostDepth.contains("sourceBoundsProvider = { sourceMetadata.sourceBounds }"))
+        val backgroundState = source
+            .substringAfter("VideoCardTransitionBackgroundState(")
+            .substringBefore("val videoCardLayoutWidthProvider")
+        assertTrue(backgroundState.contains("sourceBoundsProvider = { sourceMetadata.sourceBounds }"))
+    }
+
+    @Test
     fun navDisplayHostTracksOnlyActiveVideoCardTransitionPhases() {
         val source = navDisplayHostSource()
         val trackingBlock = source

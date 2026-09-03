@@ -91,6 +91,30 @@ class SpaceScreenStructureTest {
     }
 
     @Test
+    fun `space video cards freeze native pixels for return morph`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val homeCard = source
+            .substringAfter("private fun SpaceHomeVideoCard(")
+            .substringBefore("private fun SpaceAggregateMediaCard(")
+        val aggregateCard = source
+            .substringAfter("private fun SpaceAggregateMediaCard(")
+            .substringBefore("private fun SpaceAggregatePosterCard(")
+        val topCard = source
+            .substringAfter("private fun SpaceTopVideoCard(")
+            .substringBefore("private fun SpaceNoticeCard(")
+        val archiveCard = source
+            .substringAfter("private fun SpaceArchiveListItemRow(")
+            .substringBefore("private fun SpaceAudioListItem(")
+
+        listOf(homeCard, aggregateCard, topCard, archiveCard).forEach { card ->
+            assertTrue(card.contains("rememberNativeVideoCardSnapshotController("))
+            assertTrue(card.contains("nativeCardSnapshot.modifier"))
+            assertTrue(card.contains("nativeCardSnapshot.capture()"))
+        }
+        assertTrue(homeCard.contains("nativeCardSnapshot.coverOverlayModifier"))
+    }
+
+    @Test
     fun `contribution video actions live in the top overflow menu`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 

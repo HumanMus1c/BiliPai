@@ -27,11 +27,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
@@ -41,8 +49,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -62,6 +72,9 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.resolveVideoCardDetailChromeAlpha
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceChromeVisualFrame
+import com.android.purebilibili.navigation3.predictiveback.MiuixVideoCardInverseScale
+import com.android.purebilibili.navigation3.predictiveback.resolveMiuixVideoCardInverseScaleForDepth
+import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.data.model.response.ViewInfo
@@ -196,6 +209,8 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
     val miuixHost = LocalMiuixVideoCardTransitionState.current
     val viewportWidthPx = miuixHost.layoutWidthProvider().takeIf { it > 1f }
         ?: with(density) { configuration.screenWidthDp.dp.toPx() }
+    val viewportHeightPx = miuixHost.layoutHeightProvider().takeIf { it > 1f }
+        ?: with(density) { configuration.screenHeightDp.dp.toPx() }
     val layout = resolveVideoDetailReturnSourceCardLayout(
         viewportWidthPx = viewportWidthPx,
         sourceBounds = sourceBounds,
@@ -206,16 +221,32 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
 
     val cardWidth = with(density) { layout.cardWidthPx.toDp() }
     val cardHeight = with(density) { layout.cardHeightPx.toDp() }
-    val cardAnchorX = with(density) { layout.cardAnchorXInViewportPx.toDp() }
-    val cardAnchorY = with(density) { layout.cardAnchorYInViewportPx.toDp() }
     val infoWidth = with(density) { layout.infoWidthPx.toDp() }
     val infoHeight = with(density) { layout.infoHeightPx.toDp() }
-    val infoAnchorX = with(density) { layout.infoAnchorXInViewportPx.toDp() }
-    val infoAnchorY = with(density) { layout.infoAnchorYInViewportPx.toDp() }
-    val inverseScale = 1f / layout.sourceScale
-    // One physical source pixel, converted into the inverse-scaled flying entry. The outer
-    // shared-bounds shape clips this overdraw back to the card edge.
-    val sideBySideBottomOverscan = with(density) { inverseScale.toDp() }
+    val sourceScaleY = (
+        (sourceBounds?.height ?: layout.cardHeightPx) /
+            viewportHeightPx.coerceAtLeast(1f)
+        ).coerceIn(0.01f, 1f)
+    val frozenInfoAnchorXPx = layout.infoAnchorXInViewportPx * layout.sourceScale
+    val frozenInfoAnchorYPx = layout.infoAnchorYInViewportPx * layout.sourceScale
+    val frozenCardAnchorXPx = layout.cardAnchorXInViewportPx * layout.sourceScale
+    val frozenCardAnchorYPx = layout.cardAnchorYInViewportPx * layout.sourceScale
+
+    fun currentInverseScale(): MiuixVideoCardInverseScale {
+        return resolveMiuixVideoCardInverseScaleForDepth(
+            sourceScaleX = layout.sourceScale,
+            sourceScaleY = sourceScaleY,
+            depth = morphDepthProgressProvider(),
+        )
+    }
+
+    fun Modifier.landingOffset(anchorXPx: Float, anchorYPx: Float): Modifier = offset {
+        val inverse = currentInverseScale()
+        IntOffset(
+            x = (anchorXPx * inverse.scaleX).roundToInt(),
+            y = (anchorYPx * inverse.scaleY).roundToInt(),
+        )
+    }
 
     fun Modifier.landingLayer(): Modifier = graphicsLayer {
         val phase = phaseProvider()
@@ -227,8 +258,13 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
             isReturnGestureInProgress = isReturnGestureInProgress,
             sourceLayout = layout.layout,
         )
-        scaleX = inverseScale * frame.layoutScaleMultiplier
-        scaleY = inverseScale * frame.layoutScaleMultiplier
+        val inverse = resolveMiuixVideoCardInverseScaleForDepth(
+            sourceScaleX = layout.sourceScale,
+            sourceScaleY = sourceScaleY,
+            depth = morphDepthProgress,
+        )
+        scaleX = inverse.scaleX * frame.layoutScaleMultiplier
+        scaleY = inverse.scaleY * frame.layoutScaleMultiplier
         transformOrigin = TransformOrigin(0f, 0f)
         alpha = resolveVideoDetailFlyingSourceChromeAlpha(
             morphDepthProgress = morphDepthProgress,
@@ -236,6 +272,76 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
             isReturnGestureInProgress = isReturnGestureInProgress,
             sourceLayout = layout.layout,
         )
+    }
+
+    val nativeCardLayer = CardPositionManager.lastClickedNativeCardLayer
+    if (nativeCardLayer != null) {
+        val infoCropXPx = layout.coverOffsetXPx + layout.coverWidthPx
+        val infoCropYPx = layout.coverOffsetYPx + layout.coverHeightPx
+        fun Modifier.nativeInfoSlot(
+            widthPx: Float,
+            heightPx: Float,
+            cropXPx: Float,
+            cropYPx: Float,
+        ): Modifier = offset {
+            val inverse = currentInverseScale()
+            IntOffset(
+                x = (frozenInfoAnchorXPx * inverse.scaleX).roundToInt(),
+                y = (frozenInfoAnchorYPx * inverse.scaleY).roundToInt(),
+            )
+        }.layout { measurable, _ ->
+            val inverse = currentInverseScale()
+            val w = (widthPx * inverse.scaleX).roundToInt().coerceAtLeast(1)
+            val h = (heightPx * inverse.scaleY).roundToInt().coerceAtLeast(1)
+            val placeable = measurable.measure(Constraints.fixed(w, h))
+            layout(w, h) { placeable.place(0, 0) }
+        }.clipToBounds().graphicsLayer {
+            val phase = phaseProvider()
+            val isReturnGestureInProgress = isReturnGestureInProgressProvider()
+            alpha = resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = morphDepthProgressProvider(),
+                phase = phase,
+                isReturnGestureInProgress = isReturnGestureInProgress,
+                sourceLayout = layout.layout,
+            )
+        }.drawWithContent {
+            val inverse = currentInverseScale()
+            scale(
+                scaleX = inverse.scaleX,
+                scaleY = inverse.scaleY,
+                pivot = Offset.Zero,
+            ) {
+                translate(-cropXPx, -cropYPx) {
+                    drawLayer(nativeCardLayer)
+                }
+            }
+        }
+        when (layout.layout) {
+            VideoCardSourceLayout.STACKED -> Box(
+                modifier = modifier
+                    .zIndex(1f)
+                    .align(Alignment.TopStart)
+                    .nativeInfoSlot(
+                        widthPx = layout.infoWidthPx,
+                        heightPx = layout.infoHeightPx,
+                        cropXPx = 0f,
+                        cropYPx = infoCropYPx,
+                    ),
+            )
+            VideoCardSourceLayout.SIDE_BY_SIDE -> Box(
+                modifier = modifier
+                    .zIndex(1f)
+                    .align(Alignment.TopStart)
+                    .nativeInfoSlot(
+                        widthPx = layout.infoWidthPx,
+                        heightPx = layout.cardHeightPx,
+                        cropXPx = infoCropXPx,
+                        cropYPx = 0f,
+                    ),
+            )
+            VideoCardSourceLayout.COVER_ONLY -> Unit
+        }
+        return
     }
 
     val baseContainer = AppSurfaceTokens.cardContainer()
@@ -273,7 +379,7 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                 modifier = modifier
                     .zIndex(-1f)
                     .align(Alignment.TopStart)
-                    .offset(x = cardAnchorX, y = cardAnchorY)
+                    .landingOffset(frozenCardAnchorXPx, frozenCardAnchorYPx)
                     .width(cardWidth)
                     .height(cardHeight)
                     .landingLayer()
@@ -283,9 +389,9 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                 modifier = modifier
                     .zIndex(1f)
                     .align(Alignment.TopStart)
-                    .offset(x = infoAnchorX, y = cardAnchorY)
+                    .landingOffset(frozenInfoAnchorXPx, frozenCardAnchorYPx)
                     .width(infoWidth)
-                    .height(cardHeight + sideBySideBottomOverscan)
+                    .height(cardHeight)
                     .landingLayer()
                     // This surface joins the cover on its start edge. Keeping start corners
                     // square prevents the two independently clipped rounded shapes from
@@ -323,7 +429,7 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
             modifier = modifier
                 .zIndex(1f)
                 .align(Alignment.TopStart)
-                .offset(x = infoAnchorX, y = infoAnchorY)
+                .landingOffset(frozenInfoAnchorXPx, frozenInfoAnchorYPx)
                 .width(infoWidth)
                 .height(infoHeight)
                 .landingLayer()
@@ -360,7 +466,32 @@ internal fun VideoDetailReturnCoverChrome(
     sourceChromeSnapshot: VideoCardSourceChromeSnapshot?,
     sourceScale: Float,
     modifier: Modifier = Modifier,
+    inverseScaleXProvider: () -> Float = {
+        1f / sourceScale.coerceIn(0.01f, 1f)
+    },
+    inverseScaleYProvider: () -> Float = inverseScaleXProvider,
 ) {
+    val overlayLayer = CardPositionManager.lastClickedNativeCoverOverlayLayer
+    if (
+        overlayLayer != null &&
+        shouldDrawNativeCoverOverlay(
+            overlayWidthPx = overlayLayer.size.width.toFloat(),
+            overlayHeightPx = overlayLayer.size.height.toFloat(),
+        )
+    ) {
+        Box(
+            modifier = modifier.drawWithContent {
+                scale(
+                    scaleX = inverseScaleXProvider(),
+                    scaleY = inverseScaleYProvider(),
+                    pivot = Offset.Zero,
+                ) {
+                    drawLayer(overlayLayer)
+                }
+            },
+        )
+        return
+    }
     val snapshot = sourceChromeSnapshot ?: return
     if (!snapshot.coverPresentation.hasVisibleChrome()) return
     val model = resolveVideoDetailReturnSourceCardChromeModel(

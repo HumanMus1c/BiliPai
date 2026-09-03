@@ -22,6 +22,11 @@ internal data class MiuixVideoCardTransitionState(
      * use this, not [androidx.compose.ui.platform.LocalConfiguration] screen width.
      */
     val layoutWidthProvider: () -> Float = { 1f },
+    /**
+     * Nav host height matching outer morph (`layoutSize.height`). Inverse Y must use this
+     * together with [layoutWidthProvider] or stacked info drifts off the frozen card.
+     */
+    val layoutHeightProvider: () -> Float = { 1f },
     /** 点击时冻结的整卡落点，供飞行详情壳内构造来源卡内容。 */
     val sourceBoundsProvider: () -> Rect? = { null },
     /** 点击时冻结的真实封面落点；不可由卡宽或固定宽高比推算。 */

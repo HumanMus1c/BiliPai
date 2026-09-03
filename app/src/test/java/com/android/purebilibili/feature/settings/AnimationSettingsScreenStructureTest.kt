@@ -48,6 +48,7 @@ class AnimationSettingsScreenStructureTest {
         val source = animationSettingsSource()
 
         assertTrue(source.contains("title = \"视频返回跟手姿态\""))
+        assertTrue(source.contains("整卡跟手平移"))
         assertTrue(source.contains("checked = appNavigationSettings.videoSharedReturnGestureFollowEnabled"))
         assertTrue(source.contains("SettingsManager.setVideoSharedReturnGestureFollowEnabled("))
         assertTrue(source.contains("enabled = state.cardTransitionEnabled"))

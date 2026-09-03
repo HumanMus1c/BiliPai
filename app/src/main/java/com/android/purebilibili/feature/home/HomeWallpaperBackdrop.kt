@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -39,6 +40,7 @@ internal fun DepthSyncedGlobalHomeWallpaperBackdrop(
     depthProgressProvider: () -> Float,
     depthPhaseProvider: () -> VideoCardTransitionBackgroundPhase,
     depthGestureRestoreProvider: () -> Boolean,
+    sourceBoundsProvider: () -> Rect? = { null },
     isDataSaverActive: Boolean = false,
     isLightBackground: Boolean = false,
     realtimeBlurEnabled: Boolean = true,
@@ -70,6 +72,7 @@ internal fun DepthSyncedGlobalHomeWallpaperBackdrop(
                         motionTierProvider = { motionTier },
                         isLightBackgroundProvider = { isLightBackground },
                         realtimeBlurEnabledProvider = { realtimeBlurEnabled },
+                        sourceBoundsProvider = sourceBoundsProvider,
                     )
                 } else {
                     Modifier

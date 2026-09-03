@@ -67,6 +67,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -204,6 +205,7 @@ internal fun HistoryPersonalCard(
     )
     val cardBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val screenWidthPx = configuration.screenWidthDp * density.density
     val screenHeightPx = configuration.screenHeightDp * density.density
     val progressState = remember(item.progress, video.duration, video.view_at) {
@@ -254,6 +256,7 @@ internal fun HistoryPersonalCard(
                         coverCacheKey = stationaryCoverUrl,
                     ),
                 )
+                nativeCardSnapshot.capture()
             }
         }
         onClick()
@@ -335,6 +338,7 @@ internal fun HistoryPersonalCard(
                     crossfadeSourceContent = true,
                 )
                 .onGloballyPositioned { cardBounds.value = it.boundsInRoot() },
+            nativeSnapshotModifier = nativeCardSnapshot.modifier,
             coverModifier = Modifier.onGloballyPositioned { coverBounds.value = it.boundsInRoot() },
             headlineContent = {
                 AppText(text = video.title, style = contentTypography.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -381,6 +385,7 @@ internal fun HistoryPersonalCard(
                 crossfadeSourceContent = true,
             )
             .clip(coverShape)
+            .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
             .combinedClickable(
                 onClick = triggerClick,

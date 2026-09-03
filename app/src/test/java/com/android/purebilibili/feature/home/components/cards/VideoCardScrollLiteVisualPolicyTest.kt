@@ -292,7 +292,7 @@ class VideoCardScrollLiteVisualPolicyTest {
 
     @Test
     fun homeCardSourceVisual_staysHiddenWhileFlyingEntryOwnsReturn() {
-        // Entire RETURNING morph: list cover stays 0 (flying entry paints the card).
+        // Cover stays 0 until the flying entry unloads; the flying media slot owns those pixels.
         assertEquals(
             0f,
             resolveHomeCardReturnSourceVisualAlpha(
@@ -449,7 +449,7 @@ class VideoCardScrollLiteVisualPolicyTest {
                 transitionBackgroundProgress = 0.4f,
             )
         )
-        // The flying entry owns both chrome and cover during return.
+        // Stationary list info stays hidden so it does not remain in place while the card flies.
         assertEquals(
             0f,
             resolveHomeCardChromeAlphaDuringShellReturnMorph(

@@ -9,6 +9,7 @@ import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.foundation.ExperimentalFoundationApi //  Added
@@ -134,6 +135,18 @@ import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope  //  共享过渡
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
+import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionClock
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionSettleState
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundScaleReduction
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundSource
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionExposure
+import com.android.purebilibili.core.ui.transition.shouldHomeFeedOwnVideoCardTransitionSnapshot
+import com.android.purebilibili.core.ui.transition.shouldShowHomeOverlayChromeDuringVideoCardTransition
+import com.android.purebilibili.core.ui.transition.shouldUseRealtimeVideoCardTransitionBackgroundBlur
+import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.core.ui.animation.DissolvableVideoCard  //  粒子消散动画
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve      // 📳 iOS 风格抖动效果
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
@@ -1612,9 +1625,8 @@ fun HomeScreen(
                     headerOffsetPx = headerOffsetHeightPx
                 )
             }
-            hideTopTabsForForwardDetailNav = true
+            hideTopTabsForForwardDetailNav = false
             delayTopTabsUntilCardSettled = false
-            setBottomBarVisible(false)
             isVideoNavigating = true
             isHomeContentInteractionRestored = false
             onVideoClick(request)
@@ -1673,6 +1685,38 @@ fun HomeScreen(
     }
 
     //  Scaffold 内容封装 (用于 Panel 左右布局复用)
+    val homeFeedOwnsVideoCardSnapshot = shouldHomeFeedOwnVideoCardTransitionSnapshot(
+        sourceRoute = videoCardTransitionBackgroundState.sourceRouteProvider(),
+        hasSnapshotHandle = videoCardTransitionBackgroundState.snapshotHandle != null,
+    )
+    val homeFeedSnapshotModifier = if (homeFeedOwnsVideoCardSnapshot) {
+        val backgroundSource = resolveVideoCardTransitionBackgroundSource(
+            videoCardTransitionBackgroundState.sourceRouteProvider(),
+        )
+        Modifier.videoCardTransitionBackgroundEffect(
+            progressProvider = videoCardTransitionBackgroundState.progressProvider,
+            phaseProvider = videoCardTransitionBackgroundState.phaseProvider,
+            exposureProvider = videoCardTransitionBackgroundState.exposureProvider,
+            isGestureRestoreInProgressProvider =
+                videoCardTransitionBackgroundState.isGestureRestoreInProgressProvider,
+            motionTierProvider = videoCardTransitionBackgroundState.motionTierProvider,
+            isLightBackgroundProvider = videoCardTransitionBackgroundState.isLightBackgroundProvider,
+            realtimeBlurEnabledProvider = {
+                shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                    source = backgroundSource,
+                    realtimeBlurEnabled = videoCardTransitionBackgroundState
+                        .realtimeBlurEnabledProvider(),
+                )
+            },
+            scaleReductionProvider = {
+                resolveVideoCardTransitionBackgroundScaleReduction(backgroundSource)
+            },
+            sourceBoundsProvider = videoCardTransitionBackgroundState.sourceBoundsProvider,
+            snapshotHandle = videoCardTransitionBackgroundState.snapshotHandle,
+        )
+    } else {
+        Modifier
+    }
     val scaffoldLayout: @Composable () -> Unit = {
         AppScaffold(
                 modifier = Modifier
@@ -1691,6 +1735,8 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            // 快照在 haze/backdrop 内侧：顶栏 overlay 才能采到退后页，而不是空层。
+                            .then(homeFeedSnapshotModifier)
                             .then(homeMiuixBackdropSource?.modifier ?: Modifier)
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .then(
@@ -2209,6 +2255,33 @@ fun HomeScreen(
         // [Optimization] Stable lambda: defers the state read to draw and keeps
         // Keep HomeHeader skippable (a fresh lambda each frame would defeat skipping).
         val headerOffsetProvider = remember { { headerOffsetHeightPx } }
+        val videoCardClock = LocalVideoCardTransitionClock.current
+        val videoCardSettleState = videoCardClock?.settleState
+        val homeHeaderChromeVisible = shouldShowHomeOverlayChromeDuringVideoCardTransition(
+            exposure = resolveVideoCardTransitionExposure(
+                phase = videoCardClock?.phase ?: VideoCardTransitionBackgroundPhase.IDLE,
+                predictiveBackInProgress = videoCardSettleState ==
+                    VideoCardTransitionSettleState.InteractiveSeek,
+                gestureRestoreInProgress = videoCardSettleState ==
+                    VideoCardTransitionSettleState.CancelRestore ||
+                    videoCardClock?.gestureRestoreInProgress == true,
+            ),
+        )
+        val appearHomeHeaderFromHidden = homeHeaderChromeVisible &&
+            (
+                videoCardSettleState == VideoCardTransitionSettleState.InteractiveSeek ||
+                    videoCardClock?.phase == VideoCardTransitionBackgroundPhase.RETURNING
+            )
+        val homeHeaderVisibilityState = remember {
+            MutableTransitionState(!appearHomeHeaderFromHidden)
+        }
+        homeHeaderVisibilityState.targetState = homeHeaderChromeVisible
+        BottomBarMatchedDockVisibility(
+            visibleState = homeHeaderVisibilityState,
+            edge = BottomBarMatchedDockEdge.TOP,
+            enterFadeDurationMillis = 255,
+            exitFadeDurationMillis = 160,
+        ) {
         HomeHeader(
             headerOffsetProvider = headerOffsetProvider,
             isHeaderCollapseEnabled = collapseSearchOnScroll,
@@ -2289,6 +2362,7 @@ fun HomeScreen(
             interactionBudget = homeInteractionMotionBudget,
             uiSkinDecoration = homeUiSkinDecoration
         )
+        }
 
         AnimatedVisibility(
             visible = refreshDeltaTipText != null,

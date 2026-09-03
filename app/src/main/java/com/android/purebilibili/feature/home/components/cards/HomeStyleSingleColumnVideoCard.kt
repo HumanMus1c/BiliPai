@@ -65,6 +65,7 @@ import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
@@ -132,6 +133,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     }
     val cardBounds = remember { object { var value: Rect? = null } }
     val coverBounds = remember { object { var value: Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
     val coverShape = AppShapes.mediaCover(legacyLevel = ContainerLevel.Field)
@@ -181,6 +183,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                     coverCacheKey = stationaryCoverUrl,
                 ),
             )
+            nativeCardSnapshot.capture()
         }
         if (sharedTransitionEnabled && !transitionEnabled) {
             forceSharedTransitionForClick = true
@@ -213,6 +216,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 crossfadeSourceContent = true,
             )
             .clip(cardShape)
+            .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
             .combinedClickable(onClick = triggerClick, onLongClick = onLongClick)
             .padding(AppSpacingTokens.Small),

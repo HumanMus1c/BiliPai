@@ -4223,12 +4223,38 @@ internal fun VideoDetailScreenStateHolder(
                                 sourceLayout = miuixLandingState.sourceLayout,
                             ).takeIf { it.canRender }
                         }
+                        val returnMediaInverseScaleProvider: () ->
+                            com.android.purebilibili.navigation3.predictiveback.MiuixVideoCardInverseScale = {
+                            val landing = landingLayoutForMedia
+                            val frozenX = landing?.sourceScale ?: 1f
+                            if (landing == null || !entryOwnsMiuixCardTransition) {
+                                com.android.purebilibili.navigation3.predictiveback
+                                    .MiuixVideoCardInverseScale(1f / frozenX, 1f / frozenX)
+                            } else {
+                                val viewportH = miuixLandingState.layoutHeightProvider()
+                                    .takeIf { it > 1f }
+                                    ?: with(videoCardTransitionDensity) {
+                                        configuration.screenHeightDp.dp.toPx()
+                                    }
+                                val sourceH = miuixLandingState.sourceBoundsProvider()
+                                    ?.height
+                                    ?: landing.cardHeightPx
+                                val sourceScaleY = (sourceH / viewportH.coerceAtLeast(1f))
+                                    .coerceIn(0.01f, 1f)
+                                com.android.purebilibili.navigation3.predictiveback
+                                    .resolveMiuixVideoCardInverseScaleForDepth(
+                                        sourceScaleX = landing.sourceScale,
+                                        sourceScaleY = sourceScaleY,
+                                        depth = miuixLandingState.progressProvider(),
+                                    )
+                            }
+                        }
                         val returnMediaHandoffProgressProvider: () -> Float = {
                             if (!entryOwnsMiuixCardTransition) {
                                 0f
                             } else {
                                 com.android.purebilibili.core.ui.transition
-                                    .resolveVideoCardSourceChromeVisualFrame(
+                                    .resolveVideoDetailReturnMediaLayoutHandoffProgress(
                                         morphDepthProgress = miuixLandingState.progressProvider(),
                                         phase = videoCardDepthBackgroundState.phaseProvider(),
                                         isReturnGestureInProgress =
@@ -4238,7 +4264,7 @@ internal fun VideoDetailScreenStateHolder(
                                                     .isGestureRestoreInProgressProvider(),
                                         sourceLayout = landingLayoutForMedia?.layout
                                             ?: miuixLandingState.sourceLayout,
-                                    ).handoffProgress
+                                    )
                             }
                         }
                         val returnMediaFrameProvider: () -> VideoDetailReturnMediaFrame = {
@@ -4293,7 +4319,7 @@ internal fun VideoDetailScreenStateHolder(
                                         0.dp
                                     },
                                 )
-                                .background(Color.Black)  // 黑色背景
+                                .background(Color.Black)
                                 //  [PiP修复] 捕获视频播放器在屏幕上的位置
                                 .onGloballyPositioned { layoutCoordinates ->
                                     // Morph height changes every frame. PiP and system-bar bounds only need
@@ -4335,6 +4361,12 @@ internal fun VideoDetailScreenStateHolder(
                                             landingLayout = landingLayoutForMedia,
                                             handoffProgressProvider =
                                                 returnMediaHandoffProgressProvider,
+                                            inverseScaleXProvider = {
+                                                returnMediaInverseScaleProvider().scaleX
+                                            },
+                                            inverseScaleYProvider = {
+                                                returnMediaInverseScaleProvider().scaleY
+                                            },
                                         )
                                         // Cover is the top media layer. SurfaceView does not reliably obey
                                         // an ancestor Compose alpha, but it can be occluded by this layer.
@@ -4355,6 +4387,12 @@ internal fun VideoDetailScreenStateHolder(
                                         landingLayout = landingLayoutForMedia,
                                         handoffProgressProvider =
                                             returnMediaHandoffProgressProvider,
+                                        inverseScaleXProvider = {
+                                            returnMediaInverseScaleProvider().scaleX
+                                        },
+                                        inverseScaleYProvider = {
+                                            returnMediaInverseScaleProvider().scaleY
+                                        },
                                     )
                                     .zIndex(0f)
                                     .graphicsLayer {
@@ -4444,16 +4482,39 @@ internal fun VideoDetailScreenStateHolder(
                             )
                             }
                             }
-                            if (miuixVisualAssetsActive) {
+                            if (
+                                miuixVisualAssetsActive &&
+                                shouldDrawFlyingReconstructedSourceChrome(
+                                    phase = videoCardDepthBackgroundState.phaseProvider(),
+                                    isReturnGestureInProgress =
+                                        videoCardDepthBackgroundState
+                                            .isReturnGestureInProgressProvider(),
+                                    isGestureRestoreInProgress =
+                                        videoCardDepthBackgroundState
+                                            .isGestureRestoreInProgressProvider(),
+                                )
+                            ) {
                                 VideoDetailReturnCoverChrome(
                                     sourceChromeSnapshot = miuixLandingState.sourceChromeSnapshot,
                                     sourceScale = landingLayoutForMedia?.sourceScale ?: 1f,
+                                    inverseScaleXProvider = {
+                                        returnMediaInverseScaleProvider().scaleX
+                                    },
+                                    inverseScaleYProvider = {
+                                        returnMediaInverseScaleProvider().scaleY
+                                    },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .videoDetailReturnMediaLayout(
                                             landingLayout = landingLayoutForMedia,
                                             handoffProgressProvider =
                                                 returnMediaHandoffProgressProvider,
+                                            inverseScaleXProvider = {
+                                                returnMediaInverseScaleProvider().scaleX
+                                            },
+                                            inverseScaleYProvider = {
+                                                returnMediaInverseScaleProvider().scaleY
+                                            },
                                         )
                                         .zIndex(1.5f)
                                         .graphicsLayer {
@@ -4809,8 +4870,8 @@ internal fun VideoDetailScreenStateHolder(
                     }  // Detail body
                     }  // 📱 手机竖屏布局结束（Column）
                     }  // phone portrait branch of useTabletLayout
-                    // The Miuix entry owns the complete flying card. Rebuild the click-time
-                    // information region here while the retained list card is transparent.
+                    // Opening still paints a card-shaped facade (list card is hidden).
+                    // Return punches through to the stationary list card instead.
                     val miuixCardTransitionState =
                         com.android.purebilibili.core.ui.transition
                             .LocalMiuixVideoCardTransitionState.current
@@ -4822,6 +4883,15 @@ internal fun VideoDetailScreenStateHolder(
                         miuixVisualAssetsActive &&
                         miuixCardTransitionState.enabled &&
                         !suppressPhoneDetailBodyForDirectPortrait &&
+                        shouldDrawFlyingReconstructedSourceChrome(
+                            phase = videoCardDepthBackgroundState.phaseProvider(),
+                            isReturnGestureInProgress =
+                                videoCardDepthBackgroundState
+                                    .isReturnGestureInProgressProvider(),
+                            isGestureRestoreInProgress =
+                                videoCardDepthBackgroundState
+                                    .isGestureRestoreInProgressProvider(),
+                        ) &&
                         (sourceCardInfo != null ||
                             miuixCardTransitionState.sourceChromeSnapshot != null)
                     ) {

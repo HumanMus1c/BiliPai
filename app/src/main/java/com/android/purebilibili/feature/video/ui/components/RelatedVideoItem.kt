@@ -70,6 +70,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.LocalVideoTransitionAdaptiveInfo
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -222,6 +223,7 @@ fun RelatedVideoItem(
     )
     val cardCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
     val coverCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
     val context = LocalContext.current
@@ -273,6 +275,7 @@ fun RelatedVideoItem(
                         coverCacheKey = stationaryCoverUrl,
                     ),
                 )
+                nativeCardSnapshot.capture()
             }
         onClick()
         Unit
@@ -303,6 +306,7 @@ fun RelatedVideoItem(
                 crossfadeSourceContent = true,
             )
             .clip(cardShape)
+            .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerRelatedVideoClick)
     ) {

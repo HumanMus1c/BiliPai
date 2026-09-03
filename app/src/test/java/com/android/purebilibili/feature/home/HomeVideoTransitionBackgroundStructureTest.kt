@@ -17,6 +17,18 @@ class HomeVideoTransitionBackgroundStructureTest {
     }
 
     @Test
+    fun homeFeedRecordsHostSnapshotUnderTheLiveHeaderOverlay() {
+        val source = homeScreenSource()
+
+        assertTrue(source.contains("shouldHomeFeedOwnVideoCardTransitionSnapshot("))
+        assertTrue(source.contains("videoCardTransitionBackgroundEffect("))
+        assertTrue(source.contains(".then(homeFeedSnapshotModifier)"))
+        assertTrue(source.contains("BottomBarMatchedDockVisibility("))
+        assertTrue(source.contains("edge = BottomBarMatchedDockEdge.TOP"))
+        assertTrue(source.contains("shouldShowHomeOverlayChromeDuringVideoCardTransition("))
+    }
+
+    @Test
     fun navigationHostOnlyProvidesVideoTransitionBackgroundState() {
         val source = navDisplayHostSource()
 
@@ -37,9 +49,11 @@ class HomeVideoTransitionBackgroundStructureTest {
         assertTrue(source.contains("videoCardTransitionLiveBackgroundEffect("))
         assertTrue(source.contains("realtimeBlurEnabledProvider"))
         assertTrue(source.contains("shouldApplyVideoCardTransitionBackgroundToRoute("))
+        assertTrue(source.contains("shouldApplyVideoCardTransitionSnapshotOnRouteShell("))
         assertTrue(source.contains("shouldUseHostOwnedVideoCardTransitionSnapshot("))
         assertTrue(source.contains("RenderNavigationContent(key)"))
         assertTrue(source.contains("sourceRoute = backgroundState.sourceRouteProvider()"))
+        assertTrue(source.contains("sourceBoundsProvider = backgroundState.sourceBoundsProvider"))
         assertFalse(source.contains("val predictiveBlurProgress = predictiveBackState.progressProvider()"))
     }
 

@@ -341,8 +341,14 @@ class VideoCardReturnTimelineTest {
     @Test
     fun frozenBackdropReleasesBeforeTheFlyingCardFinishesLanding() {
         assertEquals(0f, resolveVideoCardWholeSourceReturnAlpha(0.45f), 0.0001f)
-        assertEquals(0.5f, resolveVideoCardWholeSourceReturnAlpha(0.275f), 0.0001f)
+        assertEquals(0.5f, resolveVideoCardWholeSourceReturnAlpha(0.315f), 0.02f)
+        assertEquals(1f, resolveVideoCardWholeSourceReturnAlpha(0.18f), 0.0001f)
         assertEquals(1f, resolveVideoCardWholeSourceReturnAlpha(0.10f), 0.0001f)
+        assertEquals(
+            VideoCardTransitionVisualTimeline.MEDIA_RETURN_START,
+            VideoCardTransitionVisualTimeline.WHOLE_SOURCE_CARD_RETURN_END,
+            0.0001f,
+        )
     }
 
     @Test
@@ -407,6 +413,45 @@ class VideoCardReturnTimelineTest {
         assertFalse(shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail = true))
         assertFalse(shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail = false))
         assertTrue(canCoexistLiveSurfaceStableCoverAndChromeOnReturn())
+    }
+
+    @Test
+    fun mediaLayoutReachesTheFrozenCoverBeforeSourceChromeFadesIn() {
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnMediaLayoutHandoffProgress(
+                morphDepthProgress = 0.5f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnMediaLayoutHandoffProgress(
+                morphDepthProgress = 0.18f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoCardSourceChromeReturnAlpha(0.18f),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnMediaLayoutHandoffProgress(
+                morphDepthProgress = 0.18f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.COVER_ONLY,
+            ),
+            0.001f,
+        )
     }
 
     @Test

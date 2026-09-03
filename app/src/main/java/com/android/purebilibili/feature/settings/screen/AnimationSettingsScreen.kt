@@ -387,7 +387,7 @@ fun AnimationSettingsContent(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.RETURN_GESTURE_POSE),
                             title = "视频返回跟手姿态",
                             subtitle = if (appNavigationSettings.videoSharedReturnGestureFollowEnabled) {
-                                "侧滑返回时共享卡片跟随手指移动和轻微旋转，落点保持不变"
+                                "侧滑返回时整卡跟手平移，并绕握持点旋转；松手后仍落回原卡片"
                             } else {
                                 "共享卡片仅按固定路径返回原位置"
                             },

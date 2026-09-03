@@ -69,6 +69,7 @@ import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
@@ -194,6 +195,7 @@ internal fun StoryVideoCard(
     //  记录卡片位置
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val triggerCardClick = {
         cardBounds?.let { bounds ->
             CardPositionManager.recordVideoCardPosition(
@@ -224,6 +226,7 @@ internal fun StoryVideoCard(
                     coverDecodeHeightPx = coverRequestSpec?.heightPx ?: 0,
                 ),
             )
+            nativeCardSnapshot.capture()
         }
         onClick(video.bvid, 0)
     }
@@ -312,6 +315,7 @@ internal fun StoryVideoCard(
                 coordinateWithSharedTransition = coordinateEnterWithTransition
             )
             //  [新增] 记录卡片位置
+            .then(nativeCardSnapshot.modifier)
             .onGloballyPositioned { coordinates ->
                 cardBounds = coordinates.boundsInRoot()
             }
@@ -381,6 +385,11 @@ internal fun StoryVideoCard(
                 contentScale = ContentScale.Crop
             )
 
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(nativeCardSnapshot.coverOverlayModifier),
+            ) {
             if (premiumBadgeLabel != null) {
                 HomeVideoBadgePill(
                     style = badgeStylePolicy.coverStyle,
@@ -415,6 +424,7 @@ internal fun StoryVideoCard(
                         .align(Alignment.BottomEnd)
                         .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro)
                 )
+            }
             }
         }
         

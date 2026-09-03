@@ -63,6 +63,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
@@ -106,6 +107,7 @@ fun VideoCardLarge(
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val cardBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(archive.bvid)
     val stationaryCoverRequest = remember(coverUrl) {
         ImageRequest.Builder(context)
             .data(coverUrl)
@@ -150,6 +152,7 @@ fun VideoCardLarge(
                     coverCacheKey = coverUrl,
                 ),
             )
+            nativeCardSnapshot.capture()
         }
         onClick()
     }
@@ -217,6 +220,7 @@ fun VideoCardLarge(
                 clipShape = coverShape,
                 crossfadeSourceContent = true,
             )
+            .then(nativeCardSnapshot.modifier)
             .onGloballyPositioned { coordinates ->
                 cardBoundsRef.value = coordinates.boundsInRoot()
             }
@@ -228,6 +232,7 @@ fun VideoCardLarge(
             isCollection = isCollection,
             cornerBadgeText = cornerBadgeText,
             coverShape = coverShape,
+            overlayModifier = nativeCardSnapshot.coverOverlayModifier,
             modifier = Modifier
                 .videoCardShellReturnCoverAlpha(
                     enabled = useCardShellSharedBounds,
@@ -264,6 +269,7 @@ private fun VideoCardLargeCover(
     isCollection: Boolean,
     cornerBadgeText: String?,
     coverShape: androidx.compose.ui.graphics.Shape,
+    overlayModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -285,6 +291,7 @@ private fun VideoCardLargeCover(
             )
         }
 
+        Box(modifier = Modifier.fillMaxSize().then(overlayModifier)) {
         val badgeText = cornerBadgeText ?: if (isCollection) "合集" else null
         if (!badgeText.isNullOrBlank()) {
             Box(
@@ -351,6 +358,7 @@ private fun VideoCardLargeCover(
                     modifier = Modifier.size(32.dp),
                 )
             }
+        }
         }
     }
 }

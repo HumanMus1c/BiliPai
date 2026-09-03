@@ -51,11 +51,12 @@ class VideoSharedTransitionPolicyTest {
             val p = i / 1000f
             assertEquals(p, spec.predictiveSeekSpec.transform(p))
             assertTrue(spec.effectsEasing.transform(p) in 0f..1f)
-            assertTrue(resolveVideoHeroLandingScale(p, true) in .985f..1f)
+            assertEquals(1f, resolveVideoHeroLandingScale(p, true))
             assertEquals(1f, resolveVideoHeroLandingScale(p, false))
         }
         assertEquals(1f, resolveVideoHeroLandingScale(0f, true))
         assertEquals(1f, resolveVideoHeroLandingScale(1f, true))
+        assertEquals(0f, VideoHeroMotionTokens.LANDING_COMPRESSION)
     }
 
     @Test
@@ -550,6 +551,10 @@ class VideoSharedTransitionPolicyTest {
         ).readText()
         // 整卡 alpha=0 会落位黑闪；只对 info 区接 chrome alpha。
         assertTrue(homeCardSource.contains("infoContainerModifier.videoCardShellReturnChromeAlpha"))
+        assertTrue(homeCardSource.contains("recordNativeVideoCardLayer("))
+        assertTrue(homeCardSource.contains("captureNativeVideoCardImage(nativeCardLayer)"))
+        assertTrue(homeCardSource.contains("captureNativeCoverOverlayLayer(nativeCoverOverlayLayer)"))
+        assertTrue(homeCardSource.contains("nativeCoverOverlayLayer"))
         assertFalse(
             Regex(
                 """videoCardShellSharedBoundsOrEmpty\([\s\S]{0,400}?\)\s*\.graphicsLayer"""
@@ -565,6 +570,33 @@ class VideoSharedTransitionPolicyTest {
         ).readText()
         assertTrue(shellHelper.contains("shouldDelaySourceCardEnterForLiveReturnMorph("))
         assertTrue(shellHelper.contains("isQuickReturnFromDetail"))
+    }
+
+    @Test
+    fun nonHomeVideoCardsFreezeNativePixelsForReturnMorph() {
+        val cardSources = listOf(
+            "src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt",
+            "src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt",
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/HomeStyleSingleColumnVideoCard.kt",
+            "src/main/java/com/android/purebilibili/feature/list/FavoritePersonalCard.kt",
+            "src/main/java/com/android/purebilibili/feature/list/HistoryPersonalCard.kt",
+            "src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt",
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/VideoCards.kt",
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/GlassVideoCard.kt",
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/CinematicVideoCard.kt",
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/StoryVideoCard.kt",
+        )
+        cardSources.forEach { path ->
+            val source = File(path).readText()
+            assertTrue(
+                source.contains("rememberNativeVideoCardSnapshotController("),
+                "$path is missing native snapshot capture",
+            )
+            assertTrue(
+                source.contains("nativeCardSnapshot.capture()"),
+                "$path does not freeze native pixels after recording position",
+            )
+        }
     }
 
     @Test

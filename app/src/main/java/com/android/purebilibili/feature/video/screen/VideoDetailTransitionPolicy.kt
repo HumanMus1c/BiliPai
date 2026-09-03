@@ -55,6 +55,38 @@ internal fun shouldConsumeMiuixTransitionVisualAssets(
         )
 }
 
+/**
+ * The flying detail entry is opaque. Cover and info have to be painted on it or the
+ * morph is cover-only and list chrome stays behind. Opening and return both need this.
+ */
+internal fun shouldDrawFlyingReconstructedSourceChrome(
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+    isGestureRestoreInProgress: Boolean = false,
+): Boolean {
+    if (isReturnGestureInProgress || isGestureRestoreInProgress) return true
+    return phase == VideoCardTransitionBackgroundPhase.OPENING ||
+        phase == VideoCardTransitionBackgroundPhase.RETURNING ||
+        phase == VideoCardTransitionBackgroundPhase.HELD
+}
+
+/** Frozen cover overlay pixels are usable only after the list card actually recorded them. */
+internal fun shouldDrawNativeCoverOverlay(
+    overlayWidthPx: Float,
+    overlayHeightPx: Float,
+): Boolean = overlayWidthPx > 1f && overlayHeightPx > 1f
+
+/** @return false: list pixels cannot show through a Miuix flying clip. */
+internal fun shouldPunchThroughFlyingMediaToNativeListCard(
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+    isGestureRestoreInProgress: Boolean = false,
+): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = phase to isReturnGestureInProgress to isGestureRestoreInProgress
+    return false
+}
+
 internal fun resolveForceCoverOnlyForReturn(
     forceCoverOnlyOnReturn: Boolean,
     transitionEnabled: Boolean = true,
@@ -259,8 +291,8 @@ internal fun resolveVideoDetailReturnMediaFrame(
     if (!liveReturnMorph) {
         return VideoDetailReturnMediaFrame(coverAlpha = 1f, playerAlpha = 0f)
     }
-    // Player and resident cover are two contents of the same flying media slot. Complementary
-    // alphas make the live frame transform into the cover without exposing the page underneath.
+    // Keep the flying media slot opaque. Transparent cover + fading player is the empty
+    // card: Miuix will not composite the list card through the flying clip.
     val coverTakeover = resolveVideoCardLiveReturnVisualHandoffAlpha(transitionProgress)
     return VideoDetailReturnMediaFrame(
         coverAlpha = coverTakeover,

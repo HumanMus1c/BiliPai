@@ -67,4 +67,33 @@ class VideoDetailReturnMediaLayoutTest {
         // shared-bounds clip removes the excess and prevents the black player layer peeking out.
         assertEquals(362, frame.heightPx)
     }
+
+    @Test
+    fun mediaFrameUsesCurrentInverseYSoCoverTracksTheClip() {
+        val layout = resolveVideoDetailReturnSourceCardLayout(
+            viewportWidthPx = 1000f,
+            sourceBounds = Rect(0f, 0f, 500f, 300f),
+            sourceCoverBounds = Rect(0f, 0f, 500f, 240f),
+            sourceLayout = VideoCardSourceLayout.STACKED,
+        )
+        val frozen = resolveVideoDetailReturnMediaLayoutFrame(
+            containerWidthPx = 1000,
+            containerHeightPx = 600,
+            landingLayout = layout,
+            handoffProgress = 1f,
+        )
+        val clipTracked = resolveVideoDetailReturnMediaLayoutFrame(
+            containerWidthPx = 1000,
+            containerHeightPx = 600,
+            landingLayout = layout,
+            handoffProgress = 1f,
+            inverseScaleX = 2f,
+            inverseScaleY = 2.4f,
+        )
+
+        assertEquals(1000, frozen.widthPx)
+        assertEquals(480, frozen.heightPx)
+        assertEquals(1000, clipTracked.widthPx)
+        assertEquals(576, clipTracked.heightPx)
+    }
 }

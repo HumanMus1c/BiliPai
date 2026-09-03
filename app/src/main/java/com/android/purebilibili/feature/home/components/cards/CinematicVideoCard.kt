@@ -73,6 +73,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedCoverCacheKey
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
@@ -151,6 +152,7 @@ fun CinematicVideoCard(
     // 记录卡片位置（非 Compose State，避免滚动时触发高频重组）
     val cardBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val localSharedElementSourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val effectiveSharedElementSourceRoute = remember(sharedElementSourceRoute, localSharedElementSourceRoute) {
         sharedElementSourceRoute ?: localSharedElementSourceRoute
@@ -203,6 +205,7 @@ fun CinematicVideoCard(
                     coverCacheKey = coverCacheKey,
                 ),
             )
+            nativeCardSnapshot.capture()
         }
         onClick(video.bvid, 0)
     }
@@ -281,6 +284,7 @@ fun CinematicVideoCard(
                     clipShape = cardShellShape
                 )
                 .clip(cardShape)
+                .then(nativeCardSnapshot.modifier)
                 .background(MediaContrastPalette.Scrim) // 纯黑底色
                 .pointerInput(Unit) {
                     detectTapGestures(
@@ -324,6 +328,11 @@ fun CinematicVideoCard(
                 )
             }
 
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(nativeCardSnapshot.coverOverlayModifier),
+            ) {
             // 2. 渐变遮罩
             Box(
                 modifier = Modifier
@@ -424,6 +433,7 @@ fun CinematicVideoCard(
                         )
                     )
                 }
+            }
             }
         }
         

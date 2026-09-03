@@ -150,6 +150,7 @@ import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
@@ -2831,6 +2832,9 @@ private fun SpaceHomeVideoCard(
     }
     val densityValue = density.density
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
+        sharedTransitionKey ?: video.pic,
+    )
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val stationaryCoverUrl = remember(video.pic) {
@@ -2898,6 +2902,7 @@ private fun SpaceHomeVideoCard(
             )
             .border(width = 3.dp, color = locateHighlightColor, shape = coverShape)
             .clip(coverShape)
+            .then(nativeCardSnapshot.modifier)
             .onGloballyPositioned { coordinates ->
                 cardBounds = coordinates.boundsInRoot()
             }
@@ -2929,6 +2934,7 @@ private fun SpaceHomeVideoCard(
                             coverCacheKey = stationaryCoverUrl,
                         ),
                     )
+                    nativeCardSnapshot.capture()
                 }
                 onClick()
             }
@@ -2951,6 +2957,11 @@ private fun SpaceHomeVideoCard(
                     .aspectRatio(coverAspectRatio)
             )
 
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(nativeCardSnapshot.coverOverlayModifier),
+            ) {
             if (!badgeLabel.isNullOrBlank()) {
                 AppSurface(
                     modifier = Modifier
@@ -3009,6 +3020,7 @@ private fun SpaceHomeVideoCard(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = Color.White.copy(alpha = 0.28f)
                 )
+            }
             }
         }
 
@@ -3074,6 +3086,10 @@ private fun SpaceAggregateMediaCard(
     }
     val densityValue = density.density
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
+        sharedTransitionKey ?: item.cover,
+    )
+    var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val stationaryCoverUrl = remember(item.cover) {
         FormatUtils.buildSizedImageUrl(item.cover, width = 640, height = 360)
@@ -3099,8 +3115,12 @@ private fun SpaceAggregateMediaCard(
         modifier = Modifier
             .padding(horizontal = 8.dp)
             .clip(coverShape)
+            .then(nativeCardSnapshot.modifier)
+            .onGloballyPositioned { coordinates ->
+                cardBounds = coordinates.boundsInRoot()
+            }
             .clickable {
-                coverBounds?.let { bounds ->
+                cardBounds?.let { bounds ->
                     CardPositionManager.recordVideoCardPosition(
                         bvid = sharedTransitionKey.orEmpty(),
                         sourceRoute = sourceRoute,
@@ -3109,7 +3129,8 @@ private fun SpaceAggregateMediaCard(
                         screenHeight = screenHeightPx,
                         density = densityValue,
                         sourceCornerDp = cardCornerRadiusDp,
-                        coverBounds = bounds,
+                        coverBounds = coverBounds,
+                        sourceLayout = VideoCardSourceLayout.STACKED,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                             title = item.title,
                             ownerName = item.author,
@@ -3126,6 +3147,7 @@ private fun SpaceAggregateMediaCard(
                             coverCacheKey = stationaryCoverUrl,
                         ),
                     )
+                    nativeCardSnapshot.capture()
                 }
                 onClick()
             }
@@ -3240,6 +3262,10 @@ private fun SpaceTopVideoCard(
     }
     val densityValue = density.density
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
+        sharedTransitionKey ?: video.pic,
+    )
+    var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val stationaryCoverUrl = remember(video.pic) {
         FormatUtils.buildSizedImageUrl(video.pic, width = 560, height = 352)
@@ -3266,9 +3292,13 @@ private fun SpaceTopVideoCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(AppShapes.container(ContainerLevel.Card))
+            .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
+            .onGloballyPositioned { coordinates ->
+                cardBounds = coordinates.boundsInRoot()
+            }
             .clickable {
-                coverBounds?.let { bounds ->
+                cardBounds?.let { bounds ->
                     CardPositionManager.recordVideoCardPosition(
                         bvid = sharedTransitionKey.orEmpty(),
                         sourceRoute = sourceRoute,
@@ -3277,7 +3307,8 @@ private fun SpaceTopVideoCard(
                         screenHeight = screenHeightPx,
                         density = densityValue,
                         sourceCornerDp = cardCornerRadiusDp,
-                        coverBounds = bounds,
+                        coverBounds = coverBounds,
+                        sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
                         sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                             title = video.title,
                             ownerName = "",
@@ -3294,6 +3325,7 @@ private fun SpaceTopVideoCard(
                             coverCacheKey = stationaryCoverUrl,
                         ),
                     )
+                    nativeCardSnapshot.capture()
                 }
                 onClick()
             }
@@ -3454,6 +3486,9 @@ private fun SpaceArchiveListItemRow(
         transitionEnabled = sharedTransitionReady
     )
     val cardShellShape = AppShapes.container(ContainerLevel.Card)
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
+        sharedTransitionKey ?: title,
+    )
 
     Row(
         modifier = modifier
@@ -3470,6 +3505,7 @@ private fun SpaceArchiveListItemRow(
                 crossfadeSourceContent = true,
             )
             .clip(cardShellShape)
+            .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
             .border(width = 3.dp, color = locateHighlightColor, shape = cardShellShape)
             .onGloballyPositioned { coordinates ->
@@ -3504,6 +3540,7 @@ private fun SpaceArchiveListItemRow(
                             coverCacheKey = stationaryCoverUrl,
                         ),
                     )
+                    nativeCardSnapshot.capture()
                 }
                 onClick()
             }

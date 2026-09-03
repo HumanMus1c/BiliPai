@@ -296,6 +296,18 @@ class VideoLoadPolicyTest {
     }
 
     @Test
+    fun `playback transition accepts another playable tier when next part lacks current quality`() {
+        assertTrue(
+            shouldAcceptAppApiResultForTargetQuality(
+                requestKind = PlayUrlRequestKind.PLAYBACK_TRANSITION,
+                targetQn = 125,
+                returnedQuality = 120,
+                dashVideoIds = listOf(126, 120, 116, 80)
+            )
+        )
+    }
+
+    @Test
     fun `shouldCachePlayUrlResult rejects downgraded high quality startup result`() {
         assertFalse(
             shouldCachePlayUrlResult(

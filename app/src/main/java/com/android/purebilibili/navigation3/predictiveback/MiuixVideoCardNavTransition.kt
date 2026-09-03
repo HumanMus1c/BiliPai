@@ -16,6 +16,8 @@ import androidx.compose.ui.zIndex
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import kotlin.math.PI
+import kotlin.math.sin
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.VideoHeroMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoHeroMotionTokens
@@ -76,6 +78,16 @@ internal data class MiuixVideoCardGestureTransform(
     val transformOrigin: TransformOrigin,
 )
 
+internal const val MIUIX_VIDEO_CARD_GESTURE_HORIZONTAL_TRAVEL_FRACTION = 0.08f
+internal const val MIUIX_VIDEO_CARD_GESTURE_VERTICAL_FOLLOW_FRACTION = 0.16f
+internal const val MIUIX_VIDEO_CARD_GESTURE_PEEL_ROTATION_DEGREES = 8f
+internal const val MIUIX_VIDEO_CARD_GESTURE_GRAB_ROTATION_DEGREES = 10f
+
+internal fun resolveMiuixVideoCardGesturePoseWeight(morphProgress: Float): Float {
+    val pull = (1f - morphProgress.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+    return sin(PI.toFloat() * pull)
+}
+
 internal fun resolveMiuixVideoCardGestureTransform(
     morphProgress: Float,
     touchY: Float,
@@ -85,31 +97,52 @@ internal fun resolveMiuixVideoCardGestureTransform(
     isLeftEdge: Boolean,
     maxVerticalTravelPx: Float,
 ): MiuixVideoCardGestureTransform {
-    val morph = morphProgress.coerceIn(0f, 1f)
-    // Fullscreen (1) and exact card landing (0) must both be identity transforms.
-    val gestureWeight = 4f * morph * (1f - morph)
+    val poseWeight = resolveMiuixVideoCardGesturePoseWeight(morphProgress)
     val edgeSign = if (isLeftEdge) 1f else -1f
     val verticalDelta = touchY - initialTouchY
-    val normalizedVerticalDelta = if (heightPx > 0f) {
-        (verticalDelta / (heightPx * 0.5f)).coerceIn(-1f, 1f)
-    } else {
-        0f
-    }
+    val safeHeight = heightPx.coerceAtLeast(1f)
+    val grabTilt = ((initialTouchY / safeHeight) - 0.5f) * 2f
+    val moveTilt = (verticalDelta / (safeHeight * 0.5f)).coerceIn(-1f, 1f)
+    val tilt = (grabTilt * 0.65f + moveTilt * 0.35f).coerceIn(-1f, 1f)
+    val liveY = (touchY / safeHeight).coerceIn(0.12f, 0.88f)
 
     return MiuixVideoCardGestureTransform(
-        translationX = edgeSign * widthPx.coerceAtLeast(0f) * 0.035f * gestureWeight,
-        translationY = (verticalDelta * 0.1f)
+        translationX = edgeSign * widthPx.coerceAtLeast(0f) *
+            MIUIX_VIDEO_CARD_GESTURE_HORIZONTAL_TRAVEL_FRACTION * poseWeight,
+        translationY = (verticalDelta * MIUIX_VIDEO_CARD_GESTURE_VERTICAL_FOLLOW_FRACTION)
             .coerceIn(-maxVerticalTravelPx.coerceAtLeast(0f), maxVerticalTravelPx.coerceAtLeast(0f)) *
-            gestureWeight,
-        rotationZ = edgeSign * normalizedVerticalDelta * 1.8f * gestureWeight,
+            poseWeight,
+        rotationZ = edgeSign *
+            (MIUIX_VIDEO_CARD_GESTURE_PEEL_ROTATION_DEGREES +
+                tilt * MIUIX_VIDEO_CARD_GESTURE_GRAB_ROTATION_DEGREES) *
+            poseWeight,
         transformOrigin = TransformOrigin(
-            pivotFractionX = if (isLeftEdge) 0.82f else 0.18f,
-            pivotFractionY = if (heightPx > 0f) {
-                (touchY / heightPx).coerceIn(0.1f, 0.9f)
-            } else {
-                0.5f
-            },
+            pivotFractionX = if (isLeftEdge) 0.14f else 0.86f,
+            pivotFractionY = liveY,
         ),
+    )
+}
+
+/** Map a card-local gesture pivot into the fullscreen entry's transform origin. */
+internal fun resolveMiuixVideoCardGestureVisualOrigin(
+    sourceBounds: Rect,
+    layoutWidth: Float,
+    layoutHeight: Float,
+    morph: Float,
+    localOrigin: TransformOrigin,
+): TransformOrigin {
+    val m = morph.coerceIn(0f, 1f)
+    val width = layoutWidth.coerceAtLeast(1f)
+    val height = layoutHeight.coerceAtLeast(1f)
+    val visualLeft = sourceBounds.left * (1f - m)
+    val visualTop = sourceBounds.top * (1f - m)
+    val visualWidth = sourceBounds.width + (width - sourceBounds.width) * m
+    val visualHeight = sourceBounds.height + (height - sourceBounds.height) * m
+    return TransformOrigin(
+        pivotFractionX = ((visualLeft + visualWidth * localOrigin.pivotFractionX) / width)
+            .coerceIn(0f, 1f),
+        pivotFractionY = ((visualTop + visualHeight * localOrigin.pivotFractionY) / height)
+            .coerceIn(0f, 1f),
     )
 }
 
@@ -120,6 +153,51 @@ internal fun resolveMiuixVideoCardDepthProgress(relativeDepth: Float): Float =
 internal fun resolveMiuixVideoCardOuterScale(sourceScale: Float, depth: Float, landingScale: Float): Float {
     val source = sourceScale.coerceIn(0.05f, 1f)
     return source + (1f - source) * depth.coerceIn(0f, 1f) - source * (1f - landingScale)
+}
+
+internal data class MiuixVideoCardInverseScale(
+    val scaleX: Float,
+    val scaleY: Float,
+)
+
+/**
+ * Inverse of the current outer morph after FillWidthTop compensation.
+ *
+ * Frozen `1/sourceScaleX` on both axes is only correct at depth = 0. While the clip is still
+ * non-uniform, that frozen inverse makes cover/info occupy the wrong fraction of the card
+ * and then jump to the stationary list layout.
+ */
+internal fun resolveMiuixVideoCardInverseScale(
+    sourceScaleX: Float,
+    sourceScaleY: Float,
+    outerScaleX: Float,
+    outerScaleY: Float,
+): MiuixVideoCardInverseScale {
+    val compensation = resolveMiuixVideoCardContentCompensation(
+        outerScaleX = outerScaleX,
+        outerScaleY = outerScaleY,
+        contentScale = MiuixVideoCardContentScale.FillWidthTop,
+    )
+    return MiuixVideoCardInverseScale(
+        scaleX = (1f / sourceScaleX.coerceAtLeast(0.01f)) / compensation.scaleX.coerceAtLeast(0.01f),
+        scaleY = (1f / sourceScaleY.coerceAtLeast(0.01f)) / compensation.scaleY.coerceAtLeast(0.01f),
+    )
+}
+
+internal fun resolveMiuixVideoCardInverseScaleForDepth(
+    sourceScaleX: Float,
+    sourceScaleY: Float,
+    depth: Float,
+    autoReturning: Boolean = false,
+): MiuixVideoCardInverseScale {
+    val morph = depth.coerceIn(0f, 1f)
+    val landingScale = resolveVideoHeroLandingScale(morph, autoReturning)
+    return resolveMiuixVideoCardInverseScale(
+        sourceScaleX = sourceScaleX,
+        sourceScaleY = sourceScaleY,
+        outerScaleX = resolveMiuixVideoCardOuterScale(sourceScaleX, morph, landingScale),
+        outerScaleY = resolveMiuixVideoCardOuterScale(sourceScaleY, morph, landingScale),
+    )
 }
 
 /**
@@ -234,6 +312,15 @@ internal class MiuixVideoCardTransitionProgress {
     }
 
     /**
+     * Host layout height used by outer morph (`bounds.height / layoutSize.height`).
+     * Inverse Y must use this or stacked cover/info drift off the frozen card.
+     */
+    fun layoutHeightOr(fallback: Float): Float {
+        val h = topScope?.layoutSize?.height?.toFloat() ?: return fallback.coerceAtLeast(1f)
+        return h.coerceAtLeast(1f)
+    }
+
+    /**
      * 预测返回手势进度（0=开始 → 1=完全提交），无手势时为 null。
      * 供预测返回背景模糊（predictiveBackBackgroundEffect）随手势映射，恢复 0.2.2 链路。
      */
@@ -291,31 +378,7 @@ internal fun miuixVideoCardNavTransition(
 
         override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
             progress.bind(scope)
-            val gestureModifier = if (gestureFollowEnabled) {
-                graphicsLayer {
-                    val depth = scope.relativeDepth
-                    val gesture = scope.gesture
-                    if (depth <= 0f && gesture != null) {
-                        val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
-                        val transform = resolveMiuixVideoCardGestureTransform(
-                            morphProgress = resolveMiuixVideoCardDepthProgress(depth),
-                            touchY = gesture.touchY,
-                            initialTouchY = gesture.initialTouchY,
-                            widthPx = scope.layoutSize.width.toFloat().coerceAtLeast(1f),
-                            heightPx = height,
-                            isLeftEdge = gesture.swipeEdge == NavSwipeEdge.Left,
-                            maxVerticalTravelPx = 24.dp.toPx(),
-                        )
-                        translationX = transform.translationX
-                        translationY = transform.translationY
-                        rotationZ = transform.rotationZ
-                        transformOrigin = transform.transformOrigin
-                    }
-                }
-            } else {
-                this
-            }
-            return gestureModifier.graphicsLayer {
+            return graphicsLayer {
                 val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
                 val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
                 val depth = scope.relativeDepth
@@ -374,7 +437,40 @@ internal fun miuixVideoCardNavTransition(
                     scaleY = compensation.scaleY
                     transformOrigin = compensation.transformOrigin
                 }
-            }.zIndex(1f)
+            }.then(
+                if (gestureFollowEnabled) {
+                    Modifier.graphicsLayer {
+                        val depth = scope.relativeDepth
+                        val gesture = scope.gesture
+                        if (depth <= 0f && gesture != null) {
+                            val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
+                            val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
+                            val morph = resolveMiuixVideoCardDepthProgress(depth)
+                            val transform = resolveMiuixVideoCardGestureTransform(
+                                morphProgress = morph,
+                                touchY = gesture.touchY,
+                                initialTouchY = gesture.initialTouchY,
+                                widthPx = width,
+                                heightPx = height,
+                                isLeftEdge = gesture.swipeEdge == NavSwipeEdge.Left,
+                                maxVerticalTravelPx = 56.dp.toPx(),
+                            )
+                            transformOrigin = resolveMiuixVideoCardGestureVisualOrigin(
+                                sourceBounds = bounds,
+                                layoutWidth = width,
+                                layoutHeight = height,
+                                morph = morph,
+                                localOrigin = transform.transformOrigin,
+                            )
+                            translationX = transform.translationX
+                            translationY = transform.translationY
+                            rotationZ = transform.rotationZ
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            ).zIndex(1f)
         }
     }
 }

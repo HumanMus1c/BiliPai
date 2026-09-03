@@ -93,3 +93,48 @@ internal fun shouldPaintRetainedSourceWithoutTransitionBackground(
     if (decision.drawTransitionBackground || decision.drawSourceNormally) return false
     return decision.retainSourceSnapshot
 }
+
+/**
+ * 全局底栏在卡片过渡中的显隐。
+ *
+ * 详情在栈顶时默认隐藏；预测返回 / 提交返回时滑入，取消手势再滑出。
+ */
+internal fun shouldShowVideoCardTransitionSourceChrome(
+    isVideoDetailDestination: Boolean,
+    exposure: VideoCardTransitionExposure,
+): Boolean {
+    if (!isVideoDetailDestination) {
+        return exposure != VideoCardTransitionExposure.Opening
+    }
+    return when (exposure) {
+        VideoCardTransitionExposure.BackPreview,
+        VideoCardTransitionExposure.Returning -> true
+        else -> false
+    }
+}
+
+/**
+ * 首页顶栏 overlay 的显隐。首页本身不是详情页，只看景深曝光。
+ */
+internal fun shouldShowHomeOverlayChromeDuringVideoCardTransition(
+    exposure: VideoCardTransitionExposure,
+): Boolean {
+    return when (exposure) {
+        VideoCardTransitionExposure.Opening,
+        VideoCardTransitionExposure.SettledHidden,
+        VideoCardTransitionExposure.Restoring -> false
+        else -> true
+    }
+}
+
+/**
+ * 详情在栈顶时 [activeBottomTabRoute] 是 video/…，不在底栏目的地里。
+ * 预测返回要滑出底栏时，改用进详情前的 tab 路由。
+ */
+internal fun resolveVideoCardTransitionChromeBottomBarRoute(
+    isVideoDetailDestination: Boolean,
+    activeBottomTabRoute: String?,
+    retainedTabRoute: String?,
+): String? {
+    return if (isVideoDetailDestination) retainedTabRoute else activeBottomTabRoute
+}

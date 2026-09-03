@@ -3,7 +3,6 @@ package com.android.purebilibili.feature.home.components.cards
 import com.android.purebilibili.core.ui.transition.VIDEO_CARD_SHELL_SOURCE_EXIT_FADE_RATIO
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.normalizeSharedElementSourceRoute
-import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveReturnVisualHandoffAlpha
 import com.android.purebilibili.core.ui.transition.resolveVideoCardReturnListCoverContract
 
 internal data class VideoCardScrollLiteVisualPolicy(
@@ -126,8 +125,9 @@ internal fun resolveHomeCardStationaryRevealAlpha(
 /**
  * 来源卡封面在返回期间的可见 alpha。
  *
- * 保留图片请求与布局；Miuix 飞行 entry 拥有像素时列表封面保持 0，卸层后再亮，
- * 避免与飞行层同窗双显导致落位跳动。
+ * 封面像素由飞行媒体槽持有，直到 entry 卸层。列表真卡封面保持 0，避免和
+ * 飞行封面叠一张空壳；底部信息则由 [resolveHomeCardChromeAlphaDuringShellReturnMorph]
+ * 在封面落点外侧显示真卡。
  */
 internal fun resolveHomeCardReturnSourceVisualAlpha(
     useCardContainerSharedBounds: Boolean,
@@ -253,6 +253,8 @@ internal fun resolveHomeCardChromeAlphaDuringShellReturnMorph(
     )
 
     if (isReturnContext) {
+        // Keep the stationary list info hidden until the flying whole-card lands.
+        // Showing it here leaves title/stats in place while only the cover flies.
         return resolveHomeCardStationaryRevealAlpha(
             isReturnContext = true,
             preferWholeCardReturn = preferWholeCardReturn,

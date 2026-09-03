@@ -197,6 +197,8 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
     containerHeightPx: Int,
     landingLayout: VideoDetailReturnSourceCardLayout?,
     handoffProgress: Float,
+    inverseScaleX: Float = landingLayout?.let { 1f / it.sourceScale } ?: 1f,
+    inverseScaleY: Float = inverseScaleX,
 ): VideoDetailReturnMediaLayoutFrame {
     val safeContainerWidth = containerWidthPx.coerceAtLeast(1)
     val safeContainerHeight = containerHeightPx.coerceAtLeast(1)
@@ -205,16 +207,23 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
     fun interpolate(start: Float, end: Float): Int =
         (start + (end - start) * progress).roundToInt()
 
+    val safeInverseX = inverseScaleX.coerceAtLeast(0.01f)
+    val safeInverseY = inverseScaleY.coerceAtLeast(0.01f)
+    val landingEdgeOverscanPx = if (landing?.layout == VideoCardSourceLayout.SIDE_BY_SIDE) {
+        1f
+    } else {
+        0f
+    }
     val targetWidth = landing
-        ?.let(::resolveVideoDetailReturnCoverWidthInEntryPx)
+        ?.let { it.coverWidthPx * safeInverseX }
         ?.takeIf { it > 1f }
         ?: safeContainerWidth.toFloat()
     val targetHeight = landing
-        ?.let(::resolveVideoDetailReturnCoverHeightInEntryPx)
+        ?.let { (it.coverHeightPx + landingEdgeOverscanPx) * safeInverseY }
         ?.takeIf { it > 1f }
         ?: safeContainerHeight.toFloat()
-    val targetOffsetX = landing?.let(::resolveVideoDetailReturnCoverOffsetXInEntryPx) ?: 0f
-    val targetOffsetY = landing?.let(::resolveVideoDetailReturnCoverOffsetYInEntryPx) ?: 0f
+    val targetOffsetX = landing?.let { it.coverOffsetXPx * safeInverseX } ?: 0f
+    val targetOffsetY = landing?.let { it.coverOffsetYPx * safeInverseY } ?: 0f
 
     return VideoDetailReturnMediaLayoutFrame(
         offsetXPx = interpolate(0f, targetOffsetX),
@@ -228,6 +237,10 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
 internal fun Modifier.videoDetailReturnMediaLayout(
     landingLayout: VideoDetailReturnSourceCardLayout?,
     handoffProgressProvider: () -> Float,
+    inverseScaleXProvider: () -> Float = {
+        landingLayout?.let { 1f / it.sourceScale } ?: 1f
+    },
+    inverseScaleYProvider: () -> Float = inverseScaleXProvider,
 ): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
@@ -240,6 +253,8 @@ internal fun Modifier.videoDetailReturnMediaLayout(
             containerHeightPx = constraints.maxHeight,
             landingLayout = landingLayout,
             handoffProgress = handoffProgressProvider(),
+            inverseScaleX = inverseScaleXProvider(),
+            inverseScaleY = inverseScaleYProvider(),
         )
         val placeable = measurable.measure(
             Constraints.fixed(width = frame.widthPx, height = frame.heightPx),

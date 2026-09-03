@@ -103,6 +103,8 @@ class AppNavigationAppearancePolicyTest {
         assertTrue(navDisplayIndex > wallpaperIndex)
         assertTrue(capturedLayerSource.contains("depthProgressProvider"))
         assertTrue(capturedLayerSource.contains("videoCardTransitionClock.depthProgress()"))
+        assertTrue(capturedLayerSource.contains("sourceBoundsProvider"))
+        assertTrue(capturedLayerSource.contains("navigation3SourceMetadata.sourceBounds"))
         assertFalse(capturedLayerSource.contains("onVideoCardDepthFrame"))
         assertTrue(capturedLayerSource.contains("if (isBottomBarBlurEnabled && mainHazeState != null)"))
         assertTrue(capturedLayerSource.contains("Modifier.hazeSourceCompat(mainHazeState)"))

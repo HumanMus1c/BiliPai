@@ -88,6 +88,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -1302,6 +1303,7 @@ private fun WatchLaterVideoCard(
     }
     val cardBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(item.bvid)
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -1364,6 +1366,7 @@ private fun WatchLaterVideoCard(
                         coverCacheKey = stationaryCoverUrl,
                     ),
                 )
+                nativeCardSnapshot.capture()
             }
         }
         onClick()
@@ -1396,6 +1399,7 @@ private fun WatchLaterVideoCard(
             .onGloballyPositioned { coordinates ->
                 cardBoundsRef.value = coordinates.boundsInRoot()
             },
+        nativeSnapshotModifier = nativeCardSnapshot.modifier,
         headlineContent = {
             AppText(
                 text = item.title,

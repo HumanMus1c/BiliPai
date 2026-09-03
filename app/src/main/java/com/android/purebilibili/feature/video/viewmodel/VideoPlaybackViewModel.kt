@@ -7305,7 +7305,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         
         pageSwitchJob = viewModelScope.launch {
             try {
-                val playUrlData = VideoRepository.getPlayUrlData(targetBvid, page.cid, current.currentQuality)
+                val playUrlData = VideoRepository.getPlayUrlDataForPlaybackTransition(
+                    bvid = targetBvid,
+                    cid = page.cid,
+                    qn = current.currentQuality,
+                    audioLang = current.currentAudioLang
+                )
                 if (playUrlData != null) {
                     //  [新增] 获取音频/视频偏好
                     val settingsCodecPreference = appContext?.let { 
@@ -7365,6 +7370,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                             info = current.info.copy(cid = page.cid), playUrl = cdnSelection.playUrl, audioUrl = cdnSelection.audioUrl,
                             startPosition = restoredPosition, isQualitySwitching = false,
                             pendingPlaybackTransitionPositionMs = restoredPosition.coerceAtLeast(0L),
+                            currentQuality = selection.actualQuality,
                             adaptiveDashSource = cdnSelection.adaptiveDashSource,
                             qualityIds = selection.qualityIds,
                             qualityLabels = selection.qualityLabels,

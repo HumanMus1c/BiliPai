@@ -13,6 +13,7 @@ internal enum class PlayUrlSource {
 
 internal enum class PlayUrlRequestKind {
     INITIAL,
+    PLAYBACK_TRANSITION,
     EXPLICIT
 }
 
@@ -295,9 +296,9 @@ internal fun shouldAcceptAppApiResultForTargetQuality(
     returnedQuality: Int,
     dashVideoIds: List<Int>
 ): Boolean {
-    if (requestKind == PlayUrlRequestKind.INITIAL) {
-        // Startup should keep any playable payload to avoid a hard failure page
-        // when the service temporarily downgrades or omits the requested track.
+    if (requestKind != PlayUrlRequestKind.EXPLICIT) {
+        // Startup and media transitions should keep any playable payload to avoid a hard
+        // failure when the service downgrades or the next part lacks the previous part's tier.
         return returnedQuality > 0 || dashVideoIds.isNotEmpty()
     }
 

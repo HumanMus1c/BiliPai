@@ -71,6 +71,9 @@ class VideoDetailReturnCoverPolicyTest {
 
         assertEquals(coverPresentation, model?.coverPresentation)
         assertEquals(2f, resolveVideoDetailReturnCoverChromeDensityScale(0.5f), 0.001f)
+        assertTrue(shouldDrawNativeCoverOverlay(overlayWidthPx = 320f, overlayHeightPx = 180f))
+        assertFalse(shouldDrawNativeCoverOverlay(overlayWidthPx = 0f, overlayHeightPx = 180f))
+        assertFalse(shouldDrawNativeCoverOverlay(overlayWidthPx = 320f, overlayHeightPx = 1f))
     }
 
     @Test
@@ -202,14 +205,62 @@ class VideoDetailReturnCoverPolicyTest {
         assertTrue(holder.contains("VideoDetailReturnSourceCardChrome("))
         assertTrue(holder.contains("VideoDetailReturnCoverChrome("))
         assertTrue(holder.contains("alpha = flyingSourceChromeAlphaProvider()"))
+        val chrome = File(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailReturnSourceCardChrome.kt",
+        ).takeIf { it.isFile }?.readText()
+            ?: File(
+                "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailReturnSourceCardChrome.kt",
+            ).readText()
+        assertTrue(chrome.contains("nativeInfoSlot("))
+        assertTrue(chrome.contains("widthPx * inverse.scaleX"))
+        assertTrue(chrome.contains("heightPx * inverse.scaleY"))
+        assertTrue(chrome.contains("lastClickedNativeCoverOverlayLayer"))
+        assertTrue(chrome.contains("shouldDrawNativeCoverOverlay("))
         val coverChromeGuard = holder
             .substringBefore("VideoDetailReturnCoverChrome(")
             .takeLast(500)
         assertTrue(coverChromeGuard.contains("if (miuixVisualAssetsActive)"))
+        assertTrue(coverChromeGuard.contains("shouldDrawFlyingReconstructedSourceChrome("))
+        assertFalse(coverChromeGuard.contains("lastClickedNativeCardLayer == null"))
         val sourceChromeGuard = holder
             .substringBefore("VideoDetailReturnSourceCardChrome(")
             .takeLast(1_000)
         assertTrue(sourceChromeGuard.contains("miuixVisualAssetsActive"))
+        assertTrue(sourceChromeGuard.contains("shouldDrawFlyingReconstructedSourceChrome("))
+    }
+
+    @Test
+    fun reconstructedFlyingChromePaintsForTheWholeCardMorph() {
+        assertTrue(
+            shouldDrawFlyingReconstructedSourceChrome(
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldDrawFlyingReconstructedSourceChrome(
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldDrawFlyingReconstructedSourceChrome(
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = true,
+            )
+        )
+        assertFalse(
+            shouldPunchThroughFlyingMediaToNativeListCard(
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+            )
+        )
+        assertFalse(
+            shouldPunchThroughFlyingMediaToNativeListCard(
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+            )
+        )
     }
 
     @Test
@@ -698,7 +749,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `committed live return transforms player into cover inside the flying card`() {
-        // 两层使用互补 alpha，属于同一不透明媒体槽，不会透出列表原位内容。
+        // Flying media slot stays opaque so the cover clip is never an empty plate.
         assertEquals(
             0.5f,
             resolveVideoDetailReturnCoverAlpha(0.1f, true, true, liveReturnMorph = true),

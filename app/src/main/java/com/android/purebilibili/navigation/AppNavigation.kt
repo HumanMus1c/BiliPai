@@ -119,8 +119,13 @@ import com.android.purebilibili.core.ui.transition.predictiveBackBackgroundEffec
 import com.android.purebilibili.core.ui.transition.pinSourcePageDuringSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlurToRoute
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
+import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionSnapshotOnRouteShell
+import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionSourceChrome
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionChromeBottomBarRoute
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundScaleReduction
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundSource
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionExposure
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionSettleState
 import com.android.purebilibili.core.ui.transition.shouldUseHostOwnedVideoCardTransitionSnapshot
 import com.android.purebilibili.core.ui.transition.shouldUseRealtimeVideoCardTransitionBackgroundBlur
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
@@ -1262,11 +1267,24 @@ fun AppNavigation(
         )
         val shouldInterceptTabBack = backGestureDecision.interceptSystemBack
         val isVideoDetailDestination = isVideoDetailRoute(currentRoute)
-        val bottomBarMountRoute = if (isVideoDetailDestination) {
-            currentBottomNavItem.route
-        } else {
-            activeBottomTabRoute
-        }
+        val videoCardSettleState = videoCardTransitionClock.settleState
+        val videoCardChromeExposure = resolveVideoCardTransitionExposure(
+            phase = videoCardTransitionClock.phase,
+            predictiveBackInProgress = videoCardSettleState ==
+                VideoCardTransitionSettleState.InteractiveSeek,
+            gestureRestoreInProgress = videoCardSettleState ==
+                VideoCardTransitionSettleState.CancelRestore ||
+                videoCardTransitionClock.gestureRestoreInProgress,
+        )
+        val videoCardSourceChromeVisible = shouldShowVideoCardTransitionSourceChrome(
+            isVideoDetailDestination = isVideoDetailDestination,
+            exposure = videoCardChromeExposure,
+        )
+        val bottomBarMountRoute = resolveVideoCardTransitionChromeBottomBarRoute(
+            isVideoDetailDestination = isVideoDetailDestination,
+            activeBottomTabRoute = activeBottomTabRoute,
+            retainedTabRoute = currentBottomNavItem.route,
+        )
         val isSettingsScreen = activeBottomTabRoute == ScreenRoutes.Settings.route
         val shouldHideBottomBarOnTablet = isTabletLayout && isSettingsScreen
 
@@ -1304,7 +1322,7 @@ fun AppNavigation(
             isVideoDetailDestination = isVideoDetailDestination
         )
         val showBottomBar = shouldShowBottomBarForNavigation(
-            activeRoute = activeBottomTabRoute,
+            activeRoute = bottomBarMountRoute,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
             useSideNavigation = useSideNavigation,
             shouldHideBottomBarOnTablet = shouldHideBottomBarOnTablet,
@@ -1354,7 +1372,7 @@ fun AppNavigation(
         // - 且 (模式为始终显示 OR (模式为向下浏览时隐藏 AND 当前状态为可见))
         // - 且 模式不是永久隐藏
         val finalBottomBarVisible = showBottomBar &&
-            !isVideoDetailDestination &&
+            videoCardSourceChromeVisible &&
             bottomBarVisibilityMode != SettingsManager.BottomBarVisibilityMode.ALWAYS_HIDDEN &&
             (
                 bottomBarVisibilityMode == SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE ||
@@ -1837,6 +1855,9 @@ fun AppNavigation(
                         depthGestureRestoreProvider = {
                             videoCardTransitionClock.gestureRestoreInProgress
                         },
+                        sourceBoundsProvider = {
+                            navigation3SourceMetadata.sourceBounds
+                        },
                         isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
                         isLightBackground = isLightBackground,
                         realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
@@ -1918,7 +1939,14 @@ fun AppNavigation(
                                     if (shouldApplyBackground) {
                                         val pinnedModifier = modifier
                                             .pinSourcePageDuringSharedTransition()
-                                        if (useHostOwnedBackgroundSnapshot) {
+                                        val applyHostOwnedSnapshotOnRoute =
+                                            useHostOwnedBackgroundSnapshot &&
+                                                shouldApplyVideoCardTransitionSnapshotOnRouteShell(
+                                                    entryRoute = entryRoute,
+                                                    sourceRoute = backgroundState.sourceRouteProvider(),
+                                                    activeMainHostRoute = activeMainHostRoute,
+                                                )
+                                        if (applyHostOwnedSnapshotOnRoute) {
                                             pinnedModifier.videoCardTransitionBackgroundEffect(
                                                 progressProvider = backgroundState.progressProvider,
                                                 phaseProvider = backgroundState.phaseProvider,
@@ -1935,9 +1963,10 @@ fun AppNavigation(
                                                 scaleReductionProvider = {
                                                     backgroundScaleReduction
                                                 },
+                                                sourceBoundsProvider = backgroundState.sourceBoundsProvider,
                                                 snapshotHandle = backgroundState.snapshotHandle,
                                             )
-                                        } else {
+                                        } else if (!useHostOwnedBackgroundSnapshot) {
                                             pinnedModifier.videoCardTransitionLiveBackgroundEffect(
                                                 progressProvider = backgroundState.progressProvider,
                                                 phaseProvider = backgroundState.phaseProvider,
@@ -1954,7 +1983,10 @@ fun AppNavigation(
                                                 scaleReductionProvider = {
                                                     backgroundScaleReduction
                                                 },
+                                                sourceBoundsProvider = backgroundState.sourceBoundsProvider,
                                             )
+                                        } else {
+                                            pinnedModifier
                                         }
                                     } else {
                                         modifier
@@ -3760,7 +3792,7 @@ fun AppNavigation(
                         appNavigationSettings.videoSharedReturnGestureFollowEnabled,
                     sourceMetadata = navigation3SourceMetadata,
                     programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher,
-                    // Miuix 飞行 entry 独占过渡像素；列表真卡只保留布局，落位完成后再显示。
+                    // List cover waits for the live handoff window; list info is native throughout return.
                     preferWholeCardReturn = false,
                     onBack = { performSystemBackAction() },
                     onPrepareVideoCardSharedReturn = {

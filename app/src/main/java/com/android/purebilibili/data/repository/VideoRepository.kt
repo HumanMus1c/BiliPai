@@ -1495,6 +1495,27 @@ object VideoRepository {
     }
 
     /**
+     * Fetch a playable stream while moving between parts of the same video.
+     *
+     * Unlike a user-requested quality change, a part transition may fall back when the target
+     * part does not expose the quality that was playing in the previous part.
+     */
+    suspend fun getPlayUrlDataForPlaybackTransition(
+        bvid: String,
+        cid: Long,
+        qn: Int,
+        audioLang: String? = null
+    ): PlayUrlData? = withContext(Dispatchers.IO) {
+        fetchPlayUrlRecursive(
+            bvid = bvid,
+            cid = cid,
+            targetQn = qn,
+            audioLang = audioLang,
+            requestKind = PlayUrlRequestKind.PLAYBACK_TRANSITION
+        )?.data
+    }
+
+    /**
      * Non-blocking exact premium quality lookup for HDR auto-upgrade.
      *
      * Only requests the exact [targetQn] via APP access_token. Returns null

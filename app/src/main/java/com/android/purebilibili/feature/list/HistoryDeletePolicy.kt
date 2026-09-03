@@ -8,6 +8,18 @@ internal enum class HistoryDeleteAnimationMode {
     DIRECT_DELETE
 }
 
+/**
+ * MIUI 14 on Android 13 can crash in the native EGL/GL driver when a temporary transparent
+ * GLSurfaceView is mounted for the history-card dissolve effect. Keep deletion functional on
+ * affected devices by skipping that optional animation.
+ */
+internal fun isHistoryDissolveAnimationSafe(
+    sdkInt: Int,
+    manufacturer: String
+): Boolean {
+    return sdkInt != 33 || !manufacturer.equals("xiaomi", ignoreCase = true)
+}
+
 internal data class HistoryDeleteSession(
     val targetKeys: Set<String>,
     val completedKeys: Set<String>,
@@ -55,8 +67,11 @@ internal fun resolveHistoryDeleteKid(item: HistoryItem): String? {
     return "${prefix}_${targetId}"
 }
 
-internal fun resolveHistoryDeleteAnimationMode(itemCount: Int): HistoryDeleteAnimationMode {
-    return if (itemCount <= 1) {
+internal fun resolveHistoryDeleteAnimationMode(
+    itemCount: Int,
+    dissolveAnimationSafe: Boolean = true
+): HistoryDeleteAnimationMode {
+    return if (itemCount <= 1 && dissolveAnimationSafe) {
         HistoryDeleteAnimationMode.SINGLE_DISSOLVE
     } else {
         HistoryDeleteAnimationMode.DIRECT_DELETE
@@ -73,14 +88,18 @@ internal fun resolveDeleteBatchParallelism(itemCount: Int): Int {
 }
 
 internal fun createHistoryDeleteSession(
-    targetKeys: Set<String>
+    targetKeys: Set<String>,
+    dissolveAnimationSafe: Boolean = true
 ): HistoryDeleteSession? {
     val normalizedKeys = targetKeys.map(String::trim).filter(String::isNotEmpty).toSet()
     if (normalizedKeys.isEmpty()) return null
     return HistoryDeleteSession(
         targetKeys = normalizedKeys,
         completedKeys = emptySet(),
-        animationMode = resolveHistoryDeleteAnimationMode(normalizedKeys.size)
+        animationMode = resolveHistoryDeleteAnimationMode(
+            itemCount = normalizedKeys.size,
+            dissolveAnimationSafe = dissolveAnimationSafe
+        )
     )
 }
 

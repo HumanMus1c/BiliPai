@@ -16,9 +16,12 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -32,8 +35,8 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 // 景深层（与 Hero 卡片放大配合，progress 0→1 同源）：
-// 1) 页面整体轻微后退，状态栏、顶底栏和屏幕边界保持原位
-// 2) 页面几何保持原位；shared overlay 中的飞卡独自承担缩放
+// 1) 页面绕被点击卡片中心轻微后退（无 bounds 时退回屏幕中心），系统状态栏保持原位
+// 2) 飞卡由 overlay 独自承担放大；背景缩放只做远平面，避免双重缩放
 // 3) blur：空间纵深（冻结层 + BlurEffect）。半径按 **dp** 定义、按密度换算
 // 4) scrim 压暗：聚焦/可读
 // - 冻结层：首帧 record 一次后只改 BlurEffect，禁止 live 重录
@@ -125,6 +128,40 @@ internal fun shouldUseHostOwnedVideoCardTransitionSnapshot(
     ?.substringBefore('?')
     ?.startsWith("video/") != true
 
+/**
+ * 首页 feed 自己录冻结层，顶栏 overlay 才能留在快照之上做独立滑入/滑出。
+ */
+internal fun shouldHomeFeedOwnVideoCardTransitionSnapshot(
+    sourceRoute: String?,
+    hasSnapshotHandle: Boolean,
+): Boolean {
+    if (!hasSnapshotHandle) return false
+    if (!shouldUseHostOwnedVideoCardTransitionSnapshot(sourceRoute)) return false
+    return sourceRoute?.substringBefore("?") == "home"
+}
+
+/** 首页 feed 已接管快照时，路由壳只钉页、不再整页录顶栏。 */
+internal fun shouldApplyVideoCardTransitionSnapshotOnRouteShell(
+    entryRoute: String?,
+    sourceRoute: String?,
+    activeMainHostRoute: String?,
+): Boolean {
+    if (!shouldUseHostOwnedVideoCardTransitionSnapshot(sourceRoute)) return false
+    if (
+        !shouldApplyVideoCardTransitionBackgroundToRoute(
+            entryRoute = entryRoute,
+            sourceRoute = sourceRoute,
+            activeMainHostRoute = activeMainHostRoute,
+        )
+    ) {
+        return false
+    }
+    return !shouldHomeFeedOwnVideoCardTransitionSnapshot(
+        sourceRoute = sourceRoute,
+        hasSnapshotHandle = true,
+    )
+}
+
 internal data class VideoCardTransitionBackgroundFrame(
     val blurRadiusPx: Float,
     val scrimAlpha: Float,
@@ -144,6 +181,8 @@ internal data class VideoCardTransitionBackgroundState(
         VideoCardTransitionExposure.Idle
     },
     val sourceCornerDpProvider: () -> Int? = { null },
+    /** 被点击卡片的宿主坐标，供景深缩放绕卡片中心后退。 */
+    val sourceBoundsProvider: () -> Rect? = { null },
     val snapshotHandle: VideoCardTransitionSnapshotHandle? = null,
     val isReturnGestureInProgressProvider: () -> Boolean = { false },
     val isGestureRestoreInProgressProvider: () -> Boolean = { false },
@@ -155,6 +194,7 @@ internal data class VideoCardTransitionBackgroundState(
     val preferWholeCardReturnProvider: () -> Boolean = { true },
     val motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     val isLightBackgroundProvider: () -> Boolean = { false },
+    val realtimeBlurEnabledProvider: () -> Boolean = { false },
 )
 
 internal val LocalVideoCardTransitionBackgroundState = compositionLocalOf {
@@ -204,6 +244,58 @@ internal fun resolveVideoCardTransitionContentScale(
         phase = phase,
     )
     return 1f - scaleReduction.coerceIn(0f, 0.05f) * depthProgress
+}
+
+/**
+ * 背景后退的缩放原点（0–1 比例）。
+ *
+ * 飞卡从源卡 bounds 放大，背景若仍绕屏幕中心缩，冻结页上的源卡会漂向中心、
+ * 和 overlay 飞卡拆开。绕被点击卡片中心后退，页面作为远平面从焦点四周沉下去。
+ */
+internal fun resolveVideoCardTransitionBackgroundScalePivot(
+    sourceBounds: Rect?,
+    canvasWidth: Float,
+    canvasHeight: Float,
+): Offset {
+    if (
+        sourceBounds == null ||
+        !canvasWidth.isFinite() ||
+        !canvasHeight.isFinite() ||
+        canvasWidth <= 1f ||
+        canvasHeight <= 1f
+    ) {
+        return Offset(0.5f, 0.5f)
+    }
+    val bounds = sourceBounds
+    if (
+        !bounds.left.isFinite() ||
+        !bounds.top.isFinite() ||
+        !bounds.right.isFinite() ||
+        !bounds.bottom.isFinite() ||
+        bounds.width <= 1f ||
+        bounds.height <= 1f
+    ) {
+        return Offset(0.5f, 0.5f)
+    }
+    return Offset(
+        x = (bounds.center.x / canvasWidth).coerceIn(0f, 1f),
+        y = (bounds.center.y / canvasHeight).coerceIn(0f, 1f),
+    )
+}
+
+internal fun resolveVideoCardTransitionBackgroundScalePivotOffset(
+    sourceBounds: Rect?,
+    canvasSize: Size,
+): Offset {
+    val pivot = resolveVideoCardTransitionBackgroundScalePivot(
+        sourceBounds = sourceBounds,
+        canvasWidth = canvasSize.width,
+        canvasHeight = canvasSize.height,
+    )
+    return Offset(
+        x = pivot.x * canvasSize.width.coerceAtLeast(0f),
+        y = pivot.y * canvasSize.height.coerceAtLeast(0f),
+    )
 }
 
 internal fun resolveVideoCardTransitionBackgroundFrame(
@@ -504,6 +596,7 @@ internal fun Modifier.videoCardTransitionLiveBackgroundEffect(
     isLightBackgroundProvider: () -> Boolean = { false },
     realtimeBlurEnabledProvider: () -> Boolean = { false },
     scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION },
+    sourceBoundsProvider: () -> Rect? = { null },
 ): Modifier {
     val view = LocalView.current
     val screenDensity = LocalDensity.current.density
@@ -570,8 +663,14 @@ internal fun Modifier.videoCardTransitionLiveBackgroundEffect(
         }
         .graphicsLayer {
             val frame = frameState.value
+            val pivot = resolveVideoCardTransitionBackgroundScalePivot(
+                sourceBounds = sourceBoundsProvider(),
+                canvasWidth = size.width,
+                canvasHeight = size.height,
+            )
             scaleX = frame.contentScale
             scaleY = frame.contentScale
+            transformOrigin = TransformOrigin(pivot.x, pivot.y)
             val shouldClip = frame.cornerRadiusPx > 0.01f
             clip = shouldClip
             if (shouldClip) {
@@ -877,11 +976,15 @@ internal fun applyVideoCardTransitionSnapshotFrame(
     snapshotState: VideoCardTransitionSnapshotLayerState,
     frame: VideoCardTransitionBackgroundFrame,
     canvasSize: androidx.compose.ui.geometry.Size,
+    sourceBounds: Rect? = null,
 ) {
     // The route draw path may lower alpha during its final live-content handoff. This layer is
     // shared with the host-owned depth renderer, so every frame starts from an opaque baseline.
     contentLayer.alpha = 1f
-    contentLayer.pivotOffset = Offset(canvasSize.width / 2f, canvasSize.height / 2f)
+    contentLayer.pivotOffset = resolveVideoCardTransitionBackgroundScalePivotOffset(
+        sourceBounds = sourceBounds,
+        canvasSize = canvasSize,
+    )
     contentLayer.scaleX = frame.contentScale
     contentLayer.scaleY = frame.contentScale
     if (frame.cornerRadiusPx != snapshotState.lastCornerRadiusPx) {
@@ -945,6 +1048,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
     isLightBackgroundProvider: () -> Boolean = { false },
     realtimeBlurEnabledProvider: () -> Boolean = { false },
     scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION },
+    sourceBoundsProvider: () -> Rect? = { null },
     snapshotHandle: VideoCardTransitionSnapshotHandle? = null,
 ): Modifier {
     val fallbackContentLayer = rememberGraphicsLayer()
@@ -1089,6 +1193,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                         snapshotState = snapshotState,
                         frame = heldFrame,
                         canvasSize = size,
+                        sourceBounds = sourceBoundsProvider(),
                     )
                     drawLayer(contentLayer)
                     VideoCardTransitionDiagnostics.onSourceLayerDrawn()
@@ -1216,6 +1321,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             snapshotState = snapshotState,
             frame = frame,
             canvasSize = size,
+            sourceBounds = sourceBoundsProvider(),
         )
         if (!liveHandoffActive && shouldDrawVideoCardTransitionScaleGapFill(frame.contentScale)) {
             drawRect(

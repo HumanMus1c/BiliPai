@@ -63,6 +63,7 @@ internal fun PersonalMediaCardFrame(
     coverOverlayContent: (@Composable BoxScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    nativeSnapshotModifier: Modifier = Modifier,
 ) {
     val fontScale = LocalDensity.current.fontScale
     val minimumHeight = resolvePersonalMediaCardMinHeightDp(fontScale).dp
@@ -73,6 +74,7 @@ internal fun PersonalMediaCardFrame(
             .fillMaxWidth()
             .heightIn(min = minimumHeight)
             .clip(cardShape)
+            .then(nativeSnapshotModifier)
             .combinedClickable(
                 enabled = enabled,
                 onClick = onClick,

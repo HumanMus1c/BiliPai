@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.22-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.22" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.23-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.23" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -189,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.22-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.22.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.23-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.23.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -210,14 +210,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.22 / versionCode 339`；最新完整发布记录为 `v0.2.3-beta.22`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.23 / versionCode 340`；最新完整发布记录为 `v0.2.3-beta.23`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 修复全屏方向、自动连播画面与手势恢复，以及播放结束后的折叠和放大返回。
-- 新增非玻璃 Miuix 展示与可选卡片深度预测返回，修复标签拖拽、顶栏滚动和控件样式。
-- MD3 与 Miuix 更新弹窗分别原生适配，下载操作固定显示，长日志可独立滚动。
-- 动态顶部操作区支持折叠，增量刷新保留阅读位置。
-- 调整页面 Chrome 捕获与转场性能报告，并修复插件延迟注册的初始化时序。
-- 完整 beta.21 → beta.22 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 列表进详情再返回改为整卡飞回，落点对齐真实列表卡，标题和底部信息与静止卡片一致。
+- 空间、相关推荐、收藏、历史、稍后再看、动态等入口同步该交接；封面内播放量带上渐变和统计。
+- 修复封面方向监听、空间返回同一视频、切 P 清晰度回退，以及历史删除崩溃。
+- 非玻璃模式下按钮与提示条走原生控件，旧系统分段标签选中项保持可见。
+- 动态瀑布流加载更稳，刷新不再跳阅读位置。
+- 完整 beta.22 → beta.23 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

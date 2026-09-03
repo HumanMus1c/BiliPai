@@ -37,10 +37,16 @@ internal object VideoCardTransitionVisualTimeline {
     // The frozen background page starts yielding before the flying card's internal content morph.
     // This only refreshes the backdrop; it never reveals the source card as a stationary substitute.
     const val WHOLE_SOURCE_CARD_RETURN_START = 0.55f
-    const val WHOLE_SOURCE_CARD_RETURN_END = 0.90f
+    // Must equal [MEDIA_RETURN_START] so the opening snapshot is gone before native chrome.
+    const val WHOLE_SOURCE_CARD_RETURN_END = 0.82f
     // Live player → cover. Keep the live frame dominant until the card is very close to landing.
     const val MEDIA_RETURN_START = 0.82f
     const val MEDIA_RETURN_END = 0.98f
+    // Remeasure the flying media to the frozen cover box BEFORE source chrome fades in.
+    // Sharing 82%–98% with chrome lets the cover shrink while title/stats are already
+    // sitting at the landing slot — the land-time scale jump.
+    const val MEDIA_LAYOUT_RETURN_START = WHOLE_SOURCE_CARD_RETURN_START
+    const val MEDIA_LAYOUT_RETURN_END = MEDIA_RETURN_START
     // Detail controls/body → stationary-card chrome. Reuse the exact media handoff window:
     // source text/badges must arrive with cover pixels, never earlier or after landing.
     const val SOURCE_CHROME_RETURN_START = MEDIA_RETURN_START
@@ -64,8 +70,9 @@ internal fun resolveVisualProgress(
 /**
  * Frozen source-page snapshot release progress during a Miuix return.
  *
- * This releases the stale depth snapshot so the live page and haze sources can refresh behind the
- * flying card. It does not own card content; the Miuix flying detail entry owns cover/title/stat.
+ * This releases the stale depth snapshot so the live list card can punch through the flying
+ * entry. It must finish before the live → cover window, otherwise the opening-time snapshot
+ * (titles hidden) covers the native chrome.
  */
 internal fun resolveVideoCardWholeSourceReturnAlpha(
     morphDepthProgress: Float,
@@ -121,6 +128,33 @@ internal fun resolveVideoCardLiveReturnVisualHandoffAlpha(
     start = VideoCardTransitionVisualTimeline.MEDIA_RETURN_START,
     end = VideoCardTransitionVisualTimeline.MEDIA_RETURN_END,
 )
+
+/**
+ * Flying media remesure progress. Reaches 1 at chrome reveal so cover crop already matches
+ * the frozen cover box when title/stats fade in.
+ */
+internal fun resolveVideoDetailReturnMediaLayoutHandoffProgress(
+    morphDepthProgress: Float,
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+    sourceLayout: VideoCardSourceLayout,
+): Float {
+    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    if (!isVideoCardReturnContentYieldActive(
+            phase = phase,
+            isReturnGestureInProgress = isReturnGestureInProgress,
+            morphDepthProgress = depth,
+        )
+    ) {
+        return 0f
+    }
+    if (sourceLayout == VideoCardSourceLayout.COVER_ONLY) return 0f
+    return resolveVideoCardTimelineWindowProgress(
+        progress = resolveVideoCardReturnSettleFromMorphDepth(depth),
+        start = VideoCardTransitionVisualTimeline.MEDIA_LAYOUT_RETURN_START,
+        end = VideoCardTransitionVisualTimeline.MEDIA_LAYOUT_RETURN_END,
+    )
+}
 
 /**
  * Detail body (player 下方) visual frame during flying-card morph.

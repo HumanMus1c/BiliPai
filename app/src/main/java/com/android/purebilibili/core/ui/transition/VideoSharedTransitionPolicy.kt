@@ -24,7 +24,9 @@ internal object VideoHeroMotionTokens {
     const val RETURN_MIN_MS = 220
     const val GEOMETRY_MIN_RATIO = 0.78f
     const val GEOMETRY_MAX_RATIO = 1.22f
-    const val LANDING_COMPRESSION = 0.0125f
+    // Must stay 0: a flying-layer pulse undershoots the frozen card and the stationary
+    // list card then pops in at full size (cover / info scale-jump on land).
+    const val LANDING_COMPRESSION = 0f
     const val OPEN_BLUR_QUANTUM_PX = 1f
     const val RETURN_BLUR_QUANTUM_PX = 4f
     const val SPRING_DAMPING = 1f
@@ -40,7 +42,7 @@ internal data class VideoHeroMotionSpec(
 ) {
     val enterSpatialSpec: Easing get() = AppMotionEasing.Continuity
     // The driver itself must NOT overshoot: Miuix unloads an entry at relativeDepth <= -1.
-    // A bounded, single landing pulse is applied only to the flying layer (see landingScale).
+    // Do not add a flying-layer landing pulse; it drifts off the frozen card bounds.
     val returnSpatialSpec: Easing get() = AppMotionEasing.Continuity
     val predictiveSeekSpec: Easing get() = LinearEasing
     val effectsEasing: Easing get() = LinearEasing // progress is already eased by the owner
@@ -97,9 +99,9 @@ internal fun resolveVideoSharedTransitionGeometryRatio(
         .coerceIn(VideoHeroMotionTokens.GEOMETRY_MIN_RATIO, VideoHeroMotionTokens.GEOMETRY_MAX_RATIO)
 }
 
-/** A single smooth compression pulse, bounded relative to the FINAL card, not the full screen. */
+/** Identity at every depth. A non-1 value would undershoot the frozen card on land. */
 internal fun resolveVideoHeroLandingScale(depth: Float, autoReturning: Boolean): Float {
-    if (!autoReturning) return 1f
+    if (!autoReturning || VideoHeroMotionTokens.LANDING_COMPRESSION <= 0f) return 1f
     val u = ((1f - depth.coerceIn(0f, 1f) - 0.82f) / 0.18f).coerceIn(0f, 1f)
     val pulse = 16f * u * u * (1f - u) * (1f - u)
     return 1f - VideoHeroMotionTokens.LANDING_COMPRESSION * pulse
