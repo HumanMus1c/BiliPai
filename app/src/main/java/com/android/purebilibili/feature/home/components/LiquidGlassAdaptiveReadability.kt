@@ -23,8 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.math.pow
@@ -36,6 +41,10 @@ private const val ADAPTIVE_READABILITY_SAMPLE_WIDTH = 24
 private const val ADAPTIVE_READABILITY_SAMPLE_HEIGHT = 8
 private const val ADAPTIVE_READABILITY_LIGHT_TO_DARK_THRESHOLD = 0.58f
 private const val ADAPTIVE_READABILITY_DARK_TO_LIGHT_THRESHOLD = 0.42f
+private val adaptiveReadabilityPixelCopyHandler by lazy(LazyThreadSafetyMode.NONE) {
+    Handler(Looper.getMainLooper())
+}
+private val adaptiveReadabilityPixelCopyMutex = Mutex()
 
 internal enum class LiquidGlassAdaptiveForegroundTone {
     DARK,
@@ -106,24 +115,29 @@ internal fun rememberLiquidGlassAdaptiveReadabilityState(
     enabled: Boolean,
 ): LiquidGlassAdaptiveReadabilityState {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = remember(context) { context.findLiquidGlassHostActivity() }
     val state = remember { LiquidGlassAdaptiveReadabilityState() }
-    androidx.compose.runtime.LaunchedEffect(enabled, activity, state) {
+    androidx.compose.runtime.LaunchedEffect(enabled, activity, lifecycle, state) {
         if (!enabled || activity == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             state.reset()
             return@LaunchedEffect
         }
-        delay(ADAPTIVE_READABILITY_INITIAL_DELAY_MILLIS)
-        while (isActive) {
-            val decorView = activity.window.decorView
-            val sourceBounds = state.sampleBounds?.clampedTo(
-                width = decorView.width,
-                height = decorView.height,
-            )
-            if (sourceBounds != null) {
-                sampleWindowLuminance(activity, sourceBounds)?.let(state::updateLuminance)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            delay(ADAPTIVE_READABILITY_INITIAL_DELAY_MILLIS)
+            while (isActive) {
+                val decorView = activity.window.decorView
+                val sourceBounds = state.sampleBounds?.clampedTo(
+                    width = decorView.width,
+                    height = decorView.height,
+                )
+                if (sourceBounds != null) {
+                    adaptiveReadabilityPixelCopyMutex.withLock {
+                        sampleWindowLuminance(activity, sourceBounds)
+                    }?.let(state::updateLuminance)
+                }
+                delay(ADAPTIVE_READABILITY_SAMPLE_INTERVAL_MILLIS)
             }
-            delay(ADAPTIVE_READABILITY_SAMPLE_INTERVAL_MILLIS)
         }
     }
     return state
@@ -184,7 +198,7 @@ private suspend fun sampleWindowLuminance(
                 bitmap.recycle()
                 if (continuation.isActive) continuation.resume(luminance)
             },
-            Handler(Looper.getMainLooper()),
+            adaptiveReadabilityPixelCopyHandler,
         )
     } catch (_: IllegalArgumentException) {
         bitmap.recycle()

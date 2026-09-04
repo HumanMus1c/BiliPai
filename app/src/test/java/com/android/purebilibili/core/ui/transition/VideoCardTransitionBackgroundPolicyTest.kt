@@ -279,6 +279,40 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
+    fun chromeRevealFollowsDepthSoPredictiveBackCanReverse() {
+        assertEquals(0f, resolveVideoCardTransitionChromeReveal(1f), 0.0001f)
+        assertEquals(1f, resolveVideoCardTransitionChromeReveal(0f), 0.0001f)
+        assertEquals(0.4f, resolveVideoCardTransitionChromeReveal(0.6f), 0.0001f)
+        assertTrue(
+            shouldDriveVideoCardTransitionChromeByProgress(
+                cardTransitionEnabled = true,
+                exposure = VideoCardTransitionExposure.BackPreview,
+            ),
+        )
+        assertTrue(
+            shouldDriveVideoCardTransitionChromeByProgress(
+                cardTransitionEnabled = true,
+                exposure = VideoCardTransitionExposure.Restoring,
+            ),
+        )
+        assertFalse(
+            shouldDriveVideoCardTransitionChromeByProgress(
+                cardTransitionEnabled = true,
+                exposure = VideoCardTransitionExposure.Idle,
+            ),
+        )
+        val overlayPivot = resolveVideoCardTransitionOverlayDepthPivot(
+            sourceBounds = androidx.compose.ui.geometry.Rect(100f, 400f, 500f, 900f),
+            canvasWidth = 1000f,
+            canvasHeight = 2000f,
+            overlayWidth = 1000f,
+            overlayHeight = 200f,
+        )
+        assertEquals(0.3f, overlayPivot.x, 0.0001f)
+        assertEquals(3.25f, overlayPivot.y, 0.0001f)
+    }
+
+    @Test
     fun predictiveBackBottomBarUsesTheRetainedTabInsteadOfTheVideoRoute() {
         assertEquals(
             "home",

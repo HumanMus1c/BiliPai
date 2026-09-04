@@ -47,6 +47,7 @@ internal fun resolveDynamicPagePresentation(
             remoteUserItems = state.userItems,
             selectedUid = selectedUserId
         )
+            .filter { it.visible }
             .filterNot { it.id_str in state.tempBannedDynamicIds }
             .distinctBy { it.id_str }
         return DynamicPagePresentation(
@@ -69,6 +70,7 @@ internal fun resolveDynamicPagePresentation(
         3 -> page.items.filter(::shouldIncludeDynamicItemInArticleTab)
         else -> page.items
     }
+        .filter { it.visible }
         .filterNot { it.id_str in state.tempBannedDynamicIds }
         .distinctBy { it.id_str }
     return DynamicPagePresentation(

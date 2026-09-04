@@ -22,7 +22,7 @@ class LiquidGlassContentClarityStructureTest {
                     "liquidGlassTuning.contentDistortionScale.coerceIn(0f, 1.8f)"
                 )
         )
-        assertTrue(floatingDockChrome.contains("if (distortionScale > 0.001f)"))
+        assertTrue(floatingDockChrome.contains("val shouldDrawLens = distortionScale > 0.001f"))
 
         assertTrue(floatingBottomBar.contains("val shellRefractionHeightDp = shellLensDp *"))
         assertTrue(floatingBottomBar.contains("val shellRefractionAmountDp = shellLensDp *"))

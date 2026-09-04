@@ -79,6 +79,7 @@ class DampedDragAnimation(
     // Pager progress can request a new position every frame. Keep exactly one value mutation
     // alive so an older coroutine can never run after a newer request and restore stale UI.
     private var valueTrackingJob: Job? = null
+    private var pressReleaseJob: Job? = null
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = requestedValue
@@ -126,19 +127,13 @@ class DampedDragAnimation(
             }
         ) { change, dragAmount ->
             if (!gestureAccepted) return@inspectDragGestures
-
-            val position = change.position
-            val previousPosition = change.previousPosition
-
-            val isInside = canDrag(position)
-            val wasInside = canDrag(previousPosition)
-
-            if (isInside && wasInside) {
-                if (dragAmount != Offset.Zero) {
-                    change.consume()
-                }
-                onDrag(size, dragAmount)
+            // Once the indicator owns this pointer, keep following it even if the moving
+            // hit box translates out from under the finger. Dropping deltas here is what
+            // made a second drag lose real-time tracking after search resized the dock.
+            if (dragAmount != Offset.Zero) {
+                change.consume()
             }
+            onDrag(size, dragAmount)
         }
     }
 
@@ -171,19 +166,16 @@ class DampedDragAnimation(
             },
             onDrag = { change, dragAmount ->
                 if (!gestureAccepted) return@detectDragGesturesAfterLongPress
-                val isInside = canDrag(change.position)
-                val wasInside = canDrag(change.previousPosition)
-                if (isInside && wasInside) {
-                    if (dragAmount != Offset.Zero) change.consume()
-                    onDrag(size, dragAmount)
-                }
+                if (dragAmount != Offset.Zero) change.consume()
+                onDrag(size, dragAmount)
             },
         )
     }
 
     fun press() {
         velocityTracker.resetTracking()
-        animationScope.launch {
+        pressReleaseJob?.cancel()
+        pressReleaseJob = animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -191,7 +183,8 @@ class DampedDragAnimation(
     }
 
     fun release() {
-        animationScope.launch {
+        pressReleaseJob?.cancel()
+        pressReleaseJob = animationScope.launch {
             awaitFrame()
             if (value != targetValue) {
                 val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f

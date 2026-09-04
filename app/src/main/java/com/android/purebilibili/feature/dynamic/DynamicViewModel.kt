@@ -30,6 +30,7 @@ import com.android.purebilibili.data.repository.DynamicFeedScope
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.data.repository.LiveRepository
 import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
+import com.android.purebilibili.feature.dynamic.components.unfoldRelatedDynamicItems
 import com.android.purebilibili.feature.dynamic.components.DynamicReserveAction
 import com.android.purebilibili.feature.dynamic.components.DynamicReserveResult
 import com.android.purebilibili.feature.dynamic.components.buildDynamicVisibilityObjectId
@@ -2003,6 +2004,20 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 onResult(false, e.message ?: "网络错误")
             }
         }
+    }
+
+    fun unfoldRelatedDynamics(dynamicId: String) {
+        val normalizedId = dynamicId.trim()
+        if (normalizedId.isBlank()) return
+        val currentState = mapDynamicTimelineItems(_uiState.value) { items ->
+            unfoldRelatedDynamicItems(items, normalizedId)
+        }
+        _uiState.value = currentState.copy(
+            userItems = unfoldRelatedDynamicItems(
+                currentState.userItems,
+                normalizedId,
+            ).toImmutableList(),
+        )
     }
 
     private fun removeDynamicFromUiState(dynamicId: String) {

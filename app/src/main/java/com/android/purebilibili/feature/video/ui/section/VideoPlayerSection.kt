@@ -3308,9 +3308,9 @@ fun VideoPlayerSection(
         val persistedRenderedFirstFrame = remember(debugInfo.firstFrame) {
             debugInfo.firstFrame.equals("rendered", ignoreCase = true)
         }
-        val autoPlayOnOpenEnabled = remember(context) {
-            SettingsManager.getClickToPlaySync(context)
-        }
+        val autoPlayOnOpenEnabled by SettingsManager
+            .getClickToPlay(context)
+            .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
         var hasManualStartPlaybackIntent by remember(bvid) {
             mutableStateOf(
                 playerState.player.mediaItemCount > 0 &&

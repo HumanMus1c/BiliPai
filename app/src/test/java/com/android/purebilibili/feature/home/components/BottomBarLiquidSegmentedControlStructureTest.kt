@@ -554,6 +554,23 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
+    fun `external pager motion opt in reaches floating dock renderer`() {
+        val liquid = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt"
+        )
+        val floatingSegmented = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
+        val floatingDock = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"
+        )
+
+        assertTrue(liquid.contains("externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled"))
+        assertTrue(floatingSegmented.contains("externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled"))
+        assertTrue(floatingDock.contains("visualIndicatorPositionProvider()"))
+    }
+
+    @Test
     fun `global video dynamic and live segmented surfaces share android native fallback`() {
         val paths = listOf(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt",

@@ -187,11 +187,11 @@ object CardPositionManager {
         lastClickedVideoSourceChromeSnapshot = sourceChromeSnapshot
     }
 
-    internal fun recordNativeCardLayer(layer: GraphicsLayer) {
+    internal fun recordNativeCardLayer(layer: GraphicsLayer?) {
         lastClickedNativeCardLayer = layer
     }
 
-    internal fun recordNativeCoverOverlayLayer(layer: GraphicsLayer) {
+    internal fun recordNativeCoverOverlayLayer(layer: GraphicsLayer?) {
         lastClickedNativeCoverOverlayLayer = layer
     }
     

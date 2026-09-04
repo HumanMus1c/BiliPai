@@ -4,6 +4,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -189,14 +190,48 @@ internal fun Modifier.floatingDockScaleOverflow(
     }
 }
 
+internal const val FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR = 10f
+internal const val FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f
+internal const val FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP = 0.2f
+internal const val FLOATING_DOCK_VELOCITY_REFERENCE_TAB_WIDTH_DP = 75f
+
 internal fun resolveFloatingDockIndicatorHeightDp(
     requestedHeightDp: Float,
     tabWidthDp: Float,
 ): Float {
     if (requestedHeightDp <= 0f) return 0f
     if (tabWidthDp <= 0f) return requestedHeightDp
+    // A slot that is already wider than the pill can keep the authored height.
+    // Forcing the 1.35 aspect here flattens icon+label after search takes a side slot.
+    if (tabWidthDp >= requestedHeightDp) return requestedHeightDp
     val maxHeightForCapsule = tabWidthDp / FLOATING_DOCK_MIN_INDICATOR_ASPECT
     return min(requestedHeightDp, maxHeightForCapsule)
+}
+
+internal fun resolveFloatingDockIndicatorLayerScaleX(
+    baseScaleX: Float,
+    velocity: Float,
+    tabWidthPx: Float,
+    referenceTabWidthPx: Float,
+): Float {
+    val widthRatio = if (tabWidthPx <= 0f || referenceTabWidthPx <= 0f) {
+        1f
+    } else {
+        (tabWidthPx / referenceTabWidthPx).coerceIn(0.55f, 1f)
+    }
+    val normalizedVelocity = velocity * widthRatio / FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR
+    val velocityScale = (abs(normalizedVelocity) * FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
+        .coerceIn(0f, FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP)
+    return baseScaleX / (1f - velocityScale)
+}
+
+internal fun resolveFloatingDockCapturedContentHorizontalScale(
+    itemScale: Float,
+    indicatorScaleX: Float,
+    indicatorScaleY: Float,
+): Float {
+    val stretch = if (indicatorScaleY <= 0.001f) 1f else indicatorScaleX / indicatorScaleY
+    return itemScale / stretch.coerceAtLeast(0.001f)
 }
 
 internal fun resolveFloatingDockIndicatorOffsetPx(

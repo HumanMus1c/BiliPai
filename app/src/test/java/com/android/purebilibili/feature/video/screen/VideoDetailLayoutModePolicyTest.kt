@@ -854,6 +854,48 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun autoRotateSensorPolicy_doesNotTreatUpsideDownAsPortraitWhileLandscape() {
+        for (orientationDegrees in listOf(155, 180, 205)) {
+            assertEquals(
+                null,
+                resolvePhoneAutoRotateRequestedOrientation(
+                    orientationDegrees = orientationDegrees,
+                    isCurrentlyLandscape = true,
+                    useExactLandscapeSide = true,
+                )
+            )
+            assertEquals(
+                null,
+                resolvePhoneAutoRotateRequestedOrientation(
+                    orientationDegrees = orientationDegrees,
+                    isCurrentlyLandscape = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun autoRotateSensorPolicy_coverScreenSwitchesLandscapeSidesThroughUpsideDown() {
+        val flipPath = listOf(
+            90 to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            140 to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            180 to null,
+            220 to ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            270 to ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+        )
+        for ((orientationDegrees, expectedOrientation) in flipPath) {
+            assertEquals(
+                expectedOrientation,
+                resolvePhoneAutoRotateRequestedOrientation(
+                    orientationDegrees = orientationDegrees,
+                    isCurrentlyLandscape = true,
+                    useExactLandscapeSide = true,
+                )
+            )
+        }
+    }
+
+    @Test
     fun manualPortraitHoldReleasePolicy_waitsForPortraitStableAngle() {
         assertFalse(
             shouldReleasePhoneManualPortraitHold(orientationDegrees = 90)

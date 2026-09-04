@@ -177,7 +177,7 @@ internal fun resolveLiquidGlassAdvancedPreset(
         progressiveBlurCurve = 0.65f,
         contentReadability = 0.72f,
         chromaticAberration = 0.96f,
-        contentDistortion = 0.90f,
+        contentDistortion = 1f,
     )
     LiquidGlassAdvancedPreset.CUSTOM -> LiquidGlassAdvancedSettings(preset = preset)
 }
@@ -279,6 +279,26 @@ internal fun resolveLegacyLiquidGlassProgress(style: LiquidGlassStyle): Float {
         mode = mode,
         strength = resolveDefaultLiquidGlassStrength(mode)
     )
+}
+
+/** Prefer the v2 continuous value, falling back to the complete legacy material selection. */
+internal fun resolveStoredLiquidGlassProgress(
+    progress: Float?,
+    legacyModeValue: Int?,
+    legacyStrength: Float?,
+    legacyStyleValue: Int?,
+): Float {
+    progress?.let { return normalizeLiquidGlassProgress(it) }
+    val legacyStyle = LiquidGlassStyle.fromValue(
+        legacyStyleValue ?: LiquidGlassStyle.SUKISU.value
+    )
+    val mode = legacyModeValue
+        ?.let(LiquidGlassMode::fromValue)
+        ?: resolveLegacyLiquidGlassMode(legacyStyle)
+    val strength = normalizeLiquidGlassStrength(
+        legacyStrength ?: resolveDefaultLiquidGlassStrength(mode)
+    )
+    return resolveLegacyLiquidGlassProgress(mode, strength)
 }
 
 internal fun resolveLiquidGlassModeFromProgress(progress: Float): LiquidGlassMode {
@@ -1528,8 +1548,8 @@ object SettingsManager {
     private val KEY_CRASH_TRACKING_CONSENT_SHOWN = booleanPreferencesKey("crash_tracking_consent_shown")
     private val KEY_LIQUID_GLASS_MODE = intPreferencesKey("liquid_glass_mode")
     private val KEY_LIQUID_GLASS_STRENGTH = floatPreferencesKey("liquid_glass_strength")
-    // V2 intentionally avoids reviving stale values from the removed legacy tuning UI.
-    // Existing installs therefore start from the current BiliPai baseline (0.5f).
+    // V2 stores the continuous material position; reads migrate the complete legacy selection
+    // when this key is absent so upgrades preserve the user's clear/balanced/frosted intent.
     private val KEY_LIQUID_GLASS_PROGRESS = floatPreferencesKey("liquid_glass_material_progress_v2")
     private val KEY_LIQUID_GLASS_PREVIEW_IMAGE_URI =
         stringPreferencesKey("liquid_glass_preview_image_uri")
@@ -1609,8 +1629,11 @@ object SettingsManager {
             preferences[KEY_LIQUID_GLASS_STRENGTH]
                 ?: resolveDefaultLiquidGlassStrength(liquidGlassMode)
         )
-        val liquidGlassProgress = normalizeLiquidGlassProgress(
-            preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+        val liquidGlassProgress = resolveStoredLiquidGlassProgress(
+            progress = preferences[KEY_LIQUID_GLASS_PROGRESS],
+            legacyModeValue = preferences[KEY_LIQUID_GLASS_MODE],
+            legacyStrength = preferences[KEY_LIQUID_GLASS_STRENGTH],
+            legacyStyleValue = preferences[KEY_LIQUID_GLASS_STYLE],
         )
         val liquidGlassReadabilityMode = LiquidGlassReadabilityMode.fromValue(
             preferences[liquidGlassReadabilityModePreferencesKey]
@@ -3909,8 +3932,11 @@ object SettingsManager {
 
     fun getLiquidGlassProgress(context: Context): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
-            normalizeLiquidGlassProgress(
-                preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+            resolveStoredLiquidGlassProgress(
+                progress = preferences[KEY_LIQUID_GLASS_PROGRESS],
+                legacyModeValue = preferences[KEY_LIQUID_GLASS_MODE],
+                legacyStrength = preferences[KEY_LIQUID_GLASS_STRENGTH],
+                legacyStyleValue = preferences[KEY_LIQUID_GLASS_STYLE],
             )
         }
 
@@ -7516,8 +7542,11 @@ object SettingsManager {
             ?: topBarEnabled
         val bottomBarEnabled = preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED]
             ?: legacyEnabled
-        val progress = normalizeLiquidGlassProgress(
-            preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+        val progress = resolveStoredLiquidGlassProgress(
+            progress = preferences[KEY_LIQUID_GLASS_PROGRESS],
+            legacyModeValue = preferences[KEY_LIQUID_GLASS_MODE],
+            legacyStrength = preferences[KEY_LIQUID_GLASS_STRENGTH],
+            legacyStyleValue = preferences[KEY_LIQUID_GLASS_STYLE],
         )
         val advancedSettings = resolveLiquidGlassAdvancedSettings(
             presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],

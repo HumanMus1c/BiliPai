@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.dynamic.components
 import com.android.purebilibili.data.model.response.DynamicDisputeModule
 import com.android.purebilibili.data.model.response.DynamicFoldModule
 import com.android.purebilibili.data.model.response.DynamicFoldUser
+import com.android.purebilibili.data.model.response.DynamicItem
+import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.DynamicTagModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -42,6 +44,32 @@ class DynamicCardFoldPolicyTest {
         assertNull(resolveDynamicFoldStatement(null))
         assertNull(resolveDynamicFoldStatement(DynamicFoldModule()))
         assertNull(resolveDynamicFoldStatement(DynamicFoldModule(statement = "   ")))
+    }
+
+    @Test
+    fun unfoldingRelatedDynamicsRevealsHiddenNeighbors() {
+        val items = listOf(
+            DynamicItem(
+                id_str = "visible-7h",
+                visible = true,
+                modules = DynamicModules(
+                    module_fold = DynamicFoldModule(
+                        ids = listOf("hidden-a", "hidden-b"),
+                        statement = "展开2条相关动态",
+                    )
+                )
+            ),
+            DynamicItem(id_str = "hidden-a", visible = false),
+            DynamicItem(id_str = "hidden-b", visible = false),
+            DynamicItem(id_str = "visible-12h", visible = true),
+        )
+
+        val unfolded = unfoldRelatedDynamicItems(items, "visible-7h")
+
+        assertTrue(unfolded[1].visible)
+        assertTrue(unfolded[2].visible)
+        assertNull(unfolded[0].modules.module_fold)
+        assertTrue(unfolded[3].visible)
     }
 
     @Test

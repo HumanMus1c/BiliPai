@@ -25,7 +25,13 @@ class HomeVideoTransitionBackgroundStructureTest {
         assertTrue(source.contains(".then(homeFeedSnapshotModifier)"))
         assertTrue(source.contains("BottomBarMatchedDockVisibility("))
         assertTrue(source.contains("edge = BottomBarMatchedDockEdge.TOP"))
+        assertTrue(source.contains("videoCardTransitionOverlayDepthEffect("))
         assertTrue(source.contains("shouldShowHomeOverlayChromeDuringVideoCardTransition("))
+        val fullScreenHeaderDepthLayer = source
+            .substringAfter("A header-sized layer clamps the blur kernel")
+            .substringBefore("BottomBarMatchedDockVisibility(")
+        assertTrue(fullScreenHeaderDepthLayer.contains(".fillMaxSize()"))
+        assertTrue(fullScreenHeaderDepthLayer.contains(".videoCardTransitionOverlayDepthEffect("))
     }
 
     @Test
@@ -95,6 +101,11 @@ class HomeVideoTransitionBackgroundStructureTest {
         assertTrue(source.contains("freezeRecording"))
         assertTrue(source.contains("contentLayer.record"))
         assertTrue(source.contains("BlurEffect("))
+        val overlayDepthEffect = source
+            .substringAfter("internal fun Modifier.videoCardTransitionOverlayDepthEffect(")
+            .substringBefore("internal fun resolveVideoCardTransitionBackgroundScalePivotOffset(")
+        assertTrue(overlayDepthEffect.contains("resolveVideoCardTransitionBackgroundFrame("))
+        assertTrue(overlayDepthEffect.contains("frame.blurRadiusPx"))
         assertTrue(source.contains("DisposableEffect(snapshotState, contentLayer, isHostOwnedSnapshot)"))
         assertTrue(source.contains("shouldInvalidateSnapshotOnSourceDispose"))
         assertTrue(source.contains("snapshotState.invalidateRecordedContent()"))

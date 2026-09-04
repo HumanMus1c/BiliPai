@@ -500,6 +500,7 @@ fun BottomBarLiquidSegmentedControl(
         indicatorPositionProvider = indicatorPositionProvider,
         onIndicatorPositionChanged = onIndicatorPositionChanged,
         isScrollInProgressProvider = isScrollInProgressProvider,
+        externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
         liquidGlassTuningOverride = liquidGlassTuningOverride,
     )
 }

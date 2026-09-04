@@ -549,9 +549,14 @@ internal fun VideoDetailScreenStateHolder(
         frozenTransitionSourceCornerDp
             ?: resolveVideoSharedTransitionSourceCornerDp(sourceRouteForSharedElement)
     }
-    val videoSharedPlaybackIntent = remember(context, startAudioFromRoute) {
+    val autoPlayOnOpenEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getClickToPlay(context)
+        .collectAsStateWithLifecycle(
+            initialValue = com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(context)
+        )
+    val videoSharedPlaybackIntent = remember(autoPlayOnOpenEnabled, startAudioFromRoute) {
         resolveVideoSharedTransitionPlaybackIntent(
-            clickToPlayEnabled = com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(context),
+            clickToPlayEnabled = autoPlayOnOpenEnabled,
             forceImmediatePlayback = startAudioFromRoute
         )
     }

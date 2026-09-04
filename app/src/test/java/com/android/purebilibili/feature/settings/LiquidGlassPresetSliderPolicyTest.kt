@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.settings
 
 import com.android.purebilibili.core.store.LiquidGlassAdvancedPreset
 import com.android.purebilibili.core.store.resolveLiquidGlassAdvancedPreset
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -73,6 +74,42 @@ class LiquidGlassPresetSliderPolicyTest {
             0.25f,
             liquidGlassPresetSliderValue(resolveLiquidGlassPresetSliderSettings(0.25f)),
             0.0001f,
+        )
+    }
+
+    @Test
+    fun `custom position accounts for every advanced parameter`() {
+        val balanced = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.BALANCED)
+        val changedBlur = balanced.copy(
+            preset = LiquidGlassAdvancedPreset.CUSTOM,
+            progressiveBlurRadius = 0.8f,
+        )
+        val changedDistortion = balanced.copy(
+            preset = LiquidGlassAdvancedPreset.CUSTOM,
+            contentDistortion = 0f,
+        )
+
+        assertEquals(
+            false,
+            liquidGlassPresetSliderValue(changedBlur) ==
+                liquidGlassPresetSliderValue(changedDistortion),
+        )
+    }
+
+    @Test
+    fun `live preview uses the production floating indicator stack`() {
+        val root = listOf(File("."), File("..")).first { File(it, "app/src/main").exists() }
+        val source = File(
+            root,
+            "app/src/main/java/com/android/purebilibili/feature/settings/" +
+                "LiquidGlassLivePreview.kt",
+        ).readText()
+
+        assertEquals(true, source.contains("FloatingBottomBar("))
+        assertEquals(true, source.contains("FloatingBottomBarItem("))
+        assertEquals(
+            true,
+            source.contains("onSelected = { previewSelectedBottomBarIndex = it }"),
         )
     }
 }

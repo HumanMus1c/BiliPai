@@ -45,6 +45,38 @@ class VideoDetailReturnCoverPolicyTest {
             ),
             0.001f,
         )
+        val midDepth = 0.45f
+        val openingMid = resolveVideoDetailFlyingSourceChromeAlpha(
+            morphDepthProgress = midDepth,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            isReturnGestureInProgress = false,
+            sourceLayout = VideoCardSourceLayout.STACKED,
+        )
+        val returningMid = resolveVideoDetailFlyingSourceChromeAlpha(
+            morphDepthProgress = midDepth,
+            phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            isReturnGestureInProgress = false,
+            sourceLayout = VideoCardSourceLayout.STACKED,
+        )
+        val heldSeekMid = resolveVideoDetailFlyingSourceChromeAlpha(
+            morphDepthProgress = midDepth,
+            phase = VideoCardTransitionBackgroundPhase.HELD,
+            isReturnGestureInProgress = true,
+            sourceLayout = VideoCardSourceLayout.STACKED,
+        )
+        assertEquals(0.5f, openingMid, 0.001f)
+        assertEquals(openingMid, returningMid, 0.001f)
+        assertEquals(openingMid, heldSeekMid, 0.001f)
+        assertEquals(
+            0f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 1f,
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
     }
 
     @Test

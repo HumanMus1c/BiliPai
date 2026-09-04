@@ -3101,12 +3101,15 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     )
                 } else {
                     com.android.purebilibili.core.player.PlayerVolumeController.applyPreferredVolume(player)
-                    if (!player.isPlaying) {
+                    val shouldAutoPlay = playbackRequest.autoPlay ?: appContext?.let {
+                        com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(it)
+                    } ?: true
+                    if (shouldAutoPlay && !player.isPlaying) {
                         player.play()
                     }
                     Logger.d(
                         "PlayerVM",
-                        "🎯 ${playbackRequest.bvid} UI already loaded and player healthy, skip reload"
+                        "🎯 ${playbackRequest.bvid} UI already loaded and player healthy, skip reload autoPlay=$shouldAutoPlay"
                     )
                 }
             } else {

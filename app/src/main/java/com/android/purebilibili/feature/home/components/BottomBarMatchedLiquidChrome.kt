@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,10 +31,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -47,7 +46,6 @@ import com.android.purebilibili.core.ui.motion.emphasizedExitTween
 import com.android.purebilibili.core.ui.motion.softLandingSpring
 import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
 import dev.chrisbanes.haze.HazeState
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -56,6 +54,17 @@ import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 internal enum class BottomBarLiquidOrientation {
     HORIZONTAL,
     VERTICAL
+}
+
+/** Narrow render configuration provided once by the navigation root. */
+@Immutable
+internal data class LiquidGlassRenderConfig(
+    val tuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
+    val preset: BottomBarLiquidGlassPreset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
+)
+
+internal val LocalLiquidGlassRenderConfig = staticCompositionLocalOf {
+    LiquidGlassRenderConfig()
 }
 
 internal enum class BottomBarMatchedDockEdge {
@@ -305,13 +314,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
         return
     }
 
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(
-            initialValue = HomeSettings(),
-            context = kotlin.coroutines.EmptyCoroutineContext
-        )
+    val renderConfig = LocalLiquidGlassRenderConfig.current
     val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
         liquidGlassEnabled = reuseEnabled && reuseAllowed,
         blurEnabled = true
@@ -328,17 +331,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
         blurEnabled = true,
         darkTheme = isDarkTheme
     )
-    val liquidGlassTuning = remember(
-        homeSettings.liquidGlassProgress,
-        homeSettings.liquidGlassAdvancedSettings,
-        homeSettings.liquidGlassReadabilityMode,
-    ) {
-        resolveLiquidGlassTuning(
-            homeSettings.liquidGlassProgress,
-            homeSettings.liquidGlassAdvancedSettings,
-            homeSettings.liquidGlassReadabilityMode,
-        )
-    }
+    val liquidGlassTuning = renderConfig.tuning
     val containerColor = if (useNeutralLiquidContainer && glassEnabled) {
         resolveBiliPaiBottomBarContainerColor(
             darkTheme = isDarkTheme,
@@ -351,7 +344,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
             glassEnabled = glassEnabled,
             blurEnabled = true,
             blurIntensity = blurIntensity,
-            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+            liquidGlassPreset = renderConfig.preset,
             liquidGlassTuning = liquidGlassTuning,
         )
     }
@@ -397,7 +390,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
             shellLensIntensity = shellLensIntensity,
             blurRadius = tuning.shellBlurRadiusDp.dp,
             modifier = Modifier.matchParentSize(),
-            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+            liquidGlassPreset = renderConfig.preset,
             liquidGlassTuning = liquidGlassTuning,
             isScrollInProgressProvider = isScrollInProgressProvider
         ) {}

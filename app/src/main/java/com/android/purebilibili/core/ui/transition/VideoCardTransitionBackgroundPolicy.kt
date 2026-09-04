@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -281,6 +282,85 @@ internal fun resolveVideoCardTransitionBackgroundScalePivot(
         x = (bounds.center.x / canvasWidth).coerceIn(0f, 1f),
         y = (bounds.center.y / canvasHeight).coerceIn(0f, 1f),
     )
+}
+
+internal fun resolveVideoCardTransitionOverlayDepthPivot(
+    sourceBounds: Rect?,
+    canvasWidth: Float,
+    canvasHeight: Float,
+    overlayWidth: Float,
+    overlayHeight: Float,
+): Offset {
+    val canvasPivot = resolveVideoCardTransitionBackgroundScalePivot(
+        sourceBounds = sourceBounds,
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+    )
+    val width = overlayWidth.coerceAtLeast(1f)
+    val height = overlayHeight.coerceAtLeast(1f)
+    return Offset(
+        x = (canvasPivot.x * canvasWidth.coerceAtLeast(0f)) / width,
+        y = (canvasPivot.y * canvasHeight.coerceAtLeast(0f)) / height,
+    )
+}
+
+internal fun Modifier.videoCardTransitionChromeReveal(
+    revealProvider: () -> Float,
+    slideDown: Boolean,
+): Modifier = this
+    .graphicsLayer {
+        alpha = revealProvider().coerceIn(0f, 1f)
+    }
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val reveal = revealProvider().coerceIn(0f, 1f)
+        layout(placeable.width, placeable.height) {
+            val dy = ((1f - reveal) * placeable.height).roundToInt()
+            placeable.place(0, if (slideDown) dy else -dy)
+        }
+    }
+
+internal fun Modifier.videoCardTransitionOverlayDepthEffect(
+    progressProvider: () -> Float,
+    phaseProvider: () -> VideoCardTransitionBackgroundPhase,
+    motionTierProvider: () -> MotionTier,
+    sourceBoundsProvider: () -> Rect?,
+    scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION },
+    densityProvider: () -> Float,
+): Modifier = this.graphicsLayer {
+    val progress = progressProvider()
+    val phase = phaseProvider()
+    val motionTier = motionTierProvider()
+    // Keep the live chrome on the same visual frame contract as the retained source page.
+    // In particular, phase-specific radius quantization must match on both layers or their
+    // shared edge reads as a sharp blur step during predictive back.
+    val frame = resolveVideoCardTransitionBackgroundFrame(
+        progress = progress,
+        phase = phase,
+        motionTier = motionTier,
+        isGestureRestoreInProgress = false,
+        density = densityProvider(),
+        scaleReduction = scaleReductionProvider(),
+    )
+    // The caller supplies a full-viewport layer, so use its measured coordinates instead
+    // of LocalConfiguration. This keeps the pivot identical under edge-to-edge insets.
+    val canvasW = size.width
+    val canvasH = size.height
+    val pivot = resolveVideoCardTransitionOverlayDepthPivot(
+        sourceBounds = sourceBoundsProvider(),
+        canvasWidth = canvasW,
+        canvasHeight = canvasH,
+        overlayWidth = size.width,
+        overlayHeight = size.height,
+    )
+    scaleX = frame.contentScale
+    scaleY = frame.contentScale
+    transformOrigin = TransformOrigin(pivot.x, pivot.y)
+    renderEffect = if (frame.blurRadiusPx > 0.01f) {
+        BlurEffect(frame.blurRadiusPx, frame.blurRadiusPx, TileMode.Clamp)
+    } else {
+        null
+    }
 }
 
 internal fun resolveVideoCardTransitionBackgroundScalePivotOffset(

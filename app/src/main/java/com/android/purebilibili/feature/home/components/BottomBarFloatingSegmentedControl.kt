@@ -59,6 +59,7 @@ internal fun BottomBarFloatingSegmentedControl(
     indicatorPositionProvider: (() -> Float)?,
     onIndicatorPositionChanged: ((Float) -> Unit)?,
     isScrollInProgressProvider: () -> Boolean = { false },
+    externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuningOverride: LiquidGlassTuning? = null,
     onItemReselected: (() -> Unit)? = null,
     itemContent: (@Composable ColumnScope.(index: Int, label: String, selected: Boolean) -> Unit)? = null,
@@ -203,6 +204,7 @@ internal fun BottomBarFloatingSegmentedControl(
                 longPressDragSelectionEnabled && enabled && itemCount > 1,
             dragTrackingMode = DampedDragTrackingMode.SPRING,
             onIndicatorPositionChanged = onIndicatorPositionChanged,
+            externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
             liquidGlassTuning = liquidGlassTuning,
         ) {
             items.forEachIndexed { index, label ->

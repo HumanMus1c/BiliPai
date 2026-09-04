@@ -1078,7 +1078,9 @@ fun rememberVideoPlayerState(
                     setPlaybackSpeed(preferredPlaybackSpeed)
                     //  [重构] 不在此处调用 prepare()，因为还没有媒体源
                     // prepare() 和 playWhenReady 将在 attachPlayer/loadVideo 设置媒体源后调用
-                    playWhenReady = !startPaused && playbackSessionActive
+                    playWhenReady = !startPaused &&
+                        playbackSessionActive &&
+                        SettingsManager.getClickToPlaySync(context)
                 }
         }
     }
@@ -1550,7 +1552,8 @@ fun rememberVideoPlayerState(
         viewModel.loadVideo(
             bvid = bvid,
             cid = cid,
-            fallbackResumePositionMs = fallbackResumePositionMs
+            fallbackResumePositionMs = fallbackResumePositionMs,
+            autoPlay = SettingsManager.getClickToPlaySync(context),
         )
     }
 

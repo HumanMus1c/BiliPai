@@ -11,15 +11,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -31,10 +35,13 @@ import com.android.purebilibili.feature.home.components.liquid.innerShadow
 import com.android.purebilibili.feature.home.components.liquid.lens
 import com.android.purebilibili.feature.home.components.liquid.vibrancy
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.BackdropEffectScope
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.blur.highlight.BloomStroke
@@ -66,40 +73,63 @@ private val iosIndicatorSpecular: Highlight = Highlight(
 private const val LIGHT_REF_X = 0.5f
 private const val LIGHT_REF_Y = 0.7f
 private const val GRAVITY_DIR_THRESHOLD_SQ = 0.01f
+internal const val GRAVITY_HIGHLIGHT_QUANTIZE_DEGREES = 3f
+
+internal fun quantizeGravityHighlightDirection(
+    gravityX: Float,
+    gravityY: Float,
+    stepDegrees: Float = GRAVITY_HIGHLIGHT_QUANTIZE_DEGREES,
+): Pair<Float, Float> {
+    val gMagSq = gravityX * gravityX + gravityY * gravityY
+    if (gMagSq <= GRAVITY_DIR_THRESHOLD_SQ) return 0f to -1f
+    val invMag = 1f / sqrt(gMagSq)
+    val nx = gravityX * invMag
+    val ny = gravityY * invMag
+    val stepRad = (stepDegrees * PI / 180.0).toFloat()
+    if (stepRad <= 0f) return nx to ny
+    val angle = atan2(ny, nx)
+    val quantized = (angle / stepRad).roundToInt() * stepRad
+    return cos(quantized) to sin(quantized)
+}
 
 @Composable
 internal fun rememberBiliPaiGravityHighlight(
+    base: Highlight = iosIndicatorSpecular,
     extraDegrees: Float = 0f,
-): Highlight {
-    val base = iosIndicatorSpecular
-    val baseStyle = base.style as BloomStroke
-    val tilt by rememberDeviceTilt()
-    val rotatedPrimary = remember(tilt, baseStyle.primaryLight, extraDegrees) {
-        val basePrimary = baseStyle.primaryLight
-        val gx = tilt.gravityX
-        val gy = tilt.gravityY
-        val gMagSq = gx * gx + gy * gy
-        val (lx0, ly0) = if (gMagSq > GRAVITY_DIR_THRESHOLD_SQ) {
-            val invMag = 1f / sqrt(gMagSq)
-            (gx * invMag) to (gy * invMag)
-        } else {
-            0f to -1f
+    width: Dp = base.width,
+): State<Highlight> {
+    val tiltState = rememberDeviceTilt()
+    val quantizedDirection = remember(tiltState) {
+        derivedStateOf {
+            quantizeGravityHighlightDirection(
+                gravityX = tiltState.value.gravityX,
+                gravityY = tiltState.value.gravityY,
+            )
         }
-        val rad = extraDegrees * PI / 180.0
-        val c = cos(rad).toFloat()
-        val s = sin(rad).toFloat()
-        val lx = c * lx0 - s * ly0
-        val ly = s * lx0 + c * ly0
-        basePrimary.copy(
-            position = LightPosition(
-                x = LIGHT_REF_X + lx,
-                y = LIGHT_REF_Y + ly,
-                z = basePrimary.position.z,
-            ),
-        )
     }
-    return remember(base, rotatedPrimary) {
-        base.copy(style = baseStyle.copy(primaryLight = rotatedPrimary))
+    return remember(base, extraDegrees, quantizedDirection, width) {
+        derivedStateOf {
+            val baseStyle = base.style as BloomStroke
+            val basePrimary = baseStyle.primaryLight
+            val (lx0, ly0) = quantizedDirection.value
+            val rad = extraDegrees * PI / 180.0
+            val c = cos(rad).toFloat()
+            val s = sin(rad).toFloat()
+            val lx = c * lx0 - s * ly0
+            val ly = s * lx0 + c * ly0
+            base.copy(
+                width = width,
+                style = baseStyle.copy(
+                    primaryLight = basePrimary.copy(
+                        position = LightPosition(
+                            x = LIGHT_REF_X + lx,
+                            y = LIGHT_REF_Y + ly,
+                            z = basePrimary.position.z,
+                        ),
+                    ),
+                ),
+            )
+        }
     }
 }
 
@@ -125,6 +155,7 @@ internal fun Modifier.biliPaiFloatingDockShell(
             .background(containerColor, shape)
     }
     val isDark = isSystemInDarkTheme()
+    val density = LocalDensity.current
     val baseHighlight = rememberBiliPaiGravityHighlight(extraDegrees = -45f)
     val surfaceColor = containerColor.copy(alpha = liquidGlassTuning.surfaceAlpha)
     val readabilityScrimColor = if (isDark) Color.Black else Color.White
@@ -137,6 +168,50 @@ internal fun Modifier.biliPaiFloatingDockShell(
         refractionAmountDp = refractionAmountDp,
         pressBloomDp = MIUIX_UPSTREAM_DOCK_PRESS_BLOOM_DP,
     )
+    val blurRadiusPx = with(density) { liquidGlassTuning.backdropBlurRadius.dp.toPx() }
+    val refractionHeightPx = with(density) { refractionHeightDp.dp.toPx() }
+    val refractionAmountPx = with(density) { refractionAmountDp.dp.toPx() }
+    val effectPaddingPx = with(density) { effectPaddingDp.dp.toPx() }
+    val highlightAlpha = if (shouldDrawLens) {
+        (0.75f * resolvedLensIntensity).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val scrimAlpha = liquidGlassTuning.contentReadabilityScrimAlpha
+    val shapeBlock = remember(shape) { { shape } }
+    val effects = rememberFloatingDockBackdropEffects(
+        blurRadiusPx = blurRadiusPx,
+        saturation = liquidGlassTuning.saturation,
+        shouldDrawLens = shouldDrawLens,
+        refractionHeightPx = refractionHeightPx,
+        refractionAmountPx = refractionAmountPx,
+        chromaticAberration = liquidGlassTuning.shellChromaticAberrationAmount,
+        effectPaddingPx = effectPaddingPx,
+    )
+    val highlightBlock = remember(baseHighlight, highlightAlpha) {
+        val block: BackdropEffectScope.() -> Highlight? = {
+            baseHighlight.value.copy(alpha = highlightAlpha)
+        }
+        block
+    }
+    val layerBlock = remember(pressProgress) {
+        val block: GraphicsLayerScope.() -> Unit = {
+            val width = size.width.coerceAtLeast(1f)
+            val s = lerp(1f, 1f + 16.dp.toPx() / width, pressProgress)
+            scaleX = s
+            scaleY = s
+        }
+        block
+    }
+    val onDrawSurface = remember(surfaceColor, readabilityScrimColor, scrimAlpha) {
+        val block: DrawScope.() -> Unit = {
+            drawRect(surfaceColor)
+            if (scrimAlpha > 0f) {
+                drawRect(readabilityScrimColor.copy(alpha = scrimAlpha))
+            }
+        }
+        block
+    }
     return this
         .graphicsLayer { translationX = panelOffsetPx }
         .dropShadow(
@@ -149,49 +224,13 @@ internal fun Modifier.biliPaiFloatingDockShell(
         )
         .drawBackdrop(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                padding = maxOf(padding, effectPaddingDp.dp.toPx())
-                vibrancy(liquidGlassTuning.saturation)
-                blur(
-                    liquidGlassTuning.backdropBlurRadius.dp.toPx(),
-                    liquidGlassTuning.backdropBlurRadius.dp.toPx()
-                )
-                if (shouldDrawLens) {
-                    lens(
-                        refractionHeight = refractionHeightDp.dp.toPx(),
-                        refractionAmount = refractionAmountDp.dp.toPx(),
-                        chromaticAberration = liquidGlassTuning.shellChromaticAberrationAmount,
-                    )
-                }
-            },
+            shape = shapeBlock,
+            effects = effects,
             // Inline capsules (search/input) disable the shell lens and its rim highlight
             // together; keeping the highlight alone leaves a one-pixel "shrimp line".
-            highlight = {
-                baseHighlight.copy(
-                    alpha = if (shouldDrawLens) {
-                        (0.75f * resolvedLensIntensity).coerceIn(0f, 1f)
-                    } else {
-                        0f
-                    }
-                )
-            },
-            layerBlock = {
-                val width = size.width.coerceAtLeast(1f)
-                val s = lerp(1f, 1f + 16.dp.toPx() / width, pressProgress)
-                scaleX = s
-                scaleY = s
-            },
-            onDrawSurface = {
-                drawRect(surfaceColor)
-                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
-                    drawRect(
-                        readabilityScrimColor.copy(
-                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
-                        )
-                    )
-                }
-            },
+            highlight = highlightBlock,
+            layerBlock = layerBlock,
+            onDrawSurface = onDrawSurface,
         )
 }
 
@@ -208,41 +247,80 @@ internal fun Modifier.biliPaiFloatingDockCaptureSurface(
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ): Modifier {
     val isDark = isSystemInDarkTheme()
+    val density = LocalDensity.current
     val surfaceColor = containerColor.copy(alpha = liquidGlassTuning.surfaceAlpha)
     val readabilityScrimColor = if (isDark) Color.Black else Color.White
     val distortionScale = liquidGlassTuning.contentDistortionScale.coerceIn(0f, 1.8f)
+    val shouldDrawLens = distortionScale > 0.001f
+    val blurRadiusPx = with(density) { liquidGlassTuning.backdropBlurRadius.dp.toPx() }
+    val refractionHeightPx = with(density) {
+        liquidGlassTuning.refractionHeight.dp.toPx() * distortionScale
+    }
+    val refractionAmountPx = with(density) {
+        liquidGlassTuning.refractionAmount.dp.toPx() * distortionScale
+    }
+    val scrimAlpha = liquidGlassTuning.contentReadabilityScrimAlpha
+    val shapeBlock = remember(shape) { { shape } }
+    val effects = rememberFloatingDockBackdropEffects(
+        blurRadiusPx = blurRadiusPx,
+        saturation = liquidGlassTuning.saturation,
+        shouldDrawLens = shouldDrawLens,
+        refractionHeightPx = refractionHeightPx,
+        refractionAmountPx = refractionAmountPx,
+        chromaticAberration = liquidGlassTuning.shellChromaticAberrationAmount,
+        effectPaddingPx = 0f,
+    )
+    val onDrawSurface = remember(surfaceColor, readabilityScrimColor, scrimAlpha) {
+        val block: DrawScope.() -> Unit = {
+            drawRect(surfaceColor)
+            if (scrimAlpha > 0f) {
+                drawRect(readabilityScrimColor.copy(alpha = scrimAlpha))
+            }
+        }
+        block
+    }
     return this
         .graphicsLayer { translationX = panelOffsetPx }
         .drawBackdrop(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                vibrancy(liquidGlassTuning.saturation)
-                blur(
-                    liquidGlassTuning.backdropBlurRadius.dp.toPx(),
-                    liquidGlassTuning.backdropBlurRadius.dp.toPx()
-                )
-                if (distortionScale > 0.001f) {
-                    lens(
-                        refractionHeight = liquidGlassTuning.refractionHeight.dp.toPx() *
-                            distortionScale,
-                        refractionAmount = liquidGlassTuning.refractionAmount.dp.toPx() *
-                            distortionScale,
-                        chromaticAberration = liquidGlassTuning.shellChromaticAberrationAmount,
-                    )
-                }
-            },
-            onDrawSurface = {
-                drawRect(surfaceColor)
-                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
-                    drawRect(
-                        readabilityScrimColor.copy(
-                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
-                        )
-                    )
-                }
-            },
+            shape = shapeBlock,
+            effects = effects,
+            onDrawSurface = onDrawSurface,
         )
+}
+
+@Composable
+private fun rememberFloatingDockBackdropEffects(
+    blurRadiusPx: Float,
+    saturation: Float,
+    shouldDrawLens: Boolean,
+    refractionHeightPx: Float,
+    refractionAmountPx: Float,
+    chromaticAberration: Float,
+    effectPaddingPx: Float,
+): BackdropEffectScope.() -> Unit = remember(
+    blurRadiusPx,
+    saturation,
+    shouldDrawLens,
+    refractionHeightPx,
+    refractionAmountPx,
+    chromaticAberration,
+    effectPaddingPx,
+) {
+    {
+        if (effectPaddingPx > 0f) {
+            padding = maxOf(padding, effectPaddingPx)
+        }
+        vibrancy(saturation)
+        blur(blurRadiusPx, blurRadiusPx)
+        if (shouldDrawLens) {
+            lens(
+                refractionHeight = refractionHeightPx,
+                refractionAmount = refractionAmountPx,
+                chromaticAberration = chromaticAberration,
+            )
+        }
+    }
 }
 
 /**
@@ -299,7 +377,7 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
                                         ),
                                 )
                             },
-                            highlight = { pillHighlight.copy(alpha = pressProgress) },
+                            highlight = { pillHighlight.value.copy(alpha = pressProgress) },
                             layerBlock = {
                                 this.scaleX = scaleX
                                 this.scaleY = scaleY

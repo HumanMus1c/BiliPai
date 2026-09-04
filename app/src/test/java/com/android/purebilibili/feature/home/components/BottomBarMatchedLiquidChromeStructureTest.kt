@@ -40,6 +40,23 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(source.contains("biliPaiMiuixFloatingDockSurface("))
         assertTrue(source.contains("reuseEnabled: Boolean = false"))
         assertTrue(source.contains("if (!reuseEnabled || !reuseAllowed || !liquidGlassEffectsEnabled)"))
+        assertTrue(source.contains("LocalLiquidGlassRenderConfig.current"))
+        assertFalse(source.contains("SettingsManager.getHomeSettings"))
+        assertFalse(source.contains("collectAsStateWithLifecycle"))
+    }
+
+    @Test
+    fun `navigation root provides one narrow liquid glass render configuration`() {
+        val navigation = loadSource(
+            "app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt"
+        )
+
+        assertTrue(navigation.contains("LiquidGlassRenderConfig("))
+        assertTrue(
+            navigation.contains(
+                "LocalLiquidGlassRenderConfig provides liquidGlassRenderConfig"
+            )
+        )
     }
 
     @Test

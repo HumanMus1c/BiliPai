@@ -35,7 +35,9 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -185,9 +187,12 @@ fun VideoCardLarge(
             adaptiveInfo = transitionAdaptiveInfo,
         )
     }
-    val videoSharedPlaybackIntent = remember(context) {
+    val autoPlayOnOpenEnabled by SettingsManager
+        .getClickToPlay(context)
+        .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
+    val videoSharedPlaybackIntent = remember(autoPlayOnOpenEnabled) {
         resolveVideoSharedTransitionPlaybackIntent(
-            clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+            clickToPlayEnabled = autoPlayOnOpenEnabled
         )
     }
     val sharedTransitionVisualSpec = remember(

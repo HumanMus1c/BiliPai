@@ -169,7 +169,6 @@ import com.android.purebilibili.core.store.LiquidGlassMode
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.sign
-import kotlin.math.sqrt
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop as MiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.blur as miuixBlur
@@ -180,7 +179,6 @@ import top.yukonga.miuix.kmp.blur.highlight.LightPosition
 import top.yukonga.miuix.kmp.blur.highlight.LightSource
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
-import top.yukonga.miuix.kmp.blur.sensor.rememberDeviceTilt
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
 private val iosIndicatorSpecular: MiuixHighlight = MiuixHighlight(
@@ -202,45 +200,6 @@ private val iosIndicatorSpecular: MiuixHighlight = MiuixHighlight(
         dualPeak = true
     )
 )
-
-private const val MIUIX_LIGHT_REF_X = 0.5f
-private const val MIUIX_LIGHT_REF_Y = 0.7f
-private const val MIUIX_GRAVITY_DIR_THRESHOLD_SQ = 0.01f
-
-@Composable
-private fun rememberGravityRotatedHighlight(
-    base: MiuixHighlight,
-    extraDegrees: Float = 0f
-): MiuixHighlight {
-    val baseStyle = base.style as BloomStroke
-    val tilt by rememberDeviceTilt()
-    val rotatedPrimary = remember(tilt, baseStyle.primaryLight, extraDegrees) {
-        val gx = tilt.gravityX
-        val gy = tilt.gravityY
-        val gMagSq = gx * gx + gy * gy
-        val (lx0, ly0) = if (gMagSq > MIUIX_GRAVITY_DIR_THRESHOLD_SQ) {
-            val invMag = 1f / sqrt(gMagSq)
-            (gx * invMag) to (gy * invMag)
-        } else {
-            0f to -1f
-        }
-        val rad = extraDegrees * PI / 180.0
-        val c = cos(rad).toFloat()
-        val s = sin(rad).toFloat()
-        val lx = c * lx0 - s * ly0
-        val ly = s * lx0 + c * ly0
-        baseStyle.primaryLight.copy(
-            position = LightPosition(
-                x = MIUIX_LIGHT_REF_X + lx,
-                y = MIUIX_LIGHT_REF_Y + ly,
-                z = baseStyle.primaryLight.position.z
-            )
-        )
-    }
-    return remember(base, baseStyle, rotatedPrimary) {
-        base.copy(style = baseStyle.copy(primaryLight = rotatedPrimary))
-    }
-}
 
 /**
  * 底部导航项枚举。图标由当前主题的导航图标策略统一解析。
@@ -563,13 +522,16 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
     }
 
     val gap = AppSpacingTokens.Small
-    val availableWidth = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(AppSpacingTokens.None)
+    val paddedAvailable = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(AppSpacingTokens.None)
+    val fullAvailable = containerWidth.coerceAtLeast(AppSpacingTokens.None)
     val searchCircleSize = resolveBiliPaiBottomBarSearchCircleSize()
     val collapsedSearchWidth = searchCircleSize
     val compactHomeDockSize = searchCircleSize
     val expandedSearchWidth = minOf(
         AppSpacingTokens.TripleExtraLarge * 6 - AppSpacingTokens.Small,
-        (availableWidth - compactHomeDockSize - gap).coerceAtLeast(AppSpacingTokens.TripleExtraLarge * 3 + AppSpacingTokens.DoubleExtraLarge)
+        (paddedAvailable - compactHomeDockSize - gap).coerceAtLeast(
+            AppSpacingTokens.TripleExtraLarge * 3 + AppSpacingTokens.DoubleExtraLarge
+        )
     )
     val useCompactLayout = searchLayoutMode == BottomBarSearchLayoutMode.HOME_AND_SEARCH
     val targetSearchWidth = if (useCompactLayout && searchExpanded) {
@@ -577,18 +539,24 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
     } else {
         collapsedSearchWidth
     }
-    val allocatableDockWidth =
-        (availableWidth - targetSearchWidth - gap).coerceAtLeast(AppSpacingTokens.None)
     val targetDockWidth = if (useCompactLayout && searchExpanded) {
-        compactHomeDockSize
+        minOf(
+            compactHomeDockSize,
+            (paddedAvailable - targetSearchWidth - gap).coerceAtLeast(AppSpacingTokens.None)
+        )
     } else {
-        minOf(baseDockWidth, allocatableDockWidth)
+        // Spend outer padding before shrinking navigation slots so icon+label
+        // geometry stays close to the search-off dock.
+        minOf(
+            baseDockWidth,
+            (fullAvailable - targetSearchWidth - gap).coerceAtLeast(AppSpacingTokens.None)
+        )
     }
     return BiliPaiBottomBarSearchLayout(
         dockWidth = targetDockWidth,
         searchWidth = targetSearchWidth,
         gap = gap,
-        // The indicator must match the compressed navigation slot. Keeping the pre-search
+        // The indicator must match the navigation slot. Keeping the pre-search
         // width makes it overlap neighbouring destinations and shifts it at the dock edges.
         minimumIndicatorWidth = AppSpacingTokens.None,
     )
@@ -765,6 +733,10 @@ internal fun resolveBottomBarSearchEnabledForItem(
 ): Boolean {
     return bottomBarSearchEnabled && currentItem == BottomNavItem.HOME
 }
+
+internal fun shouldReserveBottomBarSearchLayout(
+    bottomBarSearchEnabled: Boolean
+): Boolean = bottomBarSearchEnabled
 
 internal fun resolveBottomBarVisibleItemsForSearchMode(
     visibleItems: List<BottomNavItem>,
@@ -1054,10 +1026,13 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
     materialPressProgress: Float = 0f,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f)
 ): Modifier = composed {
+    // The global liquid-glass switch owns primary navigation chrome. Runtime jank
+    // downgrades may trim secondary effects, but must not silently turn this surface solid.
+    val effectiveForceLowBlurBudget = forceLowBlurBudget
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
     val renderGlassEffects = shouldRenderBottomBarLiquidGlassEffects(
         glassEnabled = glassEnabled,
-        forceLowBlurBudget = forceLowBlurBudget,
+        forceLowBlurBudget = effectiveForceLowBlurBudget,
     )
     val useHazeBlur = shouldUseAndroidNativeFloatingHazeBlur(
         glassEnabled = renderGlassEffects,
@@ -1075,7 +1050,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
         liquidGlassTuning = liquidGlassTuning
     )
     val baseHighlight = if (renderGlassEffects) {
-        rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+        rememberBiliPaiGravityHighlight(iosIndicatorSpecular, extraDegrees = -45f)
     } else {
         null
     }
@@ -1091,14 +1066,18 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                     motionTier = motionTier,
                     isScrolling = false,
                     isTransitionRunning = isTransitionRunning,
-                    forceLowBudget = forceLowBlurBudget
+                    forceLowBudget = effectiveForceLowBlurBudget
                 )
             } else {
                 Modifier
             }
         )
         .run {
-            if (backdrop != null && !useHazeBlur) {
+            if (
+                backdrop != null &&
+                !useHazeBlur &&
+                (renderGlassEffects || blurEnabled)
+            ) {
                 this
                     .dropShadow(
                         shape = shape,
@@ -1157,7 +1136,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                             }
                         },
                         highlight = {
-                            baseHighlight?.copy(
+                            baseHighlight?.value?.copy(
                                 alpha = if (renderGlassEffects) {
                                     0.75f * materialSpec.highlightWidthScale *
                                         effectiveShellLensIntensity
@@ -2389,8 +2368,7 @@ private fun MaterialBottomBar(
             isTablet = isTablet,
             showIcon = showIcon,
             showText = showText,
-            searchEnabled = resolveBottomBarSearchEnabledForItem(
-                currentItem = currentItem,
+            searchEnabled = shouldReserveBottomBarSearchLayout(
                 bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
             ),
             onSearchClick = onSearchClick,
@@ -3224,6 +3202,9 @@ private fun BiliPaiFloatingBottomBar(
         currentItem = currentItem,
         bottomBarSearchEnabled = bottomBarSearchEnabled
     )
+    val searchLayoutReserved = shouldReserveBottomBarSearchLayout(
+        bottomBarSearchEnabled = bottomBarSearchEnabled
+    )
     val homeScrollOffset = LocalHomeScrollOffset.current
     val isPastSearchAutoExpandTopThreshold by remember(homeScrollOffset) {
         derivedStateOf {
@@ -3362,7 +3343,7 @@ private fun BiliPaiFloatingBottomBar(
                 containerWidth = maxWidth,
                 itemCount = totalItems,
                 minEdgePadding = tuning.outerHorizontalPaddingDp.dp,
-                searchEnabled = searchEnabled,
+                searchEnabled = searchLayoutReserved,
                 searchExpanded = effectiveSearchExpanded,
                 labelMode = labelMode,
                 searchLayoutMode = bottomBarSearchLayoutMode,
@@ -3633,7 +3614,7 @@ private fun BiliPaiFloatingBottomBar(
                 }
 
                 BiliPaiBottomBarSearchSlot(
-                    visible = searchEnabled,
+                    visible = searchLayoutReserved,
                     launchAdjustedSearchGap = launchAdjustedSearchGap,
                     searchWidth = searchWidth,
                     searchHeight = searchHeight,
@@ -3824,7 +3805,8 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
     interactionModifier: Modifier = Modifier
 ) {
     if (!visible) return
-    val rawIndicatorLayerTransform = if (indicatorEffectsEnabled) {
+    val effectiveIndicatorEffectsEnabled = indicatorEffectsEnabled
+    val rawIndicatorLayerTransform = if (effectiveIndicatorEffectsEnabled) {
         resolveBottomBarIndicatorLayerTransform(
             motionProgress = motionProgress,
             velocityItemsPerSecond = velocityItemsPerSecond,
@@ -3845,10 +3827,14 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
     } else {
         rawIndicatorLayerTransform
     }
-    val pillHighlight = rememberGravityRotatedHighlight(
-        iosIndicatorSpecular,
-        extraDegrees = if (swapMotionAxes) 0f else 90f,
-    )
+    val pillHighlight = if (glassEnabled) {
+        rememberBiliPaiGravityHighlight(
+            iosIndicatorSpecular,
+            extraDegrees = if (swapMotionAxes) 0f else 90f,
+        )
+    } else {
+        null
+    }
     val indicatorBackdrop = if (!glassEnabled) {
         null
     } else if (shouldUseBottomBarCombinedIndicatorBackdrop(liquidGlassPreset)) {
@@ -3862,7 +3848,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
             .graphicsLayer {
                 translationX = indicatorTranslationXPx + indicatorPanelOffsetPx
                 translationY = indicatorTranslationYPx + indicatorPanelOffsetYPx
-                if (indicatorBackdrop == null && indicatorEffectsEnabled) {
+                if (indicatorBackdrop == null && effectiveIndicatorEffectsEnabled) {
                     scaleX = indicatorLayerTransform.scaleX
                     scaleY = indicatorLayerTransform.scaleY
                 }
@@ -3891,7 +3877,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
                             }
                         },
                         highlight = {
-                            pillHighlight.copy(alpha = effectivePressProgress)
+                            pillHighlight?.value?.copy(alpha = effectivePressProgress)
                         },
                         onDrawSurface = {
                             val surfaceFade = (1f - effectivePressProgress).coerceIn(0f, 1f)
@@ -3908,7 +3894,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
                             }
                         },
                         layerBlock = {
-                            if (indicatorEffectsEnabled) {
+                            if (effectiveIndicatorEffectsEnabled) {
                                 scaleX = indicatorLayerTransform.scaleX
                                 scaleY = indicatorLayerTransform.scaleY
                             }

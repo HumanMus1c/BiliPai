@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.components.cards
 
 import com.android.purebilibili.core.ui.transition.VIDEO_CARD_SHELL_SOURCE_EXIT_FADE_RATIO
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
+import com.android.purebilibili.core.ui.transition.isVideoCardFlyingOverlayCoveringSource
 import com.android.purebilibili.core.ui.transition.normalizeSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.resolveVideoCardReturnListCoverContract
 
@@ -104,15 +105,18 @@ internal fun resolveHomeCardStationaryRevealAlpha(
     transitionBackgroundProgress: Float,
 ): Float {
     if (preferWholeCardReturn) return 1f
-    if (isVideoCardReturnGestureInProgress || isSharedTransitionActive) return 0f
-    // The host marks the clock IDLE immediately after settle; the retained source card can
-    // observe that phase one frame later. Reveal at terminal depth to avoid a handoff gap.
+    // Keep the list card painted until the flying overlay covers the click slot.
+    // OPENING is pre-armed on click before the destination exists.
     if (
-        transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING &&
-        transitionBackgroundProgress <= 0.001f
+        !isVideoCardFlyingOverlayCoveringSource(
+            phase = transitionBackgroundPhase,
+            depthProgress = transitionBackgroundProgress,
+            isReturnGestureInProgress = isVideoCardReturnGestureInProgress,
+        )
     ) {
         return 1f
     }
+    if (isSharedTransitionActive) return 0f
     return when (transitionBackgroundPhase) {
         VideoCardTransitionBackgroundPhase.OPENING,
         VideoCardTransitionBackgroundPhase.RETURNING,
@@ -265,7 +269,17 @@ internal fun resolveHomeCardChromeAlphaDuringShellReturnMorph(
         )
     }
 
-    // 进场：shared 飞行或 OPENING 时藏字
+    if (
+        !isVideoCardFlyingOverlayCoveringSource(
+            phase = transitionBackgroundPhase,
+            depthProgress = transitionBackgroundProgress,
+            isReturnGestureInProgress = isVideoCardReturnGestureInProgress,
+        )
+    ) {
+        return 1f
+    }
+
+    // 进场：飞卡盖住源位后藏字，避免和飞行信息叠字。
     if (
         isSharedTransitionActive ||
         transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.OPENING

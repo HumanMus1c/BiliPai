@@ -32,6 +32,11 @@ internal val LocalRuntimeVisualGuard = staticCompositionLocalOf<State<RuntimeVis
     mutableStateOf(NormalGuardDecision)
 }
 
+/** Resolve structural effect fallbacks at the rendering leaf that actually owns the effect. */
+@Composable
+internal fun isLowBlurBudgetForced(explicitlyForced: Boolean = false): Boolean =
+    explicitlyForced || LocalRuntimeVisualGuard.current.value.forceLowBlurBudget
+
 @Composable
 internal fun ProvideRuntimeVisualGuard(
     widthSizeClass: WindowWidthSizeClass = LocalWindowSizeClass.current.widthSizeClass,

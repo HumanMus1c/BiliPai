@@ -49,8 +49,8 @@ class SettingsMiuixSimplificationStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/settings/LiquidGlassLivePreview.kt"
         )
 
-        assertTrue(source.contains("rememberLayerBackdrop()"))
-        assertTrue(source.contains(".layerBackdrop(backdrop)"))
+        assertTrue(source.contains("rememberChromeBackdropSource()"))
+        assertTrue(source.contains(".then(backdropSource.modifier)"))
         assertTrue(source.contains(".biliPaiFloatingDockShell("))
         assertTrue(source.contains("onValueChangeFinished = { onProgressCommitted(previewProgress) }"))
         assertFalse(source.contains("import androidx.compose.foundation.layout.weight"))

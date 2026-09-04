@@ -76,12 +76,20 @@ internal data class MiuixVideoCardGestureTransform(
     val translationY: Float,
     val rotationZ: Float,
     val transformOrigin: TransformOrigin,
+    val liftScale: Float = 1f,
+    val cameraDistance: Float = 8f,
+    val shadowElevationDp: Float = 0f,
 )
 
 internal const val MIUIX_VIDEO_CARD_GESTURE_HORIZONTAL_TRAVEL_FRACTION = 0.08f
 internal const val MIUIX_VIDEO_CARD_GESTURE_VERTICAL_FOLLOW_FRACTION = 0.16f
-internal const val MIUIX_VIDEO_CARD_GESTURE_PEEL_ROTATION_DEGREES = 8f
+internal const val MIUIX_VIDEO_CARD_GESTURE_PEEL_ROTATION_DEGREES = 9f
 internal const val MIUIX_VIDEO_CARD_GESTURE_GRAB_ROTATION_DEGREES = 10f
+internal const val MIUIX_VIDEO_CARD_GESTURE_LIFT_SCALE = 0.045f
+internal const val MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP = 8f
+internal const val MIUIX_VIDEO_CARD_GESTURE_CAMERA_PULL_DP = 3f
+internal const val MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP = 18f
+internal const val MIUIX_VIDEO_CARD_FLOATING_CORNER_DP = 28f
 
 internal fun resolveMiuixVideoCardGesturePoseWeight(morphProgress: Float): Float {
     val pull = (1f - morphProgress.coerceIn(0f, 1f)).coerceIn(0f, 1f)
@@ -117,10 +125,29 @@ internal fun resolveMiuixVideoCardGestureTransform(
                 tilt * MIUIX_VIDEO_CARD_GESTURE_GRAB_ROTATION_DEGREES) *
             poseWeight,
         transformOrigin = TransformOrigin(
-            pivotFractionX = if (isLeftEdge) 0.14f else 0.86f,
+            pivotFractionX = if (isLeftEdge) 0.16f else 0.84f,
             pivotFractionY = liveY,
         ),
+        liftScale = 1f - MIUIX_VIDEO_CARD_GESTURE_LIFT_SCALE * poseWeight,
+        cameraDistance = MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP -
+            MIUIX_VIDEO_CARD_GESTURE_CAMERA_PULL_DP * poseWeight,
+        shadowElevationDp = MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP * poseWeight,
     )
+}
+
+internal fun resolveMiuixVideoCardGestureCornerPx(
+    sourceCornerPx: Float,
+    morphProgress: Float,
+    floatingCornerPx: Float,
+    fullscreenCornerPx: Float = 0f,
+): Float {
+    val pull = (1f - morphProgress.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+    val pose = resolveMiuixVideoCardGesturePoseWeight(morphProgress)
+    val source = sourceCornerPx.coerceAtLeast(0f)
+    val floating = floatingCornerPx.coerceAtLeast(source)
+    val landed = fullscreenCornerPx.coerceAtLeast(0f) +
+        (source - fullscreenCornerPx.coerceAtLeast(0f)) * pull
+    return landed + (floating - landed) * pose
 }
 
 /** Map a card-local gesture pivot into the fullscreen entry's transform origin. */
@@ -209,8 +236,16 @@ internal fun resolveMiuixVideoCardClipRadii(
     sourceCornerPx: Float,
     outerScaleX: Float,
     outerScaleY: Float,
+    morphProgress: Float = 0f,
+    floatingCornerPx: Float = sourceCornerPx,
+    fullscreenCornerPx: Float = 0f,
 ): MiuixVideoCardClipRadii {
-    val physicalRadius = sourceCornerPx.coerceAtLeast(0f)
+    val physicalRadius = resolveMiuixVideoCardGestureCornerPx(
+        sourceCornerPx = sourceCornerPx,
+        morphProgress = morphProgress,
+        floatingCornerPx = floatingCornerPx,
+        fullscreenCornerPx = fullscreenCornerPx,
+    )
     return MiuixVideoCardClipRadii(
         radiusX = physicalRadius / outerScaleX.coerceAtLeast(0.01f),
         radiusY = physicalRadius / outerScaleY.coerceAtLeast(0.01f),
@@ -403,11 +438,14 @@ internal fun miuixVideoCardNavTransition(
                     // already share the same geometry driver; an entry-level alpha handoff would
                     // expose the player's black Surface frame at landing.
                     alpha = 1f
-                    clip = morph < 0.999f
+                    val poseWeight = resolveMiuixVideoCardGesturePoseWeight(morph)
+                    clip = morph < 0.999f || poseWeight > 0.001f
                     val clipRadii = resolveMiuixVideoCardClipRadii(
                         sourceCornerPx = corner.dp.toPx(),
                         outerScaleX = outerScaleX,
                         outerScaleY = outerScaleY,
+                        morphProgress = morph,
+                        floatingCornerPx = MIUIX_VIDEO_CARD_FLOATING_CORNER_DP.dp.toPx(),
                     )
                     shape = MiuixVideoCardClipShape(
                         radiusX = clipRadii.radiusX,
@@ -465,6 +503,10 @@ internal fun miuixVideoCardNavTransition(
                             translationX = transform.translationX
                             translationY = transform.translationY
                             rotationZ = transform.rotationZ
+                            scaleX = transform.liftScale
+                            scaleY = transform.liftScale
+                            cameraDistance = transform.cameraDistance
+                            shadowElevation = transform.shadowElevationDp.dp.toPx()
                         }
                     }
                 } else {

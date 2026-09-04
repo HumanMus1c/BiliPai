@@ -138,3 +138,13 @@ internal fun resolveVideoCardTransitionChromeBottomBarRoute(
 ): String? {
     return if (isVideoDetailDestination) retainedTabRoute else activeBottomTabRoute
 }
+
+/** depth 1 = 详情满屏，chrome 藏；depth 0 = 首页，chrome 满显。跟手可打断。 */
+internal fun resolveVideoCardTransitionChromeReveal(depthProgress: Float): Float {
+    return 1f - depthProgress.coerceIn(0f, 1f)
+}
+
+internal fun shouldDriveVideoCardTransitionChromeByProgress(
+    cardTransitionEnabled: Boolean,
+    exposure: VideoCardTransitionExposure,
+): Boolean = cardTransitionEnabled && exposure != VideoCardTransitionExposure.Idle

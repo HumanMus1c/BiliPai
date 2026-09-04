@@ -1260,8 +1260,7 @@ class SpaceViewModel(
                     }
 
                     val responseData = response.data
-                    val visibleItems = responseData.items.filter { it.visible }
-                    accumulated += visibleItems
+                    accumulated += responseData.items
                     pagesFetched += 1
                     val previousOffset = offset
                     offset = responseData.offset
@@ -1707,9 +1706,8 @@ class SpaceViewModel(
             }
 
             val responseData = response.data
-            val visibleItems = responseData.items.filter { it.visible }
             val latest = _uiState.value as? SpaceUiState.Success ?: return false
-            val merged = mergeSpaceDynamicPages(existing = latest.dynamics, incoming = visibleItems)
+            val merged = mergeSpaceDynamicPages(existing = latest.dynamics, incoming = responseData.items)
             _uiState.value = latest.copy(
                 dynamics = merged,
                 dynamicOffset = responseData.offset,

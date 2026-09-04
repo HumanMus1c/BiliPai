@@ -78,5 +78,28 @@ class DynamicPagerFeedStateTest {
         assertEquals(listOf("video-1"), videoPresentation.items.map { it.id_str })
     }
 
+    @Test
+    fun `presentation hides folded cards until they are unfolded`() {
+        val state = DynamicUiState(
+            timelinePages = persistentMapOf(
+                "all" to DynamicTimelinePageState(
+                    items = listOf(
+                        DynamicItem(id_str = "visible-7h", visible = true),
+                        DynamicItem(id_str = "hidden-a", visible = false),
+                        DynamicItem(id_str = "visible-12h", visible = true),
+                    ).toImmutableList()
+                )
+            )
+        )
+
+        val presentation = resolveDynamicPagePresentation(
+            state,
+            logicalTab = 0,
+            selectedUserId = null,
+        )
+
+        assertEquals(listOf("visible-7h", "visible-12h"), presentation.items.map { it.id_str })
+    }
+
     private fun dynamicItem(id: String) = DynamicItem(id_str = id)
 }

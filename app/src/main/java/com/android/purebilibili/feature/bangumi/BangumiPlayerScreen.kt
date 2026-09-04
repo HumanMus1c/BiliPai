@@ -419,10 +419,11 @@ fun BangumiPlayerScreen(
                 
                 if (newOrientation != lastOrientation && lastOrientation != -1) {
                     val isDeviceLandscape = newOrientation == 90 || newOrientation == 270
-                    val isDevicePortrait = newOrientation == 0 || newOrientation == 180
+                    // 横屏时 180° 是翻转到另一侧的中点，不能当成竖屏，否则会先识别再转回去。
+                    val isUprightPortrait = newOrientation == 0
                     
                     activity?.let { act ->
-                        if (latestIsLandscape && isDevicePortrait) {
+                        if (latestIsLandscape && isUprightPortrait) {
                             act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                         } else if (!latestIsLandscape && isDeviceLandscape) {
                             act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)

@@ -164,25 +164,21 @@ internal fun resolveVideoDetailReturnInfoSurfaceSpec(
     )
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveVideoDetailFlyingSourceChromeAlpha(
     morphDepthProgress: Float,
     phase: VideoCardTransitionBackgroundPhase,
     isReturnGestureInProgress: Boolean,
     sourceLayout: VideoCardSourceLayout,
 ): Float {
-    if (phase == VideoCardTransitionBackgroundPhase.OPENING) {
-        return 1f - resolveVideoCardDetailChromeAlpha(
-            morphDepthProgress = morphDepthProgress,
-            phase = phase,
-            isReturnGestureInProgress = isReturnGestureInProgress,
-        )
-    }
-    return resolveVideoCardSourceChromeVisualFrame(
+    // Opening, settled-detail return, quick reverse, and predictive seek all hide the
+    // list slot. The flying entry must keep the complementary info band or the morph
+    // is cover-only. COVER_ONLY has no info band; its cover badges still use this alpha.
+    return 1f - resolveVideoCardDetailChromeAlpha(
         morphDepthProgress = morphDepthProgress,
         phase = phase,
         isReturnGestureInProgress = isReturnGestureInProgress,
-        sourceLayout = sourceLayout,
-    ).alpha
+    )
 }
 
 /**

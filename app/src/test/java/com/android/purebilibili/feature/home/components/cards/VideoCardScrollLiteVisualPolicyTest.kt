@@ -359,7 +359,7 @@ class VideoCardScrollLiteVisualPolicyTest {
     @Test
     fun retainedSourceCardStaysTransparentUntilFlyingEntryLands() {
         assertEquals(
-            0f,
+            1f,
             resolveHomeCardStationaryRevealAlpha(
                 isReturnContext = false,
                 preferWholeCardReturn = false,
@@ -367,6 +367,18 @@ class VideoCardScrollLiteVisualPolicyTest {
                 isVideoCardReturnGestureInProgress = false,
                 isSharedTransitionActive = false,
                 transitionBackgroundProgress = 0f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveHomeCardStationaryRevealAlpha(
+                isReturnContext = false,
+                preferWholeCardReturn = false,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+                isVideoCardReturnGestureInProgress = false,
+                isSharedTransitionActive = false,
+                transitionBackgroundProgress = 0.2f,
             ),
             0.001f,
         )
@@ -528,7 +540,19 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
-        // 进场 OPENING：藏字
+        // 进场 OPENING：点击预武装时仍画整卡，飞卡盖住后再藏字。
+        assertEquals(
+            1f,
+            resolveHomeCardChromeAlphaDuringShellReturnMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = false,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+                isSharedTransitionActive = true,
+                transitionBackgroundProgress = 0f,
+            ),
+            0.001f,
+        )
         assertEquals(
             0f,
             resolveHomeCardChromeAlphaDuringShellReturnMorph(

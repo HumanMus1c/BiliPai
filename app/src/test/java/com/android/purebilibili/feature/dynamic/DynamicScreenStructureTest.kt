@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.dynamic
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DynamicScreenStructureTest {
@@ -117,5 +118,22 @@ class DynamicScreenStructureTest {
         assertTrue(topBarSource.contains("onActionDockCollapsedChange(!actionDockCollapsed)"))
         assertTrue(topBarSource.contains("\"折叠顶部操作\""))
         assertTrue(topBarSource.contains("\"展开顶部操作\""))
+    }
+
+    @Test
+    fun `fold bar unfolds related dynamics in place instead of opening detail`() {
+        val screenSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt"
+        ).readText()
+        val cardSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCard.kt"
+        ).readText()
+        val foldBlock = cardSource
+            .substringAfter("PiliPlus: fold InkWell")
+            .substringBefore("if (!isDetail) {\n            AppHorizontalDivider")
+
+        assertTrue(screenSource.contains("onUnfoldRelatedClick = viewModel::unfoldRelatedDynamics"))
+        assertTrue(foldBlock.contains("onUnfoldRelatedClick?.invoke(item.id_str)"))
+        assertFalse(foldBlock.contains("openDynamicDetail"))
     }
 }

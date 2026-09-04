@@ -8,6 +8,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
@@ -59,6 +60,7 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
     }
     val source = requireNotNull(backdrop)
     return composed {
+        if (isLowBlurBudgetForced()) return@composed this
         // The non-composable factory creates new shape/effect callbacks on each call.
         // Keep their identity while the material is unchanged, so an unrelated header
         // recomposition does not rebuild the progressive stack and its sharp-end effect.

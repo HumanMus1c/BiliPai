@@ -31,12 +31,72 @@ class FloatingBottomBarGeometryTest {
     @Test
     fun `narrow dynamic slots flatten the indicator instead of drawing a circle`() {
         val height = resolveFloatingDockIndicatorHeightDp(
-            requestedHeightDp = 44f,
-            tabWidthDp = 48f,
+            requestedHeightDp = 52f,
+            tabWidthDp = 40f,
         )
-        assertEquals(48f / FLOATING_DOCK_MIN_INDICATOR_ASPECT, height, 0.001f)
-        assertTrue(height < 44f)
-        assertTrue(48f / height >= FLOATING_DOCK_MIN_INDICATOR_ASPECT - 0.001f)
+        assertEquals(40f / FLOATING_DOCK_MIN_INDICATOR_ASPECT, height, 0.001f)
+        assertTrue(height < 52f)
+        assertTrue(40f / height >= FLOATING_DOCK_MIN_INDICATOR_ASPECT - 0.001f)
+    }
+
+    @Test
+    fun `slots wider than the pill keep the requested indicator height`() {
+        assertEquals(
+            52f,
+            resolveFloatingDockIndicatorHeightDp(
+                requestedHeightDp = 52f,
+                tabWidthDp = 56f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            52f,
+            resolveFloatingDockIndicatorHeightDp(
+                requestedHeightDp = 52f,
+                tabWidthDp = 64f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `captured content counters horizontal indicator stretch`() {
+        assertEquals(
+            1f,
+            resolveFloatingDockCapturedContentHorizontalScale(
+                itemScale = 1.2f,
+                indicatorScaleX = 1.8f,
+                indicatorScaleY = 1.5f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            1.2f,
+            resolveFloatingDockCapturedContentHorizontalScale(
+                itemScale = 1.2f,
+                indicatorScaleX = 1.5f,
+                indicatorScaleY = 1.5f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `narrow tabs reduce velocity stretch toward the search-off slot`() {
+        val wide = resolveFloatingDockIndicatorLayerScaleX(
+            baseScaleX = 1.5f,
+            velocity = 8f,
+            tabWidthPx = 75f,
+            referenceTabWidthPx = 75f,
+        )
+        val narrow = resolveFloatingDockIndicatorLayerScaleX(
+            baseScaleX = 1.5f,
+            velocity = 8f,
+            tabWidthPx = 56f,
+            referenceTabWidthPx = 75f,
+        )
+        assertTrue(narrow < wide)
+        assertTrue(narrow >= 1.5f)
     }
 
     @Test

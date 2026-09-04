@@ -145,7 +145,7 @@ class BottomBarLayoutPolicyTest {
             searchExpanded = false
         )
 
-        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(312.dp, layout.dockWidth)
         assertEquals(56.dp, layout.searchWidth)
         assertEquals(8.dp, layout.gap)
         assertEquals(0.dp, layout.minimumIndicatorWidth)
@@ -161,7 +161,7 @@ class BottomBarLayoutPolicyTest {
             searchExpanded = false,
         )
 
-        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(329.dp, layout.dockWidth)
         assertEquals(0.dp, layout.minimumIndicatorWidth)
         assertTrue(
             resolveBiliPaiBottomBarItemSlotWidth(
@@ -201,7 +201,7 @@ class BottomBarLayoutPolicyTest {
             searchExpanded = false,
         )
 
-        assertTrue(layout.dockWidth + layout.gap + layout.searchWidth <= 280.dp)
+        assertTrue(layout.dockWidth + layout.gap + layout.searchWidth <= 320.dp)
     }
 
     @Test
@@ -215,9 +215,29 @@ class BottomBarLayoutPolicyTest {
             searchLayoutMode = BottomBarSearchLayoutMode.FULL_DOCK
         )
 
-        assertEquals(289.dp, layout.dockWidth)
+        assertEquals(312.dp, layout.dockWidth)
         assertEquals(56.dp, layout.searchWidth)
         assertEquals(8.dp, layout.gap)
+    }
+
+    @Test
+    fun `search entry spends edge padding before compressing navigation slots`() {
+        val withoutSearch = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 4,
+            minEdgePadding = 20.dp,
+            labelMode = 0,
+        )
+        val withSearch = resolveBiliPaiBottomBarSearchLayout(
+            containerWidth = 393.dp,
+            itemCount = 4,
+            minEdgePadding = 20.dp,
+            searchEnabled = true,
+            searchExpanded = false,
+        )
+
+        assertEquals(withoutSearch, withSearch.dockWidth)
+        assertEquals(312.dp, withSearch.dockWidth)
     }
 
     @Test
@@ -400,7 +420,7 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `bottom search entry only renders on searchable home item`() {
+    fun `bottom search auto expand stays gated to the home item`() {
         assertEquals(
             true,
             resolveBottomBarSearchEnabledForItem(
@@ -421,6 +441,28 @@ class BottomBarLayoutPolicyTest {
                 currentItem = BottomNavItem.HOME,
                 bottomBarSearchEnabled = false
             )
+        )
+    }
+
+    @Test
+    fun `search layout stays reserved after leaving home so dock geometry does not jump`() {
+        assertEquals(true, shouldReserveBottomBarSearchLayout(bottomBarSearchEnabled = true))
+        assertEquals(false, shouldReserveBottomBarSearchLayout(bottomBarSearchEnabled = false))
+        assertEquals(
+            resolveBiliPaiBottomBarSearchLayout(
+                containerWidth = 393.dp,
+                itemCount = 4,
+                minEdgePadding = 20.dp,
+                searchEnabled = true,
+                searchExpanded = false,
+            ).dockWidth,
+            resolveBiliPaiBottomBarSearchLayout(
+                containerWidth = 393.dp,
+                itemCount = 4,
+                minEdgePadding = 20.dp,
+                searchEnabled = shouldReserveBottomBarSearchLayout(true),
+                searchExpanded = false,
+            ).dockWidth,
         )
     }
 

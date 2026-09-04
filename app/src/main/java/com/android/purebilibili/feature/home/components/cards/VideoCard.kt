@@ -71,6 +71,7 @@ import com.android.purebilibili.core.store.HomeCardInfoGlassMode
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.ui.LocalWallpaperHazeState
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.util.HapticType
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -114,6 +115,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionO
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.store.SettingsManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedBoundsResizeMode
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -798,7 +800,7 @@ internal fun ElegantVideoCard(
     val hasTrailingCardAction = onUnfavorite != null || hasOverflowMenu
     val nativeCardLayer = rememberNativeVideoCardLayer()
     val nativeCoverOverlayLayer = rememberNativeVideoCardLayer()
-    var freezeNativeCardLayer by remember(video.bvid) { mutableStateOf(false) }
+    val freezeNativeCardLayer = remember(video.bvid) { mutableStateOf(false) }
     
     val triggerCardClick = {
         cardCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
@@ -885,7 +887,9 @@ internal fun ElegantVideoCard(
                 ),
                 sourceInstanceId = sharedSourceInstanceId,
             )
-            freezeNativeCardLayer = true
+            // The mounted draw modifier reads this latch directly, so the layer freezes
+            // before OPENING can hide the stationary title and statistics.
+            freezeNativeCardLayer.value = true
             captureNativeVideoCardImage(nativeCardLayer)
             captureNativeCoverOverlayLayer(nativeCoverOverlayLayer)
         }
@@ -938,9 +942,12 @@ internal fun ElegantVideoCard(
             coverSharedEnabled = coverSharedEnabled,
             isQuickReturnLimited = isQuickReturnLimited
         )
-        val videoSharedPlaybackIntent = remember(context) {
+        val autoPlayOnOpenEnabled by SettingsManager
+            .getClickToPlay(context)
+            .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
+        val videoSharedPlaybackIntent = remember(autoPlayOnOpenEnabled) {
             resolveVideoSharedTransitionPlaybackIntent(
-                clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+                clickToPlayEnabled = autoPlayOnOpenEnabled
             )
         }
         val homeSharedTransitionSpecs = remember(
@@ -1014,7 +1021,8 @@ internal fun ElegantVideoCard(
                 .fillMaxWidth()
                 .recordNativeVideoCardLayer(
                     layer = nativeCardLayer,
-                    freeze = freezeNativeCardLayer,
+                    freezeProvider = { freezeNativeCardLayer.value },
+                    bvid = video.bvid,
                 ),
         ) {
             Box(
@@ -1152,7 +1160,8 @@ internal fun ElegantVideoCard(
                     .fillMaxSize()
                     .recordNativeVideoCardLayer(
                         layer = nativeCoverOverlayLayer,
-                        freeze = freezeNativeCardLayer,
+                        freezeProvider = { freezeNativeCardLayer.value },
+                        bvid = video.bvid,
                     ),
             ) {
             if (premiumBadgeLabel != null) {
@@ -1435,7 +1444,9 @@ internal fun ElegantVideoCard(
             }
             // Miuix liquid glass — independent of Haze, samples the home feed layer.
             val liquidModifier = if (
-                infoSurfaceAppearance.useRealtimeLiquidGlass && homeMiuixBackdrop != null
+                infoSurfaceAppearance.useRealtimeLiquidGlass &&
+                homeMiuixBackdrop != null &&
+                !isLowBlurBudgetForced()
             ) {
                 Modifier.drawBackdrop(
                     backdrop = homeMiuixBackdrop,

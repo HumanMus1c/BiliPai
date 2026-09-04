@@ -120,6 +120,9 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(false, transform.contains("visibleHeightFraction"))
         assertEquals(false, transform.contains("outgoingClipFraction"))
         assertEquals(true, transform.contains("resolveMiuixVideoCardGestureVisualOrigin("))
+        assertEquals(true, transform.contains("cameraDistance = transform.cameraDistance"))
+        assertEquals(true, transform.contains("shadowElevation = transform.shadowElevationDp.dp.toPx()"))
+        assertEquals(true, transform.contains("floatingCornerPx = MIUIX_VIDEO_CARD_FLOATING_CORNER_DP.dp.toPx()"))
         assertEquals(true, source.contains("56.dp.toPx()"))
     }
 
@@ -152,6 +155,58 @@ class MiuixVideoCardNavTransitionTest {
 
         assertEquals(12f, radii.radiusX * 0.5f, absoluteTolerance = 0.0001f)
         assertEquals(12f, radii.radiusY * 0.25f, absoluteTolerance = 0.0001f)
+    }
+
+    @Test
+    fun flyingCardCornersBloomMidPeelThenLandOnTheSourceRadius() {
+        assertEquals(
+            0f,
+            resolveMiuixVideoCardGestureCornerPx(
+                sourceCornerPx = 16f,
+                morphProgress = 1f,
+                floatingCornerPx = 28f,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            16f,
+            resolveMiuixVideoCardGestureCornerPx(
+                sourceCornerPx = 16f,
+                morphProgress = 0f,
+                floatingCornerPx = 28f,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            28f,
+            resolveMiuixVideoCardGestureCornerPx(
+                sourceCornerPx = 16f,
+                morphProgress = 0.5f,
+                floatingCornerPx = 28f,
+            ),
+            0.01f,
+        )
+        val mid = resolveMiuixVideoCardClipRadii(
+            sourceCornerPx = 16f,
+            outerScaleX = 0.5f,
+            outerScaleY = 0.4f,
+            morphProgress = 0.5f,
+            floatingCornerPx = 28f,
+        )
+        assertEquals(28f, mid.radiusX * 0.5f, absoluteTolerance = 0.01f)
+        assertEquals(28f, mid.radiusY * 0.4f, absoluteTolerance = 0.01f)
+        val landed = resolveMiuixVideoCardGestureTransform(
+            morphProgress = 0f,
+            touchY = 1200f,
+            initialTouchY = 1200f,
+            widthPx = 1080f,
+            heightPx = 2400f,
+            isLeftEdge = true,
+            maxVerticalTravelPx = 72f,
+        )
+        assertEquals(1f, landed.liftScale, 0.0001f)
+        assertEquals(0f, landed.shadowElevationDp, 0.0001f)
+        assertEquals(MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP, landed.cameraDistance, 0.0001f)
     }
 
     @Test
@@ -261,6 +316,9 @@ class MiuixVideoCardNavTransitionTest {
             centered.rotationZ,
             0.01f,
         )
+        assertEquals(1f - MIUIX_VIDEO_CARD_GESTURE_LIFT_SCALE, centered.liftScale, 0.0001f)
+        assertEquals(MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP, centered.shadowElevationDp, 0.01f)
+        assertTrue(centered.cameraDistance < MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP)
         assertTrue(abs(centered.translationX) > 40f)
         assertEquals(0f, resolveMiuixVideoCardGesturePoseWeight(0f), 0.0001f)
         assertEquals(0f, resolveMiuixVideoCardGesturePoseWeight(1f), 0.0001f)

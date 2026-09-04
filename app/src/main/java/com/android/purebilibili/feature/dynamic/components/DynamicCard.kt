@@ -106,6 +106,7 @@ fun DynamicCardV2(
     onCourseClick: ((String, String) -> Unit)? = null,
     onArticleClick: ((articleId: Long, title: String) -> Unit)? = null,
     onDynamicDetailClick: ((dynamicId: String) -> Unit)? = null,
+    onUnfoldRelatedClick: ((dynamicId: String) -> Unit)? = null,
     isDetail: Boolean = false,
     onPrimaryClickOverride: ((DynamicItem) -> Unit)? = null,
     gifImageLoader: ImageLoader,
@@ -127,6 +128,7 @@ fun DynamicCardV2(
     likeOverride: Boolean? = null,
     forwardCountDelta: Int = 0
 ) {
+    if (!item.visible) return
     val openDynamicDetail = remember(item, onDynamicDetailClick) {
         onDynamicDetailClick?.let { callback ->
             { id: String ->
@@ -347,25 +349,25 @@ fun DynamicCardV2(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = resolveDynamicCardOuterPadding())
-            .clickable(enabled = isPrimaryClickEnabled) {
-                dispatchDynamicCardPrimaryClick(
-                    item = item,
-                    action = cardClickAction,
-                    onPrimaryClickOverride = onPrimaryClickOverride,
-                    onVideoClick = onVideoClick,
-                    onBangumiClick = onBangumiClick,
-                    onArticleClick = onArticleClick,
-                    onDynamicDetailClick = openDynamicDetail,
-                    onUserClick = onUserClick,
-                    onLiveClick = onLiveClick
-                )
-            }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = resolveDynamicCardContentPadding())
                 .padding(top = AppSpacingTokens.Medium, bottom = if (isDetail) AppSpacingTokens.None else AppSpacingTokens.Small + AppSpacingTokens.Micro)
+                .clickable(enabled = isPrimaryClickEnabled) {
+                    dispatchDynamicCardPrimaryClick(
+                        item = item,
+                        action = cardClickAction,
+                        onPrimaryClickOverride = onPrimaryClickOverride,
+                        onVideoClick = onVideoClick,
+                        onBangumiClick = onBangumiClick,
+                        onArticleClick = onArticleClick,
+                        onDynamicDetailClick = openDynamicDetail,
+                        onUserClick = onUserClick,
+                        onLiveClick = onLiveClick
+                    )
+                }
         ) {
         val context = LocalContext.current
         
@@ -1497,16 +1499,21 @@ fun DynamicCardV2(
                 modifier = Modifier.weight(actionButtonWeight)
             )
         }
-        
-        //  相关动态折叠条（module_fold：如“展开3条相关动态”，点击进动态详情）
-        if (!isDetail && openDynamicDetail != null) {
+        }
+
+        // PiliPlus: fold InkWell is a sibling of the card body, not the card's
+        // primary tap target. Nested clickable here still opened dynamic detail.
+        if (!isDetail) {
             val foldStatement = resolveDynamicFoldStatement(item.modules.module_fold)
             if (foldStatement != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = resolveDynamicCardContentPadding())
                         .clip(AppShapes.container(ContainerLevel.Chip))
-                        .clickable { openDynamicDetail(item.id_str) }
+                        .clickable(enabled = onUnfoldRelatedClick != null) {
+                            onUnfoldRelatedClick?.invoke(item.id_str)
+                        }
                         .padding(vertical = AppSpacingTokens.Small),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -1546,7 +1553,6 @@ fun DynamicCardV2(
                     )
                 }
             }
-        }
         }
 
         if (!isDetail) {

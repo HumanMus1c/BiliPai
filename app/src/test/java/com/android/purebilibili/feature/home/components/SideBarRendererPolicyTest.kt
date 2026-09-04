@@ -99,7 +99,10 @@ class SideBarRendererPolicyTest {
             ?: File("app/src/main/java/com/android/purebilibili/feature/home/components/SideBar.kt").readText()
         val materialSideBarSource = source.substringAfter("private fun FrostedSideBarContent(")
 
-        assertTrue(materialSideBarSource.contains("resolveMaterialBottomBarIcon("))
+        assertTrue(source.contains("FrostedSideBarBlendedMaterialIcon("))
+        assertTrue(source.contains("resolveMaterialBottomBarIcon(item, selected = false)"))
+        assertTrue(source.contains("resolveMaterialBottomBarIcon(item, selected = true)"))
+        assertTrue(materialSideBarSource.contains("FrostedSideBarBlendedMaterialIcon("))
         assertFalse(materialSideBarSource.contains("resolveHomeNavigationBarIcon("))
         assertTrue(materialSideBarSource.contains("rememberNavigationSelectionTransform("))
         assertTrue(materialSideBarSource.contains("rotationZ = selectionTransform.rotationDegrees()"))

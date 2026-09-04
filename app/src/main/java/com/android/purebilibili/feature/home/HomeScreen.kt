@@ -145,6 +145,7 @@ import com.android.purebilibili.core.ui.transition.shouldHomeFeedOwnVideoCardTra
 import com.android.purebilibili.core.ui.transition.shouldShowHomeOverlayChromeDuringVideoCardTransition
 import com.android.purebilibili.core.ui.transition.shouldUseRealtimeVideoCardTransitionBackgroundBlur
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
+import com.android.purebilibili.core.ui.transition.videoCardTransitionOverlayDepthEffect
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.core.ui.animation.DissolvableVideoCard  //  粒子消散动画
@@ -2276,13 +2277,48 @@ fun HomeScreen(
             MutableTransitionState(!appearHomeHeaderFromHidden)
         }
         homeHeaderVisibilityState.targetState = homeHeaderChromeVisible
-        BottomBarMatchedDockVisibility(
-            visibleState = homeHeaderVisibilityState,
-            edge = BottomBarMatchedDockEdge.TOP,
-            enterFadeDurationMillis = 255,
-            exitFadeDurationMillis = 160,
+        val headerDepthDensity = LocalDensity.current
+        val activeHeaderDepthClock = videoCardClock?.takeIf {
+            it.phase != VideoCardTransitionBackgroundPhase.IDLE &&
+                (homeHeaderVisibilityState.currentState || homeHeaderVisibilityState.targetState)
+        }
+        // Keep the RenderEffect layer full-screen even though only the header paints into it.
+        // A header-sized layer clamps the blur kernel at the chrome bottom and produces the
+        // horizontal seam visible during predictive back.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (activeHeaderDepthClock != null) {
+                        Modifier.videoCardTransitionOverlayDepthEffect(
+                            progressProvider = { activeHeaderDepthClock.depthProgress() },
+                            phaseProvider = { activeHeaderDepthClock.phase },
+                            motionTierProvider =
+                                videoCardTransitionBackgroundState.motionTierProvider,
+                            sourceBoundsProvider =
+                                videoCardTransitionBackgroundState.sourceBoundsProvider,
+                            scaleReductionProvider = {
+                                resolveVideoCardTransitionBackgroundScaleReduction(
+                                    resolveVideoCardTransitionBackgroundSource(
+                                        videoCardTransitionBackgroundState.sourceRouteProvider(),
+                                    ),
+                                )
+                            },
+                            densityProvider = { headerDepthDensity.density },
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = Alignment.TopStart,
         ) {
-        HomeHeader(
+            BottomBarMatchedDockVisibility(
+                visibleState = homeHeaderVisibilityState,
+                edge = BottomBarMatchedDockEdge.TOP,
+                enterFadeDurationMillis = 255,
+                exitFadeDurationMillis = 160,
+            ) {
+            HomeHeader(
             headerOffsetProvider = headerOffsetProvider,
             isHeaderCollapseEnabled = collapseSearchOnScroll,
             isTopTabsAutoCollapseEnabled = collapseTabsOnScroll,
@@ -2361,7 +2397,8 @@ fun HomeScreen(
             forceLowBlurBudget = forceLowBlurBudget,
             interactionBudget = homeInteractionMotionBudget,
             uiSkinDecoration = homeUiSkinDecoration
-        )
+            )
+            }
         }
 
         AnimatedVisibility(

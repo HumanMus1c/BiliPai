@@ -65,6 +65,7 @@ import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
@@ -1351,10 +1352,12 @@ internal fun Modifier.homeTopChromeSurface(
     preferFlatGlass: Boolean = false,
     darkThemeWhiteOverlayMultiplier: Float = 0.86f
 ): Modifier = composed {
-    val isLiquidGlassMode = false
-    // Liquid chrome always reuses the bottom-bar BiliPai material so every reusable surface
-    // (top dock / search / continuous slab / segmented dock) stays visually identical.
-    if (isLiquidGlassMode) {
+    val isLiquidGlassMode = renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP ||
+        renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_HAZE
+    // Compact controls reuse the bottom-bar material. The full-width top slab deliberately keeps
+    // the progressive blur path so its lower edge fades into content instead of becoming a clipped
+    // glass-shell boundary.
+    if (isLiquidGlassMode && !useProgressiveTopBlur) {
         return@composed this.homeTopBottomBarMatchedSurface(
             renderMode = renderMode,
             shape = shape,
@@ -2710,7 +2713,7 @@ fun HomeHeader(
                                     usesMatchedTopControls = useBottomBarMatchedTopControls,
                                     renderMode = searchChromeRenderMode,
                                     hasBackdrop = miuixBackdrop != null,
-                                )
+                                ) && !isLowBlurBudgetForced(forceLowBlurBudget)
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()

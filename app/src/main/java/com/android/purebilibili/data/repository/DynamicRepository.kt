@@ -148,8 +148,10 @@ object DynamicRepository {
                     )
                 )
 
-                // 过滤不可见的动态
-                visibleItems += data.items.filter { it.visible }
+                // Keep folded/hidden cards in the timeline. PiliPlus only shrinks
+                // `visible == false` items in UI and unfolds them from module_fold;
+                // dropping them here swallows the hours between two visible posts.
+                visibleItems += data.items
                 fetchedItemCount += data.items.size
                 pagesFetched += 1
 
@@ -240,8 +242,7 @@ object DynamicRepository {
                     hasMore = data.has_more
                 )
 
-                // 过滤不可见的动态
-                visibleItems += data.items.filter { it.visible }
+                visibleItems += data.items
                 pagesFetched += 1
 
                 if (!shouldContinueDynamicFetchAfterFilter(

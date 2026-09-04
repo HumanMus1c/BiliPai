@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,18 +66,21 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
 import com.android.purebilibili.feature.home.components.BottomNavItem
+import com.android.purebilibili.feature.home.components.FloatingBottomBar
+import com.android.purebilibili.feature.home.components.FloatingBottomBarColors
+import com.android.purebilibili.feature.home.components.FloatingBottomBarItem
+import com.android.purebilibili.feature.home.components.FloatingBottomBarMode
 import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import com.android.purebilibili.feature.home.components.resolveMaterialBottomBarIcon
+import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
 import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveContentColor
 import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveReadabilityState
 import com.android.purebilibili.feature.home.components.trackLiquidGlassAdaptiveReadability
 import coil3.compose.AsyncImage
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 internal fun LiquidGlassAdjustmentPanel(
@@ -204,7 +208,7 @@ internal fun LiquidGlassAdjustmentPanel(
             text = if (readabilityMode == LiquidGlassReadabilityMode.STABLE) {
                 "推荐：始终使用主题文字色，显示稳定，也更省电。"
             } else {
-                "根据玻璃后方的明暗自动切换文字颜色，复杂背景下更易辨认。"
+                "根据当前显示区域的明暗自动切换文字颜色，复杂背景下更易辨认。"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -634,27 +638,62 @@ internal fun liquidGlassPresetSliderValue(settings: LiquidGlassAdvancedSettings)
         LiquidGlassAdvancedPreset.BALANCED -> LIQUID_GLASS_PRESET_BALANCED_POSITION
         LiquidGlassAdvancedPreset.PRISM -> 1f
         LiquidGlassAdvancedPreset.CUSTOM -> {
-            val readableChromatic = resolveLiquidGlassAdvancedPreset(
-                LiquidGlassAdvancedPreset.READABLE
-            ).chromaticAberration
-            val balancedChromatic = resolveLiquidGlassAdvancedPreset(
-                LiquidGlassAdvancedPreset.BALANCED
-            ).chromaticAberration
-            val prismChromatic = resolveLiquidGlassAdvancedPreset(
-                LiquidGlassAdvancedPreset.PRISM
-            ).chromaticAberration
-            if (settings.chromaticAberration <= balancedChromatic) {
-                val fraction = (settings.chromaticAberration - readableChromatic) /
-                    (balancedChromatic - readableChromatic)
-                fraction.coerceIn(0f, 1f) * LIQUID_GLASS_PRESET_BALANCED_POSITION
+            val readable = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.READABLE)
+            val balanced = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.BALANCED)
+            val prism = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.PRISM)
+            val readableToBalanced = projectLiquidGlassSettingsOntoPresetSegment(
+                settings = settings,
+                start = readable,
+                end = balanced,
+            )
+            val balancedToPrism = projectLiquidGlassSettingsOntoPresetSegment(
+                settings = settings,
+                start = balanced,
+                end = prism,
+            )
+            if (readableToBalanced.second <= balancedToPrism.second) {
+                readableToBalanced.first * LIQUID_GLASS_PRESET_BALANCED_POSITION
             } else {
-                val fraction = (settings.chromaticAberration - balancedChromatic) /
-                    (prismChromatic - balancedChromatic)
                 LIQUID_GLASS_PRESET_BALANCED_POSITION +
-                    fraction.coerceIn(0f, 1f) * LIQUID_GLASS_PRESET_BALANCED_POSITION
+                    balancedToPrism.first * LIQUID_GLASS_PRESET_BALANCED_POSITION
             }
         }
     }
+
+/** Returns the nearest fraction on a preset segment and its squared six-parameter distance. */
+private fun projectLiquidGlassSettingsOntoPresetSegment(
+    settings: LiquidGlassAdvancedSettings,
+    start: LiquidGlassAdvancedSettings,
+    end: LiquidGlassAdvancedSettings,
+): Pair<Float, Float> {
+    val value = settings.asLiquidGlassPresetVector()
+    val startVector = start.asLiquidGlassPresetVector()
+    val endVector = end.asLiquidGlassPresetVector()
+    var dot = 0f
+    var lengthSquared = 0f
+    for (index in value.indices) {
+        val direction = endVector[index] - startVector[index]
+        dot += (value[index] - startVector[index]) * direction
+        lengthSquared += direction * direction
+    }
+    val fraction = if (lengthSquared > 0f) (dot / lengthSquared).coerceIn(0f, 1f) else 0f
+    var distanceSquared = 0f
+    for (index in value.indices) {
+        val projected = startVector[index] + (endVector[index] - startVector[index]) * fraction
+        val delta = value[index] - projected
+        distanceSquared += delta * delta
+    }
+    return fraction to distanceSquared
+}
+
+private fun LiquidGlassAdvancedSettings.asLiquidGlassPresetVector(): FloatArray = floatArrayOf(
+    progressiveBlurRadius,
+    progressiveBlurExtent,
+    progressiveBlurCurve,
+    contentReadability,
+    chromaticAberration,
+    contentDistortion,
+)
 
 private fun lerpLiquidGlassPresetValue(start: Float, end: Float, fraction: Float): Float =
     start + (end - start) * fraction.coerceIn(0f, 1f)
@@ -684,7 +723,8 @@ private fun LiquidGlassHomeSample(
     bottomBarSearchEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val backdrop = rememberLayerBackdrop()
+    val backdropSource = rememberChromeBackdropSource()
+    val backdrop = backdropSource.backdrop
     val tuning = remember(progress, advancedSettings, readabilityMode) {
         resolveLiquidGlassTuning(progress, advancedSettings, readabilityMode)
     }
@@ -724,8 +764,10 @@ private fun LiquidGlassHomeSample(
     val previewBottomBarItems = remember(bottomBarItems) {
         bottomBarItems.ifEmpty { listOf(BottomNavItem.HOME) }
     }
-    val previewSelectedBottomBarIndex = remember(previewBottomBarItems) {
-        previewBottomBarItems.indexOf(BottomNavItem.HOME).takeIf { it >= 0 } ?: 0
+    var previewSelectedBottomBarIndex by remember(previewBottomBarItems) {
+        mutableIntStateOf(
+            previewBottomBarItems.indexOf(BottomNavItem.HOME).takeIf { it >= 0 } ?: 0
+        )
     }
     val previewSearchHeight = 40.dp
 
@@ -756,7 +798,7 @@ private fun LiquidGlassHomeSample(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(backdrop)
+                .then(backdropSource.modifier)
         ) {
             Box(
                 modifier = Modifier
@@ -868,35 +910,45 @@ private fun LiquidGlassHomeSample(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
+            FloatingBottomBar(
+                selectedIndex = { previewSelectedBottomBarIndex },
+                onSelected = { previewSelectedBottomBarIndex = it },
+                onReselected = {},
+                backdrop = backdrop,
+                tabsCount = previewBottomBarItems.size,
                 modifier = Modifier
-                    .height(48.dp)
-                    .biliPaiFloatingDockShell(
-                        backdrop = backdrop,
-                        containerColor = glassColor,
-                        pressProgress = 0f,
-                        shape = CircleShape,
-                        liquidGlassTuning = tuning,
-                    )
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(
-                    if (previewBottomBarItems.size <= 3) 22.dp else 12.dp
+                    .weight(1f)
+                    .height(48.dp),
+                mode = FloatingBottomBarMode.LiquidGlass,
+                colors = FloatingBottomBarColors(
+                    containerColor = glassColor,
+                    indicatorColor = MaterialTheme.colorScheme.primary,
+                    contentColor = bottomContentColor,
+                    activeContentColor = MaterialTheme.colorScheme.primary,
                 ),
-                verticalAlignment = Alignment.CenterVertically,
+                shellHeight = 48.dp,
+                indicatorHeight = 44.dp,
+                liquidGlassTuning = tuning,
             ) {
                 previewBottomBarItems.forEachIndexed { index, item ->
-                    Icon(
-                        imageVector = resolveMaterialBottomBarIcon(
-                            item = item,
-                            selected = index == previewSelectedBottomBarIndex,
-                        ),
-                        contentDescription = item.label,
-                        tint = if (index == previewSelectedBottomBarIndex) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            bottomContentColor
-                        },
-                    )
+                    FloatingBottomBarItem(
+                        onClick = { previewSelectedBottomBarIndex = index },
+                        selected = index == previewSelectedBottomBarIndex,
+                        itemIndex = index,
+                    ) {
+                        Icon(
+                            imageVector = resolveMaterialBottomBarIcon(
+                                item = item,
+                                selected = index == previewSelectedBottomBarIndex,
+                            ),
+                            contentDescription = item.label,
+                            tint = if (index == previewSelectedBottomBarIndex) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                bottomContentColor
+                            },
+                        )
+                    }
                 }
             }
             if (bottomBarSearchEnabled) {

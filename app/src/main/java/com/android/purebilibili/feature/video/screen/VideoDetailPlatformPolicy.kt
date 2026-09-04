@@ -730,6 +730,10 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     if (orientationDegrees == OrientationEventListener.ORIENTATION_UNKNOWN) return null
     val normalized = ((orientationDegrees % 360) + 360) % 360
 
+    val uprightPortraitStable = isPhoneOrientationUprightPortraitStable(
+        orientationDegrees = normalized,
+        portraitSnapDegrees = portraitSnapDegrees
+    )
     val portraitStable = isPhoneOrientationPortraitStable(
         orientationDegrees = normalized,
         portraitSnapDegrees = portraitSnapDegrees
@@ -759,7 +763,12 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
         } else {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
-        portraitStable -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        // Already landscape: only 0° exits to portrait. 180° is the midpoint of a
+        // landscape-to-landscape flip; treating it as portrait makes cover screens
+        // recognize the other side, then snap back to the original 90° landscape.
+        isCurrentlyLandscape && uprightPortraitStable ->
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        !isCurrentlyLandscape && portraitStable -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         !isCurrentlyLandscape && exactLandscapeEntry != null -> if (useExactLandscapeSide) {
             exactLandscapeEntry
         } else {
@@ -939,14 +948,22 @@ internal fun shouldReleasePhoneManualPortraitHold(
     )
 }
 
-private fun isPhoneOrientationPortraitStable(
+private fun isPhoneOrientationUprightPortraitStable(
     orientationDegrees: Int,
     portraitSnapDegrees: Int
 ): Boolean {
     val normalized = ((orientationDegrees % 360) + 360) % 360
     return withinWrappedRange(normalized, 0, portraitSnapDegrees) ||
-        withinWrappedRange(normalized, 180 - portraitSnapDegrees, 180 + portraitSnapDegrees) ||
         withinWrappedRange(normalized, 360 - portraitSnapDegrees, 359)
+}
+
+private fun isPhoneOrientationPortraitStable(
+    orientationDegrees: Int,
+    portraitSnapDegrees: Int
+): Boolean {
+    val normalized = ((orientationDegrees % 360) + 360) % 360
+    return isPhoneOrientationUprightPortraitStable(normalized, portraitSnapDegrees) ||
+        withinWrappedRange(normalized, 180 - portraitSnapDegrees, 180 + portraitSnapDegrees)
 }
 
 private fun withinWrappedRange(

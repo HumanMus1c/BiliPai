@@ -36,9 +36,12 @@ data class LiquidGlassTuning(
     val scrollCoupledRefractionAmount: Float,
 )
 
-private const val UPSTREAM_BALANCED_READABILITY = 0.62f
 private const val UPSTREAM_BALANCED_CHROMATIC_CONTROL = 0.56f
 private const val UPSTREAM_INDICATOR_CHROMATIC_ABERRATION = 0.5f
+private const val BALANCED_CONTENT_DISTORTION = 0.45f
+private const val MAX_CONTENT_DISTORTION_SCALE = 1.8f
+internal const val LIQUID_GLASS_BALANCED_BACKDROP_BLUR_RADIUS_DP = 4f
+internal const val LIQUID_GLASS_FROSTED_BACKDROP_BLUR_RADIUS_DP = 10f
 
 internal fun resolveLiquidGlassTuning(
     progress: Float,
@@ -53,10 +56,11 @@ internal fun resolveLiquidGlassTuning(
     }
     val frostWeight = normalizedProgress
     val configuredReadability = advancedSettings.contentReadability.coerceIn(0f, 1f)
-    val readabilityProtection = (
-        (configuredReadability - UPSTREAM_BALANCED_READABILITY) /
-            (1f - UPSTREAM_BALANCED_READABILITY)
-    ).coerceIn(0f, 1f)
+    // A smooth fourth-power response keeps the balanced preset subtle while making the whole
+    // 0..1 control range effective. The old threshold mapping made every value below 0.62 a
+    // visual no-op even though the settings UI exposed that range.
+    val readabilityProtection = configuredReadability * configuredReadability *
+        configuredReadability * configuredReadability
     // Readability protection must remain active across the full slider. It is strongest for
     // transparent glass, but a user-selected 100% must not become a no-op around 50%.
     val readabilityWeight = midpointLerp(1f, 0.6f, 0.25f, normalizedProgress)
@@ -76,9 +80,16 @@ internal fun resolveLiquidGlassTuning(
     val indicatorChromaticAmount = (
         chromaticControl / UPSTREAM_BALANCED_CHROMATIC_CONTROL
     ).coerceIn(0f, 1f) * UPSTREAM_INDICATOR_CHROMATIC_ABERRATION
-    val contentDistortionScale = (
-        advancedSettings.contentDistortion.coerceIn(0f, 1f) / 0.45f
-    ).coerceIn(0f, 1.8f)
+    val configuredDistortion = advancedSettings.contentDistortion.coerceIn(0f, 1f)
+    // Preserve the upstream-balanced anchor (0.45 -> 1x), then continue toward 1.8x instead of
+    // saturating at 0.81 and leaving the final fifth of the slider ineffective.
+    val contentDistortionScale = if (configuredDistortion <= BALANCED_CONTENT_DISTORTION) {
+        configuredDistortion / BALANCED_CONTENT_DISTORTION
+    } else {
+        1f + (configuredDistortion - BALANCED_CONTENT_DISTORTION) /
+            (1f - BALANCED_CONTENT_DISTORTION) *
+            (MAX_CONTENT_DISTORTION_SCALE - 1f)
+    }
     val scrollCouplingAmount = midpointLerp(1f, 0f, 0f, normalizedProgress)
     return LiquidGlassTuning(
         readabilityMode = readabilityMode,
@@ -88,8 +99,15 @@ internal fun resolveLiquidGlassTuning(
         // The clear endpoint intentionally preserves the dynamic dock's formerly accidental
         // crystal-glass recipe: no backdrop blur, but enough tint, saturation and refraction
         // to keep the capsule legible over moving content. The midpoint remains the original
-        // BiliPai material and the frosted endpoint retains its stronger diffusion.
-        backdropBlurRadius = midpointLerp(0f, 4f, 24f, normalizedProgress),
+        // BiliPai material. Frosted stays stronger, but is capped so typical densities stay
+        // in a single Miuix 4× blur pass instead of the 8×/16× cross-fade band (σ≈20 / σ≈44)
+        // that renders two full cascades per capsule and hitches the live slider.
+        backdropBlurRadius = midpointLerp(
+            0f,
+            LIQUID_GLASS_BALANCED_BACKDROP_BLUR_RADIUS_DP,
+            LIQUID_GLASS_FROSTED_BACKDROP_BLUR_RADIUS_DP,
+            normalizedProgress,
+        ),
         progressiveBlurRadius = advancedSettings.progressiveBlurRadius.coerceIn(0f, 1f) * 40f,
         progressiveBlurEndFraction = 0.25f +
             advancedSettings.progressiveBlurExtent.coerceIn(0f, 1f) * 0.75f,

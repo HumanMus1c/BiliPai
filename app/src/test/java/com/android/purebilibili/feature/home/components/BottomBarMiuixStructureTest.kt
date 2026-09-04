@@ -242,6 +242,16 @@ class BottomBarMiuixStructureTest {
     }
 
     @Test
+    fun `search layout reservation does not follow the current home item`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val renderer = source.substringAfter("fun BiliPaiFloatingBottomBar(")
+
+        assertTrue(renderer.contains("val searchLayoutReserved = shouldReserveBottomBarSearchLayout("))
+        assertTrue(renderer.contains("searchEnabled = searchLayoutReserved"))
+        assertTrue(renderer.contains("visible = searchLayoutReserved"))
+    }
+
+    @Test
     fun `floating bottom bar forwards pager position to draggable indicator`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         val floatingBarSource = source.substringAfter("fun BiliPaiFloatingBottomBar(")

@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -335,6 +336,30 @@ private fun ColumnScope.MiuixSideBarSkinItem(
 }
 
 @Composable
+private fun FrostedSideBarBlendedMaterialIcon(
+    item: BottomNavItem,
+    selected: Boolean,
+    contentDescription: String?,
+    contentColor: Color,
+) {
+    val selectedAlpha = if (selected) 1f else 0f
+    Box {
+        AppIcon(
+            imageVector = resolveMaterialBottomBarIcon(item, selected = false),
+            contentDescription = contentDescription,
+            tint = contentColor,
+            modifier = Modifier.alpha(1f - selectedAlpha),
+        )
+        AppIcon(
+            imageVector = resolveMaterialBottomBarIcon(item, selected = true),
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.alpha(selectedAlpha),
+        )
+    }
+}
+
+@Composable
 private fun FrostedSideBarContent(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
@@ -478,12 +503,11 @@ private fun FrostedSideBarContent(
                                     size = resolveBottomBarMiuixSkinDockIconSize()
                                 )
                             } else {
-                                AppIcon(
-                                    imageVector = resolveMaterialBottomBarIcon(
-                                        item = item,
-                                        selected = isSelected
-                                    ),
-                                    contentDescription = itemLabel
+                                FrostedSideBarBlendedMaterialIcon(
+                                    item = item,
+                                    selected = isSelected,
+                                    contentDescription = itemLabel,
+                                    contentColor = iconColor,
                                 )
                             }
                         }

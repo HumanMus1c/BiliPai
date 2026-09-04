@@ -127,6 +127,18 @@ class FloatingBottomBarStructureTest {
         assertTrue(movingIndicator.contains("interactiveHighlight?.gestureModifier"))
         assertTrue(movingIndicator.contains(".then(dampedDragAnimation.modifier)"))
         assertTrue(body.contains("offsetAnimation.snapTo(0f)"))
+        val dragRememberKeys = body
+            .substringAfter("val dampedDragAnimation = remember(")
+            .substringBefore(") {")
+        assertFalse(dragRememberKeys.contains("matchedGeometry.pressedScale"))
+        assertTrue(body.contains("dampedDragAnimation.pressedScale = matchedGeometry.pressedScale"))
+        assertTrue(body.contains("remember(animationScope) {"))
+        assertFalse(body.contains("remember(animationScope, tabWidthPx)"))
+        assertTrue(dragPort.contains("pressReleaseJob?.cancel()"))
+        assertFalse(dragPort.contains("isInside && wasInside"))
+        assertTrue(body.contains("resolveFloatingDockIndicatorLayerScaleX("))
+        assertTrue(body.contains("LocalFloatingBottomBarIndicatorStretchX provides indicatorStretchXProvider"))
+        assertTrue(body.contains("resolveFloatingDockCapturedContentHorizontalScale("))
         // Must not fall back to BiliPai self-developed drag stack.
         assertFalse(source.contains("rememberDampedDragAnimationState"))
         assertFalse(source.contains("horizontalDragGesture"))

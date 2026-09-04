@@ -79,6 +79,26 @@ class LiquidGlassTuningTest {
     }
 
     @Test
+    fun `frosted backdrop blur stays stronger than balanced without the heavy cascade`() {
+        val middle = resolveLiquidGlassTuning(progress = 0.5f)
+        val frosted = resolveLiquidGlassTuning(progress = 1f)
+
+        assertEquals(
+            LIQUID_GLASS_BALANCED_BACKDROP_BLUR_RADIUS_DP,
+            middle.backdropBlurRadius,
+            0.0001f,
+        )
+        assertEquals(
+            LIQUID_GLASS_FROSTED_BACKDROP_BLUR_RADIUS_DP,
+            frosted.backdropBlurRadius,
+            0.0001f,
+        )
+        assertTrue(frosted.backdropBlurRadius > middle.backdropBlurRadius)
+        // 10dp × density 4 × 0.45 σ-factor = 18, below Miuix's σ≈20 8× blend band.
+        assertTrue(frosted.backdropBlurRadius * 4f * 0.45f < 20f)
+    }
+
+    @Test
     fun `shell refraction height stays in a capsule-safe range`() {
         val clear = resolveLiquidGlassTuning(progress = 0f)
         val frosted = resolveLiquidGlassTuning(progress = 1f)
@@ -146,6 +166,30 @@ class LiquidGlassTuningTest {
     }
 
     @Test
+    fun `readability responds monotonically across the whole control range`() {
+        val samples = listOf(0f, 0.2f, 0.4f, 0.62f, 0.8f, 1f).map { value ->
+            resolveLiquidGlassTuning(
+                progress = 0.5f,
+                advancedSettings = LiquidGlassAdvancedSettings(contentReadability = value),
+            ).contentReadabilityBoost
+        }
+
+        assertTrue(samples.zipWithNext().all { (start, end) -> end > start })
+    }
+
+    @Test
+    fun `distortion preserves balanced anchor and reaches max without a dead zone`() {
+        fun distortion(value: Float) = resolveLiquidGlassTuning(
+            progress = 0.5f,
+            advancedSettings = LiquidGlassAdvancedSettings(contentDistortion = value),
+        ).contentDistortionScale
+
+        assertEquals(1f, distortion(0.45f), 0.0001f)
+        assertEquals(1.8f, distortion(1f), 0.0001f)
+        assertTrue(distortion(0.9f) < distortion(1f))
+    }
+
+    @Test
     fun `legacy mode and strength map into ordered continuous progress`() {
         val clear = resolveLegacyLiquidGlassProgress(
             mode = LiquidGlassMode.CLEAR,
@@ -181,7 +225,7 @@ class LiquidGlassTuningTest {
         assertEquals(24f, tuning.refractionAmount, 0.0001f)
         assertEquals(24f, tuning.refractionHeight, 0.0001f)
         assertEquals(0.28f, tuning.indicatorTintAlpha, 0.0001f)
-        assertEquals(0f, tuning.contentReadabilityScrimAlpha, 0.0001f)
+        assertTrue(tuning.contentReadabilityScrimAlpha in 0f..0.03f)
         assertEquals(0f, tuning.shellChromaticAberrationAmount, 0.0001f)
         assertEquals(0.5f, tuning.indicatorChromaticAberrationAmount, 0.0001f)
     }

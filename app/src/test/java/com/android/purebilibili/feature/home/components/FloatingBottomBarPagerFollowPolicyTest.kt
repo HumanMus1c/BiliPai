@@ -124,6 +124,62 @@ class FloatingBottomBarPagerFollowPolicyTest {
     }
 
     @Test
+    fun `enabled external motion reads pager position directly during content swipe`() {
+        assertEquals(
+            1.35f,
+            resolveFloatingDockVisualIndicatorPosition(
+                internalPosition = 1f,
+                externalPosition = 1.35f,
+                maxTabIndex = 4,
+                externalPagerMotionEffectsEnabled = true,
+                isDragging = false,
+                ownedTargetIndex = null,
+                isPagerScrolling = true,
+            ),
+        )
+        assertEquals(
+            1f,
+            resolveFloatingDockVisualIndicatorPosition(
+                internalPosition = 1f,
+                externalPosition = 1.35f,
+                maxTabIndex = 4,
+                externalPagerMotionEffectsEnabled = false,
+                isDragging = false,
+                ownedTargetIndex = null,
+                isPagerScrolling = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `indicator drag ownership remains authoritative over external pager motion`() {
+        assertEquals(
+            2f,
+            resolveFloatingDockVisualIndicatorPosition(
+                internalPosition = 2f,
+                externalPosition = 1.4f,
+                maxTabIndex = 4,
+                externalPagerMotionEffectsEnabled = true,
+                isDragging = true,
+                ownedTargetIndex = null,
+                isPagerScrolling = true,
+            ),
+        )
+        assertEquals(
+            2f,
+            resolveFloatingDockVisualIndicatorPosition(
+                internalPosition = 2f,
+                externalPosition = 1.4f,
+                maxTabIndex = 4,
+                externalPagerMotionEffectsEnabled = true,
+                isDragging = false,
+                ownedTargetIndex = 2,
+                isPagerScrolling = true,
+            ),
+        )
+    }
+
+    @Test
     fun `selectedIndex cannot yank the indicator back to the stale page`() {
         assertFalse(
             shouldAnimateIndicatorToSelectedIndex(
