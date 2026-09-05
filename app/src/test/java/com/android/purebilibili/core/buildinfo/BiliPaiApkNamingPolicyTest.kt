@@ -22,7 +22,7 @@ class BiliPaiApkNamingPolicyTest {
         assertTrue(source.contains("export\${capitalizedVariantName}Apk"))
         assertTrue(source.contains("finalizedBy(exportTask)"))
         assertTrue(source.contains("never app-release"))
-        assertTrue(source.contains("versionName = \"0.2.3-beta.23\""))
+        assertTrue(source.contains("versionName = \"0.2.3-beta.26\""))
         assertTrue(source.contains("Delivery APK must be BiliPai-"))
     }
 
