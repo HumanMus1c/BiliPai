@@ -14,13 +14,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.ThumbUpOffAlt
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,11 +63,12 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppFilledIconButton
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
@@ -639,7 +645,6 @@ private fun ChatInputBar(
         ) {
             AppIconButton(
                 onClick = onToggleDanmaku,
-                modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp)
             ) {
                 AppIcon(
                     imageVector = Icons.Filled.ChatBubble,
@@ -690,7 +695,6 @@ private fun ChatInputBar(
 
             AppIconButton(
                 onClick = onOpenEmote,
-                modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp)
             ) {
                 AppIcon(
                     imageVector = Icons.Outlined.EmojiEmotions,
@@ -699,10 +703,9 @@ private fun ChatInputBar(
                     modifier = Modifier.size(inputVisualSpec.iconSizeDp.dp)
                 )
             }
-            
-            // 发送按钮
+
             val isEnabled = text.isNotBlank()
-            AppSurface(
+            AppFilledIconButton(
                 onClick = {
                     if (isEnabled) {
                         onSend(text)
@@ -711,27 +714,26 @@ private fun ChatInputBar(
                     }
                 },
                 enabled = isEnabled,
-                shape = CircleShape,
-                color = if (isEnabled) {
-                    if (isOverlay) roomTokens.inputContentColor.copy(alpha = 0.16f) else palette.accent
-                } else {
-                    if (isOverlay) roomTokens.inputContentColor.copy(alpha = 0.10f) else palette.surfaceMuted
-                },
-                modifier = Modifier.size(inputVisualSpec.sendButtonSizeDp.dp)
+                colors = AppIconButtonDefaults.colors(
+                    containerColor = if (isOverlay) {
+                        roomTokens.inputContentColor.copy(alpha = 0.16f)
+                    } else {
+                        palette.accent
+                    },
+                    contentColor = roomTokens.inputContentColor,
+                    disabledContainerColor = if (isOverlay) {
+                        roomTokens.inputContentColor.copy(alpha = 0.10f)
+                    } else {
+                        palette.surfaceMuted
+                    },
+                    disabledContentColor = iconTint.copy(alpha = 0.48f),
+                ),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    AppIcon(
-                        imageVector = Icons.Filled.Send,
-                        contentDescription = "发送",
-                        tint = if (isEnabled) roomTokens.inputContentColor else iconTint.copy(alpha = 0.48f),
-                        modifier = Modifier
-                            .size(inputVisualSpec.iconSizeDp.dp)
-                            .offset(
-                                x = inputVisualSpec.sendIconOffsetXDp.dp,
-                                y = inputVisualSpec.sendIconOffsetYDp.dp,
-                            ) // 视觉居中微调
-                    )
-                }
+                AppIcon(
+                    imageVector = Icons.Filled.Send,
+                    contentDescription = "发送",
+                    modifier = Modifier.size(inputVisualSpec.iconSizeDp.dp)
+                )
             }
         }
     }
@@ -764,7 +766,6 @@ private fun LiveLikeButton(
                     if (count > 0) onLike(count)
                 }
             },
-            modifier = Modifier.size(visualSpec.controlSizeDp.dp)
         ) {
             AppIcon(
                 imageVector = Icons.Outlined.ThumbUpOffAlt,
@@ -773,27 +774,38 @@ private fun LiveLikeButton(
                 modifier = Modifier.size(visualSpec.iconSizeDp.dp)
             )
         }
-        if (likeCount > 0) {
-            AppSurface(
-                shape = AppShapes.container(ContainerLevel.Tag),
-                color = palette.accent.copy(alpha = 0.96f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(
-                        x = visualSpec.likeBadgeOffsetXDp.dp,
-                        y = visualSpec.likeBadgeOffsetYDp.dp,
+        AnimatedContent(
+            targetState = likeCount,
+            transitionSpec = {
+                (scaleIn(initialScale = 0.72f) + fadeIn()) togetherWith
+                    (scaleOut(targetScale = 1.18f) + fadeOut())
+            },
+            label = "live-like-burst",
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(
+                    x = visualSpec.likeBadgeOffsetXDp.dp,
+                    y = visualSpec.likeBadgeOffsetYDp.dp,
+                ),
+        ) { count ->
+            if (count <= 0) {
+                Spacer(Modifier)
+            } else {
+                AppSurface(
+                    shape = AppShapes.container(ContainerLevel.Tag),
+                    color = palette.accent.copy(alpha = 0.96f),
+                ) {
+                    AppText(
+                        text = "x$count",
+                        color = palette.onAccent,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(
+                            horizontal = AppSpacingTokens.ExtraSmall,
+                            vertical = AppSpacingTokens.Micro
+                        )
                     )
-            ) {
-                AppText(
-                    text = "x$likeCount",
-                    color = palette.onAccent,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(
-                        horizontal = AppSpacingTokens.ExtraSmall,
-                        vertical = AppSpacingTokens.Micro
-                    )
-                )
+                }
             }
         }
     }

@@ -86,7 +86,7 @@ class LiveRoomLayoutPolicyTest {
     @Test
     fun `overlaying live layouts expose chat toggle`() {
         assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.PortraitVerticalOverlay))
-        assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeSplit))
+        assertFalse(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeSplit))
         assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeOverlay))
         assertFalse(shouldShowLiveChatToggle(LiveRoomLayoutMode.PortraitPanel))
     }
@@ -104,7 +104,7 @@ class LiveRoomLayoutPolicyTest {
                 isInteractionPanelVisible = true
             )
         )
-        assertFalse(
+        assertTrue(
             shouldShowLiveSplitChatPanel(
                 layoutMode = LiveRoomLayoutMode.LandscapeSplit,
                 isInteractionPanelVisible = false
@@ -307,5 +307,15 @@ class LiveRoomLayoutPolicyTest {
         assertTrue(overlayHeight <= 390 - metrics.topControlReserveDp - metrics.bottomControlReserveDp)
         assertTrue(overlayWidth <= metrics.maxWidthDp)
         assertTrue(overlayWidth >= metrics.minWidthDp)
+    }
+
+    @Test
+    fun `split chat column matches desktop live room width bounds`() {
+        val tablet = resolveLiveSplitChatPanelWidthDp(screenWidthDp = 1200)
+        assertEquals(LIVE_SPLIT_CHAT_MAX_WIDTH_DP, tablet)
+
+        val compact = resolveLiveSplitChatPanelWidthDp(screenWidthDp = 800)
+        assertTrue(compact in 260..LIVE_SPLIT_CHAT_MAX_WIDTH_DP)
+        assertTrue(compact < 800 - 24)
     }
 }

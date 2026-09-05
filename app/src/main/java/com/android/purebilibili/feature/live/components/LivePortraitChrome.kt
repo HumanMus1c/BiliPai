@@ -129,7 +129,6 @@ internal fun LivePortraitBottomBar(
             onClick = onToggleChat,
             colors = mediaColors,
             modifier = Modifier
-                .size(48.dp)
                 .semantics { stateDescription = if (chatVisible) "聊天已显示" else "聊天已隐藏" },
         ) {
             AppIcon(
@@ -138,7 +137,7 @@ internal fun LivePortraitBottomBar(
                 tint = LiveStatusPalette.MediaContent.copy(alpha = if (chatVisible) 1f else 0.65f),
             )
         }
-        AppIconButton(onClick = onOpenMore, colors = mediaColors, modifier = Modifier.size(48.dp)) {
+        AppIconButton(onClick = onOpenMore, colors = mediaColors) {
             AppIcon(
                 imageVector = Icons.Outlined.MoreHoriz,
                 contentDescription = "更多直播操作",
