@@ -9,10 +9,26 @@ internal data class DanmakuSendOption<T>(
 
 internal fun shouldUseInlineDanmakuComposer(isFullscreenMode: Boolean): Boolean = isFullscreenMode
 
+/**
+ * Stretching control-bar send field. Short-wide cover screens (Pura X Max outer
+ * 1848×1264 ≈ 616dp landscape) already enable 分集 at 600dp, so a 480dp gate left
+ * only a sliver for `weight(1f)` — a vertical capsule. Require enough width that
+ * the pill stays clearly horizontal.
+ */
+internal const val DANMAKU_CONTROL_BAR_INLINE_INPUT_MIN_WIDTH_DP = 720
+
+/** Measured slot must be at least this wide or the capsule reads as a vertical bar. */
+internal const val DANMAKU_CONTROL_BAR_INPUT_CAPSULE_MIN_WIDTH_DP = 96
+
+internal const val DANMAKU_CONTROL_BAR_COMPACT_SEND_MAX_WIDTH_DP = 480
+
 internal fun shouldShowDanmakuInputInControlBar(
     isFullscreen: Boolean,
     widthDp: Int
-): Boolean = isFullscreen && widthDp >= 480
+): Boolean = isFullscreen && widthDp >= DANMAKU_CONTROL_BAR_INLINE_INPUT_MIN_WIDTH_DP
+
+internal fun shouldDrawDanmakuInputCapsule(availableWidthDp: Int): Boolean =
+    availableWidthDp >= DANMAKU_CONTROL_BAR_INPUT_CAPSULE_MIN_WIDTH_DP
 
 internal fun shouldShowCompactDanmakuSendAction(
     isFullscreen: Boolean,
@@ -20,7 +36,8 @@ internal fun shouldShowCompactDanmakuSendAction(
 ): Boolean {
     // Narrow fullscreen keeps a compact send chip; tablet inline cinema
     // (≥600dp) has no phone tab-bar 发弹幕, so expose it next to the overlay toggle.
-    return (isFullscreen && widthDp < 480) || (!isFullscreen && widthDp >= 600)
+    return (isFullscreen && widthDp < DANMAKU_CONTROL_BAR_COMPACT_SEND_MAX_WIDTH_DP) ||
+        (!isFullscreen && widthDp >= 600)
 }
 
 internal fun shouldShowDanmakuSendInMoreActions(

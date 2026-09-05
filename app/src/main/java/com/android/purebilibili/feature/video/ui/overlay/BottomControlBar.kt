@@ -756,38 +756,58 @@ fun BottomControlBar(
                 if (showDanmakuInput) {
                     Spacer(modifier = Modifier.width(layoutPolicy.danmakuSwitchToInputSpacingDp.dp))
 
-                    Row(
+                    BoxWithConstraints(
                         modifier = Modifier
                             .weight(1f)
-                            .height(layoutPolicy.danmakuInputHeightDp.dp)
-                            .clip(RoundedCornerShape((layoutPolicy.danmakuInputHeightDp / 2).dp))
-                            .background(Color.White.copy(alpha = if (isLoggedIn) 0.2f else 0.12f)),
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(layoutPolicy.danmakuInputHeightDp.dp),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .consumeTap(onDanmakuInputClick),
-                            contentAlignment = Alignment.CenterStart
+                        val availableWidthDp = maxWidth.value.toInt()
+                        if (
+                            com.android.purebilibili.feature.video.ui.components
+                                .shouldDrawDanmakuInputCapsule(availableWidthDp)
                         ) {
-                            AppText(
-                                text = danmakuInputPlaceholder,
-                                color = Color.White.copy(alpha = if (isLoggedIn) 0.7f else 0.5f),
-                                fontSize = layoutPolicy.danmakuInputFontSp.sp,
-                                maxLines = danmakuPlaceholderPolicy.maxLines,
-                                overflow = if (danmakuPlaceholderPolicy.ellipsis) {
-                                    TextOverflow.Ellipsis
-                                } else {
-                                    TextOverflow.Clip
-                                },
-                                modifier = Modifier.padding(
-                                    start = layoutPolicy.danmakuInputStartPaddingDp.dp,
-                                    end = 8.dp
-                                )
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(
+                                        RoundedCornerShape(
+                                            (layoutPolicy.danmakuInputHeightDp / 2).dp,
+                                        ),
+                                    )
+                                    .background(
+                                        Color.White.copy(
+                                            alpha = if (isLoggedIn) 0.2f else 0.12f,
+                                        ),
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .consumeTap(onDanmakuInputClick),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    AppText(
+                                        text = danmakuInputPlaceholder,
+                                        color = Color.White.copy(
+                                            alpha = if (isLoggedIn) 0.7f else 0.5f,
+                                        ),
+                                        fontSize = layoutPolicy.danmakuInputFontSp.sp,
+                                        maxLines = danmakuPlaceholderPolicy.maxLines,
+                                        overflow = if (danmakuPlaceholderPolicy.ellipsis) {
+                                            TextOverflow.Ellipsis
+                                        } else {
+                                            TextOverflow.Clip
+                                        },
+                                        modifier = Modifier.padding(
+                                            start = layoutPolicy.danmakuInputStartPaddingDp.dp,
+                                            end = 8.dp,
+                                        ),
+                                    )
+                                }
+                            }
                         }
-
                     }
 
                     Spacer(modifier = Modifier.width(layoutPolicy.afterInputSpacingDp.dp))
