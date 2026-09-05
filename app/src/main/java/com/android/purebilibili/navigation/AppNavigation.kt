@@ -122,6 +122,7 @@ import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitio
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionSnapshotOnRouteShell
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionSourceChrome
 import com.android.purebilibili.core.ui.transition.shouldDriveVideoCardTransitionChromeByProgress
+import com.android.purebilibili.core.ui.transition.isVideoCardTransitionBottomBarSource
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionChromeBottomBarRoute
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionChromeReveal
 import com.android.purebilibili.core.ui.transition.videoCardTransitionChromeReveal
@@ -1298,13 +1299,19 @@ fun AppNavigation(
                 VideoCardTransitionSettleState.CancelRestore ||
                 videoCardTransitionClock.gestureRestoreInProgress,
         )
+        val sourceIsBottomBarDestination = isVideoCardTransitionBottomBarSource(
+            sourceRoute = videoCardTransitionClock.sourceRoute,
+            visibleBottomBarRoutes = visibleBottomBarRoutes,
+        )
         val videoCardSourceChromeVisible = shouldShowVideoCardTransitionSourceChrome(
             isVideoDetailDestination = isVideoDetailDestination,
             exposure = videoCardChromeExposure,
+            sourceIsBottomBarDestination = sourceIsBottomBarDestination,
         )
         val driveBottomBarByProgress = shouldDriveVideoCardTransitionChromeByProgress(
             cardTransitionEnabled = cardTransitionEnabled,
             exposure = videoCardChromeExposure,
+            sourceIsBottomBarDestination = sourceIsBottomBarDestination,
         )
         val bottomBarMountRoute = resolveVideoCardTransitionChromeBottomBarRoute(
             isVideoDetailDestination = isVideoDetailDestination,

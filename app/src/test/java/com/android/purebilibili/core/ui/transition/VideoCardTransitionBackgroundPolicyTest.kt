@@ -242,6 +242,20 @@ class VideoCardTransitionBackgroundPolicyTest {
                 exposure = VideoCardTransitionExposure.Idle,
             )
         )
+        assertFalse(
+            shouldShowVideoCardTransitionSourceChrome(
+                isVideoDetailDestination = true,
+                exposure = VideoCardTransitionExposure.Returning,
+                sourceIsBottomBarDestination = false,
+            )
+        )
+        assertFalse(
+            shouldShowVideoCardTransitionSourceChrome(
+                isVideoDetailDestination = true,
+                exposure = VideoCardTransitionExposure.BackPreview,
+                sourceIsBottomBarDestination = false,
+            )
+        )
     }
 
     @Test
@@ -301,6 +315,20 @@ class VideoCardTransitionBackgroundPolicyTest {
                 exposure = VideoCardTransitionExposure.Idle,
             ),
         )
+        assertFalse(
+            shouldDriveVideoCardTransitionChromeByProgress(
+                cardTransitionEnabled = true,
+                exposure = VideoCardTransitionExposure.Opening,
+                sourceIsBottomBarDestination = false,
+            ),
+        )
+        assertFalse(
+            shouldDriveVideoCardTransitionChromeByProgress(
+                cardTransitionEnabled = true,
+                exposure = VideoCardTransitionExposure.Returning,
+                sourceIsBottomBarDestination = false,
+            ),
+        )
         val overlayPivot = resolveVideoCardTransitionOverlayDepthPivot(
             sourceBounds = androidx.compose.ui.geometry.Rect(100f, 400f, 500f, 900f),
             canvasWidth = 1000f,
@@ -310,6 +338,19 @@ class VideoCardTransitionBackgroundPolicyTest {
         )
         assertEquals(0.3f, overlayPivot.x, 0.0001f)
         assertEquals(3.25f, overlayPivot.y, 0.0001f)
+    }
+
+    @Test
+    fun relatedAndNonTabSourcesDoNotRevealTheHomeBottomBar() {
+        val visibleTabs = setOf("home", "dynamic")
+        assertTrue(isVideoCardTransitionBottomBarSource("home", visibleTabs))
+        assertTrue(isVideoCardTransitionBottomBarSource("home?category=1", visibleTabs))
+        assertTrue(isVideoCardTransitionBottomBarSource("dynamic", visibleTabs))
+        assertTrue(isVideoCardTransitionBottomBarSource("main_host", visibleTabs))
+        assertFalse(isVideoCardTransitionBottomBarSource("video/BV1xx", visibleTabs))
+        assertFalse(isVideoCardTransitionBottomBarSource("space/123", visibleTabs))
+        assertFalse(isVideoCardTransitionBottomBarSource("search", visibleTabs))
+        assertFalse(isVideoCardTransitionBottomBarSource(null, visibleTabs))
     }
 
     @Test
