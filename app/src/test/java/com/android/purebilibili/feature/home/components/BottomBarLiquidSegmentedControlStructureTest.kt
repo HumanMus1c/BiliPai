@@ -447,7 +447,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(floating.contains("FloatingBottomBar("))
         assertTrue(floating.contains("FloatingBottomBarItem("))
         assertTrue(floating.contains("resolveBiliPaiBottomBarShellColor("))
-        assertTrue(floating.contains("shellHeight = height"))
+        assertTrue(floating.contains("shellHeight = effectiveHeight"))
         assertTrue(floating.contains("indicatorHeight = indicatorHeight"))
         assertFalse(floating.contains("FloatingBottomBarDefaultShellHeight"))
         assertFalse(floating.contains("modifier.wrapContentWidth()"))

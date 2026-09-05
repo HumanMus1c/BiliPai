@@ -7,12 +7,29 @@ import kotlin.test.assertTrue
 class BottomBarFloatingSegmentedControlBackdropStructureTest {
 
     @Test
+    fun `appearance overrides reach the shared home dock renderer`() {
+        val entry = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt")
+        val wrapper = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt")
+        val renderer = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
+        for (parameter in listOf("tapPressRefractionEnabled", "indicatorIdleSurfaceColorOverride")) {
+            assertTrue(entry.contains("$parameter = $parameter"))
+            assertTrue(wrapper.contains("$parameter = $parameter"))
+        }
+        assertTrue(wrapper.contains("contentHorizontalPadding = horizontalPadding"))
+        assertTrue(wrapper.contains("contentVerticalPadding = verticalPadding"))
+        assertTrue(renderer.contains("resolveFloatingDockRefractionProgress("))
+        assertTrue(renderer.contains("color = indicatorIdleSurfaceColorOverride ?:"))
+        assertTrue(renderer.contains(".background(indicatorIdleSurfaceColorOverride ?:"))
+        assertTrue(renderer.contains("horizontalPaddingLatest.value.toPx()"))
+    }
+
+    @Test
     fun `external backdrop stays singular and local sampling is fallback only`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         )
 
-        assertTrue(source.contains("val localBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("val localBackdrop = if (liquidGlassEnabled && miuixBackdrop == null)"))
         assertTrue(source.contains("miuixBackdrop ?: localBackdrop"))
         assertTrue(source.contains("effectiveBackdrop != null && miuixBackdrop == null"))
         assertTrue(!source.contains("rememberCombinedBackdrop(localBackdrop, miuixBackdrop)"))
@@ -31,8 +48,21 @@ class BottomBarFloatingSegmentedControlBackdropStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         )
 
-        assertTrue(source.contains("modifier = rootModifier.height(height)"))
+        assertTrue(source.contains("modifier = rootModifier.height(effectiveHeight)"))
+        assertTrue(source.contains("val effectiveHeight = height.coerceAtLeast(0.dp)"))
+        assertTrue(!source.contains("height.coerceAtLeast(48.dp)"))
         assertTrue(source.contains("modifier = Modifier.matchParentSize()"))
+    }
+
+    @Test
+    fun `segmented content participates in the shared dispersion capture`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
+        assertTrue(source.contains("if (isLiquidGlassMode) rememberChromeBackdropSource()"))
+        assertTrue(source.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
+        assertTrue(source.contains("LocalFloatingBottomBarIndicatorStretchX provides indicatorStretchXProvider"))
+        assertTrue(source.contains("resolveLiquidGlassIndicatorChromaticAberration("))
+        assertTrue(source.contains(".height(capturedContentHeight)"))
+        assertTrue(!source.contains("separateForeground"))
     }
 
     private fun loadSource(path: String): String {

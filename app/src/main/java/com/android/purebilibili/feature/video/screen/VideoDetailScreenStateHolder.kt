@@ -2402,7 +2402,7 @@ internal fun VideoDetailScreenStateHolder(
             isInPictureInPictureMode = isPipMode,
             // 展开态折叠屏也应遵循用户选择的默认全屏方向。
             preferPortraitForFlatFoldable = false,
-            preserveExactLandscapeSide = windowSizeClass.isFoldableCoverScreen,
+            preserveExactLandscapeSide = orientationPolicyDevice,
         ) ?: return@LaunchedEffect
 
         activity?.applyPlayerRequestedOrientation(requestedOrientation)
@@ -2485,7 +2485,7 @@ internal fun VideoDetailScreenStateHolder(
                 val targetOrientation = resolvePhoneAutoRotateRequestedOrientation(
                     orientationDegrees = orientation,
                     isCurrentlyLandscape = isCurrentlyLandscape,
-                    useExactLandscapeSide = windowSizeClass.isFoldableCoverScreen,
+                    useExactLandscapeSide = orientationPolicyDevice,
                 )
                 val nowMs = SystemClock.elapsedRealtime()
                 val targetToApply = resolvePhoneAutoRotateTargetToApply(

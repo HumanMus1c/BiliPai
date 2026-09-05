@@ -8,6 +8,55 @@ import kotlin.test.assertTrue
 class FloatingBottomBarGeometryTest {
 
     @Test
+    fun `short controls retain the five slot home drag reference width`() {
+        for (count in listOf(2, 3, 5)) {
+            val slot = resolveFloatingDockSlotWidthPx(64f * count + 8f, 4f, count)
+            assertEquals(328f, resolveFloatingDockDragReferenceWidthPx(slot, 4f))
+        }
+        assertEquals(1f, resolveFloatingDockDragReferenceWidthPx(0f, 0f))
+    }
+
+    @Test
+    fun `custom padding keeps all slots inside the padded content band`() {
+        for (padding in listOf(0f, 4f, 12f, 24f)) {
+            val slot = resolveFloatingDockSlotWidthPx(360f, padding, 5)
+            assertEquals(360f - padding * 2, slot * 5, 0.001f)
+            val last = padding + resolveFloatingDockIndicatorOffsetPx(4f, slot, 5, slot)
+            assertEquals(360f - padding, last + slot, 0.001f)
+        }
+        assertEquals(0f, resolveFloatingDockSlotWidthPx(20f, 12f, 5))
+        assertEquals(72f, resolveFloatingDockSlotWidthPx(360f, -4f, 5))
+    }
+
+    @Test
+    fun `tap refraction opt out preserves drag and pager effects`() {
+        assertEquals(0.6f, resolveFloatingDockRefractionProgress(0.6f, true, false, false))
+        assertEquals(0f, resolveFloatingDockRefractionProgress(0.6f, false, false, false))
+        assertEquals(0.6f, resolveFloatingDockRefractionProgress(0.6f, false, true, false))
+        assertEquals(0.6f, resolveFloatingDockRefractionProgress(0.6f, false, false, true))
+        assertEquals(0f, resolveFloatingDockRefractionProgress(0f, true, false, false))
+    }
+
+    @Test
+    fun `segmented geometry flattens narrow slots without changing dock geometry`() {
+        for (width in listOf(40f, 48f, 56f, 64f, 108f)) {
+            val height = resolveFloatingDockIndicatorHeightDp(
+                requestedHeightDp = 52f,
+                tabWidthDp = width,
+                geometryMode = FloatingBottomBarGeometryMode.Segmented,
+            )
+            assertEquals(minOf(52f, width / 1.6f), height, 0.001f)
+            assertTrue(width / height >= 1.6f - 0.001f)
+            assertEquals(0f, resolveFloatingDockIndicatorOffsetPx(0f, width, 3, width))
+            assertEquals(width * 2, resolveFloatingDockIndicatorOffsetPx(2f, width, 3, width))
+        }
+        assertEquals(52f, resolveFloatingDockIndicatorHeightDp(52f, 56f))
+        assertEquals(52f, resolveFloatingDockIndicatorHeightDp(
+            52f, 108f, FloatingBottomBarGeometryMode.Segmented,
+        ))
+    }
+
+    @Test
     fun `upstream effect padding combines 24dp lens and 16dp press bloom`() {
         assertEquals(
             40f,

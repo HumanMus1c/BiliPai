@@ -62,6 +62,8 @@ internal fun BottomBarFloatingSegmentedControl(
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuningOverride: LiquidGlassTuning? = null,
     onItemReselected: (() -> Unit)? = null,
+    tapPressRefractionEnabled: Boolean = true,
+    indicatorIdleSurfaceColorOverride: Color? = null,
     itemContent: (@Composable ColumnScope.(index: Int, label: String, selected: Boolean) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
@@ -128,8 +130,12 @@ internal fun BottomBarFloatingSegmentedControl(
     } else {
         FloatingBottomBarMode.None
     }
-    val rootModifier = if (itemWidth != null) {
-        modifier.width(itemWidth * itemCount + containerHorizontalPadding * 2)
+    val effectiveHeight = height.coerceAtLeast(0.dp)
+    val effectiveItemWidth = itemWidth?.coerceAtLeast(48.dp)
+    val horizontalPadding = containerHorizontalPadding.coerceAtLeast(0.dp)
+    val verticalPadding = containerVerticalPadding.coerceIn(0.dp, effectiveHeight / 2)
+    val rootModifier = if (effectiveItemWidth != null) {
+        modifier.width(effectiveItemWidth * itemCount + horizontalPadding * 2)
     } else {
         modifier
     }
@@ -139,12 +145,12 @@ internal fun BottomBarFloatingSegmentedControl(
     val onItemReselectedState = rememberUpdatedState(onItemReselected)
 
     BoxWithConstraints(
-        modifier = rootModifier.height(height)
+        modifier = rootModifier.height(effectiveHeight)
     ) {
         val indicatorWidthDp = when {
-            itemWidth != null -> itemWidth.value
             constraints.hasBoundedWidth ->
-                ((maxWidth.value - 8f).coerceAtLeast(0f) / itemCount)
+                resolveFloatingDockSlotWidthPx(maxWidth.value, horizontalPadding.value, itemCount)
+            effectiveItemWidth != null -> effectiveItemWidth.value
             else -> indicatorHeight.value * FLOATING_DOCK_MIN_INDICATOR_ASPECT
         }
         val fittedSegmentedIndicatorWidth = resolveSegmentedControlIndicatorWidthDp(
@@ -153,9 +159,10 @@ internal fun BottomBarFloatingSegmentedControl(
             itemCount = itemCount,
         ).dp
         val captureInsets = resolveFloatingDockCaptureInsets(
-            shellHeightDp = height.value,
+            shellHeightDp = effectiveHeight.value,
             requestedIndicatorHeightDp = indicatorHeight.value,
             indicatorWidthDp = fittedSegmentedIndicatorWidth.value,
+            geometryMode = FloatingBottomBarGeometryMode.Segmented,
         )
         if (effectiveBackdrop != null && miuixBackdrop == null && localBackdrop != null) {
             Box(
@@ -194,10 +201,15 @@ internal fun BottomBarFloatingSegmentedControl(
                 contentColor = unselectedTextColor,
                 activeContentColor = selectedTextColor,
             ),
-            shellHeight = height,
+            shellHeight = effectiveHeight,
             indicatorHeight = indicatorHeight,
             indicatorWidth = fittedSegmentedIndicatorWidth,
+            geometryMode = FloatingBottomBarGeometryMode.Segmented,
             indicatorPositionProvider = indicatorPositionProvider,
+            contentHorizontalPadding = horizontalPadding,
+            contentVerticalPadding = verticalPadding,
+            tapPressRefractionEnabled = tapPressRefractionEnabled,
+            indicatorIdleSurfaceColorOverride = indicatorIdleSurfaceColorOverride,
             isScrollInProgressProvider = isScrollInProgressProvider,
             dragSelectionEnabled = dragSelectionEnabled && enabled && itemCount > 1,
             longPressDragSelectionEnabled =
@@ -215,6 +227,7 @@ internal fun BottomBarFloatingSegmentedControl(
                     },
                     selected = selected,
                     itemIndex = index,
+                    iconCrossScaleEnabled = resolvedHomeSettings.navigationIconCrossScaleEnabled,
                 ) {
                     if (itemContent != null) {
                         itemContent(index, label, selected)

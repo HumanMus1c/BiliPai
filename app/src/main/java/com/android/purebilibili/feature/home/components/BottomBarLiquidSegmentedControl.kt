@@ -493,6 +493,8 @@ fun BottomBarLiquidSegmentedControl(
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         dragSelectionEnabled = dragSelectionEnabled,
         longPressDragSelectionEnabled = longPressDragSelectionEnabled,
+        tapPressRefractionEnabled = tapPressRefractionEnabled,
+        indicatorIdleSurfaceColorOverride = indicatorIdleSurfaceColorOverride,
         miuixBackdrop = miuixBackdrop,
         containerColorOverride = containerColorOverride,
         selectedTextColorOverride = selectedTextColorOverride,

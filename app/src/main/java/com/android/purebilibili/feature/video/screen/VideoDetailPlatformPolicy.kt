@@ -606,7 +606,7 @@ internal fun resolvePhoneVideoRequestedOrientation(
     isInMultiWindowMode: Boolean = false,
     isInPictureInPictureMode: Boolean = false,
     preferPortraitForFlatFoldable: Boolean = false,
-    preserveExactLandscapeSide: Boolean = false,
+    preserveExactLandscapeSide: Boolean = true,
 ): Int? {
     // A size class alone can classify a tablet or a large phone as a foldable. Keep this
     // preference out of compact layouts even if an upstream caller misclassifies the device.
@@ -672,8 +672,8 @@ internal fun resolvePhoneVideoRequestedOrientation(
                     preserveExactLandscapeSide = preserveExactLandscapeSide,
                 )
             }
-            // Foldable cover displays may need the listener's exact side preserved. Regular
-            // phones deliberately release an earlier exact request back to SENSOR_LANDSCAPE.
+            // Preserve the listener's physical side across fullscreen configuration updates.
+            // Releasing it to SENSOR_LANDSCAPE can snap back on phone ROMs too.
             isFullscreenMode -> preserveCurrentExactLandscapeSideWhileFullscreen(
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
                 currentRequestedOrientation = currentRequestedOrientation,
@@ -720,7 +720,7 @@ private fun resolveStableOrientationWhenAutoRotateDisabled(
 internal fun resolvePhoneAutoRotateRequestedOrientation(
     orientationDegrees: Int,
     isCurrentlyLandscape: Boolean,
-    useExactLandscapeSide: Boolean = false,
+    useExactLandscapeSide: Boolean = true,
     portraitSnapDegrees: Int = 25,
     landscapeEnterMinDegrees: Int = 60,
     landscapeEnterMaxDegrees: Int = 120,
@@ -754,10 +754,8 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     )
 
     return when {
-        // Regular phones should stay on SENSOR_LANDSCAPE so the platform can rotate between
-        // both sides without a fixed-side request racing a configuration update. Some foldable
-        // cover displays ignore that sensor request after the first turn, so only those windows
-        // receive the exact physical side as a fallback.
+        // Track the physical side on phones and foldable covers. Some ROMs stop following
+        // SENSOR_LANDSCAPE after entry; exact requests keep both sides reachable.
         isCurrentlyLandscape && exactLandscapeKeep != null -> if (useExactLandscapeSide) {
             exactLandscapeKeep
         } else {

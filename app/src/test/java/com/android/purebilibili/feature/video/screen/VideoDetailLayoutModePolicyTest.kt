@@ -606,13 +606,13 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneOrientationPolicy_regularPhoneReleasesDetectedSideToSensorLandscape() {
+    fun phoneOrientationPolicy_regularPhonePreservesDetectedSideAcrossFullscreenUpdates() {
         for (exactLandscape in listOf(
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
         )) {
             assertEquals(
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                exactLandscape,
                 resolvePhoneVideoRequestedOrientation(
                     autoRotateEnabled = true,
                     fullscreenMode = FullscreenMode.AUTO,
@@ -623,7 +623,7 @@ class VideoDetailLayoutModePolicyTest {
                 )
             )
             assertEquals(
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                exactLandscape,
                 resolvePhoneVideoRequestedOrientation(
                     autoRotateEnabled = true,
                     fullscreenMode = FullscreenMode.AUTO,
@@ -683,14 +683,14 @@ class VideoDetailLayoutModePolicyTest {
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 90,
                 isCurrentlyLandscape = false
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 48,
                 isCurrentlyLandscape = true
@@ -706,16 +706,16 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun autoRotateSensorPolicy_regularPhoneLetsSystemTrackBothLandscapeSides() {
+    fun autoRotateSensorPolicy_regularPhoneTracksBothLandscapeSidesExplicitly() {
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 270,
                 isCurrentlyLandscape = false
             )
         )
         assertEquals(
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolvePhoneAutoRotateRequestedOrientation(
                 orientationDegrees = 312,
                 isCurrentlyLandscape = true
@@ -830,6 +830,36 @@ class VideoDetailLayoutModePolicyTest {
                     currentRequestedOrientation = expandedOrientation
                 )
             )
+        }
+    }
+
+    @Test
+    fun regularPhone_halfTurnAndFullscreenUpdatesKeepDetectedSide() {
+        for (manualFullscreen in listOf(false, true)) {
+            var currentRequest = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            for ((degrees, expected) in listOf(
+                90 to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+                180 to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+                270 to ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+                180 to ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+                90 to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            )) {
+                currentRequest = resolvePhoneAutoRotateRequestedOrientation(
+                    orientationDegrees = degrees,
+                    isCurrentlyLandscape = true,
+                ) ?: currentRequest
+                // Simulate the fullscreen effect running after each sensor/configuration update.
+                currentRequest = requireNotNull(resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.AUTO,
+                    isCompactDevice = true,
+                    isOrientationDrivenFullscreen = true,
+                    isFullscreenMode = true,
+                    manualFullscreenRequested = manualFullscreen,
+                    currentRequestedOrientation = currentRequest,
+                ))
+                assertEquals(expected, currentRequest)
+            }
         }
     }
 

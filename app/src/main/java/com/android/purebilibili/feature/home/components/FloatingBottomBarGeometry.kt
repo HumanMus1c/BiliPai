@@ -195,12 +195,42 @@ internal const val FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f
 internal const val FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP = 0.2f
 internal const val FLOATING_DOCK_VELOCITY_REFERENCE_TAB_WIDTH_DP = 75f
 
+enum class FloatingBottomBarGeometryMode { Dock, Segmented }
+
+internal fun resolveFloatingDockSlotWidthPx(
+    containerWidthPx: Float,
+    horizontalPaddingPx: Float,
+    itemCount: Int,
+): Float = (containerWidthPx - horizontalPaddingPx.coerceAtLeast(0f) * 2f)
+    .coerceAtLeast(0f) / itemCount.coerceAtLeast(1)
+
+internal fun resolveFloatingDockDragReferenceWidthPx(
+    tabWidthPx: Float,
+    horizontalPaddingPx: Float,
+): Float = (tabWidthPx.coerceAtLeast(0f) * 5f + horizontalPaddingPx.coerceAtLeast(0f) * 2f)
+    .coerceAtLeast(1f)
+
+internal fun resolveFloatingDockRefractionProgress(
+    pressProgress: Float,
+    tapPressRefractionEnabled: Boolean,
+    isDragging: Boolean,
+    isPagerScrolling: Boolean,
+): Float = if (tapPressRefractionEnabled || isDragging || isPagerScrolling) {
+    pressProgress.coerceIn(0f, 1f)
+} else {
+    0f
+}
+
 internal fun resolveFloatingDockIndicatorHeightDp(
     requestedHeightDp: Float,
     tabWidthDp: Float,
+    geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Dock,
 ): Float {
     if (requestedHeightDp <= 0f) return 0f
     if (tabWidthDp <= 0f) return requestedHeightDp
+    if (geometryMode == FloatingBottomBarGeometryMode.Segmented) {
+        return resolveSegmentedControlIndicatorHeightDp(tabWidthDp, requestedHeightDp)
+    }
     // A slot that is already wider than the pill can keep the authored height.
     // Forcing the 1.35 aspect here flattens icon+label after search takes a side slot.
     if (tabWidthDp >= requestedHeightDp) return requestedHeightDp
@@ -278,6 +308,7 @@ internal fun resolveFloatingDockCaptureInsets(
     shellHeightDp: Float,
     requestedIndicatorHeightDp: Float,
     indicatorWidthDp: Float,
+    geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Dock,
 ): FloatingDockCaptureInsets {
     if (shellHeightDp <= 0f || indicatorWidthDp <= 0f) {
         return FloatingDockCaptureInsets(horizontalDp = 0f, verticalDp = 0f)
@@ -285,6 +316,7 @@ internal fun resolveFloatingDockCaptureInsets(
     val fittedIndicatorHeightDp = resolveFloatingDockIndicatorHeightDp(
         requestedHeightDp = requestedIndicatorHeightDp,
         tabWidthDp = indicatorWidthDp,
+        geometryMode = geometryMode,
     )
     val geometry = com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry(
         dockHeightDp = shellHeightDp,
