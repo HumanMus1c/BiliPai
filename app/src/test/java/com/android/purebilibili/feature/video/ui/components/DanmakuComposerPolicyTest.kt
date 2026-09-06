@@ -14,9 +14,12 @@ class DanmakuComposerPolicyTest {
     }
 
     @Test
-    fun danmakuInput_shownFrom480dpInFullscreen() {
+    fun danmakuInput_shownFrom720dpInFullscreen() {
         assertFalse(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 479))
-        assertTrue(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 480))
+        assertFalse(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 480))
+        assertFalse(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 616))
+        assertFalse(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 719))
+        assertTrue(shouldShowDanmakuInputInControlBar(isFullscreen = true, widthDp = 720))
         assertFalse(shouldShowDanmakuInputInControlBar(isFullscreen = false, widthDp = 800))
     }
 
@@ -24,6 +27,14 @@ class DanmakuComposerPolicyTest {
     fun compactDanmakuSend_shownBelow480dpInFullscreen() {
         assertTrue(shouldShowCompactDanmakuSendAction(isFullscreen = true, widthDp = 479))
         assertFalse(shouldShowCompactDanmakuSendAction(isFullscreen = true, widthDp = 480))
+        assertFalse(shouldShowCompactDanmakuSendAction(isFullscreen = true, widthDp = 616))
+    }
+
+    @Test
+    fun danmakuInputCapsule_hiddenWhenSlotIsNarrowerThanAHorizontalPill() {
+        assertFalse(shouldDrawDanmakuInputCapsule(availableWidthDp = 40))
+        assertFalse(shouldDrawDanmakuInputCapsule(availableWidthDp = 95))
+        assertTrue(shouldDrawDanmakuInputCapsule(availableWidthDp = 96))
     }
 
     @Test

@@ -115,8 +115,8 @@ fun SearchVideoFilterBar(
             labelFontSize = 13.sp,
             miuixBackdrop = miuixBackdrop,
             tapPressRefractionEnabled = true,
-            // Horizontal swipes scroll the six sorting labels, as in PiliPlus.
-            dragSelectionEnabled = false,
+            // Drag the selected pill directly; the remaining rail still scrolls.
+            dragSelectionEnabled = orderOptions.size > 1,
         )
         VerticalDivider(
             modifier = Modifier

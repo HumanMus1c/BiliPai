@@ -52,7 +52,7 @@ internal fun resolveSpaceMainTabChromeSpec(
         itemWidthDp = null,
         scrollable = tabs.size > 4,
         liquidGlassEffectsEnabled = true,
-        dragSelectionEnabled = tabs.size in 2..4
+        dragSelectionEnabled = tabs.size > 1
     )
 }
 
@@ -92,7 +92,7 @@ internal fun resolveSpaceSecondarySwitchChromeSpec(
         itemWidthDp = itemWidthDp,
         scrollable = items.size > 3,
         liquidGlassEffectsEnabled = true,
-        dragSelectionEnabled = items.size in 2..4
+        dragSelectionEnabled = items.size > 1
     )
 }
 

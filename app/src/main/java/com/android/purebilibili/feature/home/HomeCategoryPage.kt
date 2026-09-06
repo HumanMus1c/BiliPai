@@ -577,7 +577,7 @@ private fun PopularSubCategorySegmentedControl(
             miuixBackdrop = null,
             liquidGlassEffectsEnabled = true,
             tapPressRefractionEnabled = true,
-            dragSelectionEnabled = false,
+            dragSelectionEnabled = labels.size > 1,
             preferInlineContentStyle = true,
             forceEqualWidth = true,
         )

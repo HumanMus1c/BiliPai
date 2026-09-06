@@ -46,7 +46,7 @@ class BangumiLiquidGlassStructureTest {
         assertTrue(tabRowSource.contains("AppNativeTabRow("))
         assertTrue(tabRowSource.contains("Modifier.horizontalScroll(scrollState)"))
         assertTrue(tabRowSource.contains("itemWidth = minTabWidth"))
-        assertTrue(tabRowSource.contains("longPressDragSelectionEnabled = resolvedDragSelectionEnabled"))
+        assertTrue(tabRowSource.contains("dragSelectionEnabled = resolvedDragSelectionEnabled"))
         assertTrue(floatingDockSource.contains("resolveSharedBottomBarCapsuleShape()"))
         assertTrue(!floatingDockSource.contains("remember { CircleShape }"))
         assertTrue(contentSource.contains("miuixBackdrop = tabBackdrop"))

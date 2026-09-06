@@ -1302,7 +1302,7 @@ internal fun resolveVideoPlayerEntryPresentationSpec(
         targetMode == com.android.purebilibili.core.ui.transition.VideoSharedTransitionTargetMode.LandscapeFullscreen ||
             targetMode == com.android.purebilibili.core.ui.transition.VideoSharedTransitionTargetMode.PortraitFullscreen
     val fillCoverViewport = !forceCoverDuringReturnAnimation &&
-        (targetFillsViewport || (shouldKeepCoverForManualStart && isVerticalVideo))
+        (targetFillsViewport || shouldKeepCoverForManualStart)
     return VideoPlayerEntryPresentationSpec(
         coverUsesSharedBounds = forceCoverDuringReturnAnimation || shouldKeepCoverForManualStart,
         fillCoverViewport = fillCoverViewport,

@@ -194,6 +194,7 @@ internal fun PortraitInlineVideoPlayerHost(
     subtitleDisplayModePreferenceOverride: SubtitleDisplayMode?,
     onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit,
     fullscreenExtras: ContinuousPlayerFullscreenExtras? = null,
+    residentCoverSource: VideoDetailResidentCoverSource? = null,
 ) {
     val successState = uiState as? VideoPlaybackUiState.Success
 
@@ -248,7 +249,11 @@ internal fun PortraitInlineVideoPlayerHost(
                 ?: { _, _, _ -> },
             bvid = videoPlayerSectionTarget.bvid,
             coverUrl = videoPlayerSectionTarget.entryCoverUrl,
-            // Host path without residentCoverSource — section falls back to entry/route cover.
+            // Reuse the exact transition request so landing cannot swap to a differently cropped URL.
+            stationaryListCoverUrl = residentCoverSource?.url.orEmpty(),
+            stationaryListCoverCacheKey = residentCoverSource?.cacheKey.orEmpty(),
+            stationaryListCoverDecodeWidthPx = residentCoverSource?.decodeWidthPx ?: 0,
+            stationaryListCoverDecodeHeightPx = residentCoverSource?.decodeHeightPx ?: 0,
             sharedElementBvid = videoPlayerSectionTarget.sharedElementBvid,
             onDoubleTapLike = onDoubleTapLike,
             sponsorSegment = sponsorSegment,

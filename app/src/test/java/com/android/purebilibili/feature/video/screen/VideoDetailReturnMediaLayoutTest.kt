@@ -48,6 +48,59 @@ class VideoDetailReturnMediaLayoutTest {
     }
 
     @Test
+    fun entryCoverMatchesManualStartViewportBelowStatusBar() {
+        for (topInset in listOf(0, 72)) {
+            val frame = resolveVideoDetailReturnMediaLayoutFrame(
+                containerWidthPx = 1088,
+                containerHeightPx = 612 + topInset,
+                landingLayout = null,
+                handoffProgress = 0f,
+                contentTopInsetPx = topInset,
+            )
+            assertEquals(0, frame.offsetXPx)
+            assertEquals(topInset, frame.offsetYPx)
+            assertEquals(1088, frame.widthPx)
+            assertEquals(612, frame.heightPx)
+        }
+    }
+
+    @Test
+    fun statusBarInsetFadesOutOfReturnGeometryWithoutChangingCardLanding() {
+        val landing = resolveVideoDetailReturnSourceCardLayout(
+            viewportWidthPx = 1088f,
+            sourceBounds = Rect(0f, 0f, 544f, 420f),
+            sourceCoverBounds = Rect(0f, 0f, 544f, 306f),
+            sourceLayout = VideoCardSourceLayout.STACKED,
+        )
+        fun frame(progress: Float, inset: Int) = resolveVideoDetailReturnMediaLayoutFrame(
+            containerWidthPx = 1088,
+            containerHeightPx = 684,
+            landingLayout = landing,
+            handoffProgress = progress,
+            contentTopInsetPx = inset,
+        )
+        assertEquals(72, frame(0f, 72).offsetYPx)
+        assertEquals(612, frame(0f, 72).heightPx)
+        assertEquals(36, frame(0.5f, 72).offsetYPx)
+        assertEquals(frame(1f, 0), frame(1f, 72))
+    }
+
+    @Test
+    fun coverInsetCannotProduceEmptyOrNegativeMediaSize() {
+        for (inset in listOf(-20, 1000)) {
+            val frame = resolveVideoDetailReturnMediaLayoutFrame(
+                containerWidthPx = 1088,
+                containerHeightPx = 100,
+                landingLayout = null,
+                handoffProgress = 0f,
+                contentTopInsetPx = inset,
+            )
+            assertTrue(frame.heightPx >= 1)
+            assertEquals(100, frame.offsetYPx + frame.heightPx)
+        }
+    }
+
+    @Test
     fun mediaFrameInterpolatesToMeasuredCover() {
         val layout = resolveVideoDetailReturnSourceCardLayout(
             viewportWidthPx = 1000f,

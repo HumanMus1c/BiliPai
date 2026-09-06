@@ -517,6 +517,8 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(showBottomBarBlock.contains("activeRoute = bottomBarMountRoute"))
         assertTrue(source.contains("shouldShowVideoCardTransitionSourceChrome("))
         assertTrue(source.contains("shouldDriveVideoCardTransitionChromeByProgress("))
+        assertTrue(source.contains("isVideoCardTransitionBottomBarSource("))
+        assertTrue(source.contains("sourceIsBottomBarDestination = sourceIsBottomBarDestination"))
         assertTrue(source.contains("resolveVideoCardTransitionChromeReveal("))
         assertTrue(source.contains("videoCardTransitionChromeReveal("))
         assertTrue(source.contains("resolveVideoCardTransitionChromeBottomBarRoute("))

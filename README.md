@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.23-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.23" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.26-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.26" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -189,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.23-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.23.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.26-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.26.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -210,14 +210,13 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.23 / versionCode 340`；最新完整发布记录为 `v0.2.3-beta.23`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.26 / versionCode 343`；最新完整发布记录为 `v0.2.3-beta.26`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 列表进详情再返回改为整卡飞回，落点对齐真实列表卡，标题和底部信息与静止卡片一致。
-- 空间、相关推荐、收藏、历史、稍后再看、动态等入口同步该交接；封面内播放量带上渐变和统计。
-- 修复封面方向监听、空间返回同一视频、切 P 清晰度回退，以及历史删除崩溃。
-- 非玻璃模式下按钮与提示条走原生控件，旧系统分段标签选中项保持可见。
-- 动态瀑布流加载更稳，刷新不再跳阅读位置。
-- 完整 beta.22 → beta.23 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 视频飞回交接同步标题与播放量，进场不闪白边，内联播放视口与手动裁切精准对齐。
+- 全局液态胶囊（Liquid Dock）交互统一为即时拖拽，分段控件扁平化并对齐内边距，修复底栏搜索拖拽中断。
+- 手机端横屏全屏保留实际检测朝向，封面分类变化保持方向监听，小宽度横屏弹幕输入框不再挤压塌陷。
+- 直播间桌面式分栏限制右侧聊天宽度（280~400dp），弹幕输入面板新增表情入口，点赞按钮新增数值爆发动效。
+- 完整 beta.23 → beta.26 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

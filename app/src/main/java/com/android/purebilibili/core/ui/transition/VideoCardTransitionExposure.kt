@@ -98,14 +98,17 @@ internal fun shouldPaintRetainedSourceWithoutTransitionBackground(
  * 全局底栏在卡片过渡中的显隐。
  *
  * 详情在栈顶时默认隐藏；预测返回 / 提交返回时滑入，取消手势再滑出。
+ * 来源不是底栏一级入口（相关推荐、空间、历史等）时，不得把首页底栏带进这次交接。
  */
 internal fun shouldShowVideoCardTransitionSourceChrome(
     isVideoDetailDestination: Boolean,
     exposure: VideoCardTransitionExposure,
+    sourceIsBottomBarDestination: Boolean = true,
 ): Boolean {
     if (!isVideoDetailDestination) {
         return exposure != VideoCardTransitionExposure.Opening
     }
+    if (!sourceIsBottomBarDestination) return false
     return when (exposure) {
         VideoCardTransitionExposure.BackPreview,
         VideoCardTransitionExposure.Returning -> true
@@ -147,4 +150,21 @@ internal fun resolveVideoCardTransitionChromeReveal(depthProgress: Float): Float
 internal fun shouldDriveVideoCardTransitionChromeByProgress(
     cardTransitionEnabled: Boolean,
     exposure: VideoCardTransitionExposure,
-): Boolean = cardTransitionEnabled && exposure != VideoCardTransitionExposure.Idle
+    sourceIsBottomBarDestination: Boolean = true,
+): Boolean = cardTransitionEnabled &&
+    sourceIsBottomBarDestination &&
+    exposure != VideoCardTransitionExposure.Idle
+
+/**
+ * 只有从真正带底栏的一级入口进详情时，才让底栏跟着卡片景深滑入滑出。
+ * `video/…` 相关推荐、空间、分区等来源会把首页底栏带到无关界面上。
+ */
+internal fun isVideoCardTransitionBottomBarSource(
+    sourceRoute: String?,
+    visibleBottomBarRoutes: Set<String>,
+): Boolean {
+    val route = sourceRoute?.substringBefore("?")?.trim().orEmpty()
+    if (route.isEmpty() || route.startsWith("video/")) return false
+    if (route == "main_host") return true
+    return route in visibleBottomBarRoutes
+}

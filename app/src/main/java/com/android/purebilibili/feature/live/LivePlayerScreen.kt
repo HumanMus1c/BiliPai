@@ -328,10 +328,16 @@ fun LivePlayerScreen(
     val showChatToggle = remember(liveLayoutMode) {
         shouldShowLiveChatToggle(liveLayoutMode)
     }
-    val showSplitChatPanel = remember(liveLayoutMode, isInteractionPanelVisible) {
+    val showSplitChatPanel = remember(liveLayoutMode) {
         shouldShowLiveSplitChatPanel(
             layoutMode = liveLayoutMode,
-            isInteractionPanelVisible = isInteractionPanelVisible
+            isInteractionPanelVisible = true
+        )
+    }
+    val splitChatPanelWidthDp = remember(configuration.screenWidthDp) {
+        resolveLiveSplitChatPanelWidthDp(
+            screenWidthDp = configuration.screenWidthDp,
+            contentPaddingDp = AppSpacingTokens.Medium.value.toInt() * 2,
         )
     }
     val showLandscapeChatOverlay = remember(liveLayoutMode, isInteractionPanelVisible) {
@@ -1092,7 +1098,7 @@ fun LivePlayerScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .weight(if (showSplitChatPanel) 1.25f else 1f)
+                                .weight(1f)
                                 .fillMaxHeight()
                                 .padding(
                                     bottom = AppSpacingTokens.Medium,
@@ -1108,7 +1114,7 @@ fun LivePlayerScreen(
                         if (showSplitChatPanel) {
                             LiveLandscapeChatPanel(
                                 modifier = Modifier
-                                    .weight(0.95f)
+                                    .width(splitChatPanelWidthDp.dp)
                                     .fillMaxHeight()
                                     .padding(bottom = AppSpacingTokens.Medium)
                             ) {
@@ -1588,7 +1594,11 @@ fun LivePlayerScreen(
                 showSendDanmakuSheet = false
             },
             permission = successState?.danmakuPermission ?: com.android.purebilibili.data.repository.LiveDanmakuPermission(),
-            replyTarget = replyTarget
+            replyTarget = replyTarget,
+            onOpenEmote = {
+                showSendDanmakuSheet = false
+                showEmoticonSheet = true
+            },
         )
     }
 

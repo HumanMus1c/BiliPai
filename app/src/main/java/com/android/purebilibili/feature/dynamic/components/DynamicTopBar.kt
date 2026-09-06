@@ -170,6 +170,7 @@ fun DynamicTopBarWithTabs(
                 onSelected = onTabSelected,
                 modifier = Modifier.weight(1f),
                 height = liquidTabSpec.heightDp.dp,
+                geometryMode = com.android.purebilibili.feature.home.components.FloatingBottomBarGeometryMode.TopNavigation,
                 indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
                 labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
                 allowNativeLabelOverflow = true,

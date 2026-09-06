@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -51,6 +53,7 @@ import com.android.purebilibili.data.repository.LiveDanmakuPermission
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.EmojiEmotions
 
 /** 弹幕默认颜色（白色） */
 private const val LIVE_DANMAKU_DEFAULT_COLOR = 16777215
@@ -71,7 +74,8 @@ fun LiveSendDanmakuSheet(
     onDismiss: () -> Unit,
     onSend: (String, Int, Int) -> Unit,
     permission: LiveDanmakuPermission = LiveDanmakuPermission(),
-    replyTarget: LiveDanmakuItem? = null
+    replyTarget: LiveDanmakuItem? = null,
+    onOpenEmote: (() -> Unit)? = null,
 ) {
     var message by remember { mutableStateOf("") }
     val maxLength = permission.maxLength.takeIf { it > 0 } ?: 40
@@ -87,6 +91,8 @@ fun LiveSendDanmakuSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 640.dp)
+                .align(Alignment.CenterHorizontally)
                 .padding(
                     horizontal = AppSpacingTokens.ExtraLarge,
                     vertical = AppSpacingTokens.Small,
@@ -157,8 +163,19 @@ fun LiveSendDanmakuSheet(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (onOpenEmote != null) {
+                            AppIconButton(onClick = onOpenEmote) {
+                                AppIcon(
+                                    imageVector = Icons.Outlined.EmojiEmotions,
+                                    contentDescription = "表情",
+                                )
+                            }
+                        } else {
+                            Box(Modifier)
+                        }
                         AppButton(
                             enabled = permission.canSend && message.trim().isNotEmpty(),
                             onClick = { onSend(message.trim(), selectedColor, selectedMode) }

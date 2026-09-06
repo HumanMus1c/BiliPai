@@ -101,7 +101,7 @@ fun BangumiPlayerContent(
                 indicatorHeight = com.android.purebilibili.core.ui
                     .roundMatchedLiquidIndicatorHeightDp(44f).dp,
                 labelFontSize = 15.sp,
-                dragSelectionEnabled = false,
+                dragSelectionEnabled = tabs.size > 1,
                 tapPressRefractionEnabled = false,
                 miuixBackdrop = selectionBackdrop,
                 indicatorPositionProvider = indicatorPositionProvider,

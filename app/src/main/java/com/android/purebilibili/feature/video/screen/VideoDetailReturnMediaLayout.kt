@@ -4,6 +4,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
 import kotlin.math.roundToInt
@@ -199,9 +201,12 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
     handoffProgress: Float,
     inverseScaleX: Float = landingLayout?.let { 1f / it.sourceScale } ?: 1f,
     inverseScaleY: Float = inverseScaleX,
+    contentTopInsetPx: Int = 0,
 ): VideoDetailReturnMediaLayoutFrame {
     val safeContainerWidth = containerWidthPx.coerceAtLeast(1)
     val safeContainerHeight = containerHeightPx.coerceAtLeast(1)
+    val contentTop = contentTopInsetPx.coerceIn(0, safeContainerHeight - 1)
+    val contentHeight = safeContainerHeight - contentTop
     val landing = landingLayout?.takeIf { it.canRender }
     val progress = if (landing == null) 0f else handoffProgress.coerceIn(0f, 1f)
     fun interpolate(start: Float, end: Float): Int =
@@ -227,9 +232,9 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
 
     return VideoDetailReturnMediaLayoutFrame(
         offsetXPx = interpolate(0f, targetOffsetX),
-        offsetYPx = interpolate(0f, targetOffsetY),
+        offsetYPx = interpolate(contentTop.toFloat(), targetOffsetY),
         widthPx = interpolate(safeContainerWidth.toFloat(), targetWidth).coerceAtLeast(1),
-        heightPx = interpolate(safeContainerHeight.toFloat(), targetHeight).coerceAtLeast(1),
+        heightPx = interpolate(contentHeight.toFloat(), targetHeight).coerceAtLeast(1),
     )
 }
 
@@ -241,6 +246,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
         landingLayout?.let { 1f / it.sourceScale } ?: 1f
     },
     inverseScaleYProvider: () -> Float = inverseScaleXProvider,
+    contentTopInset: Dp = 0.dp,
 ): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
@@ -255,6 +261,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
             handoffProgress = handoffProgressProvider(),
             inverseScaleX = inverseScaleXProvider(),
             inverseScaleY = inverseScaleYProvider(),
+            contentTopInsetPx = contentTopInset.roundToPx(),
         )
         val placeable = measurable.measure(
             Constraints.fixed(width = frame.widthPx, height = frame.heightPx),

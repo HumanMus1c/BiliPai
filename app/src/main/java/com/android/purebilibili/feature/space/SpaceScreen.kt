@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import com.android.purebilibili.core.ui.components.liquidDockViewport
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -2639,8 +2640,7 @@ private fun SpaceSecondarySwitchRow(
                 indicatorHeight = spec.indicatorHeightDp.dp,
                 labelFontSize = 14.sp,
                 liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
-                dragSelectionEnabled = spec.dragSelectionEnabled && !useScrollableRail,
-                longPressDragSelectionEnabled = useScrollableRail,
+                dragSelectionEnabled = spec.dragSelectionEnabled || useScrollableRail,
                 onIndicatorPositionChanged = { position ->
                     if (useScrollableRail) {
                         scrollState.dispatchRawDelta(
@@ -2658,7 +2658,7 @@ private fun SpaceSecondarySwitchRow(
                 tapPressRefractionEnabled = !useScrollableRail,
                 modifier = if (useScrollableRail) {
                     Modifier
-                        .clip(CircleShape)
+                        .liquidDockViewport()
                         .horizontalScroll(scrollState)
                 } else {
                     Modifier.fillMaxWidth()

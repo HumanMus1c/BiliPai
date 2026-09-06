@@ -64,6 +64,7 @@ internal fun BottomBarFloatingSegmentedControl(
     onItemReselected: (() -> Unit)? = null,
     tapPressRefractionEnabled: Boolean = true,
     indicatorIdleSurfaceColorOverride: Color? = null,
+    geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Segmented,
     itemContent: (@Composable ColumnScope.(index: Int, label: String, selected: Boolean) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
@@ -162,7 +163,7 @@ internal fun BottomBarFloatingSegmentedControl(
             shellHeightDp = effectiveHeight.value,
             requestedIndicatorHeightDp = indicatorHeight.value,
             indicatorWidthDp = fittedSegmentedIndicatorWidth.value,
-            geometryMode = FloatingBottomBarGeometryMode.Segmented,
+            geometryMode = geometryMode,
         )
         if (effectiveBackdrop != null && miuixBackdrop == null && localBackdrop != null) {
             Box(
@@ -204,14 +205,15 @@ internal fun BottomBarFloatingSegmentedControl(
             shellHeight = effectiveHeight,
             indicatorHeight = indicatorHeight,
             indicatorWidth = fittedSegmentedIndicatorWidth,
-            geometryMode = FloatingBottomBarGeometryMode.Segmented,
+            geometryMode = geometryMode,
             indicatorPositionProvider = indicatorPositionProvider,
             contentHorizontalPadding = horizontalPadding,
             contentVerticalPadding = verticalPadding,
             tapPressRefractionEnabled = tapPressRefractionEnabled,
             indicatorIdleSurfaceColorOverride = indicatorIdleSurfaceColorOverride,
             isScrollInProgressProvider = isScrollInProgressProvider,
-            dragSelectionEnabled = dragSelectionEnabled && enabled && itemCount > 1,
+            // No per-screen exceptions for the shared liquid dock gesture.
+            dragSelectionEnabled = enabled && itemCount > 1,
             longPressDragSelectionEnabled =
                 longPressDragSelectionEnabled && enabled && itemCount > 1,
             dragTrackingMode = DampedDragTrackingMode.SPRING,

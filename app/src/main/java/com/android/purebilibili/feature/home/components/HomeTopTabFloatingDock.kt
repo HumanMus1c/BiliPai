@@ -211,6 +211,7 @@ internal fun HomeTopTabFloatingDock(
         enabled = true,
         itemWidth = itemWidth,
         height = dockHeight,
+        geometryMode = FloatingBottomBarGeometryMode.TopNavigation,
         indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
         labelFontSize = labelFontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,

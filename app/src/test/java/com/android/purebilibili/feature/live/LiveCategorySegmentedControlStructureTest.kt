@@ -97,6 +97,11 @@ class LiveCategorySegmentedControlStructureTest {
         assertTrue(sheetSource.contains("permission: LiveDanmakuPermission"))
         assertTrue(sheetSource.contains("permission.canSend"))
         assertTrue(sheetSource.contains("AppThemeAdaptiveTabRow("))
+        assertTrue(sheetSource.contains("onOpenEmote: (() -> Unit)? = null"))
+        assertTrue(sheetSource.contains("Icons.Outlined.EmojiEmotions"))
+        assertTrue(sheetSource.contains(".widthIn(max = 640.dp)"))
+        assertTrue(screenSource.contains("onOpenEmote = {"))
+        assertTrue(screenSource.contains("resolveLiveSplitChatPanelWidthDp("))
         assertFalse(sheetSource.contains("AppFilterChip("))
     }
 

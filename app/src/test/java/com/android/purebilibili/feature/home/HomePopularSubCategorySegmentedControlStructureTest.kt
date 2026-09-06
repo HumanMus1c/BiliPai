@@ -15,7 +15,7 @@ class HomePopularSubCategorySegmentedControlStructureTest {
 
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("PopularSubCategorySegmentedControl("))
-        assertTrue(source.contains("dragSelectionEnabled = false"))
+        assertTrue(source.contains("dragSelectionEnabled = labels.size > 1"))
         assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(source.contains("tapPressRefractionEnabled = true"))
         assertTrue(source.contains("miuixBackdrop = popularBackdrop"))

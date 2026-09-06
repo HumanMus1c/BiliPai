@@ -721,6 +721,7 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     orientationDegrees: Int,
     isCurrentlyLandscape: Boolean,
     useExactLandscapeSide: Boolean = true,
+    allowPortraitTransitions: Boolean = true,
     portraitSnapDegrees: Int = 25,
     landscapeEnterMinDegrees: Int = 60,
     landscapeEnterMaxDegrees: Int = 120,
@@ -764,9 +765,10 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
         // Already landscape: only 0° exits to portrait. 180° is the midpoint of a
         // landscape-to-landscape flip; treating it as portrait makes cover screens
         // recognize the other side, then snap back to the original 90° landscape.
-        isCurrentlyLandscape && uprightPortraitStable ->
+        isCurrentlyLandscape && uprightPortraitStable && allowPortraitTransitions ->
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        !isCurrentlyLandscape && portraitStable -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        !isCurrentlyLandscape && portraitStable && allowPortraitTransitions ->
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         !isCurrentlyLandscape && exactLandscapeEntry != null -> if (useExactLandscapeSide) {
             exactLandscapeEntry
         } else {
@@ -923,8 +925,11 @@ internal fun shouldObservePhoneAutoRotate(
     isInPictureInPictureMode: Boolean = false,
     isPortraitFullscreen: Boolean = false,
     observeWhenAutoRotateDisabled: Boolean = false,
+    isFullscreenMode: Boolean = false,
 ): Boolean {
-    if (!autoRotateEnabled && !observeWhenAutoRotateDisabled) return false
+    // A cover display may be classified as a compact phone when its metrics refresh.
+    // Keep tracking both landscape sides throughout fullscreen, regardless of that label.
+    if (!autoRotateEnabled && !observeWhenAutoRotateDisabled && !isFullscreenMode) return false
     if (isInMultiWindowMode || isInPictureInPictureMode) return false
     // BiliPai-style: vertical immersive FS is not kicked by gravity / sensor landscape.
     if (isPortraitFullscreen) return false

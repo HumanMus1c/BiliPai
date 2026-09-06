@@ -90,8 +90,8 @@ fun resolveLiveRoomLayoutMode(
 fun shouldShowLiveChatToggle(
     layoutMode: LiveRoomLayoutMode
 ): Boolean {
+    // LandscapeSplit keeps the desktop-style right chat column always on.
     return layoutMode == LiveRoomLayoutMode.PortraitVerticalOverlay ||
-        layoutMode == LiveRoomLayoutMode.LandscapeSplit ||
         layoutMode == LiveRoomLayoutMode.LandscapeOverlay
 }
 
@@ -101,7 +101,31 @@ fun shouldShowLiveSplitChatPanel(
     layoutMode: LiveRoomLayoutMode,
     isInteractionPanelVisible: Boolean
 ): Boolean {
-    return layoutMode == LiveRoomLayoutMode.LandscapeSplit && isInteractionPanelVisible
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = isInteractionPanelVisible
+    return layoutMode == LiveRoomLayoutMode.LandscapeSplit
+}
+
+/** PiliPlus desktop: video ~56–70% width, remaining chat column capped at 400dp. */
+internal const val LIVE_SPLIT_CHAT_MAX_WIDTH_DP = 400
+internal const val LIVE_SPLIT_CHAT_MIN_WIDTH_DP = 280
+internal const val LIVE_SPLIT_VIDEO_MIN_FRACTION = 0.56f
+internal const val LIVE_SPLIT_VIDEO_MAX_FRACTION = 0.70f
+internal const val LIVE_SPLIT_VIDEO_PREFERRED_FRACTION = 0.62f
+
+internal fun resolveLiveSplitChatPanelWidthDp(
+    screenWidthDp: Int,
+    contentPaddingDp: Int = 24,
+): Int {
+    val available = (screenWidthDp - contentPaddingDp).coerceAtLeast(1)
+    val preferredVideo = (available * LIVE_SPLIT_VIDEO_PREFERRED_FRACTION).roundToInt()
+        .coerceIn(
+            (available * LIVE_SPLIT_VIDEO_MIN_FRACTION).roundToInt(),
+            (available * LIVE_SPLIT_VIDEO_MAX_FRACTION).roundToInt(),
+        )
+    val remaining = (available - preferredVideo).coerceAtLeast(0)
+    return remaining.coerceAtMost(LIVE_SPLIT_CHAT_MAX_WIDTH_DP)
+        .coerceAtLeast(minOf(LIVE_SPLIT_CHAT_MIN_WIDTH_DP, remaining))
 }
 
 fun shouldShowLiveLandscapeChatOverlay(

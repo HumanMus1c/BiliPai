@@ -397,7 +397,9 @@ fun BottomBarLiquidSegmentedControl(
     containerHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
     containerVerticalPadding: Dp = AppSpacingTokens.ExtraSmall,
     liquidGlassEffectsEnabled: Boolean = true,
+    // Kept for source compatibility; shared floating docks always allow enabled multi-item drag.
     dragSelectionEnabled: Boolean = true,
+    // Compatibility alias for drag enablement; indicators now always start dragging directly.
     longPressDragSelectionEnabled: Boolean = false,
     preferInlineContentStyle: Boolean = false,
     forceEqualWidth: Boolean = false,
@@ -412,6 +414,7 @@ fun BottomBarLiquidSegmentedControl(
     isScrollInProgressProvider: () -> Boolean = { false },
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuningOverride: LiquidGlassTuning? = null,
+    geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Segmented,
 ) {
     if (items.isEmpty()) return
 
@@ -504,6 +507,7 @@ fun BottomBarLiquidSegmentedControl(
         isScrollInProgressProvider = isScrollInProgressProvider,
         externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
         liquidGlassTuningOverride = liquidGlassTuningOverride,
+        geometryMode = geometryMode,
     )
 }
 

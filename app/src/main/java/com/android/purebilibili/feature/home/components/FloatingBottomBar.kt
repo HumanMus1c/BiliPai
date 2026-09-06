@@ -461,7 +461,7 @@ fun FloatingBottomBar(
     content: @Composable RowScope.() -> Unit
 ) {
     val isInDark = isSystemInDarkTheme()
-    val segmentedGeometry = geometryMode == FloatingBottomBarGeometryMode.Segmented
+    val segmentedGeometry = geometryMode != FloatingBottomBarGeometryMode.Dock
     val horizontalPadding = contentHorizontalPadding.coerceAtLeast(0.dp)
     val verticalPadding = contentVerticalPadding.coerceIn(0.dp, shellHeight.coerceAtLeast(0.dp) / 2)
     val horizontalPaddingLatest = rememberUpdatedState(horizontalPadding)
@@ -541,6 +541,7 @@ fun FloatingBottomBar(
         requestedHeightDp = indicatorHeight.value,
         tabWidthDp = fittedIndicatorWidth.value,
         geometryMode = geometryMode,
+        shellHeightDp = shellHeight.value,
     ).dp
     val indicatorLensHeightRatio = if (segmentedGeometry) {
         (fittedIndicatorHeight.value / indicatorHeight.value.coerceAtLeast(0.001f))
@@ -1196,9 +1197,10 @@ fun FloatingBottomBar(
                     .then(interactiveHighlight?.gestureModifier ?: Modifier)
                     .then(
                         when {
-                            longPressDragSelectionEnabled && safeTabsCount > 1 ->
-                                dampedDragAnimation.longPressModifier
-                            dragSelectionEnabled && safeTabsCount > 1 ->
+                            // Legacy long-press callers also use immediate indicator dragging.
+                            // The hit target is only the selected slot, leaving the rest of a
+                            // scrollable rail available for ordinary horizontal scrolling.
+                            (dragSelectionEnabled || longPressDragSelectionEnabled) && safeTabsCount > 1 ->
                                 dampedDragAnimation.modifier
                             else -> Modifier
                         }

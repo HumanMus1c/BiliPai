@@ -2415,6 +2415,7 @@ internal fun VideoDetailScreenStateHolder(
 
     LaunchedEffect(
         autoRotateEnabled,
+        isFullscreenMode,
         orientationPolicyDevice,
         isOrientationDrivenFullscreen,
         fullscreenMode,
@@ -2434,6 +2435,7 @@ internal fun VideoDetailScreenStateHolder(
                 isInPictureInPictureMode = isPipMode,
                 isPortraitFullscreen = isPortraitFullscreen,
                 observeWhenAutoRotateDisabled = windowSizeClass.isFoldableCoverScreen,
+                isFullscreenMode = isFullscreenMode,
             )
         ) {
             lastPhoneAutoRotateLandscapeAppliedAtMs = null
@@ -2443,6 +2445,7 @@ internal fun VideoDetailScreenStateHolder(
     DisposableEffect(
         activity,
         autoRotateEnabled,
+        isFullscreenMode,
         fullscreenMode,
         useTabletLayout,
         orientationPolicyDevice,
@@ -2466,6 +2469,7 @@ internal fun VideoDetailScreenStateHolder(
                 isInPictureInPictureMode = isPipMode,
                 isPortraitFullscreen = isPortraitFullscreen,
                 observeWhenAutoRotateDisabled = windowSizeClass.isFoldableCoverScreen,
+                isFullscreenMode = isFullscreenMode,
             ) ||
             !isOrientationDrivenFullscreen
         ) {
@@ -2480,12 +2484,16 @@ internal fun VideoDetailScreenStateHolder(
                     }
                     return
                 }
+                if (!autoRotateEnabled && !isFullscreenMode) return
                 val isCurrentlyLandscape =
                     hostActivity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val targetOrientation = resolvePhoneAutoRotateRequestedOrientation(
                     orientationDegrees = orientation,
                     isCurrentlyLandscape = isCurrentlyLandscape,
                     useExactLandscapeSide = orientationPolicyDevice,
+                    // Auto-rotate off still permits a fullscreen half-turn, but never
+                    // enters/exits fullscreen just because the phone passes portrait.
+                    allowPortraitTransitions = autoRotateEnabled,
                 )
                 val nowMs = SystemClock.elapsedRealtime()
                 val targetToApply = resolvePhoneAutoRotateTargetToApply(
@@ -2505,7 +2513,9 @@ internal fun VideoDetailScreenStateHolder(
 
         onDispose {
             orientationListener.disable()
-            lastPhoneAutoRotateLandscapeAppliedAtMs = null
+            // Fullscreen/configuration changes can immediately register a new listener.
+            // Keep the settle guard across that handoff; the effect above clears it
+            // when orientation observation actually stops.
         }
     }
     val portraitExperienceEnabled = shouldEnablePortraitExperience()
@@ -3097,6 +3107,7 @@ internal fun VideoDetailScreenStateHolder(
                 handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
             },
             videoPlayerSectionTarget = videoPlayerSectionTarget,
+            residentCoverSource = residentCoverSource,
             sponsorSegment = sponsorSegment,
             showSponsorSkipButton = showSponsorSkipButton,
             sponsorContributionState = sponsorContributionState,
@@ -4364,6 +4375,9 @@ internal fun VideoDetailScreenStateHolder(
                                         .fillMaxSize()
                                         .videoDetailReturnMediaLayout(
                                             landingLayout = landingLayoutForMedia,
+                                            // Match the section cover below the status-bar backdrop
+                                            // before the resident cover hands off to manual playback.
+                                            contentTopInset = playerTopInset,
                                             handoffProgressProvider =
                                                 returnMediaHandoffProgressProvider,
                                             inverseScaleXProvider = {
@@ -4438,6 +4452,7 @@ internal fun VideoDetailScreenStateHolder(
                                 },
                                 endDrawerRequestKey = collapsedPlayerMoreRequestKey,
                                 videoPlayerSectionTarget = videoPlayerSectionTarget,
+                                residentCoverSource = residentCoverSource,
                                 sponsorSegment = sponsorSegment,
                                 showSponsorSkipButton = showSponsorSkipButton,
                                 sponsorContributionState = sponsorContributionState,

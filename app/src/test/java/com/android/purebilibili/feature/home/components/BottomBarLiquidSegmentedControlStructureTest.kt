@@ -544,7 +544,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         )
 
         assertTrue(
-            floating.contains("dragSelectionEnabled && enabled && itemCount > 1"),
+            floating.contains("dragSelectionEnabled = enabled && itemCount > 1"),
             "Scrollable contribution tabs disable drag selection, so the liquid indicator must not attach a competing drag gesture"
         )
         assertTrue(

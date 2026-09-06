@@ -195,7 +195,7 @@ internal const val FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f
 internal const val FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP = 0.2f
 internal const val FLOATING_DOCK_VELOCITY_REFERENCE_TAB_WIDTH_DP = 75f
 
-enum class FloatingBottomBarGeometryMode { Dock, Segmented }
+enum class FloatingBottomBarGeometryMode { Dock, Segmented, TopNavigation }
 
 internal fun resolveFloatingDockSlotWidthPx(
     containerWidthPx: Float,
@@ -225,11 +225,20 @@ internal fun resolveFloatingDockIndicatorHeightDp(
     requestedHeightDp: Float,
     tabWidthDp: Float,
     geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Dock,
+    shellHeightDp: Float? = null,
 ): Float {
     if (requestedHeightDp <= 0f) return 0f
     if (tabWidthDp <= 0f) return requestedHeightDp
-    if (geometryMode == FloatingBottomBarGeometryMode.Segmented) {
-        return resolveSegmentedControlIndicatorHeightDp(tabWidthDp, requestedHeightDp)
+    if (geometryMode != FloatingBottomBarGeometryMode.Dock) {
+        // Match the home dock's 2dp resting inset. The aspect constraint still wins
+        // on narrow slots; never widen the pill across neighbouring destinations.
+        val insetHeight = shellHeightDp?.let { (it - 4f).coerceAtLeast(0f) }
+            ?: requestedHeightDp
+        return if (geometryMode == FloatingBottomBarGeometryMode.TopNavigation) {
+            min(insetHeight, tabWidthDp / FLOATING_DOCK_MIN_INDICATOR_ASPECT)
+        } else {
+            resolveSegmentedControlIndicatorHeightDp(tabWidthDp, insetHeight)
+        }
     }
     // A slot that is already wider than the pill can keep the authored height.
     // Forcing the 1.35 aspect here flattens icon+label after search takes a side slot.
@@ -317,6 +326,7 @@ internal fun resolveFloatingDockCaptureInsets(
         requestedHeightDp = requestedIndicatorHeightDp,
         tabWidthDp = indicatorWidthDp,
         geometryMode = geometryMode,
+        shellHeightDp = shellHeightDp,
     )
     val geometry = com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry(
         dockHeightDp = shellHeightDp,

@@ -42,11 +42,11 @@ internal object VideoCardTransitionVisualTimeline {
     // Live player → cover. Keep the live frame dominant until the card is very close to landing.
     const val MEDIA_RETURN_START = 0.82f
     const val MEDIA_RETURN_END = 0.98f
-    // Return source chrome is the reverse of opening detail chrome so click-open and
-    // detail-return keep the same whole-card morph. The list slot is empty until land;
-    // delaying this to the live → cover window leaves a cover-only flying card.
-    const val SOURCE_CHROME_RETURN_START = 1f - DETAIL_CHROME_ENTER_END
-    const val SOURCE_CHROME_RETURN_END = 1f - DETAIL_CHROME_ENTER_START
+    // Cover pixels and the info band under the cover must hand off together. Opening still
+    // uses [DETAIL_CHROME_ENTER_*] for the detail body; return chrome shares the live → cover
+    // window so title/stats never appear on an empty cover slot.
+    const val SOURCE_CHROME_RETURN_START = MEDIA_RETURN_START
+    const val SOURCE_CHROME_RETURN_END = MEDIA_RETURN_END
     // Remeasure the flying media to the frozen cover box BEFORE title/UP/stats fade in.
     const val MEDIA_LAYOUT_RETURN_START = 0f
     const val MEDIA_LAYOUT_RETURN_END = SOURCE_CHROME_RETURN_START
@@ -85,8 +85,8 @@ internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START =
     VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START
 
 /**
- * 来源卡标题/UP/统计在飞卡上的交接窗口。与开场详情 chrome 互为镜像，
- * 这样点击展开和从详情返回都由飞卡持有整卡（封面+信息），而不是只剩封面。
+ * 来源卡标题/UP/统计在飞卡上的交接窗口。与 live → 封面同一时段，
+ * 封面和底部信息作为一张卡同步出现，而不是字先于封面露出来。
  */
 internal fun resolveVideoCardSourceChromeReturnAlpha(
     morphDepthProgress: Float,
@@ -107,8 +107,7 @@ internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END =
 
 /**
  * 实时画面缩回时，播放器在 82%–98% 的最后落位段才变为封面。
- * 来源标题/UP/统计更早由 [resolveVideoCardSourceChromeReturnAlpha] 接管，
- * 与开场整卡 morph 对齐；列表槽在落位前保持空白。
+ * 来源标题/UP/统计走同一窗口，和封面同步交接。
  */
 internal const val VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START =
     VideoCardTransitionVisualTimeline.MEDIA_RETURN_START
@@ -117,8 +116,7 @@ internal const val VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START =
  * live surface → 常驻封面的唯一媒体交接 alpha。
  *
  * 资源可以全程驻留，但在实时画面主导阶段必须保持透明；否则列表封面会与 player
- * surface 叠层。详情侧 resident cover 与来源卡封面必须使用此值。标题/UP/统计
- * 不跟这条 live 窗口走，见 [resolveVideoCardSourceChromeReturnAlpha]。
+ * surface 叠层。详情侧 resident cover、来源卡封面和标题/UP/统计都使用此窗口。
  */
 internal fun resolveVideoCardLiveReturnVisualHandoffAlpha(
     morphDepthProgress: Float,
@@ -139,11 +137,11 @@ internal fun resolveVideoDetailReturnMediaLayoutHandoffProgress(
     sourceLayout: VideoCardSourceLayout,
 ): Float {
     val depth = morphDepthProgress.coerceIn(0f, 1f)
-    if (!isVideoCardReturnContentYieldActive(
-            phase = phase,
-            isReturnGestureInProgress = isReturnGestureInProgress,
-            morphDepthProgress = depth,
-        )
+    // Remeasure only on an actual return. HELD with a tiny depth dip is enough to squash a
+    // 16:9 inline player toward a related-card 16:10 cover while the user is still watching.
+    if (
+        !isReturnGestureInProgress &&
+        phase != VideoCardTransitionBackgroundPhase.RETURNING
     ) {
         return 0f
     }
@@ -321,8 +319,8 @@ internal fun resolveVideoCardSecondaryContentVisualFrame(
 /**
  * Source chrome alpha (title / UP / stats + card shell under live media).
  *
- * [VideoCardSourceLayout.STACKED] and [VideoCardSourceLayout.SIDE_BY_SIDE] follow the opening
- * detail-chrome curve in reverse. Live → cover pixels stay on [MEDIA_RETURN_START].
+ * [VideoCardSourceLayout.STACKED] and [VideoCardSourceLayout.SIDE_BY_SIDE] share the live →
+ * cover window so title/stats appear with the cover, not before it.
  */
 internal fun resolveVideoCardSourceChromeVisualFrame(
     morphDepthProgress: Float,

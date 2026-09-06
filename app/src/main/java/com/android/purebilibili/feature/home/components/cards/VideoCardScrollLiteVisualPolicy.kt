@@ -170,7 +170,7 @@ internal data class HorizontalCardChromeMotionFrame(
 /**
  * 横卡 chrome 与 shell 共用主进度。
  *
- * 打开前 28% 上移并淡出；返回时不再额外位移，使用早于封面的文字形变窗口。
+ * 打开前 28% 上移并淡出；返回时不再额外位移，文字与封面同一交接窗口。
  */
 internal fun resolveHorizontalCardChromeMotionFrame(
     useCardContainerSharedBounds: Boolean,

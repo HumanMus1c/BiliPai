@@ -1,11 +1,61 @@
 package com.android.purebilibili.feature.home.components
 
+import androidx.compose.ui.unit.dp
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FloatingBottomBarGeometryTest {
+
+    @Test
+    fun `home top icon text and combined modes keep fuller flat indicators`() {
+        // 0: icon + label, 1: icon only, 2: label only. Use the actual dock width policy.
+        for (mode in listOf(0, 1, 2)) {
+            val width = resolveHomeTopTabFloatingDockWidth(393.dp, 5, mode)
+            val slot = resolveFloatingDockSlotWidthPx(width.value, 4f, 5)
+            val height = resolveFloatingDockIndicatorHeightDp(
+                52f, slot, FloatingBottomBarGeometryMode.TopNavigation, 56f,
+            )
+            val previous = resolveFloatingDockIndicatorHeightDp(
+                52f, slot, FloatingBottomBarGeometryMode.Segmented, 56f,
+            )
+            assertTrue(height >= previous, "label mode $mode")
+            assertEquals(minOf(52f, slot / 1.35f), height, 0.001f)
+            assertTrue(slot / height >= 1.35f - 0.001f)
+        }
+    }
+
+    @Test
+    fun `dynamic top navigation fills its shell while comment controls stay compact`() {
+        assertEquals(46f, resolveFloatingDockIndicatorHeightDp(
+            38f, 70f, FloatingBottomBarGeometryMode.TopNavigation, 50f,
+        ), 0.001f)
+        assertEquals(36f, resolveFloatingDockIndicatorHeightDp(
+            30f, 66f, FloatingBottomBarGeometryMode.Segmented, 40f,
+        ), 0.001f)
+    }
+
+    @Test
+    fun `segmented resting inset matches home without sacrificing flat aspect`() {
+        for ((shell, slot) in listOf(40f to 66f, 44f to 72f, 56f to 90f)) {
+            val height = resolveFloatingDockIndicatorHeightDp(
+                requestedHeightDp = 30f,
+                tabWidthDp = slot,
+                geometryMode = FloatingBottomBarGeometryMode.Segmented,
+                shellHeightDp = shell,
+            )
+            assertEquals(2f, (shell - height) / 2, 0.001f)
+            assertTrue(slot / height >= 1.6f)
+        }
+        assertEquals(30f, resolveFloatingDockIndicatorHeightDp(
+            30f, 48f, FloatingBottomBarGeometryMode.Segmented, 40f,
+        ), 0.001f)
+        assertEquals(52f, resolveFloatingDockIndicatorHeightDp(
+            52f, 75f, FloatingBottomBarGeometryMode.Dock, 56f,
+        ), 0.001f)
+    }
 
     @Test
     fun `short controls retain the five slot home drag reference width`() {

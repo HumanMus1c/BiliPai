@@ -4,10 +4,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -129,7 +127,8 @@ fun <T> AppLiquidAwareTabRow(
         return
     }
     val selectedIndex = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
-    val resolvedDragSelectionEnabled = dragSelectionEnabled ?: (options.size > 1)
+    // All enabled liquid docks support direct dragging, including scrollable rails.
+    val resolvedDragSelectionEnabled = enabled && options.size > 1
     // Give every tab enough room for its longest label. The row itself remains
     // horizontally scrollable, so labels are never ellipsized or clipped on
     // narrow phones; this also applies to shared rows such as UP space tabs.
@@ -148,9 +147,8 @@ fun <T> AppLiquidAwareTabRow(
         BoxWithConstraints(
             modifier = modifier
                 .widthIn(max = viewportMaxWidth)
-                // The liquid shell intentionally draws beyond its content bounds for capture.
-                // A rectangular scroll viewport would expose that overflow at either edge.
-                .clip(CircleShape),
+                // Keep both endcaps visible even when the rail's own ends are offscreen.
+                .liquidDockViewport(),
         ) {
             val viewportWidthPx = with(density) { maxWidth.toPx() }
             val itemWidthPx = with(density) { readableTabWidth.toPx() }
@@ -174,8 +172,7 @@ fun <T> AppLiquidAwareTabRow(
                 indicatorHeight = indicatorHeight,
                 labelFontSize = labelFontSize,
                 liquidGlassEffectsEnabled = true,
-                dragSelectionEnabled = false,
-                longPressDragSelectionEnabled = resolvedDragSelectionEnabled,
+                dragSelectionEnabled = resolvedDragSelectionEnabled,
                 tapPressRefractionEnabled = tapPressRefractionEnabled,
                 miuixBackdrop = miuixBackdrop,
                 indicatorPositionProvider = indicatorPositionProvider,

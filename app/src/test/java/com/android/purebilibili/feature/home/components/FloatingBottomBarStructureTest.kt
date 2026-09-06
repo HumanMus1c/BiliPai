@@ -296,8 +296,8 @@ class FloatingBottomBarStructureTest {
 
         assertTrue(selectionSync.contains("dampedDragAnimation.animateToValue(index.toFloat())"))
         assertFalse(selectionSync.contains("dampedDragAnimation.snapTo(index.toFloat())"))
-        assertTrue(source.contains("dragSelectionEnabled && safeTabsCount > 1 ->"))
-        assertTrue(source.contains("dampedDragAnimation.longPressModifier"))
+        assertFalse(source.contains("dampedDragAnimation.longPressModifier"))
+        assertTrue(source.contains("(dragSelectionEnabled || longPressDragSelectionEnabled) && safeTabsCount > 1"))
         assertFalse(source.contains("if (isLiquidGlassMode && dragSelectionEnabled"))
     }
 

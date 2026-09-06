@@ -2140,6 +2140,8 @@ class VideoPlayerSectionPolicyTest {
         )
 
         assertTrue(spec.coverUsesSharedBounds)
+        assertTrue(spec.fillCoverViewport)
+        assertEquals(VideoPlayerCoverContentScaleMode.Crop, spec.coverContentScaleMode)
         assertTrue(spec.showManualStartPlayButton)
     }
 
