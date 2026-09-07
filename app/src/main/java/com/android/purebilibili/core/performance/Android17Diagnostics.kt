@@ -12,6 +12,8 @@ import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.util.Logger
 import java.io.File
+import java.io.PrintStream
+import java.io.PrintWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,6 +55,97 @@ internal fun isAbnormalProcessExitReason(reason: Int): Boolean = reason in setOf
     ApplicationExitInfo.REASON_SIGNALED,
     ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
 )
+
+/**
+ * 解析 API 31+ 的 ApplicationExitInfo 子原因（subReason）。
+ */
+internal fun resolveProcessExitSubReasonLabel(subReason: Int): String = when (subReason) {
+    0 -> "无"
+    1 -> "等待调试器"
+    2 -> "缓存进程过多"
+    3 -> "空进程过多"
+    4 -> "清理空进程"
+    5 -> "缓存占用过大"
+    6 -> "系统内存压力"
+    7 -> "CPU 占用过高"
+    8 -> "系统更新完成"
+    9 -> "清理后台进程"
+    10 -> "应用包更新"
+    11 -> "广播未及时交付"
+    12 -> "冻结中 Binder IOCTL 违规"
+    13 -> "冻结中 Binder 事务违规"
+    14 -> "强制停止"
+    15 -> "移除任务卡片"
+    16 -> "停止应用"
+    17 -> "终止 PID"
+    18 -> "终止 UID"
+    19 -> "空闲强制待机"
+    20 -> "隔离进程无需求"
+    else -> "子原因($subReason)"
+}
+
+/**
+ * ApplicationExitInfo.getSubReason() 在公版 SDK 中被 @hide，通过反射在 Android 12+ (API 31+) 安全提取。
+ */
+internal fun extractApplicationExitSubReason(exitInfo: ApplicationExitInfo): Int {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0
+    return runCatching {
+        val method = exitInfo.javaClass.getMethod("getSubReason")
+        (method.invoke(exitInfo) as? Number)?.toInt() ?: 0
+    }.getOrDefault(0)
+}
+
+/**
+ * 读取系统记录的历史退出 Trace（含 Native 崩溃的 Tombstone 或 ANR 堆栈）。
+ */
+@RequiresApi(Build.VERSION_CODES.R)
+internal fun readProcessExitTrace(exitInfo: ApplicationExitInfo, maxLines: Int = 120): String? {
+    return runCatching {
+        exitInfo.traceInputStream?.bufferedReader(Charsets.UTF_8)?.use { reader ->
+            val lines = mutableListOf<String>()
+            var count = 0
+            while (count < maxLines) {
+                val line = reader.readLine() ?: break
+                lines.add(line)
+                count++
+            }
+            if (lines.isEmpty()) null else lines.joinToString("\n")
+        }
+    }.getOrNull()
+}
+
+/**
+ * 包装系统记录的历史进程异常退出（Native 崩溃、ANR、系统信号等）。
+ * 清空在当前启动进程中产生的无意义虚假 Java 栈（如 PureApplication.onCreate），
+ * 并挂载真实的系统 Tombstone 或 ANR Trace。
+ */
+class AbnormalProcessExitException(
+    message: String,
+    val nativeTrace: String? = null
+) : RuntimeException(message) {
+    init {
+        // 清空由当前进程启动合成异常时产生的虚假 Java 堆栈，避免排查时误导用户
+        stackTrace = emptyArray()
+    }
+
+    override fun printStackTrace(s: PrintWriter) {
+        s.println(super.toString())
+        if (!nativeTrace.isNullOrBlank()) {
+            s.println()
+            s.println("----- 系统异常回溯 (Tombstone / Trace) -----")
+            s.println(nativeTrace)
+        }
+    }
+
+    override fun printStackTrace(s: PrintStream) {
+        s.println(super.toString())
+        if (!nativeTrace.isNullOrBlank()) {
+            s.println()
+            s.println("----- 系统异常回溯 (Tombstone / Trace) -----")
+            s.println(nativeTrace)
+        }
+    }
+}
 
 internal fun selectProfilingArtifactPathsToKeep(
     artifacts: List<ProfilingArtifactSnapshot>,
@@ -150,6 +243,11 @@ internal object Android17Diagnostics {
                         append("KB · rss=")
                         append(exitInfo.rss)
                         append("KB")
+                        val subReasonCode = extractApplicationExitSubReason(exitInfo)
+                        if (subReasonCode != 0) {
+                            append(" · subReason=")
+                            append(resolveProcessExitSubReasonLabel(subReasonCode))
+                        }
                         exitInfo.description
                             ?.trim()
                             ?.takeIf(String::isNotEmpty)
@@ -188,6 +286,12 @@ internal object Android17Diagnostics {
             prefs.edit().putLong(KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP, exitInfo.timestamp).apply()
 
             val reason = resolveProcessExitReasonLabel(exitInfo.reason)
+            val subReasonCode = extractApplicationExitSubReason(exitInfo)
+            val subReason = if (subReasonCode != 0) {
+                resolveProcessExitSubReasonLabel(subReasonCode)
+            } else null
+            val trace = readProcessExitTrace(exitInfo)
+
             val details = buildString {
                 append("系统记录的上次异常退出：")
                 append(reason)
@@ -200,12 +304,21 @@ internal object Android17Diagnostics {
                 append("KB；rss=")
                 append(exitInfo.rss)
                 append("KB")
+                subReason?.let {
+                    append("；subReason=")
+                    append(it)
+                }
                 exitInfo.description?.trim()?.takeIf(String::isNotEmpty)?.let {
                     append("；description=")
                     append(it.take(240))
                 }
             }
-            Logger.persistCrashSnapshot(RuntimeException(details))
+            Logger.persistCrashSnapshot(
+                AbnormalProcessExitException(
+                    message = details,
+                    nativeTrace = trace
+                )
+            )
         }.onFailure { error ->
             Logger.w(TAG, "Failed to persist historical process exit snapshot", error)
         }

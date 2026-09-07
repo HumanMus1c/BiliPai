@@ -34,4 +34,28 @@ class Android17DiagnosticsPolicyTest {
 
         assertEquals(setOf("small", "smallest"), keep)
     }
+
+    @Test
+    fun `resolveProcessExitSubReasonLabel maps known subreasons`() {
+        assertEquals("无", resolveProcessExitSubReasonLabel(0))
+        assertEquals("系统内存压力", resolveProcessExitSubReasonLabel(6))
+        assertEquals("CPU 占用过高", resolveProcessExitSubReasonLabel(7))
+        assertEquals("广播未及时交付", resolveProcessExitSubReasonLabel(11))
+        assertEquals("子原因(999)", resolveProcessExitSubReasonLabel(999))
+    }
+
+    @Test
+    fun `AbnormalProcessExitException clears synthetic stack trace and embeds tombstone`() {
+        val fakeTombstone = "signal 11 (SIGSEGV), code 1\n#00 pc 000000000021b3a4 /system/lib64/libhwui.so"
+        val exception = AbnormalProcessExitException(
+            message = "系统记录的上次异常退出：Native 崩溃",
+            nativeTrace = fakeTombstone
+        )
+
+        assertEquals(0, exception.stackTrace.size)
+        val traceString = exception.stackTraceToString()
+        kotlin.test.assertTrue(traceString.contains("系统记录的上次异常退出：Native 崩溃"))
+        kotlin.test.assertTrue(traceString.contains("----- 系统异常回溯 (Tombstone / Trace) -----"))
+        kotlin.test.assertTrue(traceString.contains("libhwui.so"))
+    }
 }

@@ -47,11 +47,37 @@ object CommentRepository {
     /**
      * 获取 WBI Keys（用于 WBI 签名）
      */
+    private suspend fun getWbiKeysOrNull(navApi: BilibiliApi = api): Pair<String, String>? {
+        val currentCheck = System.currentTimeMillis()
+        val cached = wbiKeysCache
+        if (cached != null && (currentCheck - wbiKeysTimestamp < WBI_CACHE_DURATION)) {
+            return cached
+        }
+        val fromManager = runCatching {
+            com.android.purebilibili.core.network.WbiKeyManager.getWbiKeys().getOrNull()
+        }.getOrNull()
+        if (fromManager != null) {
+            wbiKeysCache = fromManager
+            wbiKeysTimestamp = currentCheck
+            return fromManager
+        }
+        return runCatching { getWbiKeys(navApi) }.getOrNull()
+    }
+
     private suspend fun getWbiKeys(navApi: BilibiliApi = api): Pair<String, String> {
         val currentCheck = System.currentTimeMillis()
         val cached = wbiKeysCache
         if (cached != null && (currentCheck - wbiKeysTimestamp < WBI_CACHE_DURATION)) {
             return cached
+        }
+
+        val fromManager = runCatching {
+            com.android.purebilibili.core.network.WbiKeyManager.getWbiKeys().getOrNull()
+        }.getOrNull()
+        if (fromManager != null) {
+            wbiKeysCache = fromManager
+            wbiKeysTimestamp = currentCheck
+            return fromManager
         }
 
         val maxRetries = 3
@@ -90,6 +116,33 @@ object CommentRepository {
         }
     }
 
+    private suspend fun fetchNonWbiCommentFallback(
+        apiClient: BilibiliApi,
+        oid: Long,
+        type: Int,
+        page: Int,
+        ps: Int,
+        mainListMode: Int,
+        params: Map<String, String>
+    ): ReplyResponse {
+        val mainResponse = runCatching { apiClient.getReplyListMain(params) }.getOrNull()
+        if (mainResponse != null && (mainResponse.code == 0 || hasRenderableCommentPayload(mainResponse.data))) {
+            return mainResponse
+        }
+        val guestMainResponse = runCatching { guestApi.getReplyListMain(params) }.getOrNull()
+        if (guestMainResponse != null && (guestMainResponse.code == 0 || hasRenderableCommentPayload(guestMainResponse.data))) {
+            return guestMainResponse
+        }
+        val legacySort = if (mainListMode == CommentGrpcRepository.MODE_TIME) 0 else 1
+        val legacyResponse = runCatching {
+            apiClient.getReplyListLegacy(oid = oid, type = type, pn = page, ps = ps, sort = legacySort)
+        }.getOrNull()
+        if (legacyResponse != null && (legacyResponse.code == 0 || hasRenderableCommentPayload(legacyResponse.data))) {
+            return legacyResponse
+        }
+        return guestApi.getReplyListLegacy(oid = oid, type = type, pn = page, ps = ps, sort = legacySort)
+    }
+
     private suspend fun fetchCommentsByApi(
         apiClient: BilibiliApi,
         oid: Long,
@@ -122,11 +175,6 @@ object CommentRepository {
             }
             else -> {
                 val mainListMode = resolveCommentMainListMode(mode)
-                val (imgKey, subKey) = getWbiKeys(apiClient)
-                Logger.d(
-                    "CommentRepo",
-                    " getComments (WBI): oid=$oid, type=$type, page=$page, mode=$mainListMode"
-                )
                 val params = TreeMap<String, String>()
                 params["oid"] = oid.toString()
                 params["type"] = type.toString()
@@ -135,8 +183,32 @@ object CommentRepository {
                 params["plat"] = "1"
                 params["web_location"] = "1315875"
                 params.putAll(resolveCommentMainListPaginationParameters(page, paginationOffset))
-                val signedParams = WbiUtils.sign(params, imgKey, subKey)
-                apiClient.getReplyList(signedParams)
+
+                val wbiKeys = getWbiKeysOrNull(apiClient)
+                if (wbiKeys != null) {
+                    Logger.d(
+                        "CommentRepo",
+                        " getComments (WBI): oid=$oid, type=$type, page=$page, mode=$mainListMode"
+                    )
+                    val (imgKey, subKey) = wbiKeys
+                    val signedParams = WbiUtils.sign(params, imgKey, subKey)
+                    val response = runCatching { apiClient.getReplyList(signedParams) }.getOrNull()
+                    if (response != null && (response.code == 0 || !shouldFallbackCommentRead(response.code))) {
+                        response
+                    } else {
+                        Logger.w(
+                            "CommentRepo",
+                            " getComments (WBI failed, code=${response?.code}), falling back to non-WBI main/legacy (PiliPlus alignment)"
+                        )
+                        fetchNonWbiCommentFallback(apiClient, oid, type, page, ps, mainListMode, params)
+                    }
+                } else {
+                    Logger.w(
+                        "CommentRepo",
+                        " getComments (WBI keys unavailable), falling back directly to non-WBI main/legacy (PiliPlus alignment)"
+                    )
+                    fetchNonWbiCommentFallback(apiClient, oid, type, page, ps, mainListMode, params)
+                }
             }
         }
     }
@@ -330,8 +402,9 @@ object CommentRepository {
         ps: Int = 20,
         mode: Int = 3,
         paginationOffset: String? = null,
-        fallbackOnMissingLocation: Boolean = true
+        fallbackOnMissingLocation: Boolean = false
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
+        var fallbackGrpcResult: Result<ReplyData>? = null
         try {
             // 确保 buvid3 已初始化
             VideoRepository.ensureBuvid3()
@@ -372,6 +445,7 @@ object CommentRepository {
                         Logger.d("CommentRepo", " getComments (gRPC MainList): oid=$oid, type=$type, page=$page, mode=$mode")
                         return@withContext grpcResult
                     } else {
+                        fallbackGrpcResult = grpcResult
                         Logger.w(
                             "CommentRepo",
                             "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, reason=missing-location"
@@ -462,11 +536,19 @@ object CommentRepository {
                     )
                 )
             } else {
+                if (fallbackGrpcResult != null) {
+                    Logger.w("CommentRepo", "getComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
+                    return@withContext fallbackGrpcResult
+                }
                 val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
                 android.util.Log.e("CommentRepo", " getComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            if (fallbackGrpcResult != null) {
+                Logger.w("CommentRepo", "getComments REST exception (${e.message}), restoring valid gRPC payload")
+                return@withContext fallbackGrpcResult
+            }
             android.util.Log.e("CommentRepo", " getComments exception: oid=$oid, type=$type, ${e.message}", e)
             Result.failure(e)
         }
@@ -541,6 +623,7 @@ object CommentRepository {
         paginationOffset: String? = null,
         preferRestPaging: Boolean = true
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
+        var fallbackGrpcResult: Result<ReplyData>? = null
         try {
             // 确保 buvid3 已初始化
             VideoRepository.ensureBuvid3()
@@ -560,6 +643,7 @@ object CommentRepository {
                         Logger.d("CommentRepo", " getSubComments (gRPC DetailList): oid=$oid, type=$type, root=$rootId, page=$page")
                         return@withContext grpcResult
                     }
+                    fallbackGrpcResult = grpcResult
                     Logger.w(
                         "CommentRepo",
                         "getSubComments gRPC fallback to REST: oid=$oid, type=$type, root=$rootId, page=$page, reason=missing-location"
@@ -609,12 +693,20 @@ object CommentRepository {
             if (finalResponse.code == 0) {
                 Result.success(finalResponse.data ?: ReplyData())
             } else {
+                if (fallbackGrpcResult != null) {
+                    Logger.w("CommentRepo", "getSubComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
+                    return@withContext fallbackGrpcResult
+                }
                 android.util.Log.e("CommentRepo", " getSubComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
                 val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
                     .replace("评论", "回复")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            if (fallbackGrpcResult != null) {
+                Logger.w("CommentRepo", "getSubComments REST exception (${e.message}), restoring valid gRPC payload")
+                return@withContext fallbackGrpcResult
+            }
             android.util.Log.e("CommentRepo", " getSubComments exception: oid=$oid, type=$type, ${e.message}", e)
             Result.failure(e)
         }

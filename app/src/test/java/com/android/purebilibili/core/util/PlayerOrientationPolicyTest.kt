@@ -76,4 +76,36 @@ class PlayerOrientationPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `foldable cover window with small current swDp but large maximum window is recognized`() {
+        assertTrue(
+            isFoldableCoverWindow(
+                smallestScreenWidthDp = 421,
+                currentWindowWidthDp = 616,
+                currentWindowHeightDp = 421,
+                maximumWidthDp = 861,
+                maximumHeightDp = 609,
+            )
+        )
+        assertFalse(
+            isFoldableCoverWindow(
+                smallestScreenWidthDp = 421,
+                currentWindowWidthDp = 861,
+                currentWindowHeightDp = 609,
+                maximumWidthDp = 861,
+                maximumHeightDp = 609,
+            )
+        )
+        assertTrue(
+            shouldRequestPhysicalPlayerOrientation(
+                smallestScreenWidthDp = 421,
+                currentWindowWidthDp = 616,
+                currentWindowHeightDp = 421,
+                maximumWidthDp = 861,
+                maximumHeightDp = 609,
+                platformIgnoresLargeScreenOrientationRequests = true,
+            )
+        )
+    }
 }

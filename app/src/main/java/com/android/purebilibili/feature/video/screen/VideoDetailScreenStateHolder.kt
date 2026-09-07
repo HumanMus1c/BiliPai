@@ -2372,6 +2372,16 @@ internal fun VideoDetailScreenStateHolder(
             adaptiveInfo = videoTransitionAdaptiveInfo,
         )
     }
+    var lastPhoneAutoRotateLandscapeAppliedAtMs by remember { mutableStateOf<Long?>(null) }
+    val displayRotation = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display?.rotation
+        } else {
+            @Suppress("DEPRECATION")
+            activity?.windowManager?.defaultDisplay?.rotation
+        }
+    }.getOrNull()
+
     LaunchedEffect(
         autoRotateEnabled,
         fullscreenMode,
@@ -2386,6 +2396,7 @@ internal fun VideoDetailScreenStateHolder(
         isVerticalVideo,
         isPortraitFullscreen,
         windowSizeClass.isFoldableCoverScreen,
+        displayRotation,
     ) {
         val requestedOrientation = resolvePhoneVideoRequestedOrientation(
             autoRotateEnabled = autoRotateEnabled,
@@ -2403,15 +2414,25 @@ internal fun VideoDetailScreenStateHolder(
             // 展开态折叠屏也应遵循用户选择的默认全屏方向。
             preferPortraitForFlatFoldable = false,
             preserveExactLandscapeSide = orientationPolicyDevice,
+            currentDisplayRotation = displayRotation,
         ) ?: return@LaunchedEffect
 
-        activity?.applyPlayerRequestedOrientation(requestedOrientation)
+        val nowMs = SystemClock.elapsedRealtime()
+        val targetToApply = resolvePhoneAutoRotateTargetToApply(
+            candidateOrientation = requestedOrientation,
+            lastLandscapeAppliedAtMs = lastPhoneAutoRotateLandscapeAppliedAtMs,
+            nowMs = nowMs
+        ) ?: return@LaunchedEffect
+
+        activity?.applyPlayerRequestedOrientation(targetToApply)
+        if (isLandscapeRequestedOrientation(targetToApply)) {
+            lastPhoneAutoRotateLandscapeAppliedAtMs = nowMs
+        }
         com.android.purebilibili.core.util.Logger.d(
             "VideoDetailScreen",
-            "🔄 Auto-rotate: enabled=$autoRotateEnabled, hold=$manualPortraitHoldActive, mode=$fullscreenMode, horizontal=$horizontalAdaptationEnabled, requested=$requestedOrientation, fullscreen=$isFullscreenMode, portraitFs=$isPortraitFullscreen, verticalVideo=$isVerticalVideo, isCompactDevice=${windowSizeClass.isCompactDevice}, multiWindow=$isActivityInMultiWindowMode, pip=$isPipMode"
+            "🔄 Auto-rotate: enabled=$autoRotateEnabled, hold=$manualPortraitHoldActive, mode=$fullscreenMode, horizontal=$horizontalAdaptationEnabled, requested=$targetToApply, fullscreen=$isFullscreenMode, portraitFs=$isPortraitFullscreen, verticalVideo=$isVerticalVideo, isCompactDevice=${windowSizeClass.isCompactDevice}, multiWindow=$isActivityInMultiWindowMode, pip=$isPipMode"
         )
     }
-    var lastPhoneAutoRotateLandscapeAppliedAtMs by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(
         autoRotateEnabled,

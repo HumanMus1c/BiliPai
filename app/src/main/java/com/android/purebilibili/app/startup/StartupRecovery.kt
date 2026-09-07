@@ -75,7 +75,12 @@ internal object StartupRecovery {
         }.also { handler.postDelayed(it, STARTUP_STABLE_FOREGROUND_MS) }
     }
 
-    fun onMainPaused() = cancelStableCheck()
+    fun onMainPaused(activity: Activity? = null) {
+        cancelStableCheck()
+        if (observingStartup && !isRecoveryMode && activity?.isFinishing == true) {
+            completeObservation(activity, "startup_user_exit")
+        }
+    }
 
     fun onMainStopped(activity: Activity) {
         cancelStableCheck()

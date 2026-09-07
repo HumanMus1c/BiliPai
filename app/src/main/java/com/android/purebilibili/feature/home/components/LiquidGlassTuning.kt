@@ -17,6 +17,7 @@ data class LiquidGlassTuning(
     val strength: Float,
     val backdropBlurRadius: Float,
     val progressiveBlurRadius: Float,
+    val progressiveBlurStartFraction: Float = BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
     val progressiveBlurEndFraction: Float,
     val progressiveBlurCurve: Float,
     val surfaceAlpha: Float,
@@ -109,6 +110,7 @@ internal fun resolveLiquidGlassTuning(
             normalizedProgress,
         ),
         progressiveBlurRadius = advancedSettings.progressiveBlurRadius.coerceIn(0f, 1f) * 40f,
+        progressiveBlurStartFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
         progressiveBlurEndFraction = 0.25f +
             advancedSettings.progressiveBlurExtent.coerceIn(0f, 1f) * 0.75f,
         progressiveBlurCurve = 0.35f +

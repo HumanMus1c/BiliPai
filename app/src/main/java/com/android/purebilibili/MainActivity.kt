@@ -456,8 +456,17 @@ internal fun shouldClearPendingCrashLogAfterAction(
     action: CrashLogPromptAction
 ): Boolean = action != CrashLogPromptAction.IGNORE
 
-internal fun shouldUseRealtimeSplashBlur(sdkInt: Int): Boolean =
-    sdkInt >= Build.VERSION_CODES.S && sdkInt < 36
+internal fun shouldUseRealtimeSplashBlur(
+    sdkInt: Int,
+    manufacturer: String = ""
+): Boolean {
+    // Samsung One UI 5 (Android 13 / API 33) has a known HWUI/Vulkan driver issue where dynamic
+    // RenderEffect blur creation triggers SIGSEGV (status 11) in libhwui / vulkan.adreno.so.
+    if (sdkInt == 33 && manufacturer.equals("samsung", ignoreCase = true)) {
+        return false
+    }
+    return sdkInt >= Build.VERSION_CODES.S && sdkInt < 36
+}
 
 internal fun resolveSplashIconResIdForComponentClassName(className: String?): Int {
     return when (className?.substringAfterLast('.')) {
@@ -731,6 +740,8 @@ private fun applySplashRealtimeBlur(
     secondaryTrailView: View?,
     radius: Float
 ) {
+    if (radius < 0.5f) return
+    if (!animatedTarget.isAttachedToWindow) return
     animatedTarget.setRenderEffect(
         RenderEffect.createBlurEffect(
             radius * 0.62f,
@@ -738,20 +749,24 @@ private fun applySplashRealtimeBlur(
             Shader.TileMode.CLAMP
         )
     )
-    primaryTrailView?.setRenderEffect(
-        RenderEffect.createBlurEffect(
-            radius,
-            radius,
-            Shader.TileMode.CLAMP
+    if (primaryTrailView?.isAttachedToWindow == true) {
+        primaryTrailView.setRenderEffect(
+            RenderEffect.createBlurEffect(
+                radius,
+                radius,
+                Shader.TileMode.CLAMP
+            )
         )
-    )
-    secondaryTrailView?.setRenderEffect(
-        RenderEffect.createBlurEffect(
-            radius * 1.2f,
-            radius * 1.2f,
-            Shader.TileMode.CLAMP
+    }
+    if (secondaryTrailView?.isAttachedToWindow == true) {
+        secondaryTrailView.setRenderEffect(
+            RenderEffect.createBlurEffect(
+                radius * 1.2f,
+                radius * 1.2f,
+                Shader.TileMode.CLAMP
+            )
         )
-    )
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -760,9 +775,15 @@ private fun clearSplashRealtimeBlur(
     primaryTrailView: View?,
     secondaryTrailView: View?
 ) {
-    animatedTarget.setRenderEffect(null)
-    primaryTrailView?.setRenderEffect(null)
-    secondaryTrailView?.setRenderEffect(null)
+    if (animatedTarget.isAttachedToWindow) {
+        animatedTarget.setRenderEffect(null)
+    }
+    if (primaryTrailView?.isAttachedToWindow == true) {
+        primaryTrailView.setRenderEffect(null)
+    }
+    if (secondaryTrailView?.isAttachedToWindow == true) {
+        secondaryTrailView.setRenderEffect(null)
+    }
 }
 
 internal enum class SplashFlyoutTargetType {
@@ -1045,7 +1066,7 @@ open class MainActivity : AppCompatActivity() {
                     )
                     Logger.d(
                         TAG,
-                        "🚀 Splash exit target metrics. system=${systemIconView.width}x${systemIconView.height}, targetSizePx=$targetSizePx, useRealtimeBlur=${shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT)}"
+                        "🚀 Splash exit target metrics. system=${systemIconView.width}x${systemIconView.height}, targetSizePx=$targetSizePx, useRealtimeBlur=${shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT, Build.MANUFACTURER.orEmpty())}"
                     )
 
                     var nextInsertIndex = frameContainer.indexOfChild(systemIconView)
@@ -1064,7 +1085,6 @@ open class MainActivity : AppCompatActivity() {
                         return ImageView(this).apply {
                             scaleType = ImageView.ScaleType.CENTER_INSIDE
                             alpha = initialAlpha
-                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
                             applySplashFlyoutRoundedClip(this)
                             setImageDrawable(drawable)
                             frameContainer.addView(
@@ -1100,8 +1120,9 @@ open class MainActivity : AppCompatActivity() {
                         targetSizePx = targetSizePx,
                         minTravelPx = minTranslateYPx
                     )
-                    val supportsRealtimeBlur = shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT)
+                    val supportsRealtimeBlur = shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT, Build.MANUFACTURER.orEmpty())
                     var blurEffectEnabled = supportsRealtimeBlur
+                    var lastAppliedBlurRadius = -1f
                     val animator = ValueAnimator.ofFloat(0f, 1f).apply {
                         duration = splashExitDurationMs()
                         interpolator = PathInterpolator(0.12f, 0.98f, 0.2f, 1.0f)
@@ -1136,23 +1157,26 @@ open class MainActivity : AppCompatActivity() {
                                 shouldApplySplashRealtimeBlur(blurEffectEnabled, progress)
                             ) {
                                 val radius = splashExitBlurRadiusEnd() * splashExitBlurProgress(progress)
-                                runCatching {
-                                    applySplashRealtimeBlur(
-                                        animatedTarget = animatedTarget,
-                                        primaryTrailView = primaryTrailView,
-                                        secondaryTrailView = secondaryTrailView,
-                                        radius = radius
-                                    )
-                                }.onFailure {
-                                    blurEffectEnabled = false
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        clearSplashRealtimeBlur(
+                                if (radius >= 0.5f && kotlin.math.abs(radius - lastAppliedBlurRadius) >= 1.0f) {
+                                    lastAppliedBlurRadius = radius
+                                    runCatching {
+                                        applySplashRealtimeBlur(
                                             animatedTarget = animatedTarget,
                                             primaryTrailView = primaryTrailView,
-                                            secondaryTrailView = secondaryTrailView
+                                            secondaryTrailView = secondaryTrailView,
+                                            radius = radius
                                         )
+                                    }.onFailure {
+                                        blurEffectEnabled = false
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                            clearSplashRealtimeBlur(
+                                                animatedTarget = animatedTarget,
+                                                primaryTrailView = primaryTrailView,
+                                                secondaryTrailView = secondaryTrailView
+                                            )
+                                        }
+                                        Logger.w(TAG, "⚠️ Splash realtime blur failed, fallback to non-blur flyout", it)
                                     }
-                                    Logger.w(TAG, "⚠️ Splash realtime blur failed, fallback to non-blur flyout", it)
                                 }
                             }
                         }
@@ -1165,10 +1189,12 @@ open class MainActivity : AppCompatActivity() {
                                 secondaryTrailView = secondaryTrailView
                             )
                         }
-                        frameContainer.removeView(animatedTarget)
-                        primaryTrailView?.let(frameContainer::removeView)
-                        secondaryTrailView?.let(frameContainer::removeView)
-                        splashScreenViewProvider.remove()
+                        frameContainer.post {
+                            frameContainer.removeView(animatedTarget)
+                            primaryTrailView?.let(frameContainer::removeView)
+                            secondaryTrailView?.let(frameContainer::removeView)
+                            splashScreenViewProvider.remove()
+                        }
                     }
                     animator.start()
                 }.onFailure {
@@ -2207,7 +2233,7 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         if (!startupRecoveryRedirected) {
-            StartupRecovery.onMainPaused()
+            StartupRecovery.onMainPaused(this)
         }
         super.onPause()
     }

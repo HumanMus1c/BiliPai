@@ -21,6 +21,15 @@ class SplashExitAnimationPolicyTest {
     }
 
     @Test
+    fun disablesRealtimeBlurOnSamsungAndroid13() {
+        assertFalse(shouldUseRealtimeSplashBlur(sdkInt = 33, manufacturer = "samsung"))
+        assertFalse(shouldUseRealtimeSplashBlur(sdkInt = 33, manufacturer = "SAMSUNG"))
+        assertTrue(shouldUseRealtimeSplashBlur(sdkInt = 34, manufacturer = "samsung"))
+        assertTrue(shouldUseRealtimeSplashBlur(sdkInt = 33, manufacturer = "Xiaomi"))
+        assertTrue(shouldUseRealtimeSplashBlur(sdkInt = 33, manufacturer = "Google"))
+    }
+
+    @Test
     fun disablesRealtimeBlurOnAndroid16RenderThread() {
         assertFalse(shouldUseRealtimeSplashBlur(36))
     }

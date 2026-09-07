@@ -138,9 +138,9 @@ enum class LiquidGlassAdvancedPreset(val value: Int, val label: String) {
 
 data class LiquidGlassAdvancedSettings(
     val preset: LiquidGlassAdvancedPreset = LiquidGlassAdvancedPreset.BALANCED,
-    val progressiveBlurRadius: Float = 0.5f,
-    val progressiveBlurExtent: Float = 0.75f,
-    val progressiveBlurCurve: Float = 0.5f,
+    val progressiveBlurRadius: Float = 0.40f,
+    val progressiveBlurExtent: Float = 1.0f,
+    val progressiveBlurCurve: Float = 0.55f,
     val contentReadability: Float = 0.62f,
     val chromaticAberration: Float = 0.56f,
     val contentDistortion: Float = 0.45f,
@@ -163,9 +163,9 @@ internal fun resolveLiquidGlassAdvancedPreset(
     )
     LiquidGlassAdvancedPreset.BALANCED -> LiquidGlassAdvancedSettings(
         preset = preset,
-        progressiveBlurRadius = 0.5f,
-        progressiveBlurExtent = 0.75f,
-        progressiveBlurCurve = 0.5f,
+        progressiveBlurRadius = 0.40f,
+        progressiveBlurExtent = 1.0f,
+        progressiveBlurCurve = 0.55f,
         contentReadability = 0.62f,
         chromaticAberration = 0.56f,
         contentDistortion = 0.45f,

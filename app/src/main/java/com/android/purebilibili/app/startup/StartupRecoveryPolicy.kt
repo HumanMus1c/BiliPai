@@ -2,7 +2,7 @@ package com.android.purebilibili.app
 
 internal const val STARTUP_RECOVERY_THRESHOLD = 2
 internal const val STARTUP_RECOVERY_WINDOW_MS = 5 * 60_000L
-internal const val STARTUP_STABLE_FOREGROUND_MS = 15_000L
+internal const val STARTUP_STABLE_FOREGROUND_MS = 2_500L
 
 internal data class StartupRecoveryDecision(val failedAttempts: Int, val recover: Boolean)
 

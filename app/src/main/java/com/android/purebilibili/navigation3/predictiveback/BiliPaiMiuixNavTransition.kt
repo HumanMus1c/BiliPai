@@ -153,16 +153,17 @@ private class MiuixCoveredBlurRenderEffectCache {
     private var cachedEffect: ComposeRenderEffect? = null
 
     fun resolve(radiusPx: Float): ComposeRenderEffect? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || radiusPx <= 0.01f) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || radiusPx <= 0.5f) {
             cachedRadiusPx = 0f
             cachedEffect = null
             return null
         }
-        if (radiusPx != cachedRadiusPx) {
-            cachedRadiusPx = radiusPx
+        val quantizedRadius = kotlin.math.round(radiusPx * 2f) / 2f
+        if (quantizedRadius != cachedRadiusPx) {
+            cachedRadiusPx = quantizedRadius
             cachedEffect = AndroidRenderEffect.createBlurEffect(
-                radiusPx,
-                radiusPx,
+                quantizedRadius,
+                quantizedRadius,
                 Shader.TileMode.CLAMP,
             ).asComposeRenderEffect()
         }

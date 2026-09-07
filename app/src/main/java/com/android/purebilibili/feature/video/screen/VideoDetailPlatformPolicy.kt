@@ -328,14 +328,17 @@ internal fun isActivityInMultiWindowOrFloatingMode(
 
     return runCatching {
         val configuration = activity.resources.configuration
+        val density = activity.resources.displayMetrics.density.coerceAtLeast(1f)
+        val calculator = WindowMetricsCalculator.getOrCreate()
+        val currentBounds = calculator.computeCurrentWindowMetrics(activity).bounds
+        val maximumBounds = calculator.computeMaximumWindowMetrics(activity).bounds
         val isCoverWindow = isFoldableCoverWindow(
             smallestScreenWidthDp = configuration.smallestScreenWidthDp,
             currentWindowWidthDp = configuration.screenWidthDp,
             currentWindowHeightDp = configuration.screenHeightDp,
+            maximumWidthDp = (maximumBounds.width() / density).toInt(),
+            maximumHeightDp = (maximumBounds.height() / density).toInt(),
         )
-        val calculator = WindowMetricsCalculator.getOrCreate()
-        val currentBounds = calculator.computeCurrentWindowMetrics(activity).bounds
-        val maximumBounds = calculator.computeMaximumWindowMetrics(activity).bounds
         shouldInferFloatingWindowFromBounds(
             currentBoundsSmallerThanMaximum = isWindowBoundsSmallerThanMaximum(
                 currentWidth = currentBounds.width(),
@@ -607,6 +610,7 @@ internal fun resolvePhoneVideoRequestedOrientation(
     isInPictureInPictureMode: Boolean = false,
     preferPortraitForFlatFoldable: Boolean = false,
     preserveExactLandscapeSide: Boolean = true,
+    currentDisplayRotation: Int? = null,
 ): Int? {
     // A size class alone can classify a tablet or a large phone as a foldable. Keep this
     // preference out of compact layouts even if an upstream caller misclassifies the device.
@@ -670,6 +674,7 @@ internal fun resolvePhoneVideoRequestedOrientation(
                     currentRequestedOrientation = currentRequestedOrientation,
                     isFullscreenMode = isFullscreenMode,
                     preserveExactLandscapeSide = preserveExactLandscapeSide,
+                    currentDisplayRotation = currentDisplayRotation,
                 )
             }
             // Preserve the listener's physical side across fullscreen configuration updates.
@@ -679,7 +684,16 @@ internal fun resolvePhoneVideoRequestedOrientation(
                 currentRequestedOrientation = currentRequestedOrientation,
                 isFullscreenMode = true,
                 preserveExactLandscapeSide = preserveExactLandscapeSide,
+                currentDisplayRotation = currentDisplayRotation,
             )
+            // 若进入页面时物理显示方向已处于横屏（例如顺时针90°旋转时打开视频），
+            // 直接匹配当前实际横屏侧，避免在初帧向系统强写竖屏导致抽搐回弹。
+            currentDisplayRotation == android.view.Surface.ROTATION_270 ||
+            currentDisplayRotation == android.view.Surface.ROTATION_90 ->
+                resolveCurrentExactLandscapeOrientation(
+                    currentRequestedOrientation = currentRequestedOrientation,
+                    currentDisplayRotation = currentDisplayRotation,
+                ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -798,10 +812,17 @@ internal fun resolvePhoneAutoRotateTargetToApply(
     return candidateOrientation
 }
 
-private fun resolveCurrentExactLandscapeOrientation(currentRequestedOrientation: Int?): Int? {
-    return when (currentRequestedOrientation) {
+internal fun resolveCurrentExactLandscapeOrientation(
+    currentRequestedOrientation: Int?,
+    currentDisplayRotation: Int? = null,
+): Int? {
+    when (currentRequestedOrientation) {
         ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
-        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> currentRequestedOrientation
+        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> return currentRequestedOrientation
+    }
+    return when (currentDisplayRotation) {
+        android.view.Surface.ROTATION_270 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        android.view.Surface.ROTATION_90 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
         else -> null
     }
 }
@@ -811,6 +832,7 @@ private fun preserveCurrentExactLandscapeSideWhileFullscreen(
     currentRequestedOrientation: Int?,
     isFullscreenMode: Boolean,
     preserveExactLandscapeSide: Boolean,
+    currentDisplayRotation: Int? = null,
 ): Int {
     if (
         !preserveExactLandscapeSide ||
@@ -819,8 +841,10 @@ private fun preserveCurrentExactLandscapeSideWhileFullscreen(
     ) {
         return requestedOrientation
     }
-    return resolveCurrentExactLandscapeOrientation(currentRequestedOrientation)
-        ?: requestedOrientation
+    return resolveCurrentExactLandscapeOrientation(
+        currentRequestedOrientation = currentRequestedOrientation,
+        currentDisplayRotation = currentDisplayRotation,
+    ) ?: requestedOrientation
 }
 
 private fun resolveExactLandscapeOrientation(
