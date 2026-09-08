@@ -225,7 +225,7 @@ class TopTabStylePolicyTest {
 
         // 2B 迁移：iOS 输入并入 MIUIX 预留 12dp 内容底部间隙。
         assertEquals(12.dp, ios.reservedContentBottomGap)
-        assertEquals(5.dp, material3.reservedContentBottomGap)
+        assertEquals(0.dp, material3.reservedContentBottomGap)
         assertEquals(12.dp, miuix.reservedContentBottomGap)
         assertEquals(
             12.dp,
@@ -451,6 +451,15 @@ class TopTabStylePolicyTest {
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 liquidGlassEnabled = false,
                 selectionIndicatorStyle = HomeSelectionIndicatorStyle.MD3_UNDERLINE,
+            )
+        )
+        assertFalse(
+            shouldHomeTopTabUseFloatingBottomBarDock(
+                skinPlainStyle = false,
+                hasSkinStickerIcons = false,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
+                liquidGlassEnabled = false,
+                selectionIndicatorStyle = HomeSelectionIndicatorStyle.CAPSULE,
             )
         )
         assertFalse(

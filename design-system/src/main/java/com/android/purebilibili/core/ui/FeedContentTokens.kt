@@ -6,6 +6,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+
 object AppTypographyTokens {
     val ZeroLetterSpacing = 0.sp
 }
@@ -45,14 +48,14 @@ fun feedContentTypography(
                 lineHeight = bodyMedium.fontSize * 1.38f,
             )
     }
-    val nonGlassMiuix = isMiuixNonGlassEnabled()
+    val isMiuix = LocalAppUiStyle.current == AppUiStyle.MIUIX
     val author = MaterialTheme.typography.labelMedium
     return FeedContentTypography(
         title = titleStyle,
         author = author.copy(lineHeight = author.fontSize * 1.5f),
-        statistic = if (nonGlassMiuix) MaterialTheme.typography.labelMedium
+        statistic = if (isMiuix) MaterialTheme.typography.labelMedium
             else MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-        coverBadge = (if (nonGlassMiuix) MaterialTheme.typography.labelMedium
+        coverBadge = (if (isMiuix) MaterialTheme.typography.labelMedium
             else MaterialTheme.typography.labelSmall).copy(fontWeight = FontWeight.Medium),
     )
 }

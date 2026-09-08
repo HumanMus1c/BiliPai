@@ -331,6 +331,10 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                         ?.get("orig_text")
                         ?.jsonPrimitive
                         ?.contentOrNull
+                    ?: ((nodeObject["rich"] as? JsonObject)?.get("emoji") as? JsonObject)
+                        ?.get("text")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
                     ?: (nodeObject["formula"] as? JsonObject)
                         ?.get("latex_content")
                         ?.jsonPrimitive
@@ -353,10 +357,17 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
         val parsedNodes = nodes.mapNotNull { nodeElement ->
             val node = nodeElement as? JsonObject ?: return@mapNotNull null
             (node["rich"] as? JsonObject)?.let { rich ->
+                val emoji = parseParagraphEmojiInfo(rich["emoji"] as? JsonObject)
+                val emojiText = emoji?.text.orEmpty()
+                val rawText = rich["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val rawOrigText = rich["orig_text"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val text = rawText.ifBlank { rawOrigText.ifBlank { emojiText } }
+                val origText = rawOrigText.ifBlank { rawText.ifBlank { emojiText } }
                 val richNode = RichTextNode(
                     type = rich["type"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-                    text = rich["text"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-                    orig_text = rich["orig_text"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    text = text,
+                    orig_text = origText,
+                    emoji = emoji,
                     jump_url = rich["jump_url"]?.jsonPrimitive?.contentOrNull,
                     rid = rich["rid"]?.jsonPrimitive?.contentOrNull,
                 )
@@ -379,7 +390,26 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                         RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = formula)
                     }
         }
-        return parsedNodes.filter { it.text.isNotBlank() || it.orig_text.isNotBlank() }
+        return parsedNodes.filter { it.text.isNotBlank() || it.orig_text.isNotBlank() || it.emoji != null }
+    }
+
+    private fun parseParagraphEmojiInfo(emojiObject: JsonObject?): EmojiInfo? {
+        if (emojiObject == null) return null
+        val iconUrl = emojiObject["icon_url"]?.jsonPrimitive?.contentOrNull
+            ?: emojiObject["url"]?.jsonPrimitive?.contentOrNull
+            ?: ""
+        val webpUrl = emojiObject["webp_url"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val gifUrl = emojiObject["gif_url"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val size = emojiObject["size"]?.jsonPrimitive?.intOrNull ?: 1
+        val text = emojiObject["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        if (iconUrl.isBlank() && webpUrl.isBlank() && gifUrl.isBlank() && text.isBlank()) return null
+        return EmojiInfo(
+            icon_url = iconUrl,
+            webp_url = webpUrl,
+            gif_url = gifUrl,
+            size = size,
+            text = text,
+        )
     }
 
     private fun extractParagraphPics(
@@ -679,13 +709,24 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
             descText.length > existingDescText.length -> descText
             else -> existingDescText
         }
+        val allBlockRichTextNodes = contentBlocks.flatMap { block ->
+            when (block) {
+                is OpusContentBlock.Text -> block.richTextNodes
+                else -> emptyList()
+            }
+        }
+        val mergedRichTextNodes = if (allBlockRichTextNodes.isNotEmpty()) {
+            allBlockRichTextNodes
+        } else {
+            existingDesc?.rich_text_nodes.orEmpty()
+        }
         val mergedDesc = if (mergedDescText.isNotBlank()) {
             DynamicDesc(
                 text = mergedDescText,
-                rich_text_nodes = if (mergedDescText == existingDescText) {
-                    existingDesc?.rich_text_nodes.orEmpty()
+                rich_text_nodes = if (mergedDescText == existingDescText && existingDesc != null && existingDesc.rich_text_nodes.isNotEmpty()) {
+                    existingDesc.rich_text_nodes
                 } else {
-                    emptyList()
+                    mergedRichTextNodes
                 }
             )
         } else {
@@ -698,7 +739,10 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
             jump_url = existingOpus?.jump_url.orEmpty(),
             title = cleanTitle ?: existingOpus?.title,
             summary = when {
-                mergedDescText.isNotBlank() -> OpusSummary(text = mergedDescText)
+                mergedDescText.isNotBlank() -> OpusSummary(
+                    text = mergedDescText,
+                    rich_text_nodes = mergedRichTextNodes
+                )
                 existingOpus?.summary != null -> existingOpus.summary
                 else -> null
             },

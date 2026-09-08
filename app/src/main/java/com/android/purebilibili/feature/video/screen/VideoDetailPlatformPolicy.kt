@@ -610,7 +610,7 @@ internal fun resolvePhoneVideoRequestedOrientation(
     isInPictureInPictureMode: Boolean = false,
     preferPortraitForFlatFoldable: Boolean = false,
     preserveExactLandscapeSide: Boolean = true,
-    currentDisplayRotation: Int? = null,
+    isCurrentlyLandscape: Boolean = false,
 ): Int? {
     // A size class alone can classify a tablet or a large phone as a foldable. Keep this
     // preference out of compact layouts even if an upstream caller misclassifies the device.
@@ -674,7 +674,6 @@ internal fun resolvePhoneVideoRequestedOrientation(
                     currentRequestedOrientation = currentRequestedOrientation,
                     isFullscreenMode = isFullscreenMode,
                     preserveExactLandscapeSide = preserveExactLandscapeSide,
-                    currentDisplayRotation = currentDisplayRotation,
                 )
             }
             // Preserve the listener's physical side across fullscreen configuration updates.
@@ -684,16 +683,14 @@ internal fun resolvePhoneVideoRequestedOrientation(
                 currentRequestedOrientation = currentRequestedOrientation,
                 isFullscreenMode = true,
                 preserveExactLandscapeSide = preserveExactLandscapeSide,
-                currentDisplayRotation = currentDisplayRotation,
             )
-            // 若进入页面时物理显示方向已处于横屏（例如顺时针90°旋转时打开视频），
-            // 直接匹配当前实际横屏侧，避免在初帧向系统强写竖屏导致抽搐回弹。
-            currentDisplayRotation == android.view.Surface.ROTATION_270 ||
-            currentDisplayRotation == android.view.Surface.ROTATION_90 ->
-                resolveCurrentExactLandscapeOrientation(
-                    currentRequestedOrientation = currentRequestedOrientation,
-                    currentDisplayRotation = currentDisplayRotation,
-                ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            // Configuration describes the current window orientation. Display rotation is
+            // relative to the display's natural orientation and cannot identify a fixed
+            // landscape side across foldables and vendor rotation configurations. Keep
+            // sensor ownership until the orientation listener has selected an exact side.
+            isCurrentlyLandscape ->
+                resolveCurrentExactLandscapeOrientation(currentRequestedOrientation)
+                    ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -814,17 +811,12 @@ internal fun resolvePhoneAutoRotateTargetToApply(
 
 internal fun resolveCurrentExactLandscapeOrientation(
     currentRequestedOrientation: Int?,
-    currentDisplayRotation: Int? = null,
 ): Int? {
     when (currentRequestedOrientation) {
         ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
         ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE -> return currentRequestedOrientation
     }
-    return when (currentDisplayRotation) {
-        android.view.Surface.ROTATION_270 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        android.view.Surface.ROTATION_90 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-        else -> null
-    }
+    return null
 }
 
 private fun preserveCurrentExactLandscapeSideWhileFullscreen(
@@ -832,7 +824,6 @@ private fun preserveCurrentExactLandscapeSideWhileFullscreen(
     currentRequestedOrientation: Int?,
     isFullscreenMode: Boolean,
     preserveExactLandscapeSide: Boolean,
-    currentDisplayRotation: Int? = null,
 ): Int {
     if (
         !preserveExactLandscapeSide ||
@@ -843,7 +834,6 @@ private fun preserveCurrentExactLandscapeSideWhileFullscreen(
     }
     return resolveCurrentExactLandscapeOrientation(
         currentRequestedOrientation = currentRequestedOrientation,
-        currentDisplayRotation = currentDisplayRotation,
     ) ?: requestedOrientation
 }
 

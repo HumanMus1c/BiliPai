@@ -437,6 +437,16 @@ class SearchScreenPolicyTest {
         assertTrue(searchSource.contains("externalPagerMotionEffectsEnabled = true"))
         assertTrue(searchSource.contains("indicatorPositionProvider = {"))
         assertTrue(searchSource.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
+        val typeTabRowBody = searchSource
+            .substringAfter("private fun SearchResultTypeTabRow(")
+            .substringBefore("private fun rememberSearchHighlightedTitle(")
+        assertTrue(typeTabRowBody.contains("shouldScrollSearchTypeTabs("))
+        assertTrue(typeTabRowBody.contains("resolveSearchTypeTabAdaptiveItemWidthDp("))
+        assertTrue(typeTabRowBody.contains(".liquidDockViewport()"))
+        assertTrue(typeTabRowBody.contains(".horizontalScroll(scrollState)"))
+        assertTrue(typeTabRowBody.contains("KeepScrollableTabSelectionVisible("))
+        assertTrue(typeTabRowBody.contains("onIndicatorPositionChanged = { position ->"))
+        assertTrue(typeTabRowBody.contains("resolveSearchTypeTabDragScrollDeltaPx("))
         assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))
         assertFalse(searchSource.contains("tabIndicatorOffset("))
         // Top bar uses native BasicTextField + TextFieldValue (not AppSearchField wrapper).
@@ -449,8 +459,9 @@ class SearchScreenPolicyTest {
         assertTrue(filterSheetSource.contains("AppModalBottomSheet("))
         assertTrue(filterSheetSource.contains("OverlayBottomSheet("))
         assertTrue(
-            filterSheetSource.contains("AppThemeAdaptiveTabRow("),
-            "视频排序应使用负责选中项自动滚动和标签完整显示的共享标签栏",
+            filterSheetSource.contains("BottomBarLiquidSegmentedControl(") ||
+                filterSheetSource.contains("AppThemeAdaptiveTabRow("),
+            "视频排序应使用负责选中项和标签完整显示的标签栏",
         )
         // History chips use the neutral AppInputChip (visuals follow the theme layer).
         assertTrue(searchSource.contains("AppInputChip("))

@@ -331,14 +331,14 @@ fun VideoNoteEditorSheet(
                 BasicRichTextEditor(
                     state = richTextState,
                     textStyle = MiuixTheme.textStyles.body1.copy(
-                        color = MiuixTheme.colorScheme.onSecondaryContainer
+                        color = MiuixTheme.colorScheme.onSurface
                     ),
                     cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
                         .clip(VideoDetailShapes.field())
-                        .background(MiuixTheme.colorScheme.secondaryContainer)
+                        .background(MiuixTheme.colorScheme.surfaceContainer)
                         .padding(10.dp)
                 )
             } else {

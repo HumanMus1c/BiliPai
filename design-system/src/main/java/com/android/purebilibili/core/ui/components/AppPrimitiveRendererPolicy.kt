@@ -11,13 +11,18 @@ internal fun shouldUseMiuixOutlinedTextField(
 ): Boolean = uiStyle == AppUiStyle.MIUIX && !hasPrefix && !hasSuffix
 
 /**
- * Native Miuix action primitives are only for solid Miuix. MD3 and liquid-glass Miuix
- * keep their current Material renderers.
+ * Native Miuix action primitives are used when UI style is MIUIX.
+ * Liquid glass affects dock and indicator chrome while preserving standard Miuix action primitives.
  */
+internal fun shouldUseMiuixActionPrimitive(
+    uiStyle: AppUiStyle,
+): Boolean = uiStyle == AppUiStyle.MIUIX
+
+@Deprecated("Action primitives now consistently follow Miuix theme regardless of liquid glass.")
 internal fun shouldUseMiuixNonGlassActionPrimitive(
     uiStyle: AppUiStyle,
-    liquidGlassEnabled: Boolean,
-): Boolean = isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)
+    liquidGlassEnabled: Boolean = false,
+): Boolean = uiStyle == AppUiStyle.MIUIX
 
 internal enum class AppMiuixActionTone {
     PRIMARY,

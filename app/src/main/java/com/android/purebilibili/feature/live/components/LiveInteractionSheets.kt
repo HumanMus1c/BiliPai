@@ -2,11 +2,14 @@ package com.android.purebilibili.feature.live.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,6 +24,8 @@ import androidx.compose.material.icons.outlined.Report
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppInputChip
+import com.android.purebilibili.core.ui.rememberAppClearIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -36,6 +41,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -101,44 +117,88 @@ fun LiveEmoticonSheet(
     onDismiss: () -> Unit
 ) {
     val visualSpec = remember { resolveLiveSheetVisualSpec() }
+    var selectedPkgIndex by remember { mutableIntStateOf(0) }
+
     AppModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = AppSpacingTokens.ExtraLarge,
+                    horizontal = AppSpacingTokens.Large,
                     vertical = AppSpacingTokens.Small,
                 ),
-            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
         ) {
             AppText(
                 text = "直播表情",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Small)
             )
             if (packages.isEmpty()) {
-                AppText(
-                    text = "当前直播间暂无可用表情",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                LazyColumn(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(visualSpec.emoticonListMaxHeightDp.dp),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    packages.forEach { pkg ->
-                        item(key = "title-${pkg.id}") {
-                            AppText(
-                                text = pkg.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        items(pkg.items, key = { "${pkg.id}-${it.emoji}" }) { item ->
-                            LiveEmoticonRow(item = item, onClick = { onSelected(item) })
+                    AppText(
+                        text = "当前直播间暂无可用表情",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                // 表情包分类 Tab 栏（对齐 PiliPlus / B站表情选择体验）
+                if (packages.size > 1) {
+                    val safeIndex = selectedPkgIndex.coerceIn(0, packages.lastIndex)
+                    AppThemeAdaptiveTabRow(
+                        options = packages.mapIndexed { index, pkg ->
+                            AppSegmentOption(index, pkg.name)
+                        },
+                        selectedValue = safeIndex,
+                        onSelectionChange = { selectedPkgIndex = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        scrollable = true,
+                        labelFontSize = 13.sp,
+                    )
+                    AppHorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                        thickness = 0.5.dp
+                    )
+                }
+
+                val currentPackage = packages.getOrNull(selectedPkgIndex.coerceIn(0, packages.lastIndex))
+                val currentEmotes = currentPackage?.items.orEmpty()
+
+                if (currentEmotes.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppText(
+                            text = "该表情包暂无表情",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(6),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(visualSpec.emoticonListMaxHeightDp.dp),
+                        contentPadding = PaddingValues(AppSpacingTokens.ExtraSmall),
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
+                    ) {
+                        items(
+                            items = currentEmotes,
+                            key = { "${currentPackage?.id ?: 0}-${it.emoji}" }
+                        ) { item ->
+                            LiveEmoticonGridCell(item = item, onClick = { onSelected(item) })
                         }
                     }
                 }
@@ -148,41 +208,30 @@ fun LiveEmoticonSheet(
 }
 
 @Composable
-private fun LiveEmoticonRow(
+private fun LiveEmoticonGridCell(
     item: LiveEmoticonItem,
     onClick: () -> Unit
 ) {
-    val visualSpec = remember { resolveLiveSheetVisualSpec() }
     AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        onClick = onClick,
         color = AppSurfaceTokens.cardContainer(),
-        shape = AppShapes.container(ContainerLevel.Card)
+        shape = AppShapes.container(ContainerLevel.Chip),
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(AppShapes.container(ContainerLevel.Chip))
     ) {
-        Row(
-            modifier = Modifier.padding(AppSpacingTokens.Medium),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(AppSpacingTokens.Small),
+            contentAlignment = Alignment.Center
         ) {
             AsyncImage(
                 model = item.url,
                 contentDescription = item.description.ifBlank { item.emoji },
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.height(visualSpec.emoticonImageHeightDp.dp)
+                modifier = Modifier.fillMaxSize()
             )
-            Column(modifier = Modifier.weight(1f)) {
-                AppText(item.emoji, style = MaterialTheme.typography.bodyLarge)
-                if (item.description.isNotBlank()) {
-                    AppText(
-                        text = item.description,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
         }
     }
 }
@@ -309,27 +358,53 @@ private fun LiveRuleSection(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LiveKeywordSection(
     shieldInfo: LiveShieldInfo?,
     enabled: Boolean,
     onDeleteKeyword: (String) -> Unit
 ) {
+    val clearIcon = rememberAppClearIcon()
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         AppText("关键词", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         val keywords = shieldInfo?.keywords.orEmpty()
         if (keywords.isEmpty()) {
             AppText("暂无屏蔽词", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            keywords.forEach { item ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AppText(item.keyword, modifier = Modifier.weight(1f))
-                    AppIconButton(enabled = enabled, onClick = { onDeleteKeyword(item.keyword) }) {
-                        AppIcon(Icons.Outlined.Delete, contentDescription = "删除")
-                    }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                keywords.forEach { item ->
+                    AppInputChip(
+                        selected = false,
+                        onClick = {},
+                        label = {
+                            AppText(
+                                text = item.keyword,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        trailingIcon = {
+                            AppIconButton(
+                                onClick = { if (enabled) onDeleteKeyword(item.keyword) },
+                                enabled = enabled,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                AppIcon(
+                                    clearIcon,
+                                    contentDescription = "删除屏蔽词",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -348,20 +423,42 @@ private fun LiveShieldUserSection(
         if (users.isEmpty()) {
             AppText("暂无屏蔽用户", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            users.forEach { user ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AppIcon(Icons.Outlined.Block, contentDescription = null)
-                    AppText(
-                        text = user.uname.ifBlank { user.uid.toString() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = AppSpacingTokens.Medium)
-                    )
-                    AppTextButton(enabled = enabled, onClick = { onUnblockUser(user) }) {
-                        AppText("解除")
+            Column(
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                users.forEach { user ->
+                    AppSurface(
+                        color = AppSurfaceTokens.cardContainer(),
+                        shape = AppShapes.container(ContainerLevel.Chip),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = AppSpacingTokens.Medium,
+                                    vertical = AppSpacingTokens.Small
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AppIcon(
+                                Icons.Outlined.Block,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            AppText(
+                                text = user.uname.ifBlank { user.uid.toString() },
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = AppSpacingTokens.Medium)
+                            )
+                            AppTextButton(enabled = enabled, onClick = { onUnblockUser(user) }) {
+                                AppText("解除")
+                            }
+                        }
                     }
                 }
             }

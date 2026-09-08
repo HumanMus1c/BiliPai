@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 
 import kotlin.math.roundToInt
@@ -304,4 +306,70 @@ internal fun shouldUseLightweightTopTabItemClickIndication(
     if (skinPlainStyle) return true
     if (usesCapsuleIndicator) return false
     return presentation == AppTopTabPresentation.MATERIAL_UNDERLINE
+}
+
+internal const val MD3_TOP_TAB_INDICATOR_DURATION_MILLIS = 300
+
+internal val Md3TopTabIndicatorFlutterEase = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+
+internal val Md3TopTabIndicatorDecelerate = Easing { fraction ->
+    kotlin.math.sin(Md3TopTabIndicatorFlutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
+}
+
+internal val Md3TopTabIndicatorAccelerate = Easing { fraction ->
+    1f - kotlin.math.cos(Md3TopTabIndicatorFlutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
+}
+
+internal fun shouldAnimateMd3TopTabUnderline(
+    pagerIsDragging: Boolean,
+    topTabIndicatorOwnsPosition: Boolean
+): Boolean {
+    return !pagerIsDragging && !topTabIndicatorOwnsPosition
+}
+
+internal data class Md3TopTabTargetBounds(
+    val leftPx: Float,
+    val rightPx: Float,
+)
+
+internal fun resolveMd3TopTabTargetBounds(
+    targetIndex: Int,
+    itemWidthPx: Float,
+    indicatorWidthPx: Float,
+    contentPaddingPx: Float = 0f,
+): Md3TopTabTargetBounds {
+    if (itemWidthPx <= 0f || indicatorWidthPx <= 0f) {
+        return Md3TopTabTargetBounds(contentPaddingPx, contentPaddingPx)
+    }
+    val centerPx = contentPaddingPx + (targetIndex * itemWidthPx) + (itemWidthPx / 2f)
+    val halfW = indicatorWidthPx / 2f
+    return Md3TopTabTargetBounds(
+        leftPx = centerPx - halfW,
+        rightPx = centerPx + halfW,
+    )
+}
+
+internal fun resolveMd3TopTabUnderlineTapBounds(
+    animatedLeftPx: Float,
+    animatedRightPx: Float,
+    rowScrollOffsetPx: Float,
+): Md3TopTabUnderlineBounds {
+    return Md3TopTabUnderlineBounds(
+        translationXPx = animatedLeftPx - rowScrollOffsetPx,
+        widthPx = (animatedRightPx - animatedLeftPx).coerceAtLeast(0f),
+    )
+}
+
+internal fun resolveMd3TopTabTapContentPosition(
+    animatedLeftPx: Float,
+    animatedRightPx: Float,
+    itemWidthPx: Float,
+    contentPaddingPx: Float,
+    fallbackIndex: Int,
+    categoryCount: Int,
+): Float {
+    if (itemWidthPx <= 0f || categoryCount <= 0) return fallbackIndex.toFloat()
+    val centerPx = (animatedLeftPx + animatedRightPx) / 2f
+    val position = (centerPx - contentPaddingPx - itemWidthPx / 2f) / itemWidthPx
+    return position.coerceIn(0f, (categoryCount - 1).toFloat())
 }

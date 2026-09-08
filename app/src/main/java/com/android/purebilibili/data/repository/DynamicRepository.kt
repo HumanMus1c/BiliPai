@@ -80,7 +80,9 @@ object DynamicRepository {
                     DynamicFeedFetchResult(
                         items = emptyList(),
                         updateNum = 0,
-                        usedUpdateBaseline = false
+                        usedUpdateBaseline = false,
+                        nextOffset = feedPagination.offset(scope, type),
+                        hasMore = false
                     )
                 )
             }
@@ -118,7 +120,8 @@ object DynamicRepository {
                             responseOffset = previousOffset,
                             responseUpdateBaseline = "",
                             responseHasMore = false,
-                            preserveExistingPagination = useIncrementalRefresh
+                            preserveExistingPagination = useIncrementalRefresh,
+                            reportedUpdateNum = reportedUpdateNum
                         )
                     )
                     break
@@ -144,7 +147,8 @@ object DynamicRepository {
                         responseOffset = data.offset,
                         responseUpdateBaseline = resolvedUpdateBaseline,
                         responseHasMore = data.has_more,
-                        preserveExistingPagination = useIncrementalRefresh
+                        preserveExistingPagination = useIncrementalRefresh,
+                        reportedUpdateNum = reportedUpdateNum
                     )
                 )
 
@@ -181,7 +185,9 @@ object DynamicRepository {
                 DynamicFeedFetchResult(
                     items = visibleItems,
                     updateNum = reportedUpdateNum,
-                    usedUpdateBaseline = useIncrementalRefresh
+                    usedUpdateBaseline = useIncrementalRefresh,
+                    nextOffset = requestOffset,
+                    hasMore = feedPagination.hasMore(scope, type)
                 )
             )
         } catch (e: Exception) {
@@ -424,6 +430,22 @@ object DynamicRepository {
         return feedPagination.hasMore(scope, type)
     }
 
+    fun syncPaginationAfterRefresh(
+        scope: DynamicFeedScope,
+        type: String = "all",
+        offset: String,
+        updateBaseline: String = "",
+        hasMore: Boolean = true
+    ) {
+        feedPagination.update(
+            scope = scope,
+            type = type,
+            offset = offset,
+            updateBaseline = updateBaseline.ifBlank { feedPagination.updateBaseline(scope, type) },
+            hasMore = hasMore
+        )
+    }
+
     suspend fun getDynamicUpdateCount(
         scope: DynamicFeedScope = DynamicFeedScope.DYNAMIC_SCREEN,
         type: String = "all",
@@ -581,12 +603,17 @@ internal fun resolveDynamicPaginationStateAfterPage(
     responseOffset: String,
     responseUpdateBaseline: String,
     responseHasMore: Boolean,
-    preserveExistingPagination: Boolean
+    preserveExistingPagination: Boolean,
+    reportedUpdateNum: Int = -1
 ): DynamicPaginationState {
     val nextBaseline = responseUpdateBaseline.ifBlank {
         paginationBeforeRefresh.updateBaseline
     }
-    return if (preserveExistingPagination) {
+    val canPreserve = preserveExistingPagination &&
+        paginationBeforeRefresh.offset.isNotBlank() &&
+        reportedUpdateNum != 0
+
+    return if (canPreserve) {
         paginationBeforeRefresh.copy(updateBaseline = nextBaseline)
     } else {
         DynamicPaginationState(
@@ -605,7 +632,9 @@ enum class DynamicFeedScope {
 data class DynamicFeedFetchResult(
     val items: List<DynamicItem>,
     val updateNum: Int = 0,
-    val usedUpdateBaseline: Boolean = false
+    val usedUpdateBaseline: Boolean = false,
+    val nextOffset: String = "",
+    val hasMore: Boolean = true
 )
 
 internal data class DynamicPaginationState(

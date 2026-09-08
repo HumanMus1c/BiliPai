@@ -11,6 +11,20 @@ import kotlin.test.assertTrue
 class AppShapesTest {
 
     @Test
+    fun nonGlassMiuix_fillAndBorderShareUpstreamSquircleGeometry() {
+        val fill = AppShapes.resolveContainerShape(ContainerLevel.Card, AppUiStyle.MIUIX, false)
+        val border = AppShapes.resolveBorderedContainerShape(ContainerLevel.Card, AppUiStyle.MIUIX, false)
+        assertEquals(MiuixContainerShape(16.dp), fill)
+        assertEquals(fill, border)
+        assertIs<RoundedCornerShape>(
+            AppShapes.resolveContainerShape(ContainerLevel.Card, AppUiStyle.MATERIAL3, false)
+        )
+        assertIs<RoundedCornerShape>(
+            AppShapes.resolveContainerShape(ContainerLevel.Card, AppUiStyle.MIUIX, true)
+        )
+    }
+
+    @Test
     fun nonGlassMiuix_usesRoleCornersWithoutChangingOtherModes() {
         val expected = mapOf(
             ContainerLevel.Card to 16.dp,
@@ -23,7 +37,7 @@ class AppShapesTest {
             assertEquals(AppShapes.resolveContainerCornerDp(role, AppUiStyle.MATERIAL3),
                 AppShapes.resolveContainerCornerDp(role, AppUiStyle.MATERIAL3, false))
         }
-        assertEquals(AppShapes.resolveContainerCornerDp(ContainerLevel.Card, AppUiStyle.MIUIX),
+        assertEquals(12.dp,
             AppShapes.resolveContainerCornerDp(ContainerLevel.MediaCover, AppUiStyle.MIUIX, true))
     }
 

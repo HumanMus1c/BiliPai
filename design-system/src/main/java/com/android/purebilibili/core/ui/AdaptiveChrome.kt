@@ -358,12 +358,18 @@ fun AdaptiveTopAppBar(
         }
 
         AdaptiveTopAppBarStyle.LARGE -> {
-            TopAppBar(
+            LargeTopAppBar(
                 modifier = modifier,
-                title = { Text(displayLargeTitle, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(displayLargeTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = navigationIcon,
                 actions = actions,
-                colors = topAppBarColors,
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = topAppBarColors.containerColor,
+                    scrolledContainerColor = topAppBarColors.scrolledContainerColor,
+                    navigationIconContentColor = topAppBarColors.navigationIconContentColor,
+                    titleContentColor = topAppBarColors.titleContentColor,
+                    actionIconContentColor = topAppBarColors.actionIconContentColor,
+                ),
                 scrollBehavior = scrollBehavior,
                 windowInsets = topBarWindowInsets
             )

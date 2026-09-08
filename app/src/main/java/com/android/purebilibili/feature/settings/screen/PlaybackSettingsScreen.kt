@@ -12,6 +12,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -96,6 +98,7 @@ fun PlaybackSettingsScreen(
         backContentDescription = backLabel,
         bottomContentPadding = bottomContentPadding,
         scrollHost = SettingsPageScrollHost.External,
+        externalContentHandlesTopPadding = true,
         topBarBlurEnabled = state.headerBlurEnabled,
     ) {
         CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides state.isLiquidGlassEnabled) {
@@ -263,7 +266,10 @@ fun PlaybackSettingsContent(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = WindowInsets.navigationBars.asPaddingValues()
+        contentPadding = PaddingValues(
+            top = LocalSettingsTopContentPadding.current,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+        )
     ) {
 
             //  解码设置

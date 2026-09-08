@@ -315,7 +315,7 @@ fun HomeScreen(
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
-    val pageSwitchMotionSpec = AppMotionTokens.emphasizedSpec<Float>()
+    val pageSwitchMotionSpec = AppMotionTokens.standardSpec<Float>()
     val globalScrollOffset = LocalHomeScrollOffset.current
     val globalFeedScrollInProgress = LocalHomeFeedScrollInProgress.current
     // [Header] 首页重选/双击回顶时需要强制恢复顶部，避免自动收缩后残留空白区域。

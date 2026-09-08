@@ -8,7 +8,7 @@ import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 /**
  * 列表条目呈现样式(用户可切换)。
- * - [AUTO]:跟随运行时主题 —— MATERIAL3→[CUSTOM],MIUIX→[NATIVE]。
+ * - [AUTO]:跟随运行时主题 —— MATERIAL3→[NATIVE],MIUIX→[NATIVE]。
  * - [CUSTOM]:项目自定义条目(圆角图标容器 + 自定义 Row),两个预设均可选用。
  * - [NATIVE]:各预设原生组件 —— MATERIAL3→M3 ListItem,MIUIX→Miuix 原生条目。
  */
@@ -23,7 +23,7 @@ fun resolveAppListItemStyle(
     uiStyle: AppUiStyle,
 ): AppListItemStyle = when (style) {
     AppListItemStyle.AUTO -> when (uiStyle) {
-        AppUiStyle.MATERIAL3 -> AppListItemStyle.CUSTOM
+        AppUiStyle.MATERIAL3 -> AppListItemStyle.NATIVE
         AppUiStyle.MIUIX -> AppListItemStyle.NATIVE
     }
     else -> style

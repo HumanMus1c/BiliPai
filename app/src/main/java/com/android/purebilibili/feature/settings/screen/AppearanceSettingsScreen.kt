@@ -15,6 +15,8 @@ import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -157,6 +159,7 @@ fun AppearanceSettingsScreen(
         backContentDescription = backLabel,
         bottomContentPadding = bottomContentPadding,
         scrollHost = SettingsPageScrollHost.External,
+        externalContentHandlesTopPadding = true,
         topBarBlurEnabled = state.headerBlurEnabled,
     ) {
         CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides effectiveLiquidGlassEnabled) {
@@ -513,7 +516,7 @@ fun AppearanceSettingsContent(
         modifier = modifier
             .fillMaxSize(),
         // [Fix] 为可展开配置项增加安全底部留白，避免“小屏+展开”时显示不全
-        contentPadding = PaddingValues(bottom = contentBottomPadding)
+        contentPadding = PaddingValues(top = LocalSettingsTopContentPadding.current, bottom = contentBottomPadding)
     ) {
         if (contentMode == AppearanceSettingsContentMode.APPEARANCE) {
 
@@ -2087,9 +2090,11 @@ private fun AppearanceUiPresetDescriptionCard(
 ) {
     val icon = rememberAppSparklesIcon()
     val colorScheme = MaterialTheme.colorScheme
-    val cardColors = remember(colorScheme) {
+    val nativeMiuix = com.android.purebilibili.core.ui.isMiuixNonGlassEnabled()
+    val cardColors = remember(colorScheme, nativeMiuix) {
         resolveAccessibleContainerColors(
-            containerColor = colorScheme.primaryContainer.copy(alpha = 0.44f),
+            containerColor = if (nativeMiuix) colorScheme.surfaceContainer
+                else colorScheme.primaryContainer.copy(alpha = 0.44f),
             contentColor = colorScheme.onPrimaryContainer,
             backgroundColor = colorScheme.surface,
             fallbackContentColors = listOf(colorScheme.onSurface, colorScheme.onBackground),

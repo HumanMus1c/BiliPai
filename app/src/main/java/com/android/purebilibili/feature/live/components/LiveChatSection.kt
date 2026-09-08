@@ -24,6 +24,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.ThumbUpOffAlt
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableIntStateOf
@@ -101,6 +102,8 @@ fun LiveChatSection(
     val messages = remember { mutableStateListOf<LiveDanmakuItem>() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    var isAnyMenuOpen by remember { mutableStateOf(false) }
+    var pendingScroll by remember { mutableStateOf(false) }
     val isAwayFromBottom by remember {
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -113,17 +116,28 @@ fun LiveChatSection(
             // 确保列表操作在主线程执行 (Compose 状态修改必须在主线程)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 try {
-                    val shouldAutoScroll = !listState.isScrollInProgress && !isAwayFromBottom
+                    val shouldAutoScroll = !listState.isScrollInProgress && !isAwayFromBottom && !isAnyMenuOpen
                     messages.add(item)
                     if (messages.size > 200) messages.removeAt(0)
-                    // 只有当用户没有滚动时才自动滚动
-                    if (shouldAutoScroll && messages.isNotEmpty()) {
-                        listState.animateScrollToItem(messages.size - 1)
+                    // 节流平滑滚动（通知 LaunchedEffect 批处理）
+                    if (shouldAutoScroll) {
+                        pendingScroll = true
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("LiveChatSection", "❌ Message add error: ${e.message}")
                 }
             }
+        }
+    }
+
+    // 节流平滑滚动（300ms 批处理，对齐 PiliPlus 节流设计，防止瞬时密集弹幕引起的持续动画打断与掉帧）
+    LaunchedEffect(pendingScroll) {
+        if (pendingScroll) {
+            delay(300L)
+            if (!listState.isScrollInProgress && !isAwayFromBottom && !isAnyMenuOpen && messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+            pendingScroll = false
         }
     }
     
@@ -203,11 +217,22 @@ fun LiveChatSection(
                         onUserClick = onUserClick,
                         onAtUser = onAtUser,
                         onBlockUser = onBlockUser,
-                        onReportDanmaku = onReportDanmaku
+                        onReportDanmaku = onReportDanmaku,
+                        onMenuVisibilityChange = { isAnyMenuOpen = it }
                     )
                 }
             }
-            if (isAwayFromBottom) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isAwayFromBottom,
+                enter = fadeIn() + scaleIn(initialScale = 0.85f),
+                exit = fadeOut() + scaleOut(targetScale = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = AppSpacingTokens.Medium,
+                        bottom = AppSpacingTokens.Small
+                    )
+            ) {
                 AppSurface(
                     onClick = {
                         scope.launch {
@@ -216,22 +241,27 @@ fun LiveChatSection(
                     },
                     shape = AppShapes.container(ContainerLevel.Pill),
                     color = if (darkOverlay) palette.bubbleStrong else palette.surfaceMuted,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(
-                            end = AppSpacingTokens.Medium,
-                            bottom = AppSpacingTokens.Small
-                        )
                 ) {
-                    AppText(
-                        text = "回到底部",
-                        color = if (darkOverlay) LiveStatusPalette.MediaContent else palette.primaryText,
-                        style = MaterialTheme.typography.labelMedium,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(
                             horizontal = AppSpacingTokens.Medium,
                             vertical = AppSpacingTokens.Small
                         )
-                    )
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = if (darkOverlay) LiveStatusPalette.MediaContent else palette.primaryText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
+                        AppText(
+                            text = "回到底部",
+                            color = if (darkOverlay) LiveStatusPalette.MediaContent else palette.primaryText,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
             }
         }
@@ -257,7 +287,8 @@ private fun ChatMessageItem(
     onUserClick: (Long) -> Unit,
     onAtUser: (LiveDanmakuItem) -> Unit,
     onBlockUser: (LiveDanmakuItem) -> Unit,
-    onReportDanmaku: (LiveDanmakuItem) -> Unit
+    onReportDanmaku: (LiveDanmakuItem) -> Unit,
+    onMenuVisibilityChange: (Boolean) -> Unit = {}
 ) {
     if (item.isSuperChat) {
         SuperChatMessageItem(item = item, isOverlay = isOverlay)
@@ -269,6 +300,9 @@ private fun ChatMessageItem(
     val context = LocalContext.current
     val palette = rememberLiveChromePalette()
     var showMenu by remember { mutableStateOf(false) }
+    LaunchedEffect(showMenu) {
+        onMenuVisibilityChange(showMenu)
+    }
     val tokens = resolveLiveBiliPaiChatBubbleTokens(isOverlay = isOverlay, isDark = palette.isDark)
     val bubbleShape = RoundedCornerShape(tokens.cornerRadiusDp.dp)
     val colorScheme = MaterialTheme.colorScheme
@@ -740,9 +774,10 @@ private fun ChatInputBar(
 }
 
 @Composable
-private fun LiveLikeButton(
+internal fun LiveLikeButton(
     tint: Color,
-    onLike: (Int) -> Unit
+    onLike: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var likeCount by remember { mutableIntStateOf(0) }
     var flushJob by remember { mutableStateOf<Job?>(null) }

@@ -491,6 +491,7 @@ fun BottomBarLiquidSegmentedControl(
         height = height,
         indicatorHeight = indicatorHeight,
         labelFontSize = effectiveLabelFontSize,
+        allowLabelOverflow = allowNativeLabelOverflow,
         containerHorizontalPadding = containerHorizontalPadding,
         containerVerticalPadding = containerVerticalPadding,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,

@@ -95,6 +95,60 @@ class DynamicModulesFlexibleSerializerTest {
     }
 
     @Test
+    fun opusDetailParagraph_preservesEmojiMetadataAndExtractsEmojiInfo() {
+        val payload = """
+            {
+              "code": 0,
+              "data": {
+                "item": {
+                  "modules": [
+                    {
+                      "module_type": "MODULE_TYPE_CONTENT",
+                      "module_content": {
+                        "paragraphs": [
+                          {
+                            "para_type": 1,
+                            "text": {
+                              "nodes": [
+                                { "type": "TEXT_NODE_TYPE_WORD", "word": { "words": "画完了" } },
+                                {
+                                  "type": "TEXT_NODE_TYPE_RICH",
+                                  "rich": {
+                                    "type": "RICH_TEXT_NODE_TYPE_EMOJI",
+                                    "text": "",
+                                    "orig_text": "",
+                                    "emoji": {
+                                      "icon_url": "https://i0.hdslb.com/bfs/emote/baofu.png",
+                                      "size": 1,
+                                      "text": "[豹富]"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val response = json.decodeFromString<DynamicDetailResponse>(payload)
+        val opus = response.data?.item?.modules?.module_dynamic?.major?.opus
+        val block = opus?.contentBlocks?.single() as? OpusContentBlock.Text
+
+        assertEquals("画完了[豹富]", block?.text)
+        val emojiNode = block?.richTextNodes?.last()
+        assertEquals("RICH_TEXT_NODE_TYPE_EMOJI", emojiNode?.type)
+        assertEquals("[豹富]", emojiNode?.text)
+        assertEquals("https://i0.hdslb.com/bfs/emote/baofu.png", emojiNode?.emoji?.icon_url)
+        assertTrue(opus?.summary?.rich_text_nodes?.any { it.emoji?.icon_url == "https://i0.hdslb.com/bfs/emote/baofu.png" } == true)
+    }
+
+    @Test
     fun opusDetailParagraph_keepsFormulaBeforeAtMentionInRichNodeStream() {
         val payload = """
             {

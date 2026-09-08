@@ -326,6 +326,75 @@ internal fun resolveMaterialColorSchemeFromMiuixBridge(
     }
 }
 
+/** Keep upstream neutral/control roles; only the user's accent is adapted from Material. */
+internal fun resolveNativeMiuixColors(
+    scheme: ColorScheme,
+    darkTheme: Boolean,
+    amoledDarkTheme: Boolean = false,
+    customRolesEnabled: Boolean = false,
+): top.yukonga.miuix.kmp.theme.Colors {
+    if (customRolesEnabled) {
+        return resolveMiuixColorsFromMaterialBridge(createMiuixMaterialBridge(scheme), darkTheme)
+    }
+    val base = if (darkTheme) miuixDarkColorScheme() else miuixLightColorScheme()
+    val accentContainer = opaqueCompositeOver(scheme.primary.copy(alpha = 0.2f), base.surface)
+    val accentScheme = scheme.copy(
+        surface = base.surface,
+        primaryFixed = accentContainer,
+        onPrimaryFixed = scheme.primary,
+        primaryContainer = scheme.primary,
+        onPrimaryContainer = scheme.onPrimary,
+    )
+    val accent = resolveMiuixColorsFromMaterialBridge(createMiuixMaterialBridge(accentScheme), darkTheme)
+    return base.copy(
+        primary = accent.primary,
+        onPrimary = accent.onPrimary,
+        primaryVariant = accent.primaryVariant,
+        onPrimaryVariant = accent.onPrimaryVariant,
+        primaryContainer = accent.primaryContainer,
+        onPrimaryContainer = accent.onPrimaryContainer,
+        disabledPrimary = accent.disabledPrimary,
+        disabledOnPrimary = accent.disabledOnPrimary,
+        disabledPrimaryButton = accent.disabledPrimaryButton,
+        disabledOnPrimaryButton = accent.disabledOnPrimaryButton,
+        disabledPrimarySlider = accent.disabledPrimarySlider,
+        tertiaryContainer = accentContainer,
+        onTertiaryContainer = scheme.primary,
+        onBackgroundVariant = scheme.primary,
+        sliderKeyPoint = scheme.primary.copy(alpha = base.sliderKeyPoint.alpha),
+        sliderKeyPointForeground = scheme.primary,
+        background = if (darkTheme && amoledDarkTheme) Color.Black else base.background,
+    )
+}
+
+/** Material-backed content shares the same surfaces as native Miuix components. */
+internal fun alignMaterialSurfacesWithMiuix(
+    scheme: ColorScheme,
+    colors: top.yukonga.miuix.kmp.theme.Colors,
+): ColorScheme = scheme.copy(
+    primary = colors.primary,
+    onPrimary = colors.onPrimary,
+    primaryFixed = colors.primaryVariant,
+    onPrimaryFixed = colors.onPrimaryVariant,
+    primaryContainer = colors.primaryContainer,
+    onPrimaryContainer = colors.onPrimaryContainer,
+    tertiaryContainer = colors.tertiaryContainer,
+    onTertiaryContainer = colors.onTertiaryContainer,
+    background = colors.background,
+    onBackground = colors.onBackground,
+    surface = colors.surface,
+    onSurface = colors.onSurface,
+    surfaceVariant = colors.surfaceVariant,
+    onSurfaceVariant = colors.onSurfaceVariantSummary,
+    surfaceContainerLowest = colors.surface,
+    surfaceContainerLow = colors.surfaceContainer,
+    surfaceContainer = colors.surfaceContainer,
+    surfaceContainerHigh = colors.surfaceContainerHigh,
+    surfaceContainerHighest = colors.surfaceContainerHighest,
+    outline = colors.outline,
+    outlineVariant = colors.dividerLine,
+)
+
 internal fun resolveMiuixColorsFromMaterialBridge(
     bridge: MiuixMaterialBridge,
     darkTheme: Boolean
@@ -849,6 +918,76 @@ private fun rememberSystemWallpaperRefreshToken(
 
 private const val SYSTEM_WALLPAPER_PALETTE_SETTLE_DELAY_MS = 200L
 
+internal fun createMiuixAlignedColorScheme(
+    primaryColor: Color,
+    darkTheme: Boolean,
+    amoledDarkTheme: Boolean
+): ColorScheme {
+    return if (darkTheme) {
+        if (amoledDarkTheme) {
+            darkColorScheme(
+                primary = primaryColor,
+                onPrimary = White,
+                primaryContainer = primaryColor.copy(alpha = 0.32f),
+                onPrimaryContainer = primaryColor,
+                secondary = primaryColor.copy(alpha = 0.9f),
+                secondaryContainer = primaryColor.copy(alpha = 0.22f),
+                onSecondaryContainer = primaryColor,
+                background = Black,
+                surface = Black,
+                onSurface = Color(0xFFF2F2F2),
+                surfaceVariant = Color(0xFF121212),
+                onSurfaceVariant = Color(0xFF98989D),
+                surfaceContainer = Color(0xFF0D0D0D),
+                surfaceContainerHigh = Color(0xFF1A1A1A),
+                surfaceContainerHighest = Color(0xFF242424),
+                outline = Color(0xFF48484A),
+                outlineVariant = Color(0xFF262626)
+            )
+        } else {
+            darkColorScheme(
+                primary = primaryColor,
+                onPrimary = White,
+                primaryContainer = primaryColor.copy(alpha = 0.3f),
+                onPrimaryContainer = primaryColor,
+                secondary = primaryColor.copy(alpha = 0.85f),
+                secondaryContainer = primaryColor.copy(alpha = 0.2f),
+                onSecondaryContainer = primaryColor,
+                background = Color(0xFF0D0D0D),
+                surface = Color(0xFF121212),
+                onSurface = Color(0xFFF2F2F2),
+                surfaceVariant = Color(0xFF242424),
+                onSurfaceVariant = Color(0xFF98989D),
+                surfaceContainer = Color(0xFF242424),
+                surfaceContainerHigh = Color(0xFF2C2C2E),
+                surfaceContainerHighest = Color(0xFF383838),
+                outline = Color(0xFF48484A),
+                outlineVariant = Color(0xFF3A3A3C)
+            )
+        }
+    } else {
+        lightColorScheme(
+            primary = primaryColor,
+            onPrimary = White,
+            primaryContainer = primaryColor.copy(alpha = 0.15f),
+            onPrimaryContainer = primaryColor,
+            secondary = primaryColor.copy(alpha = 0.8f),
+            secondaryContainer = primaryColor.copy(alpha = 0.1f),
+            onSecondaryContainer = primaryColor,
+            background = Color(0xFFF7F7F7),
+            surface = White,
+            onSurface = Color(0xFF111111),
+            surfaceVariant = Color(0xFFF0F0F0),
+            onSurfaceVariant = Color(0xFF6C6C70),
+            surfaceContainer = Color(0xFFF2F2F7),
+            surfaceContainerHigh = Color(0xFFE8E8E8),
+            surfaceContainerHighest = Color(0xFFE5E5EA),
+            outline = Color(0xFFD1D1D6),
+            outlineVariant = Color(0xFFE5E5EA)
+        )
+    }
+}
+
 @Composable
 private fun rememberBiliPaiStyleColorScheme(
     seedColor: Color,
@@ -856,6 +995,7 @@ private fun rememberBiliPaiStyleColorScheme(
     amoledDarkTheme: Boolean,
     paletteStyle: PaletteStyle,
     colorSpec: ColorSpec.SpecVersion,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
     dynamicBaseScheme: ColorScheme? = null
 ): ColorScheme = remember(
     seedColor,
@@ -863,6 +1003,7 @@ private fun rememberBiliPaiStyleColorScheme(
     amoledDarkTheme,
     paletteStyle,
     colorSpec,
+    uiStyle,
     dynamicBaseScheme,
 ) {
     createBiliPaiStyleColorScheme(
@@ -871,6 +1012,7 @@ private fun rememberBiliPaiStyleColorScheme(
         amoledDarkTheme = amoledDarkTheme,
         paletteStyle = paletteStyle,
         colorSpec = colorSpec,
+        uiStyle = uiStyle,
         dynamicBaseScheme = dynamicBaseScheme,
     )
 }
@@ -881,11 +1023,20 @@ internal fun createBiliPaiStyleColorScheme(
     amoledDarkTheme: Boolean,
     paletteStyle: PaletteStyle,
     colorSpec: ColorSpec.SpecVersion,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
     dynamicBaseScheme: ColorScheme? = null,
 ): ColorScheme {
     // AndroidX already returns the user's final wallpaper-derived light/dark scheme.
     // Re-generating it from resolved roles changes the palette selected in system settings.
     if (dynamicBaseScheme != null) return dynamicBaseScheme
+
+    if (uiStyle == AppUiStyle.MIUIX) {
+        return createMiuixAlignedColorScheme(
+            primaryColor = seedColor,
+            darkTheme = darkTheme,
+            amoledDarkTheme = amoledDarkTheme
+        )
+    }
 
     val scheme = dynamicColorScheme(
         seedColor = seedColor,
@@ -986,6 +1137,7 @@ fun PureBiliBiliTheme(
         amoledDarkTheme = false,
         paletteStyle = colorStyle,
         colorSpec = colorSpec,
+        uiStyle = uiStyle,
         dynamicBaseScheme = dynamicLightBaseScheme
     )
     val darkMaterialScheme = rememberBiliPaiStyleColorScheme(
@@ -994,6 +1146,7 @@ fun PureBiliBiliTheme(
         amoledDarkTheme = amoledDarkTheme,
         paletteStyle = colorStyle,
         colorSpec = colorSpec,
+        uiStyle = uiStyle,
         dynamicBaseScheme = dynamicDarkBaseScheme
     )
 
@@ -1013,17 +1166,31 @@ fun PureBiliBiliTheme(
         )
     }
     val staticMaterialScheme = if (darkTheme) resolvedDarkMaterialScheme else resolvedLightMaterialScheme
-    val miuixLightColors = remember(resolvedLightMaterialScheme) {
-        resolveMiuixColorsFromMaterialBridge(
-            bridge = createMiuixMaterialBridge(resolvedLightMaterialScheme),
-            darkTheme = false
-        )
+    val useNativeMiuix = uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled
+    val miuixLightColors = remember(resolvedLightMaterialScheme, useNativeMiuix, effectiveThemeRoleOverrides) {
+        if (useNativeMiuix) {
+            resolveNativeMiuixColors(
+                resolvedLightMaterialScheme,
+                darkTheme = false,
+                customRolesEnabled = effectiveThemeRoleOverrides.enabled,
+            )
+        } else {
+            resolveMiuixColorsFromMaterialBridge(createMiuixMaterialBridge(resolvedLightMaterialScheme), false)
+        }
     }
-    val miuixDarkColors = remember(resolvedDarkMaterialScheme) {
-        resolveMiuixColorsFromMaterialBridge(
-            bridge = createMiuixMaterialBridge(resolvedDarkMaterialScheme),
-            darkTheme = true
-        )
+    val miuixDarkColors = remember(
+        resolvedDarkMaterialScheme, useNativeMiuix, amoledDarkTheme, effectiveThemeRoleOverrides,
+    ) {
+        if (useNativeMiuix) {
+            resolveNativeMiuixColors(
+                resolvedDarkMaterialScheme,
+                darkTheme = true,
+                amoledDarkTheme = amoledDarkTheme,
+                customRolesEnabled = effectiveThemeRoleOverrides.enabled,
+            )
+        } else {
+            resolveMiuixColorsFromMaterialBridge(createMiuixMaterialBridge(resolvedDarkMaterialScheme), true)
+        }
     }
     val controller = remember(
         themeMode,
@@ -1048,7 +1215,11 @@ fun PureBiliBiliTheme(
             isDark = darkTheme
         )
     }
-    val materialColorScheme = staticMaterialScheme
+    val activeMiuixColors = if (darkTheme) miuixDarkColors else miuixLightColors
+    val materialColorScheme = remember(staticMaterialScheme, useNativeMiuix, activeMiuixColors) {
+        if (useNativeMiuix) alignMaterialSurfacesWithMiuix(staticMaterialScheme, activeMiuixColors)
+        else staticMaterialScheme
+    }
 
     //  [新增] 动态设置状态栏图标颜色
     val view = LocalView.current

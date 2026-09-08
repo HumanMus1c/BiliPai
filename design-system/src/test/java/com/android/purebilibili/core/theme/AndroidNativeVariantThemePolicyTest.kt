@@ -11,21 +11,19 @@ import kotlin.test.assertTrue
 class AndroidNativeVariantThemePolicyTest {
 
     @Test
-    fun nonGlassMiuix_usesContentTypographyWhileOtherModesKeepTheirDefaults() {
+    fun miuix_alwaysUsesBiliMiuixTypographyRegardlessOfLiquidGlass() {
         assertSame(BiliMiuixTypography, resolveMaterialTypography(AppUiStyle.MIUIX, false))
-        assertSame(CompactMiuixTypography, resolveMaterialTypography(AppUiStyle.MIUIX, true))
+        assertSame(BiliMiuixTypography, resolveMaterialTypography(AppUiStyle.MIUIX, true))
         assertSame(Md3Typography, resolveMaterialTypography(AppUiStyle.MATERIAL3, false))
+        assertSame(Md3Typography, resolveMaterialTypography(AppUiStyle.MATERIAL3, true))
     }
 
-
     @Test
-    fun miuixVariant_usesMd3TypographyDensity() {
+    fun miuixVariant_usesFullMiuixTypography() {
         val typography = resolveMaterialTypography(AppUiStyle.MIUIX)
 
-        assertSame(CompactMiuixTypography, typography)
+        assertSame(BiliMiuixTypography, typography)
         assertNotSame(Md3Typography, typography)
-        assertEquals(Md3Typography.bodyMedium.fontSize, CompactMiuixTypography.bodyMedium.fontSize)
-        assertEquals(Md3Typography.labelLarge.fontSize, CompactMiuixTypography.labelLarge.fontSize)
     }
 
     @Test

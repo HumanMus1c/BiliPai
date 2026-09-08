@@ -4957,7 +4957,13 @@ object SettingsManager {
         value: String,
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
     ) {
-        val normalized = parseDanmakuBlockRules(value).joinToString(separator = "\n")
+        val trailingNewlines = value.takeLastWhile { it == '\n' || it == '\r' }
+        val parsed = parseDanmakuBlockRules(value)
+        val normalized = if (parsed.isEmpty()) {
+            if (value.isBlank()) "" else value
+        } else {
+            parsed.joinToString(separator = "\n") + trailingNewlines
+        }
         context.settingsDataStore.edit { preferences ->
             preferences[keyDanmakuBlockRules(scope)] = normalized
         }

@@ -100,8 +100,15 @@ internal fun VideoCardTransitionHostDepthLayer(
                         )
                     )
                 }
-                drawLayer(contentLayer)
-                VideoCardTransitionDiagnostics.onSourceLayerDrawn()
+                val frozenLayerAlpha = resolveVideoCardTransitionFrozenLayerAlpha(
+                    exposure = exposure,
+                    depthProgress = progress,
+                )
+                contentLayer.alpha = frozenLayerAlpha
+                if (frozenLayerAlpha > 0.001f) {
+                    drawLayer(contentLayer)
+                    VideoCardTransitionDiagnostics.onSourceLayerDrawn()
+                }
                 if (frame.scrimAlpha > 0.001f) {
                     val scrimColor = if (frame.useLightScrimTint) {
                         VIDEO_CARD_TRANSITION_LIGHT_SCRIM_TINT

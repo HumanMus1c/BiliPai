@@ -577,7 +577,9 @@ internal fun shouldUseUnifiedHomeTopPanel(chromePolicy: AppTopChromePolicy): Boo
 
 internal fun shouldUseDetachedHomeTopTabDock(
     presentation: AppTopTabPresentation,
+    liquidGlassEnabled: Boolean = true,
 ): Boolean {
+    if (!liquidGlassEnabled) return false
     return presentation != AppTopTabPresentation.MATERIAL_UNDERLINE
 }
 
@@ -1386,10 +1388,12 @@ internal fun Modifier.homeTopChromeSurface(
                     blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
                         ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
                     gradient = ProgressiveBlur.Top.copy(
+                        startFraction = liquidGlassTuning?.progressiveBlurStartFraction
+                            ?: BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
                         endFraction = liquidGlassTuning?.progressiveBlurEndFraction
                             ?: ProgressiveBlur.Top.endFraction,
                         curve = liquidGlassTuning?.progressiveBlurCurve
-                            ?: ProgressiveBlur.Top.curve,
+                            ?: BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
                     ),
                 )
                 .background(surfaceColor, shape)
@@ -1410,10 +1414,12 @@ internal fun Modifier.homeTopChromeSurface(
                             blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
                                 ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
                             gradient = ProgressiveBlur.Top.copy(
+                                startFraction = liquidGlassTuning?.progressiveBlurStartFraction
+                                    ?: BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
                                 endFraction = liquidGlassTuning?.progressiveBlurEndFraction
                                     ?: ProgressiveBlur.Top.endFraction,
                                 curve = liquidGlassTuning?.progressiveBlurCurve
-                                    ?: ProgressiveBlur.Top.curve,
+                                    ?: BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
                             ),
                         )
                     } else if (hazeState != null) {
@@ -1571,7 +1577,10 @@ fun HomeHeader(
     val isTabGlassEnabled = topChromeMaterialMode == TopTabMaterialMode.LIQUID_GLASS
     val isTabBlurEnabled = topChromeMaterialMode == TopTabMaterialMode.BLUR
     val useUnifiedTopPanel = shouldUseUnifiedHomeTopPanel(topChromePolicy)
-    val useDetachedTopTabDock = shouldUseDetachedHomeTopTabDock(topChromePolicy.tabPresentation)
+    val useDetachedTopTabDock = shouldUseDetachedHomeTopTabDock(
+        presentation = topChromePolicy.tabPresentation,
+        liquidGlassEnabled = topChromeLiquidGlassEnabled,
+    )
     val embedTopTabsInUnifiedPanel = useUnifiedTopPanel && !useDetachedTopTabDock
     val enableTopTabSecondaryBlur = shouldEnableTopTabSecondaryBlur(
         hasHeaderBlur = hazeState != null,

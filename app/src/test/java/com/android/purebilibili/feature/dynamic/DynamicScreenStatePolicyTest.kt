@@ -646,7 +646,29 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
-    fun `incremental refresh prepends new items without dropping current list`() {
+    fun `incremental refresh prepends new items without dropping current list when items overlap`() {
+        val existing = listOf(buildDynamicItem("old_a"), buildDynamicItem("old_b")).toImmutableList()
+        val result = resolveDynamicFeedStateAfterSuccess(
+            currentState = DynamicUiState(items = existing),
+            incomingItems = listOf(buildDynamicItem("new_1"), buildDynamicItem("old_a")),
+            isRefresh = true,
+            requestType = "all",
+            incrementalRefreshEnabled = true,
+            hasMore = true
+        )
+
+        assertEquals(
+            listOf("new_1", "old_a", "old_b"),
+            result.items.map { it.id_str }
+        )
+        assertEquals("old_a", result.incrementalRefreshBoundaryKey)
+        assertEquals(1, result.incrementalPrependedCount)
+        assertEquals(DynamicFeedErrorSource.NONE, result.errorSource)
+        assertEquals("all", result.timelineRequestType)
+    }
+
+    @Test
+    fun `incremental refresh falls back to full replacement when incoming items have no overlap with existing items`() {
         val existing = listOf(buildDynamicItem("old_a"), buildDynamicItem("old_b")).toImmutableList()
         val result = resolveDynamicFeedStateAfterSuccess(
             currentState = DynamicUiState(items = existing),
@@ -658,13 +680,35 @@ class DynamicScreenStatePolicyTest {
         )
 
         assertEquals(
-            listOf("new_1", "new_2", "old_a", "old_b"),
+            listOf("new_1", "new_2"),
             result.items.map { it.id_str }
         )
-        assertEquals("old_a", result.incrementalRefreshBoundaryKey)
-        assertEquals(2, result.incrementalPrependedCount)
+        assertEquals(null, result.incrementalRefreshBoundaryKey)
+        assertEquals(0, result.incrementalPrependedCount)
         assertEquals(DynamicFeedErrorSource.NONE, result.errorSource)
-        assertEquals("all", result.timelineRequestType)
+    }
+
+    @Test
+    fun `incremental refresh on timeline page falls back to full replacement when page is cache placeholder`() {
+        val cachedPage = DynamicTimelinePageState(
+            items = listOf(buildDynamicItem("cached_old")).toImmutableList(),
+            isCachePlaceholder = true
+        )
+        val result = resolveDynamicTimelinePageAfterSuccess(
+            currentPage = cachedPage,
+            incomingItems = listOf(buildDynamicItem("fresh_1"), buildDynamicItem("cached_old")),
+            isRefresh = true,
+            incrementalRefreshEnabled = true,
+            hasMore = true
+        )
+
+        assertEquals(
+            listOf("fresh_1", "cached_old"),
+            result.items.map { it.id_str }
+        )
+        assertEquals(null, result.incrementalRefreshBoundaryKey)
+        assertEquals(0, result.incrementalPrependedCount)
+        assertFalse(result.isCachePlaceholder)
     }
 
     @Test
@@ -680,7 +724,7 @@ class DynamicScreenStatePolicyTest {
             ),
             incomingItems = listOf(
                 buildDynamicItem(id = "today_1000", pubTs = 2_000L),
-                buildDynamicItem(id = "yesterday_2200", pubTs = 800L)
+                buildDynamicItem(id = "today_0900", pubTs = 1_800L)
             ),
             isRefresh = true,
             requestType = "all",
@@ -689,7 +733,7 @@ class DynamicScreenStatePolicyTest {
         )
 
         assertEquals(
-            listOf("today_1000", "today_0900", "yesterday_2300", "yesterday_2200"),
+            listOf("today_1000", "today_0900", "yesterday_2300"),
             result.items.map { it.id_str }
         )
     }

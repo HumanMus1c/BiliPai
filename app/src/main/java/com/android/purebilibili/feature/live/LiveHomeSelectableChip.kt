@@ -26,12 +26,12 @@ fun LiveHomeSelectableChip(
     compact: Boolean = false,
 ) {
     val container = if (selected) {
-        AppSurfaceTokens.secondaryContainer()
+        AppSurfaceTokens.cardContainer()
     } else {
         Color.Transparent
     }
     val content = if (selected) {
-        AppSurfaceTokens.onSecondaryContainer()
+        MaterialTheme.colorScheme.onSurface
     } else {
         AppSurfaceTokens.onSurfaceVariantSummary()
     }

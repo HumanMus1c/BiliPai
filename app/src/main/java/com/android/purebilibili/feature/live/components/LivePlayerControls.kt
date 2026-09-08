@@ -196,6 +196,8 @@ fun LivePlayerControls(
     showLockButton: Boolean = false,
     // [新增] 截图当前帧并保存到相册
     onCaptureScreenshot: () -> Unit = {},
+    // [新增] 点赞连击
+    onLike: ((Int) -> Unit)? = null,
     gesturePolicy: LivePlayerGesturePolicy = LivePlayerGesturePolicy(true, true),
     usePortraitControls: Boolean = false,
     isClearScreen: Boolean = false,
@@ -243,6 +245,7 @@ fun LivePlayerControls(
     val latestToggleFullscreen by rememberUpdatedState(onToggleFullscreen)
     val latestPortraitTap by rememberUpdatedState(onPortraitTap)
     val latestOpenPortraitMore by rememberUpdatedState(onOpenPortraitMore)
+    val latestOnLike by rememberUpdatedState(onLike)
     
     // 锁定时控制栏强制隐藏
     val effectiveControlsVisible = isControlsVisible && !isLocked && !usePortraitControls
@@ -263,8 +266,11 @@ fun LivePlayerControls(
                                     else isControlsVisible = !isControlsVisible
                                 },
                                 onDoubleTap = {
-                                    // Consume portrait double taps without pausing or toggling chrome twice.
-                                    if (gesturePolicy.doubleTapPlayback) latestPlayPause()
+                                    if (gesturePolicy.doubleTapPlayback) {
+                                        latestPlayPause()
+                                    } else if (usePortraitControls) {
+                                        latestOnLike?.invoke(1)
+                                    }
                                 },
                                 onLongPress = if (usePortraitControls) {
                                     { latestOpenPortraitMore() }
@@ -569,6 +575,14 @@ fun LivePlayerControls(
                     enabled = true,
                     onClick = onOpenSend
                 )
+
+                if (onLike != null) {
+                    Spacer(Modifier.width(AppSpacingTokens.Small))
+                    LiveLikeButton(
+                        tint = LiveStatusPalette.MediaContent,
+                        onLike = onLike
+                    )
+                }
 
                 Spacer(Modifier.width(AppSpacingTokens.Medium))
                 

@@ -105,6 +105,13 @@ object AppSurfaceTokens {
 
     @Composable
     @ReadOnlyComposable
+    fun surfaceContainerHighest(): Color = resolveMiuixSemanticColorComposable(
+        miuixColor = MiuixTheme.colorScheme.surfaceContainerHighest,
+        materialFallback = MaterialTheme.colorScheme.surfaceContainerHighest
+    )
+
+    @Composable
+    @ReadOnlyComposable
     fun onSurface(): Color = resolveMiuixSemanticColorComposable(
         miuixColor = MiuixTheme.colorScheme.onSurface,
         materialFallback = MaterialTheme.colorScheme.onSurface

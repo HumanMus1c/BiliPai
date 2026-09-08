@@ -21,6 +21,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 /**
  * Content card that follows the active UI style:
@@ -36,35 +37,69 @@ fun AppContentCard(
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     contentColor: Color = contentColorFor(containerColor),
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     when (LocalAppUiStyle.current) {
         AppUiStyle.MIUIX -> {
-            MiuixCard(
-                modifier = modifier,
-                cornerRadius = MiuixCardDefaults.CornerRadius,
-                insideMargin = contentPadding,
-                colors = MiuixCardDefaults.defaultColors(
-                    color = containerColor,
-                    contentColor = contentColor,
-                ),
-                content = content,
-            )
-        }
-        AppUiStyle.MATERIAL3 -> {
-            Card(
-                modifier = modifier,
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor,
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(contentPadding),
+            if (onClick != null) {
+                MiuixCard(
+                    modifier = modifier,
+                    cornerRadius = MiuixCardDefaults.CornerRadius,
+                    insideMargin = contentPadding,
+                    colors = MiuixCardDefaults.defaultColors(
+                        color = containerColor,
+                        contentColor = contentColor,
+                    ),
+                    pressFeedbackType = PressFeedbackType.Sink,
+                    onClick = onClick,
                     content = content,
                 )
+            } else {
+                MiuixCard(
+                    modifier = modifier,
+                    cornerRadius = MiuixCardDefaults.CornerRadius,
+                    insideMargin = contentPadding,
+                    colors = MiuixCardDefaults.defaultColors(
+                        color = containerColor,
+                        contentColor = contentColor,
+                    ),
+                    content = content,
+                )
+            }
+        }
+        AppUiStyle.MATERIAL3 -> {
+            if (onClick != null) {
+                Card(
+                    onClick = onClick,
+                    modifier = modifier,
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(contentPadding),
+                        content = content,
+                    )
+                }
+            } else {
+                Card(
+                    modifier = modifier,
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(contentPadding),
+                        content = content,
+                    )
+                }
             }
         }
     }

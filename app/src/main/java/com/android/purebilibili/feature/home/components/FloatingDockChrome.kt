@@ -405,10 +405,7 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
                             )
                         }
                 } else {
-                    Modifier.background(
-                        if (!isDark) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.1f),
-                        shape,
-                    )
+                    Modifier
                 }
             )
     )

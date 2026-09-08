@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -47,6 +49,7 @@ internal fun BottomBarFloatingSegmentedControl(
     height: Dp,
     indicatorHeight: Dp,
     labelFontSize: TextUnit,
+    allowLabelOverflow: Boolean = false,
     containerHorizontalPadding: Dp,
     containerVerticalPadding: Dp,
     liquidGlassEffectsEnabled: Boolean,
@@ -237,6 +240,14 @@ internal fun BottomBarFloatingSegmentedControl(
                         val contentColor = LocalFloatingBottomBarContentColor.current
                         AppText(
                             text = label,
+                            modifier = if (allowLabelOverflow) {
+                                Modifier.wrapContentWidth(
+                                    align = Alignment.CenterHorizontally,
+                                    unbounded = true,
+                                )
+                            } else {
+                                Modifier
+                            },
                             color = contentColor,
                             fontSize = labelFontSize,
                             fontWeight = if (selected) {
@@ -245,7 +256,8 @@ internal fun BottomBarFloatingSegmentedControl(
                                 FontWeight.Medium
                             },
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            softWrap = false,
+                            overflow = if (allowLabelOverflow) TextOverflow.Visible else TextOverflow.Ellipsis,
                         )
                     }
                 }

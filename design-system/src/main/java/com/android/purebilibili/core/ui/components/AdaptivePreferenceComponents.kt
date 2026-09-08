@@ -212,8 +212,7 @@ internal fun resolveAdaptiveListRowVisualSpec(
             insideVerticalPaddingDp = 14,
             trailingIconSizeDp = 14,
             trailingSpacingDp = 6,
-            minTouchTargetHeightDp = if (isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)) 48
-                else chromeTokens.rowMinTouchTargetDp
+            minTouchTargetHeightDp = 48
         )
     } else {
         AdaptiveListRowVisualSpec(
@@ -539,7 +538,7 @@ fun AdaptivePreferenceGroupRenderer(
 
     if (uiStyle == AppUiStyle.MIUIX) {
         MiuixCard(
-            modifier = modifier.padding(horizontal = if (isMiuixNonGlassEnabled()) 16.dp else 14.dp),
+            modifier = modifier.padding(horizontal = 16.dp),
             cornerRadius = visualSpec.groupCornerRadiusDp.dp,
             insideMargin = PaddingValues(0.dp),
             colors = MiuixCardDefaults.defaultColors(color = resolvedContainerColor)
@@ -621,10 +620,8 @@ internal fun AdaptiveSwitchPreferenceContent(
                     Box(
                         modifier = Modifier
                             .size(visualSpec.iconContainerSizeDp.dp)
-                            .adaptiveSquircleBackground(
-                                color = effectiveIconTint.copy(alpha = iconBackgroundAlpha),
-                                cornerRadius = visualSpec.iconCornerRadiusDp.dp,
-                            ),
+                            .clip(MaterialTheme.shapes.small)
+                            .background(effectiveIconTint.copy(alpha = iconBackgroundAlpha)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -928,10 +925,8 @@ private fun Md3NativeListItemContent(
                 Box(
                     modifier = Modifier
                         .size(iconContainerSize)
-                        .adaptiveSquircleBackground(
-                            color = iconContainerColor.copy(alpha = iconBackgroundAlpha),
-                            cornerRadius = iconCornerRadius,
-                        ),
+                        .clip(MaterialTheme.shapes.small)
+                        .background(iconContainerColor.copy(alpha = iconBackgroundAlpha)),
                     contentAlignment = Alignment.Center,
                 ) {
                     when {

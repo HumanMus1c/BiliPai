@@ -386,15 +386,11 @@ internal fun EyeProtectionSettings(
 @Composable
 private fun EyeProtectionStatusCard(status: EyeProtectionStatusCopy) {
     val container = if (status.isActive) {
-        AppSurfaceTokens.secondaryContainer()
+        MaterialTheme.colorScheme.surfaceContainerHighest
     } else {
         AppSurfaceTokens.cardContainer()
     }
-    val content = if (status.isActive) {
-        AppSurfaceTokens.onSecondaryContainer()
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val content = MaterialTheme.colorScheme.onSurface
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = AppShapes.container(ContainerLevel.Card),

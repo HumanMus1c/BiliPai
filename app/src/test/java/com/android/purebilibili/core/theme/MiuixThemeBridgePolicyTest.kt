@@ -10,6 +10,52 @@ import kotlin.test.assertTrue
 class MiuixThemeBridgePolicyTest {
 
     @Test
+    fun `native miuix custom accent reaches sliders and auxiliary controls`() {
+        val primary = Color(0xFFB3261E)
+        listOf(false, true).forEach { dark ->
+            val scheme = if (dark) darkColorScheme(primary = primary) else lightColorScheme(primary = primary)
+            val colors = resolveNativeMiuixColors(scheme, dark)
+            assertEquals(primary, colors.onPrimaryVariant)
+            assertEquals(primary, colors.onTertiaryContainer)
+            assertEquals(primary, colors.sliderKeyPointForeground)
+            assertEquals(primary, colors.onBackgroundVariant)
+            val material = alignMaterialSurfacesWithMiuix(scheme, colors)
+            assertEquals(colors.primaryContainer, material.primaryContainer)
+            assertEquals(colors.tertiaryContainer, material.tertiaryContainer)
+        }
+    }
+
+    @Test
+    fun `native miuix preserves upstream neutral and disabled control roles in both themes`() {
+        listOf(false, true).forEach { dark ->
+            val scheme = if (dark) darkColorScheme() else lightColorScheme()
+            val expected = if (dark) top.yukonga.miuix.kmp.theme.darkColorScheme()
+                else top.yukonga.miuix.kmp.theme.lightColorScheme()
+            val colors = resolveNativeMiuixColors(scheme, dark)
+            assertEquals(expected.background, colors.background)
+            assertEquals(expected.surface, colors.surface)
+            assertEquals(expected.secondary, colors.secondary)
+            assertEquals(expected.secondaryVariant, colors.secondaryVariant)
+            assertEquals(expected.disabledSecondary, colors.disabledSecondary)
+            assertEquals(expected.disabledOnSurface, colors.disabledOnSurface)
+            assertEquals(expected.sliderBackground, colors.sliderBackground)
+            assertEquals(scheme.primary, colors.primary)
+            val material = alignMaterialSurfacesWithMiuix(scheme, colors)
+            assertEquals(colors.surface, material.surface)
+            assertEquals(colors.background, material.background)
+            assertEquals(colors.surfaceContainerHigh, material.surfaceContainerHigh)
+        }
+    }
+
+    @Test
+    fun `native miuix honors explicit surface customization and amoled preference`() {
+        val scheme = darkColorScheme(background = Color(0xFF123456))
+        assertEquals(Color.Black, resolveNativeMiuixColors(scheme, true, amoledDarkTheme = true).background)
+        assertEquals(scheme.background,
+            resolveNativeMiuixColors(scheme, true, customRolesEnabled = true).background)
+    }
+
+    @Test
     fun `material bridge preserves primary and surface roles from miuix colors`() {
         val materialScheme = resolveMaterialColorSchemeFromMiuixBridge(
             bridge = MiuixMaterialBridge(

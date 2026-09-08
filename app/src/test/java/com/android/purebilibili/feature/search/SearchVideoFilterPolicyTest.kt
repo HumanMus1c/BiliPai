@@ -129,4 +129,88 @@ class SearchVideoFilterPolicyTest {
             )
         )
     }
+
+    @Test
+    fun adaptiveItemWidth_compactScreensShowThreeItems() {
+        assertTrue(shouldScrollSearchVideoFilter(itemCount = 6, viewportWidthDp = 270))
+        assertEquals(90, resolveSearchVideoFilterAdaptiveItemWidthDp(itemCount = 6, viewportWidthDp = 270))
+    }
+
+    @Test
+    fun adaptiveItemWidth_roomyScreensDoNotScroll() {
+        assertFalse(shouldScrollSearchVideoFilter(itemCount = 6, viewportWidthDp = 600))
+    }
+
+    @Test
+    fun dragScrollDelta_scrollsWhenReachingEdges() {
+        val midDelta = resolveSearchVideoFilterDragScrollDeltaPx(
+            indicatorPosition = 1f,
+            itemWidthPx = 90f,
+            viewportWidthPx = 270f,
+            currentScrollPx = 0f,
+            edgePaddingPx = 12f
+        )
+        assertEquals(0f, midDelta)
+
+        val rightDelta = resolveSearchVideoFilterDragScrollDeltaPx(
+            indicatorPosition = 2.5f,
+            itemWidthPx = 90f,
+            viewportWidthPx = 270f,
+            currentScrollPx = 0f,
+            edgePaddingPx = 12f
+        )
+        assertTrue(rightDelta > 0f)
+
+        val leftDelta = resolveSearchVideoFilterDragScrollDeltaPx(
+            indicatorPosition = 0f,
+            itemWidthPx = 90f,
+            viewportWidthPx = 270f,
+            currentScrollPx = 50f,
+            edgePaddingPx = 12f
+        )
+        assertTrue(leftDelta < 0f)
+    }
+
+    @Test
+    fun adaptiveItemWidth_searchTypeTabsCompactScreensShowFiveItems() {
+        assertTrue(shouldScrollSearchTypeTabs(itemCount = 9, viewportWidthDp = 340))
+        assertEquals(68, resolveSearchTypeTabAdaptiveItemWidthDp(itemCount = 9, viewportWidthDp = 340))
+    }
+
+    @Test
+    fun adaptiveItemWidth_searchTypeTabsRoomyScreensDoNotScroll() {
+        assertFalse(shouldScrollSearchTypeTabs(itemCount = 9, viewportWidthDp = 600))
+    }
+
+    @Test
+    fun dragScrollDelta_searchTypeTabsScrollsWhenReachingEdges() {
+        val midDelta = resolveSearchTypeTabDragScrollDeltaPx(
+            indicatorPosition = 2f,
+            itemWidthPx = 68f,
+            viewportWidthPx = 340f,
+            currentScrollPx = 0f,
+            edgePaddingPx = 12f
+        )
+        assertEquals(0f, midDelta)
+
+        val rightDelta = resolveSearchTypeTabDragScrollDeltaPx(
+            indicatorPosition = 4.5f,
+            itemWidthPx = 68f,
+            viewportWidthPx = 340f,
+            currentScrollPx = 0f,
+            edgePaddingPx = 12f
+        )
+        assertTrue(rightDelta > 0f)
+
+        val leftDelta = resolveSearchTypeTabDragScrollDeltaPx(
+            indicatorPosition = 0f,
+            itemWidthPx = 68f,
+            viewportWidthPx = 340f,
+            currentScrollPx = 50f,
+            edgePaddingPx = 12f
+        )
+        assertTrue(leftDelta < 0f)
+    }
 }
+
+

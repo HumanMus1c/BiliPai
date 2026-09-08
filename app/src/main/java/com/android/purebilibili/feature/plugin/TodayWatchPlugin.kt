@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.Alignment
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
@@ -577,7 +579,8 @@ private fun TodayWatchPluginModeSegmentedControl(
         onSelected = { index ->
             modes.getOrNull(index)?.takeIf { it != selectedMode }?.let(onModeChange)
         },
-        modifier = modifier,
+        modifier = modifier.wrapContentWidth(Alignment.CenterHorizontally),
+        itemWidth = 120.dp,
         height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
         indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = 13.sp,

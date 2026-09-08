@@ -52,6 +52,7 @@ import com.android.purebilibili.core.ui.transition.rememberVideoCardTransitionSn
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionExposure
 import com.android.purebilibili.core.ui.transition.resolveVideoHeroMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionSettleState
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionDiagnostics
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackGestureBlurProgress
@@ -236,6 +237,8 @@ internal fun BiliPaiNavDisplayHost(
         sourceLayout = sourceMetadata.sourceLayout,
         fullscreen = false,
     )
+    val navCornerRadius = rememberDeviceCornerRadius(defaultRadius = 0.dp)
+    val effectiveDeviceCornerDp = if (navCornerRadius > 0.dp) navCornerRadius else 32.dp
     val videoCardTransition = remember(
         cardMorphAvailable,
         sourceMetadata.sourceBounds,
@@ -246,6 +249,7 @@ internal fun BiliPaiNavDisplayHost(
         predictiveBackExcludedTransition,
         videoCardContentScale,
         videoSharedReturnGestureFollowEnabled,
+        effectiveDeviceCornerDp,
     ) {
         if (cardMorphAvailable) {
             miuixVideoCardNavTransition(
@@ -258,6 +262,7 @@ internal fun BiliPaiNavDisplayHost(
                 gestureFollowEnabled = videoSharedReturnGestureFollowEnabled,
                 heroMotionSpec = heroMotion,
                 returningProvider = returningProvider,
+                deviceCornerDp = effectiveDeviceCornerDp,
             )
         } else {
             predictiveBackExcludedTransition
@@ -272,6 +277,7 @@ internal fun BiliPaiNavDisplayHost(
         videoCardTransitionProgress,
         predictiveBackExcludedTransition,
         videoSharedReturnGestureFollowEnabled,
+        effectiveDeviceCornerDp,
     ) {
         if (cardMorphAvailable) {
             miuixVideoCardNavTransition(
@@ -284,6 +290,7 @@ internal fun BiliPaiNavDisplayHost(
                 gestureFollowEnabled = videoSharedReturnGestureFollowEnabled,
                 heroMotionSpec = heroMotion,
                 returningProvider = returningProvider,
+                deviceCornerDp = effectiveDeviceCornerDp,
             )
         } else {
             predictiveBackExcludedTransition
@@ -325,6 +332,11 @@ internal fun BiliPaiNavDisplayHost(
         snapshotFlow { videoCardTransitionProgress.settleStateOrNull() }.collect { state ->
             if (state != null) {
                 videoCardClock.followNavigationDriver(state, videoCardTransitionProgress.releaseVelocity())
+                if (state == VideoCardTransitionSettleState.Idle) {
+                    // LiveNavTransitionScope reads the shared navigation presentation even after
+                    // its video entry leaves. Release it before another route reuses that driver.
+                    videoCardTransitionProgress.clear()
+                }
                 VideoCardTransitionDiagnostics.onMotionPhase(
                     state, heroMotion, sourceMetadata.sourceLayout, diagnosticConfiguration,
                 )
@@ -350,12 +362,23 @@ internal fun BiliPaiNavDisplayHost(
     val videoCardGestureProvider = remember(cardMorphAvailable, videoCardTransitionProgress) {
         { cardMorphAvailable && videoCardTransitionProgress.isGestureInProgress() }
     }
-    val videoCardExposureProvider = remember(videoCardClock, videoCardGestureProvider) {
+    val videoCardExposureProvider = remember(
+        videoCardClock,
+        videoCardGestureProvider,
+        videoCardTransitionProgress,
+    ) {
         {
+            val settleState = videoCardTransitionProgress.settleStateOrNull()
+            val effectivePhase = when (settleState) {
+                VideoCardTransitionSettleState.AutoReturn -> VideoCardTransitionBackgroundPhase.RETURNING
+                else -> videoCardClock.phase
+            }
+            val effectiveRestore = videoCardClock.gestureRestoreInProgress ||
+                settleState == VideoCardTransitionSettleState.CancelRestore
             resolveVideoCardTransitionExposure(
-                phase = videoCardClock.phase,
+                phase = effectivePhase,
                 predictiveBackInProgress = videoCardGestureProvider(),
-                gestureRestoreInProgress = videoCardClock.gestureRestoreInProgress,
+                gestureRestoreInProgress = effectiveRestore,
             )
         }
     }
@@ -401,6 +424,7 @@ internal fun BiliPaiNavDisplayHost(
         videoCardSnapshotHandle,
         transitionMotionTier,
         isLightBackground,
+        videoTransitionRealtimeBlurEnabled,
     ) {
         VideoCardTransitionBackgroundState(
             progressProvider = videoCardProgressProvider,
@@ -460,18 +484,30 @@ internal fun BiliPaiNavDisplayHost(
     // 恢复 0.2.2 的预测返回背景链路：目标返回页（栈前一 key）在预测返回手势中
     // 随手势进度模糊/消退，迁移到 Miuix 导航时该 provide 曾丢失。
     val predictiveBackBackgroundState = remember(
+        currentKey,
         cardMorphAvailable,
         videoCardTransitionProgress,
         currentBackTarget,
         transitionMotionTier,
         isLightBackground,
+        videoTransitionRealtimeBlurEnabled,
+        miuixTransitionBlurEnabled,
     ) {
         PredictiveBackBackgroundState(
             progressProvider = {
-                videoCardTransitionProgress.gestureBackProgress()
-                    ?.takeIf { cardMorphAvailable }
-                    ?.let { resolvePredictiveBackGestureBlurProgress(it) }
-                    ?: 0f
+                val blurEnabled = if (cardMorphAvailable) {
+                    videoTransitionRealtimeBlurEnabled
+                } else {
+                    miuixTransitionBlurEnabled
+                }
+                if (!blurEnabled || !isCardMorphDestinationNavKey(currentKey)) {
+                    0f
+                } else {
+                    videoCardTransitionProgress.gestureBackProgress()
+                        ?.takeIf { cardMorphAvailable }
+                        ?.let { resolvePredictiveBackGestureBlurProgress(it) }
+                        ?: 0f
+                }
             },
             targetKeyProvider = { currentBackTarget },
             motionTierProvider = { transitionMotionTier },
@@ -479,7 +515,6 @@ internal fun BiliPaiNavDisplayHost(
         )
     }
 
-    val navCornerRadius = rememberDeviceCornerRadius(defaultRadius = 0.dp)
     val roundAllCorners = style == BiliPaiPredictiveBackAnimationStyle.AOSP ||
         style == BiliPaiPredictiveBackAnimationStyle.SCALE ||
         style == BiliPaiPredictiveBackAnimationStyle.CLASSIC
@@ -551,6 +586,7 @@ internal fun BiliPaiNavDisplayHost(
     ) {
         VideoCardTransitionHostDepthLayer(
             enabled = cardMorphAvailable &&
+                videoTransitionRealtimeBlurEnabled &&
                 shouldUseHostOwnedVideoCardTransitionSnapshot(sourceMetadata.sourceRoute),
             snapshotHandle = videoCardSnapshotHandle,
             progressProvider = videoCardProgressProvider,

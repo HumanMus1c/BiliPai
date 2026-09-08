@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -131,6 +132,44 @@ internal fun resolveMiuixVideoCardGestureTransform(
         liftScale = 1f - MIUIX_VIDEO_CARD_GESTURE_LIFT_SCALE * poseWeight,
         cameraDistance = MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP -
             MIUIX_VIDEO_CARD_GESTURE_CAMERA_PULL_DP * poseWeight,
+        shadowElevationDp = MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP * poseWeight,
+    )
+}
+
+/**
+ * 点击卡片进场时的三维对称变换：与返回手势构成镜像闭环。
+ * 倾角根据卡片距屏幕中线的横向相对偏角连续线性加权（向中线平滑衰减归零），避免平板多列及中线卡片突兀晃动。
+ * 随 morph (0->1) 升起至中段达到峰值，并在落地全屏时平滑归零。
+ */
+internal fun resolveMiuixVideoCardClickTransform(
+    morphProgress: Float,
+    widthPx: Float,
+    heightPx: Float,
+    sourceBounds: Rect,
+): MiuixVideoCardGestureTransform {
+    val morph = morphProgress.coerceIn(0f, 1f)
+    val poseWeight = sin(PI.toFloat() * morph)
+    val cardCenterX = (sourceBounds.left + sourceBounds.right) / 2f
+    val screenCenterX = widthPx.coerceAtLeast(1f) / 2f
+    // 归一化横向相对偏角：屏幕正中为 0，最左为 -1.0，最右为 +1.0
+    val horizontalOffset = if (screenCenterX > 1f) {
+        ((cardCenterX - screenCenterX) / screenCenterX).coerceIn(-1f, 1f)
+    } else {
+        0f
+    }
+
+    return MiuixVideoCardGestureTransform(
+        translationX = 0f,
+        translationY = 0f,
+        // 向屏幕内侧微倾：右侧卡片为负角（逆时针向内微倾），左侧卡片为正角（顺时针向内微倾）
+        // 手机双列偏角约为 ±0.5，对应优雅自然的 ±1.6° 倾角；中列卡片偏角为 0，平正如初
+        rotationZ = -horizontalOffset * 3.2f * poseWeight,
+        transformOrigin = TransformOrigin(
+            pivotFractionX = (0.5f - 0.2f * horizontalOffset).coerceIn(0.2f, 0.8f),
+            pivotFractionY = 0.5f,
+        ),
+        liftScale = 1f - 0.025f * poseWeight,
+        cameraDistance = MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP - 2.5f * poseWeight,
         shadowElevationDp = MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP * poseWeight,
     )
 }
@@ -310,6 +349,10 @@ internal class MiuixVideoCardTransitionProgress {
         }
     }
 
+    fun clear() {
+        topScope = null
+    }
+
     fun depthOr(fallback: Float): Float = topScope
         ?.let { resolveMiuixVideoCardDepthProgress(it.relativeDepth) }
         ?: fallback.coerceIn(0f, 1f)
@@ -357,9 +400,16 @@ internal class MiuixVideoCardTransitionProgress {
 
     /**
      * 预测返回手势进度（0=开始 → 1=完全提交），无手势时为 null。
-     * 供预测返回背景模糊（predictiveBackBackgroundEffect）随手势映射，恢复 0.2.2 链路。
+     * 供预测返回背景模糊（predictiveBackBackgroundEffect）随手势与落地动画平滑消退，避免松手瞬间断档闪烁。
      */
-    fun gestureBackProgress(): Float? = topScope?.gesture?.progress?.takeIf { isGestureInProgress() }
+    fun gestureBackProgress(): Float? = topScope?.let { scope ->
+        if (scope.gesture != null || scope.settle != null) {
+            val morph = resolveMiuixVideoCardDepthProgress(scope.relativeDepth)
+            (1f - morph).coerceIn(0f, 1f)
+        } else {
+            null
+        }
+    }
 }
 
 internal fun resolveVideoHeroNavMotion(spec: VideoHeroMotionSpec, returning: Boolean): NavMotion = NavMotion(
@@ -396,6 +446,7 @@ internal fun miuixVideoCardNavTransition(
     gestureFollowEnabled: Boolean = true,
     heroMotionSpec: VideoHeroMotionSpec = resolveVideoHeroMotionSpec(durationMillis),
     returningProvider: () -> Boolean = { false },
+    deviceCornerDp: Dp = 32.dp,
 ): NavTransition {
     val bounds = sourceBounds?.takeIf { it.width > 1f && it.height > 1f }
         ?: return fallback
@@ -413,78 +464,22 @@ internal fun miuixVideoCardNavTransition(
 
         override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
             progress.bind(scope)
-            return graphicsLayer {
-                val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
-                val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
-                val depth = scope.relativeDepth
-                if (depth <= 0f) {
-                    val morph = resolveMiuixVideoCardDepthProgress(depth)
-                    val sourceScaleX = (bounds.width / width).coerceIn(0.05f, 1f)
-                    val sourceScaleY = (bounds.height / height).coerceIn(0.05f, 1f)
-                    val landingScale = resolveVideoHeroLandingScale(
-                        depth = morph,
-                        autoReturning = !heroMotionSpec.reducedMotion &&
-                            scope.settle != null && scope.settle?.phase != NavSettlePhase.Cancel &&
-                            scope.role == NavRole.Outgoing,
-                    )
-                    val outerScaleX = resolveMiuixVideoCardOuterScale(sourceScaleX, morph, landingScale)
-                    val outerScaleY = resolveMiuixVideoCardOuterScale(sourceScaleY, morph, landingScale)
-                    scaleX = outerScaleX
-                    scaleY = outerScaleY
-                    transformOrigin = TransformOrigin(0f, 0f)
-                    translationX = bounds.left.coerceIn(-width, width) * (1f - morph)
-                    translationY = bounds.top.coerceIn(-height, height) * (1f - morph)
-                    // Keep the complete flying entry opaque. The source card and the detail entry
-                    // already share the same geometry driver; an entry-level alpha handoff would
-                    // expose the player's black Surface frame at landing.
-                    alpha = 1f
-                    val poseWeight = resolveMiuixVideoCardGesturePoseWeight(morph)
-                    clip = morph < 0.999f || poseWeight > 0.001f
-                    val clipRadii = resolveMiuixVideoCardClipRadii(
-                        sourceCornerPx = corner.dp.toPx(),
-                        outerScaleX = outerScaleX,
-                        outerScaleY = outerScaleY,
-                        morphProgress = morph,
-                        floatingCornerPx = MIUIX_VIDEO_CARD_FLOATING_CORNER_DP.dp.toPx(),
-                    )
-                    shape = MiuixVideoCardClipShape(
-                        radiusX = clipRadii.radiusX,
-                        radiusY = clipRadii.radiusY,
-                    )
-                }
-            }.graphicsLayer {
-                val depth = scope.relativeDepth
-                if (depth <= 0f) {
-                    val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
-                    val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
-                    val morph = resolveMiuixVideoCardDepthProgress(depth)
-                    val landingScale = resolveVideoHeroLandingScale(
-                        depth = morph,
-                        autoReturning = !heroMotionSpec.reducedMotion &&
-                            scope.settle != null && scope.settle?.phase != NavSettlePhase.Cancel &&
-                            scope.role == NavRole.Outgoing,
-                    )
-                    val outerScaleX = resolveMiuixVideoCardOuterScale(bounds.width / width, morph, landingScale)
-                    val outerScaleY = resolveMiuixVideoCardOuterScale(bounds.height / height, morph, landingScale)
-                    val compensation = resolveMiuixVideoCardContentCompensation(
-                        outerScaleX = outerScaleX,
-                        outerScaleY = outerScaleY,
-                        contentScale = contentScale,
-                    )
-                    scaleX = compensation.scaleX
-                    scaleY = compensation.scaleY
-                    transformOrigin = compensation.transformOrigin
-                }
-            }.then(
-                if (gestureFollowEnabled) {
-                    Modifier.graphicsLayer {
-                        val depth = scope.relativeDepth
-                        val gesture = scope.gesture
-                        if (depth <= 0f && gesture != null) {
-                            val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
-                            val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
-                            val morph = resolveMiuixVideoCardDepthProgress(depth)
-                            val transform = resolveMiuixVideoCardGestureTransform(
+            val (deviceCornerPx, floatingCornerPx) = with(scope.density) {
+                val devicePx = deviceCornerDp.toPx()
+                val floatingCornerPx = MIUIX_VIDEO_CARD_FLOATING_CORNER_DP.dp.toPx()
+                    .coerceAtLeast(devicePx)
+                devicePx to floatingCornerPx
+            }
+            val gestureModifier = if (gestureFollowEnabled) {
+                Modifier.graphicsLayer {
+                    val depth = scope.relativeDepth
+                    val gesture = scope.gesture
+                    if (depth <= 0f) {
+                        val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
+                        val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
+                        val morph = resolveMiuixVideoCardDepthProgress(depth)
+                        val transform = if (gesture != null) {
+                            resolveMiuixVideoCardGestureTransform(
                                 morphProgress = morph,
                                 touchY = gesture.touchY,
                                 initialTouchY = gesture.initialTouchY,
@@ -493,26 +488,119 @@ internal fun miuixVideoCardNavTransition(
                                 isLeftEdge = gesture.swipeEdge == NavSwipeEdge.Left,
                                 maxVerticalTravelPx = 56.dp.toPx(),
                             )
-                            transformOrigin = resolveMiuixVideoCardGestureVisualOrigin(
+                        } else {
+                            resolveMiuixVideoCardClickTransform(
+                                morphProgress = morph,
+                                widthPx = width,
+                                heightPx = height,
                                 sourceBounds = bounds,
-                                layoutWidth = width,
-                                layoutHeight = height,
-                                morph = morph,
-                                localOrigin = transform.transformOrigin,
                             )
-                            translationX = transform.translationX
-                            translationY = transform.translationY
-                            rotationZ = transform.rotationZ
-                            scaleX = transform.liftScale
-                            scaleY = transform.liftScale
-                            cameraDistance = transform.cameraDistance
+                        }
+                        transformOrigin = resolveMiuixVideoCardGestureVisualOrigin(
+                            sourceBounds = bounds,
+                            layoutWidth = width,
+                            layoutHeight = height,
+                            morph = morph,
+                            localOrigin = transform.transformOrigin,
+                        )
+                        translationX = transform.translationX
+                        translationY = transform.translationY
+                        rotationZ = transform.rotationZ
+                        scaleX = transform.liftScale
+                        scaleY = transform.liftScale
+                        cameraDistance = transform.cameraDistance
+                    }
+                }
+            } else {
+                Modifier
+            }
+            return gestureModifier
+                .graphicsLayer {
+                    val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
+                    val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
+                    val depth = scope.relativeDepth
+                    if (depth <= 0f) {
+                        val morph = resolveMiuixVideoCardDepthProgress(depth)
+                        val sourceScaleX = (bounds.width / width).coerceIn(0.05f, 1f)
+                        val sourceScaleY = (bounds.height / height).coerceIn(0.05f, 1f)
+                        val landingScale = resolveVideoHeroLandingScale(
+                            depth = morph,
+                            autoReturning = !heroMotionSpec.reducedMotion &&
+                                scope.settle != null && scope.settle?.phase != NavSettlePhase.Cancel &&
+                                scope.role == NavRole.Outgoing,
+                        )
+                        val outerScaleX = resolveMiuixVideoCardOuterScale(sourceScaleX, morph, landingScale)
+                        val outerScaleY = resolveMiuixVideoCardOuterScale(sourceScaleY, morph, landingScale)
+                        scaleX = outerScaleX
+                        scaleY = outerScaleY
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        translationX = bounds.left.coerceIn(-width, width) * (1f - morph)
+                        translationY = bounds.top.coerceIn(-height, height) * (1f - morph)
+                        // Keep the complete flying entry opaque. The source card and the detail entry
+                        // already share the same geometry driver; an entry-level alpha handoff would
+                        // expose the player's black Surface frame at landing.
+                        alpha = 1f
+                        val poseWeight = resolveMiuixVideoCardGesturePoseWeight(morph)
+                        clip = morph < 0.999f || poseWeight > 0.001f || (gestureFollowEnabled && scope.gesture != null)
+                        val clipRadii = resolveMiuixVideoCardClipRadii(
+                            sourceCornerPx = corner.dp.toPx(),
+                            outerScaleX = outerScaleX,
+                            outerScaleY = outerScaleY,
+                            morphProgress = morph,
+                            floatingCornerPx = floatingCornerPx,
+                            fullscreenCornerPx = deviceCornerPx,
+                        )
+                        shape = MiuixVideoCardClipShape(
+                            radiusX = clipRadii.radiusX,
+                            radiusY = clipRadii.radiusY,
+                        )
+                        val gesture = scope.gesture
+                        if (gestureFollowEnabled) {
+                            val transform = if (gesture != null) {
+                                resolveMiuixVideoCardGestureTransform(
+                                    morphProgress = morph,
+                                    touchY = gesture.touchY,
+                                    initialTouchY = gesture.initialTouchY,
+                                    widthPx = width,
+                                    heightPx = height,
+                                    isLeftEdge = gesture.swipeEdge == NavSwipeEdge.Left,
+                                    maxVerticalTravelPx = 56.dp.toPx(),
+                                )
+                            } else {
+                                resolveMiuixVideoCardClickTransform(
+                                    morphProgress = morph,
+                                    widthPx = width,
+                                    heightPx = height,
+                                    sourceBounds = bounds,
+                                )
+                            }
                             shadowElevation = transform.shadowElevationDp.dp.toPx()
                         }
                     }
-                } else {
-                    Modifier
-                },
-            ).zIndex(1f)
+                }.graphicsLayer {
+                    val depth = scope.relativeDepth
+                    if (depth <= 0f) {
+                        val width = scope.layoutSize.width.toFloat().coerceAtLeast(1f)
+                        val height = scope.layoutSize.height.toFloat().coerceAtLeast(1f)
+                        val morph = resolveMiuixVideoCardDepthProgress(depth)
+                        val landingScale = resolveVideoHeroLandingScale(
+                            depth = morph,
+                            autoReturning = !heroMotionSpec.reducedMotion &&
+                                scope.settle != null && scope.settle?.phase != NavSettlePhase.Cancel &&
+                                scope.role == NavRole.Outgoing,
+                        )
+                        val outerScaleX = resolveMiuixVideoCardOuterScale(bounds.width / width, morph, landingScale)
+                        val outerScaleY = resolveMiuixVideoCardOuterScale(bounds.height / height, morph, landingScale)
+                        val compensation = resolveMiuixVideoCardContentCompensation(
+                            outerScaleX = outerScaleX,
+                            outerScaleY = outerScaleY,
+                            contentScale = contentScale,
+                        )
+                        scaleX = compensation.scaleX
+                        scaleY = compensation.scaleY
+                        transformOrigin = compensation.transformOrigin
+                    }
+                }.zIndex(1f)
         }
     }
 }

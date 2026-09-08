@@ -8,9 +8,9 @@ class AppListItemPolicyTest {
 
     @Test
     fun `auto style follows runtime theme`() {
-        // MATERIAL3 默认自定义条目(现状),MIUIX 默认原生 Miuix 条目(现状)
+        // MATERIAL3 和 MIUIX 在 AUTO 模式下均默认原生条目
         assertEquals(
-            AppListItemStyle.CUSTOM,
+            AppListItemStyle.NATIVE,
             resolveAppListItemStyle(AppListItemStyle.AUTO, AppUiStyle.MATERIAL3),
         )
         assertEquals(

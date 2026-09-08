@@ -3707,6 +3707,9 @@ fun AppNavigation(
                                         onCourseClick = { url, title ->
                                             pushNavigation3Key(BiliPaiNavKey.Web(url = url, title = title))
                                         },
+                                        onDynamicDetailClick = { targetDynamicId ->
+                                            pushNavigation3Key(BiliPaiNavKey.DynamicDetail(targetDynamicId))
+                                        },
                                     )
                                 }
                             }

@@ -603,7 +603,8 @@ private fun TodayWatchModeSegmentedControl(
         onSelected = { index ->
             modes.getOrNull(index)?.takeIf { it != selectedMode }?.let(onModeChange)
         },
-        modifier = modifier,
+        modifier = modifier.wrapContentWidth(Alignment.CenterHorizontally),
+        itemWidth = 120.dp,
         enabled = enabled,
         height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
         indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,

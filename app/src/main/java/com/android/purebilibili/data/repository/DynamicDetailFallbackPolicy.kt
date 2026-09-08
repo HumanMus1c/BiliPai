@@ -8,6 +8,7 @@ import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusMajor
 import com.android.purebilibili.data.model.response.OpusPic
+import com.android.purebilibili.data.model.response.OpusSummary
 import com.android.purebilibili.data.model.response.RichTextNode
 import com.android.purebilibili.feature.article.ArticleContentBlock
 import com.android.purebilibili.feature.article.scoreOpusContentBlocks
@@ -119,14 +120,60 @@ internal fun mergeRicherOpusDetailContent(
         .toList()
     val mergedPics = (richestPics + drawPics)
         .distinctBy { it.url }
-    val mergedOpus = OpusMajor(
-        jump_url = baseOpus?.jump_url?.takeIf { it.isNotBlank() } ?: richestOpus.jump_url,
-        pics = mergedPics.ifEmpty { baseOpus?.pics.orEmpty() },
-        summary = if ((richestOpus.summary?.text?.length ?: 0) >= (baseOpus?.summary?.text?.length ?: 0)) {
+    val candidateEmojiNodes = candidateItems.asSequence()
+        .flatMap { item ->
+            val content = item.modules.module_dynamic
+            val descNodes = content?.desc?.rich_text_nodes.orEmpty()
+            val summaryNodes = content?.major?.opus?.summary?.rich_text_nodes.orEmpty()
+            val blockNodes = content?.major?.opus?.contentBlocks.orEmpty().flatMap { block ->
+                when (block) {
+                    is OpusContentBlock.Text -> block.richTextNodes
+                    else -> emptyList()
+                }
+            }
+            (descNodes + summaryNodes + blockNodes).asSequence()
+        }
+        .filter(::containsDynamicRichTextMetadata)
+        .distinctBy(::dynamicEmojiMetadataKey)
+        .toList()
+    val mergedSummary = if (candidateEmojiNodes.isNotEmpty()) {
+        val s = if ((richestOpus.summary?.text?.length ?: 0) >= (baseOpus?.summary?.text?.length ?: 0)) {
             richestOpus.summary
         } else {
             baseOpus?.summary
-        },
+        }
+        if (s != null) {
+            s.copy(
+                rich_text_nodes = mergeDynamicDetailRichTextNodes(
+                    detailNodes = s.rich_text_nodes,
+                    seedEmojiNodes = candidateEmojiNodes,
+                )
+            )
+        } else {
+            OpusSummary(rich_text_nodes = candidateEmojiNodes)
+        }
+    } else {
+        if ((richestOpus.summary?.text?.length ?: 0) >= (baseOpus?.summary?.text?.length ?: 0)) {
+            richestOpus.summary
+        } else {
+            baseOpus?.summary
+        }
+    }
+    val mergedDesc = if (candidateEmojiNodes.isNotEmpty()) {
+        val existingDescNodes = (baseContent.desc?.rich_text_nodes).orEmpty()
+        baseContent.desc?.copy(
+            rich_text_nodes = mergeDynamicDetailRichTextNodes(
+                detailNodes = existingDescNodes,
+                seedEmojiNodes = candidateEmojiNodes,
+            )
+        ) ?: DynamicDesc(rich_text_nodes = candidateEmojiNodes)
+    } else {
+        baseContent.desc
+    }
+    val mergedOpus = OpusMajor(
+        jump_url = baseOpus?.jump_url?.takeIf { it.isNotBlank() } ?: richestOpus.jump_url,
+        pics = mergedPics.ifEmpty { baseOpus?.pics.orEmpty() },
+        summary = mergedSummary,
         title = richestOpus.title?.takeIf { it.isNotBlank() } ?: baseOpus?.title,
         contentBlocks = if (richestOpus.contentBlocks.size >= (baseOpus?.contentBlocks?.size ?: 0)) {
             richestOpus.contentBlocks
@@ -142,7 +189,7 @@ internal fun mergeRicherOpusDetailContent(
     )
     return base.copy(
         modules = base.modules.copy(
-            module_dynamic = baseContent.copy(major = mergedMajor)
+            module_dynamic = baseContent.copy(desc = mergedDesc, major = mergedMajor)
         )
     )
 }
@@ -173,6 +220,21 @@ internal fun mergeDynamicDetailInteractionMetadata(
     }
     val seedEmojiNodes = collectDynamicDetailSeedEmojiNodes(seedItem)
     val mergedContent = if (detailContent != null && seedEmojiNodes.isNotEmpty()) {
+        val mergedSummary = detailContent.major?.opus?.summary?.let { summary ->
+            summary.copy(
+                rich_text_nodes = mergeDynamicDetailRichTextNodes(
+                    detailNodes = summary.rich_text_nodes,
+                    seedEmojiNodes = seedEmojiNodes,
+                )
+            )
+        }
+        val mergedMajor = if (mergedSummary != null) {
+            detailContent.major?.copy(
+                opus = detailContent.major.opus?.copy(summary = mergedSummary)
+            )
+        } else {
+            detailContent.major
+        }
         detailContent.copy(
             desc = detailContent.desc?.copy(
                 rich_text_nodes = mergeDynamicDetailRichTextNodes(
@@ -181,6 +243,7 @@ internal fun mergeDynamicDetailInteractionMetadata(
                 )
             )
                 ?: DynamicDesc(rich_text_nodes = seedEmojiNodes),
+            major = mergedMajor ?: detailContent.major,
         )
     } else {
         detailContent

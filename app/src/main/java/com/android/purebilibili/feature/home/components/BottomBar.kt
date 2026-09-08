@@ -3907,12 +3907,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
                         )
                     }
                 } else {
-                    background(
-                        resolveAndroidNativeIdleIndicatorSurfaceColor(
-                            darkTheme = isDarkTheme
-                        ),
-                        shellShape
-                    )
+                    this
                 }
             }
     )

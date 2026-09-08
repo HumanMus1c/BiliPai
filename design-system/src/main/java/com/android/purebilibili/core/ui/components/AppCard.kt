@@ -48,6 +48,8 @@ fun AppCard(
     shape: AppCardShape? = null,
     colors: AppCardColors? = null,
     variant: AppCardVariant = AppCardVariant.Filled,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     when (LocalAppUiStyle.current) {
@@ -56,6 +58,8 @@ fun AppCard(
             shape = shape,
             colors = colors,
             variant = variant,
+            onClick = onClick,
+            onLongClick = onLongClick,
             content = content,
         )
         AppUiStyle.MIUIX -> AppMiuixCard(
@@ -63,6 +67,8 @@ fun AppCard(
             modifier = modifier,
             shape = shape,
             colors = colors,
+            onClick = onClick,
+            onLongClick = onLongClick,
             content = content,
         )
     }

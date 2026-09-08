@@ -13,7 +13,7 @@ class PredictiveBackBackgroundPolicyTest {
     @Test
     fun gestureProgressMapsBackGestureToDecreasingBlur() {
         assertEquals(1f, resolvePredictiveBackGestureBlurProgress(0f))
-        assertEquals(0.25f, resolvePredictiveBackGestureBlurProgress(0.5f))
+        assertEquals(0.5f, resolvePredictiveBackGestureBlurProgress(0.5f))
         assertEquals(0f, resolvePredictiveBackGestureBlurProgress(1f))
     }
 
@@ -29,7 +29,7 @@ class PredictiveBackBackgroundPolicyTest {
             backProgress = 0f,
             routeTransition = BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
         ))
-        assertEquals(0.25f, resolvePredictiveBackGestureBlurProgress(
+        assertEquals(0.5f, resolvePredictiveBackGestureBlurProgress(
             backProgress = 0.5f,
             routeTransition = BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
         ))

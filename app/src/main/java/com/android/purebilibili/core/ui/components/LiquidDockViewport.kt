@@ -1,31 +1,27 @@
 package com.android.purebilibili.core.ui.components
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 
 /**
- * Frame the viewport, not the scrolling rail. Only trim the scrolling axis:
- * a capsule clip also cuts off the indicator's vertical press bloom.
- * Place before horizontalScroll (or on its parent) so the frame never scrolls.
+ * Frame the viewport to a pill dock shape so the ends never expose sharp corners
+ * while the inner rail scrolls horizontally.
  */
 @Composable
-internal fun Modifier.liquidDockViewport(): Modifier = this
-    .drawWithContent {
-        // horizontalScroll already allows cross-axis shadow overflow. Do not
-        // reintroduce a shell-height clip outside it; leave room for bloom/lens.
-        val overflow = 30.dp.toPx()
-        clipRect(left = 0f, top = -overflow, right = size.width, bottom = size.height + overflow) {
-            this@drawWithContent.drawContent()
-        }
+internal fun Modifier.liquidDockViewport(): Modifier {
+    val uiStyle = LocalAppUiStyle.current
+    val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
+    val shape = if (uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled) {
+        AppShapes.container(ContainerLevel.Card)
+    } else {
+        CircleShape
     }
-    .border(
-        width = 0.75.dp,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-        shape = CircleShape,
-    )
+    return this.clip(shape)
+}

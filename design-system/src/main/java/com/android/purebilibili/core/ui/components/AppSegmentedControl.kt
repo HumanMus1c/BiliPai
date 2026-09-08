@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.ui.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.requiredWidth
@@ -86,22 +87,34 @@ fun shouldFillMaxWidthAppSegmentedControl(
     longestLabelLength: Int,
 ): Boolean = optionCount >= 2 || longestLabelLength >= 1
 
+fun shouldUseCompactMiuixTabRow(
+    optionCount: Int,
+    scrollable: Boolean,
+    compactWhenTwoOptions: Boolean,
+): Boolean = optionCount == 2 && !scrollable && compactWhenTwoOptions
+
+fun resolveCompactMiuixTabRowWidth(
+    viewportWidth: Dp,
+    minTabWidth: Dp,
+    optionCount: Int,
+    scrollable: Boolean,
+): Dp = if (optionCount == 2 && !scrollable) minTabWidth * 2 else viewportWidth
+
 fun resolveReadableNativeTabMinWidth(
     requestedMinWidth: Dp,
     labels: List<String>,
     allowLabelOverflow: Boolean,
 ): Dp {
     if (!allowLabelOverflow || labels.isEmpty()) return requestedMinWidth
-    val longestLabelLength = labels.maxOf(String::length)
-    // Short labels retain the compact tab sizing. Long CJK/compound titles (for
-    // example UP-space collection names) need extra glyph breathing room because
-    // their measured width is noticeably larger than a simple character estimate.
-    val estimatedWidthDp = if (longestLabelLength >= 7) {
-        longestLabelLength * 20 + 32
-    } else {
-        longestLabelLength * 16 + 24
-    }
-    return maxOf(requestedMinWidth, estimatedWidthDp.dp)
+    val maxEstimatedWidthDp = labels.maxOfOrNull { label ->
+        val textWidth = label.sumOf { char ->
+            if (char.code in 0..127) 8 else 16
+        }
+        val padding = if (textWidth > 64) 28 else 24
+        textWidth + padding
+    } ?: 0
+    val boundedEstimatedWidthDp = maxEstimatedWidthDp.coerceAtMost(176)
+    return maxOf(requestedMinWidth, boundedEstimatedWidthDp.dp)
 }
 
 fun resolveAppLiquidSegmentedControlSpec(
@@ -183,16 +196,21 @@ fun <T> AppNativeSegmentedControl(
     if (options.isEmpty()) return
     val policy = rememberAppSegmentedControlPolicy()
     val materialColors = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val trackColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFF2F2F2)
+    val activeCardColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
+    val activeTextColor = if (isDark) Color.White else Color(0xFF111111)
+    val inactiveTextColor = if (isDark) Color(0xFF98989D) else Color(0xFF6C6C70)
     val colors = resolveAppSegmentedControlColors(
         usesMaterialColorTokens = policy.usesMaterialColorTokens,
         materialPrimaryContainer = materialColors.primaryContainer,
         materialOnPrimaryContainer = materialColors.onPrimaryContainer,
         materialSurfaceContainerHigh = materialColors.surfaceContainerHigh,
         materialOnSurfaceVariant = materialColors.onSurfaceVariant,
-        miuixSecondaryContainer = AppSurfaceTokens.secondaryContainer(),
-        miuixOnSecondaryContainer = AppSurfaceTokens.onSecondaryContainer(),
-        miuixSurfaceContainerHigh = AppSurfaceTokens.surfaceContainerHigh(),
-        miuixOnSurfaceVariantSummary = AppSurfaceTokens.onSurfaceVariantSummary(),
+        miuixSecondaryContainer = activeCardColor,
+        miuixOnSecondaryContainer = activeTextColor,
+        miuixSurfaceContainerHigh = trackColor,
+        miuixOnSurfaceVariantSummary = inactiveTextColor,
     )
     when (resolveAppSegmentedRenderer(policy.usesNativeTabRow)) {
         AppSegmentedRenderer.MATERIAL3 -> AppMaterial3SegmentedControl(
@@ -243,30 +261,36 @@ fun <T> AppNativeTabRow(
         allowLabelOverflow = allowLabelOverflow,
     )
     val effectiveScrollable = !forceEqualWidth &&
-        (scrollable || options.size > 3 || readableMinTabWidth > minTabWidth)
+        (scrollable || options.size > 3 || (readableMinTabWidth > minTabWidth && (!compactMiuixWhenTwoOptions || options.size > 2)))
     val viewportBoundedModifier = modifier.widthIn(
         max = LocalConfiguration.current.screenWidthDp.dp,
     )
     val policy = rememberAppSegmentedControlPolicy()
     val materialColors = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val trackColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFF2F2F2)
+    val activeCardColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
+    val activeTextColor = if (isDark) Color.White else Color(0xFF111111)
+    val inactiveTextColor = if (isDark) Color(0xFF98989D) else Color(0xFF6C6C70)
     val colors = resolveAppSegmentedControlColors(
         usesMaterialColorTokens = policy.usesMaterialColorTokens,
         materialPrimaryContainer = materialColors.primaryContainer,
         materialOnPrimaryContainer = materialColors.onPrimaryContainer,
         materialSurfaceContainerHigh = materialColors.surfaceContainerHigh,
         materialOnSurfaceVariant = materialColors.onSurfaceVariant,
-        miuixSecondaryContainer = AppSurfaceTokens.secondaryContainer(),
-        miuixOnSecondaryContainer = AppSurfaceTokens.onSecondaryContainer(),
-        miuixSurfaceContainerHigh = AppSurfaceTokens.surfaceContainerHigh(),
-        miuixOnSurfaceVariantSummary = AppSurfaceTokens.onSurfaceVariantSummary(),
+        miuixSecondaryContainer = activeCardColor,
+        miuixOnSecondaryContainer = activeTextColor,
+        miuixSurfaceContainerHigh = trackColor,
+        miuixOnSurfaceVariantSummary = inactiveTextColor,
     )
+    val targetTabWidth = if (effectiveScrollable) readableMinTabWidth else minTabWidth
     when (if (forceMaterial3) AppSegmentedRenderer.MATERIAL3 else resolveAppSegmentedRenderer(policy.usesNativeTabRow)) {
         AppSegmentedRenderer.MATERIAL3 -> AppMaterial3TabRow(
             options = options,
             selectedValue = selectedValue,
             enabled = enabled,
             scrollable = effectiveScrollable,
-            minTabWidth = readableMinTabWidth,
+            minTabWidth = targetTabWidth,
             allowLabelOverflow = allowLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
             modifier = viewportBoundedModifier,
@@ -277,13 +301,13 @@ fun <T> AppNativeTabRow(
             selectedValue = selectedValue,
             enabled = enabled,
             scrollable = effectiveScrollable,
-            minTabWidth = readableMinTabWidth,
+            minTabWidth = targetTabWidth,
             colors = colors,
             preferredCornerRadius = policy.preferredCornerRadius,
             height = height,
             modifier = if (!com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() &&
                 !effectiveScrollable && options.size == 2) {
-                viewportBoundedModifier.requiredWidth(readableMinTabWidth * options.size)
+                viewportBoundedModifier.requiredWidth(minTabWidth * options.size)
             } else {
                 viewportBoundedModifier
             },

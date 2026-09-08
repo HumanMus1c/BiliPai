@@ -269,7 +269,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                         page.copy(
                             items = items.toImmutableList(),
                             isLoading = false,
-                            error = null
+                            error = null,
+                            isCachePlaceholder = true
                         )
                     }
                 }
@@ -854,7 +855,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     ) {
                         return@fold
                     }
-                    val successPage = resolveDynamicTimelinePageAfterSuccess(
+                    var successPage = resolveDynamicTimelinePageAfterSuccess(
                         currentPage = requestPage,
                         incomingItems = feedResult.items,
                         isRefresh = refresh,
@@ -864,6 +865,17 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                             type = requestType
                         )
                     )
+                    if (refresh && successPage.incrementalPrependedCount == 0) {
+                        if (feedResult.nextOffset.isNotBlank()) {
+                            DynamicRepository.syncPaginationAfterRefresh(
+                                scope = DynamicFeedScope.DYNAMIC_SCREEN,
+                                type = requestType,
+                                offset = feedResult.nextOffset,
+                                hasMore = feedResult.hasMore
+                            )
+                        }
+                        successPage = successPage.copy(hasMore = feedResult.hasMore)
+                    }
                     _uiState.value = updateDynamicTimelinePage(_uiState.value, requestType) { successPage }
                     if (requestType == "all") {
                         saveDynamicCache(successPage.items)
@@ -2299,5 +2311,6 @@ data class DynamicTimelinePageState(
     val hasMore: Boolean = true,
     val incrementalRefreshBoundaryKey: String? = null,
     val incrementalPrependedCount: Int = 0,
-    val errorSource: DynamicFeedErrorSource = DynamicFeedErrorSource.NONE
+    val errorSource: DynamicFeedErrorSource = DynamicFeedErrorSource.NONE,
+    val isCachePlaceholder: Boolean = false
 )

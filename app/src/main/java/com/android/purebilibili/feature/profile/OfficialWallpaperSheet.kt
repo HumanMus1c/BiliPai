@@ -318,8 +318,8 @@ fun OfficialWallpaperSheet(
                                 .height(50.dp),
                             shape = AppShapes.container(ContainerLevel.Floating),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurface
                             )
                         ) {
                             if (saveState is WallpaperSaveState.Loading) {

@@ -496,7 +496,7 @@ private fun LiveAreaGridItem(
         if (isEditing && child.id != "0") {
             AppSurface(
                 shape = CircleShape,
-                color = if (isFavorite) colorScheme.surfaceVariant else colorScheme.secondaryContainer,
+                color = if (isFavorite) colorScheme.surfaceVariant else colorScheme.surfaceContainerHighest,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(end = AppSpacingTokens.Large)
@@ -505,7 +505,7 @@ private fun LiveAreaGridItem(
                 AppIcon(
                     imageVector = if (isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (isFavorite) "取消收藏" else "收藏标签",
-                    tint = if (isFavorite) colorScheme.onSurfaceVariant else colorScheme.onSecondaryContainer,
+                    tint = if (isFavorite) colorScheme.onSurfaceVariant else colorScheme.onSurface,
                     modifier = Modifier.padding(AppSpacingTokens.Micro)
                 )
             }

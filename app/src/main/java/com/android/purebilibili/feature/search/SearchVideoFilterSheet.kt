@@ -2,8 +2,10 @@ package com.android.purebilibili.feature.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -35,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,9 +46,13 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.BottomSheetHost
 import com.android.purebilibili.core.ui.components.AppSegmentOption
-import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
+import com.android.purebilibili.core.ui.components.liquidDockViewport
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -101,23 +108,75 @@ fun SearchVideoFilterBar(
             .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AppThemeAdaptiveTabRow(
-            options = orderTabs,
-            selectedValue = currentOrder,
-            onSelectionChange = onOrderChange,
+        val scrollState = rememberScrollState()
+        val density = LocalDensity.current
+        val selectedIndex = orderOptions.indexOf(currentOrder).coerceAtLeast(0)
+
+        BoxWithConstraints(
             modifier = Modifier.weight(1f),
-            // Let the tab row own its viewport and keep selection visible in every theme.
-            // An outer horizontalScroll hides clipping from the native selection scroller.
-            scrollable = true,
-            minTabWidth = 72.dp,
-            height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-            indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-            labelFontSize = 13.sp,
-            miuixBackdrop = miuixBackdrop,
-            tapPressRefractionEnabled = true,
-            // Drag the selected pill directly; the remaining rail still scrolls.
-            dragSelectionEnabled = orderOptions.size > 1,
-        )
+            contentAlignment = Alignment.CenterStart
+        ) {
+            val viewportWidthDp = maxWidth.value.roundToInt()
+            val useScrollableRail = shouldScrollSearchVideoFilter(
+                itemCount = orderTabs.size,
+                viewportWidthDp = viewportWidthDp
+            )
+            val itemWidthDp = resolveSearchVideoFilterAdaptiveItemWidthDp(
+                itemCount = orderTabs.size,
+                viewportWidthDp = viewportWidthDp
+            )
+            val itemWidth = itemWidthDp.dp
+            val viewportWidthPx = with(density) { maxWidth.toPx() }
+            val itemWidthPx = with(density) { itemWidth.toPx() }
+            val containerHorizontalPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() }
+            val dragFollowEdgePaddingPx = with(density) { 12.dp.toPx() }
+
+            KeepScrollableTabSelectionVisible(
+                scrollState = scrollState,
+                selectedIndex = if (useScrollableRail) selectedIndex else 0,
+                itemWidthPx = itemWidthPx,
+                viewportWidthPx = viewportWidthPx,
+                contentPaddingPx = containerHorizontalPaddingPx,
+            )
+
+            BottomBarLiquidSegmentedControl(
+                items = orderTabs.map { it.label },
+                selectedIndex = selectedIndex,
+                onSelected = { index ->
+                    orderOptions.getOrNull(index)?.let(onOrderChange)
+                },
+                itemWidth = itemWidth.takeIf { useScrollableRail },
+                height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                labelFontSize = 13.5.sp,
+                allowNativeLabelOverflow = true,
+                miuixBackdrop = miuixBackdrop,
+                liquidGlassEffectsEnabled = true,
+                tapPressRefractionEnabled = !useScrollableRail,
+                dragSelectionEnabled = orderOptions.size > 1,
+                onIndicatorPositionChanged = { position ->
+                    if (useScrollableRail) {
+                        scrollState.dispatchRawDelta(
+                            resolveSearchVideoFilterDragScrollDeltaPx(
+                                indicatorPosition = position,
+                                itemWidthPx = itemWidthPx,
+                                viewportWidthPx = viewportWidthPx,
+                                currentScrollPx = scrollState.value.toFloat(),
+                                containerHorizontalPaddingPx = containerHorizontalPaddingPx,
+                                edgePaddingPx = dragFollowEdgePaddingPx
+                            )
+                        )
+                    }
+                },
+                modifier = if (useScrollableRail) {
+                    Modifier
+                        .liquidDockViewport()
+                        .horizontalScroll(scrollState)
+                } else {
+                    Modifier.fillMaxWidth()
+                },
+            )
+        }
         VerticalDivider(
             modifier = Modifier
                 .height(18.dp)
@@ -405,8 +464,8 @@ private fun SearchFilterSelectableChip(
             )
         },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
             labelColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),

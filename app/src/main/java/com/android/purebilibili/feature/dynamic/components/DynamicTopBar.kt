@@ -6,6 +6,8 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -130,7 +132,11 @@ fun DynamicTopBarWithTabs(
             readabilityMode = homeSettings.liquidGlassReadabilityMode,
         )
     }
-    val dockShape = AppShapes.container(ContainerLevel.Pill)
+    val dockShape = if (!liquidGlassEnabled && LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+        AppShapes.container(ContainerLevel.Card)
+    } else {
+        AppShapes.container(ContainerLevel.Pill)
+    }
     val dockColor = AppSurfaceTokens.surfaceContainerHigh()
 
     Column(

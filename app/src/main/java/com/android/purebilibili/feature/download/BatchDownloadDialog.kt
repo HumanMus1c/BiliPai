@@ -192,7 +192,7 @@ internal fun BatchDownloadDialog(
                                     Box(
                                         modifier = Modifier
                                             .background(
-                                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
                                                 shape = AppShapes.container(ContainerLevel.Pill)
                                             )
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -200,7 +200,7 @@ internal fun BatchDownloadDialog(
                                         AppText(
                                             text = "已存在",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }

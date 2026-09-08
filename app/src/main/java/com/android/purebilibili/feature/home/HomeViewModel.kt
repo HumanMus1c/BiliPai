@@ -1754,9 +1754,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             updateCategoryState(HomeCategory.FOLLOW) { oldState ->
                 val oldSize = oldState.videos.size
+                val hasOverlap = oldState.videos.isNotEmpty() && videos.any { newVid ->
+                    oldState.videos.any { it.bvid == newVid.bvid || it.id == newVid.id }
+                }
+                val canPrepend = (usedBaseline || (!isLoadMore && incrementalTimelineRefreshEnabled)) &&
+                    (oldState.videos.isEmpty() || hasOverlap)
                 val mergedVideos = when {
                     isLoadMore -> appendDistinctByKey(oldState.videos, videos, ::videoItemKey).toImmutableList()
-                    usedBaseline || (!isLoadMore && incrementalTimelineRefreshEnabled) -> {
+                    canPrepend -> {
                         prependDistinctByKey(oldState.videos, videos, ::videoItemKey).toImmutableList()
                     }
                     else -> videos.toImmutableList()
@@ -1769,12 +1774,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         insertedVideoCount = insertedCount
                     )
                 }
+                if (!isLoadMore && !canPrepend && feedResult.nextOffset.isNotBlank()) {
+                    com.android.purebilibili.data.repository.DynamicRepository.syncPaginationAfterRefresh(
+                        scope = followScope,
+                        type = followType,
+                        offset = feedResult.nextOffset,
+                        hasMore = feedResult.hasMore
+                    )
+                }
                 oldState.copy(
                     videos = mergedVideos,
                     liveRooms = emptyList<LiveRoom>().toImmutableList(),
                     isLoading = false,
                     error = if (!isLoadMore && mergedVideos.isEmpty()) "暂无关注动态，请先关注一些UP主" else null,
-                    hasMore = com.android.purebilibili.data.repository.DynamicRepository.hasMoreData(
+                    hasMore = if (!isLoadMore && !canPrepend) feedResult.hasMore else com.android.purebilibili.data.repository.DynamicRepository.hasMoreData(
                         scope = followScope,
                         type = followType
                     )

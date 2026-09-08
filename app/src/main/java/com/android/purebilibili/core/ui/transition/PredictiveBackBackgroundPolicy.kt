@@ -16,7 +16,7 @@ import kotlin.math.roundToInt
 
 private const val PREDICTIVE_BACK_MAX_BLUR_RADIUS_PX_DARK = 28f
 private const val PREDICTIVE_BACK_MAX_BLUR_RADIUS_PX_LIGHT = 22f
-private const val PREDICTIVE_BACK_BLUR_QUANTUM_PX = 2f
+private const val PREDICTIVE_BACK_BLUR_QUANTUM_PX = 4f
 private const val PREDICTIVE_BACK_LIGHT_SEPARATION_TINT_ALPHA = 0.05f
 
 /** 与 SCALE handler 提交退出动画时长对齐。 */
@@ -53,8 +53,8 @@ internal fun resolvePredictiveBackGestureBlurProgress(
     @Suppress("UNUSED_PARAMETER")
     val ignoredTransition = routeTransition
     val clamped = backProgress.coerceIn(0f, 1f)
-    // soft ease：前半段多留一点糊，接近完成时加速掐清。
-    return (1f - clamped) * (1f - clamped)
+    // 1:1 跟手线性渐变：手指拖出多少比例，底层模糊就线性退去多少；反向推回则等比恢复，手感丝滑连贯。
+    return 1f - clamped
 }
 
 internal fun resolvePredictiveBackMaxBlurRadiusPx(isLightBackground: Boolean): Float {

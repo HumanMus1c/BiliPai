@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-09-06 · Current build: 0.2.3-beta.26 · Latest documented release: v0.2.3-beta.26</sub>
+  <sub>Last updated: 2026-09-07 · Current build: 0.2.3-beta.27 · Latest documented release: v0.2.3-beta.27</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.26-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.27-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,14 +452,15 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.26 · 2026-09-06)
+### Current source build (v0.2.3-beta.27 · 2026-09-07)
 
-- Current source build: `0.2.3-beta.26` / `versionCode 343`.
-- Video return transition syncs title, play stats, and cover info without seam flashes; flyer viewport precisely aligns with inline player.
-- Global liquid dock gestures unified to immediate dragging; segmented indicators flattened with matched padding; dock drag preserved across search integration.
-- Phone landscape fullscreen preserves detected orientation; cover classification changes keep gravity listeners active; narrow cover-screen danmaku pill collapse fixed.
-- Desktop-style live room split chat panel capped at 400dp; danmaku send sheet gains emoticon picker; live like button animated with burst effect.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.23 → beta.26 notes.
+- Current source build: `0.2.3-beta.27` / `versionCode 344`.
+- Segmented navigation prevents right-angle protrusion during scrolling; category and filter bars upgraded to adaptive sliding liquid track; long labels fully visible without truncation.
+- Search results page adapted for tablets and foldables with multi-column grid layout and user-customizable column counts.
+- Dynamic feed detail and incremental refresh refactored with fallback recovery for offline stability; enriched rich text and comments panel interactions.
+- Danmaku blocking rules support regex and advanced prefix syntax with smart retention of curly brace quantifier commas.
+- Fixed Samsung Android 13 crashes and foldable cover-screen landscape cold-start jitter; smoother card predictive-return curves and squircle transitions.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.26 → beta.27 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -472,7 +473,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.26-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.26.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.27-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.27.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

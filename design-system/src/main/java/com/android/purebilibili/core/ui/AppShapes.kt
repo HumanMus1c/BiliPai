@@ -2,13 +2,27 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import com.android.purebilibili.core.theme.resolveCornerRadiusScale
+import top.yukonga.miuix.kmp.squircle.addSquircleRect
+
+/** Uses the same upstream path geometry as native Miuix controls. */
+internal data class MiuixContainerShape(val radius: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Generic(Path().apply {
+            addSquircleRect(size.width, size.height, with(density) { radius.toPx() })
+        })
+}
 
 /** Semantic container categories shared by the Material 3 and MIUIX themes. */
 enum class ContainerLevel {
@@ -62,12 +76,13 @@ object AppShapes {
         uiStyle: AppUiStyle,
         liquidGlassEnabled: Boolean = true,
     ): Dp {
-        if (isMiuixNonGlassEnabled(uiStyle, liquidGlassEnabled)) {
+        if (uiStyle == AppUiStyle.MIUIX) {
             when (level) {
                 ContainerLevel.Card -> return 16.dp
                 ContainerLevel.MediaCover -> return 12.dp
                 ContainerLevel.ProminentCard -> return 20.dp
                 ContainerLevel.Chip -> return 10.dp
+                ContainerLevel.Dialog -> return 28.dp
                 else -> Unit
             }
         }
@@ -84,6 +99,9 @@ object AppShapes {
         liquidGlassEnabled: Boolean = true,
     ): Shape {
         val dp = resolveContainerCornerDp(level, uiStyle, liquidGlassEnabled)
+        if (uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled && level != ContainerLevel.Sheet) {
+            return MiuixContainerShape(dp)
+        }
         return if (level == ContainerLevel.Sheet) {
             topRounded(dp)
         } else {
@@ -91,23 +109,12 @@ object AppShapes {
         }
     }
 
-    /**
-     * Shape for containers that draw a stroke via [androidx.compose.foundation.BorderStroke] or
-     * [androidx.compose.foundation.border]. Material3 borders follow [RoundedCornerShape]
-     * reliably; iOS continuous corners render as chamfered edges.
-     */
+    /** Fill, clipping and border must share the same silhouette. */
     fun resolveBorderedContainerShape(
         level: ContainerLevel,
         uiStyle: AppUiStyle,
         liquidGlassEnabled: Boolean = true,
-    ): Shape {
-        val dp = resolveContainerCornerDp(level, uiStyle, liquidGlassEnabled)
-        return if (level == ContainerLevel.Sheet) {
-            topRounded(dp)
-        } else {
-            RoundedCornerShape(dp)
-        }
-    }
+    ): Shape = resolveContainerShape(level, uiStyle, liquidGlassEnabled)
 
     /** Top corners only (sheet / stacked cover plate). Bottom stays square. */
     fun topRounded(radius: Dp): Shape =
@@ -178,11 +185,11 @@ object AppShapes {
         liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
     )
 
-    /** Uses the 12dp media role only in non-glass Miuix and preserves each legacy shape. */
+    /** Uses the 12dp media role in Miuix and preserves each legacy shape in MD3. */
     @Composable
     fun mediaCover(
         legacyLevel: ContainerLevel = ContainerLevel.Card,
-    ): Shape = if (isMiuixNonGlassEnabled()) {
+    ): Shape = if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         container(ContainerLevel.MediaCover)
     } else {
         container(legacyLevel)
@@ -191,7 +198,7 @@ object AppShapes {
     @Composable
     fun borderedMediaCover(
         legacyLevel: ContainerLevel = ContainerLevel.Card,
-    ): Shape = if (isMiuixNonGlassEnabled()) {
+    ): Shape = if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         borderedContainer(ContainerLevel.MediaCover)
     } else {
         borderedContainer(legacyLevel)
@@ -200,7 +207,7 @@ object AppShapes {
     @Composable
     fun mediaCoverCornerDp(
         legacyLevel: ContainerLevel = ContainerLevel.Card,
-    ): Dp = if (isMiuixNonGlassEnabled()) {
+    ): Dp = if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         containerCornerDp(ContainerLevel.MediaCover)
     } else {
         containerCornerDp(legacyLevel)

@@ -452,7 +452,13 @@ internal fun resolveDynamicTimelinePageAfterSuccess(
     hasMore: Boolean
 ): DynamicTimelinePageState {
     val currentItems = currentPage.items
-    val canUseIncrementalRefresh = isRefresh && incrementalRefreshEnabled
+    val canUseIncrementalRefresh = canPerformIncrementalTimelineRefresh(
+        isRefresh = isRefresh,
+        incrementalRefreshEnabled = incrementalRefreshEnabled,
+        isCachePlaceholder = currentPage.isCachePlaceholder,
+        existingItems = currentItems,
+        incomingItems = incomingItems
+    )
     val mergedItems = when {
         canUseIncrementalRefresh -> sortDynamicTimelineItemsByPublishTime(
             prependDistinctByKey(
@@ -486,7 +492,8 @@ internal fun resolveDynamicTimelinePageAfterSuccess(
         hasMore = hasMore,
         incrementalRefreshBoundaryKey = boundary.boundaryKey,
         incrementalPrependedCount = boundary.prependedCount,
-        errorSource = DynamicFeedErrorSource.NONE
+        errorSource = DynamicFeedErrorSource.NONE,
+        isCachePlaceholder = false
     )
 }
 
@@ -546,9 +553,14 @@ internal fun resolveDynamicFeedStateAfterSuccess(
     hasMore: Boolean
 ): DynamicUiState {
     val currentItems = currentState.items
-    val canUseIncrementalRefresh = isRefresh &&
-        incrementalRefreshEnabled &&
-        currentState.timelineRequestType == requestType
+    val canUseIncrementalRefresh = currentState.timelineRequestType == requestType &&
+        canPerformIncrementalTimelineRefresh(
+            isRefresh = isRefresh,
+            incrementalRefreshEnabled = incrementalRefreshEnabled,
+            isCachePlaceholder = false,
+            existingItems = currentItems,
+            incomingItems = incomingItems
+        )
     val mergedItems = when {
         canUseIncrementalRefresh -> sortDynamicTimelineItemsByPublishTime(
             prependDistinctByKey(

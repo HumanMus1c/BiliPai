@@ -487,7 +487,8 @@ private fun WallpaperDeviceTabRow(
         options = options,
         selectedValue = selectedTab,
         onSelectionChange = onSelectedTabChange,
-        modifier = modifier,
+        modifier = modifier.wrapContentWidth(Alignment.CenterHorizontally),
+        compactMiuixWhenTwoOptions = true,
         height = 48.dp,
         indicatorHeight = com.android.purebilibili.core.ui
             .roundMatchedLiquidIndicatorHeightDp(48f).dp,

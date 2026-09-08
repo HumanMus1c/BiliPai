@@ -66,7 +66,10 @@ class ContentLoadingSkeletonStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt"
         )
         assertTrue(source.contains("SearchResultBodyMode.LOADING"))
-        assertTrue(source.contains("ContentVideoGridSkeleton("))
+        assertTrue(
+            source.contains("ContentVideoGridSkeletonFixedColumns(") ||
+                source.contains("ContentVideoGridSkeleton(")
+        )
         assertTrue(source.contains("ContentMediaListSkeleton("))
         assertFalse(source.contains("LoadingAnimation("))
         assertFalse(source.contains("text = \"搜索中...\""))

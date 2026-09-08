@@ -641,4 +641,52 @@ class DynamicDetailFallbackPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun mergeRicherOpusDetailContent_retainsCandidateEmojiNodesInMergedSummaryAndDesc() {
+        val emojiNode = RichTextNode(
+            type = "EMOJI",
+            text = "[豹富]",
+            emoji = EmojiInfo(
+                icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                text = "[豹富]"
+            )
+        )
+        val seed = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(text = "预览正文[豹富]", rich_text_nodes = listOf(emojiNode)),
+                    major = DynamicMajor(
+                        type = "MAJOR_TYPE_OPUS",
+                        opus = OpusMajor(
+                            summary = OpusSummary(text = "预览摘要[豹富]", rich_text_nodes = listOf(emojiNode))
+                        )
+                    )
+                )
+            )
+        )
+        val detail = DynamicItem(
+            id_str = "dynamic-id",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        type = "MAJOR_TYPE_OPUS",
+                        opus = OpusMajor(
+                            contentBlocks = listOf(
+                                OpusContentBlock.Text("详细正文")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val candidates = listOf(detail, seed)
+        val merged = mergeRicherOpusDetailContent(detail, candidates)
+
+        val mergedDescNodes = merged.modules.module_dynamic?.desc?.rich_text_nodes.orEmpty()
+        val mergedSummaryNodes = merged.modules.module_dynamic?.major?.opus?.summary?.rich_text_nodes.orEmpty()
+        assertTrue(mergedDescNodes.any { it.text == "[豹富]" && it.emoji?.icon_url == "https://i0.hdslb.com/bfs/emote/baofu.png" })
+        assertTrue(mergedSummaryNodes.any { it.text == "[豹富]" && it.emoji?.icon_url == "https://i0.hdslb.com/bfs/emote/baofu.png" })
+    }
 }

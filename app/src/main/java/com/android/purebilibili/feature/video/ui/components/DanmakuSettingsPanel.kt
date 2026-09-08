@@ -16,6 +16,8 @@ import com.android.purebilibili.feature.video.danmaku.DanmakuBlockRuleImportResu
 import com.android.purebilibili.feature.video.danmaku.parseDanmakuBlockRuleImport
 import com.android.purebilibili.feature.video.danmaku.resolveDanmakuCloudSyncToggleSubtitle
 import com.android.purebilibili.feature.video.danmaku.mergeDanmakuBlockRuleSections
+import com.android.purebilibili.feature.video.danmaku.normalizeDanmakuRegexManagerInput
+import com.android.purebilibili.feature.video.danmaku.normalizeDanmakuUserHashManagerInput
 import com.android.purebilibili.feature.video.danmaku.parseDanmakuBlockRules
 import com.android.purebilibili.feature.video.danmaku.partitionDanmakuBlockRules
 import com.android.purebilibili.core.ui.components.AppButton
@@ -1403,7 +1405,12 @@ private fun DanmakuBlockManagerDialog(
                         onClick = {
                             val candidate = inputValue.trim()
                             if (candidate.isEmpty()) return@AppButton
-                            updateCurrentRules { (it + candidate).distinct() }
+                            val normalizedCandidate = when (selectedTabIndex) {
+                                1 -> normalizeDanmakuRegexManagerInput(candidate) ?: candidate
+                                2 -> normalizeDanmakuUserHashManagerInput(candidate) ?: candidate
+                                else -> candidate
+                            }
+                            updateCurrentRules { (it + normalizedCandidate).distinct() }
                             inputValue = ""
                         },
                         enabled = inputValue.isNotBlank()

@@ -5,20 +5,38 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 
 internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP = 10f
+internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION = 0.12f
+internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE = 1.25f
 private const val BILIPAI_PROGRESSIVE_TOP_BLUR_MIN_EXTENSION_DP = 20f
 private const val BILIPAI_PROGRESSIVE_TOP_BLUR_EXTRA_EXTENSION_DP = 28f
 private val BiliPaiProgressiveTopBlurShape = RoundedCornerShape(
     bottomStart = 28.dp,
     bottomEnd = 28.dp,
+)
+
+/**
+ * Shared progressive top blur gradient preset inspired by HyperIsland's top status bar design.
+ * Maintains full blur strength across the top 12% status-bar band to ensure battery/clock
+ * readability, then falls off with a 1.25 power curve toward the clear edge.
+ *
+ * Preserves gradient = ProgressiveBlur.Top contract for policy tests.
+ */
+internal val BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT: ProgressiveBlur = ProgressiveBlur.Top.copy(
+    startFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
+    endFraction = 1f,
+    curve = BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
 )
 
 internal fun shouldUseBiliPaiProgressiveTopBlur(
@@ -50,7 +68,8 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
     enabled: Boolean,
     shape: Shape = BiliPaiProgressiveTopBlurShape,
     blurRadiusDp: Float = BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
-    gradient: ProgressiveBlur = ProgressiveBlur.Top,
+    gradient: ProgressiveBlur = BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT,
+    colors: BlurColors = BlurColors(),
 ): Modifier {
     if (
         !shouldUseBiliPaiProgressiveTopBlur(enabled, backdrop != null) ||
@@ -65,14 +84,39 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
         // Keep their identity while the material is unchanged, so an unrelated header
         // recomposition does not rebuild the progressive stack and its sharp-end effect.
         // Geometry changes and source redraws are still handled by Miuix's draw node.
-        val effect = remember(source, shape, blurRadiusDp, gradient) {
+        val effect = remember(source, shape, blurRadiusDp, gradient, colors) {
             Modifier.progressiveTextureBlur(
                 backdrop = source,
                 shape = shape,
                 blurRadius = blurRadiusDp,
                 gradient = gradient,
+                colors = colors,
             )
         }
         this.then(effect)
     }
+}
+
+/** Convenience overload that blends [surfaceColor] into the progressive blur shader pass. */
+internal fun Modifier.biliPaiProgressiveTopBlur(
+    backdrop: Backdrop?,
+    enabled: Boolean,
+    surfaceColor: Color,
+    shape: Shape = BiliPaiProgressiveTopBlurShape,
+    blurRadiusDp: Float = BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
+    gradient: ProgressiveBlur = BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT,
+): Modifier {
+    val blurColors = if (surfaceColor.alpha > 0.001f) {
+        BlurColors(blendColors = listOf(BlendColorEntry(color = surfaceColor)))
+    } else {
+        BlurColors()
+    }
+    return biliPaiProgressiveTopBlur(
+        backdrop = backdrop,
+        enabled = enabled,
+        shape = shape,
+        blurRadiusDp = blurRadiusDp,
+        gradient = gradient,
+        colors = blurColors,
+    )
 }

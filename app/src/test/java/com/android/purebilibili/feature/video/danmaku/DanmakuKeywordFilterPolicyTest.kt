@@ -24,6 +24,40 @@ class DanmakuKeywordFilterPolicyTest {
     }
 
     @Test
+    fun parseDanmakuBlockRules_preservesCommaInRegexSyntax() {
+        val rules = parseDanmakuBlockRules(
+            """
+            regex:\d{1,3}秒
+            /哈{3,}/
+            re:[a,b]
+            r=第\d{1,2}集
+            剧透, regex:^.{1,5}$
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf(
+                "regex:\\d{1,3}秒",
+                "/哈{3,}/",
+                "re:[a,b]",
+                "r=第\\d{1,2}集",
+                "剧透",
+                "regex:^.{1,5}$"
+            ),
+            rules
+        )
+    }
+
+    @Test
+    fun parseDanmakuBlockRules_preservesCommaWhileTypingRegex() {
+        val rules1 = parseDanmakuBlockRules("regex:\\d{1,")
+        assertEquals(listOf("regex:\\d{1,"), rules1)
+
+        val rules2 = parseDanmakuBlockRules("/哈{3,")
+        assertEquals(listOf("/哈{3,"), rules2)
+    }
+
+    @Test
     fun parseDanmakuBlockRules_supportsJsonImportPayload() {
         val rules = parseDanmakuBlockRules(
             """
@@ -88,6 +122,8 @@ class DanmakuKeywordFilterPolicyTest {
     fun matchesDanmakuBlockRule_supportsRegexPrefix() {
         assertTrue(matchesDanmakuBlockRule(content = "2026年新番", rule = "regex:\\d{4}年"))
         assertTrue(matchesDanmakuBlockRule(content = "第12集封神", rule = "re:第\\d+集"))
+        assertTrue(matchesDanmakuBlockRule(content = "123秒后高能", rule = "regex:\\d{1,3}秒"))
+        assertTrue(matchesDanmakuBlockRule(content = "第12集封神", rule = "r=第\\d{1,2}集"))
     }
 
     @Test
@@ -154,12 +190,12 @@ class DanmakuKeywordFilterPolicyTest {
     fun mergeDanmakuBlockRuleSections_normalizesAndDeduplicatesRules() {
         val merged = mergeDanmakuBlockRuleSections(
             keywordRules = listOf("剧透", "  哈哈 "),
-            regexRules = listOf("regex:第\\d+集", "regex:第\\d+集"),
+            regexRules = listOf("regex:第\\d+集", "regex:第\\d+集", "\\d{1,3}"),
             userHashRules = listOf("abc123", "uid:xyz")
         )
 
         assertEquals(
-            listOf("剧透", "哈哈", "regex:第\\d+集", "uid:abc123", "uid:xyz"),
+            listOf("剧透", "哈哈", "regex:第\\d+集", "regex:\\d{1,3}", "uid:abc123", "uid:xyz"),
             merged
         )
     }

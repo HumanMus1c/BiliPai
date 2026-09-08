@@ -84,6 +84,12 @@ internal fun shouldIncludeDynamicItemInUpTab(item: DynamicItem): Boolean {
 }
 
 internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarget? {
+    if (item.type.trim() == "DYNAMIC_TYPE_FORWARD") {
+        item.id_str.toPositiveLongOrNull()?.let {
+            return DynamicCommentTarget(oid = it, type = 17)
+        }
+    }
+
     // The dynamic API explicitly supplies the reply subject as basic.comment_id_str +
     // basic.comment_type. Prefer it over display-shape inference (for example OPUS),
     // because an image dynamic may render as OPUS while still using reply type 11.
@@ -159,11 +165,14 @@ internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarge
 }
 
 internal fun resolveDynamicCommentTargets(item: DynamicItem): List<DynamicCommentTarget> {
+    val targets = linkedSetOf<DynamicCommentTarget>()
+
     if (item.type.trim() == "DYNAMIC_TYPE_FORWARD") {
-        resolveCommentTargetFromBasic(item.basic)?.let { return listOf(it) }
+        item.id_str.toPositiveLongOrNull()?.let {
+            targets += DynamicCommentTarget(oid = it, type = 17)
+        }
     }
 
-    val targets = linkedSetOf<DynamicCommentTarget>()
     val primary = resolveDynamicCommentTarget(item)
     if (primary != null) targets += primary
 
@@ -178,8 +187,9 @@ internal fun resolveDynamicCommentTargets(item: DynamicItem): List<DynamicCommen
         ?.let { DynamicCommentTarget(oid = it, type = 17) }
     if (desktopDynamicTarget != null) targets += desktopDynamicTarget
 
-    if (targets.isEmpty()) {
-        item.orig?.let { return resolveDynamicCommentTargets(it) }
+    item.orig?.let { origItem ->
+        targets += resolveDynamicCommentTargets(origItem)
     }
+
     return targets.toList()
 }

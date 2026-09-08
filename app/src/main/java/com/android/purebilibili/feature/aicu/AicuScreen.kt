@@ -380,7 +380,10 @@ private fun AicuCommentModeDock(
                 options = options,
                 selectedValue = selectedMode,
                 onSelectionChange = onSelect,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.CenterHorizontally),
+                minTabWidth = 72.dp,
                 height = 48.dp,
                 indicatorHeight = 36.dp,
                 dragSelectionEnabled = true,

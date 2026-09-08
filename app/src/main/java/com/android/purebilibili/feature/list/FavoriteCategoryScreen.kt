@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -413,11 +415,13 @@ private fun FavoriteCategoryFilterRow(
         selectedValue = selectedIndex.coerceIn(0, labels.lastIndex.coerceAtLeast(0)),
         onSelectionChange = onSelected,
         scrollable = labels.size > 4,
+        minTabWidth = if (labels.size <= 3) 84.dp else Dp.Unspecified,
         dragSelectionEnabled = labels.size > 1,
         tapPressRefractionEnabled = true,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = AppSpacingTokens.Medium),
+            .padding(horizontal = AppSpacingTokens.Medium)
+            .wrapContentWidth(Alignment.CenterHorizontally),
     )
 }
 

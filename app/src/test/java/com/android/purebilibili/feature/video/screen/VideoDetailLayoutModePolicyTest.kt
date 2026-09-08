@@ -11,6 +11,73 @@ import kotlin.test.assertTrue
 
 class VideoDetailLayoutModePolicyTest {
     @Test
+    fun sensorLandscapeConfiguration_doesNotBecomeAnOppositeFixedSide() {
+        assertEquals(
+            null,
+            resolveCurrentExactLandscapeOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE),
+        )
+        for (fullscreen in listOf(false, true)) {
+            assertEquals(
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.HORIZONTAL,
+                    isCompactDevice = true,
+                    isOrientationDrivenFullscreen = true,
+                    isFullscreenMode = fullscreen,
+                    currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+                    isCurrentlyLandscape = true,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun fullscreenConfiguration_preservesEitherSensorDetectedExactSide() {
+        for (side in listOf(
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+        )) {
+            assertEquals(
+                side,
+                resolvePhoneVideoRequestedOrientation(
+                    autoRotateEnabled = true,
+                    fullscreenMode = FullscreenMode.HORIZONTAL,
+                    isCompactDevice = true,
+                    isOrientationDrivenFullscreen = true,
+                    isFullscreenMode = true,
+                    currentRequestedOrientation = side,
+                    isCurrentlyLandscape = true,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun landscapeThenPortraitThenManualFullscreen_keepsSensorSideSelection() {
+        fun request(landscape: Boolean, fullscreen: Boolean, manual: Boolean, current: Int) =
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = true,
+                fullscreenMode = FullscreenMode.HORIZONTAL,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                isFullscreenMode = fullscreen,
+                manualFullscreenRequested = manual,
+                currentRequestedOrientation = current,
+                isCurrentlyLandscape = landscape,
+            )
+
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            request(true, false, false, ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            request(false, false, false, ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            request(false, false, true, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            request(true, true, true, ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE))
+    }
+
+    @Test
     fun foldableCoverWindow_isNotInferredAsFloatingFromInnerDisplayBounds() {
         assertFalse(
             shouldInferFloatingWindowFromBounds(

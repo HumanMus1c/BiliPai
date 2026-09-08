@@ -96,6 +96,12 @@ import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.nav.gesture.WindowNavigationEventBridge
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
+import kotlinx.coroutines.delay
 
 @Composable
 fun DynamicCommentOverlayHost(
@@ -211,7 +217,20 @@ fun DynamicCommentSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val listState = rememberLazyListState()
+
+    LaunchedEffect(replyTargetUname) {
+        if (!replyTargetUname.isNullOrBlank()) {
+            delay(50L)
+            try {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            } catch (_: Exception) {}
+        }
+    }
     val canLoadMore = comments.size < totalCount && !isLoading && !isLoadingMore
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -427,9 +446,13 @@ fun DynamicCommentSheet(
                 onSubmit = {
                     onPostComment(it)
                     commentText = ""
+                    if (!replyTargetUname.isNullOrBlank()) onClearReplyTarget()
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
                 },
                 hint = resolveDynamicCommentComposerHint(replyTargetUname),
                 onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
+                focusRequester = focusRequester,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(AppSurfaceTokens.surfaceContainer())
@@ -603,17 +626,35 @@ fun DynamicInlineCommentComposer(
     modifier: Modifier = Modifier,
 ) {
     var commentText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(replyTargetUname) {
+        if (!replyTargetUname.isNullOrBlank()) {
+            delay(50L)
+            try {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            } catch (_: Exception) {}
+        }
+    }
+
     DynamicCommentComposer(
         value = commentText,
         onValueChange = { commentText = it },
         onSubmit = {
             onPostComment(it)
             commentText = ""
+            if (!replyTargetUname.isNullOrBlank()) onClearReplyTarget()
+            focusManager.clearFocus()
+            keyboardController?.hide()
         },
         hint = resolveDynamicCommentComposerHint(replyTargetUname),
         onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
         liquidGlassEnabled = liquidGlassEnabled,
         backdrop = backdrop,
+        focusRequester = focusRequester,
         modifier = modifier,
     )
 }
@@ -627,6 +668,7 @@ private fun DynamicCommentComposer(
     onClearReplyTarget: (() -> Unit)? = null,
     liquidGlassEnabled: Boolean = false,
     backdrop: MiuixBackdrop? = null,
+    focusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier,
 ) {
     val useMiuixNonGlassInput = isMiuixNonGlassEnabled()
@@ -642,7 +684,16 @@ private fun DynamicCommentComposer(
             shape = dockShape,
             modifier = Modifier
                 .weight(1f)
-                .height(composerHeight),
+                .height(composerHeight)
+                .then(
+                    if (!liquidGlassEnabled) {
+                        Modifier
+                            .clip(dockShape)
+                            .background(commentFieldContainerColor)
+                    } else {
+                        Modifier
+                    }
+                ),
             reuseEnabled = liquidGlassEnabled,
             backdrop = backdrop,
             drawShellLens = true,
@@ -665,18 +716,41 @@ private fun DynamicCommentComposer(
                 AppOutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
                     placeholderText = hint,
                     singleLine = true,
                     keyboardOptions = keyboardOptions,
                     keyboardActions = keyboardActions,
                     shape = dockShape,
+                    textStyle = TextStyle(
+                        color = fieldTextColor,
+                        fontSize = 14.sp,
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = fieldColor,
+                        unfocusedContainerColor = fieldColor,
+                        disabledContainerColor = fieldColor,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        disabledBorderColor = Color.Transparent,
+                        focusedTextColor = fieldTextColor,
+                        unfocusedTextColor = fieldTextColor,
+                        disabledTextColor = fieldTextColor.copy(alpha = 0.72f),
+                        focusedPlaceholderColor = placeholderColor,
+                        unfocusedPlaceholderColor = placeholderColor,
+                        disabledPlaceholderColor = placeholderColor,
+                        cursorColor = fieldTextColor,
+                    ),
                 )
             } else {
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
                     placeholder = {
                         AppText(
                             text = hint,
@@ -689,6 +763,10 @@ private fun DynamicCommentComposer(
                     keyboardOptions = keyboardOptions,
                     keyboardActions = keyboardActions,
                     shape = dockShape,
+                    textStyle = TextStyle(
+                        color = fieldTextColor,
+                        fontSize = 14.sp,
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = fieldColor,
                         unfocusedContainerColor = fieldColor,

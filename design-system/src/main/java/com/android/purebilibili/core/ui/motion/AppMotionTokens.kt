@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
+import top.yukonga.miuix.kmp.anim.folmeSpring
 
 object AppMotionEasing {
     val EmphasizedEnter: Easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
@@ -21,6 +22,18 @@ object AppMotionEasing {
     val GentleEnter: Easing = CubicBezierEasing(0.18f, 0.80f, 0.20f, 1.00f)
     /** 景深返回清晰：ease-in 向 0，先留住模糊再柔化，避免 Continuity 在 1→0 时过早掐清。 */
     val SoftClear: Easing = CubicBezierEasing(0.40f, 0.00f, 0.55f, 0.30f)
+
+    // ═══ Material Design 3 官方标准曲线 (Material Motion Spec) ═══
+    /** MD3 官方强调入场减速 (Emphasized Decelerate) */
+    val Md3EmphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.70f, 0.10f, 1.00f)
+    /** MD3 官方强调离场加速 (Emphasized Accelerate) */
+    val Md3EmphasizedAccelerate: Easing = CubicBezierEasing(0.30f, 0.00f, 0.80f, 0.15f)
+    /** MD3 官方标准曲线 (Standard Easing) */
+    val Md3Standard: Easing = CubicBezierEasing(0.20f, 0.00f, 0.00f, 1.00f)
+    /** MD3 官方标准减速 (Standard Decelerate) */
+    val Md3StandardDecelerate: Easing = CubicBezierEasing(0.00f, 0.00f, 0.00f, 1.00f)
+    /** MD3 官方标准加速 (Standard Accelerate) */
+    val Md3StandardAccelerate: Easing = CubicBezierEasing(0.30f, 0.00f, 1.00f, 1.00f)
 }
 
 fun <T> emphasizedEnterTween(durationMillis: Int): TweenSpec<T> =
@@ -95,7 +108,7 @@ object AppMotionTokens {
         )
         AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 200,
-            easing = AppMotionEasing.Continuity
+            easing = AppMotionEasing.Md3Standard
         )
     }
 
@@ -108,7 +121,7 @@ object AppMotionTokens {
         )
         AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 300,
-            easing = AppMotionEasing.EmphasizedEnter
+            easing = AppMotionEasing.Md3EmphasizedDecelerate
         )
     }
 
@@ -121,7 +134,7 @@ object AppMotionTokens {
         )
         AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 180,
-            easing = AppMotionEasing.EmphasizedExit
+            easing = AppMotionEasing.Md3EmphasizedAccelerate
         )
     }
 
@@ -129,6 +142,26 @@ object AppMotionTokens {
         dampingRatio = 0.82f,
         stiffness = 380f
     )
+
+    // ═══ Miuix / Xiaomi HyperOS 官方 Folme 物理弹簧阻尼体系 ═══
+
+    /** Miuix 默认交互弹簧 (damping=0.95, response=0.35s) */
+    fun <T> folmeDefaultSpring(): SpringSpec<T> = folmeSpring(damping = 0.95f, response = 0.35f)
+
+    /** Miuix 弹窗窗口弹簧 (damping=0.90, response=0.30s) */
+    fun <T> folmeDialogSpring(): SpringSpec<T> = folmeSpring(damping = 0.90f, response = 0.30f)
+
+    /** Miuix 底部抽屉回弹弹簧 (damping=0.85, response=0.40s) */
+    fun <T> folmeBottomSheetSpring(): SpringSpec<T> = folmeSpring(damping = 0.85f, response = 0.40f)
+
+    /** Miuix 按压下沉回弹弹簧 (dampingRatio=0.80, stiffness=600) */
+    fun <T> folmePressSpring(): SpringSpec<T> = spring(dampingRatio = 0.80f, stiffness = 600f)
+
+    /** 自定义参数的 Folme 弹簧规范 */
+    fun <T> folmeSpringSpec(
+        damping: Float = 0.95f,
+        response: Float = 0.35f,
+    ): SpringSpec<T> = folmeSpring(damping = damping, response = response)
 
     @Composable
     fun <T> standardSpec(): FiniteAnimationSpec<T> = resolveStandardSpec(

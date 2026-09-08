@@ -35,6 +35,9 @@ import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 import com.android.purebilibili.feature.live.LiveStatusPalette
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import com.android.purebilibili.core.ui.blur.hazeEffectCompat
 
 /** A small, non-scrolling preview. Tap opens history, so it never competes with video drags. */
 @Composable
@@ -43,42 +46,70 @@ internal fun LivePortraitChatPreview(
     maxMessages: Int,
     onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
 ) {
+    val bubbleShape = AppShapes.container(ContainerLevel.Pill)
     Column(
         modifier = modifier
-            .clip(AppShapes.container(ContainerLevel.Card))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        LiveStatusPalette.MediaScrim.copy(alpha = 0.72f),
-                        LiveStatusPalette.MediaScrim.copy(alpha = 0.56f),
-                    )
-                )
-            )
-            .clickable(role = Role.Button, onClickLabel = "展开完整聊天", onClick = onOpenHistory)
-            .heightIn(min = 48.dp)
-            .padding(AppSpacingTokens.Small),
+            .clickable(role = Role.Button, onClickLabel = "展开完整聊天", onClick = onOpenHistory),
         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
+        horizontalAlignment = Alignment.Start,
     ) {
         if (messages.isEmpty()) {
-            AppText(
-                text = "暂无消息，点击查看聊天",
-                color = LiveStatusPalette.MediaContent,
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Box(
+                modifier = Modifier
+                    .clip(bubbleShape)
+                    .then(
+                        if (hazeState != null) {
+                            Modifier.hazeEffectCompat(
+                                state = hazeState,
+                                style = HazeMaterials.ultraThin()
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .background(LiveStatusPalette.MediaScrim.copy(alpha = if (hazeState != null) 0.38f else 0.52f))
+                    .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall)
+            ) {
+                AppText(
+                    text = "暂无消息，点击查看聊天",
+                    color = LiveStatusPalette.MediaContent.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         } else {
             messages.takeLast(maxMessages).forEach { message ->
-                AppText(
-                    text = buildString {
-                        append(message.uname.ifBlank { "直播观众" })
-                        append("：")
-                        append(message.text.ifBlank { "[表情]" })
-                    },
-                    color = LiveStatusPalette.MediaContent,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(bubbleShape)
+                        .then(
+                            if (hazeState != null) {
+                                Modifier.hazeEffectCompat(
+                                    state = hazeState,
+                                    style = HazeMaterials.ultraThin()
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .background(LiveStatusPalette.MediaScrim.copy(alpha = if (hazeState != null) 0.38f else 0.52f))
+                        .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall)
+                ) {
+                    AppText(
+                        text = buildString {
+                            append(message.uname.ifBlank { "直播观众" })
+                            append("：")
+                            append(message.text.ifBlank { "[表情]" })
+                        },
+                        color = LiveStatusPalette.MediaContent,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
@@ -91,10 +122,13 @@ internal fun LivePortraitBottomBar(
     onOpenSend: () -> Unit,
     onToggleChat: () -> Unit,
     onOpenMore: () -> Unit,
+    onLike: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
 ) {
+    val barShape = AppShapes.container(ContainerLevel.Pill)
     val mediaColors = AppIconButtonDefaults.colors(
-        containerColor = LiveStatusPalette.MediaScrim.copy(alpha = 0.56f),
+        containerColor = LiveStatusPalette.MediaScrim.copy(alpha = if (hazeState != null) 0.38f else 0.56f),
         contentColor = LiveStatusPalette.MediaContent,
     )
     Row(
@@ -104,12 +138,23 @@ internal fun LivePortraitBottomBar(
     ) {
         AppSurface(
             onClick = onOpenSend,
-            shape = AppShapes.container(ContainerLevel.Pill),
-            color = LiveStatusPalette.MediaScrim.copy(alpha = 0.56f),
+            shape = barShape,
+            color = LiveStatusPalette.MediaScrim.copy(alpha = if (hazeState != null) 0.38f else 0.56f),
             contentColor = LiveStatusPalette.MediaContent,
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp)
+                .clip(barShape)
+                .then(
+                    if (hazeState != null) {
+                        Modifier.hazeEffectCompat(
+                            state = hazeState,
+                            style = HazeMaterials.ultraThin()
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .semantics { contentDescription = "发送弹幕" },
         ) {
             Box(
@@ -124,6 +169,12 @@ internal fun LivePortraitBottomBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        if (onLike != null) {
+            LiveLikeButton(
+                tint = LiveStatusPalette.MediaContent,
+                onLike = onLike
+            )
         }
         AppIconButton(
             onClick = onToggleChat,

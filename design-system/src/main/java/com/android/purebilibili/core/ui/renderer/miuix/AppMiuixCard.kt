@@ -14,26 +14,46 @@ import com.android.purebilibili.core.ui.components.AppCardShape
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 @Composable
 internal fun AppMiuixCard(
     modifier: Modifier,
     shape: AppCardShape?,
     colors: AppCardColors?,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
-) = Card(
-    modifier = modifier,
-    cornerRadius = shape?.toMiuixCornerRadius() ?: CardDefaults.CornerRadius,
-    colors = colors?.let {
+) {
+    val resolvedColors = colors?.let {
         CardDefaults.defaultColors(
             color = it.containerColor,
             contentColor = it.contentColor.takeOrElse {
                 miuixCardContentColorFor(it.containerColor)
             },
         )
-    } ?: CardDefaults.defaultColors(),
-    content = content,
-)
+    } ?: CardDefaults.defaultColors()
+    val resolvedCornerRadius = shape?.toMiuixCornerRadius() ?: CardDefaults.CornerRadius
+
+    if (onClick != null || onLongClick != null) {
+        Card(
+            modifier = modifier,
+            cornerRadius = resolvedCornerRadius,
+            colors = resolvedColors,
+            pressFeedbackType = PressFeedbackType.Sink,
+            onClick = onClick,
+            onLongPress = onLongClick,
+            content = content,
+        )
+    } else {
+        Card(
+            modifier = modifier,
+            cornerRadius = resolvedCornerRadius,
+            colors = resolvedColors,
+            content = content,
+        )
+    }
+}
 
 @Composable
 private fun AppCardShape.toMiuixCornerRadius(): Dp = when (this) {

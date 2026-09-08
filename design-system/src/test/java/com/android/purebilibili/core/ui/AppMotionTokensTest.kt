@@ -23,6 +23,7 @@ class AppMotionTokensTest {
         val tween = spec as? TweenSpec<Float>
             ?: error("expected TweenSpec, got ${spec::class.simpleName}")
         assertEquals(200, tween.durationMillis)
+        assertEquals(com.android.purebilibili.core.ui.motion.AppMotionEasing.Md3Standard, tween.easing)
     }
 
     @Test
@@ -33,6 +34,7 @@ class AppMotionTokensTest {
         val tween = spec as? TweenSpec<Float>
             ?: error("expected TweenSpec, got ${spec::class.simpleName}")
         assertEquals(180, tween.durationMillis)
+        assertEquals(com.android.purebilibili.core.ui.motion.AppMotionEasing.Continuity, tween.easing)
     }
 
     @Test
@@ -43,6 +45,7 @@ class AppMotionTokensTest {
         val tween = spec as? TweenSpec<Float>
             ?: error("expected TweenSpec, got ${spec::class.simpleName}")
         assertEquals(300, tween.durationMillis)
+        assertEquals(com.android.purebilibili.core.ui.motion.AppMotionEasing.Md3EmphasizedDecelerate, tween.easing)
     }
 
     @Test

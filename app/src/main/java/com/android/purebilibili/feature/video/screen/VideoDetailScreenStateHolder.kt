@@ -2373,14 +2373,6 @@ internal fun VideoDetailScreenStateHolder(
         )
     }
     var lastPhoneAutoRotateLandscapeAppliedAtMs by remember { mutableStateOf<Long?>(null) }
-    val displayRotation = runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            context.display?.rotation
-        } else {
-            @Suppress("DEPRECATION")
-            activity?.windowManager?.defaultDisplay?.rotation
-        }
-    }.getOrNull()
 
     LaunchedEffect(
         autoRotateEnabled,
@@ -2396,7 +2388,7 @@ internal fun VideoDetailScreenStateHolder(
         isVerticalVideo,
         isPortraitFullscreen,
         windowSizeClass.isFoldableCoverScreen,
-        displayRotation,
+        isLandscape,
     ) {
         val requestedOrientation = resolvePhoneVideoRequestedOrientation(
             autoRotateEnabled = autoRotateEnabled,
@@ -2414,7 +2406,7 @@ internal fun VideoDetailScreenStateHolder(
             // 展开态折叠屏也应遵循用户选择的默认全屏方向。
             preferPortraitForFlatFoldable = false,
             preserveExactLandscapeSide = orientationPolicyDevice,
-            currentDisplayRotation = displayRotation,
+            isCurrentlyLandscape = isLandscape,
         ) ?: return@LaunchedEffect
 
         val nowMs = SystemClock.elapsedRealtime()

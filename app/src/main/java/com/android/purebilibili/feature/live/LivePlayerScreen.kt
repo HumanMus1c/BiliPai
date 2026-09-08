@@ -113,7 +113,9 @@ import com.android.purebilibili.feature.video.ui.overlay.LiveDanmakuOverlay
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveVideoViewportLayout
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.hazeEffectCompat
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
@@ -122,6 +124,8 @@ import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.core.ui.rememberAppProfileAddIcon
+import com.android.purebilibili.core.ui.rememberAppAnalyticsIcon
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -950,6 +954,7 @@ fun LivePlayerScreen(
                 onEnterPip = { enterLivePip() },
                 showLockButton = isFullscreen,
                 onCaptureScreenshot = { captureLiveScreenshot() },
+                onLike = { count -> viewModel.clickLike(count) },
                 applyTopSystemBarPadding = shouldApplyLiveTopControlSystemInsets(
                     layoutMode = liveLayoutMode,
                     isFullscreen = isFullscreen
@@ -1167,6 +1172,7 @@ fun LivePlayerScreen(
                             metrics = overlayMetrics
                         )
                     }
+                    val overlayShape = AppShapes.borderedContainer(ContainerLevel.Floating)
                     AppSurface(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -1175,12 +1181,17 @@ fun LivePlayerScreen(
                                 bottom = overlayMetrics.bottomControlReserveDp.dp
                             )
                             .width(overlayWidthDp.dp)
-                            .height(overlayHeightDp.dp),
-                        shape = AppShapes.borderedContainer(ContainerLevel.Floating),
-                        color = roomColorTokens.baseBackgroundColor.copy(alpha = 0.18f),
+                            .height(overlayHeightDp.dp)
+                            .clip(overlayShape)
+                            .hazeEffectCompat(
+                                state = hazeState,
+                                style = HazeMaterials.ultraThin()
+                            ),
+                        shape = overlayShape,
+                        color = roomColorTokens.baseBackgroundColor.copy(alpha = 0.28f),
                         border = androidx.compose.foundation.BorderStroke(
                             AppSpacingTokens.Micro / 2f,
-                            roomColorTokens.inputOverlayColor.copy(alpha = 0.12f)
+                            roomColorTokens.inputOverlayColor.copy(alpha = 0.15f)
                         )
                     ) {
                         LandscapeChatOverlay(
@@ -1252,6 +1263,7 @@ fun LivePlayerScreen(
                                     selectedInteractionTab = 0
                                     showPortraitInteractionSheet = true
                                 },
+                                hazeState = hazeState,
                                 modifier = Modifier
                                     .fillMaxWidth(0.82f)
                                     .heightIn(max = portraitOverlayPanelHeightDp.dp),
@@ -1262,6 +1274,8 @@ fun LivePlayerScreen(
                             onOpenSend = { showSendDanmakuSheet = true },
                             onToggleChat = { isPortraitChatVisible = !isPortraitChatVisible },
                             onOpenMore = { showPortraitMoreSheet = true },
+                            onLike = { count -> viewModel.clickLike(count) },
+                            hazeState = hazeState,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -1335,10 +1349,11 @@ fun LivePlayerScreen(
         }
     }
 
-    // SC 全屏大字浮层（盖住播放器与弹幕层，仅响应实时新 SC，点击/超时自动消失）
+    // SC 左下角非侵入式悬浮卡片（不遮挡中央视频画面，仅响应实时新 SC，带倒计时与独立关闭）
     if (portraitPresentation.showMediaOverlays) {
         LiveSuperChatFlashOverlay(
             flashFlow = viewModel.superChatFlashFlow,
+            onUserClick = onUserClick,
             modifier = Modifier.fillMaxSize()
         )
     }
@@ -1705,9 +1720,12 @@ private fun LivePortraitOverlayAppBar(
                 tint = roomColorTokens.inputOverlayColor
             )
         }
-        Box(
+        Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
+        AppSurface(
+            shape = AppShapes.container(ContainerLevel.Pill),
+            color = LiveStatusPalette.MediaScrim.copy(alpha = 0.42f),
+            contentColor = roomColorTokens.inputOverlayColor,
             modifier = Modifier
-                .size(liveVisualSpec.playerButtonTouchTargetDp.dp)
                 .clickable(
                     enabled = anchorInfo.uid > 0L,
                     role = Role.Button,
@@ -1715,38 +1733,112 @@ private fun LivePortraitOverlayAppBar(
                     onClick = { onUserClick(anchorInfo.uid) }
                 )
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "查看主播${anchorInfo.uname}"
+                    contentDescription = "主播：${anchorInfo.uname}"
                 }
         ) {
-            AsyncImage(
-                model = anchorInfo.face,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(compactChrome.chipHeightDp.dp)
-                    .clip(CircleShape)
-                    .background(roomColorTokens.inputOverlayColor.copy(alpha = 0.18f))
-            )
+            Row(
+                modifier = Modifier.padding(
+                    start = 3.dp,
+                    end = if (!isFollowing) 4.dp else AppSpacingTokens.Small,
+                    top = 3.dp,
+                    bottom = 3.dp
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = anchorInfo.face,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(roomColorTokens.inputOverlayColor.copy(alpha = 0.18f))
+                )
+                Spacer(Modifier.width(AppSpacingTokens.Small))
+                Column(
+                    modifier = Modifier.widthIn(min = 40.dp, max = 110.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    AppText(
+                        text = anchorInfo.uname.ifBlank { roomTitle },
+                        color = roomColorTokens.inputOverlayColor,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val secondaryText = subtitle.ifBlank { roomTitle }
+                    if (secondaryText.isNotBlank()) {
+                        AppText(
+                            text = secondaryText,
+                            color = roomColorTokens.inputOverlayColor.copy(alpha = 0.72f),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (!isFollowing) {
+                    Spacer(Modifier.width(AppSpacingTokens.Small))
+                    AppSurface(
+                        onClick = onFollowClick,
+                        shape = AppShapes.container(ContainerLevel.Pill),
+                        color = palette.accent,
+                        contentColor = palette.onAccent,
+                        modifier = Modifier
+                            .height(26.dp)
+                            .semantics { contentDescription = "关注主播" }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            AppIcon(
+                                imageVector = rememberAppProfileAddIcon(),
+                                contentDescription = null,
+                                tint = palette.onAccent,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            AppText(
+                                text = "关注",
+                                color = palette.onAccent,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
-        Spacer(Modifier.width(AppSpacingTokens.Medium))
-        Column(modifier = Modifier.weight(1f)) {
-            AppText(
-                text = anchorInfo.uname.ifBlank { roomTitle },
-                color = roomColorTokens.inputOverlayColor,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(AppSpacingTokens.Micro))
-            AppText(
-                text = subtitle.ifBlank { roomTitle },
-                color = roomColorTokens.inputOverlayColor.copy(alpha = 0.72f),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        Spacer(Modifier.weight(1f))
+        AppSurface(
+            onClick = onOpenRank,
+            shape = AppShapes.container(ContainerLevel.Pill),
+            color = LiveStatusPalette.MediaScrim.copy(alpha = 0.42f),
+            contentColor = roomColorTokens.inputOverlayColor,
+            modifier = Modifier
+                .height(30.dp)
+                .semantics { contentDescription = "高能榜" }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
+            ) {
+                AppIcon(
+                    imageVector = rememberAppAnalyticsIcon(),
+                    contentDescription = null,
+                    tint = roomColorTokens.inputOverlayColor,
+                    modifier = Modifier.size(13.dp)
+                )
+                AppText(
+                    text = "高能榜",
+                    color = roomColorTokens.inputOverlayColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
         if (redPocketInfo != null) {
             Spacer(Modifier.width(AppSpacingTokens.Small))
@@ -1756,6 +1848,7 @@ private fun LivePortraitOverlayAppBar(
                 compact = true
             )
         }
+        Spacer(Modifier.width(AppSpacingTokens.Small))
         AppWindowActionMenu(
             modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp),
             groups = listOf(

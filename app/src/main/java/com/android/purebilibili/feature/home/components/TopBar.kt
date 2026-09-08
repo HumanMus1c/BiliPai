@@ -40,6 +40,7 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -164,6 +165,18 @@ internal fun resolveTopTabDockIndicatorHorizontalGapDp(
     }
 }
 
+internal fun resolveTopTabDockIndicatorVerticalGapDp(
+    hasOuterChromeSurface: Boolean,
+    isLiquidGlassReuseEnabled: Boolean = false
+): Float {
+    val standardGap = if (hasOuterChromeSurface) 3f else 3f
+    return if (isLiquidGlassReuseEnabled) {
+        (standardGap - 1f).coerceAtLeast(1f)
+    } else {
+        standardGap
+    }
+}
+
 /**
  * Same 4dp start/end inset as [FloatingBottomBar] so the first and last
  * selected capsules sit inside the stadium end-caps without empty glass caps.
@@ -176,7 +189,15 @@ internal fun resolveTopTabDockEndInsetDp(
 /**
  * 顶部 Tab 的视觉背景保持 30dp 高；36dp 行高留出上下各 3dp 的呼吸空间。
  */
-internal fun resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface: Boolean): Float = 3f
+internal fun resolveTopTabIndicatorShape(
+    showIcon: Boolean,
+    showText: Boolean,
+): Shape =
+    if (showIcon && showText) {
+        RoundedCornerShape(12.dp)
+    } else {
+        resolveSharedBottomBarCapsuleShape()
+    }
 
 internal fun resolveTopTabDockIndicatorWidthDp(
     itemWidthDp: Float,
@@ -1609,6 +1630,77 @@ private fun LightweightHomeTopTabs(
         } else {
             iosCapsuleTargetTranslationXPx
         }
+        var md3UnderlineTargetIndex by remember { mutableStateOf<Int?>(null) }
+        LaunchedEffect(selectedIndex) {
+            if (selectedIndex == md3UnderlineTargetIndex) {
+                md3UnderlineTargetIndex = null
+            }
+        }
+        if (pagerIsDragging || topTabIndicatorOwnsPosition) {
+            md3UnderlineTargetIndex = null
+        }
+        val safeMd3TargetIndex = (md3UnderlineTargetIndex ?: pagerState?.targetPage ?: selectedIndex)
+            .coerceIn(categories.indices)
+        val previousMd3TargetIndex = remember { mutableIntStateOf(selectedIndex) }
+        val movingRight = remember(safeMd3TargetIndex) {
+            safeMd3TargetIndex >= previousMd3TargetIndex.intValue
+        }
+        val targetIndicatorWidthPx = with(density) {
+            if (showIcon && !showText) {
+                resolveIconOnlyTopTabIndicatorWidth().toPx()
+            } else {
+                md3ContentWidths.getOrElse(safeMd3TargetIndex) { md3IndicatorWidth }.toPx()
+            }
+        }
+        val targetBounds = resolveMd3TopTabTargetBounds(
+            targetIndex = safeMd3TargetIndex,
+            itemWidthPx = with(density) { itemWidth.toPx() },
+            indicatorWidthPx = targetIndicatorWidthPx,
+            contentPaddingPx = with(density) { md3ContentPadding.toPx() }
+        )
+        val shouldAnimateMd3Tap = shouldUseMd3NativeUnderline && shouldAnimateMd3TopTabUnderline(
+            pagerIsDragging = pagerIsDragging,
+            topTabIndicatorOwnsPosition = topTabIndicatorOwnsPosition
+        )
+        val animatedMd3UnderlineLeftPx by animateFloatAsState(
+            targetValue = targetBounds.leftPx,
+            animationSpec = if (shouldAnimateMd3Tap) {
+                tween(
+                    durationMillis = MD3_TOP_TAB_INDICATOR_DURATION_MILLIS,
+                    easing = if (movingRight) Md3TopTabIndicatorAccelerate else Md3TopTabIndicatorDecelerate
+                )
+            } else {
+                snap()
+            },
+            label = "md3UnderlineLeft"
+        )
+        val animatedMd3UnderlineRightPx by animateFloatAsState(
+            targetValue = targetBounds.rightPx,
+            animationSpec = if (shouldAnimateMd3Tap) {
+                tween(
+                    durationMillis = MD3_TOP_TAB_INDICATOR_DURATION_MILLIS,
+                    easing = if (movingRight) Md3TopTabIndicatorDecelerate else Md3TopTabIndicatorAccelerate
+                )
+            } else {
+                snap()
+            },
+            label = "md3UnderlineRight"
+        )
+        SideEffect {
+            previousMd3TargetIndex.intValue = safeMd3TargetIndex
+        }
+        val effectiveTopTabContentPosition = if (shouldUseMd3NativeUnderline && shouldAnimateMd3Tap) {
+            resolveMd3TopTabTapContentPosition(
+                animatedLeftPx = animatedMd3UnderlineLeftPx,
+                animatedRightPx = animatedMd3UnderlineRightPx,
+                itemWidthPx = with(density) { itemWidth.toPx() },
+                contentPaddingPx = with(density) { md3ContentPadding.toPx() },
+                fallbackIndex = safeMd3TargetIndex,
+                categoryCount = categories.size
+            )
+        } else {
+            topTabContentPosition
+        }
         Row(
             modifier = Modifier
                 .then(
@@ -1682,7 +1774,7 @@ private fun LightweightHomeTopTabs(
                                         .biliPaiFloatingDockCaptureSurface(
                                             backdrop = miuixBackdrop,
                                             containerColor = topTabIndicatorCaptureSurfaceColor,
-                                            shape = resolveSharedBottomBarCapsuleShape(),
+                                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
                                             liquidGlassTuning = resolvedLiquidGlassTuning,
                                         )
                                 } else {
@@ -1752,7 +1844,7 @@ private fun LightweightHomeTopTabs(
                         key = { index, category -> categoryKeys.getOrNull(index) ?: category }
                     ) { index, category ->
                         val categoryKey = categoryKeys.getOrNull(index) ?: category
-                        val selectionFraction = (1f - abs(topTabContentPosition - index.toFloat())).coerceIn(0f, 1f)
+                        val selectionFraction = (1f - abs(effectiveTopTabContentPosition - index.toFloat())).coerceIn(0f, 1f)
                         val drawItemContainer = shouldDrawLightweightTopTabItemContainer(
                             presentation = effectivePresentation,
                             skinPlainStyle = skinPlainStyle,
@@ -1805,7 +1897,10 @@ private fun LightweightHomeTopTabs(
                             onClick = {
                                 performHomeTopBarTap(haptic = haptic, onClick = {
                                     when (resolveTopTabClickAction(index, selectedIndex)) {
-                                        TopTabClickAction.SELECT_TAB -> onCategorySelected(index)
+                                        TopTabClickAction.SELECT_TAB -> {
+                                            md3UnderlineTargetIndex = index
+                                            onCategorySelected(index)
+                                        }
                                         TopTabClickAction.SCROLL_TO_TOP -> scrollChannel?.trySend(
                                             com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH
                                         )
@@ -1915,7 +2010,7 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveSharedBottomBarCapsuleShape(),
+                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
@@ -1932,7 +2027,7 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveSharedBottomBarCapsuleShape(),
+                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
@@ -1949,7 +2044,7 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveSharedBottomBarCapsuleShape(),
+                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
@@ -1993,14 +2088,22 @@ private fun LightweightHomeTopTabs(
                             clampedPosition - startIndex
                         ).dp
                     }
-                    val nativeUnderlineBounds = with(density) {
-                        resolveMd3TopTabUnderlineBounds(
-                            absolutePagerPosition = topTabIndicatorPosition,
-                            itemWidthPx = itemWidth.toPx(),
-                            rowScrollOffsetPx = rowScrollOffsetPx,
-                            indicatorWidthPx = nativeIndicatorWidth.toPx(),
-                            contentPaddingPx = md3ContentPadding.toPx(),
+                    val nativeUnderlineBounds = if (shouldAnimateMd3Tap) {
+                        resolveMd3TopTabUnderlineTapBounds(
+                            animatedLeftPx = animatedMd3UnderlineLeftPx,
+                            animatedRightPx = animatedMd3UnderlineRightPx,
+                            rowScrollOffsetPx = rowScrollOffsetPx
                         )
+                    } else {
+                        with(density) {
+                            resolveMd3TopTabUnderlineBounds(
+                                absolutePagerPosition = topTabIndicatorPosition,
+                                itemWidthPx = itemWidth.toPx(),
+                                rowScrollOffsetPx = rowScrollOffsetPx,
+                                indicatorWidthPx = nativeIndicatorWidth.toPx(),
+                                contentPaddingPx = md3ContentPadding.toPx(),
+                            )
+                        }
                     }
                     Box(
                         modifier = Modifier

@@ -8,6 +8,8 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -84,6 +86,7 @@ fun AnimationSettingsScreen(
         backContentDescription = backLabel,
         bottomContentPadding = bottomContentPadding,
         scrollHost = SettingsPageScrollHost.External,
+        externalContentHandlesTopPadding = true,
         topBarBlurEnabled = state.headerBlurEnabled,
     ) {
         CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides state.isLiquidGlassEnabled) {
@@ -264,7 +267,10 @@ fun AnimationSettingsContent(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = WindowInsets.navigationBars.asPaddingValues()
+        contentPadding = PaddingValues(
+            top = LocalSettingsTopContentPadding.current,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+        )
     ) {
 
             //  界面动效（全 App 入场）

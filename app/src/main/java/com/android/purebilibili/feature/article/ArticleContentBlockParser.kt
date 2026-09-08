@@ -181,16 +181,12 @@ private fun extractNodesText(nodesElement: JsonElement?): String {
                 ?.get("words")
                 ?.jsonPrimitive
                 ?.contentOrNull
-            val richText = nodeObject["rich"]
-                ?.jsonObject
-                ?.get("text")
-                ?.jsonPrimitive
-                ?.contentOrNull
-                ?: nodeObject["rich"]
-                    ?.jsonObject
-                    ?.get("orig_text")
-                    ?.jsonPrimitive
-                    ?.contentOrNull
+            val richText = runCatching {
+                val richObj = nodeObject["rich"]?.jsonObject
+                richObj?.get("text")?.jsonPrimitive?.contentOrNull
+                    ?: richObj?.get("orig_text")?.jsonPrimitive?.contentOrNull
+                    ?: richObj?.get("emoji")?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull
+            }.getOrNull()
             val formula = nodeObject["formula"]
                 ?.jsonObject
                 ?.get("latex_content")

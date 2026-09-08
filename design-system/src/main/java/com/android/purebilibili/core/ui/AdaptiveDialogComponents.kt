@@ -94,7 +94,7 @@ internal fun AdaptiveAlertDialog(
             ) {
                 Surface(
                     modifier = modifier.appContentDialogWidth(policy = contentLayout),
-                    shape = shape ?: MaterialTheme.shapes.extraLarge,
+                    shape = shape ?: AppShapes.resolveContainerShape(ContainerLevel.Dialog, uiStyle),
                     color = containerColor ?: AppSurfaceTokens.cardContainer(),
                     tonalElevation = tonalElevation ?: 6.dp,
                 ) {

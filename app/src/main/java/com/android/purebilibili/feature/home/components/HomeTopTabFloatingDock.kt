@@ -45,10 +45,11 @@ internal fun shouldHomeTopTabUseFloatingBottomBarDock(
     skinPlainStyle: Boolean,
     hasSkinStickerIcons: Boolean,
     presentation: AppTopTabPresentation,
-    @Suppress("UNUSED_PARAMETER") liquidGlassEnabled: Boolean,
+    liquidGlassEnabled: Boolean,
     selectionIndicatorStyle: HomeSelectionIndicatorStyle,
 ): Boolean {
     if (skinPlainStyle || hasSkinStickerIcons) return false
+    if (!liquidGlassEnabled) return false
     val usesLegacyUnderline = presentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
         selectionIndicatorStyle == HomeSelectionIndicatorStyle.MD3_UNDERLINE
     return !usesLegacyUnderline
@@ -183,15 +184,16 @@ internal fun HomeTopTabFloatingDock(
     }
     val dockHeight = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
+    val isBlurActive = liquidGlassEffectsEnabled || (miuixBackdrop != null)
     val bottomBarTuning = resolveAndroidNativeBottomBarTuning(
-        blurEnabled = liquidGlassEffectsEnabled,
+        blurEnabled = isBlurActive,
         darkTheme = isDarkTheme,
     )
     val bottomBarContainerColor = resolveAndroidNativeFloatingBottomBarContainerColor(
         surfaceColor = AppSurfaceTokens.surfaceContainer(),
         tuning = bottomBarTuning,
         glassEnabled = liquidGlassEffectsEnabled,
-        blurEnabled = liquidGlassEffectsEnabled,
+        blurEnabled = isBlurActive,
         blurIntensity = currentUnifiedBlurIntensity(),
         liquidGlassPreset = liquidGlassPreset,
         liquidGlassTuning = liquidGlassTuning,

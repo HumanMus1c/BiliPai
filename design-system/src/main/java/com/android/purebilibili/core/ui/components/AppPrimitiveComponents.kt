@@ -2,7 +2,6 @@ package com.android.purebilibili.core.ui.components
 
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -240,7 +239,7 @@ fun AppSnackbar(
     action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixSnackbar(
             modifier = modifier,
             action = action,
@@ -260,7 +259,7 @@ fun AppSnackbarHost(
     hostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         SnackbarHost(
             hostState = hostState,
             modifier = modifier,
@@ -338,8 +337,8 @@ fun AppButton(
         contentColor = contentColor,
         disabledContentColor = disabledContentColor,
     )
-    when {
-        isMiuixNonGlassEnabled() -> AppMiuixButton(
+    when (LocalAppUiStyle.current) {
+        AppUiStyle.MIUIX -> AppMiuixButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
@@ -351,7 +350,7 @@ fun AppButton(
             interactionSource = resolvedInteractionSource,
             content = content,
         )
-        LocalAppUiStyle.current == AppUiStyle.MATERIAL3 -> Button(
+        AppUiStyle.MATERIAL3 -> Button(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
@@ -368,18 +367,6 @@ fun AppButton(
             ),
             border = border,
             contentPadding = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
-        )
-        else -> MiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = miuixColors,
-            insideMargin = contentPadding,
-            minHeight = AppChromeSizeTokens.MiuixNativeCompactControlHeightDp.dp,
-            minWidth = AppChromeSizeTokens.MiuixNativeCompactControlMinWidthDp.dp,
-            cornerRadius = AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp,
             interactionSource = resolvedInteractionSource,
             content = content,
         )
@@ -409,8 +396,8 @@ fun AppButton(
             disabledContentColor = it.disabledContentColor,
         )
     } ?: MiuixButtonDefaults.buttonColorsPrimary()
-    when {
-        isMiuixNonGlassEnabled() -> AppMiuixButton(
+    when (LocalAppUiStyle.current) {
+        AppUiStyle.MIUIX -> AppMiuixButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
@@ -422,7 +409,7 @@ fun AppButton(
             interactionSource = resolvedInteractionSource,
             content = content,
         )
-        LocalAppUiStyle.current == AppUiStyle.MATERIAL3 -> Button(
+        AppUiStyle.MATERIAL3 -> Button(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
@@ -434,18 +421,6 @@ fun AppButton(
             elevation = elevation,
             border = border,
             contentPadding = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
-        )
-        else -> MiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = miuixColors,
-            insideMargin = contentPadding,
-            minHeight = AppChromeSizeTokens.MiuixNativeCompactControlHeightDp.dp,
-            minWidth = AppChromeSizeTokens.MiuixNativeCompactControlMinWidthDp.dp,
-            cornerRadius = AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp,
             interactionSource = resolvedInteractionSource,
             content = content,
         )
@@ -471,8 +446,8 @@ fun AppTextButton(
         contentColor = colors.contentColor,
         disabledContentColor = colors.disabledContentColor,
     )
-    when {
-        isMiuixNonGlassEnabled() -> AppMiuixButton(
+    when (LocalAppUiStyle.current) {
+        AppUiStyle.MIUIX -> AppMiuixButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
@@ -484,25 +459,13 @@ fun AppTextButton(
             interactionSource = resolvedInteractionSource,
             content = content,
         )
-        LocalAppUiStyle.current == AppUiStyle.MATERIAL3 -> TextButton(
+        AppUiStyle.MATERIAL3 -> TextButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
             shape = shape,
             colors = colors,
             contentPadding = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
-        )
-        else -> MiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = miuixColors,
-            insideMargin = contentPadding,
-            minHeight = AppChromeSizeTokens.MiuixNativeCompactControlHeightDp.dp,
-            minWidth = AppChromeSizeTokens.MiuixNativeCompactControlMinWidthDp.dp,
-            cornerRadius = AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp,
             interactionSource = resolvedInteractionSource,
             content = content,
         )
@@ -691,7 +654,7 @@ fun AppNavigationDrawerItem(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixNavigationDrawerItem(
             label = label,
             selected = selected,
@@ -730,7 +693,7 @@ fun AppOutlinedButton(
 ) {
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixButton(
             onClick = onClick,
             modifier = interactionModifier,
@@ -775,7 +738,7 @@ fun AppAssistChip(
     contentPadding: PaddingValues = AssistChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixChip(
             onClick = onClick,
             selected = false,
@@ -822,7 +785,7 @@ fun AppFilterChip(
     contentPadding: PaddingValues = FilterChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixChip(
             onClick = onClick,
             selected = selected,
@@ -863,7 +826,7 @@ fun AppInputChip(
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixChip(
             onClick = onClick,
             selected = selected,
@@ -898,7 +861,7 @@ fun AppFloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         val defaultContainer = FloatingActionButtonDefaults.containerColor
         AppMiuixFloatingActionButton(
             onClick = onClick,
@@ -941,7 +904,7 @@ fun AppSmallFloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         val defaultContainer = FloatingActionButtonDefaults.containerColor
         AppMiuixFloatingActionButton(
             onClick = onClick,
@@ -1094,7 +1057,7 @@ fun AppSuggestionChip(
     contentPadding: PaddingValues = SuggestionChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (isMiuixNonGlassEnabled()) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
         AppMiuixChip(
             onClick = onClick,
             selected = false,

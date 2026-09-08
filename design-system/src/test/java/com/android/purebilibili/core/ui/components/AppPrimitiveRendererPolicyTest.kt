@@ -35,11 +35,17 @@ class AppPrimitiveRendererPolicyTest {
     }
 
     @Test
-    fun actionPrimitivesUseMiuixOnlyWhenLiquidGlassIsOff() {
+    fun actionPrimitivesUseMiuixWheneverUiStyleIsMiuix() {
+        assertTrue(shouldUseMiuixActionPrimitive(AppUiStyle.MIUIX))
+        assertFalse(shouldUseMiuixActionPrimitive(AppUiStyle.MATERIAL3))
+        @Suppress("DEPRECATION")
+        assertTrue(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MIUIX, liquidGlassEnabled = true))
+        @Suppress("DEPRECATION")
         assertTrue(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MIUIX, liquidGlassEnabled = false))
-        assertFalse(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MIUIX, liquidGlassEnabled = true))
-        assertFalse(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MATERIAL3, liquidGlassEnabled = false))
+        @Suppress("DEPRECATION")
         assertFalse(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MATERIAL3, liquidGlassEnabled = true))
+        @Suppress("DEPRECATION")
+        assertFalse(shouldUseMiuixNonGlassActionPrimitive(AppUiStyle.MATERIAL3, liquidGlassEnabled = false))
     }
 
     @Test

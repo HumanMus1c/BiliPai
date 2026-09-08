@@ -130,12 +130,33 @@ internal fun resolveDynamicOpusTextBlockRichDesc(
             it.type.trim().removePrefix("RICH_TEXT_NODE_TYPE_")
                 .let { type -> type.isNotBlank() && !type.equals("TEXT", ignoreCase = true) }
         }
-        val metadataNodes = if (blockHasActionableNode) {
-            blockRichTextNodes
-        } else if (preferredActionableNodes.isNotEmpty()) {
-            blockRichTextNodes + preferredDesc?.rich_text_nodes.orEmpty()
-        } else {
-            emptyList()
+        val enrichedBlockNodes = blockRichTextNodes.map { node ->
+            val nodeType = node.type.trim().removePrefix("RICH_TEXT_NODE_TYPE_")
+            if (nodeType.equals("EMOJI", ignoreCase = true) && resolveDynamicEmojiIconUrl(node.emoji) == null) {
+                val token = resolveDynamicRichTextNodeToken(node)
+                val fallbackEmoji = preferredActionableNodes.firstOrNull {
+                    resolveDynamicRichTextNodeToken(it) == token && resolveDynamicEmojiIconUrl(it.emoji) != null
+                }?.emoji
+                if (fallbackEmoji != null) node.copy(emoji = fallbackEmoji) else node
+            } else {
+                node
+            }
+        }
+        val metadataNodes = buildList {
+            addAll(enrichedBlockNodes)
+            preferredActionableNodes.forEach { prefNode ->
+                val key = resolveDynamicRichTextNodeToken(prefNode)
+                val alreadyCovered = enrichedBlockNodes.any { blockNode ->
+                    resolveDynamicRichTextNodeToken(blockNode) == key && (
+                        resolveDynamicEmojiIconUrl(blockNode.emoji) != null ||
+                            !blockNode.rid.isNullOrBlank() ||
+                            !blockNode.jump_url.isNullOrBlank()
+                    )
+                }
+                if (!alreadyCovered) {
+                    add(prefNode)
+                }
+            }
         }
         val mergedPreferredNodes = if (metadataNodes.isNotEmpty()) {
             mergeDynamicRichTextMetadataIntoText(
@@ -147,9 +168,9 @@ internal fun resolveDynamicOpusTextBlockRichDesc(
         }
         val resolvedBlockNodes = when {
             mergedPreferredNodes.isNotEmpty() -> mergedPreferredNodes
-            blockHasActionableNode -> blockRichTextNodes
+            blockHasActionableNode -> enrichedBlockNodes
             preferredActionableNodes.isNotEmpty() -> preferredDesc?.rich_text_nodes.orEmpty()
-            else -> blockRichTextNodes
+            else -> enrichedBlockNodes
         }
         return DynamicDesc(
             text = blockText,

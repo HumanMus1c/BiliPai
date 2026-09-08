@@ -200,7 +200,11 @@ fun SearchLandingContent(
     }
 
     if (useSplitLayout) {
-        Row(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = modifier
+                .responsiveContentWidth(maxWidth = resolveSearchMaxContentWidth())
+                .fillMaxSize()
+        ) {
             LazyColumn(
                 modifier = Modifier
                     .weight(layoutPolicy.leftPaneWeight)

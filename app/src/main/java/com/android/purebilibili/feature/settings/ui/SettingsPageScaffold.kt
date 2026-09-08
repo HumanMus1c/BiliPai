@@ -1,14 +1,13 @@
 package com.android.purebilibili.feature.settings.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -17,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -25,22 +25,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
+import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppTopBarStyle
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
-import com.android.purebilibili.core.ui.TopReadabilityChrome
-import com.android.purebilibili.core.ui.blur.BlurStyles
-import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
-import com.android.purebilibili.core.ui.blur.hazeSourceCompat
-import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.appTopBarNestedScroll
 import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.rememberAppTopBarCollapseBehavior
@@ -55,6 +56,8 @@ import com.android.purebilibili.feature.settings.SettingsBottomBarScrollTracker
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 import com.android.purebilibili.feature.settings.reduceSettingsBottomBarScroll
 import kotlinx.coroutines.flow.distinctUntilChanged
+
+internal val LocalSettingsTopContentPadding = staticCompositionLocalOf { 0.dp }
 
 @Composable
 internal fun SettingsBottomBarScrollEffect(listState: LazyListState) {
@@ -110,6 +113,7 @@ internal fun SettingsPageScaffold(
     listState: LazyListState = rememberLazyListState(),
     scrollHost: SettingsPageScrollHost = SettingsPageScrollHost.LazyColumn,
     topBarBlurEnabled: Boolean? = null,
+    externalContentHandlesTopPadding: Boolean = false,
     topBarStyle: AppTopBarStyle = AppTopBarStyle.SMALL,
     actions: @Composable RowScope.() -> Unit = {},
     header: (@Composable () -> Unit)? = null,
@@ -138,16 +142,13 @@ internal fun SettingsPageScaffold(
     } else {
         null
     }
-    val hazeState = if (effectiveTopBarBlurEnabled) rememberRecoverableHazeState() else null
-    val blurIntensity = currentUnifiedBlurIntensity()
-    val topBarSurfaceAlpha = if (effectiveTopBarBlurEnabled) {
-        BlurStyles.getBackgroundAlpha(blurIntensity)
-    } else if (nonGlassMiuix) {
-        1f
-    } else {
-        0.86f
-    }
-    val pageContainerColor = AppSurfaceTokens.groupedListContainer()
+    val progressiveBlurEnabled = shouldUseBiliPaiProgressiveTopBlur(
+        enabled = effectiveTopBarBlurEnabled,
+        hasBackdrop = true,
+    ) && !isLowBlurBudgetForced()
+    val backdrop = if (progressiveBlurEnabled) rememberLayerBackdrop() else null
+    val pageContainerColor = if (nonGlassMiuix) AppSurfaceTokens.surface()
+        else AppSurfaceTokens.groupedListContainer()
 
     CompositionLocalProvider(
         LocalAppPreferenceIconTreatment provides AppPreferenceIconTreatment.FILLED,
@@ -161,12 +162,14 @@ internal fun SettingsPageScaffold(
             modifier = modifier.appTopBarNestedScroll(collapseBehavior),
             topBar = {
                 Box {
-                    TopReadabilityChrome(
-                        height = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp,
-                        surfaceColor = pageContainerColor,
-                        surfaceAlpha = topBarSurfaceAlpha,
-                        hazeState = hazeState,
-                        hazeEnabled = effectiveTopBarBlurEnabled,
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .biliPaiProgressiveTopBlur(
+                                backdrop = backdrop,
+                                enabled = progressiveBlurEnabled,
+                                shape = RectangleShape,
+                            ),
                     )
                     AppTopBar(
                         title = title,
@@ -180,7 +183,7 @@ internal fun SettingsPageScaffold(
                         },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = if (nonGlassMiuix && !effectiveTopBarBlurEnabled) {
+                            containerColor = if (!progressiveBlurEnabled) {
                                 pageContainerColor
                             } else {
                                 Color.Transparent
@@ -198,22 +201,19 @@ internal fun SettingsPageScaffold(
             contentWindowInsets = WindowInsets(0.dp),
         ) { padding ->
             val scrollModifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .then(
-                    if (effectiveTopBarBlurEnabled && hazeState != null) {
-                        Modifier.hazeSourceCompat(state = hazeState)
-                    } else {
-                        Modifier
-                    }
-                )
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+                .background(pageContainerColor)
 
             when (scrollHost) {
                 SettingsPageScrollHost.LazyColumn -> {
                     LazyColumn(
                         state = listState,
                         modifier = scrollModifier,
-                        contentPadding = PaddingValues(bottom = resolvedBottomContentPadding),
+                        contentPadding = PaddingValues(
+                            top = padding.calculateTopPadding(),
+                            bottom = maxOf(resolvedBottomContentPadding, padding.calculateBottomPadding()),
+                        ),
                     ) {
                         if (header != null) {
                             item {
@@ -231,14 +231,22 @@ internal fun SettingsPageScaffold(
                 }
 
                 SettingsPageScrollHost.External -> {
-                    Column(modifier = scrollModifier) {
-                        header?.invoke()
-                        Box(
-                            modifier = Modifier
-                                .weight(1f, fill = true)
-                                .fillMaxSize(),
+                    CompositionLocalProvider(
+                        LocalSettingsTopContentPadding provides if (externalContentHandlesTopPadding) {
+                            padding.calculateTopPadding()
+                        } else 0.dp,
+                    ) {
+                        Column(
+                            modifier = if (externalContentHandlesTopPadding) scrollModifier else scrollModifier.padding(padding),
                         ) {
-                            content()
+                            header?.invoke()
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f, fill = true)
+                                    .fillMaxSize(),
+                            ) {
+                                content()
+                            }
                         }
                     }
                 }

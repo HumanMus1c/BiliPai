@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.26-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.26" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.27-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.27" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -189,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.26-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.26.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.27-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.27.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -210,13 +210,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.26 / versionCode 343`；最新完整发布记录为 `v0.2.3-beta.26`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.27 / versionCode 344`；最新完整发布记录为 `v0.2.3-beta.27`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 视频飞回交接同步标题与播放量，进场不闪白边，内联播放视口与手动裁切精准对齐。
-- 全局液态胶囊（Liquid Dock）交互统一为即时拖拽，分段控件扁平化并对齐内边距，修复底栏搜索拖拽中断。
-- 手机端横屏全屏保留实际检测朝向，封面分类变化保持方向监听，小宽度横屏弹幕输入框不再挤压塌陷。
-- 直播间桌面式分栏限制右侧聊天宽度（280~400dp），弹幕输入面板新增表情入口，点赞按钮新增数值爆发动效。
-- 完整 beta.23 → beta.26 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 分段导航消除滑动直角露出，分类与筛选栏升级为自适应滑动液态轨道，长标签文本完整展示不截断。
+- 搜索结果页适配平板与折叠屏栅格排版，自适应多列布局并支持用户自选列数。
+- 动态详情与增量刷新机制重构，容灾策略提升离线稳定性，增强富文本与评论面板交互。
+- 弹幕屏蔽规则支持正则表达式与高级前缀语法，智能保留花括号量词逗号。
+- 修复三星 Android 13 闪退与折叠屏外屏横屏启动抖动，卡片预测性返回曲线与圆角更平滑。
+- 完整 beta.26 → beta.27 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

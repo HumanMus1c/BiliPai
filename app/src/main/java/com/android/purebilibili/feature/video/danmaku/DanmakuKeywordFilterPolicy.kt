@@ -16,7 +16,6 @@ private const val SHORT_REGEX_RULE_PREFIX = "re:"
 private const val USER_HASH_RULE_PREFIX = "uid:"
 private const val USER_RULE_PREFIX = "user:"
 private const val HASH_RULE_PREFIX = "hash:"
-private val DANMAKU_RULE_SPLITTER = Regex("[\\n,，]+")
 private val DANMAKU_BLOCK_RULE_JSON = Json { ignoreUnknownKeys = true }
 
 enum class DanmakuBlockRuleGroup {
@@ -75,10 +74,106 @@ internal data class DanmakuUserHashMatcher(
 
 fun parseDanmakuBlockRules(raw: String): List<String> {
     parseDanmakuBlockRulesJson(raw)?.let { return it }
-    return raw.split(DANMAKU_RULE_SPLITTER)
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
+    return raw.lineSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .flatMap(::splitDanmakuBlockRuleLine)
+        .map(String::trim)
+        .filter(String::isNotEmpty)
         .distinct()
+        .toList()
+}
+
+internal fun splitDanmakuBlockRuleLine(line: String): List<String> {
+    val trimmed = line.trim()
+    if (trimmed.isEmpty()) return emptyList()
+
+    if (isDanmakuRegexRuleCandidate(trimmed) || isDanmakuUserRuleCandidate(trimmed)) {
+        return listOf(trimmed)
+    }
+
+    if (!trimmed.contains(',') && !trimmed.contains('，')) {
+        return listOf(trimmed)
+    }
+
+    return splitLineByCommasRespectingRegex(trimmed)
+}
+
+internal fun splitLineByCommasRespectingRegex(line: String): List<String> {
+    val tokens = mutableListOf<String>()
+    val current = StringBuilder()
+    var braceDepth = 0
+    var bracketDepth = 0
+    var parenDepth = 0
+    var inSlashRegex = false
+    var isEscaped = false
+
+    for (i in line.indices) {
+        val char = line[i]
+        if (isEscaped) {
+            current.append(char)
+            isEscaped = false
+            continue
+        }
+        when (char) {
+            '\\' -> {
+                isEscaped = true
+                current.append(char)
+            }
+            '{' -> {
+                braceDepth++
+                current.append(char)
+            }
+            '}' -> {
+                if (braceDepth > 0) braceDepth--
+                current.append(char)
+            }
+            '[' -> {
+                bracketDepth++
+                current.append(char)
+            }
+            ']' -> {
+                if (bracketDepth > 0) bracketDepth--
+                current.append(char)
+            }
+            '(' -> {
+                parenDepth++
+                current.append(char)
+            }
+            ')' -> {
+                if (parenDepth > 0) parenDepth--
+                current.append(char)
+            }
+            '/' -> {
+                val tokenSoFar = current.trim()
+                if (tokenSoFar.isEmpty()) {
+                    inSlashRegex = true
+                } else if (inSlashRegex) {
+                    inSlashRegex = false
+                }
+                current.append(char)
+            }
+            ',', '，' -> {
+                if (braceDepth > 0 || bracketDepth > 0 || parenDepth > 0 || inSlashRegex) {
+                    current.append(char)
+                } else {
+                    val token = current.toString().trim()
+                    if (token.isNotEmpty()) {
+                        tokens.add(token)
+                    }
+                    current.clear()
+                }
+            }
+            else -> {
+                current.append(char)
+            }
+        }
+    }
+    val lastToken = current.toString().trim()
+    if (lastToken.isNotEmpty()) {
+        tokens.add(lastToken)
+    }
+    return tokens
 }
 
 fun parseDanmakuBlockRuleImport(raw: String): DanmakuBlockRuleImportResult {
@@ -94,7 +189,7 @@ fun parseDanmakuBlockRuleImport(raw: String): DanmakuBlockRuleImportResult {
             buildDanmakuBlockRuleImportResult(rules)
         }
         else -> buildDanmakuBlockRuleImportResult(
-            trimmed.split(DANMAKU_RULE_SPLITTER)
+            parseDanmakuBlockRules(trimmed)
         )
     }
 }
@@ -221,9 +316,7 @@ private fun JsonArray.toRuleStrings(): List<String> {
 }
 
 private fun normalizeDanmakuRegexImportRule(rule: String): String? {
-    val normalized = rule.trim()
-    if (normalized.isEmpty()) return null
-    return if (isDanmakuRegexRule(normalized)) normalized else "$REGEX_RULE_PREFIX$normalized"
+    return normalizeDanmakuRegexManagerInput(rule)
 }
 
 fun matchesDanmakuBlockRule(content: String, rule: String, userHash: String = ""): Boolean {
@@ -272,7 +365,7 @@ fun mergeDanmakuBlockRuleSections(
     userHashRules: List<String>
 ): List<String> {
     val normalizedKeywords = keywordRules.map(String::trim).filter(String::isNotEmpty)
-    val normalizedRegexRules = regexRules.map(String::trim).filter(String::isNotEmpty)
+    val normalizedRegexRules = regexRules.mapNotNull(::normalizeDanmakuRegexManagerInput)
     val normalizedUserHashRules = userHashRules.mapNotNull(::normalizeDanmakuUserHashManagerInput)
     return (normalizedKeywords + normalizedRegexRules + normalizedUserHashRules).distinct()
 }
@@ -320,6 +413,9 @@ private fun resolveDanmakuBlockRuleMatcher(rule: String): DanmakuBlockRuleMatche
         normalized.startsWith(SHORT_REGEX_RULE_PREFIX, ignoreCase = true) -> {
             normalized.substring(SHORT_REGEX_RULE_PREFIX.length).trim()
         }
+        normalized.startsWith("r=", ignoreCase = true) -> {
+            normalized.substring(2).trim()
+        }
         normalized.length >= 2 && normalized.startsWith("/") && normalized.endsWith("/") -> {
             normalized.substring(1, normalized.length - 1).trim()
         }
@@ -351,10 +447,39 @@ private fun normalizeDanmakuBlockRuleForAppend(rule: String): String? {
     return normalizeDanmakuUserHashRule(normalized) ?: normalized
 }
 
-private fun isDanmakuRegexRule(rule: String): Boolean {
-    return rule.startsWith(REGEX_RULE_PREFIX, ignoreCase = true) ||
-        rule.startsWith(SHORT_REGEX_RULE_PREFIX, ignoreCase = true) ||
-        (rule.length >= 2 && rule.startsWith("/") && rule.endsWith("/"))
+internal fun isDanmakuRegexRule(rule: String): Boolean {
+    val trimmed = rule.trim()
+    return trimmed.startsWith(REGEX_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith(SHORT_REGEX_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith("r=", ignoreCase = true) ||
+        (trimmed.length >= 2 && trimmed.startsWith("/") && trimmed.endsWith("/"))
+}
+
+internal fun isDanmakuRegexRuleCandidate(rule: String): Boolean {
+    val trimmed = rule.trim()
+    return trimmed.startsWith(REGEX_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith(SHORT_REGEX_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith("r=", ignoreCase = true) ||
+        trimmed.startsWith("/")
+}
+
+internal fun isDanmakuUserRuleCandidate(rule: String): Boolean {
+    val trimmed = rule.trim()
+    return trimmed.startsWith(USER_HASH_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith(USER_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith(HASH_RULE_PREFIX, ignoreCase = true) ||
+        trimmed.startsWith("u=", ignoreCase = true) ||
+        trimmed.startsWith("@")
+}
+
+internal fun normalizeDanmakuRegexManagerInput(rule: String): String? {
+    val normalized = rule.trim()
+    if (normalized.isEmpty()) return null
+    return if (isDanmakuRegexRule(normalized) || isDanmakuRegexRuleCandidate(normalized)) {
+        normalized
+    } else {
+        "$REGEX_RULE_PREFIX$normalized"
+    }
 }
 
 private fun normalizeDanmakuUserHashRule(rule: String): String? {
@@ -371,7 +496,7 @@ private fun normalizeDanmakuUserHashRule(rule: String): String? {
     return "$USER_HASH_RULE_PREFIX$body"
 }
 
-private fun normalizeDanmakuUserHashManagerInput(rule: String): String? {
+internal fun normalizeDanmakuUserHashManagerInput(rule: String): String? {
     val normalized = rule.trim()
     if (normalized.isEmpty()) return null
     return normalizeDanmakuUserHashRule(normalized) ?: "$USER_HASH_RULE_PREFIX$normalized"

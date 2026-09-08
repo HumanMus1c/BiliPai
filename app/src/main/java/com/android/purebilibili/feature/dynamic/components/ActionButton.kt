@@ -47,6 +47,8 @@ import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonText
+import androidx.compose.foundation.isSystemInDarkTheme
+import top.yukonga.miuix.kmp.basic.ButtonColors as MiuixButtonColors
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 /**
  *  iOS 风格操作按钮 - 现代化胶囊设计
@@ -67,9 +69,26 @@ fun ActionButton(
     activeColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f),
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     val isLike = label == "点赞"
     val isForward = label == "转发"
     val isComment = label == "评论"
+    
+    //  统一中性操作按钮颜色 - 避免主题色入侵卡片底部操作区
+    val neutralContentColor = if (isDark) Color(0xFFDDDDDD) else Color(0xFF444444)
+    val buttonColor = when {
+        !enabled -> if (isDark) Color(0xFF666666) else Color(0xFF999999)
+        isLike && isActive -> DynamicStatusPalette.liked()
+        else -> neutralContentColor
+    }
+    val containerBgColor = if (isDark) Color(0xFF242424) else Color(0xFFF2F2F2)
+    val disabledContainerBgColor = if (isDark) Color(0x10FFFFFF) else Color(0x05000000)
+    val miuixButtonColors = MiuixButtonColors(
+        color = containerBgColor,
+        contentColor = buttonColor,
+        disabledColor = disabledContainerBgColor,
+        disabledContentColor = if (isDark) Color(0xFF666666) else Color(0xFF999999),
+    )
     
     //  iOS 风格按压动画
     val interactionSource = remember { MutableInteractionSource() }
@@ -82,16 +101,6 @@ fun ActionButton(
         ),
         label = "actionButtonScale"
     )
-    
-    //  统一主题颜色 - 根据激活状态调整
-    val buttonColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.45f)
-        isLike && isActive -> DynamicStatusPalette.liked()
-        isLike -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
-        isForward -> MaterialTheme.colorScheme.primary  // 使用主题色替代硬编码
-        isComment -> MaterialTheme.colorScheme.primary
-        else -> activeColor
-    }
     
     //  优雅的图标 - 根据状态切换填充/描边
     val buttonIcon = when {
@@ -119,6 +128,7 @@ fun ActionButton(
             MiuixButton(
                 onClick = onClick,
                 enabled = enabled,
+                colors = miuixButtonColors,
                 modifier = Modifier.fillMaxWidth(),
                 insideMargin = PaddingValues(
                     horizontal = AppSpacingTokens.Small,
@@ -128,7 +138,8 @@ fun ActionButton(
                 AppIcon(
                     imageVector = buttonIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro),
+                    tint = buttonColor,
                 )
                 DynamicNativeActionText(
                     actionText = actionText,

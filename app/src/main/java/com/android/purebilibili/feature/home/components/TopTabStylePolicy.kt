@@ -272,8 +272,8 @@ internal fun resolveHomeTopPresetStyle(
                     showDivider = true,
                     horizontalPadding = 0.dp,
                     innerPadding = 10.dp,
-                    cornerRadius = 16.dp,
-                    reservedContentBottomGap = 5.dp
+                    cornerRadius = 0.dp,
+                    reservedContentBottomGap = 0.dp
                 ),
                 spacing = HomeTopSpacingStyle(
                     edgeControlGap = 8.dp,
@@ -282,7 +282,7 @@ internal fun resolveHomeTopPresetStyle(
                     searchToTabs = 6.dp,
                     tabsToContent = 6.dp,
                     searchCollapseExtra = 5.dp,
-                    continuousSlabOverlap = 24.dp
+                    continuousSlabOverlap = 0.dp
                 ),
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),

@@ -15,9 +15,9 @@ class AdaptiveTooltipPolicyTest {
     }
 
     @Test
-    fun material3PassesThroughTooltip() {
+    fun material3UsesOfficialTooltipBoxRenderer() {
         assertEquals(
-            AdaptiveTooltipRenderer.PASSTHROUGH,
+            AdaptiveTooltipRenderer.MATERIAL3_TOOLTIP_BOX,
             resolveAdaptiveTooltipRenderer(AppUiStyle.MATERIAL3)
         )
     }

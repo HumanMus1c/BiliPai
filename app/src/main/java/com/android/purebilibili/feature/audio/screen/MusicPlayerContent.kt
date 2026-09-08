@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -391,9 +392,11 @@ internal fun MusicPlayerContent(
                             onSelected = { page ->
                                 pagerScope.launch { pagerState.animateScrollToPage(page) }
                             },
+                            itemWidth = 84.dp,
                             modifier = Modifier
                                 .navigationBarsPadding()
-                                .padding(horizontal = 72.dp, vertical = 8.dp),
+                                .padding(vertical = 8.dp)
+                                .wrapContentWidth(Alignment.CenterHorizontally),
                             height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
                             indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                             liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,

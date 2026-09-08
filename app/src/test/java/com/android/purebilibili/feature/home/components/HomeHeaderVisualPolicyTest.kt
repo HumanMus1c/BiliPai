@@ -612,6 +612,12 @@ class HomeHeaderVisualPolicyTest {
                 AndroidNativeVariant.MIUIX
             )
         )
+        assertFalse(
+            shouldUseDetachedHomeTopTabDock(
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
+                liquidGlassEnabled = false,
+            )
+        )
         assertFalse(shouldShowUnifiedHomeTopPanelDivider(UiPreset.IOS))
         assertTrue(
             shouldShowUnifiedHomeTopPanelDivider(
@@ -630,7 +636,7 @@ class HomeHeaderVisualPolicyTest {
         assertEquals(9.dp, resolveHomeTopUnifiedPanelInnerPadding()) // 2B 迁移：iOS 输入并入 MIUIX
         assertEquals(10.dp, resolveHomeTopUnifiedPanelInnerPadding(UiPreset.MD3))
         assertEquals(18.dp, resolveHomeTopUnifiedPanelCornerRadius()) // 2B 迁移：iOS 输入并入 MIUIX
-        assertEquals(16.dp, resolveHomeTopUnifiedPanelCornerRadius(UiPreset.MD3))
+        assertEquals(0.dp, resolveHomeTopUnifiedPanelCornerRadius(UiPreset.MD3))
         assertEquals(
             18.dp,
             resolveHomeTopUnifiedPanelCornerRadius(
@@ -652,7 +658,7 @@ class HomeHeaderVisualPolicyTest {
         assertEquals(48.dp, material3.searchBarHeight)
         assertEquals(48.dp, miuix.searchBarHeight)
         assertEquals(18.dp, ios.unifiedPanelCornerRadius) // 2B 迁移：iOS 输入并入 MIUIX
-        assertEquals(16.dp, material3.unifiedPanelCornerRadius)
+        assertEquals(0.dp, material3.unifiedPanelCornerRadius)
         assertEquals(18.dp, miuix.unifiedPanelCornerRadius)
         assertEquals(6.dp, ios.searchToTabsSpacing)
         assertEquals(6.dp, material3.searchToTabsSpacing)
@@ -1362,9 +1368,9 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `md3 unified home header uses subtle outer panel rounding`() {
+    fun `md3 unified home header uses flat edge-to-edge panel`() {
         assertEquals(
-            16.dp,
+            0.dp,
             resolveHomeTopUnifiedPanelCornerRadius(
                 uiPreset = UiPreset.MD3,
                 collapsedIntoStatusBar = false

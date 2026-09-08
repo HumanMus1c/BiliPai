@@ -699,6 +699,56 @@ class DynamicRichTextPolicyTest {
         )
         assertEquals("https://i0.hdslb.com/bfs/emote/a.webp", url)
     }
+
+    @Test
+    fun resolveDynamicOpusTextBlockRichDesc_enrichesEmojiNodeFromPreferredDescWhenBlockHasAtNode() {
+        val preferredEmoji = RichTextNode(
+            type = "EMOJI",
+            text = "[豹富]",
+            emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                text = "[豹富]"
+            )
+        )
+        val preferredDesc = DynamicDesc(
+            text = "感谢@测试 恭喜[豹富]",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "AT", text = "@测试", rid = "12345"),
+                preferredEmoji
+            )
+        )
+        val blockNodes = listOf(
+            RichTextNode(type = "TEXT", text = "感谢"),
+            RichTextNode(type = "AT", text = "@测试", rid = "12345"),
+            RichTextNode(type = "TEXT", text = " 恭喜[豹富]")
+        )
+
+        val resolved = resolveDynamicOpusTextBlockRichDesc(
+            blockText = "感谢@测试 恭喜[豹富]",
+            preferredDesc = preferredDesc,
+            blockRichTextNodes = blockNodes
+        )
+
+        assertNotNull(resolved)
+        val emojiNode = resolved.rich_text_nodes.firstOrNull { it.type.contains("EMOJI", ignoreCase = true) }
+        assertNotNull(emojiNode)
+        assertEquals("https://i0.hdslb.com/bfs/emote/baofu.png", emojiNode.emoji?.icon_url)
+    }
+
+    @Test
+    fun collectDynamicEmojiUrlMap_extractsUrlsFromNodesWithEmoji() {
+        val node = RichTextNode(
+            type = "EMOJI",
+            text = "[豹富]",
+            orig_text = "[豹富]",
+            emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                text = "[豹富]"
+            )
+        )
+        val map = collectDynamicEmojiUrlMap(listOf(node))
+        assertEquals("https://i0.hdslb.com/bfs/emote/baofu.png", map["[豹富]"])
+    }
 }
 
 private fun androidx.compose.ui.text.AnnotatedString.hasInlineContent(): Boolean {

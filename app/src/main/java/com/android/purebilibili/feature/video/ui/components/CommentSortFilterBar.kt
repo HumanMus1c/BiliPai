@@ -1,7 +1,11 @@
 package com.android.purebilibili.feature.video.ui.components
-import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -98,6 +102,7 @@ fun CommentSortHeader(
     onSortModeChange: (CommentSortMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val uiStyle = LocalAppUiStyle.current
     FlowRow(
         modifier = modifier
             .fillMaxWidth()
@@ -107,21 +112,48 @@ fun CommentSortHeader(
         verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        CommentListTitle(title = "${sortMode.label}评论", count = count)
-        AppTextButton(
-            onClick = {
-                onSortModeChange(
-                    if (sortMode == CommentSortMode.HOT) CommentSortMode.NEWEST else CommentSortMode.HOT
+        CommentListTitle(
+            title = if (uiStyle == AppUiStyle.MIUIX) "评论" else "${sortMode.label}评论",
+            count = count,
+        )
+        if (uiStyle == AppUiStyle.MIUIX) {
+            val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
+            val spec = remember(sortModes.size) {
+                resolveCommentSortSegmentedControlSpec(itemCount = sortModes.size)
+            }
+            Box(
+                modifier = Modifier.width((spec.itemWidthDp * sortModes.size).dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                AppThemeAdaptiveTabRow(
+                    options = sortModes.map { AppSegmentOption(it, it.label) },
+                    selectedValue = sortMode,
+                    onSelectionChange = onSortModeChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    height = spec.heightDp.dp,
+                    indicatorHeight = spec.indicatorHeightDp.dp,
+                    labelFontSize = 13.sp,
+                    compactMiuixWhenTwoOptions = true,
+                    dragSelectionEnabled = true,
+                    tapPressRefractionEnabled = true,
                 )
-            },
-        ) {
-            AppIcon(
-                imageVector = Icons.AutoMirrored.Outlined.Sort,
-                contentDescription = "切换评论排序",
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            AppText(text = sortMode.label, fontSize = 14.sp)
+            }
+        } else {
+            AppTextButton(
+                onClick = {
+                    onSortModeChange(
+                        if (sortMode == CommentSortMode.HOT) CommentSortMode.NEWEST else CommentSortMode.HOT
+                    )
+                },
+            ) {
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Outlined.Sort,
+                    contentDescription = "切换评论排序",
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                AppText(text = sortMode.label, fontSize = 14.sp)
+            }
         }
     }
 }

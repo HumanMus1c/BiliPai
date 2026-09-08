@@ -859,6 +859,7 @@ private fun LiquidGlassHomeSample(
                     enabled = true,
                     blurRadiusDp = tuning.progressiveBlurRadius,
                     gradient = ProgressiveBlur.Top.copy(
+                        startFraction = tuning.progressiveBlurStartFraction,
                         endFraction = tuning.progressiveBlurEndFraction,
                         curve = tuning.progressiveBlurCurve,
                     ),

@@ -67,8 +67,8 @@ fun resolveMaterialTypography(
     uiStyle: AppUiStyle,
     liquidGlassEnabled: Boolean = true,
 ): Typography = when (uiStyle) {
-    // Miuix owns its typography object; only its numeric density follows the MD3 baseline.
-    AppUiStyle.MIUIX -> if (liquidGlassEnabled) CompactMiuixTypography else BiliMiuixTypography
+    // Miuix 主题始终使用完整的标准字阶（正文 17sp），液态玻璃仅作用于局部 Dock 与指示器，不压缩全局排版
+    AppUiStyle.MIUIX -> BiliMiuixTypography
     AppUiStyle.MATERIAL3 -> Md3Typography
 }
 
