@@ -42,7 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -173,8 +173,10 @@ fun LiveAreaDetailScreen(
     }
 
     AppScaffold(
+        blurContentReady = !isLoading,
         modifier = Modifier.fillMaxSize(),
         topBar = {
+            Column {
             AppTopBar(
                 title = title,
                 navigationIcon = {
@@ -186,15 +188,6 @@ fun LiveAreaDetailScreen(
                     }
                 },
             )
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
                 AppText(
                     text = roomSummary,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,6 +238,16 @@ fun LiveAreaDetailScreen(
                     )
                 }
                 }
+            }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                ,
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 when {
                 isLoading -> ContentVideoGridSkeletonFixedColumns(
                     columns = gridColumns,

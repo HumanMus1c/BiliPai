@@ -10,6 +10,21 @@ internal fun shouldOpenDynamicCommentThreadOnTap(reply: ReplyItem): Boolean {
     return reply.rpid > 0L
 }
 
+internal enum class DynamicCommentSheetHostContent {
+    MAIN_LIST,
+    THREAD_DETAIL,
+}
+
+internal fun resolveDynamicCommentSheetHostContent(
+    subReplyVisible: Boolean,
+): DynamicCommentSheetHostContent {
+    return if (subReplyVisible) {
+        DynamicCommentSheetHostContent.THREAD_DETAIL
+    } else {
+        DynamicCommentSheetHostContent.MAIN_LIST
+    }
+}
+
 /** 信息流点评论后进入动态详情内联评论区，不弹底部评论层。 */
 internal fun shouldOpenDynamicCommentsInDetailPage(): Boolean = true
 

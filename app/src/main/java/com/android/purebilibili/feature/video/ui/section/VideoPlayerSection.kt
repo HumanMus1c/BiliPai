@@ -1631,6 +1631,12 @@ fun VideoPlayerSection(
             showEndDrawer = true
         }
     }
+    LaunchedEffect(isFullscreen, configuration.orientation) {
+        val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        if (!isFullscreen || !isLandscape) {
+            showEndDrawer = false
+        }
+    }
     val endDrawerReservedWidthDp = resolveLandscapeEndDrawerReservedWidthDp(
         drawerVisible = showEndDrawer,
         isFullscreen = isFullscreen,

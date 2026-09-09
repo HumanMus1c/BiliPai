@@ -327,59 +327,33 @@ private fun FavoriteCategoryContent(
         query.isBlank() || item.title.contains(query, ignoreCase = true) ||
             item.subtitle.contains(query, ignoreCase = true)
     }
-    Column(modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
-        if (state.section == FavoriteSection.BANGUMI || state.section == FavoriteSection.CINEMA) {
-            FavoriteCategoryFilterRow(
-                labels = FavoritePgcStatus.entries.map { it.label },
-                selectedIndex = FavoritePgcStatus.entries.indexOf(state.pgcStatus),
-                onSelected = { FavoritePgcStatus.entries.getOrNull(it)?.let(onPgcStatusSelected) },
-            )
-        } else if (state.section == FavoriteSection.NOTE) {
-            FavoriteCategoryFilterRow(
-                labels = listOf("未发布笔记", "公开笔记"),
-                selectedIndex = if (state.publishedNotes) 1 else 0,
-                onSelected = { onPublishedNotesSelected(it == 1) },
-            )
-        }
-
-        if (state.selectedIds.isNotEmpty()) {
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppSpacingTokens.Medium),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-            ) {
-                if (state.section == FavoriteSection.BANGUMI || state.section == FavoriteSection.CINEMA) {
-                    FavoritePgcStatus.entries.forEach { status ->
-                        AppTextButton(onClick = { onUpdateSelectedPgcStatus(status) }) {
-                            AppText("移至${status.label}")
-                        }
-                    }
-                } else {
-                    AppTextButton(onClick = onRemoveSelected) {
-                        AppText("删除(${state.selectedIds.size})")
-                    }
-                }
-                AppTextButton(onClick = onClearSelection) {
-                    AppText("取消选择")
-                }
-            }
-        }
-
+    val headerInset = contentPadding.calculateTopPadding()
+    val hasFilterRow = state.section == FavoriteSection.BANGUMI ||
+        state.section == FavoriteSection.CINEMA ||
+        state.section == FavoriteSection.NOTE
+    val stickyChromeReserve = headerInset +
+        (if (hasFilterRow) 48.dp else AppSpacingTokens.None) +
+        (if (state.selectedIds.isNotEmpty()) 48.dp else AppSpacingTokens.None)
+    Box(modifier = Modifier.fillMaxSize()) {
         when {
-            state.isLoading && state.items.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.isLoading && state.items.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(top = headerInset),
+                contentAlignment = Alignment.Center,
+            ) {
                 AppText("正在加载…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             state.error != null && state.items.isEmpty() -> Column(
-                Modifier.fillMaxSize(),
+                Modifier.fillMaxSize().padding(top = headerInset),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 AppText(state.error, color = MaterialTheme.colorScheme.error)
                 AppButton(onClick = onRetry) { AppText("重试") }
             }
-            visibleItems.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            visibleItems.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(top = headerInset),
+                contentAlignment = Alignment.Center,
+            ) {
                 AppText(
                     if (query.isBlank()) "暂无${state.section.label}收藏" else "未找到相关内容",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -387,6 +361,7 @@ private fun FavoriteCategoryContent(
             }
             else -> FavoriteCategoryGrid(
                 state = state.copy(items = visibleItems),
+                topPadding = stickyChromeReserve,
                 bottomPadding = contentPadding.calculateBottomPadding(),
                 onLoadMore = onLoadMore,
                 onToggleSelection = onToggleSelection,
@@ -397,6 +372,50 @@ private fun FavoriteCategoryContent(
                 onTopicClick = onTopicClick,
                 onWebClick = onWebClick,
             )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = headerInset),
+        ) {
+            if (state.section == FavoriteSection.BANGUMI || state.section == FavoriteSection.CINEMA) {
+                FavoriteCategoryFilterRow(
+                    labels = FavoritePgcStatus.entries.map { it.label },
+                    selectedIndex = FavoritePgcStatus.entries.indexOf(state.pgcStatus),
+                    onSelected = { FavoritePgcStatus.entries.getOrNull(it)?.let(onPgcStatusSelected) },
+                )
+            } else if (state.section == FavoriteSection.NOTE) {
+                FavoriteCategoryFilterRow(
+                    labels = listOf("未发布笔记", "公开笔记"),
+                    selectedIndex = if (state.publishedNotes) 1 else 0,
+                    onSelected = { onPublishedNotesSelected(it == 1) },
+                )
+            }
+
+            if (state.selectedIds.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppSpacingTokens.Medium),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
+                ) {
+                    if (state.section == FavoriteSection.BANGUMI || state.section == FavoriteSection.CINEMA) {
+                        FavoritePgcStatus.entries.forEach { status ->
+                            AppTextButton(onClick = { onUpdateSelectedPgcStatus(status) }) {
+                                AppText("移至${status.label}")
+                            }
+                        }
+                    } else {
+                        AppTextButton(onClick = onRemoveSelected) {
+                            AppText("删除(${state.selectedIds.size})")
+                        }
+                    }
+                    AppTextButton(onClick = onClearSelection) {
+                        AppText("取消选择")
+                    }
+                }
+            }
         }
     }
 }
@@ -428,6 +447,7 @@ private fun FavoriteCategoryFilterRow(
 @Composable
 private fun FavoriteCategoryGrid(
     state: FavoriteCategoryUiState,
+    topPadding: androidx.compose.ui.unit.Dp,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onLoadMore: () -> Unit,
     onToggleSelection: (Long) -> Unit,
@@ -445,7 +465,7 @@ private fun FavoriteCategoryGrid(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = AppSpacingTokens.Medium,
                 end = AppSpacingTokens.Medium,
-                top = AppSpacingTokens.Small,
+                top = topPadding,
                 bottom = bottomPadding + AppSpacingTokens.Medium,
             ),
             horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),

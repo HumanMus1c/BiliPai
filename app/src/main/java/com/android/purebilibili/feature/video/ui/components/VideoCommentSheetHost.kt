@@ -1,19 +1,21 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import android.graphics.RenderEffect as AndroidRenderEffect
+import android.graphics.Shader
+import android.os.Build
 import android.widget.Toast
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -73,7 +75,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion
-import com.android.purebilibili.core.ui.LocalNavigationBackHandler
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.NavigationEventTransitionState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import com.android.purebilibili.core.ui.InteractiveOverlayProgressVisual
 import com.android.purebilibili.core.ui.InteractiveOverlaySurfaceType
 import com.android.purebilibili.core.ui.resolveInteractiveOverlayProgressVisual
@@ -176,6 +182,41 @@ internal fun shouldApplyVideoCommentThreadStatusBarPadding(
     topReservedPx: Int = 0
 ): Boolean {
     return !mainSheetVisible && topReservedPx <= 0
+}
+
+internal enum class VideoCommentPredictiveBackTarget {
+    CLOSE_CONVERSATION,
+    CLOSE_THREAD,
+    DISMISS_SHEET
+}
+
+internal fun resolveVideoCommentPredictiveBackTarget(
+    subReplyVisible: Boolean,
+    conversationActive: Boolean
+): VideoCommentPredictiveBackTarget {
+    return when {
+        subReplyVisible && conversationActive -> VideoCommentPredictiveBackTarget.CLOSE_CONVERSATION
+        subReplyVisible -> VideoCommentPredictiveBackTarget.CLOSE_THREAD
+        else -> VideoCommentPredictiveBackTarget.DISMISS_SHEET
+    }
+}
+
+internal fun resolveVideoCommentPredictiveBackProgress(
+    inProgress: Boolean,
+    progress: Float
+): Float {
+    if (!inProgress) return 0f
+    return progress.coerceIn(0f, 1f)
+}
+
+internal fun resolveCommentThreadPredictiveBackOffsetY(
+    progress: Float,
+    heightPx: Float,
+): Float = progress.coerceIn(0f, 1f) * heightPx
+
+internal fun resolveCommentThreadCoveredBlurProgress(threadBackProgress: Float): Float {
+    val coveredDepth = (1f - threadBackProgress.coerceIn(0f, 1f))
+    return coveredDepth * coveredDepth
 }
 
 internal fun shouldInitializeVideoCommentSheetHost(
@@ -465,15 +506,53 @@ fun VideoCommentSheetHost(
         )
     }
 
-    LocalNavigationBackHandler(
-        enabled = hostVisible,
+    val commentBackState = rememberNavigationEventState(NavigationEventInfo.None)
+    var threadBackCompleted by remember { mutableStateOf(false) }
+    val rawThreadBackProgress = resolveVideoCommentPredictiveBackProgress(
+        inProgress = commentBackState.transitionState is NavigationEventTransitionState.InProgress &&
+            hostContent == VideoCommentSheetHostContent.THREAD_DETAIL,
+        progress = (commentBackState.transitionState as? NavigationEventTransitionState.InProgress)
+            ?.latestEvent
+            ?.progress
+            ?: 0f
+    )
+
+    val threadBackProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = rawThreadBackProgress,
+        animationSpec = if (commentBackState.transitionState is NavigationEventTransitionState.InProgress) {
+            androidx.compose.animation.core.snap()
+        } else {
+            tween(180)
+        },
+        label = "comment_thread_predictive_back",
+    )
+    LaunchedEffect(subReplyState.visible) {
+        if (subReplyState.visible) threadBackCompleted = false
+    }
+    NavigationBackHandler(
+        state = commentBackState,
+        isBackEnabled = hostVisible,
         onBackCompleted = {
-            if (subReplyState.visible) {
-                commentViewModel.closeSubReply()
-            } else {
-                onDismiss()
+            when (
+                resolveVideoCommentPredictiveBackTarget(
+                    subReplyVisible = subReplyState.visible,
+                    conversationActive = subReplyState.conversationAnchor != null
+                )
+            ) {
+                VideoCommentPredictiveBackTarget.CLOSE_CONVERSATION ->
+                    commentViewModel.closeSubReplyConversation()
+                VideoCommentPredictiveBackTarget.CLOSE_THREAD -> {
+                    threadBackCompleted = rawThreadBackProgress > 0f
+                    commentViewModel.closeSubReply()
+                }
+                VideoCommentPredictiveBackTarget.DISMISS_SHEET -> onDismiss()
             }
         },
+    )
+    val threadDrag = rememberCommentThreadDrag(
+        visible = subReplyState.visible,
+        rootReplyId = subReplyState.rootReply?.rpid,
+        onDismiss = commentViewModel::closeSubReply,
     )
 
     LaunchedEffect(aid, mainSheetVisible, forceInitialize, preferredSortMode, upMid, expectedReplyCount) {
@@ -605,7 +684,7 @@ fun VideoCommentSheetHost(
                         }
                         .offset { IntOffset(x = 0, y = sheetDragOffsetPx.roundToInt()) }
                         .pointerInput(mainSheetVisible, hostContent, mainSheetMeasuredHeightPx) {
-                            if (hostContent == VideoCommentSheetHostContent.HIDDEN) {
+                            if (hostContent != VideoCommentSheetHostContent.MAIN_LIST) {
                                 return@pointerInput
                             }
                             detectVerticalDragGestures(
@@ -659,47 +738,46 @@ fun VideoCommentSheetHost(
                             indication = null,
                             onClick = {}
                         ),
-                    color = appearance.panelColor.copy(
-                        alpha = appearance.panelColor.alpha * overlayVisual.surfaceAlphaMultiplier
-                    )
+                    color = if (mainSheetVisible) {
+                        appearance.panelColor.copy(
+                            alpha = appearance.panelColor.alpha * overlayVisual.surfaceAlphaMultiplier
+                        )
+                    } else {
+                        Color.Transparent
+                    }
                 ) {
-                    AnimatedContent(
-                        targetState = hostContent,
-                        transitionSpec = {
-                            val opensThreadDetail =
-                                initialState == VideoCommentSheetHostContent.MAIN_LIST &&
-                                    targetState == VideoCommentSheetHostContent.THREAD_DETAIL
-                            val closesThreadDetail =
-                                initialState == VideoCommentSheetHostContent.THREAD_DETAIL &&
-                                    targetState == VideoCommentSheetHostContent.MAIN_LIST
-                            val direction = when {
-                                opensThreadDetail -> 1
-                                closesThreadDetail -> -1
-                                else -> 0
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (mainSheetVisible && hostContent != VideoCommentSheetHostContent.HIDDEN) {
+                            val coveredBlurProgress = if (
+                                hostContent == VideoCommentSheetHostContent.THREAD_DETAIL
+                            ) {
+                                resolveCommentThreadCoveredBlurProgress(maxOf(threadBackProgress, threadDrag.revealProgress))
+                            } else {
+                                0f
                             }
-                            val enter = fadeIn(animationSpec = tween(220)) +
-                                slideInHorizontally(animationSpec = tween(260)) { width ->
-                                    when {
-                                        direction > 0 -> width / 2
-                                        direction < 0 -> -width / 2
-                                        else -> 0
-                                    }
-                                }
-                            val exit = fadeOut(animationSpec = tween(200)) +
-                                slideOutHorizontally(animationSpec = tween(240)) { width ->
-                                    when {
-                                        direction > 0 -> -width / 3
-                                        direction < 0 -> width / 3
-                                        else -> 0
-                                    }
-                                }
-                            enter togetherWith exit using SizeTransform(clip = false)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        label = "video_comment_host_content"
-                    ) { targetContent ->
-                        when (targetContent) {
-                            VideoCommentSheetHostContent.MAIN_LIST -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        renderEffect = null
+                                        if (coveredBlurProgress > 0f &&
+                                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                                        ) {
+                                            val blurFrame = resolvePredictiveBackBlurFrame(
+                                                progress = coveredBlurProgress,
+                                            )
+                                            renderEffect = if (blurFrame.blurRadiusPx > 0.5f) {
+                                                AndroidRenderEffect.createBlurEffect(
+                                                    blurFrame.blurRadiusPx,
+                                                    blurFrame.blurRadiusPx,
+                                                    Shader.TileMode.CLAMP,
+                                                ).asComposeRenderEffect()
+                                            } else {
+                                                null
+                                            }
+                                        }
+                                    },
+                            ) {
                                 VideoCommentMainList(
                                     viewModel = commentViewModel,
                                     showIdentityDecorations = commentMemberDecorationsEnabled,
@@ -714,11 +792,31 @@ fun VideoCommentSheetHost(
                                     listState = mainCommentListState,
                                 )
                             }
-
-                            VideoCommentSheetHostContent.THREAD_DETAIL -> {
-                                val rootReply = subReplyState.rootReply
-                                if (rootReply != null) {
+                        }
+                        AnimatedVisibility(
+                            visible = hostContent == VideoCommentSheetHostContent.THREAD_DETAIL &&
+                                subReplyState.rootReply != null,
+                            enter = fadeIn(animationSpec = tween(220)) +
+                                slideInVertically(animationSpec = tween(260)) { height -> height },
+                            exit = if (threadBackCompleted) androidx.compose.animation.ExitTransition.None else fadeOut(animationSpec = tween(200)) +
+                                slideOutVertically(animationSpec = tween(240)) { height -> height },
+                        ) {
+                            val rootReply = subReplyState.rootReply
+                            if (rootReply != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .then(threadDrag.containerModifier)
+                                        .graphicsLayer {
+                                            translationY = threadDrag.offsetPx.value + resolveCommentThreadPredictiveBackOffsetY(
+                                                progress = threadBackProgress,
+                                                heightPx = size.height,
+                                            )
+                                        }
+                                        .background(appearance.panelColor),
+                                ) {
                                     SubReplyDetailContent(
+                                        headerDragModifier = threadDrag.headerModifier,
                                         rootReply = rootReply,
                                         subReplies = subReplyState.items,
                                         sortMode = subReplyState.sortMode,
@@ -759,8 +857,6 @@ fun VideoCommentSheetHost(
                                     )
                                 }
                             }
-
-                            VideoCommentSheetHostContent.HIDDEN -> Unit
                         }
                     }
                 }

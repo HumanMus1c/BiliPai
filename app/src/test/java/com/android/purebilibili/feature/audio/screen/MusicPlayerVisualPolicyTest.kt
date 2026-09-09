@@ -39,6 +39,42 @@ class MusicPlayerVisualPolicyTest {
     }
 
     @Test
+    fun `secondary transport maps shuffle and repeat glyphs`() {
+        assertEquals(
+            MusicSecondaryTransportState(shuffleEnabled = false, repeatGlyph = MusicRepeatGlyph.OFF),
+            resolveMusicSecondaryTransport(PlayMode.SEQUENTIAL)
+        )
+        assertEquals(
+            MusicSecondaryTransportState(shuffleEnabled = true, repeatGlyph = MusicRepeatGlyph.ALL),
+            resolveMusicSecondaryTransport(PlayMode.SHUFFLE)
+        )
+        assertEquals(
+            MusicSecondaryTransportState(shuffleEnabled = false, repeatGlyph = MusicRepeatGlyph.ONE),
+            resolveMusicSecondaryTransport(PlayMode.REPEAT_ONE)
+        )
+        assertEquals(
+            MusicSecondaryTransportState(shuffleEnabled = false, repeatGlyph = MusicRepeatGlyph.ALL),
+            resolveMusicSecondaryTransport(PlayMode.REPEAT_ALL)
+        )
+    }
+
+    @Test
+    fun `shuffle and repeat toggles follow bbplayer icon actions`() {
+        assertEquals(PlayMode.SHUFFLE, resolvePlayModeAfterShuffleToggle(PlayMode.SEQUENTIAL))
+        assertEquals(PlayMode.SEQUENTIAL, resolvePlayModeAfterShuffleToggle(PlayMode.SHUFFLE))
+        assertEquals(PlayMode.REPEAT_ONE, resolvePlayModeAfterRepeatToggle(PlayMode.SEQUENTIAL))
+        assertEquals(PlayMode.REPEAT_ALL, resolvePlayModeAfterRepeatToggle(PlayMode.REPEAT_ONE))
+        assertEquals(PlayMode.SEQUENTIAL, resolvePlayModeAfterRepeatToggle(PlayMode.REPEAT_ALL))
+        assertEquals(PlayMode.REPEAT_ONE, resolvePlayModeAfterRepeatToggle(PlayMode.SHUFFLE))
+        assertEquals(
+            MusicSecondaryTransportState(shuffleEnabled = true, repeatGlyph = MusicRepeatGlyph.ONE),
+            resolveMusicSecondaryTransport(PlayMode.REPEAT_ONE, shuffleEnabled = true)
+        )
+        assertEquals(PlayMode.SEQUENTIAL, resolveRepeatModeAfterToggle(PlayMode.REPEAT_ALL))
+        assertEquals(PlayMode.REPEAT_ONE, resolveRepeatModeAfterToggle(PlayMode.SHUFFLE))
+    }
+
+    @Test
     fun `current lyric line follows offset adjusted playback time`() {
         val document = parseSplLyrics(
             """

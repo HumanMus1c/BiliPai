@@ -102,6 +102,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
@@ -112,9 +113,14 @@ import coil3.request.ImageRequest
 import coil3.size.Scale
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.AppTopBar
+import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
+import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.MediaContrastPalette
@@ -332,15 +338,40 @@ fun SpaceScreen(
     val blockUserLabel = stringResource(R.string.space_block_user)
     val unblockUserLabel = stringResource(R.string.space_unblock_user)
 
+    val spaceThemeConfig = LocalAppThemeConfig.current
+    val spaceProgressiveBlur = shouldUseBiliPaiProgressiveTopBlur(
+        enabled = spaceThemeConfig.progressiveTopBlurEnabled && !spaceThemeConfig.headerBlurEnabled,
+        hasBackdrop = true,
+    ) && !isLowBlurBudgetForced()
+    val spaceChromeSource = if (spaceProgressiveBlur && uiState is SpaceUiState.Success) {
+        com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
+    } else {
+        null
+    }
+    val spaceChromeBackdrop = spaceChromeSource?.takeIf { it.isReady }?.backdrop
     AppScaffold(
         topBar = {
-            Box(
+            BiliPaiImmersiveTopBar(
+                backdrop = spaceChromeBackdrop,
+                enabled = spaceProgressiveBlur,
+                modifier = Modifier.background(
+                    if (spaceChromeBackdrop != null) Color.Transparent
+                    else com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface)
+                ),
+            ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .unifiedBlur(
-                        hazeState = hazeState,
-                        surfaceType = BlurSurfaceType.HEADER,
-                        isScrolling = isSpaceScrolling
+                    .then(
+                        if (spaceProgressiveBlur) {
+                            Modifier
+                        } else {
+                            Modifier.unifiedBlur(
+                                hazeState = hazeState,
+                                surfaceType = BlurSurfaceType.HEADER,
+                                isScrolling = isSpaceScrolling
+                            )
+                        }
                     )
             ) {
                 AppTopBar(
@@ -485,6 +516,8 @@ fun SpaceScreen(
                         }
                     }
                 )
+
+            }
             }
         },
         containerColor = MaterialTheme.colorScheme.surface
@@ -516,14 +549,15 @@ fun SpaceScreen(
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSourceCompat(state = hazeState)
-            ) {
                 when (val state = uiState) {
                     SpaceUiState.Loading -> {
-                        SpaceLoadingSkeleton(modifier = Modifier.fillMaxSize())
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .globalWallpaperAwareBackground(MaterialTheme.colorScheme.surface),
+                        ) {
+                            SpaceLoadingSkeleton(modifier = Modifier.fillMaxSize())
+                        }
                     }
 
                     is SpaceUiState.Error -> {
@@ -552,6 +586,13 @@ fun SpaceScreen(
                             resolveSpaceDynamicCardItems(filteredDynamics)
                         }
 
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(spaceChromeSource?.modifier ?: Modifier)
+                                .hazeSourceCompat(state = hazeState)
+                                .globalWallpaperAwareBackground(MaterialTheme.colorScheme.surface),
+                        ) {
                         SpaceContent(
                             state = state,
                             gridState = gridState,
@@ -622,8 +663,10 @@ fun SpaceScreen(
                                 }
                             },
                             sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            chromeTopInset = scaffoldPadding.calculateTopPadding(),
                         )
+                        }
 
                         DynamicCommentOverlayHost(
                             viewModel = dynamicInteractionViewModel,
@@ -633,7 +676,6 @@ fun SpaceScreen(
                         )
                     }
                 }
-            }
 
             SpacePlayedVideoLocatePrompt(
                 visible = shouldPromptToLocatePlayedVideo,
@@ -940,6 +982,7 @@ private fun SpaceContent(
     onSpaceDynamicDeleteClick: (DynamicDeleteAction) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
+    chromeTopInset: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -948,18 +991,6 @@ private fun SpaceContent(
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings())
     val selectedMainTab = state.tabShellState.selectedTab
-    val displayedMainTabs = remember(state.mainTabs, selectedMainTab) {
-        resolveSpaceDisplayedMainTabs(
-            tabs = state.mainTabs,
-            selectedTab = selectedMainTab
-        )
-    }
-    val displayedContributionTabs = remember(state.contributionTabs, state.totalAudios) {
-        resolveDisplayedSpaceContributionTabs(
-            tabs = state.contributionTabs,
-            totalAudios = state.totalAudios
-        )
-    }
     val selectedContributionTab = remember(
         state.contributionTabs,
         state.selectedContributionTabId,
@@ -970,30 +1001,6 @@ private fun SpaceContent(
             selectedTabId = state.selectedContributionTabId,
             selectedSubTab = state.selectedSubTab
         )
-    }
-    val secondarySwitchItems = remember(displayedContributionTabs) {
-        resolveSpaceSecondarySwitchItems(displayedContributionTabs)
-    }
-    val selectedSecondarySwitchId = remember(
-        selectedMainTab,
-        state.selectedContributionTabId,
-    ) {
-        resolveSelectedSpaceSecondarySwitchId(
-            selectedTab = selectedMainTab,
-            selectedContributionTabId = state.selectedContributionTabId,
-        )
-    }
-    val onSecondarySwitchSelected: (String) -> Unit = { id ->
-        val item = secondarySwitchItems.firstOrNull { it.id == id }
-        if (item != null) {
-            when (item.targetTab) {
-                SpaceMainTab.CONTRIBUTION -> {
-                    onMainTabSelected(SpaceMainTab.CONTRIBUTION)
-                    item.contributionTabId?.let(onContributionTabSelected)
-                }
-                else -> onMainTabSelected(item.targetTab)
-            }
-        }
     }
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val currentSearchScope = remember(selectedMainTab, state.selectedSubTab) {
@@ -1085,17 +1092,14 @@ private fun SpaceContent(
 
     val contributionVideoItemStartIndex = remember(
         selectedMainTab,
-        displayedContributionTabs,
         selectedContributionTab,
-        secondarySwitchItems,
         state.isSearchMode,
         currentSearchScope
     ) {
         if (selectedMainTab != SpaceMainTab.CONTRIBUTION) {
             0
         } else {
-            2 +
-                (if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) 1 else 0) +
+            1 +
                 (if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) 1 else 0) +
                 (if (state.isSearchMode && currentSearchScope == SpaceSearchScope.VIDEO) 1 else 0)
         }
@@ -1158,10 +1162,10 @@ private fun SpaceContent(
             .responsiveContentWidth(maxWidth = SPACE_CONTENT_MAX_WIDTH_DP.dp)
             .then(modifier)
     ) {
-        // [重构] 折叠进度：header 是 index 0，滚动偏移驱动 header 内容上移淡出（视差折叠）；
-        // 完全滚出后主 tab overlay 吸顶显示
+        val density = LocalDensity.current
+        // [重构] 折叠进度：header 是 index 0，滚动偏移驱动 header 内容上移淡出（视差折叠）。
         // 折叠范围用 dp 换算，避免固定像素在不同 density 下曲线不一致
-        val headerCollapseRangePx = with(LocalDensity.current) { 320.dp.toPx() }
+        val headerCollapseRangePx = with(density) { 320.dp.toPx() }
         val headerCollapseFraction = remember(headerCollapseRangePx) {
             derivedStateOf {
                 if (gridState.firstVisibleItemIndex > 0) {
@@ -1203,6 +1207,7 @@ private fun SpaceContent(
             contentPadding = PaddingValues(
                 start = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
                 end = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
+                top = chromeTopInset,
                 bottom = bottomInset + 24.dp
             ),
             horizontalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.itemSpacingDp.dp),
@@ -1225,21 +1230,39 @@ private fun SpaceContent(
                     animatedVisibilityScope = lazyGridAnimatedVisibilityScope
                 )
             }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                SpaceMainTabRow(
-                    tabs = displayedMainTabs,
-                    selectedTab = resolveSpacePrimaryTab(selectedMainTab),
-                    onSelect = onMainTabSelected,
-                )
-            }
-            if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    SpaceSecondarySwitchRow(
-                        items = secondarySwitchItems,
-                        selectedId = selectedSecondarySwitchId,
-                        onSelect = onSecondarySwitchSelected,
-                    )
+
+            val showSearch = selectedMainTab == SpaceMainTab.DYNAMIC ||
+                (selectedMainTab == SpaceMainTab.CONTRIBUTION &&
+                    selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO))
+            if (showSearch) {
+                item(key = "space_search", span = { GridItemSpan(maxLineSpan) }) {
+                    if (state.isSearchMode) {
+                        LaunchedEffect(state.isSearchMode, currentSearchScope) {
+                            searchFocusRequester.requestFocus()
+                        }
+                        AppLiquidAwareSearchField(
+                            query = state.searchQuery,
+                            onQueryChange = onSearchQueryChange,
+                            placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .focusRequester(searchFocusRequester),
+                        )
+                    } else if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) {
+                        SpaceSearchEntryChip(
+                            label = resolveSpaceSearchEntryLabel(currentSearchScope),
+                            onClick = onSearchEntryClick,
+                        )
+                    }
                 }
+            }
+            item(key = "space_tabs", span = { GridItemSpan(maxLineSpan) }) {
+                SpaceContentTabs(
+                    state = state,
+                    onMainTabSelected = onMainTabSelected,
+                    onContributionTabSelected = onContributionTabSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
         when (selectedMainTab) {
@@ -1519,30 +1542,6 @@ private fun SpaceContent(
             }
 
             SpaceMainTab.DYNAMIC -> {
-                if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        SpaceSearchEntryChip(
-                            label = resolveSpaceSearchEntryLabel(currentSearchScope),
-                            onClick = onSearchEntryClick
-                        )
-                    }
-                }
-                if (state.isSearchMode && currentSearchScope == SpaceSearchScope.DYNAMIC) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        LaunchedEffect(state.isSearchMode, currentSearchScope) {
-                            searchFocusRequester.requestFocus()
-                        }
-                        AppLiquidAwareSearchField(
-                            query = state.searchQuery,
-                            onQueryChange = onSearchQueryChange,
-                            placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .focusRequester(searchFocusRequester)
-                        )
-                    }
-                }
-
                 val presentationState = resolveSpaceDynamicPresentationState(
                     itemCount = state.dynamics.size,
                     isLoading = state.isLoadingDynamics,
@@ -1635,38 +1634,6 @@ private fun SpaceContent(
             }
 
             SpaceMainTab.CONTRIBUTION -> {
-                if (
-                    shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode) &&
-                    selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
-                ) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        SpaceSearchEntryChip(
-                            label = resolveSpaceSearchEntryLabel(currentSearchScope),
-                            onClick = onSearchEntryClick
-                        )
-                    }
-                }
-
-                if (
-                    state.isSearchMode &&
-                    currentSearchScope == SpaceSearchScope.VIDEO &&
-                    selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
-                ) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        LaunchedEffect(state.isSearchMode, currentSearchScope) {
-                            searchFocusRequester.requestFocus()
-                        }
-                        AppLiquidAwareSearchField(
-                            query = state.searchQuery,
-                            onQueryChange = onSearchQueryChange,
-                            placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .focusRequester(searchFocusRequester)
-                        )
-                    }
-                }
-
                 when (selectedContributionTab.subTab) {
                     SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO -> {
                         if (state.videos.isEmpty() && !state.isLoadingMore) {
@@ -2165,33 +2132,6 @@ private fun SpaceContent(
                 }
             }
         }
-    }
-
-        // [重构] 吸顶主 tab overlay：header 完全滚出后淡入显示，覆盖在内容上方
-        // （BiliPai TabBar pinned 语义；grid 无跨列 stickyHeader，故用浮层实现）
-        val tabPinned = gridState.firstVisibleItemIndex > 0
-        AnimatedVisibility(
-            visible = tabPinned,
-            enter = fadeIn(animationSpec = tween(160)),
-            exit = fadeOut(animationSpec = tween(120)),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SpaceMainTabRow(
-                    tabs = displayedMainTabs,
-                    selectedTab = resolveSpacePrimaryTab(selectedMainTab),
-                    onSelect = onMainTabSelected,
-                )
-                if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
-                    SpaceSecondarySwitchRow(
-                        items = secondarySwitchItems,
-                        selectedId = selectedSecondarySwitchId,
-                        onSelect = onSecondarySwitchSelected,
-                    )
-                }
-            }
         }
     }
 }
@@ -2575,6 +2515,66 @@ private fun SpaceSearchEntryChip(
                 text = label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpaceContentTabs(
+    state: SpaceUiState.Success,
+    onMainTabSelected: (SpaceMainTab) -> Unit,
+    onContributionTabSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val selectedMainTab = state.tabShellState.selectedTab
+    val displayedMainTabs = remember(state.mainTabs, selectedMainTab) {
+        resolveSpaceDisplayedMainTabs(
+            tabs = state.mainTabs,
+            selectedTab = selectedMainTab
+        )
+    }
+    val displayedContributionTabs = remember(state.contributionTabs, state.totalAudios) {
+        resolveDisplayedSpaceContributionTabs(
+            tabs = state.contributionTabs,
+            totalAudios = state.totalAudios
+        )
+    }
+    val secondarySwitchItems = remember(displayedContributionTabs) {
+        resolveSpaceSecondarySwitchItems(displayedContributionTabs)
+    }
+    val selectedSecondarySwitchId = remember(
+        selectedMainTab,
+        state.selectedContributionTabId,
+    ) {
+        resolveSelectedSpaceSecondarySwitchId(
+            selectedTab = selectedMainTab,
+            selectedContributionTabId = state.selectedContributionTabId,
+        )
+    }
+    val onSecondarySwitchSelected: (String) -> Unit = { id ->
+        val item = secondarySwitchItems.firstOrNull { it.id == id }
+        if (item != null) {
+            when (item.targetTab) {
+                SpaceMainTab.CONTRIBUTION -> {
+                    onMainTabSelected(SpaceMainTab.CONTRIBUTION)
+                    item.contributionTabId?.let(onContributionTabSelected)
+                }
+                else -> onMainTabSelected(item.targetTab)
+            }
+        }
+    }
+    Column(modifier = modifier) {
+        SpaceMainTabRow(
+            tabs = displayedMainTabs,
+            selectedTab = resolveSpacePrimaryTab(selectedMainTab),
+            onSelect = onMainTabSelected,
+        )
+        if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
+            SpaceSecondarySwitchRow(
+                items = secondarySwitchItems,
+                selectedId = selectedSecondarySwitchId,
+                onSelect = onSecondarySwitchSelected,
             )
         }
     }

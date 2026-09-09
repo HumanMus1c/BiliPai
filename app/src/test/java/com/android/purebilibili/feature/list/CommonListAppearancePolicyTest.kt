@@ -174,7 +174,8 @@ class CommonListAppearancePolicyTest {
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("historyViewModel != null || favoriteViewModel != null"))
-        assertTrue(source.contains("scrollUnderHeader = commonListHeaderCollapseEnabled"))
+        assertTrue(source.contains("scrollUnderHeader = commonListScrollUnderHeader"))
+        assertTrue(source.contains("captureScrollableContent = progressiveHeaderRequested"))
         assertTrue(source.contains("selectedContainerColor = MaterialTheme.colorScheme.primaryContainer"))
         assertTrue(source.contains("selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer"))
     }

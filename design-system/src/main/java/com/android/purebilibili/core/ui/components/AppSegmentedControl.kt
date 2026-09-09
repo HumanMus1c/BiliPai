@@ -113,7 +113,7 @@ fun resolveReadableNativeTabMinWidth(
         val padding = if (textWidth > 64) 28 else 24
         textWidth + padding
     } ?: 0
-    val boundedEstimatedWidthDp = maxEstimatedWidthDp.coerceAtMost(176)
+    val boundedEstimatedWidthDp = maxEstimatedWidthDp.coerceAtMost(320)
     return maxOf(requestedMinWidth, boundedEstimatedWidthDp.dp)
 }
 

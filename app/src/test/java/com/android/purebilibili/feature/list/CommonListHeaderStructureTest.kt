@@ -15,7 +15,7 @@ class CommonListHeaderStructureTest {
             .substringAfter("val contentModifier = Modifier")
             .substringBefore("Box(modifier = contentModifier)")
 
-        val backdropIndex = contentModifier.indexOf("layerBackdrop(commonListChromeBackdrop)")
+        val backdropIndex = contentModifier.indexOf("commonListChromeSource?.modifier")
         val fillIndex = contentModifier.indexOf(
             "globalWallpaperAwareBackground(AppSurfaceTokens.groupedListContainer())"
         )

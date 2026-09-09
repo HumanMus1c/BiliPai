@@ -54,12 +54,12 @@ internal fun resolveSpaceSearchPlaceholder(scope: SpaceSearchScope): String {
 
 internal fun resolveSpaceSearchBarGridItemIndex(
     scope: SpaceSearchScope,
-    hasContributionToolbar: Boolean
+    @Suppress("UNUSED_PARAMETER") hasContributionToolbar: Boolean
 ): Int? {
     return when (scope) {
-        // Header(0) + MainTabs(1) + optional SearchEntry(2) + optional ContributionToolbar
-        SpaceSearchScope.DYNAMIC -> 2
-        SpaceSearchScope.VIDEO -> if (hasContributionToolbar) 3 else 2
+        // Header(0) + optional SearchEntry. Main/secondary tabs are pinned outside the grid.
+        SpaceSearchScope.DYNAMIC,
+        SpaceSearchScope.VIDEO -> 1
         SpaceSearchScope.NONE -> null
     }
 }

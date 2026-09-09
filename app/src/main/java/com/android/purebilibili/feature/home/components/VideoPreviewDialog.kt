@@ -240,20 +240,6 @@ fun VideoPreviewDialog(
                             }
                         )
 
-                        if (onBlockCreator != null && shouldShowBlockCreatorAction(video.owner.mid)) {
-                            MenuDivider()
-                            PreviewMenuItem(
-                                text = "屏蔽 UP 主",
-                                icon = blockCreatorIcon,
-                                isDestructive = true,
-                                onClick = {
-                                    haptic(HapticType.HEAVY)
-                                    onBlockCreator()
-                                    onDismiss()
-                                }
-                            )
-                        }
-                        
                         if (onSaveCover != null && shouldEnableSaveCoverAction(video.pic)) {
                             MenuDivider()
                             PreviewMenuItem(
@@ -282,6 +268,20 @@ fun VideoPreviewDialog(
                                 onDismiss() // Closing dialog
                             }
                         )
+
+                        if (onBlockCreator != null && shouldShowBlockCreatorAction(video.owner.mid)) {
+                            MenuDivider()
+                            PreviewMenuItem(
+                                text = "屏蔽 UP 主",
+                                icon = blockCreatorIcon,
+                                isDestructive = true,
+                                onClick = {
+                                    haptic(HapticType.HEAVY)
+                                    onBlockCreator()
+                                    onDismiss()
+                                }
+                            )
+                        }
 
                         if (onNotInterested != null) {
                             MenuDivider()

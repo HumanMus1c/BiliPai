@@ -113,8 +113,15 @@ import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
+import com.android.purebilibili.feature.home.components.HomeTopChromeRenderMode
+import com.android.purebilibili.feature.home.components.LocalLiquidGlassRenderConfig
+import com.android.purebilibili.feature.home.components.homeTopBottomBarMatchedSurface
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
+import com.android.purebilibili.feature.home.components.resolveHomeTopEdgeButtonShape
+import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
+import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -744,7 +751,8 @@ fun SearchScreen(
     val effectiveLiquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
         androidNativeEnabled = androidNativeLiquidGlassEnabled,
     )
-    val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context).collectAsStateWithLifecycle(initialValue = false)
+    val progressiveTopBlurEnabled by SettingsManager.getProgressiveTopBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(context).collectAsStateWithLifecycle(initialValue = false)
     val cardMotionTier = resolveEffectiveMotionTier(
         baseTier = deviceUiProfile.motionTier,
@@ -1014,32 +1022,59 @@ fun SearchScreen(
                 .globalWallpaperAwareBackground()
                 .padding(padding)
         ) {
-            val searchChromeBackdrop = if (effectiveLiquidGlassEnabled) {
-                rememberLayerBackdrop()
+            val searchChromeSource = if ((progressiveTopBlurEnabled || effectiveLiquidGlassEnabled) && !state.isSearching) {
+                com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
             } else {
                 null
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (searchChromeBackdrop != null) {
-                            Modifier.layerBackdrop(searchChromeBackdrop)
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .globalWallpaperAwareBackground(),
-            )
+            val searchChromeBackdrop = searchChromeSource?.takeIf { it.isReady }?.backdrop
+            val immersiveSearchChrome = shouldUseBiliPaiProgressiveTopBlur(
+                enabled = progressiveTopBlurEnabled,
+                hasBackdrop = searchChromeBackdrop != null,
+            ) && !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
             // --- 列表内容层 ---
             if (state.showResults) {
-                Column(
+                AppScaffold(
                     modifier = Modifier
                         .responsiveContentWidth(maxWidth = searchContentWidth)
                         .fillMaxSize()
-                        .graphicsLayer { alpha = exitContentAlpha }
-                ) {
-                            Spacer(modifier = Modifier.height(contentTopPadding + 8.dp))
+                        .graphicsLayer { alpha = exitContentAlpha },
+                    containerColor = Color.Transparent,
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                    topBar = {
+                        BiliPaiImmersiveTopBar(
+                            backdrop = searchChromeBackdrop,
+                            enabled = immersiveSearchChrome,
+                            modifier = Modifier.background(
+                                if (immersiveSearchChrome) Color.Transparent else searchTopBarHeaderColor
+                            ),
+                        ) {
+                            Column {
+                            SearchTopBar(
+                                query = state.query,
+                                onBack = handleSearchBack,
+                                onQueryChange = { viewModel.onQueryChange(it) },
+                                onSearch = {
+                                    autoFocusConsumed = true
+                                    viewModel.search(it)
+                                    dismissSearchKeyboardAndFocus()
+                                },
+                                onClearQuery = { viewModel.onQueryChange("") },
+                                onFocusChanged = { focused ->
+                                    searchFieldFocused = focused
+                                    if (focused) {
+                                        autoFocusConsumed = true
+                                    }
+                                },
+                                focusRequester = searchFocusRequester,
+                                placeholder = state.defaultSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
+                                suggestedKeyword = state.defaultSearchHint,
+                                autoFocusEnabled = false,
+                                reducedMotionBudget = effectiveSearchMotionBudget == SearchMotionBudget.REDUCED,
+                                isScrollInProgressProvider = { isSearchResultsScrolling },
+                                liquidGlassEnabled = effectiveLiquidGlassEnabled,
+                                miuixBackdrop = searchChromeBackdrop,
+                            )
                             //  搜索彩蛋消息横幅
                             val easterEggMsg = state.easterEggMessage
                             if (easterEggMsg != null) {
@@ -1147,11 +1182,18 @@ fun SearchScreen(
                                     )
                                 }
                             }
+                            }
+                        }
+                    },
+                ) { resultChromePadding ->
+                    val resultTopPadding = resultChromePadding.calculateTopPadding()
                         HorizontalPager(
                             state = searchPagerState,
                             userScrollEnabled = false,
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxSize()
+                                .then(searchChromeSource?.modifier ?: Modifier)
+                        .globalWallpaperAwareBackground()
                                 .verticalPriorityHorizontalPagerSwipe(
                                     state = searchPagerState,
                                     enabled = true,
@@ -1270,7 +1312,7 @@ fun SearchScreen(
                                         columns = videoGridColumns,
                                         coverAspectRatio = cardLayout.coverAspectRatio,
                                         contentPadding = PaddingValues(
-                                            top = 0.dp,
+                                            top = resultTopPadding,
                                             bottom = resultBottomPadding,
                                             start = cardLayout.outerPaddingDp.dp,
                                             end = cardLayout.outerPaddingDp.dp,
@@ -1282,7 +1324,7 @@ fun SearchScreen(
                                 SearchType.UP, SearchType.LIVE_USER -> ContentMediaListSkeleton(
                                     useUserRow = true,
                                     contentPadding = PaddingValues(
-                                        top = 0.dp,
+                                        top = resultTopPadding,
                                         bottom = resultBottomPadding,
                                     ),
                                     modifier = Modifier
@@ -1292,7 +1334,7 @@ fun SearchScreen(
                                 else -> ContentMediaListSkeleton(
                                     useUserRow = false,
                                     contentPadding = PaddingValues(
-                                        top = 0.dp,
+                                        top = resultTopPadding,
                                         bottom = resultBottomPadding,
                                     ),
                                     modifier = Modifier
@@ -1366,7 +1408,7 @@ fun SearchScreen(
                                     columns = GridCells.Fixed(actualGridColumns),
                                     state = activePageGridState,
                                     contentPadding = PaddingValues(
-                                        top = 0.dp,
+                                        top = resultTopPadding,
                                         bottom = resultBottomPadding,
                                         start = cardLayout.outerPaddingDp.dp,
                                         end = cardLayout.outerPaddingDp.dp
@@ -1506,7 +1548,7 @@ fun SearchScreen(
                             com.android.purebilibili.data.model.response.SearchType.UP -> {
                                 //  UP主搜索结果
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1587,7 +1629,7 @@ fun SearchScreen(
                             com.android.purebilibili.data.model.response.SearchType.MEDIA_FT -> {
                                 //  番剧/影视搜索结果
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1671,7 +1713,7 @@ fun SearchScreen(
                             com.android.purebilibili.data.model.response.SearchType.LIVE -> {
                                 //  直播搜索结果
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1751,7 +1793,7 @@ fun SearchScreen(
                             }
                             com.android.purebilibili.data.model.response.SearchType.LIVE_USER -> {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1806,7 +1848,7 @@ fun SearchScreen(
                             }
                             com.android.purebilibili.data.model.response.SearchType.ARTICLE -> {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1884,7 +1926,7 @@ fun SearchScreen(
                             }
                             com.android.purebilibili.data.model.response.SearchType.TOPIC -> {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -1928,7 +1970,7 @@ fun SearchScreen(
                             }
                             com.android.purebilibili.data.model.response.SearchType.PHOTO -> {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
+                                    contentPadding = PaddingValues(top = resultTopPadding, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     state = activePageListState,
                                     modifier = Modifier
@@ -2016,6 +2058,8 @@ fun SearchScreen(
                     onClearHistory = viewModel::clearHistory,
                     onDeleteHistory = viewModel::deleteHistory,
                     modifier = Modifier
+                        .then(searchChromeSource?.modifier ?: Modifier)
+                        .globalWallpaperAwareBackground()
                         .graphicsLayer { alpha = exitContentAlpha }
                         .then(
                             if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier
@@ -2023,7 +2067,14 @@ fun SearchScreen(
                 )
             }
 
-            // ---  顶部搜索栏 (常驻顶部) ---
+            // Landing keeps an overlay search bar; results pin it in the scaffold chrome
+            // so the type dock stays below it instead of sliding underneath.
+            if (!state.showResults) {
+            BiliPaiImmersiveTopBar(
+                backdrop = searchChromeBackdrop,
+                enabled = immersiveSearchChrome,
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
             SearchTopBar(
                 query = state.query,
                 onBack = handleSearchBack,
@@ -2061,10 +2112,11 @@ fun SearchScreen(
                     }
                 },
                 isScrollInProgressProvider = { isSearchResultsScrolling },
+                liquidGlassEnabled = effectiveLiquidGlassEnabled,
+                miuixBackdrop = searchChromeBackdrop,
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
                     .then(
-                        if (shouldUseSearchTopBarBlur) {
+                        if (!immersiveSearchChrome && shouldUseSearchTopBarBlur) {
                             Modifier.unifiedBlur(
                                 hazeState = hazeState,
                                 surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
@@ -2075,8 +2127,11 @@ fun SearchScreen(
                             Modifier
                         }
                     )
-                    .background(searchTopBarHeaderColor)
+                    .background(if (immersiveSearchChrome) Color.Transparent else searchTopBarHeaderColor)
             )
+
+            }
+            }
 
             AppBackToTopButton(
                 visible = backToTopButtonEnabled && shouldShowBackToTop,
@@ -2139,6 +2194,8 @@ fun SearchTopBar(
     exitMotionKey: Int = 0,
     onExitMotionFinished: (Int) -> Unit = {},
     isScrollInProgressProvider: () -> Boolean = { false },
+    liquidGlassEnabled: Boolean = false,
+    miuixBackdrop: MiuixBackdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val topChromePolicy = rememberAppTopChromePolicy()
@@ -2173,6 +2230,34 @@ fun SearchTopBar(
         )
     }
     val canSubmit = resolvedSubmitKeyword.isNotBlank()
+    val liquidGlassRenderConfig = LocalLiquidGlassRenderConfig.current
+    val glassActive = liquidGlassEnabled && miuixBackdrop != null && !isLowBlurBudgetForced()
+    val glassRenderMode = if (glassActive) {
+        HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP
+    } else {
+        HomeTopChromeRenderMode.PLAIN
+    }
+    fun Modifier.searchTopChromeGlass(
+        shape: androidx.compose.ui.graphics.Shape,
+        controlHeightDp: Int,
+    ): Modifier {
+        if (!glassActive) return this
+        return homeTopBottomBarMatchedSurface(
+            renderMode = glassRenderMode,
+            shape = shape,
+            hazeState = null,
+            miuixBackdrop = miuixBackdrop,
+            liquidGlassStyle = com.android.purebilibili.core.store.LiquidGlassStyle.CLASSIC,
+            liquidGlassTuning = liquidGlassRenderConfig.tuning,
+            liquidGlassPreset = liquidGlassRenderConfig.preset,
+            motionTier = MotionTier.Normal,
+            isScrolling = isScrollInProgressProvider(),
+            isTransitionRunning = false,
+            forceLowBlurBudget = false,
+            drawShellLens = true,
+            shellLensIntensity = resolveFloatingDockGeometryScale(controlHeightDp.toFloat()),
+        )
+    }
 
     // Preserve caret/selection while typing; only resync when external text changes
     // (clear, keyword click, initial keyword). Using TextFieldValue avoids String-field
@@ -2274,9 +2359,13 @@ fun SearchTopBar(
                     .then(entryMotionModifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val inputShape = resolveSearchInputShape(topChromePolicy)
+                val actionShape = resolveHomeTopEdgeButtonShape(topChromePolicy)
                 SearchTopBarIconButton(
                     onClick = onBack,
-                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
+                    modifier = Modifier
+                        .size(chromeSpec.clearActionSizeDp.dp)
+                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp)
                 ) {
                     AppIcon(
                         backIcon,
@@ -2288,9 +2377,9 @@ fun SearchTopBar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                val inputShape = resolveSearchInputShape(topChromePolicy)
-                val actionShape = AppShapes.container(chromeSpec.actionShapeLevel)
-                val containerColor = if (chromeSpec.useFilledSearchAction) {
+                val containerColor = if (glassActive) {
+                    Color.Transparent
+                } else if (chromeSpec.useFilledSearchAction) {
                     AppSurfaceTokens.surfaceContainerHigh()
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -2316,6 +2405,7 @@ fun SearchTopBar(
                         .weight(1f)
                         .fillMaxWidth()
                         .height(chromeSpec.inputHeightDp.dp)
+                        .searchTopChromeGlass(inputShape, chromeSpec.inputHeightDp)
                         .onFocusChanged { onFocusChanged(it.isFocused) }
                 )
 
@@ -2326,12 +2416,20 @@ fun SearchTopBar(
                     enabled = canSubmit,
                     modifier = Modifier
                         .size(chromeSpec.submitActionSizeDp.dp)
-                        .clip(actionShape)
-                        .background(
-                            if (canSubmit) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                        .searchTopChromeGlass(actionShape, chromeSpec.submitActionSizeDp)
+                        .then(
+                            if (glassActive) {
+                                Modifier
                             } else {
-                                Color.Transparent
+                                Modifier
+                                    .clip(actionShape)
+                                    .background(
+                                        if (canSubmit) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
                             }
                         )
                 ) {
@@ -2347,10 +2445,14 @@ fun SearchTopBar(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(chromeSpec.horizontalGapDp.dp))
+
                 SearchTopBarIconButton(
                     onClick = onClearQuery,
                     enabled = query.isNotEmpty(),
-                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
+                    modifier = Modifier
+                        .size(chromeSpec.clearActionSizeDp.dp)
+                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp)
                 ) {
                     AppIcon(
                         clearIcon,
@@ -2414,8 +2516,15 @@ private fun SearchTopBarInputField(
         onValueChange = onValueChange,
         modifier = modifier
             .focusRequester(focusRequester)
-            .clip(fieldShape)
-            .background(containerColor, fieldShape)
+            .then(
+                if (containerColor.alpha > 0.001f) {
+                    Modifier
+                        .clip(fieldShape)
+                        .background(containerColor, fieldShape)
+                } else {
+                    Modifier
+                }
+            )
             .then(
                 if (isFocused) {
                     Modifier.border(
@@ -3581,7 +3690,6 @@ internal fun UpSearchResultCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    
                     UserLevelBadge(
                         level = cleanedItem.level,
                         isSeniorMember = cleanedItem.is_senior_member == 1
@@ -3688,9 +3796,7 @@ internal fun BangumiSearchResultCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                
                 // 类型 + 集数
                 Row {
                     if (item.seasonTypeName.isNotBlank()) {
@@ -3716,7 +3822,6 @@ internal fun BangumiSearchResultCard(
                         )
                     }
                 }
-                
                 // 评分
                 item.mediaScore?.let { score ->
                     if (score.score > 0) {
@@ -3738,7 +3843,6 @@ internal fun BangumiSearchResultCard(
                         }
                     }
                 }
-                
                 // 简介
                 if (item.desc.isNotBlank()) {
                     Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -3793,7 +3897,6 @@ internal fun LiveSearchResultCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop
                 )
-                
                 // 直播状态标签
                 if (item.live_status == 1) {
                     AppSurface(
@@ -3815,7 +3918,6 @@ internal fun LiveSearchResultCard(
                         )
                     }
                 }
-                
                 // 在线人数
                 if (item.online > 0) {
                     AppSurface(
@@ -3852,9 +3954,7 @@ internal fun LiveSearchResultCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                
                 // 主播名
                 SearchResultText(
                     text = item.uname,
@@ -3864,13 +3964,11 @@ internal fun LiveSearchResultCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
                 Spacer(
                     modifier = Modifier.height(
                         if (useMiuixNonGlassPresentation) AppSpacingTokens.ExtraSmall else 2.dp
                     )
                 )
-                
                 // 分区
                 if (item.area_v2_name.isNotBlank()) {
                     SearchResultText(

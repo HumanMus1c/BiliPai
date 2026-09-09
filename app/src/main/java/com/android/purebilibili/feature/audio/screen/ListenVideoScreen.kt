@@ -187,7 +187,6 @@ internal fun ListenVideoScreen(
                     )
                 )
             )
-            .statusBarsPadding()
     ) {
         val layout = resolveListenVideoLayout(maxWidth.value.toInt())
         Box(
@@ -204,7 +203,11 @@ internal fun ListenVideoScreen(
                     )
                 ),
         )
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
             ListenVideoHeader(
                 nowPlaying = nowPlaying,
                 onNowPlayingClick = onNowPlayingClick,

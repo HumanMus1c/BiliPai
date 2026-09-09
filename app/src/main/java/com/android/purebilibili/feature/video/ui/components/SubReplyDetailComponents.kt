@@ -509,6 +509,7 @@ internal fun SubReplyDetailContent(
     maxTimestampMs: Long? = null,
     remoteReplyCount: Int = 0,
     targetReplyId: Long = 0,
+    headerDragModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     val layoutPolicy = remember {
@@ -698,6 +699,7 @@ internal fun SubReplyDetailContent(
                 .fillMaxWidth()
                 .then(if (applyStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
                 .padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 10.dp)
+                .then(headerDragModifier)
                 .testTag(SUB_REPLY_DETAIL_HEADER_TAG)
         ) {
             Row(

@@ -33,8 +33,9 @@ class ListenVideoNavigationStructureTest {
         assertTrue(listenVideoBranch.contains("ListenVideoRoute("))
         assertTrue(listenVideoBranch.contains("PlaylistManager.setExternalPlaylist("))
         assertTrue(listenVideoBranch.contains("ExternalPlaylistSource.FAVORITE"))
-        assertTrue(listenVideoBranch.contains("startAudio = true"))
-        assertTrue(listenVideoBranch.contains("ScreenRoutes.ListenVideo.route"))
+        assertTrue(listenVideoBranch.contains("BiliPaiNavKey.AudioMode("))
+        assertFalse(listenVideoBranch.contains("startAudio = true"))
+        assertFalse(listenVideoBranch.contains("BiliPaiNavKey.VideoDetail("))
         assertFalse(listenVideoBranch.contains("Box(modifier = Modifier.fillMaxSize())"))
     }
 
@@ -50,7 +51,7 @@ class ListenVideoNavigationStructureTest {
         assertTrue(screenSource.contains("onNowPlayingClick"))
         assertTrue(screenSource.contains("item.bvid"))
         assertTrue(navigationSource.contains("onNowPlayingClick ="))
-        assertTrue(navigationSource.contains("startAudio = true"))
+        assertTrue(navigationSource.contains("BiliPaiNavKey.AudioMode(sourceBvid = bvid)"))
     }
 
     private fun loadSource(path: String): String {

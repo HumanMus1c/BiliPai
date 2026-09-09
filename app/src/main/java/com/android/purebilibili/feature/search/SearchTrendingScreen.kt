@@ -30,7 +30,7 @@ import androidx.compose.material.icons.rounded.Search
 import com.android.purebilibili.core.ui.skeleton.TrendingListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -64,6 +64,7 @@ fun SearchTrendingScreen(
     val pullRefreshState = rememberPullToRefreshState()
 
     AppScaffold(
+        blurContentReady = !state.isLoading,
         topBar = {
             AppTopBar(
                 title = "bilibili 热搜",
@@ -117,14 +118,13 @@ fun SearchTrendingScreen(
                 isRefreshing = state.isRefreshing,
                 onRefresh = viewModel::refresh,
                 state = pullRefreshState,
-                indicatorTopInset = 0.dp,
+                indicatorTopInset = paddingValues.calculateTopPadding(),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                    contentPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = paddingValues.calculateBottomPadding() + 24.dp)
                 ) {
                     item {
                         SearchTrendingHero()

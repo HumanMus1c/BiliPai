@@ -349,6 +349,14 @@ internal class MiuixVideoCardTransitionProgress {
         }
     }
 
+    /** Observe the ordinary slide too, so related source metadata survives its entire pop. */
+    fun observe(transition: NavTransition): NavTransition = object : NavTransition by transition {
+        override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier {
+            bind(scope)
+            return with(transition) { this@transformEntry.transformEntry(scope) }
+        }
+    }
+
     fun clear() {
         topScope = null
     }

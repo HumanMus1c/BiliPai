@@ -48,6 +48,7 @@ import androidx.media3.common.Player
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
 import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.state.rememberVideoPlayerState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -272,6 +273,7 @@ fun AudioModeScreen(
     }
     DisposableEffect(viewModel) {
         viewModel.setAudioMode(true)
+        AudioNowPlayingSession.markListening()
         onDispose { viewModel.setAudioMode(false) }
     }
 
@@ -301,7 +303,8 @@ fun AudioModeScreen(
         onToggleOrientation = {
             activity?.applyPlayerRequestedOrientation(resolveAudioModeRequestedOrientation(isLandscape))
         },
-        orientationActionLabel = orientationActionLabel
+        orientationActionLabel = orientationActionLabel,
+        engagementViewModel = engagementViewModel
     )
 }
 

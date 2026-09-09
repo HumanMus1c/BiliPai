@@ -1250,6 +1250,10 @@ internal fun VideoDetailScreenStateHolder(
         userRequestedFullscreen = userRequestedFullscreen,
         isInMultiWindowMode = isActivityInMultiWindowMode
     )
+    val canShowLandscapeComments = isFullscreenMode && isLandscape && !isPipMode && !isPortraitFullscreen
+    LaunchedEffect(canShowLandscapeComments) {
+        if (!canShowLandscapeComments) landscapeCommentPanelVisible = false
+    }
     // The navigation rail may retain its slot for card return geometry, but immersive playback
     // must receive the entire window. Pair the route-owned request with disposal cleanup.
     val isImmersivePlayback = isFullscreenMode || isPortraitFullscreen || isPipMode
@@ -3206,7 +3210,7 @@ internal fun VideoDetailScreenStateHolder(
                 onLandscapeCommentClick = {
                     landscapeCommentPanelVisible = !landscapeCommentPanelVisible
                 },
-                landscapeCommentPanelVisible = landscapeCommentPanelVisible,
+                landscapeCommentPanelVisible = canShowLandscapeComments && landscapeCommentPanelVisible,
                 landscapeCommentPanelOnLeft = landscapeCommentPanelOnLeft,
             ),
         )
@@ -3239,7 +3243,7 @@ internal fun VideoDetailScreenStateHolder(
                         )
                     )
                     val success = uiState as? VideoPlaybackUiState.Success
-                    if (landscapeCommentPanelVisible && success != null) {
+                    if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
                             info = success.info, listState = commentListState,
                             replies = commentState.replies, replyCount = commentState.replyCount,
@@ -3326,7 +3330,7 @@ internal fun VideoDetailScreenStateHolder(
                     onLandscapeCommentClick = {
                         landscapeCommentPanelVisible = !landscapeCommentPanelVisible
                     },
-                    landscapeCommentPanelVisible = landscapeCommentPanelVisible,
+                    landscapeCommentPanelVisible = canShowLandscapeComments && landscapeCommentPanelVisible,
                     landscapeCommentPanelOnLeft = landscapeCommentPanelOnLeft,
                     onDanmakuInputClick = { viewModel.showDanmakuSendDialog() },
                     danmakuComposerVisible = showDanmakuDialog && useInlineDanmakuComposer,
@@ -3468,7 +3472,7 @@ internal fun VideoDetailScreenStateHolder(
                         onSubtitleTrackSelected = viewModel::selectSubtitleTrack
                     )
                     val success = uiState as? VideoPlaybackUiState.Success
-                    if (landscapeCommentPanelVisible && success != null) {
+                    if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
                             info = success.info,
                             listState = commentListState,
@@ -5137,7 +5141,7 @@ internal fun VideoDetailScreenStateHolder(
         val successState = uiState as? VideoPlaybackUiState.Success
         DetachedVideoCommentThreadHost(
             visible = shouldShowDetachedVideoCommentThreadHost(useTabletLayout = useTabletLayout) &&
-                !(isFullscreenMode && landscapeCommentPanelVisible),
+                !(canShowLandscapeComments && landscapeCommentPanelVisible),
             successState = successState,
             commentState = commentState,
             commentViewModel = commentViewModel,

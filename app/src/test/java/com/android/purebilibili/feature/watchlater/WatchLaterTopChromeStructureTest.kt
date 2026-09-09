@@ -15,7 +15,7 @@ class WatchLaterTopChromeStructureTest {
         assertTrue(source.contains("homeSettings.homeHeaderCollapseMode.hasAnyCollapse"))
         assertTrue(source.contains("TopAppBarDefaults.enterAlwaysScrollBehavior()"))
         assertTrue(source.contains("TopAppBarDefaults.pinnedScrollBehavior()"))
-        assertTrue(source.contains("biliPaiProgressiveTopBlur("))
+        assertTrue(source.contains("BiliPaiImmersiveTopBar("))
         assertTrue(source.contains("layerBackdrop(watchLaterChromeBackdrop)"))
         assertTrue(source.contains("AppLiquidAwareSearchField("))
         assertTrue(source.contains("AppThemeAdaptiveTabRow("))

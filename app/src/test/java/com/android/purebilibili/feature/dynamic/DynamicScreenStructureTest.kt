@@ -45,7 +45,7 @@ class DynamicScreenStructureTest {
         assertTrue(source.contains("animateScale = false"))
         assertTrue(!source.contains("TopReadabilityChrome("))
         assertTrue(!source.contains("dynamicFeedBackdrop"))
-        assertTrue(source.contains("val dynamicDockBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("val dynamicDockBackdrop = dynamicDockSource?.takeIf { it.isReady }?.backdrop"))
         assertTrue(source.contains(".layerBackdrop(dynamicDockBackdrop)"))
         assertTrue(source.contains("hazeSourceCompat(state = dynamicTopBarHazeState)"))
         assertTrue(source.contains("rememberRecoverableHazeState("))

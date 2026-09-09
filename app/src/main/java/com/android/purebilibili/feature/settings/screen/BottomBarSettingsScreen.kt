@@ -58,6 +58,7 @@ import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.components.*
@@ -312,7 +313,7 @@ fun BottomBarSettingsContent(
         state = listState,
         modifier = modifier
             .fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = settingsScrollContentPadding(extraHorizontal = 16.dp, extraVertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
             // 说明文字

@@ -138,3 +138,9 @@ internal fun resolveBiliPaiNavEntryContentRole(key: BiliPaiNavKey): BiliPaiNavEn
         is BiliPaiNavKey.Unknown -> BiliPaiNavEntryContentRole.HOME
     }
 }
+
+/** A translucent destination must never composite over a retained player/detail page. */
+internal fun shouldUseOpaqueVideoChildBackground(
+    key: BiliPaiNavKey,
+    backStack: List<BiliPaiNavKey>,
+): Boolean = backStack.takeWhile { it != key }.any { it is BiliPaiNavKey.VideoDetail }

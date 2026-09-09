@@ -44,6 +44,7 @@ import com.android.purebilibili.core.store.AppIconAppearance
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -172,19 +173,10 @@ fun IconSettingsContent(
     
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 100.dp),
-        contentPadding = PaddingValues(
-            top = 16.dp, // Removed padding.calculateTopPadding() because modifier handles it? 
-            // Warning: modifier.padding(padding) applies padding to the container. 
-            // LazyVerticalGrid contentPadding joins with that?
-            // Usually we want contentPadding to include the system bars if strictly necessary, 
-            // but here `padding` passed from Scaffold includes TopBar height.
-            // If I apply `modifier.padding(padding)` to `IconSettingsContent`, 
-            // then `LazyVerticalGrid` starts BELOW the TopBar.
-            // So `contentPadding.top` should just be the extra spacing (16.dp).
-            
-            bottom = contentBottomPadding,
-            start = 16.dp,
-            end = 16.dp
+        contentPadding = settingsScrollContentPadding(
+            extraTop = 16.dp,
+            extraBottom = contentBottomPadding,
+            extraHorizontal = 16.dp,
         ),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),

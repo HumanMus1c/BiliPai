@@ -162,21 +162,21 @@ class SpaceLoadPolicyTest {
     @Test
     fun resolveSpaceSearchBarGridItemIndex_keepsSearchBarVisibleAfterTopBarClick() {
         assertEquals(
-            2,
+            1,
             resolveSpaceSearchBarGridItemIndex(
                 scope = SpaceSearchScope.DYNAMIC,
                 hasContributionToolbar = false
             )
         )
         assertEquals(
-            3,
+            1,
             resolveSpaceSearchBarGridItemIndex(
                 scope = SpaceSearchScope.VIDEO,
                 hasContributionToolbar = true
             )
         )
         assertEquals(
-            2,
+            1,
             resolveSpaceSearchBarGridItemIndex(
                 scope = SpaceSearchScope.VIDEO,
                 hasContributionToolbar = false

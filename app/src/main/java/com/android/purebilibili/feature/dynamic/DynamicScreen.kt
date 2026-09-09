@@ -117,8 +117,6 @@ import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisi
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -355,8 +353,6 @@ fun DynamicScreen(
     }
 
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
-    // Dock 只采集内容用于折射，顶部 tuning 将 blur 半径固定为 0。
-    val dynamicDockBackdrop = if (appThemeConfig.liquidGlassEnabled) rememberLayerBackdrop() else null
     // 顶部高斯模糊使用独立 Haze 源；液态玻璃的 Backdrop 渐进模糊仍单独由
     // DynamicTopBarWithTabs 根据安卓原生液态玻璃开关控制。
     val dynamicTopBarHazeState = if (
@@ -719,6 +715,16 @@ fun DynamicScreen(
                 },
                 label = "displayModeTransition"
             ) { targetMode ->
+                // Each animated layout owns one source; outgoing/incoming trees must not share it.
+                val dynamicDockSource = if (
+                    (appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.headerBlurEnabled || appThemeConfig.liquidGlassEnabled) &&
+                    !(activePresentation.isLoading && activePresentation.items.isEmpty())
+                ) {
+                    com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
+                } else {
+                    null
+                }
+                val dynamicDockBackdrop = dynamicDockSource?.takeIf { it.isReady }?.backdrop
                 //  根据布局模式选择不同布局
                 when (targetMode) {
                     DynamicDisplayMode.SIDEBAR,
@@ -772,11 +778,7 @@ fun DynamicScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .then(
-                                        if (dynamicDockBackdrop != null) {
-                                            Modifier.layerBackdrop(dynamicDockBackdrop)
-                                        } else {
-                                            Modifier
-                                        }
+                                        dynamicDockSource?.modifier ?: Modifier
                                     )
                                     .then(
                                         if (dynamicTopBarHazeState != null) {
@@ -970,11 +972,7 @@ fun DynamicScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(
-                                    if (dynamicDockBackdrop != null) {
-                                        Modifier.layerBackdrop(dynamicDockBackdrop)
-                                    } else {
-                                        Modifier
-                                    }
+                                    dynamicDockSource?.modifier ?: Modifier
                                 )
                                 .then(
                                     if (dynamicTopBarHazeState != null) {

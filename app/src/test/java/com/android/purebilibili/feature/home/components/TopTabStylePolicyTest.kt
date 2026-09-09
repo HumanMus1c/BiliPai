@@ -731,7 +731,7 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `android native miuix top tabs should use miuix secondary container emphasis`() {
+    fun `android native miuix top tabs should use miuix neutral surface content color`() {
         val colorScheme = lightColorScheme(
             primary = Color(0xFF2D6A4F),
             surfaceContainerHigh = Color(0xFFF4ECE1),
@@ -742,24 +742,34 @@ class TopTabStylePolicyTest {
         )
 
         assertEquals(
-            colorScheme.secondaryContainer,
+            colorScheme.onSurface,
             resolveMd3TopTabSelectedContainerColor(
                 colorScheme = colorScheme,
-                presentation = AppTopTabPresentation.TONAL_CAPSULE
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                uiStyle = AppUiStyle.MIUIX
             )
         )
         assertEquals(
-            colorScheme.onSecondaryContainer,
+            colorScheme.onSurface,
             resolveMd3TopTabSelectedIconColor(
                 colorScheme = colorScheme,
-                presentation = AppTopTabPresentation.TONAL_CAPSULE
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                uiStyle = AppUiStyle.MIUIX
             )
         )
         assertEquals(
-            colorScheme.onSecondaryContainer,
+            colorScheme.onSurface,
             resolveMd3TopTabSelectedLabelColor(
                 colorScheme = colorScheme,
-                presentation = AppTopTabPresentation.TONAL_CAPSULE
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                uiStyle = AppUiStyle.MIUIX
+            )
+        )
+        assertEquals(
+            colorScheme.onSurface,
+            resolveIosTopTabSelectedContentColor(
+                colorScheme = colorScheme,
+                uiStyle = AppUiStyle.MIUIX
             )
         )
     }

@@ -18,6 +18,7 @@ import com.android.purebilibili.core.plugin.json.JsonRulePlugin
 import com.android.purebilibili.core.plugin.json.Rule
 import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppCardDefaults
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -100,7 +101,7 @@ fun JsonPluginEditorContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = settingsScrollContentPadding(extraHorizontal = 16.dp, extraVertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 基本信息

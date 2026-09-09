@@ -31,29 +31,27 @@ class HomeEmbeddedTopTabPageStructureTest {
     }
 
     @Test
-    fun bangumiHomePageCollapsesCategoryTabsOnScroll() {
+    fun bangumiHomePageKeepsChannelTabsVisible() {
         val source = File("src/main/java/com/android/purebilibili/feature/bangumi/HomeBangumiTabPage.kt").readText()
-        assertTrue(source.contains("AnimatedVisibility("))
-        assertTrue(source.contains("onHomeScrollChanged"))
-        assertTrue(source.contains("categoryTabsVisible"))
         assertTrue(source.contains("scrollToTopRequestId"))
         assertTrue(source.contains("listBottomPadding = contentPadding.calculateBottomPadding()"))
         assertTrue(!source.contains(".padding(contentPadding)"))
+        assertTrue(!source.contains("categoryTabsVisible"))
+        assertTrue(!source.contains("AnimatedVisibility("))
     }
 
     @Test
-    fun bangumiPageBackdropIsASiblingSharedByAllTabRows() {
+    fun bangumiPageCapturesContentWithoutCapturingItsChannelDock() {
         val source = File(
             "src/main/java/com/android/purebilibili/feature/bangumi/HomeBangumiTabPage.kt"
         ).readText()
 
         assertTrue(source.contains("miuixBackdrop = channelBackdrop"))
-        assertTrue(source.contains(".layerBackdrop(channelBackdrop)"))
-        assertTrue(source.contains(".background(MaterialTheme.colorScheme.background)"))
-        assertTrue(source.contains("tabBackdrop = channelBackdrop"))
-        assertTrue(
-            source.indexOf(".layerBackdrop(channelBackdrop)") <
-                source.indexOf("Column(modifier = Modifier.fillMaxSize())")
-        )
+        assertTrue(source.contains(".then(chromeSource?.modifier ?: Modifier)"))
+        assertTrue(source.contains(".globalWallpaperAwareBackground(MaterialTheme.colorScheme.background)"))
+        assertTrue(!source.contains("tabBackdrop = channelBackdrop"))
+        assertTrue(source.contains("listTopPadding = channelHeight"))
+        assertTrue(source.contains("chromeSource?.takeIf { it.isReady }?.backdrop"))
+        assertTrue(source.indexOf("BangumiHubContent(") < source.indexOf("AppLiquidAwareTabRow("))
     }
 }

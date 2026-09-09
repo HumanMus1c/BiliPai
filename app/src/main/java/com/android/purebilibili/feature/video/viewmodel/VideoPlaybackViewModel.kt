@@ -3929,6 +3929,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 title = video.title,
                 cover = video.pic,
                 owner = video.owner.name,
+                ownerFace = video.owner.face,
                 duration = video.duration.toLong()
             )
         }
@@ -3940,6 +3941,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             title = currentInfo.title,
             cover = currentInfo.pic,
             owner = currentInfo.owner.name,
+            ownerFace = currentInfo.owner.face,
             duration = 0L // ViewInfo 暂无 duration 字段，暂置为 0
         )
 

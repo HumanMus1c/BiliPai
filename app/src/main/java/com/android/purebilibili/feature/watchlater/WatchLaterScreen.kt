@@ -69,6 +69,7 @@ import com.android.purebilibili.core.ui.videoCardTitleMaxLines
 import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.components.AppWindowActionMenu
@@ -102,7 +103,8 @@ import com.android.purebilibili.feature.list.resolveHistoryFilterTabChromeSpec
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
 import com.android.purebilibili.feature.personal.PersonalMediaCardSkeleton
 import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
-import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
+import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
+import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
 import com.android.purebilibili.core.util.CardPositionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,8 +119,6 @@ import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Search
 import com.android.purebilibili.core.util.FormatUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 // 辅助函数：格式化时长
 private fun formatDuration(seconds: Int): String {
@@ -662,11 +662,16 @@ fun WatchLaterScreen(
     )
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     val hazeState = if (appThemeConfig.headerBlurEnabled) rememberRecoverableHazeState() else null
-    val watchLaterChromeBackdrop = if (appThemeConfig.liquidGlassEnabled) {
-        rememberLayerBackdrop()
+    val watchLaterChromeSource = if ((appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.liquidGlassEnabled) && !state.isLoading) {
+        com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
         null
     }
+    val watchLaterChromeBackdrop = watchLaterChromeSource?.takeIf { it.isReady }?.backdrop
+    val progressiveChromeActive = shouldUseBiliPaiProgressiveTopBlur(
+        enabled = appThemeConfig.progressiveTopBlurEnabled,
+        hasBackdrop = watchLaterChromeBackdrop != null,
+    ) && !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
     val topChromePolicy = rememberAppTopChromePolicy()
     val watchLaterFilterChrome = remember(homeSettings, topChromePolicy) {
         resolveHistoryFilterTabChromeSpec(
@@ -717,37 +722,20 @@ fun WatchLaterScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             // 使用 Box 包裹实现毛玻璃背景
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (appThemeConfig.liquidGlassEnabled && watchLaterChromeBackdrop != null) {
-                            Modifier.biliPaiProgressiveTopBlur(
-                                backdrop = watchLaterChromeBackdrop,
-                                enabled = true,
-                            )
-                        } else if (appThemeConfig.headerBlurEnabled && hazeState != null) {
-                            Modifier.unifiedBlur(
-                                hazeState = hazeState,
-                                surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
-                            )
-                        } else {
-                            Modifier
-                        }
-                    )
+            BiliPaiImmersiveTopBar(
+                backdrop = watchLaterChromeBackdrop,
+                enabled = progressiveChromeActive,
+                modifier = Modifier.fillMaxWidth()
+                    .background(
+                        if (progressiveChromeActive || hazeState != null) Color.Transparent
+                        else AppSurfaceTokens.groupedListContainer()
+                    ).then(
+                    if (appThemeConfig.headerBlurEnabled && hazeState != null) Modifier.unifiedBlur(
+                        hazeState = hazeState,
+                        surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
+                    ) else Modifier
+                ),
             ) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(
-                            if (watchLaterChromeBackdrop != null) {
-                                Modifier.layerBackdrop(watchLaterChromeBackdrop)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .background(AppSurfaceTokens.groupedListContainer()),
-                )
                 Column {
                 AppTopBar(
                     title = resolveWatchLaterTitle(
@@ -985,7 +973,6 @@ fun WatchLaterScreen(
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 }
-                
                 // 分割线 (仅在滚动时显示? 这里简化一直显示细线或跟随滚动)
                 // 暂时不加显式分割线，依靠毛玻璃效果
             }
@@ -996,6 +983,7 @@ fun WatchLaterScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(watchLaterChromeSource?.modifier ?: Modifier)
                 .then(
                     if (hazeState != null) {
                         Modifier.hazeSourceCompat(state = hazeState)
@@ -1003,6 +991,7 @@ fun WatchLaterScreen(
                         Modifier
                     }
                 )
+                .globalWallpaperAwareBackground(AppSurfaceTokens.groupedListContainer())
         ) {
             when {
                 state.isLoading -> {

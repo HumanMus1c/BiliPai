@@ -11,9 +11,9 @@ class ProgressiveTopChromePolicyTest {
     @Test
     fun sharedProgressiveBlurUsesTheSoftTopEdgePreset() {
         assertEquals(10f, BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP)
-        assertEquals(0.12f, BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION)
+        assertEquals(0f, BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION)
         assertEquals(1.25f, BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE)
-        assertEquals(0.12f, BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.startFraction)
+        assertEquals(0f, BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.startFraction)
         assertEquals(1.25f, BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.curve)
         val source = loadSource("feature/home/components/ProgressiveTopChrome.kt")
         assertTrue(source.contains("gradient = ProgressiveBlur.Top"))
@@ -44,11 +44,41 @@ class ProgressiveTopChromePolicyTest {
         val commonList = loadSource("feature/list/CommonListScreen.kt")
 
         assertTrue(homeHeader.contains("Modifier.biliPaiProgressiveTopBlur("))
-        assertTrue(homeHeader.contains("homeSettings?.androidNativeLiquidGlassEnabled == true"))
-        assertTrue(dynamicTopBar.contains("modifier.biliPaiProgressiveTopBlur("))
-        assertTrue(dynamicTopBar.contains("enabled = liquidGlassEnabled"))
-        assertTrue(commonList.contains(".biliPaiProgressiveTopBlur("))
-        assertTrue(commonList.contains("enabled = homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(homeHeader.contains("useProgressiveTopBlur = isProgressiveBlurRequested"))
+        assertTrue(dynamicTopBar.contains("BiliPaiImmersiveTopBar("))
+        assertTrue(dynamicTopBar.contains("enabled = isProgressiveBlurActive"))
+        assertTrue(commonList.contains("BiliPaiImmersiveTopBar("))
+        assertTrue(commonList.contains("enabled = isProgressiveTopBlurEnabled"))
+        val bangumiHub = loadSource("feature/bangumi/BangumiScreen.kt")
+        val bangumiDetail = loadSource("feature/bangumi/BangumiDetailScreen.kt")
+        val bangumiReview = loadSource("feature/bangumi/BangumiReviewScreen.kt")
+        assertTrue(bangumiHub.contains("ImmersiveAppScaffold as AppScaffold"))
+        assertTrue(bangumiHub.contains("listTopPadding = listTopPadding"))
+        assertTrue(bangumiHub.contains("onGloballyPositioned"))
+        assertTrue(bangumiDetail.contains("ImmersiveAppScaffold as AppScaffold"))
+        assertTrue(bangumiReview.contains("ImmersiveAppScaffold as AppScaffold"))
+        val profile = loadSource("feature/profile/ProfileScreen.kt")
+        val favoriteCategory = loadSource("feature/list/FavoriteCategoryScreen.kt")
+        assertTrue(profile.contains("BiliPaiImmersiveTopBar("))
+        assertTrue(profile.contains("rememberProfileProgressiveTopChrome()"))
+        assertTrue(commonList.contains("captureScrollableContent = progressiveHeaderRequested"))
+        assertTrue(favoriteCategory.contains("topPadding = stickyChromeReserve"))
+        val space = loadSource("feature/space/SpaceScreen.kt")
+        val settingsTablet = loadSource("feature/settings/screen/SettingsTabletShell.kt")
+        assertTrue(space.contains("BiliPaiImmersiveTopBar("))
+        assertTrue(space.contains("spaceChromeSource?.modifier"))
+        assertTrue(space.contains("globalWallpaperAwareBackground(MaterialTheme.colorScheme.surface)"))
+        assertTrue(space.contains("top = chromeTopInset"))
+        assertFalse(space.contains("onPinnedChromeHeightChanged"))
+        assertFalse(space.contains("val tabPinned = gridState.firstVisibleItemIndex > 0"))
+        assertTrue(profile.contains("captureBackground()"))
+        assertTrue(profile.contains("profileProgressiveBackdrop(progressiveTopChrome.backdrop)"))
+        assertTrue(profile.contains("globalWallpaperAwareBackground(colorScheme.surface)"))
+        assertTrue(bangumiHub.contains("BiliPaiImmersiveTopBar("))
+        assertTrue(bangumiHub.contains(".then(chromeSource?.modifier ?: Modifier)"))
+        assertTrue(bangumiHub.contains("globalWallpaperAwareBackground(MaterialTheme.colorScheme.background)"))
+        assertTrue(bangumiHub.contains("showFollowStatusTabs = false"))
+        assertTrue(settingsTablet.contains("BiliPaiImmersiveTopBar("))
     }
 
     @Test
@@ -79,6 +109,36 @@ class ProgressiveTopChromePolicyTest {
                 tabRowIncludedInBlur = false,
             )
         )
+    }
+
+    @Test
+    fun immersiveLayerExtendsItsDrawingWithoutIncreasingHeaderLayoutHeight() {
+        val source = loadSource("feature/home/components/ProgressiveTopChrome.kt")
+        assertTrue(source.contains(".matchParentSize()"))
+        assertTrue(source.contains("minHeight = constraints.minHeight + extension"))
+        assertTrue(source.contains("layout(placeable.width, placeable.height - extension)"))
+        assertTrue(source.contains("LocalImmersiveTopChromeActive provides active"))
+    }
+
+    @Test
+    fun searchAndWatchLaterCaptureScrollableContentInsteadOfAnEmptyHeader() {
+        val search = loadSource("feature/search/SearchScreen.kt")
+        val watchLater = loadSource("feature/watchlater/WatchLaterScreen.kt")
+        assertTrue(search.contains("val resultTopPadding = resultChromePadding.calculateTopPadding()"))
+        assertTrue(search.contains("top = resultTopPadding"))
+        assertTrue(search.contains("if (!state.showResults)"))
+        assertTrue(search.contains("searchTopChromeGlass(inputShape, chromeSpec.inputHeightDp)"))
+        assertTrue(search.contains("if (immersiveSearchChrome) Color.Transparent else searchTopBarHeaderColor"))
+        assertTrue(watchLater.contains("watchLaterChromeSource?.modifier"))
+        assertTrue(watchLater.contains("globalWallpaperAwareBackground(AppSurfaceTokens.groupedListContainer())"))
+        assertFalse(watchLater.contains(".matchParentSize()"))
+        val immersiveScaffold = loadSource("core/ui/ImmersiveAppScaffold.kt")
+        assertTrue(immersiveScaffold.contains(".globalWallpaperAwareBackground(containerColor)"))
+        val topicDetail = loadSource("feature/search/TopicDetailScreen.kt")
+        val topicBackdropIndex = topicDetail.indexOf("Modifier.layerBackdrop(topicBackdrop)")
+        val topicFillIndex = topicDetail.indexOf(".globalWallpaperAwareBackground()")
+        assertTrue(topicBackdropIndex >= 0)
+        assertTrue(topicFillIndex > topicBackdropIndex)
     }
 
     private fun loadSource(relativePath: String): String {

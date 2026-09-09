@@ -91,6 +91,9 @@ data class AdaptiveTopAppBarChromeSpec(
 
 val LocalGlobalWallpaperBackdropVisible = compositionLocalOf { false }
 
+/** Set only around chrome whose background is drawn by the shared immersive blur layer. */
+val LocalImmersiveTopChromeActive = compositionLocalOf { false }
+
 fun resolveGlobalWallpaperProtectiveColor(
     baseColor: Color,
     lightAlpha: Float = 0.74f,
@@ -269,7 +272,12 @@ fun AdaptiveTopAppBar(
     } else {
         colors
     }
-    val topAppBarColors = effectiveColors
+    val topAppBarColors = if (LocalImmersiveTopChromeActive.current) {
+        effectiveColors.copy(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+        )
+    } else effectiveColors
 
     if (rememberIsNativeMiuixEnabled()) {
         SideEffect {
@@ -306,15 +314,23 @@ fun AdaptiveTopAppBar(
                     navigationIcon = navigationContent,
                     actions = actionsContent,
                     scrollBehavior = collapseBehavior?.miuixScrollBehavior,
-                    // Miuix 标题可用宽度 = (总宽 - 导航 - actions) × 0.9 - titlePadding×2；
-                    // 默认 26dp×2 + 多 actions 会把标题挤到省略号。压紧 padding 把空间还给标题。
-                    titlePadding = 0.dp,
-                    navigationIconPadding = 0.dp,
-                    actionIconPadding = 0.dp,
+                    // Large titles share titlePadding with the collapsed title. Keep upstream
+                    // insets so the expanded heading does not touch the window edge.
                 )
             }
 
-            AdaptiveTopAppBarStyle.SMALL,
+            AdaptiveTopAppBarStyle.SMALL -> {
+                TopAppBar(
+                    modifier = modifier,
+                    title = { Text(displayTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = navigationContent,
+                    actions = actionsContent,
+                    colors = topAppBarColors,
+                    scrollBehavior = scrollBehavior,
+                    windowInsets = WindowInsets.statusBars
+                )
+            }
+
             AdaptiveTopAppBarStyle.CENTERED -> {
                 MiuixSmallTopAppBar(
                     title = displayTitle,

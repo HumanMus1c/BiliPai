@@ -334,13 +334,12 @@ internal fun resolveFloatingDockVisualIndicatorPosition(
     externalPagerMotionEffectsEnabled: Boolean,
     isDragging: Boolean,
     ownedTargetIndex: Int?,
-    isPagerScrolling: Boolean,
+    isPagerScrolling: Boolean = false,
 ): Float {
     if (
         externalPagerMotionEffectsEnabled &&
         !isDragging &&
         ownedTargetIndex == null &&
-        isPagerScrolling &&
         externalPosition != null
     ) {
         return externalPosition.coerceIn(0f, maxTabIndex.coerceAtLeast(0).toFloat())
@@ -799,6 +798,8 @@ fun FloatingBottomBar(
                     dampedDragAnimation.snapTo(it.coerceIn(0f, maxTabIndex.toFloat()))
                 }
                 dampedDragAnimation.release()
+            } else if (external != null) {
+                dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
             }
         }
     }

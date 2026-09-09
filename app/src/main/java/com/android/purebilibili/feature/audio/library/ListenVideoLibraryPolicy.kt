@@ -104,9 +104,11 @@ internal fun resolveListenVideoPlaybackSelection(
     val items = playableTracks.map { track ->
         PlaylistItem(
             bvid = track.bvid,
+            cid = track.cid,
             title = track.title,
             cover = track.coverUrl,
             owner = track.artistName,
+            ownerFace = track.artistAvatarUrl,
             duration = track.durationMs / 1_000L
         )
     }

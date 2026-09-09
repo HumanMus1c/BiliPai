@@ -39,12 +39,13 @@ internal data class MusicQueueControlState(
 internal fun resolveMusicQueueControlState(
     queueSize: Int,
     currentIndex: Int,
-    playMode: PlayMode = PlayMode.SEQUENTIAL
+    playMode: PlayMode = PlayMode.SEQUENTIAL,
+    shuffleEnabled: Boolean = false
 ): MusicQueueControlState {
     if (queueSize <= 1 || currentIndex !in 0 until queueSize) {
         return MusicQueueControlState(false, false, false)
     }
-    val wrapsQueue = playMode != PlayMode.SEQUENTIAL
+    val wrapsQueue = shuffleEnabled || playMode != PlayMode.SEQUENTIAL
     return MusicQueueControlState(
         hasPrevious = wrapsQueue || currentIndex > 0,
         hasNext = wrapsQueue || currentIndex < queueSize - 1,
@@ -88,8 +89,15 @@ internal data class MusicPlayerUiState(
     val isLyricsSearching: Boolean = false,
     val queue: List<MusicQueueItemUi> = emptyList(),
     val currentQueueIndex: Int = -1,
-    val playMode: PlayMode = PlayMode.SEQUENTIAL
+    val playMode: PlayMode = PlayMode.SEQUENTIAL,
+    val shuffleEnabled: Boolean = false,
+    val playbackSpeed: Float = 1f
 ) {
     val queueControls: MusicQueueControlState
-        get() = resolveMusicQueueControlState(queue.size, currentQueueIndex, playMode)
+        get() = resolveMusicQueueControlState(
+            queueSize = queue.size,
+            currentIndex = currentQueueIndex,
+            playMode = playMode,
+            shuffleEnabled = shuffleEnabled
+        )
 }

@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
@@ -502,24 +503,30 @@ internal fun resolveMd3TopTabVisualSpec(
 
 internal fun resolveMd3TopTabSelectedContainerColor(
     colorScheme: ColorScheme,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE
+    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3
 ): androidx.compose.ui.graphics.Color = when {
+    uiStyle == AppUiStyle.MIUIX -> colorScheme.onSurface
     presentation == AppTopTabPresentation.TONAL_CAPSULE -> colorScheme.secondaryContainer
     else -> colorScheme.primary
 }
 
 internal fun resolveMd3TopTabSelectedIconColor(
     colorScheme: ColorScheme,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE
+    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3
 ): androidx.compose.ui.graphics.Color = when {
+    uiStyle == AppUiStyle.MIUIX -> colorScheme.onSurface
     presentation == AppTopTabPresentation.TONAL_CAPSULE -> colorScheme.onSecondaryContainer
     else -> colorScheme.primary
 }
 
 internal fun resolveMd3TopTabSelectedLabelColor(
     colorScheme: ColorScheme,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE
+    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3
 ): androidx.compose.ui.graphics.Color = when {
+    uiStyle == AppUiStyle.MIUIX -> colorScheme.onSurface
     presentation == AppTopTabPresentation.TONAL_CAPSULE -> colorScheme.onSecondaryContainer
     else -> colorScheme.primary
 }
@@ -535,20 +542,22 @@ internal fun resolveMd3TopTabUnselectedLabelColor(
 internal fun resolveMd3TopTabIconTint(
     selectionFraction: Float,
     colorScheme: ColorScheme,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE
+    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3
 ) = androidx.compose.ui.graphics.lerp(
     resolveMd3TopTabUnselectedIconColor(colorScheme),
-    resolveMd3TopTabSelectedIconColor(colorScheme, presentation),
+    resolveMd3TopTabSelectedIconColor(colorScheme, presentation, uiStyle),
     selectionFraction.coerceIn(0f, 1f)
 )
 
 internal fun resolveMd3TopTabLabelTint(
     selectionFraction: Float,
     colorScheme: ColorScheme,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE
+    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3
 ) = androidx.compose.ui.graphics.lerp(
     resolveMd3TopTabUnselectedLabelColor(colorScheme),
-    resolveMd3TopTabSelectedLabelColor(colorScheme, presentation),
+    resolveMd3TopTabSelectedLabelColor(colorScheme, presentation, uiStyle),
     selectionFraction.coerceIn(0f, 1f)
 )
 

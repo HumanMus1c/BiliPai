@@ -92,6 +92,7 @@ import com.android.purebilibili.feature.live.components.LiveEmoticonSheet
 import com.android.purebilibili.feature.live.components.LivePlayerControls
 import com.android.purebilibili.feature.live.components.LivePortraitBottomBar
 import com.android.purebilibili.feature.live.components.LivePortraitChatPreview
+import com.android.purebilibili.feature.live.components.LivePortraitChatStream
 import com.android.purebilibili.feature.live.components.LivePortraitMoreSheet
 import com.android.purebilibili.feature.live.components.LiveReportDialog
 import com.android.purebilibili.feature.live.components.LiveSendDanmakuSheet
@@ -274,15 +275,16 @@ fun LivePlayerScreen(
         configuration.fontScale,
     )
     val portraitChatMessages = remember(roomId, siteId) { mutableStateListOf<LiveDanmakuItem>() }
-    // Keep the preview subscribed while clear screen is active; restoring never replays old UI.
-    LaunchedEffect(roomId, siteId, viewModel.danmakuFlow, portraitPresentation.usePortraitControls) {
-        if (portraitPresentation.usePortraitControls) {
-            portraitChatMessages.clear()
-            viewModel.danmakuFlow.collect { item ->
-                if (shouldRenderLiveDanmaku(item.text, item.emoticonUrl)) {
-                    portraitChatMessages.add(item)
-                    if (portraitChatMessages.size > 6) portraitChatMessages.removeAt(0)
-                }
+    var portraitDanmakuSequence by remember(roomId, siteId) { mutableLongStateOf(0L) }
+    // 持续监听当前直播间的弹幕流；状态转换与清屏不会导致消息丢失或清空重置
+    LaunchedEffect(roomId, siteId, viewModel.danmakuFlow) {
+        portraitChatMessages.clear()
+        portraitDanmakuSequence = 0L
+        viewModel.danmakuFlow.collect { item ->
+            if (shouldRenderLiveDanmaku(item.text, item.emoticonUrl)) {
+                portraitChatMessages.add(item)
+                if (portraitChatMessages.size > 200) portraitChatMessages.removeAt(0)
+                portraitDanmakuSequence++
             }
         }
     }
@@ -1256,22 +1258,46 @@ fun LivePlayerScreen(
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     ) {
                         if (portraitPresentation.showChatPreview) {
-                            LivePortraitChatPreview(
+                            LivePortraitChatStream(
                                 messages = portraitChatMessages,
-                                maxMessages = portraitChatPreviewCount,
+                                danmakuSequence = portraitDanmakuSequence,
+                                superChatCount = superChatItems.size,
+                                onOpenSuperChat = {
+                                    selectedInteractionTab = 1
+                                    showPortraitInteractionSheet = true
+                                },
+                                onUserClick = onUserClick,
+                                onAtUser = { item ->
+                                    viewModel.setReplyTarget(item)
+                                    showSendDanmakuSheet = true
+                                },
+                                onBlockUser = { item ->
+                                    if (item.uid > 0L) {
+                                        viewModel.shieldUser(item.uid)
+                                    } else {
+                                        val keyword = item.uname.ifBlank { item.text }
+                                        if (keyword.isNotBlank()) addLiveBlockKeyword(keyword)
+                                    }
+                                },
+                                onReportDanmaku = { item ->
+                                    reportTarget = item
+                                },
                                 onOpenHistory = {
                                     selectedInteractionTab = 0
                                     showPortraitInteractionSheet = true
                                 },
                                 hazeState = hazeState,
                                 modifier = Modifier
-                                    .fillMaxWidth(0.82f)
+                                    .fillMaxWidth(0.88f)
                                     .heightIn(max = portraitOverlayPanelHeightDp.dp),
                             )
                         }
                         LivePortraitBottomBar(
+                            isDanmakuEnabled = successState?.isDanmakuEnabled ?: true,
                             chatVisible = isPortraitChatVisible,
+                            onToggleDanmaku = { viewModel.toggleDanmaku() },
                             onOpenSend = { showSendDanmakuSheet = true },
+                            onOpenEmote = { showEmoticonSheet = true },
                             onToggleChat = { isPortraitChatVisible = !isPortraitChatVisible },
                             onOpenMore = { showPortraitMoreSheet = true },
                             onLike = { count -> viewModel.clickLike(count) },

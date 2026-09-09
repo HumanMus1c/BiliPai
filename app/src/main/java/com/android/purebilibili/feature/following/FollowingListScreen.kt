@@ -46,7 +46,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.store.FollowingCacheStore
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
@@ -248,7 +248,6 @@ class FollowingListViewModel : ViewModel() {
                     val initialUsers = response.data.list.orEmpty()
                         .filterNot { removedUserMids.contains(it.mid) }
                     val total = response.data.total
-                    
                     _uiState.value = FollowingListUiState.Success(
                         users = initialUsers,
                         total = total,
@@ -256,7 +255,6 @@ class FollowingListViewModel : ViewModel() {
                     )
                     persistFollowingCache(mid = mid, total = total, users = initialUsers)
                     refreshFollowGroupMetadata(initialUsers)
-                    
                     // 2. 如果还有更多数据，自动在后台加载剩余所有页面 (为了支持全量搜索)
                     if (initialUsers.size < total) {
                         loadAllRemainingPages(mid, total, initialUsers)
@@ -327,13 +325,10 @@ class FollowingListViewModel : ViewModel() {
                         _uiState.value = current.copy(isLoadingMore = true)
                     }
                 }
-                
                 for (page in startPage..totalPages) {
                     if (mid != currentMid) break // 如果用户切换了查看的 UP 主，停止加载
-                    
                     // 延迟一点时间，避免请求过于频繁触发风控
                     delay(300)
-                    
                     val response = NetworkModule.api.getFollowings(mid, pn = page, ps = pageSize)
                     if (response.code == 0 && response.data != null) {
                         val newUsers = response.data.list.orEmpty()
@@ -374,7 +369,6 @@ class FollowingListViewModel : ViewModel() {
                         )
                     }
                 }
-                
                 // 加载完成
                 val current = _uiState.value
                 if (current is FollowingListUiState.Success) {
@@ -690,8 +684,10 @@ fun FollowingListScreen(
     var groupDialogMixed by remember { mutableStateOf(false) }
 
     AppScaffold(
+        blurContentReady = uiState !is FollowingListUiState.Loading,
         snackbarHost = { AppSnackbarHost(hostState = snackbarHostState) },
         topBar = {
+            Column {
             AppTopBar(
                 title = "我的关注",
                 navigationIcon = {
@@ -718,14 +714,6 @@ fun FollowingListScreen(
                     containerColor = AppSurfaceTokens.chromeBackground()
                 )
             )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .globalWallpaperAwareBackground()
-        ) {
             // 🔍 搜索栏
             Box(
                 modifier = Modifier
@@ -740,6 +728,14 @@ fun FollowingListScreen(
                 )
             }
 
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .globalWallpaperAwareBackground()
+        ) {
             Box(
                 modifier = Modifier.weight(1f)
             ) {
@@ -751,7 +747,6 @@ fun FollowingListScreen(
                             itemCount = 10,
                         )
                     }
-                    
                     is FollowingListUiState.Error -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -765,7 +760,6 @@ fun FollowingListScreen(
                             }
                         }
                     }
-                    
                     is FollowingListUiState.Success -> {
                         LaunchedEffect(state.users) {
                             val available = state.users.asSequence().map { it.mid }.toSet()
@@ -829,7 +823,7 @@ fun FollowingListScreen(
                                 }
                             },
                             state = pullRefreshState,
-                            indicatorTopInset = AppSpacingTokens.None,
+                            indicatorTopInset = padding.calculateTopPadding(),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             if (filteredUsers.isEmpty() && searchQuery.isNotEmpty()) {
@@ -838,6 +832,10 @@ fun FollowingListScreen(
                                  }
                             } else {
                                 LazyColumn(
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                        top = padding.calculateTopPadding(),
+                                        bottom = padding.calculateBottomPadding(),
+                                    ),
                                     modifier = Modifier
                                         .responsiveContentWidth(resolveFollowingListMaxWidth())
                                         .fillMaxSize(),

@@ -54,14 +54,16 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.components.AppFilledIconButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
+import com.android.purebilibili.core.ui.components.AppSlider
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
-import com.android.purebilibili.core.ui.components.AppSlider
-import com.android.purebilibili.core.ui.components.AppSliderDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -128,13 +130,20 @@ import com.android.purebilibili.feature.video.ui.components.AudioQualitySelectio
 import com.android.purebilibili.feature.video.ui.components.DolbyBadge
 import com.android.purebilibili.feature.video.ui.components.HiResBadge
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Comment
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.RepeatOne
+import androidx.compose.material.icons.outlined.Shuffle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -203,6 +212,7 @@ internal fun MusicPlayerContent(
     onNext: (() -> Unit)? = null,
     onQueueItemSelected: (Int) -> Unit = {},
     onPlayModeChange: (PlayMode) -> Unit = {},
+    onShuffleEnabledChange: (Boolean) -> Unit = {},
     onLyricsOffsetChange: (Long) -> Unit = {},
     onLyricsRetry: () -> Unit = {},
     onLyricsSearch: (String) -> Unit = {},
@@ -220,6 +230,15 @@ internal fun MusicPlayerContent(
     onPipClick: (() -> Unit)? = null,
     onToggleOrientation: (() -> Unit)? = null,
     orientationActionLabel: String = "横屏",
+    isLiked: Boolean = false,
+    onLikeClick: (() -> Unit)? = null,
+    onCommentsClick: (() -> Unit)? = null,
+    isFavorited: Boolean = false,
+    onFavoriteClick: (() -> Unit)? = null,
+    onDownloadClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null,
+    onSpeedClick: (() -> Unit)? = null,
+    speedLabel: String = "倍速",
     isInPipMode: Boolean = false,
     liquidGlassEffectsEnabled: Boolean = false,
     lyricsBlurEffectsEnabled: Boolean = true,
@@ -277,12 +296,24 @@ internal fun MusicPlayerContent(
         isAppInBackground = BackgroundManager.isInBackground,
         reduceMotion = effectiveReduceMotion
     )
-    // 暗底强制白字，避免 inverseOnSurface 在自定义主题下发成低对比灰/褐。
-    val resolvedContentColor = resolveMusicPlayerContentColor(
-        backgroundColor = backgroundColor,
-        onLightBackground = MaterialTheme.colorScheme.onSurface,
-        onDarkBackground = Color.White,
+    val chromeSpec = resolveMusicPlayerChromeSpec(
+        uiStyle = LocalAppUiStyle.current,
+        glassEnabled = glassEnabled
     )
+    val pageBackground = if (chromeSpec.usePaletteImmersiveBackdrop) {
+        backgroundColor
+    } else {
+        MaterialTheme.colorScheme.background
+    }
+    val resolvedContentColor = if (chromeSpec.usePaletteImmersiveBackdrop) {
+        resolveMusicPlayerContentColor(
+            backgroundColor = backgroundColor,
+            onLightBackground = MaterialTheme.colorScheme.onSurface,
+            onDarkBackground = Color.White,
+        )
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val resolvedAccentColor = resolveMusicPlayerAccentColor(MaterialTheme.colorScheme.primary)
 
     CompositionLocalProvider(
@@ -292,7 +323,7 @@ internal fun MusicPlayerContent(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(pageBackground)
     ) {
         val layout = resolveMusicPlayerLayout(maxWidth.value.roundToInt(), isInPipMode)
         val availableWidthDp = maxWidth.value.roundToInt()
@@ -305,7 +336,12 @@ internal fun MusicPlayerContent(
             ) {
                 MusicArtworkBackground(
                     coverUrl = state.coverUrl,
-                    backgroundColor = backgroundColor
+                    backgroundColor = if (chromeSpec.usePaletteImmersiveBackdrop) {
+                        backgroundColor
+                    } else {
+                        pageBackground
+                    },
+                    immersive = chromeSpec.usePaletteImmersiveBackdrop
                 )
             }
         }
@@ -334,7 +370,9 @@ internal fun MusicPlayerContent(
                                     availableHeightDp,
                                     layout
                                 ),
+                                chromeSpec = chromeSpec,
                                 glassEnabled = glassEnabled,
+                                reduceMotion = effectiveReduceMotion,
                                 onPlayPause = onPlayPause,
                                 onSeek = { positionMs ->
                                     progressSeekRevision += 1
@@ -343,6 +381,11 @@ internal fun MusicPlayerContent(
                                 onPrevious = onPrevious,
                                 onNext = onNext,
                                 onPlayModeChange = onPlayModeChange,
+                                onShuffleEnabledChange = onShuffleEnabledChange,
+                                isLiked = isLiked,
+                                onLikeClick = onLikeClick,
+                                onCommentsClick = onCommentsClick,
+                                onQueueClick = { showQueue = true },
                                 miuixBackdrop = musicBackdrop,
                                 audioQualityLabel = audioQualityLabel,
                                 isHiResAudioSelected = isHiResAudioSelected,
@@ -351,7 +394,7 @@ internal fun MusicPlayerContent(
                                     { showAudioQuality = true }
                                 },
                                 glassTintColor = backgroundColor,
-                                modifier = Modifier.padding(bottom = 70.dp)
+                                modifier = Modifier.padding(bottom = MUSIC_PLAYER_COMPACT_DOCK_BOTTOM_PADDING_DP.dp)
                             )
                         } else {
                             LyricsPage(
@@ -374,46 +417,39 @@ internal fun MusicPlayerContent(
                                 miuixBackdrop = musicBackdrop,
                                 progressSeekRevision = progressSeekRevision,
                                 controlsVisible = lyricsControlsVisible,
-                                onControlsVisibleChange = { lyricsControlsVisible = it }
+                                onControlsVisibleChange = { lyricsControlsVisible = it },
+                                modifier = Modifier.padding(bottom = MUSIC_PLAYER_COMPACT_DOCK_BOTTOM_PADDING_DP.dp)
                             )
                         }
                     }
-                    AnimatedVisibility(
-                        // 歌词页沉浸显示：底部只留浮动控制面板，隐藏「播放/歌词」切换器，
-                        // 避免切换器 + 面板 + 手势条三层叠加；切回播放页用横滑手势。
-                        visible = pagerState.currentPage != 1,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                        enter = if (effectiveReduceMotion) EnterTransition.None else fadeIn() + slideInVertically { it / 2 },
-                        exit = if (effectiveReduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { it / 2 }
-                    ) {
-                        BottomBarLiquidSegmentedControl(
-                            items = listOf("播放", "歌词"),
-                            selectedIndex = pagerState.currentPage,
-                            onSelected = { page ->
-                                pagerScope.launch { pagerState.animateScrollToPage(page) }
-                            },
-                            itemWidth = 84.dp,
-                            modifier = Modifier
-                                .navigationBarsPadding()
-                                .padding(vertical = 8.dp)
-                                .wrapContentWidth(Alignment.CenterHorizontally),
-                            height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-                            indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-                            liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-                            preferInlineContentStyle = false,
-                            miuixBackdrop = musicBackdrop,
-                            dragSelectionEnabled = true,
-                            tapPressRefractionEnabled = true,
-                            isScrollInProgressProvider = { pagerState.isScrollInProgress },
-                            indicatorPositionProvider = {
-                                resolveMusicPagerIndicatorPosition(
-                                    currentPage = pagerState.currentPage,
-                                    currentPageOffsetFraction = pagerState.currentPageOffsetFraction
-                                )
-                            },
-                            externalPagerMotionEffectsEnabled = true,
-                        )
-                    }
+                    BottomBarLiquidSegmentedControl(
+                        items = resolveMusicPlayerPageTabs(),
+                        selectedIndex = pagerState.currentPage,
+                        onSelected = { page ->
+                            pagerScope.launch { pagerState.animateScrollToPage(page) }
+                        },
+                        itemWidth = 84.dp,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(vertical = 8.dp)
+                            .wrapContentWidth(Alignment.CenterHorizontally),
+                        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                        liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
+                        preferInlineContentStyle = false,
+                        miuixBackdrop = musicBackdrop,
+                        dragSelectionEnabled = true,
+                        tapPressRefractionEnabled = true,
+                        isScrollInProgressProvider = { pagerState.isScrollInProgress },
+                        indicatorPositionProvider = {
+                            resolveMusicPagerIndicatorPosition(
+                                currentPage = pagerState.currentPage,
+                                currentPageOffsetFraction = pagerState.currentPageOffsetFraction
+                            )
+                        },
+                        externalPagerMotionEffectsEnabled = true,
+                    )
                 }
             }
 
@@ -433,7 +469,9 @@ internal fun MusicPlayerContent(
                         availableHeightDp,
                         layout
                     ),
+                    chromeSpec = chromeSpec,
                     glassEnabled = glassEnabled,
+                    reduceMotion = effectiveReduceMotion,
                     onPlayPause = onPlayPause,
                     onSeek = { positionMs ->
                         progressSeekRevision += 1
@@ -442,6 +480,11 @@ internal fun MusicPlayerContent(
                     onPrevious = onPrevious,
                     onNext = onNext,
                     onPlayModeChange = onPlayModeChange,
+                    onShuffleEnabledChange = onShuffleEnabledChange,
+                    isLiked = isLiked,
+                    onLikeClick = onLikeClick,
+                    onCommentsClick = onCommentsClick,
+                    onQueueClick = { showQueue = true },
                     miuixBackdrop = musicBackdrop,
                     audioQualityLabel = audioQualityLabel,
                     isHiResAudioSelected = isHiResAudioSelected,
@@ -523,8 +566,35 @@ internal fun MusicPlayerContent(
                     action()
                 }
             }
+            onSpeedClick?.let { action ->
+                MusicActionSheetItem(speedLabel, contentColor = sheetContentColor) {
+                    showActions = false
+                    action()
+                }
+            }
             onSleepTimerClick?.let { action ->
                 MusicActionSheetItem(sleepTimerLabel, contentColor = sheetContentColor) {
+                    showActions = false
+                    action()
+                }
+            }
+            onFavoriteClick?.let { action ->
+                MusicActionSheetItem(
+                    if (isFavorited) "已收藏" else "收藏",
+                    contentColor = sheetContentColor
+                ) {
+                    showActions = false
+                    action()
+                }
+            }
+            onDownloadClick?.let { action ->
+                MusicActionSheetItem("缓存音频", contentColor = sheetContentColor) {
+                    showActions = false
+                    action()
+                }
+            }
+            onShareClick?.let { action ->
+                MusicActionSheetItem("分享", contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
@@ -706,9 +776,13 @@ internal fun MusicPlayerContent(
 }
 
 @Composable
-private fun MusicArtworkBackground(coverUrl: String, backgroundColor: Color) {
+private fun MusicArtworkBackground(
+    coverUrl: String,
+    backgroundColor: Color,
+    immersive: Boolean
+) {
     Box(Modifier.fillMaxSize()) {
-        if (coverUrl.isNotBlank()) {
+        if (immersive && coverUrl.isNotBlank()) {
             AsyncImage(
                 model = coverUrl,
                 contentDescription = null,
@@ -718,20 +792,22 @@ private fun MusicArtworkBackground(coverUrl: String, backgroundColor: Color) {
                 contentScale = ContentScale.Crop,
                 alpha = 0.52f
             )
-        }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            backgroundColor.copy(alpha = 0.42f),
-                            Color.Black.copy(alpha = 0.66f),
-                            Color.Black.copy(alpha = 0.88f)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                backgroundColor.copy(alpha = 0.42f),
+                                Color.Black.copy(alpha = 0.66f),
+                                Color.Black.copy(alpha = 0.88f)
+                            )
                         )
                     )
-                )
-        )
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(backgroundColor))
+        }
     }
 }
 
@@ -740,12 +816,19 @@ private fun PlayerPage(
     state: MusicPlayerUiState,
     artworkBitmap: ImageBitmap?,
     artworkSizeDp: Int,
+    chromeSpec: MusicPlayerChromeSpec,
     glassEnabled: Boolean,
+    reduceMotion: Boolean,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onPrevious: (() -> Unit)?,
     onNext: (() -> Unit)?,
     onPlayModeChange: (PlayMode) -> Unit,
+    onShuffleEnabledChange: (Boolean) -> Unit,
+    isLiked: Boolean,
+    onLikeClick: (() -> Unit)?,
+    onCommentsClick: (() -> Unit)?,
+    onQueueClick: () -> Unit,
     miuixBackdrop: MiuixBackdrop?,
     audioQualityLabel: String,
     isHiResAudioSelected: Boolean,
@@ -759,7 +842,12 @@ private fun PlayerPage(
             .fillMaxHeight()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(start = 24.dp, top = 76.dp, end = 24.dp, bottom = 16.dp),
+            .padding(
+                start = chromeSpec.horizontalPaddingDp.dp,
+                top = 76.dp,
+                end = chromeSpec.horizontalPaddingDp.dp,
+                bottom = 16.dp
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -769,28 +857,48 @@ private fun PlayerPage(
             MusicArtwork(
                 coverUrl = state.coverUrl,
                 bitmap = artworkBitmap,
-                modifier = Modifier.size(artworkSizeDp.dp)
+                modifier = Modifier.size(artworkSizeDp.dp),
+                shape = if (chromeSpec.coverShapeIsCircle) CircleShape else AppShapes.container(ContainerLevel.Card),
+                rotate = shouldRotateMusicArtwork(
+                    isPlaying = state.isPlaying,
+                    reduceMotion = reduceMotion
+                ),
+                playbackSpeed = state.playbackSpeed
             )
         }
         Spacer(Modifier.height(20.dp))
-        Column(Modifier.fillMaxWidth()) {
-            AppText(
-                text = state.title,
-                color = MusicAccentColor,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            AppText(
-                text = state.artist.ifBlank { "未知艺术家" },
-                color = MusicContentColor.copy(alpha = 0.82f),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            state.error?.let {
-                AppText(it, color = Color(0xFFFF9B92), style = MaterialTheme.typography.bodySmall)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                AppText(
+                    text = state.title,
+                    color = MusicAccentColor,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                AppText(
+                    text = state.artist.ifBlank { "未知艺术家" },
+                    color = MusicContentColor.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                state.error?.let {
+                    AppText(it, color = Color(0xFFFF9B92), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            onLikeClick?.let { like ->
+                AppIconButton(onClick = like, modifier = Modifier.size(48.dp)) {
+                    AppIcon(
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = if (isLiked) "取消点赞" else "点赞",
+                        tint = if (isLiked) MaterialTheme.colorScheme.error else MusicContentColor
+                    )
+                }
             }
         }
         onAudioQualityClick?.let { action ->
@@ -803,15 +911,25 @@ private fun PlayerPage(
             )
         }
         Spacer(Modifier.height(12.dp))
-        MusicProgress(state, onSeek)
+        MusicProgress(state, onSeek, glassEnabled = chromeSpec.glassEnabled)
         Spacer(Modifier.height(8.dp))
-        PlaybackControls(state, onPlayPause, onPrevious, onNext)
+        PlaybackControls(
+            state = state,
+            playButtonSizeDp = chromeSpec.playButtonSizeDp,
+            skipButtonSizeDp = chromeSpec.skipButtonSizeDp,
+            onPlayPause = onPlayPause,
+            onPrevious = onPrevious,
+            onNext = onNext
+        )
         Spacer(Modifier.height(12.dp))
-        MusicPlayModeDock(
+        MusicSecondaryControls(
             mode = state.playMode,
-            glassEnabled = glassEnabled,
-            miuixBackdrop = miuixBackdrop,
-            onPlayModeChange = onPlayModeChange
+            shuffleEnabled = state.shuffleEnabled,
+            showQueue = state.queueControls.showQueue,
+            onPlayModeChange = onPlayModeChange,
+            onShuffleEnabledChange = onShuffleEnabledChange,
+            onCommentsClick = onCommentsClick,
+            onQueueClick = onQueueClick
         )
     }
 }
@@ -856,28 +974,70 @@ private fun MusicAudioQualityControl(
 }
 
 @Composable
-private fun MusicPlayModeDock(
+private fun MusicSecondaryControls(
     mode: PlayMode,
-    glassEnabled: Boolean,
-    miuixBackdrop: MiuixBackdrop?,
-    onPlayModeChange: (PlayMode) -> Unit
+    shuffleEnabled: Boolean,
+    showQueue: Boolean,
+    onPlayModeChange: (PlayMode) -> Unit,
+    onShuffleEnabledChange: (Boolean) -> Unit,
+    onCommentsClick: (() -> Unit)?,
+    onQueueClick: () -> Unit
 ) {
-    BottomBarLiquidSegmentedControl(
-        items = listOf("顺序播放", "随机播放", "单曲循环", "列表循环"),
-        selectedIndex = resolveMusicPlayModeIndex(mode),
-        onSelected = { onPlayModeChange(resolveMusicPlayMode(it)) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp),
-        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-        labelFontSize = 13.sp,
-        liquidGlassEffectsEnabled = glassEnabled,
-        preferInlineContentStyle = false,
-        miuixBackdrop = miuixBackdrop,
-        dragSelectionEnabled = true,
-        tapPressRefractionEnabled = true,
-    )
+    val transport = resolveMusicSecondaryTransport(mode, shuffleEnabled)
+    val active = MusicAccentColor
+    val inactive = MusicContentColor.copy(alpha = 0.62f)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AppIconButton(
+            onClick = { onShuffleEnabledChange(!transport.shuffleEnabled) },
+            modifier = Modifier.size(48.dp)
+        ) {
+            AppIcon(
+                Icons.Outlined.Shuffle,
+                contentDescription = "随机播放",
+                tint = if (transport.shuffleEnabled) active else inactive
+            )
+        }
+        AppIconButton(
+            onClick = { onPlayModeChange(resolveRepeatModeAfterToggle(mode)) },
+            modifier = Modifier.size(48.dp)
+        ) {
+            AppIcon(
+                imageVector = if (transport.repeatGlyph == MusicRepeatGlyph.ONE) {
+                    Icons.Outlined.RepeatOne
+                } else {
+                    Icons.Outlined.Repeat
+                },
+                contentDescription = "循环模式",
+                tint = if (transport.repeatGlyph == MusicRepeatGlyph.OFF) inactive else active
+            )
+        }
+        AppIconButton(
+            onClick = onCommentsClick ?: {},
+            enabled = onCommentsClick != null,
+            modifier = Modifier.size(48.dp)
+        ) {
+            AppIcon(
+                Icons.AutoMirrored.Outlined.Comment,
+                contentDescription = "评论",
+                tint = if (onCommentsClick != null) inactive else inactive.copy(alpha = 0.28f)
+            )
+        }
+        AppIconButton(
+            onClick = onQueueClick,
+            enabled = showQueue,
+            modifier = Modifier.size(48.dp)
+        ) {
+            AppIcon(
+                Icons.Outlined.QueueMusic,
+                contentDescription = "播放队列",
+                tint = if (showQueue) inactive else inactive.copy(alpha = 0.28f)
+            )
+        }
+    }
 }
 
 @Composable
@@ -885,10 +1045,18 @@ private fun MusicArtwork(
     coverUrl: String,
     bitmap: ImageBitmap?,
     modifier: Modifier,
-    shape: Shape = AppShapes.container(ContainerLevel.Card)
+    shape: Shape = CircleShape,
+    rotate: Boolean = false,
+    playbackSpeed: Float = 1f
 ) {
+    val rotationDegrees = rememberMusicArtworkRotationDegrees(
+        active = rotate,
+        contentKey = coverUrl,
+        playbackSpeed = playbackSpeed
+    )
     Box(
         modifier = modifier
+            .graphicsLayer { rotationZ = rotationDegrees() }
             .clip(shape)
             .background(
                 Brush.linearGradient(
@@ -921,23 +1089,53 @@ private fun MusicArtwork(
 }
 
 @Composable
-private fun MusicProgress(state: MusicPlayerUiState, onSeek: (Long) -> Unit) {
+private fun MusicProgress(
+    state: MusicPlayerUiState,
+    onSeek: (Long) -> Unit,
+    glassEnabled: Boolean
+) {
     val duration = state.durationMs.coerceAtLeast(1L)
     var draggedPosition by remember { mutableStateOf<Float?>(null) }
-    AppSlider(
-        value = draggedPosition ?: state.positionMs.coerceIn(0L, duration).toFloat(),
-        onValueChange = { draggedPosition = it },
-        onValueChangeFinished = {
-            draggedPosition?.let { onSeek(it.toLong()) }
-            draggedPosition = null
-        },
-        valueRange = 0f..duration.toFloat(),
-        colors = AppSliderDefaults.colors(
-            thumbColor = MusicAccentColor,
-            activeTrackColor = MusicAccentColor,
-            inactiveTrackColor = MusicContentColor.copy(alpha = 0.28f)
+    val context = LocalContext.current
+    val reduceMotion = remember(context) {
+        android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        ) == 0f
+    }
+    val sliderValue = draggedPosition ?: state.positionMs.coerceIn(0L, duration).toFloat()
+    val onSliderChange: (Float) -> Unit = { draggedPosition = it }
+    val onSliderChangeFinished = {
+        draggedPosition?.let { onSeek(it.toLong()) }
+        draggedPosition = null
+    }
+    val uiStyle = LocalAppUiStyle.current
+    if (shouldUseNativeThemeMusicProgress(glassEnabled = glassEnabled, uiStyle = uiStyle)) {
+        AppSlider(
+            value = sliderValue,
+            onValueChange = onSliderChange,
+            onValueChangeFinished = onSliderChangeFinished,
+            valueRange = 0f..duration.toFloat()
         )
-    )
+    } else {
+        MusicWavySlider(
+            value = sliderValue,
+            onValueChange = onSliderChange,
+            onValueChangeFinished = onSliderChangeFinished,
+            valueRange = 0f..duration.toFloat(),
+            wavy = shouldUseMusicWavyProgress(
+                glassEnabled = glassEnabled,
+                uiStyle = uiStyle,
+                isPlaying = state.isPlaying,
+                isDragging = draggedPosition != null,
+                reduceMotion = reduceMotion
+            ),
+            activeColor = MusicAccentColor,
+            inactiveColor = MusicContentColor.copy(alpha = 0.28f),
+            thumbColor = MusicAccentColor
+        )
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         AppText(formatMusicTime(state.positionMs), color = MusicContentColor.copy(alpha = 0.78f), fontSize = 12.sp)
         AppText("-${formatMusicTime((state.durationMs - state.positionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.78f), fontSize = 12.sp)
@@ -950,7 +1148,9 @@ private fun PlaybackControls(
     onPlayPause: () -> Unit,
     onPrevious: (() -> Unit)?,
     onNext: (() -> Unit)?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    playButtonSizeDp: Int = 72,
+    skipButtonSizeDp: Int = 56
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -961,17 +1161,28 @@ private fun PlaybackControls(
             icon = Icons.Filled.SkipPrevious,
             description = "上一首",
             enabled = state.queueControls.hasPrevious && onPrevious != null,
-            onClick = onPrevious ?: {}
+            onClick = onPrevious ?: {},
+            sizeDp = skipButtonSizeDp
         )
-        AppIconButton(onClick = onPlayPause, modifier = Modifier.size(72.dp)) {
+        AppFilledIconButton(
+            onClick = onPlayPause,
+            modifier = Modifier.size(playButtonSizeDp.dp),
+            colors = AppIconButtonDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
             if (state.isBuffering) {
-                AppCircularProgressIndicator(color = MusicAccentColor, modifier = Modifier.size(36.dp))
+                AppCircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
+                )
             } else {
                 AppIcon(
                     imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (state.isPlaying) "暂停" else "播放",
-                    tint = MusicAccentColor,
-                    modifier = Modifier.size(46.dp)
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
                 )
             }
         }
@@ -979,14 +1190,21 @@ private fun PlaybackControls(
             icon = Icons.Filled.SkipNext,
             description = "下一首",
             enabled = state.queueControls.hasNext && onNext != null,
-            onClick = onNext ?: {}
+            onClick = onNext ?: {},
+            sizeDp = skipButtonSizeDp
         )
     }
 }
 
 @Composable
-private fun PlaybackIconButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
-    AppIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(56.dp)) {
+private fun PlaybackIconButton(
+    icon: ImageVector,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    sizeDp: Int = 56
+) {
+    AppIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(sizeDp.dp)) {
         AppIcon(
             imageVector = icon,
             contentDescription = description,
@@ -1201,12 +1419,24 @@ private fun LyricsPrimaryControls(
     onOpenSettings: () -> Unit,
     onHideControls: () -> Unit
 ) {
-    val panelColor = resolveMusicImmersivePanelColor(glassTintColor)
-    val panelContentColor = resolveMusicPlayerContentColor(
-        backgroundColor = panelColor,
-        onLightBackground = MaterialTheme.colorScheme.onSurface,
-        onDarkBackground = Color.White,
+    val chromeSpec = resolveMusicPlayerChromeSpec(
+        uiStyle = LocalAppUiStyle.current,
+        glassEnabled = glassEnabled
     )
+    val panelColor = if (glassEnabled) {
+        resolveMusicImmersivePanelColor(glassTintColor)
+    } else {
+        AppSurfaceTokens.surfaceContainer()
+    }
+    val panelContentColor = if (glassEnabled) {
+        resolveMusicPlayerContentColor(
+            backgroundColor = panelColor,
+            onLightBackground = MaterialTheme.colorScheme.onSurface,
+            onDarkBackground = Color.White,
+        )
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val panelShape = AppShapes.borderedContainer(ContainerLevel.Card)
     AppSurface(
         modifier = Modifier
@@ -1220,17 +1450,30 @@ private fun LyricsPrimaryControls(
                 liquidGlassTuning = liquidGlassTuning,
             ),
         shape = panelShape,
-        color = Color.Transparent,
+        color = if (glassEnabled) Color.Transparent else panelColor,
         contentColor = panelContentColor,
+        tonalElevation = if (chromeSpec.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 && !glassEnabled) {
+            1.dp
+        } else {
+            0.dp
+        }
     ) {
         CompositionLocalProvider(LocalMusicContentColor provides panelContentColor) {
             Column(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                MusicProgress(state, onSeek)
+                MusicProgress(state, onSeek, glassEnabled = glassEnabled)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlaybackControls(state, onPlayPause, onPrevious, onNext, modifier = Modifier.weight(1f))
+                    PlaybackControls(
+                        state = state,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        modifier = Modifier.weight(1f),
+                        playButtonSizeDp = chromeSpec.playButtonSizeDp,
+                        skipButtonSizeDp = chromeSpec.skipButtonSizeDp
+                    )
                     AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
                         AppText("歌词设置", color = MusicContentColor, fontSize = 12.sp)
                     }

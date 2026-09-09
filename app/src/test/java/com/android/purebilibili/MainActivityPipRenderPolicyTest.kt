@@ -38,4 +38,16 @@ class MainActivityPipRenderPolicyTest {
         assertFalse(state.showMiniPlayerOverlay)
         assertTrue(state.showDedicatedPipPlayer)
     }
+
+    @Test
+    fun `audio now playing hides the video mini player overlay`() {
+        val state = resolveMainActivityPlaybackOverlayState(
+            isInPipMode = false,
+            isMiniMode = true,
+            showAudioNowPlaying = true
+        )
+
+        assertFalse(state.showMiniPlayerOverlay)
+        assertFalse(state.showDedicatedPipPlayer)
+    }
 }

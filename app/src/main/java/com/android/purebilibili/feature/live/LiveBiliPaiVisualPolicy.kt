@@ -91,9 +91,14 @@ internal data class LandscapeLiveChatVisualSpec(
 )
 
 internal data class LiveMedalBadgeVisualSpec(
-    val verticalPaddingDp: Float,
-    val dividerWidthDp: Float,
+    val verticalPaddingDp: Float = 0.5f,
+    val dividerWidthDp: Float = 0.5f,
+    val heightDp: Int = 16,
+    val cornerRadiusDp: Int = 4,
+    val horizontalPaddingDp: Int = 4,
+    val fontSizeSp: Int = 10,
 )
+
 
 internal fun resolveLiveVisualSpec(
     tabPresentation: AppTopTabPresentation,
@@ -267,6 +272,10 @@ internal fun resolveLiveMedalBadgeVisualSpec(): LiveMedalBadgeVisualSpec {
     return LiveMedalBadgeVisualSpec(
         verticalPaddingDp = 0.5f,
         dividerWidthDp = 0.5f,
+        heightDp = 16,
+        cornerRadiusDp = 4,
+        horizontalPaddingDp = 4,
+        fontSizeSp = 10,
     )
 }
 

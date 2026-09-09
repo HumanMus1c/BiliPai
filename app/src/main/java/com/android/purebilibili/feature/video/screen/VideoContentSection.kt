@@ -311,12 +311,8 @@ internal fun resolveVideoContentTabBarCollapseProgress(
     selectedTabIndex: Int,
     listAtTop: Boolean,
     commentPageIndex: Int = 1,
-): Float {
-    if (selectedTabIndex != commentPageIndex) return 0f
-    if (maxCollapsePx <= 0f) return 0f
-    if (!listAtTop) return 1f
-    return (collapsePx / maxCollapsePx).coerceIn(0f, 1f)
-}
+): Float = 0f
+
 
 internal data class VideoContentTabBarCollapseScrollUpdate(
     val nextCollapsePx: Float,
@@ -334,28 +330,7 @@ internal fun reduceVideoContentTabBarCollapseOnPreScroll(
     availableY: Float,
     listAtTop: Boolean,
     enabled: Boolean,
-): VideoContentTabBarCollapseScrollUpdate? {
-    if (!enabled || maxCollapsePx <= 0f || availableY == 0f) return null
-    val clampedCollapse = collapsePx.coerceIn(0f, maxCollapsePx)
-    if (availableY < 0f) {
-        val room = maxCollapsePx - clampedCollapse
-        if (room <= 0f) return null
-        val take = minOf(-availableY, room)
-        if (take <= 0f) return null
-        return VideoContentTabBarCollapseScrollUpdate(
-            nextCollapsePx = clampedCollapse + take,
-            consumedY = -take,
-        )
-    }
-    // availableY > 0：仅贴顶时展开，避免评论中途上滑把 chrome 顶回来
-    if (!listAtTop || clampedCollapse <= 0f) return null
-    val take = minOf(availableY, clampedCollapse)
-    if (take <= 0f) return null
-    return VideoContentTabBarCollapseScrollUpdate(
-        nextCollapsePx = clampedCollapse - take,
-        consumedY = take,
-    )
-}
+): VideoContentTabBarCollapseScrollUpdate? = null
 
 /**
  * Nested postScroll：列表已贴顶后仍有未消费的上滑余量时，继续展开分段（fling 回顶可跟手展完）。
@@ -366,29 +341,15 @@ internal fun reduceVideoContentTabBarCollapseOnPostScroll(
     availableY: Float,
     listAtTop: Boolean,
     enabled: Boolean,
-): VideoContentTabBarCollapseScrollUpdate? {
-    if (!enabled || maxCollapsePx <= 0f || availableY <= 0f || !listAtTop) return null
-    val clampedCollapse = collapsePx.coerceIn(0f, maxCollapsePx)
-    if (clampedCollapse <= 0f) return null
-    val take = minOf(availableY, clampedCollapse)
-    if (take <= 0f) return null
-    return VideoContentTabBarCollapseScrollUpdate(
-        nextCollapsePx = clampedCollapse - take,
-        consumedY = take,
-    )
-}
+): VideoContentTabBarCollapseScrollUpdate? = null
 
-/** 列表已离开顶部时，强制分段收满（浏览态不露半截 chrome）。 */
 internal fun resolveVideoContentTabBarCollapsePxWhenListLeavesTop(
     collapsePx: Float,
     maxCollapsePx: Float,
     listAtTop: Boolean,
     enabled: Boolean,
-): Float {
-    if (!enabled || maxCollapsePx <= 0f) return 0f
-    if (!listAtTop) return maxCollapsePx
-    return collapsePx.coerceIn(0f, maxCollapsePx)
-}
+): Float = 0f
+
 
 /**
  * 视频详情内容区域
@@ -746,7 +707,7 @@ internal fun VideoContentSection(
         }
     }
     val tabBarCollapseEnabled by remember {
-        derivedStateOf { pagerState.currentPage == 1 }
+        derivedStateOf { false }
     }
     // 离开评论列表顶部时钳到全收；回到简介 Tab 时复位展开。
     LaunchedEffect(tabBarCollapseEnabled, commentListAtTop, tabBarMaxHeightPx) {
@@ -1840,10 +1801,7 @@ private fun VideoContentTabBar(
     val danmakuActionLayoutPolicy = remember(configuration.screenWidthDp) {
         resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = configuration.screenWidthDp)
     }
-    // Miuix uses its native tab row on this surface; keep the liquid dock opt-in to the
-    // MD3 presentation so it cannot center over the danmaku actions.
-    val liquidGlassEnabledForTabBar =
-        homeSettings.androidNativeLiquidGlassEnabled && LocalAppUiStyle.current != AppUiStyle.MIUIX
+    val liquidGlassEnabledForTabBar = homeSettings.androidNativeLiquidGlassEnabled
     val liquidChromeSpec = remember(
         liquidGlassEnabledForTabBar,
         LocalAppUiStyle.current,

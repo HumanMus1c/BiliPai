@@ -42,7 +42,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.feature.article.ArticleDetailScreen
 import com.android.purebilibili.feature.article.shouldUseArticleNoOpRouteTransition
 import com.android.purebilibili.feature.audio.library.resolveListenVideoPlaybackSelection
+import com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
+import com.android.purebilibili.feature.audio.screen.AudioNowPlayingBar
+import com.android.purebilibili.feature.audio.screen.AudioNowPlayingBarState
 import com.android.purebilibili.feature.audio.screen.ListenVideoRoute
+import com.android.purebilibili.feature.audio.screen.isAudioNowPlayingPlayerDestination
+import com.android.purebilibili.feature.audio.screen.resolveAudioNowPlayingVisible
 import com.android.purebilibili.feature.home.HomeVideoClickRequest
 import com.android.purebilibili.feature.home.HomeVideoClickSource
 import com.android.purebilibili.feature.home.HomeScreen
@@ -225,6 +230,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.layout.Box // 确保 Box 被导入
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize // 确保 fillMaxSize 被导入
 import androidx.compose.foundation.layout.padding
@@ -2203,14 +2209,9 @@ fun AppNavigation(
                             )
                         BiliPaiNavEntryContentRole.LISTEN_VIDEO ->
                             ListenVideoRoute(
-                                onNowPlayingClick = { bvid, coverUrl ->
+                                onNowPlayingClick = { bvid, _ ->
                                     pushNavigation3Key(
-                                        BiliPaiNavKey.VideoDetail(
-                                            bvid = bvid,
-                                            coverUrl = coverUrl,
-                                            startAudio = true,
-                                            sourceRoute = ScreenRoutes.ListenVideo.route
-                                        )
+                                        BiliPaiNavKey.AudioMode(sourceBvid = bvid)
                                     )
                                 },
                                 onPlayTracks = { tracks, clickedBvid ->
@@ -2228,12 +2229,9 @@ fun AppNavigation(
                                             it.bvid == clickedBvid
                                         }
                                         pushNavigation3Key(
-                                            BiliPaiNavKey.VideoDetail(
-                                                bvid = clickedBvid,
-                                                cid = clickedTrack?.cid ?: 0L,
-                                                coverUrl = clickedTrack?.coverUrl.orEmpty(),
-                                                startAudio = true,
-                                                sourceRoute = ScreenRoutes.ListenVideo.route
+                                            BiliPaiNavKey.AudioMode(
+                                                sourceBvid = clickedBvid,
+                                                sourceCid = clickedTrack?.cid ?: 0L
                                             )
                                         )
                                     }
@@ -3041,13 +3039,12 @@ fun AppNavigation(
                                         )
                                     },
                                     onPlayAllAudioClick = { bvid, cid, resumePositionMs ->
-                                        navigateToVideoInNavigation3(
-                                            bvid = bvid,
-                                            cid = cid,
-                                            coverUrl = "",
-                                            startAudio = true,
-                                            resumePositionMs = resumePositionMs,
-                                            sourceRoute = ScreenRoutes.WatchLater.route
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.AudioMode(
+                                                sourceBvid = bvid,
+                                                sourceCid = cid,
+                                                sourceResumePositionMs = resumePositionMs
+                                            )
                                         )
                                     },
                                     viewModel = watchLaterViewModel,
@@ -3281,7 +3278,12 @@ fun AppNavigation(
                                         )
                                     },
                                     onPlayAllAudioClick = { bvid, cid ->
-                                        navigateToVideoInNavigation3(bvid, cid, "", startAudio = true)
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.AudioMode(
+                                                sourceBvid = bvid,
+                                                sourceCid = cid
+                                            )
+                                        )
                                     }
                                 )
                             }
@@ -3540,13 +3542,11 @@ fun AppNavigation(
                                         }
                                     },
                                     onPlayAllAudioClick = { bvid, resumePositionMs ->
-                                        navigateToVideoInNavigation3(
-                                            bvid = bvid,
-                                            cid = 0L,
-                                            coverUrl = "",
-                                            startAudio = true,
-                                            resumePositionMs = resumePositionMs,
-                                            sourceRoute = spaceKey.toLegacyRoute()
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.AudioMode(
+                                                sourceBvid = bvid,
+                                                sourceResumePositionMs = resumePositionMs
+                                            )
                                         )
                                     },
                                     onDynamicDetailClick = { dynamicId ->
@@ -3866,6 +3866,37 @@ fun AppNavigation(
             } // End of Content Box
             } // End of navigation content row
 
+            val audioNowPlayingBarEnabled by SettingsManager
+                .getAudioNowPlayingBarEnabled(context)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val audioNowPlayingActive by AudioNowPlayingSession.active.collectAsStateWithLifecycle()
+            val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
+            val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
+            val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
+            val isLandscapeNowPlaying =
+                androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+                    android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val isPlayerNowPlayingDestination = isAudioNowPlayingPlayerDestination(currentRoute)
+            val showAudioNowPlayingInDock = resolveAudioNowPlayingVisible(
+                sessionActive = audioNowPlayingActive,
+                isOnAudioModeScreen = currentNavigation3Key is BiliPaiNavKey.AudioMode,
+                isInPipMode = isInPipMode,
+                hasCurrentItem = audioNowPlayingItem != null,
+                barEnabled = audioNowPlayingBarEnabled,
+                isLandscape = isLandscapeNowPlaying,
+                isPlayerDestination = isPlayerNowPlayingDestination
+            )
+            val showAudioNowPlayingIndependent = resolveAudioNowPlayingVisible(
+                sessionActive = audioNowPlayingActive,
+                isOnAudioModeScreen = currentNavigation3Key is BiliPaiNavKey.AudioMode,
+                isInPipMode = isInPipMode,
+                hasCurrentItem = audioNowPlayingItem != null,
+                barEnabled = audioNowPlayingBarEnabled,
+                isVideoDetailDestination = isVideoDetailDestination,
+                isLandscape = isLandscapeNowPlaying,
+                isPlayerDestination = isPlayerNowPlayingDestination
+            )
+
             if (bottomBarCanMount) {
                 val bottomBarModifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -3892,6 +3923,45 @@ fun AppNavigation(
                         enterFadeDurationMillis = navMotionSpec.slowFadeDurationMillis,
                         exitFadeDurationMillis = navMotionSpec.fastFadeDurationMillis
                     ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                        if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
+                            val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
+                            AudioNowPlayingBar(
+                                state = AudioNowPlayingBarState(
+                                    title = audioNowPlayingItem.title,
+                                    artist = audioNowPlayingItem.owner,
+                                    artistAvatarUrl = audioNowPlayingItem.ownerFace,
+                                    coverUrl = audioNowPlayingItem.cover,
+                                    isPlaying = playbackManager.isPlaying,
+                                    playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
+                                ),
+                                onExpand = {
+                                    pushNavigation3Route(
+                                        ScreenRoutes.AudioMode.createRoute(
+                                            bvid = audioNowPlayingItem.bvid,
+                                            cid = audioNowPlayingItem.cid
+                                        )
+                                    )
+                                },
+                                onPlayPause = { playbackManager.togglePlayPause() },
+                                onSkipNext = { playbackManager.playNext() },
+                                onSkipPrevious = { playbackManager.playPrevious() },
+                                onDismiss = {
+                                    if (playbackManager.isPlaying) {
+                                        playbackManager.togglePlayPause()
+                                    }
+                                    AudioNowPlayingSession.dismiss()
+                                },
+                                glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
+                                miuixBackdrop = bottomBarBackdrop,
+                                liquidGlassTuning = liquidGlassRenderConfig.tuning,
+                                liftAboveBottomBar = false,
+                                consumeNavigationBarsPadding = false
+                            )
+                        }
                         if (isBottomBarFloating) {
                             Box(
                                 modifier = Modifier.fillMaxWidth(),
@@ -3985,8 +4055,46 @@ fun AppNavigation(
                                 }
                             )
                         }
+                        }
                     }
                 }
+            } else if (showAudioNowPlayingIndependent && audioNowPlayingItem != null) {
+                val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
+                AudioNowPlayingBar(
+                    state = AudioNowPlayingBarState(
+                        title = audioNowPlayingItem.title,
+                        artist = audioNowPlayingItem.owner,
+                        artistAvatarUrl = audioNowPlayingItem.ownerFace,
+                        coverUrl = audioNowPlayingItem.cover,
+                        isPlaying = playbackManager.isPlaying,
+                        playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
+                    ),
+                    onExpand = {
+                        pushNavigation3Route(
+                            ScreenRoutes.AudioMode.createRoute(
+                                bvid = audioNowPlayingItem.bvid,
+                                cid = audioNowPlayingItem.cid
+                            )
+                        )
+                    },
+                    onPlayPause = { playbackManager.togglePlayPause() },
+                    onSkipNext = { playbackManager.playNext() },
+                    onSkipPrevious = { playbackManager.playPrevious() },
+                    onDismiss = {
+                        if (playbackManager.isPlaying) {
+                            playbackManager.togglePlayPause()
+                        }
+                        AudioNowPlayingSession.dismiss()
+                    },
+                    glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
+                    miuixBackdrop = bottomBarBackdrop,
+                    liquidGlassTuning = liquidGlassRenderConfig.tuning,
+                    liftAboveBottomBar = false,
+                    consumeNavigationBarsPadding = true,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .zIndex(2f)
+                )
             }
 
             // BiliPai MainScreenBackHandler: onBackCompleted → animateToPage(home)

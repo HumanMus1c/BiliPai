@@ -1,6 +1,9 @@
 package com.android.purebilibili.feature.audio.screen
 
 internal const val MUSIC_PLAYER_EXPANDED_WIDTH_DP = 840
+internal const val MUSIC_PLAYER_COMPACT_DOCK_BOTTOM_PADDING_DP = 70
+
+internal fun resolveMusicPlayerPageTabs(): List<String> = listOf("封面", "歌词")
 
 internal enum class MusicPlayerLayout {
     COMPACT_PAGER,

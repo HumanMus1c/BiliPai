@@ -155,6 +155,8 @@ fun PlaybackSettingsContent(
         .getAudioFocusEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val audioModeAutoPipEnabled by com.android.purebilibili.core.store.SettingsManager
         .getAudioModeAutoPipEnabled(context).collectAsStateWithLifecycle(initialValue = false)
+    val audioNowPlayingBarEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getAudioNowPlayingBarEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val playerDiagnosticLoggingEnabled by com.android.purebilibili.core.store.SettingsManager
         .getPlayerDiagnosticLoggingEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED)
@@ -619,6 +621,24 @@ fun PlaybackSettingsContent(
                                     showPipPermissionDialog = true
                                 }
                             }
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYLIST_AUTO_CONTINUE),
+                            title = "听视频小横条",
+                            subtitle = if (audioNowPlayingBarEnabled) {
+                                "已开启：返回首页等页面时显示正在播放条"
+                            } else {
+                                "关闭后离开听视频页不再显示底部小横条"
+                            },
+                            checked = audioNowPlayingBarEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    com.android.purebilibili.core.store.SettingsManager
+                                        .setAudioNowPlayingBarEnabled(context, it)
+                                }
+                            },
+                            iconTint = iOSOrange
                         )
 
                         //  权限提示（仅当选择支持系统 PiP 的模式且无权限时显示）

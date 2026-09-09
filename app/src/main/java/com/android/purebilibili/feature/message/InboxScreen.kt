@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.AppAlertDialog
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import coil3.compose.AsyncImage
@@ -73,6 +73,7 @@ fun InboxScreen(
     }
 
     AppScaffold(
+        blurContentReady = !uiState.isLoading,
         topBar = {
             AppTopBar(
                 title = "消息",
@@ -90,7 +91,6 @@ fun InboxScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
             when {
                 uiState.isLoading -> {
@@ -124,11 +124,11 @@ fun InboxScreen(
                     AdaptivePullToRefreshBox(
                         isRefreshing = uiState.isRefreshing,
                         onRefresh = { viewModel.refresh() },
-                        indicatorTopInset = 0.dp
+                        indicatorTopInset = paddingValues.calculateTopPadding()
                     ) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding() + 8.dp, bottom = paddingValues.calculateBottomPadding() + 8.dp)
                         ) {
                             item {
                                 MessageCenterTopShortcutRow(

@@ -104,6 +104,8 @@ internal fun BottomBarFloatingSegmentedControl(
     val maxTabIndex = (itemCount - 1).coerceAtLeast(0)
     val safeSelectedIndex = selectedIndex.coerceIn(0, maxTabIndex)
     val selectedTextColor = selectedTextColorOverride ?: MaterialTheme.colorScheme.primary
+    // 液态玻璃模式下与首页底栏保持一致，使用纯净中性玻璃材质，不走主题色
+    val themedIndicatorSurface = indicatorIdleSurfaceColorOverride
     val unselectedTextColor = unselectedTextColorOverride
         ?: resolveLiquidSegmentedControlUnselectedTextColor(
             onSurface = MaterialTheme.colorScheme.onSurface,
@@ -213,7 +215,7 @@ internal fun BottomBarFloatingSegmentedControl(
             contentHorizontalPadding = horizontalPadding,
             contentVerticalPadding = verticalPadding,
             tapPressRefractionEnabled = tapPressRefractionEnabled,
-            indicatorIdleSurfaceColorOverride = indicatorIdleSurfaceColorOverride,
+            indicatorIdleSurfaceColorOverride = themedIndicatorSurface,
             isScrollInProgressProvider = isScrollInProgressProvider,
             // No per-screen exceptions for the shared liquid dock gesture.
             dragSelectionEnabled = enabled && itemCount > 1,

@@ -265,11 +265,12 @@ internal fun resolveHomeTopChromeMaterialMode(
     isHeaderBlurEnabled: Boolean,
     isBottomBarBlurEnabled: Boolean,
     isLiquidGlassEnabled: Boolean,
+    isProgressiveTopBlurEnabled: Boolean = false,
 ): TopTabMaterialMode {
     return when {
         isLiquidGlassEnabled -> TopTabMaterialMode.LIQUID_GLASS
-        !isHeaderBlurEnabled && !isBottomBarBlurEnabled -> TopTabMaterialMode.PLAIN
-        else -> TopTabMaterialMode.BLUR
+        isProgressiveTopBlurEnabled || isHeaderBlurEnabled || isBottomBarBlurEnabled -> TopTabMaterialMode.BLUR
+        else -> TopTabMaterialMode.PLAIN
     }
 }
 
@@ -1388,25 +1389,24 @@ internal fun Modifier.homeTopChromeSurface(
                     blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
                         ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
                     gradient = ProgressiveBlur.Top.copy(
-                        startFraction = liquidGlassTuning?.progressiveBlurStartFraction
-                            ?: BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
+                        startFraction = 0f,
                         endFraction = liquidGlassTuning?.progressiveBlurEndFraction
                             ?: ProgressiveBlur.Top.endFraction,
                         curve = liquidGlassTuning?.progressiveBlurCurve
                             ?: BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
                     ),
                 )
-                .background(surfaceColor, shape)
+                .background(if (useProgressiveTopBlur) Color.Transparent else surfaceColor, shape)
         }
 
         HomeTopChromeRenderMode.BLUR -> {
+            val isProgressiveBlurActive = shouldUseBiliPaiProgressiveTopBlur(
+                enabled = useProgressiveTopBlur,
+                hasBackdrop = miuixBackdrop != null,
+            )
             this
                 .then(
-                    if (shouldUseBiliPaiProgressiveTopBlur(
-                            enabled = useProgressiveTopBlur,
-                            hasBackdrop = miuixBackdrop != null,
-                        )
-                    ) {
+                    if (isProgressiveBlurActive) {
                         Modifier.biliPaiProgressiveTopBlur(
                             backdrop = miuixBackdrop,
                             enabled = true,
@@ -1414,8 +1414,7 @@ internal fun Modifier.homeTopChromeSurface(
                             blurRadiusDp = liquidGlassTuning?.progressiveBlurRadius
                                 ?: BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP,
                             gradient = ProgressiveBlur.Top.copy(
-                                startFraction = liquidGlassTuning?.progressiveBlurStartFraction
-                                    ?: BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
+                                startFraction = 0f,
                                 endFraction = liquidGlassTuning?.progressiveBlurEndFraction
                                     ?: ProgressiveBlur.Top.endFraction,
                                 curve = liquidGlassTuning?.progressiveBlurCurve
@@ -1436,7 +1435,7 @@ internal fun Modifier.homeTopChromeSurface(
                         Modifier
                     }
                 )
-                .background(surfaceColor, shape)
+                .background(if (isProgressiveBlurActive) Color.Transparent else surfaceColor, shape)
         }
 
         HomeTopChromeRenderMode.PLAIN -> {
@@ -1541,11 +1540,15 @@ fun HomeHeader(
     // 状态栏高度
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     
+    val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
+    val progressiveTopBlurEnabled = appThemeConfig.progressiveTopBlurEnabled
+
     // [Feature] Liquid Glass Logic
     val topChromeMaterialMode = resolveHomeTopChromeMaterialMode(
         isHeaderBlurEnabled = isHeaderBlurEnabled,
         isBottomBarBlurEnabled = linkedBottomBarAppearance.blurEnabled,
         isLiquidGlassEnabled = topChromeLiquidGlassEnabled,
+        isProgressiveTopBlurEnabled = progressiveTopBlurEnabled,
     )
     val isGlassEnabled = topChromeMaterialMode == TopTabMaterialMode.LIQUID_GLASS
     val isTopChromeBlurEnabled = topChromeMaterialMode != TopTabMaterialMode.PLAIN
@@ -1556,6 +1559,7 @@ fun HomeHeader(
         isHeaderBlurEnabled = isHeaderBlurEnabled,
         isBottomBarBlurEnabled = linkedBottomBarAppearance.blurEnabled,
         isLiquidGlassEnabled = searchLiquidGlassEnabled,
+        isProgressiveTopBlurEnabled = progressiveTopBlurEnabled,
     )
     val isSearchGlassEnabled = searchChromeMaterialMode == TopTabMaterialMode.LIQUID_GLASS
     val isSearchBlurEnabled = searchChromeMaterialMode != TopTabMaterialMode.PLAIN
@@ -2051,8 +2055,9 @@ fun HomeHeader(
         // 连续背景始终覆盖顶部 Dock；独立轨道只负责自身材质与前景可读性。
         includeTabInBlur = true,
     )
+    val isProgressiveBlurRequested = progressiveTopBlurEnabled
     val progressiveBlurBottomExtension = resolveProgressiveTopBlurBottomExtension(
-        enabled = homeSettings?.androidNativeLiquidGlassEnabled == true &&
+        enabled = isProgressiveBlurRequested &&
             liquidGlassTuning.progressiveBlurRadius > 0.001f,
         endFraction = liquidGlassTuning.progressiveBlurEndFraction,
     )
@@ -2214,7 +2219,7 @@ fun HomeHeader(
                         isScrolling = topChromeMotionPolicy.isScrolling,
                         isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                         forceLowBlurBudget = forceLowBlurBudget,
-                        useProgressiveTopBlur = homeSettings?.androidNativeLiquidGlassEnabled == true,
+                        useProgressiveTopBlur = isProgressiveBlurRequested,
                 )
             )
         }

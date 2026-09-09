@@ -1026,7 +1026,6 @@ internal fun shouldShowVideoDetailBottomInteractionBar(
         !isFullscreenMode &&
         !isPortraitFullscreen &&
         !isCommentInputVisible &&
-        !isCommentThreadVisible &&
         !isFavoriteFolderDialogVisible &&
         !isExternalPlaylistQueueBarVisible
 }

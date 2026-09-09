@@ -17,7 +17,7 @@ internal data class RelatedReturnSourceRestoreDecision(
 internal fun resolveRelatedReturnSourceRestoreDecision(
     restorePending: Boolean,
     transitionObserved: Boolean,
-    cardMorphAvailable: Boolean,
+    transitionAnimated: Boolean,
     exposure: VideoCardTransitionExposure,
 ): RelatedReturnSourceRestoreDecision {
     if (!restorePending) {
@@ -26,7 +26,7 @@ internal fun resolveRelatedReturnSourceRestoreDecision(
             shouldRestore = false,
         )
     }
-    if (!cardMorphAvailable) {
+    if (!transitionAnimated) {
         return RelatedReturnSourceRestoreDecision(
             transitionObserved = false,
             shouldRestore = true,

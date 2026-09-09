@@ -26,6 +26,7 @@ data class PlaylistItem(
     val title: String,
     val cover: String,
     val owner: String,
+    val ownerFace: String = "",
     val duration: Long = 0L,
     // 番剧专用
     val isBangumi: Boolean = false,
@@ -58,8 +59,46 @@ data class PlaylistUiState(
     val playlist: List<PlaylistItem> = emptyList(),
     val currentIndex: Int = -1,
     val isExternalPlaylist: Boolean = false,
-    val externalPlaylistSource: ExternalPlaylistSource = ExternalPlaylistSource.NONE
+    val externalPlaylistSource: ExternalPlaylistSource = ExternalPlaylistSource.NONE,
+    val shuffleEnabled: Boolean = false
 )
+
+internal data class RestoredPlayTransport(
+    val playMode: PlayMode,
+    val shuffleEnabled: Boolean
+)
+
+internal fun resolveRestoredPlayTransport(
+    storedPlayMode: PlayMode,
+    storedShuffleEnabled: Boolean
+): RestoredPlayTransport {
+    val shuffleEnabled = storedShuffleEnabled || storedPlayMode == PlayMode.SHUFFLE
+    val playMode = if (storedPlayMode == PlayMode.SHUFFLE) PlayMode.REPEAT_ALL else storedPlayMode
+    return RestoredPlayTransport(playMode = playMode, shuffleEnabled = shuffleEnabled)
+}
+
+internal fun resolveLinearPlayNextIndex(
+    playlistSize: Int,
+    currentIndex: Int,
+    wrap: Boolean
+): Int? {
+    if (playlistSize <= 0 || currentIndex !in 0 until playlistSize) return null
+    if (currentIndex < playlistSize - 1) return currentIndex + 1
+    return if (wrap) 0 else null
+}
+
+internal fun resolveLinearPlayPreviousIndex(
+    playlistSize: Int,
+    currentIndex: Int,
+    wrap: Boolean
+): Int? {
+    if (playlistSize <= 0 || currentIndex !in 0 until playlistSize) return null
+    if (currentIndex > 0) return currentIndex - 1
+    return if (wrap) playlistSize - 1 else null
+}
+
+internal fun shouldWrapPlaylistCycle(playMode: PlayMode): Boolean =
+    playMode == PlayMode.REPEAT_ALL || playMode == PlayMode.SHUFFLE
 
 @JvmInline
 value class PlaylistSession internal constructor(internal val generation: Long)
@@ -184,14 +223,16 @@ internal fun resolvePlaylistUiState(
     playlist: List<PlaylistItem>,
     currentIndex: Int,
     isExternalPlaylist: Boolean,
-    externalPlaylistSource: ExternalPlaylistSource
+    externalPlaylistSource: ExternalPlaylistSource,
+    shuffleEnabled: Boolean = false
 ): PlaylistUiState {
     return PlaylistUiState(
         playMode = playMode,
         playlist = playlist,
         currentIndex = currentIndex,
         isExternalPlaylist = isExternalPlaylist,
-        externalPlaylistSource = externalPlaylistSource
+        externalPlaylistSource = externalPlaylistSource,
+        shuffleEnabled = shuffleEnabled
     )
 }
 
@@ -207,7 +248,8 @@ object PlaylistManager {
         val currentIndex: Int = -1,
         val playMode: PlayMode = PlayMode.SEQUENTIAL,
         val isExternalPlaylist: Boolean = false,
-        val externalPlaylistSource: ExternalPlaylistSource = ExternalPlaylistSource.NONE
+        val externalPlaylistSource: ExternalPlaylistSource = ExternalPlaylistSource.NONE,
+        val shuffleEnabled: Boolean = false
     )
     
     // ========== 状态 ==========
@@ -220,6 +262,9 @@ object PlaylistManager {
     
     private val _playMode = MutableStateFlow(PlayMode.SEQUENTIAL)
     val playMode = _playMode.asStateFlow()
+
+    private val _shuffleEnabled = MutableStateFlow(false)
+    val shuffleEnabled = _shuffleEnabled.asStateFlow()
     
     // 🔒 [新增] 外部播放列表标志 - 当为 true 时，不使用推荐视频覆盖
     // 适用于：稍后再看全部播放、UP主页全部播放、收藏夹播放等
@@ -231,19 +276,23 @@ object PlaylistManager {
 
     private var activePlaylistSession = PlaylistSession(0L)
 
+    private val transportState = combine(playMode, shuffleEnabled) { playMode, shuffleEnabled ->
+        playMode to shuffleEnabled
+    }
     val uiState = combine(
-        playMode,
+        transportState,
         playlist,
         currentIndex,
         isExternalPlaylist,
         externalPlaylistSource
-    ) { playMode, playlist, currentIndex, isExternalPlaylist, externalPlaylistSource ->
+    ) { transport, playlist, currentIndex, isExternalPlaylist, externalPlaylistSource ->
         resolvePlaylistUiState(
-            playMode = playMode,
+            playMode = transport.first,
             playlist = playlist,
             currentIndex = currentIndex,
             isExternalPlaylist = isExternalPlaylist,
-            externalPlaylistSource = externalPlaylistSource
+            externalPlaylistSource = externalPlaylistSource,
+            shuffleEnabled = transport.second
         )
     }.distinctUntilChanged()
     
@@ -391,12 +440,25 @@ object PlaylistManager {
      * 设置播放模式
      */
     fun setPlayMode(mode: PlayMode) {
-        val previousMode = _playMode.value
+        if (mode == PlayMode.SHUFFLE) {
+            setShuffleEnabled(true)
+            return
+        }
         _playMode.value = mode
-        if (previousMode != PlayMode.SHUFFLE && mode == PlayMode.SHUFFLE) {
+        Logger.d(TAG, " 播放模式: $mode")
+        persistState()
+    }
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        val wasEnabled = _shuffleEnabled.value
+        _shuffleEnabled.value = enabled
+        if (enabled && !wasEnabled) {
             resetShuffleHistoryForCurrentIndex()
         }
-        Logger.d(TAG, " 播放模式: $mode")
+        if (!enabled && _playMode.value == PlayMode.SHUFFLE) {
+            _playMode.value = PlayMode.REPEAT_ALL
+        }
+        Logger.d(TAG, " 随机播放: $enabled")
         persistState()
     }
     
@@ -438,28 +500,29 @@ object PlaylistManager {
         
         val currentIdx = _currentIndex.value
         
-        val nextIndex = when (_playMode.value) {
-            PlayMode.SEQUENTIAL -> {
-                // 顺序播放：下一个，到末尾则停止
-                if (currentIdx < list.lastIndex) currentIdx + 1 else null
-            }
-            PlayMode.SHUFFLE -> {
-                val result = advanceShuffleProgress(
-                    playlistSize = list.size,
-                    currentIndex = currentIdx,
-                    progress = snapshotShuffleProgress(),
-                    chooseCandidate = { candidates -> candidates.random() }
-                )
+        val wrap = shouldWrapPlaylistCycle(_playMode.value)
+        val nextIndex = if (_shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE) {
+            val progress = snapshotShuffleProgress()
+            val result = advanceShuffleProgress(
+                playlistSize = list.size,
+                currentIndex = currentIdx,
+                progress = progress,
+                chooseCandidate = { candidates -> candidates.random() }
+            )
+            val startedNewCycle = progress.cyclePlayed.size >= list.size &&
+                (result.progress.cyclePlayed.size < progress.cyclePlayed.size)
+            if (!wrap && startedNewCycle) {
+                null
+            } else {
                 applyShuffleProgress(result.progress)
                 result.nextIndex
             }
-            PlayMode.REPEAT_ONE -> {
-                // 单曲循环：保持当前
-                currentIdx
-            }
-            PlayMode.REPEAT_ALL -> {
-                if (currentIdx < list.lastIndex) currentIdx + 1 else 0
-            }
+        } else {
+            resolveLinearPlayNextIndex(
+                playlistSize = list.size,
+                currentIndex = currentIdx,
+                wrap = wrap
+            )
         }
         
         return if (nextIndex != null && nextIndex in list.indices) {
@@ -483,19 +546,22 @@ object PlaylistManager {
         
         val currentIdx = _currentIndex.value
         
-        val prevIndex = when (_playMode.value) {
-            PlayMode.SEQUENTIAL, PlayMode.REPEAT_ONE -> {
-                // 顺序/单曲循环：上一个
-                if (currentIdx > 0) currentIdx - 1 else null
+        val wrap = shouldWrapPlaylistCycle(_playMode.value)
+        val prevIndex = if (_shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE) {
+            if (shuffleHistoryIndex > 0) {
+                shuffleHistoryIndex--
+                shuffleHistory[shuffleHistoryIndex]
+            } else if (wrap && list.size > 1) {
+                list.lastIndex.takeIf { it != currentIdx } ?: null
+            } else {
+                null
             }
-            PlayMode.REPEAT_ALL -> if (currentIdx > 0) currentIdx - 1 else list.lastIndex
-            PlayMode.SHUFFLE -> {
-                // 随机播放：从历史记录返回
-                if (shuffleHistoryIndex > 0) {
-                    shuffleHistoryIndex--
-                    shuffleHistory[shuffleHistoryIndex]
-                } else null
-            }
+        } else {
+            resolveLinearPlayPreviousIndex(
+                playlistSize = list.size,
+                currentIndex = currentIdx,
+                wrap = wrap
+            )
         }
         
         return if (prevIndex != null && prevIndex in list.indices) {
@@ -519,7 +585,7 @@ object PlaylistManager {
         _currentIndex.value = index
         
         // 添加到随机历史
-        if (_playMode.value == PlayMode.SHUFFLE) {
+        if (_shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE) {
             val historyPrefix = if (shuffleHistoryIndex >= 0) {
                 shuffleHistory.take(shuffleHistoryIndex + 1)
             } else {
@@ -548,11 +614,13 @@ object PlaylistManager {
         val list = _playlist.value
         val currentIdx = _currentIndex.value
         
-        return when (_playMode.value) {
-            PlayMode.SEQUENTIAL -> currentIdx < list.lastIndex
-            PlayMode.SHUFFLE -> list.size > 1
-            PlayMode.REPEAT_ONE -> true
-            PlayMode.REPEAT_ALL -> list.isNotEmpty()
+        val wrap = shouldWrapPlaylistCycle(_playMode.value)
+        val shuffleOn = _shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE
+        return when {
+            list.size <= 1 -> wrap && list.isNotEmpty()
+            shuffleOn -> wrap || shuffleCyclePlayed.size < list.size
+            wrap -> true
+            else -> currentIdx < list.lastIndex
         }
     }
     
@@ -563,10 +631,13 @@ object PlaylistManager {
         val currentIdx = _currentIndex.value
         val list = _playlist.value
         
-        return when (_playMode.value) {
-            PlayMode.SEQUENTIAL, PlayMode.REPEAT_ONE -> currentIdx > 0
-            PlayMode.SHUFFLE -> shuffleHistoryIndex > 0
-            PlayMode.REPEAT_ALL -> list.isNotEmpty()
+        val wrap = shouldWrapPlaylistCycle(_playMode.value)
+        val shuffleOn = _shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE
+        return when {
+            list.isEmpty() -> false
+            shuffleOn -> shuffleHistoryIndex > 0 || wrap
+            wrap -> true
+            else -> currentIdx > 0
         }
     }
     
@@ -649,7 +720,10 @@ object PlaylistManager {
         currentIndex: Int,
         previousProgress: ShuffleProgress
     ) {
-        val nextProgress = if (_playMode.value == PlayMode.SHUFFLE && previousPlaylist.isNotEmpty()) {
+        val nextProgress = if (
+            (_shuffleEnabled.value || _playMode.value == PlayMode.SHUFFLE) &&
+            previousPlaylist.isNotEmpty()
+        ) {
             reconcileShuffleProgressForPlaylistUpdate(
                 previousPlaylist = previousPlaylist,
                 newPlaylist = newPlaylist,
@@ -673,7 +747,8 @@ object PlaylistManager {
                 currentIndex = _currentIndex.value,
                 playMode = _playMode.value,
                 isExternalPlaylist = _isExternalPlaylist.value,
-                externalPlaylistSource = _externalPlaylistSource.value
+                externalPlaylistSource = _externalPlaylistSource.value,
+                shuffleEnabled = _shuffleEnabled.value
             )
             val raw = json.encodeToString(snapshot)
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -696,8 +771,13 @@ object PlaylistManager {
             json.decodeFromString<PlaylistSnapshot>(raw)
         }.onSuccess { snapshot ->
             beginPlaylistSession()
+            val transport = resolveRestoredPlayTransport(
+                storedPlayMode = snapshot.playMode,
+                storedShuffleEnabled = snapshot.shuffleEnabled
+            )
             _playlist.value = snapshot.playlist
-            _playMode.value = snapshot.playMode
+            _playMode.value = transport.playMode
+            _shuffleEnabled.value = transport.shuffleEnabled
             _isExternalPlaylist.value = snapshot.isExternalPlaylist
             _externalPlaylistSource.value = if (snapshot.isExternalPlaylist) {
                 snapshot.externalPlaylistSource

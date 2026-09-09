@@ -9,6 +9,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 import com.android.purebilibili.core.ui.OpticalContrastPalette
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.animation.*
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -887,8 +889,10 @@ internal fun resolveTopTabUnselectedColor(isLightMode: Boolean): Color {
     }
 }
 
-internal fun resolveIosTopTabSelectedContentColor(colorScheme: ColorScheme): Color =
-    colorScheme.primary
+internal fun resolveIosTopTabSelectedContentColor(
+    colorScheme: ColorScheme,
+    uiStyle: AppUiStyle = AppUiStyle.MIUIX
+): Color = if (uiStyle == AppUiStyle.MIUIX) colorScheme.onSurface else colorScheme.primary
 
 internal fun resolveIosTopTabCapsuleContainerColor(
     isDarkTheme: Boolean,
@@ -1662,28 +1666,45 @@ private fun LightweightHomeTopTabs(
             pagerIsDragging = pagerIsDragging,
             topTabIndicatorOwnsPosition = topTabIndicatorOwnsPosition
         )
-        val animatedMd3UnderlineLeftPx by animateFloatAsState(
-            targetValue = targetBounds.leftPx,
-            animationSpec = if (shouldAnimateMd3Tap) {
+        val isMiuixUnderline = LocalAppUiStyle.current == AppUiStyle.MIUIX
+        val leftAnimationSpec: androidx.compose.animation.core.AnimationSpec<Float> = if (shouldAnimateMd3Tap) {
+            if (isMiuixUnderline) {
+                spring(
+                    dampingRatio = if (movingRight) 0.68f else 0.78f,
+                    stiffness = if (movingRight) Spring.StiffnessMedium else Spring.StiffnessLow
+                )
+            } else {
                 tween(
                     durationMillis = MD3_TOP_TAB_INDICATOR_DURATION_MILLIS,
                     easing = if (movingRight) Md3TopTabIndicatorAccelerate else Md3TopTabIndicatorDecelerate
                 )
+            }
+        } else {
+            snap()
+        }
+        val rightAnimationSpec: androidx.compose.animation.core.AnimationSpec<Float> = if (shouldAnimateMd3Tap) {
+            if (isMiuixUnderline) {
+                spring(
+                    dampingRatio = if (movingRight) 0.78f else 0.68f,
+                    stiffness = if (movingRight) Spring.StiffnessLow else Spring.StiffnessMedium
+                )
             } else {
-                snap()
-            },
-            label = "md3UnderlineLeft"
-        )
-        val animatedMd3UnderlineRightPx by animateFloatAsState(
-            targetValue = targetBounds.rightPx,
-            animationSpec = if (shouldAnimateMd3Tap) {
                 tween(
                     durationMillis = MD3_TOP_TAB_INDICATOR_DURATION_MILLIS,
                     easing = if (movingRight) Md3TopTabIndicatorDecelerate else Md3TopTabIndicatorAccelerate
                 )
-            } else {
-                snap()
-            },
+            }
+        } else {
+            snap()
+        }
+        val animatedMd3UnderlineLeftPx by animateFloatAsState(
+            targetValue = targetBounds.leftPx,
+            animationSpec = leftAnimationSpec,
+            label = "md3UnderlineLeft"
+        )
+        val animatedMd3UnderlineRightPx by animateFloatAsState(
+            targetValue = targetBounds.rightPx,
+            animationSpec = rightAnimationSpec,
             label = "md3UnderlineRight"
         )
         SideEffect {
@@ -2069,10 +2090,10 @@ private fun LightweightHomeTopTabs(
 
                 // 非玻璃 MD3 与皮肤顶栏使用单层短指示线，始终位于内容底部居中。
                 if (shouldUseMd3NativeUnderline) {
-                    val indicatorColor = if (skinPlainContentColor != null) {
-                        resolveHomeSkinTopTabIndicatorColor(skinPlainContentColor)
-                    } else {
-                        MaterialTheme.colorScheme.primary
+                    val indicatorColor = when {
+                        skinPlainContentColor != null -> resolveHomeSkinTopTabIndicatorColor(skinPlainContentColor)
+                        LocalAppUiStyle.current == AppUiStyle.MIUIX -> MaterialTheme.colorScheme.onSurface
+                        else -> MaterialTheme.colorScheme.primary
                     }
                     val iconOnlyIndicator = showIcon && !showText
                     val nativeIndicatorWidth = if (iconOnlyIndicator) {
@@ -2225,6 +2246,7 @@ private fun LightweightTopTabItem(
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val uiStyle = LocalAppUiStyle.current
     val isDarkTheme = isSystemInDarkTheme()
     val selected = selectionFraction > 0.5f || index == selectedIndex
     val skinIconPath = skinIconPaths?.pathFor(selected)
@@ -2238,22 +2260,16 @@ private fun LightweightTopTabItem(
         iconFamily = iconFamily,
         selected = true
     )
-    val selectedColor = when (presentation) {
-        AppTopTabPresentation.MOVING_CAPSULE -> if (skinPlainStyle) {
-            skinPlainContentColor ?: colorScheme.onSurface
-        } else {
-            resolveIosTopTabSelectedContentColor(colorScheme)
-        }
-        AppTopTabPresentation.MATERIAL_UNDERLINE -> if (skinPlainStyle) {
-            skinPlainContentColor ?: colorScheme.onSurface
-        } else {
-            colorScheme.primary
-        }
-        AppTopTabPresentation.TONAL_CAPSULE -> if (skinPlainStyle) {
-            skinPlainContentColor ?: colorScheme.onSurface
-        } else {
-            colorScheme.primary
-        }
+    val selectedColor = when {
+        skinPlainStyle -> skinPlainContentColor ?: colorScheme.onSurface
+        uiStyle == AppUiStyle.MIUIX -> colorScheme.onSurface
+        presentation == AppTopTabPresentation.MOVING_CAPSULE ->
+            resolveIosTopTabSelectedContentColor(colorScheme, uiStyle)
+        presentation == AppTopTabPresentation.MATERIAL_UNDERLINE ->
+            resolveMd3TopTabSelectedLabelColor(colorScheme, presentation, uiStyle)
+        presentation == AppTopTabPresentation.TONAL_CAPSULE ->
+            resolveMd3TopTabSelectedLabelColor(colorScheme, presentation, uiStyle)
+        else -> colorScheme.primary
     }
     val unselectedColor = if (skinPlainStyle) {
         resolveHomeSkinTopTabUnselectedContentColor(skinPlainContentColor ?: colorScheme.onSurface)

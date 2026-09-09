@@ -35,6 +35,7 @@ import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.adaptiveSquircleBackground
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
+import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.theme.iOSPink  // 存储权限图标色
 import com.android.purebilibili.core.theme.iOSBlue
@@ -192,6 +193,7 @@ fun PermissionSettingsContent(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
     ) {
+            Spacer(modifier = Modifier.height(LocalSettingsTopContentPadding.current))
             Box(modifier = Modifier.entrance()) {
                 AppText(
                     text = "以下是应用所需的权限及其用途说明。普通权限在安装时自动授予，无需手动操作。",

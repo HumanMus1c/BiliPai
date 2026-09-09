@@ -38,7 +38,7 @@ class AppChromeNavigationApiStructureTest {
     }
 
     @Test
-    fun miuixTopBarsKeepCompactPaddingsSoTitlesSurvive() {
+    fun miuixSmallBarsKeepCompactPaddingsAndLargeBarsKeepUpstreamInsets() {
         // Miuix 标题可用宽度 = (总宽 - 导航 - actions) × 0.9 - titlePadding×2，
         // 默认 26dp×2 + 多 actions 会把「历史记录」等标题挤成省略号。
         val chrome = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/AdaptiveChrome.kt")
@@ -46,6 +46,10 @@ class AppChromeNavigationApiStructureTest {
         val miuixBranches = chrome.substringAfter("if (rememberIsNativeMiuixEnabled())")
             .substringBefore("val topBarWindowInsets")
 
+        val largeBar = miuixBranches.substringAfter("MiuixTopAppBar(")
+            .substringBefore("AdaptiveTopAppBarStyle.SMALL")
+        assertFalse(largeBar.contains("titlePadding = 0.dp"))
+        assertFalse(largeBar.contains("navigationIconPadding = 0.dp"))
         assertTrue(miuixBranches.contains("titlePadding = 0.dp"))
         assertTrue(miuixBranches.contains("navigationIconPadding = 0.dp"))
         assertTrue(miuixBranches.contains("actionIconPadding = 0.dp"))

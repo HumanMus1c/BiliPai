@@ -2255,7 +2255,7 @@ fun VideoPlayerOverlay(
         
         // --- 11. [新增] 侧边栏抽屉 ---
         LandscapeEndDrawer(
-            visible = endDrawerVisible,
+            visible = endDrawerVisible && isFullscreen,
             onDismiss = onDismissEndDrawer,
             relatedVideos = relatedVideos,
             ugcSeason = ugcSeason,
@@ -2884,8 +2884,11 @@ fun LandscapeEndDrawer(
                             ),
                             selectedValue = selectedTab,
                             onSelectionChange = { selectedTab = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = layoutPolicy.listContentPaddingDp.dp),
                             labelFontSize = layoutPolicy.followButtonFontSp.sp,
+                            dragSelectionEnabled = false,
                         )
                     } else {
                         // 只有推荐，显示标题

@@ -138,6 +138,18 @@ class FloatingBottomBarPagerFollowPolicyTest {
             ),
         )
         assertEquals(
+            1.35f,
+            resolveFloatingDockVisualIndicatorPosition(
+                internalPosition = 1f,
+                externalPosition = 1.35f,
+                maxTabIndex = 4,
+                externalPagerMotionEffectsEnabled = true,
+                isDragging = false,
+                ownedTargetIndex = null,
+                isPagerScrolling = false,
+            ),
+        )
+        assertEquals(
             1f,
             resolveFloatingDockVisualIndicatorPosition(
                 internalPosition = 1f,

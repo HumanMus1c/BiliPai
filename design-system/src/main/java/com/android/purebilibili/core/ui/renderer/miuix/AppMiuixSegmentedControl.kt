@@ -200,16 +200,6 @@ internal fun <T> AppMiuixTabRow(
         itemSpacing = AppSpacingTokens.Small,
         listState = if (scrollable) scrollState else null,
     )
-    // Upstream centers every selected item, including the first and last. At a non-zero parent
-    // x-position that places the boundary item outside LazyRow's viewport and desynchronizes the
-    // selected squircle from its label. Let the upstream positioning settle, then pin boundaries.
-    LaunchedEffect(scrollable, selectedIndex, options.size) {
-        if (!scrollable || options.isEmpty()) return@LaunchedEffect
-        if (selectedIndex == 0 || selectedIndex == options.lastIndex) {
-            withFrameNanos { }
-            scrollState.scrollToItem(selectedIndex)
-        }
-    }
 }
 
 /** Native tabs own selection/press feedback; the wrapper supplies measured geometry, container, and outline suppression. */
@@ -267,18 +257,6 @@ private fun <T> AppMiuixNonGlassTabs(
                         scrollState.scrollToItem(0, 0)
                     }
                 }
-        }
-    }
-    LaunchedEffect(scrollable, selectedIndex, options.size, shouldPinScroll) {
-        if (options.isEmpty()) return@LaunchedEffect
-        if (shouldPinScroll) {
-            withFrameNanos { }
-            if (scrollState.firstVisibleItemIndex != 0 || scrollState.firstVisibleItemScrollOffset != 0) {
-                scrollState.scrollToItem(0, 0)
-            }
-        } else if (selectedIndex == 0 || selectedIndex == options.lastIndex) {
-            withFrameNanos { }
-            scrollState.scrollToItem(selectedIndex)
         }
     }
     BoxWithConstraints(

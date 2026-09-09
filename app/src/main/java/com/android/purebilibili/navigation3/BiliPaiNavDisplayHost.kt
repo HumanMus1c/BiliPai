@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -154,9 +155,16 @@ internal fun BiliPaiNavDisplayHost(
     val cardMorphAvailable = cardMorphMode != BiliPaiVideoCardMorphMode.NONE
     var relatedReturnRestorePending by remember { mutableStateOf(false) }
     var relatedReturnTransitionObserved by remember { mutableStateOf(false) }
+    val style = if (reduceMotion) {
+        BiliPaiPredictiveBackAnimationStyle.NONE
+    } else {
+        predictiveBackAnimationStyle
+    }
+    val videoReturnAnimated = cardMorphAvailable || style != BiliPaiPredictiveBackAnimationStyle.NONE
     val performBack = remember(
         backStack,
         cardMorphAvailable,
+        videoReturnAnimated,
         sourceMetadata.sourceRoute,
     ) {
         {
@@ -173,7 +181,7 @@ internal fun BiliPaiNavDisplayHost(
                 ?.startsWith("video/") == true
             latestOnBack()
             if (returningFromRelated) {
-                if (cardMorphAvailable) {
+                if (videoReturnAnimated) {
                     relatedReturnTransitionObserved = false
                     relatedReturnRestorePending = true
                 } else {
@@ -188,11 +196,6 @@ internal fun BiliPaiNavDisplayHost(
         onDispose { programmaticBackDispatcher.unregister(performBack) }
     }
 
-    val style = if (reduceMotion) {
-        BiliPaiPredictiveBackAnimationStyle.NONE
-    } else {
-        predictiveBackAnimationStyle
-    }
     val globalTransition = remember(
         style,
         predictiveBackExitDirection,
@@ -230,6 +233,12 @@ internal fun BiliPaiNavDisplayHost(
     }
     // A restored parent session must not keep the departed child's scope at depth -1.
     val videoCardTransitionProgress = remember(sourceMetadata.sourceKey) { MiuixVideoCardTransitionProgress() }
+    val observedVideoFallbackTransition = remember(
+        predictiveBackExcludedTransition,
+        videoCardTransitionProgress,
+    ) {
+        videoCardTransitionProgress.observe(predictiveBackExcludedTransition)
+    }
     val returningProvider = remember(videoCardClock) {
         { videoCardClock.phase != VideoCardTransitionBackgroundPhase.OPENING }
     }
@@ -246,7 +255,7 @@ internal fun BiliPaiNavDisplayHost(
         videoSharedTransitionDurationMillis,
         heroMotion,
         videoCardTransitionProgress,
-        predictiveBackExcludedTransition,
+        observedVideoFallbackTransition,
         videoCardContentScale,
         videoSharedReturnGestureFollowEnabled,
         effectiveDeviceCornerDp,
@@ -256,7 +265,7 @@ internal fun BiliPaiNavDisplayHost(
                 sourceBounds = sourceMetadata.sourceBounds,
                 sourceCornerDp = sourceMetadata.sourceCornerDp,
                 durationMillis = videoSharedTransitionDurationMillis,
-                fallback = predictiveBackExcludedTransition,
+                fallback = observedVideoFallbackTransition,
                 progress = videoCardTransitionProgress,
                 contentScale = videoCardContentScale,
                 gestureFollowEnabled = videoSharedReturnGestureFollowEnabled,
@@ -265,7 +274,7 @@ internal fun BiliPaiNavDisplayHost(
                 deviceCornerDp = effectiveDeviceCornerDp,
             )
         } else {
-            predictiveBackExcludedTransition
+            observedVideoFallbackTransition
         }
     }
     val fullscreenVideoCardTransition = remember(
@@ -275,7 +284,7 @@ internal fun BiliPaiNavDisplayHost(
         videoSharedTransitionDurationMillis,
         heroMotion,
         videoCardTransitionProgress,
-        predictiveBackExcludedTransition,
+        observedVideoFallbackTransition,
         videoSharedReturnGestureFollowEnabled,
         effectiveDeviceCornerDp,
     ) {
@@ -284,7 +293,7 @@ internal fun BiliPaiNavDisplayHost(
                 sourceBounds = sourceMetadata.sourceBounds,
                 sourceCornerDp = sourceMetadata.sourceCornerDp,
                 durationMillis = videoSharedTransitionDurationMillis,
-                fallback = predictiveBackExcludedTransition,
+                fallback = observedVideoFallbackTransition,
                 progress = videoCardTransitionProgress,
                 contentScale = MiuixVideoCardContentScale.CropCenter,
                 gestureFollowEnabled = videoSharedReturnGestureFollowEnabled,
@@ -293,7 +302,7 @@ internal fun BiliPaiNavDisplayHost(
                 deviceCornerDp = effectiveDeviceCornerDp,
             )
         } else {
-            predictiveBackExcludedTransition
+            observedVideoFallbackTransition
         }
     }
 
@@ -383,16 +392,30 @@ internal fun BiliPaiNavDisplayHost(
         }
     }
     val effectiveVideoCardExposure = videoCardExposureProvider()
+    // Ordinary related-video slides have no card clock. Read their actual navigation settle
+    // instead of restoring the parent's morph while the child is still moving off screen.
+    val fallbackReturnExposure by remember(videoCardTransitionProgress) {
+        derivedStateOf {
+            when (videoCardTransitionProgress.settleStateOrNull()) {
+                VideoCardTransitionSettleState.AutoReturn -> VideoCardTransitionExposure.Returning
+                VideoCardTransitionSettleState.Idle,
+                VideoCardTransitionSettleState.Held,
+                null -> VideoCardTransitionExposure.Idle
+                else -> VideoCardTransitionExposure.Opening
+            }
+        }
+    }
+    val relatedReturnExposure = if (cardMorphAvailable) effectiveVideoCardExposure else fallbackReturnExposure
     LaunchedEffect(
         relatedReturnRestorePending,
-        effectiveVideoCardExposure,
-        cardMorphAvailable,
+        relatedReturnExposure,
+        videoReturnAnimated,
     ) {
         val restoreDecision = resolveRelatedReturnSourceRestoreDecision(
             restorePending = relatedReturnRestorePending,
             transitionObserved = relatedReturnTransitionObserved,
-            cardMorphAvailable = cardMorphAvailable,
-            exposure = effectiveVideoCardExposure,
+            transitionAnimated = videoReturnAnimated,
+            exposure = relatedReturnExposure,
         )
         relatedReturnTransitionObserved = restoreDecision.transitionObserved
         if (restoreDecision.shouldRestore) {
@@ -617,19 +640,33 @@ internal fun BiliPaiNavDisplayHost(
                 videoCardTransition = videoCardTransition,
                 fullscreenVideoCardTransition = fullscreenVideoCardTransition,
             ) { key ->
+                // Freeze this per entry so popping the key cannot remove its backing during exit.
+                val opaqueVideoChild = remember(key) {
+                    shouldUseOpaqueVideoChildBackground(key, stackSnapshot)
+                }
                 BiliPaiMiuixNavEntry(
                     interceptPredictiveBack = interceptPredictiveBack,
                     onBack = performBack,
                 ) {
                     CompositionLocalProvider(
+                        LocalGlobalWallpaperBackdropVisible provides
+                            (globalWallpaperVisible && !opaqueVideoChild),
                         LocalVideoCardSharedElementSourceRoute provides key.toLegacyRoute(),
                         LocalVideoCardTransitionClock provides videoCardClock,
                         LocalVideoCardTransitionBackgroundState provides transitionBackgroundState,
                         LocalMiuixVideoCardTransitionState provides miuixCardTransitionState,
                         LocalPredictiveBackBackgroundState provides predictiveBackBackgroundState,
                     ) {
-                        ProvideMiuixNavViewModelApplicationExtras(application) {
-                            content(key)
+                        Box(
+                            modifier = Modifier.fillMaxSize().then(
+                                if (opaqueVideoChild) {
+                                    Modifier.background(AppSurfaceTokens.groupedListContainer().copy(alpha = 1f))
+                                } else Modifier
+                            ),
+                        ) {
+                            ProvideMiuixNavViewModelApplicationExtras(application) {
+                                content(key)
+                            }
                         }
                     }
                 }

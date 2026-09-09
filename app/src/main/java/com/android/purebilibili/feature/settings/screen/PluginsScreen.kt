@@ -67,6 +67,7 @@ import com.android.purebilibili.feature.settings.SettingsLocalBackHandler
 import com.android.purebilibili.feature.settings.screen.SkinCatalogScreen
 import com.android.purebilibili.feature.settings.ui.SettingsBottomBarScrollEffect
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.adaptiveSquircleBackground
@@ -520,7 +521,10 @@ fun PluginsContent(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 16.dp, bottom = contentBottomPadding)
+        contentPadding = settingsScrollContentPadding(
+            extraTop = 16.dp,
+            extraBottom = contentBottomPadding,
+        )
     ) {
             
             // 标题说明

@@ -2,6 +2,12 @@ package com.android.purebilibili.feature.dynamic
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
+import android.graphics.RenderEffect as AndroidRenderEffect
+import android.graphics.Shader
+import android.os.Build
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -48,7 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.imageLoader
 import com.android.purebilibili.R
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.store.HomeSettings
@@ -150,6 +157,7 @@ fun DynamicDetailScreen(
     var editingAction by remember { mutableStateOf<DynamicManageAction.Edit?>(null) }
     var pendingMessageShare by remember { mutableStateOf<DynamicItem?>(null) }
     var forwardCountDelta by remember(dynamicId) { mutableIntStateOf(0) }
+    var subReplyCoveredBlurProgress by remember { mutableFloatStateOf(0f) }
     val detailListState = rememberLazyListState()
     //  [新增] 大屏/横屏分栏：右栏评论列表
     val commentListState = rememberLazyListState()
@@ -161,6 +169,7 @@ fun DynamicDetailScreen(
     var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     AppScaffold(
+        blurContentReady = uiState !is DynamicDetailUiState.Loading,
         topBar = {
             AppTopBar(
                 title = screenTitle,
@@ -400,147 +409,172 @@ fun DynamicDetailScreen(
                     showActionButtonsFallback = false,
                 )
 
-                if (useSplitLayout) {
-                    //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 BiliPai 横屏分栏）
-                    AppSplitLayout(
-                        primaryRatio = 0.5f,
-                        modifier = Modifier
-                            .padding(paddingValues)
-                            .consumeWindowInsets(paddingValues),
-                        primaryContent = {
+                val coveredBlurProgress = if (subReplyState.visible) subReplyCoveredBlurProgress else 0f
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            renderEffect = null
+                            if (coveredBlurProgress > 0f &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                            ) {
+                                val blurFrame = resolvePredictiveBackBlurFrame(
+                                    progress = coveredBlurProgress,
+                                )
+                                renderEffect = if (blurFrame.blurRadiusPx > 0.5f) {
+                                    AndroidRenderEffect.createBlurEffect(
+                                        blurFrame.blurRadiusPx,
+                                        blurFrame.blurRadiusPx,
+                                        Shader.TileMode.CLAMP,
+                                    ).asComposeRenderEffect()
+                                } else {
+                                    null
+                                }
+                            }
+                        }
+                ) {
+                    if (useSplitLayout) {
+                        //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 BiliPai 横屏分栏）
+                        AppSplitLayout(
+                            primaryRatio = 0.5f,
+                            modifier = Modifier
+                                .padding(bottom = paddingValues.calculateBottomPadding())
+                                .consumeWindowInsets(paddingValues),
+                            primaryContent = {
+                                LazyColumn(
+                                    state = detailListState,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
+                                    contentPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                                ) {
+                                    cardContent()
+                                }
+                            },
+                            secondaryContent = {
+                                if (floatingCommentComposer) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            state = commentListState,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(
+                                                    if (detailCommentBackdrop != null) {
+                                                        Modifier.layerBackdrop(detailCommentBackdrop)
+                                                    } else {
+                                                        Modifier
+                                                    }
+                                                ),
+                                            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = commentContentBottomPadding),
+                                        ) {
+                                            commentContent()
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .imePadding()
+                                                .padding(horizontal = AppSpacingTokens.ExtraLarge)
+                                                .padding(bottom = AppSpacingTokens.Medium),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            commentComposer(
+                                                Modifier
+                                                    .widthIn(max = 360.dp)
+                                                    .fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            state = commentListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = commentContentBottomPadding),
+                                        ) {
+                                            commentContent()
+                                        }
+                                        AppSurface(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .imePadding(),
+                                            color = MaterialTheme.colorScheme.surface,
+                                            tonalElevation = 3.dp,
+                                            shadowElevation = 8.dp,
+                                        ) {
+                                            commentComposer(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        horizontal = AppSpacingTokens.Large,
+                                                        vertical = AppSpacingTokens.Medium,
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = paddingValues.calculateBottomPadding())
+                                .consumeWindowInsets(paddingValues)
+                                .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth())
+                        ) {
                             LazyColumn(
                                 state = detailListState,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
-                                contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                                    .then(
+                                        if (floatingCommentComposer && detailCommentBackdrop != null) {
+                                            Modifier.layerBackdrop(detailCommentBackdrop)
+                                        } else {
+                                            Modifier
+                                        }
+                                    ),
+                                contentPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = commentContentBottomPadding),
                             ) {
                                 cardContent()
+                                commentContent()
                             }
-                        },
-                        secondaryContent = {
                             if (floatingCommentComposer) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        state = commentListState,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .then(
-                                                if (detailCommentBackdrop != null) {
-                                                    Modifier.layerBackdrop(detailCommentBackdrop)
-                                                } else {
-                                                    Modifier
-                                                }
-                                            ),
-                                        contentPadding = PaddingValues(bottom = commentContentBottomPadding),
-                                    ) {
-                                        commentContent()
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .imePadding()
-                                            .padding(horizontal = AppSpacingTokens.ExtraLarge)
-                                            .padding(bottom = AppSpacingTokens.Medium),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        commentComposer(
-                                            Modifier
-                                                .widthIn(max = 360.dp)
-                                                .fillMaxWidth(),
-                                        )
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .imePadding()
+                                        .padding(horizontal = AppSpacingTokens.ExtraLarge)
+                                        .padding(bottom = AppSpacingTokens.Medium),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    commentComposer(
+                                        Modifier
+                                            .widthIn(max = 360.dp)
+                                            .fillMaxWidth(),
+                                    )
                                 }
                             } else {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        state = commentListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = commentContentBottomPadding),
-                                    ) {
-                                        commentContent()
-                                    }
-                                    AppSurface(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .imePadding(),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        tonalElevation = 3.dp,
-                                        shadowElevation = 8.dp,
-                                    ) {
-                                        commentComposer(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(
-                                                    horizontal = AppSpacingTokens.Large,
-                                                    vertical = AppSpacingTokens.Medium,
-                                                )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .consumeWindowInsets(paddingValues)
-                            .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth())
-                    ) {
-                        LazyColumn(
-                            state = detailListState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(
-                                    if (floatingCommentComposer && detailCommentBackdrop != null) {
-                                        Modifier.layerBackdrop(detailCommentBackdrop)
-                                    } else {
-                                        Modifier
-                                    }
-                                ),
-                            contentPadding = PaddingValues(bottom = commentContentBottomPadding),
-                        ) {
-                            cardContent()
-                            commentContent()
-                        }
-                        if (floatingCommentComposer) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .imePadding()
-                                    .padding(horizontal = AppSpacingTokens.ExtraLarge)
-                                    .padding(bottom = AppSpacingTokens.Medium),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                commentComposer(
-                                    Modifier
-                                        .widthIn(max = 360.dp)
-                                        .fillMaxWidth(),
-                                )
-                            }
-                        } else {
-                            AppSurface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .imePadding(),
-                                color = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 3.dp,
-                                shadowElevation = 8.dp,
-                            ) {
-                                commentComposer(
-                                    Modifier
+                                AppSurface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
                                         .fillMaxWidth()
-                                        .padding(
-                                            horizontal = AppSpacingTokens.Large,
-                                            vertical = AppSpacingTokens.Medium,
-                                        ),
-                                )
+                                        .imePadding(),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 3.dp,
+                                    shadowElevation = 8.dp,
+                                ) {
+                                    commentComposer(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                horizontal = AppSpacingTokens.Large,
+                                                vertical = AppSpacingTokens.Medium,
+                                            ),
+                                    )
+                                }
                             }
                         }
                     }
@@ -566,6 +600,9 @@ fun DynamicDetailScreen(
                                 android.widget.Toast.LENGTH_SHORT,
                             ).show()
                         }
+                    },
+                    onCoveredBlurProgressChange = { progress ->
+                        subReplyCoveredBlurProgress = progress
                     },
                 )
 

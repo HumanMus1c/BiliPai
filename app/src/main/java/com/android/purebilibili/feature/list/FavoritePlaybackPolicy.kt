@@ -25,6 +25,7 @@ fun buildExternalPlaylistFromFavorite(
             title = video.title,
             cover = video.pic,
             owner = video.owner.name,
+            ownerFace = video.owner.face,
             duration = video.duration.toLong()
         )
     }

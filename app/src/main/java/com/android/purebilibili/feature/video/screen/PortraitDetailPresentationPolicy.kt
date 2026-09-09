@@ -129,7 +129,6 @@ internal fun shouldUseCompactInlinePortraitPlayerForCommentTab(
     if (!collapseMode.enablesVideoOrientation(isVerticalVideo)) return false
     if (!collapseMode.enablesComment) return false
     if (collapseMode == PortraitPlayerCollapseMode.PAUSED_ONLY) return false
-    if (isCommentThreadVisible) return true
     return selectedTabIndex == 1
 }
 

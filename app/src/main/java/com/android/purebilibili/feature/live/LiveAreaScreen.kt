@@ -27,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -116,8 +116,10 @@ fun LiveAreaScreen(
     }
 
     AppScaffold(
+        blurContentReady = !isLoading,
         modifier = Modifier.fillMaxSize(),
         topBar = {
+            Column {
             AppTopBar(
                 title = "全部标签",
                 navigationIcon = {
@@ -134,6 +136,32 @@ fun LiveAreaScreen(
                     }
                 },
             )
+                if (!isLoading && error == null && areas.isNotEmpty()) {
+                LiveFavoriteTagsPanel(
+                    favoriteTags = favoriteTags,
+                    isEditing = isEditing,
+                    onTagClick = { child ->
+                        onAreaClick(child.parentAreaId, child.areaId, child.title)
+                    },
+                    onRemove = { child ->
+                        scope.launch {
+                            SettingsManager.setLiveFavoriteTags(
+                                context,
+                                favoriteTags.filterNot {
+                                    it.parentAreaId == child.parentAreaId && it.areaId == child.areaId
+                                }
+                            )
+                        }
+                    }
+                )
+                LiveAreaParentTabRow(
+                    areas = areas,
+                    selectedTab = pagerState.currentPage,
+                    horizontalPadding = metrics.safeSpaceDp.dp,
+                    onTabSelected = { selectedTab = it }
+                )
+                }
+            }
         },
         containerColor = colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -141,7 +169,7 @@ fun LiveAreaScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                ,
         ) {
         when {
             isLoading -> ContentCategoryGridSkeleton(
@@ -150,7 +178,7 @@ fun LiveAreaScreen(
                 contentPadding = PaddingValues(
                     start = metrics.safeSpaceDp.dp,
                     end = metrics.safeSpaceDp.dp,
-                    top = AppSpacingTokens.Medium,
+                    top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                     bottom = LocalBottomBarContentPadding.current,
                 ),
             )
@@ -190,29 +218,6 @@ fun LiveAreaScreen(
                         selectedTab = pagerState.currentPage
                     }
                 }
-                LiveFavoriteTagsPanel(
-                    favoriteTags = favoriteTags,
-                    isEditing = isEditing,
-                    onTagClick = { child ->
-                        onAreaClick(child.parentAreaId, child.areaId, child.title)
-                    },
-                    onRemove = { child ->
-                        scope.launch {
-                            SettingsManager.setLiveFavoriteTags(
-                                context,
-                                favoriteTags.filterNot {
-                                    it.parentAreaId == child.parentAreaId && it.areaId == child.areaId
-                                }
-                            )
-                        }
-                    }
-                )
-                LiveAreaParentTabRow(
-                    areas = areas,
-                    selectedTab = pagerState.currentPage,
-                    horizontalPadding = metrics.safeSpaceDp.dp,
-                    onTabSelected = { selectedTab = it }
-                )
                 HorizontalPager(
                     state = pagerState,
                     userScrollEnabled = false,
@@ -234,7 +239,7 @@ fun LiveAreaScreen(
                             contentPadding = PaddingValues(
                                 start = metrics.safeSpaceDp.dp,
                                 end = metrics.safeSpaceDp.dp,
-                                top = AppSpacingTokens.Medium,
+                                top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                                 bottom = LocalBottomBarContentPadding.current,
                             ),
                             horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),

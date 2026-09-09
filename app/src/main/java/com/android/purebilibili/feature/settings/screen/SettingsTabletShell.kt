@@ -38,7 +38,13 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
+import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.feature.settings.SettingsHomeSearchEntry
 import com.android.purebilibili.feature.settings.SettingsRootCategory
@@ -118,20 +124,38 @@ fun SettingsTabletShell(
                     .fillMaxHeight()
                     .background(AppSurfaceTokens.groupedListContainer()),
             ) {
-                AppTopBar(
-                    title = stringResource(R.string.settings_title),
-                    navigationIcon = {
-                        AppIconButton(onClick = onBack) {
-                            AppIcon(
-                                imageVector = rememberAppBackIcon(),
-                                contentDescription = stringResource(R.string.common_back),
-                            )
-                        }
-                    },
-                )
+                val config = LocalAppThemeConfig.current
+                val progressive = shouldUseBiliPaiProgressiveTopBlur(
+                    enabled = config.progressiveTopBlurEnabled && !config.headerBlurEnabled,
+                    hasBackdrop = true,
+                ) && !isLowBlurBudgetForced()
+                val tabletChromeBackdrop = if (progressive) rememberLayerBackdrop() else null
+                BiliPaiImmersiveTopBar(
+                    backdrop = tabletChromeBackdrop,
+                    enabled = progressive,
+                ) {
+                    AppTopBar(
+                        title = stringResource(R.string.settings_title),
+                        navigationIcon = {
+                            AppIconButton(onClick = onBack) {
+                                AppIcon(
+                                    imageVector = rememberAppBackIcon(),
+                                    contentDescription = stringResource(R.string.common_back),
+                                )
+                            }
+                        },
+                    )
+                }
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .then(
+                            if (tabletChromeBackdrop != null) {
+                                Modifier.layerBackdrop(tabletChromeBackdrop)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(
                             horizontal = layoutPolicy.masterPanePaddingDp.dp,
                             vertical = 8.dp,

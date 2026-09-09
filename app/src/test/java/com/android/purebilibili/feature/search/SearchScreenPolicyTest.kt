@@ -486,6 +486,15 @@ class SearchScreenPolicyTest {
         assertTrue(topBar.contains("TextFieldValue("))
         assertTrue(topBar.contains("resolveSearchInputShape(topChromePolicy)"))
         assertFalse(topBar.contains("RoundedCornerShape("))
+        assertFalse(topBar.contains("searchTopChromeGlass(dockShape)"))
+        assertTrue(topBar.contains("searchTopChromeGlass(inputShape, chromeSpec.inputHeightDp)"))
+        assertTrue(topBar.contains("searchTopChromeGlass(actionShape, chromeSpec.submitActionSizeDp)"))
+        assertEquals(2, Regex("searchTopChromeGlass\\(actionShape, chromeSpec.clearActionSizeDp\\)").findAll(topBar).count())
+        assertTrue(topBar.contains("resolveHomeTopEdgeButtonShape(topChromePolicy)"))
+        assertTrue(topBar.contains("liquidGlassEnabled"))
+        assertTrue(topBar.contains("homeTopBottomBarMatchedSurface("))
+        assertTrue(topBar.contains("drawShellLens = true"))
+        assertTrue(topBar.contains("resolveFloatingDockGeometryScale(controlHeightDp.toFloat())"))
     }
 
     @Test

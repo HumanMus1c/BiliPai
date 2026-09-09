@@ -498,7 +498,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.ANALYTICS -> MiuixIcons.Sort
     SettingsIconRole.FEED_API -> MiuixIcons.Link
     SettingsIconRole.REFRESH_COUNT -> MiuixIcons.Refresh
-    SettingsIconRole.DYNAMIC_PREVIEW_TEXT -> MiuixIcons.Show
+    SettingsIconRole.DYNAMIC_PREVIEW_TEXT -> MiuixIcons.ConvertFile
     SettingsIconRole.DYNAMIC_TAB_VISIBILITY -> MiuixIcons.SelectAll
     SettingsIconRole.EASTER_EGG -> MiuixIcons.Help
     SettingsIconRole.AUTO_CHECK_UPDATE -> MiuixIcons.Update
@@ -528,7 +528,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.HOME_CARD_WIDTH -> MiuixIcons.HorizontalSplit
     SettingsIconRole.CARD_ENTRANCE_ANIMATION -> MiuixIcons.Forward
     SettingsIconRole.CARD_TRANSITION_ANIMATION -> MiuixIcons.Replace
-    SettingsIconRole.LIVE_SURFACE_TRANSITION -> MiuixIcons.ScreenMirroring
+    SettingsIconRole.LIVE_SURFACE_TRANSITION -> MiuixIcons.MoveFile
     SettingsIconRole.PREDICTIVE_BACK -> MiuixIcons.Back
     SettingsIconRole.MIUIX_TRANSITION_BLUR -> MiuixIcons.Background
     SettingsIconRole.TOP_DOCK_GLASS -> MiuixIcons.HorizontalSplit
@@ -550,7 +550,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.SLIDE_VOLUME_BRIGHTNESS -> MiuixIcons.VerticalSplit
     SettingsIconRole.PIP_DANMAKU -> MiuixIcons.Messages
     SettingsIconRole.DANMAKU_CLOUD_SYNC -> MiuixIcons.CloudFill
-    SettingsIconRole.AUDIO_MODE_PIP -> MiuixIcons.ScreenMirroring
+    SettingsIconRole.AUDIO_MODE_PIP -> MiuixIcons.Music
     SettingsIconRole.PLAYER_DIAGNOSTICS -> MiuixIcons.AppRecording
     SettingsIconRole.QUALITY_WARNING -> MiuixIcons.Report
     SettingsIconRole.SUBTITLE -> MiuixIcons.Notes
@@ -578,7 +578,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.DIRECTED_TRAFFIC -> MiuixIcons.SearchDevice
     SettingsIconRole.AUTO_HIGHEST_QUALITY -> MiuixIcons.TopDownloads
     SettingsIconRole.AUTO_PLAY_ON_OPEN -> MiuixIcons.Play
-    SettingsIconRole.STARTUP_PORTRAIT_FEED -> MiuixIcons.Phone
+    SettingsIconRole.STARTUP_PORTRAIT_FEED -> MiuixIcons.GridView
     SettingsIconRole.HOME_HERO_AUTOPLAY -> MiuixIcons.Recording
     SettingsIconRole.AUTO_PLAY_NEXT -> MiuixIcons.Playlist
     SettingsIconRole.VIDEO_NOTE_COLLAPSE -> MiuixIcons.MoreCircle
@@ -612,7 +612,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.ADVANCED_COLOR -> MiuixIcons.Theme
     SettingsIconRole.CAST_BUTTON -> MiuixIcons.ScreenMirroring
     SettingsIconRole.PROGRESS_PEAK_DANMAKU -> MiuixIcons.Sort
-    SettingsIconRole.IMAGE_3D_PAGE -> MiuixIcons.Layers
+    SettingsIconRole.IMAGE_3D_PAGE -> MiuixIcons.Photos
     SettingsIconRole.SPLASH_ICON_ANIMATION -> MiuixIcons.Recording
     SettingsIconRole.NAV_ICON_CROSS_SCALE -> MiuixIcons.Replace
     SettingsIconRole.SUB_REPLY_LOADED_COUNT -> MiuixIcons.Answer
@@ -624,7 +624,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.RELATED_VIDEO_TRANSITION -> MiuixIcons.Playlist
     SettingsIconRole.RETURN_GESTURE_POSE -> MiuixIcons.Undo
     SettingsIconRole.AUTO_SKIP_OP_ED -> MiuixIcons.Trim
-    SettingsIconRole.BLUR_INTENSITY -> MiuixIcons.Layers
+    SettingsIconRole.BLUR_INTENSITY -> MiuixIcons.Filter
     SettingsIconRole.HAPTIC_FEEDBACK -> MiuixIcons.Phone
     SettingsIconRole.REMEMBER_PLAYBACK_SPEED -> MiuixIcons.Recent
     SettingsIconRole.SPACE_PLAYED_VIDEO_LOCATE -> MiuixIcons.Search

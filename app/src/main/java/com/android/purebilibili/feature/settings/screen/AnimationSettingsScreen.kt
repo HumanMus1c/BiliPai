@@ -670,6 +670,15 @@ fun AnimationSettingsContent(
                         )
                         AppPreferenceDivider()
                         AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                            title = "顶部渐进模糊",
+                            subtitle = "在状态栏与顶栏交界处提供羽化渐变过渡",
+                            checked = state.progressiveTopBlurEnabled,
+                            onCheckedChange = { viewModel.toggleProgressiveTopBlur(it) },
+                            iconTint = iOSBlue
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
                             title = "底栏磨砂",
                             subtitle = "只模糊底部栏背后的内容，不启用折射和彩光",
@@ -679,7 +688,7 @@ fun AnimationSettingsContent(
                         )
                         
                         // 模糊强度（仅在任意模糊开启时显示）
-                        if (state.headerBlurEnabled || state.bottomBarBlurEnabled) {
+                        if (state.headerBlurEnabled || state.progressiveTopBlurEnabled || state.bottomBarBlurEnabled) {
                             AppPreferenceDivider()
                             BlurIntensitySelector(
                                 selectedIntensity = state.blurIntensity,

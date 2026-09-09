@@ -51,6 +51,8 @@ class PlaybackSettingsSelectionPolicyTest {
         val contentBlock = source
             .substringAfter("fun PlaybackSettingsContent(")
             .substringBefore("private fun PlaybackInteractionSettingsSection(")
+        assertTrue(source.contains("听视频小横条"))
+        assertTrue(source.contains("setAudioNowPlayingBarEnabled(context, it)"))
         assertTrue(contentBlock.contains("AppPreferenceSectionTitle(\"互动与评论\")"))
         assertTrue(contentBlock.contains("AppPreferenceSectionTitle(\"全屏与手势\")"))
         assertTrue(contentBlock.contains("PlaybackInteractionSettingsSection("))

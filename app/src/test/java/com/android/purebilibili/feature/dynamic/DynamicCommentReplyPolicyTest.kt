@@ -102,6 +102,14 @@ class DynamicCommentReplyPolicyTest {
         assertTrue(shouldOpenDynamicCommentThreadOnTap(reply))
         assertFalse(canOpenDynamicSubReplies(reply))
         assertFalse(shouldOpenDynamicCommentThreadOnTap(ReplyItem(rpid = 0L)))
+        assertEquals(
+            DynamicCommentSheetHostContent.THREAD_DETAIL,
+            resolveDynamicCommentSheetHostContent(subReplyVisible = true),
+        )
+        assertEquals(
+            DynamicCommentSheetHostContent.MAIN_LIST,
+            resolveDynamicCommentSheetHostContent(subReplyVisible = false),
+        )
     }
 
     @Test

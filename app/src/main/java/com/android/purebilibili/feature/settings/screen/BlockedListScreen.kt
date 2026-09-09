@@ -25,6 +25,7 @@ import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.data.repository.buildBlockedUpShareText
 import com.android.purebilibili.data.repository.parseBlockedUpShareText
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -239,7 +240,7 @@ fun BlockedListContent(
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = settingsScrollContentPadding(extraHorizontal = 16.dp, extraVertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

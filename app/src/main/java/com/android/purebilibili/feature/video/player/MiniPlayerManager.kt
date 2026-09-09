@@ -76,6 +76,7 @@ import com.android.purebilibili.feature.video.usecase.VideoLoadResult
 import com.android.purebilibili.feature.video.usecase.VideoPlaybackUseCase
 import com.android.purebilibili.feature.video.usecase.pausePlayerFromUserAction
 import com.android.purebilibili.feature.video.usecase.playPlayerFromUserAction
+import com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
 import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUserAction
 
 private const val TAG = "MiniPlayerManager"
@@ -137,10 +138,17 @@ internal fun resolveHandleAudioFocusByPolicy(audioFocusEnabled: Boolean): Boolea
     return audioFocusEnabled
 }
 
+internal fun shouldKeepPlaybackForAudioNowPlayingBar(
+    sessionActive: Boolean,
+    barEnabled: Boolean = true,
+): Boolean = sessionActive && barEnabled
+
 internal fun shouldClearPlaybackNotificationOnNavigationExit(
     mode: SettingsManager.MiniPlayerMode,
-    stopPlaybackOnExit: Boolean
+    stopPlaybackOnExit: Boolean,
+    keepForAudioNowPlaying: Boolean = false,
 ): Boolean {
+    if (keepForAudioNowPlaying) return false
     if (stopPlaybackOnExit) return true
     return mode == SettingsManager.MiniPlayerMode.OFF ||
         mode == SettingsManager.MiniPlayerMode.SYSTEM_PIP
@@ -1661,7 +1669,18 @@ class MiniPlayerManager private constructor(private val context: Context) :
         }
         val mode = getCurrentMode()
         val stopPlaybackOnExit = SettingsManager.getStopPlaybackOnExitSync(context)
-        if (forceStop || shouldClearPlaybackNotificationOnNavigationExit(mode, stopPlaybackOnExit)) {
+        val keepForAudioNowPlaying = !forceStop &&
+            shouldKeepPlaybackForAudioNowPlayingBar(
+                sessionActive = AudioNowPlayingSession.active.value,
+            )
+        if (
+            forceStop ||
+            shouldClearPlaybackNotificationOnNavigationExit(
+                mode = mode,
+                stopPlaybackOnExit = stopPlaybackOnExit,
+                keepForAudioNowPlaying = keepForAudioNowPlaying,
+            )
+        ) {
             Logger.d(TAG, "🔇 ${mode.label}：通过导航离开，立即停止播放")
             // 停止所有播放器（外部和内部）
             _externalPlayer?.let { player ->
@@ -2193,8 +2212,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
      * 暂停/播放切换
      */
     fun togglePlayPause() {
-        val currentPlayer = player ?: return
-        applyPlaybackMediaControlToPlayer(currentPlayer, MediaControlType.PLAY_PAUSE)
+        performMediaControl(MediaControlType.PLAY_PAUSE)
     }
 
     private fun performMediaControl(controlType: MediaControlType) {

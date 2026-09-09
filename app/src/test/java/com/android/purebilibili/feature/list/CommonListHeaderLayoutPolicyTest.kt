@@ -35,4 +35,15 @@ class CommonListHeaderLayoutPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `progressive blur captures likes and favorites under a fixed header`() {
+        assertTrue(
+            shouldScrollCommonListUnderHeader(
+                isHistoryPage = false,
+                headerCollapseEnabled = false,
+                captureScrollableContent = true,
+            )
+        )
+    }
 }

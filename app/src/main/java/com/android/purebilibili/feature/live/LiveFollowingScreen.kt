@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
@@ -109,6 +109,7 @@ fun LiveFollowingScreen(
     }
 
     AppScaffold(
+        blurContentReady = !isLoading,
         modifier = Modifier.fillMaxSize(),
         topBar = {
             AppTopBar(
@@ -169,14 +170,13 @@ fun LiveFollowingScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridColumns),
                     modifier = Modifier
-                        .padding(innerPadding)
                         .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                         .fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = metrics.safeSpaceDp.dp,
                         end = metrics.safeSpaceDp.dp,
-                        top = AppSpacingTokens.Small,
-                        bottom = LocalBottomBarContentPadding.current,
+                        top = innerPadding.calculateTopPadding() + AppSpacingTokens.Small,
+                        bottom = maxOf(innerPadding.calculateBottomPadding(), LocalBottomBarContentPadding.current),
                     ),
                     horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
                     verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),

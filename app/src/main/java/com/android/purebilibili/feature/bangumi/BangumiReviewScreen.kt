@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppButton
@@ -130,6 +130,7 @@ fun BangumiReviewScreen(
     }
 
     AppScaffold(
+        blurContentReady = !loading,
         topBar = {
             AppTopBar(
                 title = title.ifBlank { "点评" },
@@ -163,9 +164,7 @@ fun BangumiReviewScreen(
         val reviewTypes = remember { BangumiReviewType.entries.toList() }
         val sortLabels = remember { listOf("默认", "最新") }
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
@@ -177,7 +176,12 @@ fun BangumiReviewScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
+                    .padding(
+                        start = AppSpacingTokens.Medium,
+                        top = paddingValues.calculateTopPadding() + AppSpacingTokens.Small,
+                        end = AppSpacingTokens.Medium,
+                        bottom = AppSpacingTokens.Small,
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

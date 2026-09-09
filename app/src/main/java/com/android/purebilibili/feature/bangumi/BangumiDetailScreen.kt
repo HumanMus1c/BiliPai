@@ -38,7 +38,7 @@ import coil3.compose.AsyncImage
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.ui.AppAlertDialog
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.components.AppButton
@@ -86,6 +86,7 @@ fun BangumiDetailScreen(
     }
     
     AppScaffold(
+        blurContentReady = detailState !is BangumiDetailState.Loading,
         topBar = {
             AppTopBar(
                 title = "番剧详情",

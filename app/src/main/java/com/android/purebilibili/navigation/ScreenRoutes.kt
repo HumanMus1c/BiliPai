@@ -170,7 +170,12 @@ sealed class ScreenRoutes(val route: String) {
     }
     
     //  [新增] 音频模式页面
-    object AudioMode : ScreenRoutes("audio_mode")
+    object AudioMode : ScreenRoutes("audio_mode") {
+        fun createRoute(bvid: String = "", cid: Long = 0L): String {
+            if (bvid.isBlank()) return route
+            return "audio_mode?bvid=$bvid&cid=$cid"
+        }
+    }
     
     //  [新增] 番剧/影视页面 - 支持初始类型参数
     object Bangumi : ScreenRoutes("bangumi?type={type}") {

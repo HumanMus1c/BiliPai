@@ -1379,13 +1379,17 @@ private fun MobileSettingsNavLayout(
         onBack = onBack,
         backContentDescription = backLabel,
         bottomContentPadding = bottomInset,
-        topBarStyle = if (
+        topBarStyle = when {
             destination == SettingsNavDestination.Home &&
-            com.android.purebilibili.core.ui.isMiuixNonGlassEnabled()
-        ) {
-            com.android.purebilibili.core.ui.AppTopBarStyle.LARGE
-        } else {
-            com.android.purebilibili.core.ui.AppTopBarStyle.SMALL
+                com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() -> {
+                com.android.purebilibili.core.ui.AppTopBarStyle.LARGE
+            }
+            destination == SettingsNavDestination.Home -> {
+                com.android.purebilibili.core.ui.AppTopBarStyle.SMALL
+            }
+            else -> {
+                com.android.purebilibili.core.ui.AppTopBarStyle.CENTERED
+            }
         },
     ) {
         if (rootEntranceEnabled) {

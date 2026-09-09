@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -200,8 +200,10 @@ fun LiveSearchScreen(
     }
 
     AppScaffold(
+        blurContentReady = !isLoading,
         modifier = Modifier.fillMaxSize(),
         topBar = {
+            Column {
             AppTopBar(
                 title = "搜索直播",
                 navigationIcon = {
@@ -213,15 +215,6 @@ fun LiveSearchScreen(
                     }
                 },
             )
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
@@ -266,9 +259,7 @@ fun LiveSearchScreen(
                     }
                 }
 
-                if (!hasSubmitted) {
-                    LiveSearchState("输入关键词后搜索直播间或主播")
-                } else {
+                if (hasSubmitted) {
                     val searchTabs = remember(liveResults.size, userResults.size) {
                         listOf(
                             AppSegmentOption(
@@ -304,6 +295,20 @@ fun LiveSearchScreen(
                             .fillMaxWidth()
                             .padding(horizontal = metrics.safeSpaceDp.dp),
                     )
+                }
+            }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                ,
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (!hasSubmitted) {
+                    LiveSearchState("输入关键词后搜索直播间或主播")
+                } else {
                     when {
                     isLoading -> if (selectedTab == 0) {
                         ContentVideoGridSkeletonFixedColumns(
@@ -311,7 +316,7 @@ fun LiveSearchScreen(
                             contentPadding = PaddingValues(
                                 start = metrics.safeSpaceDp.dp,
                                 end = metrics.safeSpaceDp.dp,
-                                top = AppSpacingTokens.Medium,
+                                top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                                 bottom = LocalBottomBarContentPadding.current,
                             ),
                             spacing = metrics.cardSpaceDp.dp,
@@ -322,7 +327,7 @@ fun LiveSearchScreen(
                             contentPadding = PaddingValues(
                                 start = metrics.safeSpaceDp.dp,
                                 end = metrics.safeSpaceDp.dp,
-                                top = AppSpacingTokens.Medium,
+                                top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                                 bottom = LocalBottomBarContentPadding.current,
                             ),
                         )
@@ -337,7 +342,7 @@ fun LiveSearchScreen(
                         contentPadding = PaddingValues(
                             start = metrics.safeSpaceDp.dp,
                             end = metrics.safeSpaceDp.dp,
-                            top = AppSpacingTokens.Medium,
+                            top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                             bottom = LocalBottomBarContentPadding.current,
                         ),
                         horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
@@ -369,7 +374,7 @@ fun LiveSearchScreen(
                         contentPadding = PaddingValues(
                             start = metrics.safeSpaceDp.dp,
                             end = metrics.safeSpaceDp.dp,
-                            top = AppSpacingTokens.Medium,
+                            top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
                             bottom = LocalBottomBarContentPadding.current,
                         ),
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),

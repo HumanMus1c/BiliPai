@@ -63,6 +63,16 @@ class AudioModePlayModeStructureTest {
     }
 
     @Test
+    fun audioModeLikePassesAidAndBvidInsteadOfEmptySubject() {
+        val source = audioModePlayerSource()
+        assertTrue(source.contains("engagementViewModel.toggleLike("))
+        assertTrue(source.contains("aid = info.aid"))
+        assertTrue(source.contains("bvid = info.bvid"))
+        assertTrue(source.contains("currentlyLiked = engagementState.isLiked"))
+        assertFalse(source.contains("onLikeClick = { engagementViewModel.toggleLike() }"))
+    }
+
+    @Test
     fun multiPageAudioModeUsesCurrentPartForLyricsMatching() {
         val pages = listOf(
             Page(cid = 11L, page = 1, part = "001. 海屿你 - 马也_Crabbit"),

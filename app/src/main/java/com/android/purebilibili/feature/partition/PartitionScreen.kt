@@ -92,7 +92,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CoroutineStart
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
@@ -420,7 +420,11 @@ fun PartitionScreen(
     onVideoClick: (String, Long, String) -> Unit = { _, _, _ -> },
     onBangumiClick: (Int) -> Unit = {}
 ) {
-    val hazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val headerBlurEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getHeaderBlurEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val hazeState = if (headerBlurEnabled) com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState() else null
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     AppScaffold(
@@ -434,12 +438,18 @@ fun PartitionScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
+                    containerColor = if (headerBlurEnabled) Color.Transparent else MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = if (headerBlurEnabled) Color.Transparent else MaterialTheme.colorScheme.background
                 ),
-                modifier = Modifier.unifiedBlur(
-                    hazeState = hazeState,
-                    surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
+                modifier = Modifier.then(
+                    if (headerBlurEnabled && hazeState != null) {
+                        Modifier.unifiedBlur(
+                            hazeState = hazeState,
+                            surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
             )
         }

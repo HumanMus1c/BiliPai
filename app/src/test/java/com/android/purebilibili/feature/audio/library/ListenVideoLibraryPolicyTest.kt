@@ -115,6 +115,8 @@ class ListenVideoLibraryPolicyTest {
         assertEquals(listOf("BV1", "BV2"), selection.items.map { it.bvid })
         assertEquals(1, selection.startIndex)
         assertEquals("Artist", selection.items[1].owner)
+        assertEquals("face", selection.items[1].ownerFace)
+        assertEquals(70L, selection.items[1].cid)
     }
 
     private fun trackData(

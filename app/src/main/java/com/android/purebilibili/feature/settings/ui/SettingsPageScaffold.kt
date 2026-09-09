@@ -21,20 +21,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
+import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
 import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
+import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
@@ -58,6 +59,19 @@ import com.android.purebilibili.feature.settings.reduceSettingsBottomBarScroll
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 internal val LocalSettingsTopContentPadding = staticCompositionLocalOf { 0.dp }
+
+@Composable
+internal fun settingsScrollContentPadding(
+    extraTop: androidx.compose.ui.unit.Dp = 0.dp,
+    extraBottom: androidx.compose.ui.unit.Dp = 0.dp,
+    extraHorizontal: androidx.compose.ui.unit.Dp = 0.dp,
+    extraVertical: androidx.compose.ui.unit.Dp = 0.dp,
+): PaddingValues = PaddingValues(
+    start = extraHorizontal,
+    end = extraHorizontal,
+    top = LocalSettingsTopContentPadding.current + extraTop + extraVertical,
+    bottom = extraBottom + extraVertical,
+)
 
 @Composable
 internal fun SettingsBottomBarScrollEffect(listState: LazyListState) {
@@ -114,7 +128,7 @@ internal fun SettingsPageScaffold(
     scrollHost: SettingsPageScrollHost = SettingsPageScrollHost.LazyColumn,
     topBarBlurEnabled: Boolean? = null,
     externalContentHandlesTopPadding: Boolean = false,
-    topBarStyle: AppTopBarStyle = AppTopBarStyle.SMALL,
+    topBarStyle: AppTopBarStyle = AppTopBarStyle.CENTERED,
     actions: @Composable RowScope.() -> Unit = {},
     header: (@Composable () -> Unit)? = null,
     lazyListContent: (LazyListScope.() -> Unit)? = null,
@@ -127,11 +141,9 @@ internal fun SettingsPageScaffold(
         bottomContentPadding,
         LocalBottomBarContentPadding.current,
     )
-    val context = LocalContext.current
-    val globalTopBarBlurEnabled by SettingsManager
-        .getHeaderBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val effectiveTopBarBlurEnabled = topBarBlurEnabled ?: globalTopBarBlurEnabled
+    val appThemeConfig = LocalAppThemeConfig.current
+    val headerBlurEnabled = topBarBlurEnabled ?: appThemeConfig.headerBlurEnabled
+    val lowBlurBudget = isLowBlurBudgetForced()
     val nonGlassMiuix = isMiuixNonGlassEnabled()
     val collapseBehavior = if (
         nonGlassMiuix &&
@@ -143,10 +155,15 @@ internal fun SettingsPageScaffold(
         null
     }
     val progressiveBlurEnabled = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = effectiveTopBarBlurEnabled,
+        enabled = appThemeConfig.progressiveTopBlurEnabled && !headerBlurEnabled,
         hasBackdrop = true,
-    ) && !isLowBlurBudgetForced()
+    ) && !lowBlurBudget
     val backdrop = if (progressiveBlurEnabled) rememberLayerBackdrop() else null
+    val hazeState = if (
+        headerBlurEnabled && !lowBlurBudget &&
+        shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT)
+    ) rememberRecoverableHazeState() else null
+    val topBarBlurActive = progressiveBlurEnabled || hazeState != null
     val pageContainerColor = if (nonGlassMiuix) AppSurfaceTokens.surface()
         else AppSurfaceTokens.groupedListContainer()
 
@@ -161,18 +178,13 @@ internal fun SettingsPageScaffold(
         AppScaffold(
             modifier = modifier.appTopBarNestedScroll(collapseBehavior),
             topBar = {
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .biliPaiProgressiveTopBlur(
-                                backdrop = backdrop,
-                                enabled = progressiveBlurEnabled,
-                                shape = RectangleShape,
-                            ),
-                    )
+                BiliPaiImmersiveTopBar(backdrop = backdrop, enabled = progressiveBlurEnabled) {
                     AppTopBar(
                         title = title,
+                        modifier = if (hazeState != null) Modifier.unifiedBlur(
+                            hazeState = hazeState,
+                            surfaceType = BlurSurfaceType.HEADER,
+                        ) else Modifier,
                         navigationIcon = {
                             AppIconButton(onClick = onBack) {
                                 AppIcon(
@@ -183,7 +195,7 @@ internal fun SettingsPageScaffold(
                         },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = if (!progressiveBlurEnabled) {
+                            containerColor = if (!topBarBlurActive) {
                                 pageContainerColor
                             } else {
                                 Color.Transparent
@@ -203,6 +215,7 @@ internal fun SettingsPageScaffold(
             val scrollModifier = Modifier
                 .fillMaxSize()
                 .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+                .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier)
                 .background(pageContainerColor)
 
             when (scrollHost) {
@@ -231,15 +244,20 @@ internal fun SettingsPageScaffold(
                 }
 
                 SettingsPageScrollHost.External -> {
+                    val chromeTop = padding.calculateTopPadding()
                     CompositionLocalProvider(
-                        LocalSettingsTopContentPadding provides if (externalContentHandlesTopPadding) {
-                            padding.calculateTopPadding()
-                        } else 0.dp,
+                        LocalSettingsTopContentPadding provides if (header != null) {
+                            0.dp
+                        } else {
+                            chromeTop
+                        },
                     ) {
-                        Column(
-                            modifier = if (externalContentHandlesTopPadding) scrollModifier else scrollModifier.padding(padding),
-                        ) {
-                            header?.invoke()
+                        Column(modifier = scrollModifier) {
+                            if (header != null) {
+                                Box(modifier = Modifier.padding(top = chromeTop)) {
+                                    header()
+                                }
+                            }
                             Box(
                                 modifier = Modifier
                                     .weight(1f, fill = true)

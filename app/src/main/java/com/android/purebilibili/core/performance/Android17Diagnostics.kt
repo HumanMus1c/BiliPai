@@ -101,6 +101,15 @@ internal fun extractApplicationExitSubReason(exitInfo: ApplicationExitInfo): Int
 @RequiresApi(Build.VERSION_CODES.R)
 internal fun readProcessExitTrace(exitInfo: ApplicationExitInfo, maxLines: Int = 120): String? {
     return runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            exitInfo.reason == ApplicationExitInfo.REASON_CRASH_NATIVE
+        ) {
+            // Android 12+ returns protobuf here, not a UTF-8 tombstone. Preserve the bytes
+            // so debuggerd's tombstone schema can decode the crashing thread offline.
+            return@runCatching exitInfo.traceInputStream?.use { stream ->
+                encodeNativeExitTrace(stream)
+            }
+        }
         exitInfo.traceInputStream?.bufferedReader(Charsets.UTF_8)?.use { reader ->
             val lines = mutableListOf<String>()
             var count = 0

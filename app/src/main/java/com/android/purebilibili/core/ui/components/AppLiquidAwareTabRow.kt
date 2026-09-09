@@ -143,19 +143,9 @@ fun <T> AppLiquidAwareTabRow(
         }
         return
     }
-    if (uiStyle == AppUiStyle.MIUIX && options.size <= 2 && compactMiuixWhenTwoOptions) {
-        AppNativeSegmentedControl(
-            options = options,
-            selectedValue = selectedValue,
-            onSelectionChange = onSelectionChange,
-            modifier = modifier,
-            enabled = enabled,
-        )
-        return
-    }
     val selectedIndex = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
     // All enabled liquid docks support direct dragging, including scrollable rails.
-    val resolvedDragSelectionEnabled = enabled && options.size > 1
+    val resolvedDragSelectionEnabled = dragSelectionEnabled ?: (enabled && options.size > 1)
     // Give every tab enough room for its longest label. The row itself remains
     // horizontally scrollable, so labels are never ellipsized or clipped on
     // narrow phones; this also applies to shared rows such as UP space tabs.
@@ -165,9 +155,11 @@ fun <T> AppLiquidAwareTabRow(
         allowLabelOverflow = true,
     )
     val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp
+    // Compact 2-option segmented controls should not turn into scrollable containers.
+    val isCompact = (compactMiuixWhenTwoOptions && options.size <= 2) || (minTabWidth.isSpecified && !scrollable)
     // Liquid rows and MD3 retain beta.21's 72dp default and overflow contract. Only the
     // non-glass Miuix renderer uses beta.22's 48dp accessibility minimum.
-    val needsHorizontalScroll = scrollable || options.size > 4 || readableTabWidth > resolvedMinTabWidth
+    val needsHorizontalScroll = !isCompact && (scrollable || options.size > 4 || readableTabWidth > resolvedMinTabWidth)
     if (needsHorizontalScroll) {
         val scrollState = rememberScrollState()
         val density = LocalDensity.current
@@ -210,10 +202,10 @@ fun <T> AppLiquidAwareTabRow(
                 preferInlineContentStyle = preferInlineContentStyle,
                 indicatorPositionProvider = indicatorPositionProvider,
                 isScrollInProgressProvider = isScrollInProgressProvider,
+                externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
             )
         }
     } else {
-        val isCompact = (compactMiuixWhenTwoOptions && options.size <= 2) || (minTabWidth.isSpecified && !scrollable)
         val rowModifier = if (isCompact) {
             modifier.wrapContentWidth(Alignment.CenterHorizontally)
         } else {
@@ -243,6 +235,7 @@ fun <T> AppLiquidAwareTabRow(
             preferInlineContentStyle = preferInlineContentStyle,
             indicatorPositionProvider = indicatorPositionProvider,
             isScrollInProgressProvider = isScrollInProgressProvider,
+            externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
         )
     }
 }

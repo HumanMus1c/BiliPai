@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -17,7 +18,7 @@ import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 
 internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP = 10f
-internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION = 0.12f
+internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION = 0f
 internal const val BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE = 1.25f
 private const val BILIPAI_PROGRESSIVE_TOP_BLUR_MIN_EXTENSION_DP = 20f
 private const val BILIPAI_PROGRESSIVE_TOP_BLUR_EXTRA_EXTENSION_DP = 28f
@@ -28,13 +29,12 @@ private val BiliPaiProgressiveTopBlurShape = RoundedCornerShape(
 
 /**
  * Shared progressive top blur gradient preset inspired by HyperIsland's top status bar design.
- * Maintains full blur strength across the top 12% status-bar band to ensure battery/clock
- * readability, then falls off with a 1.25 power curve toward the clear edge.
+ * Smooth continuous falloff from status-bar top edge (0f) toward the clear edge.
  *
  * Preserves gradient = ProgressiveBlur.Top contract for policy tests.
  */
 internal val BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT: ProgressiveBlur = ProgressiveBlur.Top.copy(
-    startFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION,
+    startFraction = 0f,
     endFraction = 1f,
     curve = BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
 )
@@ -119,4 +119,47 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
         gradient = gradient,
         colors = blurColors,
     )
+}
+
+/** Draws the shared gradient beyond the chrome without enlarging its layout or touch region. */
+@androidx.compose.runtime.Composable
+internal fun BiliPaiImmersiveTopBar(
+    backdrop: Backdrop?,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    content: @androidx.compose.runtime.Composable () -> Unit,
+) {
+    val active = shouldUseBiliPaiProgressiveTopBlur(enabled, backdrop != null) &&
+        !isLowBlurBudgetForced()
+    androidx.compose.foundation.layout.Box(modifier = modifier) {
+        if (active) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .layout { measurable, constraints ->
+                        val extension = resolveProgressiveTopBlurBottomExtension(
+                            enabled = true,
+                            endFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.endFraction,
+                        ).roundToPx()
+                        val extended = constraints.copy(
+                            minHeight = constraints.minHeight + extension,
+                            maxHeight = constraints.maxHeight + extension,
+                        )
+                        val placeable = measurable.measure(extended)
+                        layout(placeable.width, placeable.height - extension) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    }
+                    .biliPaiProgressiveTopBlur(
+                        backdrop = backdrop,
+                        enabled = true,
+                        shape = androidx.compose.ui.graphics.RectangleShape,
+                    ),
+            )
+        }
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.android.purebilibili.core.ui.LocalImmersiveTopChromeActive provides active,
+            content = content,
+        )
+    }
 }

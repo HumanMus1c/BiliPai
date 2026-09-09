@@ -61,6 +61,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
+import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -226,7 +227,12 @@ fun SkinCatalogScreen(
                 placeholder = "搜索装扮名称",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = LocalSettingsTopContentPadding.current + 8.dp,
+                        bottom = 8.dp,
+                    )
             )
             if (state.filteredThemes.isEmpty()) {
                 Box(

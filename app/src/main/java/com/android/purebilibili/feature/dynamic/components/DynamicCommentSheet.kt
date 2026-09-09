@@ -17,6 +17,19 @@ import com.android.purebilibili.core.ui.skeleton.CommentListColumnSkeleton
 import com.android.purebilibili.core.ui.skeleton.CommentListSkeleton
 
 import android.content.Context
+import android.graphics.RenderEffect as AndroidRenderEffect
+import android.graphics.Shader
+import android.os.Build
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
+import com.android.purebilibili.feature.video.ui.components.resolveCommentThreadCoveredBlurProgress
+import com.android.purebilibili.feature.video.ui.components.resolveCommentThreadPredictiveBackOffsetY
+import com.android.purebilibili.feature.video.ui.components.rememberCommentThreadDrag
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -37,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,8 +69,10 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicCommentEmptyLabel
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentLocationLabel
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentImeSubmission
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalCount
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetHostContent
 import com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount
 import com.android.purebilibili.feature.dynamic.shouldOpenDynamicCommentThreadOnTap
+import com.android.purebilibili.feature.dynamic.DynamicCommentSheetHostContent
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
@@ -73,8 +89,17 @@ import com.android.purebilibili.feature.video.ui.components.resolveReplyItemLayo
 import com.android.purebilibili.feature.video.ui.components.resolveReplyPreviewTextContent
 import com.android.purebilibili.feature.video.ui.components.resolveVisibleSubReplies
 import com.android.purebilibili.feature.video.ui.components.shouldShowInlineSubReplyToggle
+import com.android.purebilibili.feature.video.ui.components.SubReplyDetailContent
+import com.android.purebilibili.feature.video.ui.components.resolveVideoCommentPredictiveBackProgress
+import com.android.purebilibili.feature.video.ui.components.resolveVideoCommentPredictiveBackTarget
+import com.android.purebilibili.feature.video.ui.components.VideoCommentPredictiveBackTarget
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
+import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.NavigationEventTransitionState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -89,13 +114,12 @@ import com.android.purebilibili.core.store.TokenManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import com.android.purebilibili.core.ui.AppModalBottomSheet
-import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.nav.gesture.WindowNavigationEventBridge
+import com.android.purebilibili.core.ui.CommentWindowNavigation
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -150,13 +174,7 @@ fun DynamicCommentOverlayHost(
                     }
                 }
             },
-            onViewReplies = { reply ->
-                if (subReplyState.rootReply?.rpid == reply.rpid && subReplyState.visible) {
-                    viewModel.loadMoreSubReplies()
-                } else {
-                    viewModel.openSubReply(reply)
-                }
-            },
+            onViewReplies = { reply -> viewModel.openSubReply(reply) },
             onReply = { reply -> viewModel.startCommentReply(reply) },
             onLike = { reply -> viewModel.likeComment(reply.rpid) },
             dynamicAuthorMid = dynamicItem?.modules?.module_author?.mid ?: 0L,
@@ -181,16 +199,32 @@ fun DynamicCommentOverlayHost(
             onLoadMore = { viewModel.loadMoreComments() },
             onUserClick = onUserClick,
             subReplyState = subReplyState,
+            onCloseSubReply = { viewModel.closeSubReply() },
+            onLoadMoreSubReplies = { viewModel.loadMoreSubReplies() },
+            onSubReplySortModeChange = { viewModel.setSubReplySortMode(it) },
+            onThreadCommentLike = { rpid -> viewModel.likeComment(rpid) },
+            onThreadCommentDelete = { rpid ->
+                viewModel.deleteDynamicComment(rpid) { _, message ->
+                    if (!inspectionMode) {
+                        android.widget.Toast.makeText(toastContext, message, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onThreadCommentReport = { rpid, reason ->
+                viewModel.reportDynamicComment(rpid, reason) { _, message ->
+                    if (!inspectionMode) {
+                        android.widget.Toast.makeText(toastContext, message, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
         )
     }
-
-    // 回复详情已嵌入主评论卡片；不再额外弹出独立回复面板。
 }
 
 /**
  *  动态评论底部弹窗
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalAnimationApi::class)
 @Composable
 fun DynamicCommentSheet(
     comments: List<ReplyItem>,
@@ -214,6 +248,12 @@ fun DynamicCommentSheet(
     onLoadMore: () -> Unit = {},
     onUserClick: (Long) -> Unit,
     subReplyState: SubReplyUiState = SubReplyUiState(),
+    onCloseSubReply: () -> Unit = {},
+    onLoadMoreSubReplies: () -> Unit = {},
+    onSubReplySortModeChange: (SubReplySortMode) -> Unit = {},
+    onThreadCommentLike: (Long) -> Unit = {},
+    onThreadCommentDelete: (Long) -> Unit = {},
+    onThreadCommentReport: (Long, Int) -> Unit = { _, _ -> },
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
@@ -265,202 +305,342 @@ fun DynamicCommentSheet(
                 if (canLoadMore) onLoadMore()
             }
     }
+    val emoteCatalogSessionKey = DynamicEmoteCatalog.currentSessionKey()
+    var emoteMap by remember(emoteCatalogSessionKey) {
+        mutableStateOf(DynamicEmoteCatalog.snapshot())
+    }
+    LaunchedEffect(emoteCatalogSessionKey) {
+        emoteMap = DynamicEmoteCatalog.ensureLoaded()
+    }
+    val hostContent = resolveDynamicCommentSheetHostContent(subReplyState.visible)
+    val likedThreadComments = remember(subReplyState) {
+        buildSet {
+            subReplyState.rootReply?.takeIf { isDynamicCommentLiked(it) }?.let { add(it.rpid) }
+            subReplyState.items.forEach { reply ->
+                if (isDynamicCommentLiked(reply)) add(reply.rpid)
+            }
+        }
+    }
     
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dismissOnBackPress = false,
         dragHandle = null
     ) {
-        // Material3 ModalBottomSheet owns a separate Dialog window. Forward that window's
-        // system-back stream into the MIUIX Navigation entry dispatcher before registering
-        // the local sheet handler below.
-        WindowNavigationEventBridge()
-        LocalNavigationBackHandler(
-            enabled = true,
-            onBackCompleted = onDismiss,
-        )
-        val commentChromeBackdrop = rememberLayerBackdrop()
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.7f)
-        ) {
+        CommentWindowNavigation {
+            val commentBackState = rememberNavigationEventState(NavigationEventInfo.None)
+            var threadBackCompleted by remember { mutableStateOf(false) }
+            val rawThreadBackProgress = resolveVideoCommentPredictiveBackProgress(
+                inProgress = commentBackState.transitionState is NavigationEventTransitionState.InProgress &&
+                    hostContent == DynamicCommentSheetHostContent.THREAD_DETAIL,
+                progress = (commentBackState.transitionState as? NavigationEventTransitionState.InProgress)
+                    ?.latestEvent
+                    ?.progress
+                    ?: 0f,
+            )
+            val threadBackProgress by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = rawThreadBackProgress,
+                animationSpec = if (commentBackState.transitionState is NavigationEventTransitionState.InProgress) {
+                    androidx.compose.animation.core.snap()
+                } else {
+                    tween(180)
+                },
+                label = "comment_thread_predictive_back",
+            )
+            LaunchedEffect(subReplyState.visible) {
+                if (subReplyState.visible) threadBackCompleted = false
+            }
+            NavigationBackHandler(
+                state = commentBackState,
+                isBackEnabled = true,
+                onBackCompleted = {
+                    when (
+                        resolveVideoCommentPredictiveBackTarget(
+                            subReplyVisible = subReplyState.visible,
+                            conversationActive = subReplyState.conversationAnchor != null,
+                        )
+                    ) {
+                        VideoCommentPredictiveBackTarget.CLOSE_CONVERSATION -> onCloseSubReply()
+                        VideoCommentPredictiveBackTarget.CLOSE_THREAD -> {
+                            threadBackCompleted = rawThreadBackProgress > 0f
+                            onCloseSubReply()
+                        }
+                        VideoCommentPredictiveBackTarget.DISMISS_SHEET -> onDismiss()
+                    }
+                },
+            )
+            val threadDrag = rememberCommentThreadDrag(
+                visible = subReplyState.visible,
+                rootReplyId = subReplyState.rootReply?.rpid,
+                onDismiss = onCloseSubReply,
+            )
+            val commentChromeBackdrop = rememberLayerBackdrop()
             Box(
                 modifier = Modifier
-                    .matchParentSize()
-                    .layerBackdrop(commentChromeBackdrop)
-                    .background(AppSurfaceTokens.background())
-            )
-            Column(modifier = Modifier.fillMaxSize()) {
-            // 标题、数量和排序保持在同一视觉层级，关闭按钮保留 48dp 触控区。
-            Row(
-                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        start = AppSpacingTokens.Large,
-                        top = AppSpacingTokens.Small,
-                        end = AppSpacingTokens.Small,
-                        bottom = AppSpacingTokens.Medium,
-                    ),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxHeight(0.7f)
             ) {
-                Column {
-                    AppText(
-                        text = "评论",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    AppText(
-                        text = resolveDynamicCommentCountLabel(totalCount),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = AppSurfaceTokens.onSurfaceVariantActions(),
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                DynamicCommentSortControl(
-                    items = sortModeLabels,
-                    selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-                    onSelected = { index ->
-                        sortModes.getOrNull(index)?.let(onSortModeChange)
-                    },
-                    miuixBackdrop = commentChromeBackdrop,
-                )
-                AppIconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
-                ) {
-                    AppIcon(
-                        rememberAppClearIcon(),
-                        contentDescription = "关闭",
-                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
-                    )
-                }
-            }
-
-            // 评论列表
-            if (isLoading && comments.isEmpty()) {
-                CommentListSkeleton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = AppSpacingTokens.Small),
-                )
-            } else if (comments.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                        .matchParentSize()
+                        .layerBackdrop(commentChromeBackdrop)
+                        .background(AppSurfaceTokens.background())
+                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val coveredBlurProgress = if (
+                    hostContent == DynamicCommentSheetHostContent.THREAD_DETAIL
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraLarge),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
-                                .clip(AppShapes.container(ContainerLevel.Pill))
-                                .background(AppSurfaceTokens.surfaceContainerHigh()),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            AppIcon(
-                                rememberAppCommentIcon(),
-                                contentDescription = null,
-                                modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
+                    resolveCommentThreadCoveredBlurProgress(maxOf(threadBackProgress, threadDrag.revealProgress))
+                } else {
+                    0f
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            renderEffect = null
+                            if (coveredBlurProgress > 0f &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                            ) {
+                                val blurFrame = resolvePredictiveBackBlurFrame(
+                                    progress = coveredBlurProgress,
+                                )
+                                renderEffect = if (blurFrame.blurRadiusPx > 0.5f) {
+                                    AndroidRenderEffect.createBlurEffect(
+                                        blurFrame.blurRadiusPx,
+                                        blurFrame.blurRadiusPx,
+                                        Shader.TileMode.CLAMP,
+                                    ).asComposeRenderEffect()
+                                } else {
+                                    null
+                                }
+                            }
+                        },
+                ) {
+                // 标题、数量和排序保持在同一视觉层级，关闭按钮保留 48dp 触控区。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = AppSpacingTokens.Large,
+                            top = AppSpacingTokens.Small,
+                            end = AppSpacingTokens.Small,
+                            bottom = AppSpacingTokens.Medium,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
                         AppText(
-                            text = resolveDynamicCommentEmptyLabel(),
-                            style = MaterialTheme.typography.titleSmall,
+                            text = "评论",
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
-                            text = "来聊聊你对这条动态的看法",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = resolveDynamicCommentCountLabel(totalCount),
+                            style = MaterialTheme.typography.labelMedium,
                             color = AppSurfaceTokens.onSurfaceVariantActions(),
                         )
                     }
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentPadding = PaddingValues(
-                        horizontal = AppSpacingTokens.Large,
-                        vertical = AppSpacingTokens.Small,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
-                ) {
-                    items(comments, key = { it.rpid }) { reply ->
-                        val embeddedReplies = if (
-                            subReplyState.visible && subReplyState.rootReply?.rpid == reply.rpid
-                        ) {
-                            subReplyState.items
-                        } else {
-                            reply.replies
-                        }
-                        ReplyItemView(
-                            item = reply.copy(replies = embeddedReplies),
-                            onClick = { onViewReplies(reply) },
-                            onSubClick = { root, _ -> onViewReplies(root) },
-                            onReplyClick = { onReply(reply) },
-                            onLikeClick = { onLike(reply) },
-                            isLiked = isDynamicCommentLiked(reply),
-                            onDeleteClick = { onDelete(reply) },
-                            onReportClick = { reason -> onReport(reply, reason) },
-                            canToggleTop = dynamicAuthorMid > 0L,
-                            onToggleTopClick = { onToggleTop(reply) },
-                            onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
-                            onImagePreview = { images, index, rect, textContent ->
-                                previewImages = images
-                                previewInitialIndex = index
-                                previewSourceRect = rect
-                                previewTextContent = textContent
-                                showImagePreview = true
-                            },
+                    Spacer(modifier = Modifier.weight(1f))
+                    DynamicCommentSortControl(
+                        items = sortModeLabels,
+                        selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
+                        onSelected = { index ->
+                            sortModes.getOrNull(index)?.let(onSortModeChange)
+                        },
+                        miuixBackdrop = commentChromeBackdrop,
+                    )
+                    AppIconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
+                    ) {
+                        AppIcon(
+                            rememberAppClearIcon(),
+                            contentDescription = "关闭",
+                            modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
                         )
                     }
-                    if (isLoadingMore) {
-                        item(key = "dynamic_comment_loading_more") {
+                }
+
+                // 评论列表
+                if (isLoading && comments.isEmpty()) {
+                    CommentListSkeleton(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = AppSpacingTokens.Small),
+                    )
+                } else if (comments.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraLarge),
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = AppSpacingTokens.Small),
-                                contentAlignment = Alignment.Center
+                                    .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
+                                    .clip(AppShapes.container(ContainerLevel.Pill))
+                                    .background(AppSurfaceTokens.surfaceContainerHigh()),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                AdaptiveLoadingIndicator(size = AppSpacingTokens.ExtraLarge)
+                                AppIcon(
+                                    rememberAppCommentIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
+                            AppText(
+                                text = resolveDynamicCommentEmptyLabel(),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+                            AppText(
+                                text = "来聊聊你对这条动态的看法",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppSurfaceTokens.onSurfaceVariantActions(),
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(
+                            horizontal = AppSpacingTokens.Large,
+                            vertical = AppSpacingTokens.Small,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
+                    ) {
+                        items(comments, key = { it.rpid }) { reply ->
+                            ReplyItemView(
+                                item = reply,
+                                onClick = { onViewReplies(reply) },
+                                onSubClick = { root, _ -> onViewReplies(root) },
+                                onReplyClick = { onReply(reply) },
+                                onLikeClick = { onLike(reply) },
+                                isLiked = isDynamicCommentLiked(reply),
+                                onDeleteClick = { onDelete(reply) },
+                                onReportClick = { reason -> onReport(reply, reason) },
+                                canToggleTop = dynamicAuthorMid > 0L,
+                                onToggleTopClick = { onToggleTop(reply) },
+                                onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
+                                onImagePreview = { images, index, rect, textContent ->
+                                    previewImages = images
+                                    previewInitialIndex = index
+                                    previewSourceRect = rect
+                                    previewTextContent = textContent
+                                    showImagePreview = true
+                                },
+                            )
+                        }
+                        if (isLoadingMore) {
+                            item(key = "dynamic_comment_loading_more") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = AppSpacingTokens.Small),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AdaptiveLoadingIndicator(size = AppSpacingTokens.ExtraLarge)
+                                }
                             }
                         }
                     }
                 }
-            }
+                }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = hostContent == DynamicCommentSheetHostContent.THREAD_DETAIL &&
+                        subReplyState.rootReply != null,
+                    enter = fadeIn(animationSpec = tween(220)) +
+                        slideInVertically(animationSpec = tween(260)) { height -> height },
+                    exit = if (threadBackCompleted) androidx.compose.animation.ExitTransition.None else fadeOut(animationSpec = tween(200)) +
+                        slideOutVertically(animationSpec = tween(240)) { height -> height },
+                ) {
+                    val rootReply = subReplyState.rootReply
+                    if (rootReply != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(threadDrag.containerModifier)
+                                .graphicsLayer {
+                                    translationY = threadDrag.offsetPx.value + resolveCommentThreadPredictiveBackOffsetY(
+                                        progress = threadBackProgress,
+                                        heightPx = size.height,
+                                    )
+                                }
+                                .background(AppSurfaceTokens.background()),
+                        ) {
+                            SubReplyDetailContent(
+                                headerDragModifier = threadDrag.headerModifier,
+                                rootReply = rootReply,
+                                subReplies = subReplyState.items,
+                                sortMode = subReplyState.sortMode,
+                                error = subReplyState.error,
+                                onSortModeChange = onSubReplySortModeChange,
+                                remoteReplyCount = subReplyState.totalCount,
+                                isLoading = subReplyState.isLoading,
+                                isEnd = subReplyState.isEnd,
+                                emoteMap = emoteMap,
+                                onLoadMore = onLoadMoreSubReplies,
+                                onDismiss = onCloseSubReply,
+                                applyStatusBarPadding = false,
+                                onImagePreview = { images, index, rect, textContent ->
+                                    previewImages = images
+                                    previewInitialIndex = index
+                                    previewSourceRect = rect
+                                    previewTextContent = textContent
+                                    showImagePreview = true
+                                },
+                                onReplyClick = { reply -> onReply(reply) },
+                                dissolvingIds = subReplyState.dissolvingIds,
+                                currentMid = currentUserMid ?: 0L,
+                                onDeleteComment = onThreadCommentDelete,
+                                onCommentLike = onThreadCommentLike,
+                                onReportComment = onThreadCommentReport,
+                                likedComments = likedThreadComments,
+                                onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
+                                targetReplyId = subReplyState.targetReplyId,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+                }
+                }
 
-            DynamicCommentComposer(
-                value = commentText,
-                onValueChange = { commentText = it },
-                onSubmit = {
-                    onPostComment(it)
-                    commentText = ""
-                    if (!replyTargetUname.isNullOrBlank()) onClearReplyTarget()
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                },
-                hint = resolveDynamicCommentComposerHint(replyTargetUname),
-                onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
-                focusRequester = focusRequester,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AppSurfaceTokens.surfaceContainer())
-                    .padding(
-                        horizontal = AppSpacingTokens.Large,
-                        vertical = AppSpacingTokens.Medium,
-                    ),
-            )
+                DynamicCommentComposer(
+                    value = commentText,
+                    onValueChange = { commentText = it },
+                    onSubmit = {
+                        onPostComment(it)
+                        commentText = ""
+                        if (!replyTargetUname.isNullOrBlank()) onClearReplyTarget()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    },
+                    hint = resolveDynamicCommentComposerHint(replyTargetUname),
+                    onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
+                    focusRequester = focusRequester,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AppSurfaceTokens.surfaceContainer())
+                        .padding(
+                            horizontal = AppSpacingTokens.Large,
+                            vertical = AppSpacingTokens.Medium,
+                        ),
+                )
+                }
             }
         }
     }

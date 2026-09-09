@@ -161,6 +161,9 @@ import com.android.purebilibili.feature.video.handoff.PlaybackHandoffPayload
 import com.android.purebilibili.feature.video.handoff.PlaybackHandoffRegistry
 import com.android.purebilibili.feature.video.player.buildPipPlaybackRemoteActions
 import com.android.purebilibili.feature.video.ui.overlay.FullscreenPlayerOverlay
+import com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
+import com.android.purebilibili.feature.audio.screen.resolveAudioNowPlayingVisible
+import com.android.purebilibili.feature.video.player.PlaylistManager
 import com.android.purebilibili.feature.video.ui.overlay.MiniPlayerOverlay
 import com.android.purebilibili.navigation.AppNavigation
 import com.android.purebilibili.navigation.ScreenRoutes
@@ -432,10 +435,11 @@ internal data class MainActivityPlaybackOverlayState(
 
 internal fun resolveMainActivityPlaybackOverlayState(
     isInPipMode: Boolean,
-    isMiniMode: Boolean
+    isMiniMode: Boolean,
+    showAudioNowPlaying: Boolean = false
 ): MainActivityPlaybackOverlayState {
     return MainActivityPlaybackOverlayState(
-        showMiniPlayerOverlay = !isInPipMode,
+        showMiniPlayerOverlay = !isInPipMode && !showAudioNowPlaying,
         // 从首页小窗进入系统 PiP 时，原详情页已销毁，需要独立渲染面承接同一个 Player。
         showDedicatedPipPlayer = isInPipMode && isMiniMode
     )
@@ -1306,6 +1310,8 @@ open class MainActivity : AppCompatActivity() {
                 .collectAsStateWithLifecycle(initialValue = true)
             val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = false)
+            val progressiveTopBlurEnabled by SettingsManager.getProgressiveTopBlurEnabled(context)
+                .collectAsStateWithLifecycle(initialValue = true)
             val hapticFeedbackEnabled by SettingsManager.getHapticFeedbackEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = true)
             val globalTextTapCopyEnabled by SettingsManager
@@ -1327,6 +1333,7 @@ open class MainActivity : AppCompatActivity() {
                 blurIntensity,
                 headerBlurEnabled,
                 bottomBarBlurEnabled,
+                progressiveTopBlurEnabled,
                 hapticFeedbackEnabled,
                 globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
@@ -1338,6 +1345,7 @@ open class MainActivity : AppCompatActivity() {
                     blurIntensity = blurIntensity,
                     headerBlurEnabled = headerBlurEnabled,
                     bottomBarBlurEnabled = bottomBarBlurEnabled,
+                    progressiveTopBlurEnabled = progressiveTopBlurEnabled,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
                     globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
@@ -1612,10 +1620,30 @@ open class MainActivity : AppCompatActivity() {
                     }
                     //  小窗全屏状态
                     var showFullscreen by remember { mutableStateOf(false) }
-                    val playbackOverlayState = remember(isInPipMode, miniPlayerManager.isMiniMode) {
+                    val audioNowPlayingActive by AudioNowPlayingSession.active.collectAsStateWithLifecycle()
+                    val audioNowPlayingBarEnabled by SettingsManager
+                        .getAudioNowPlayingBarEnabled(context)
+                        .collectAsStateWithLifecycle(initialValue = true)
+                    val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
+                    val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
+                    val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
+                    val showAudioNowPlaying = resolveAudioNowPlayingVisible(
+                        sessionActive = audioNowPlayingActive,
+                        isOnAudioModeScreen = isInAudioModeRoute,
+                        isInPipMode = isInPipMode,
+                        hasCurrentItem = audioNowPlayingItem != null,
+                        barEnabled = audioNowPlayingBarEnabled,
+                        isVideoDetailDestination = isInVideoDetail
+                    )
+                    val playbackOverlayState = remember(
+                        isInPipMode,
+                        miniPlayerManager.isMiniMode,
+                        showAudioNowPlaying
+                    ) {
                         resolveMainActivityPlaybackOverlayState(
                             isInPipMode = isInPipMode,
-                            isMiniMode = miniPlayerManager.isMiniMode
+                            isMiniMode = miniPlayerManager.isMiniMode,
+                            showAudioNowPlaying = showAudioNowPlaying
                         )
                     }
                     if (playbackOverlayState.showDedicatedPipPlayer) {

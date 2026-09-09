@@ -166,7 +166,7 @@ class VideoDetailLayoutModePolicyTest {
     @Test
     fun frozenCommentBar_hidesBehindBlockingOverlays() {
         assertFalse(shouldShowFrozenCommentBar(isCommentInputVisible = true))
-        assertFalse(shouldShowFrozenCommentBar(isCommentThreadVisible = true))
+        assertTrue(shouldShowFrozenCommentBar(isCommentThreadVisible = true))
         assertFalse(shouldShowFrozenCommentBar(isFavoriteFolderDialogVisible = true))
         assertFalse(shouldShowFrozenCommentBar(isExternalPlaylistQueueBarVisible = true))
     }

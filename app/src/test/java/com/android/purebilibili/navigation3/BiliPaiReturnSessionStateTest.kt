@@ -17,7 +17,7 @@ class BiliPaiReturnSessionStateTest {
         val beforeTransition = resolveRelatedReturnSourceRestoreDecision(
             restorePending = true,
             transitionObserved = false,
-            cardMorphAvailable = true,
+            transitionAnimated = true,
             exposure = VideoCardTransitionExposure.Idle,
         )
         assertFalse(beforeTransition.transitionObserved)
@@ -26,7 +26,7 @@ class BiliPaiReturnSessionStateTest {
         val returning = resolveRelatedReturnSourceRestoreDecision(
             restorePending = true,
             transitionObserved = false,
-            cardMorphAvailable = true,
+            transitionAnimated = true,
             exposure = VideoCardTransitionExposure.Returning,
         )
         assertTrue(returning.transitionObserved)
@@ -35,18 +35,18 @@ class BiliPaiReturnSessionStateTest {
         val settled = resolveRelatedReturnSourceRestoreDecision(
             restorePending = true,
             transitionObserved = returning.transitionObserved,
-            cardMorphAvailable = true,
+            transitionAnimated = true,
             exposure = VideoCardTransitionExposure.Idle,
         )
         assertTrue(settled.shouldRestore)
     }
 
     @Test
-    fun relatedSourceWithoutCardMorphRestoresImmediately() {
+    fun relatedSourceWithoutAnyNavigationAnimationRestoresImmediately() {
         val decision = resolveRelatedReturnSourceRestoreDecision(
             restorePending = true,
             transitionObserved = false,
-            cardMorphAvailable = false,
+            transitionAnimated = false,
             exposure = VideoCardTransitionExposure.Idle,
         )
 

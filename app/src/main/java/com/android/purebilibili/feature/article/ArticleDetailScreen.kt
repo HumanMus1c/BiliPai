@@ -45,7 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.android.purebilibili.R
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
@@ -113,6 +113,7 @@ fun ArticleDetailScreen(
     }
 
     AppScaffold(
+        blurContentReady = uiState !is ArticleDetailUiState.Loading,
         topBar = {
             AppTopBar(
                 title = screenTitle,
@@ -253,12 +254,11 @@ private fun ArticleDetailContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
             .responsiveContentWidth(),
         state = listState,
         contentPadding = PaddingValues(
             start = 20.dp,
-            top = 12.dp,
+            top = paddingValues.calculateTopPadding() + 12.dp,
             end = 20.dp,
             bottom = bottomSafeAreaPadding
         ),

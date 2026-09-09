@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -191,6 +192,7 @@ fun AppModalBottomSheet(
     tonalElevation: Dp = 0.dp,
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     presentationProgress: Float = 1f,
+    dismissOnBackPress: Boolean = true,
     dragHandle: @Composable (() -> Unit)? = { AppBottomSheetDragHandle() },
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     content: @Composable ColumnScope.() -> Unit
@@ -227,6 +229,7 @@ fun AppModalBottomSheet(
         Dialog(
             onDismissRequest = onDismissRequest,
             properties = DialogProperties(
+                dismissOnBackPress = dismissOnBackPress,
                 usePlatformDefaultWidth = false,
                 decorFitsSystemWindows = false,
             ),
@@ -259,6 +262,7 @@ fun AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         sheetState = sheetState,
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = dismissOnBackPress),
         shape = sheetShape,
         containerColor = resolvedContainerColor,
         contentColor = contentColor,

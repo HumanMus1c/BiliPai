@@ -141,7 +141,9 @@ class DynamicCommentStructureTest {
 
         assertTrue(sheetSource.contains("content = reply.content"))
         assertTrue(sheetSource.contains("content = subReply.content"))
+        assertTrue(sheetSource.contains("SubReplyDetailContent("))
         assertTrue(sheetSource.contains("onUserClick = onUserClick"))
+        assertTrue(sheetSource.contains("onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) }"))
         assertTrue(subReplySource.contains("onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) }"))
         assertTrue(subReplySource.contains("DynamicEmoteCatalog.ensureLoaded()"))
         assertTrue(subReplySource.contains("emoteMap = emoteMap"))

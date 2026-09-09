@@ -87,6 +87,7 @@ data class SettingsUiState(
     val isBottomBarFloating: Boolean = true,
     val bottomBarLabelMode: Int = 1,  // 0=图标+文字, 1=仅图标, 2=仅文字
     val headerBlurEnabled: Boolean = true,
+    val progressiveTopBlurEnabled: Boolean = true,
     val bottomBarBlurEnabled: Boolean = true,
     val blurIntensity: BlurIntensity = BlurIntensity.THIN,  //  模糊强度
     val displayMode: Int = 0,
@@ -165,6 +166,7 @@ data class ExtraSettings(
     val isBottomBarFloating: Boolean,
     val bottomBarLabelMode: Int,
     val headerBlurEnabled: Boolean,
+    val progressiveTopBlurEnabled: Boolean,
     val bottomBarBlurEnabled: Boolean,
     val blurIntensity: BlurIntensity,  //  添加模糊强度
     val displayMode: Int,
@@ -191,6 +193,13 @@ data class ExtraSettings(
     val isHeaderCollapseEnabled: Boolean,
     val gridColumnCount: Int, // [New]
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset
+)
+
+private data class BlurSettings(
+    val headerBlur: Boolean,
+    val progressiveTopBlur: Boolean,
+    val bottomBarBlur: Boolean,
+    val blurIntensity: BlurIntensity
 )
 
 
@@ -230,6 +239,7 @@ private data class BaseSettings(
     val isBottomBarFloating: Boolean,
     val bottomBarLabelMode: Int,
     val headerBlurEnabled: Boolean,
+    val progressiveTopBlurEnabled: Boolean,
     val bottomBarBlurEnabled: Boolean,
     val blurIntensity: BlurIntensity,  //  模糊强度
     val displayMode: Int, //  新增
@@ -490,26 +500,29 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             gridColumnCount = ui2.gcc, // [New]
             homeFeedCardWidthPreset = ui2.hfcwp,
             headerBlurEnabled = false, // 暂存，将在下一步合并
+            progressiveTopBlurEnabled = true, // 暂存
             bottomBarBlurEnabled = false, // 暂存
             blurIntensity = BlurIntensity.THIN // 暂存
         )
     }
     
-    // 第 3 步：合并模糊设置 (3个)
+    // 第 3 步：合并模糊设置 (4个)
     private val blurSettingsFlow = combine(
         SettingsManager.getHeaderBlurEnabled(context),
+        SettingsManager.getProgressiveTopBlurEnabled(context),
         SettingsManager.getBottomBarBlurEnabled(context),
         SettingsManager.getBlurIntensity(context)  //  添加模糊强度
-    ) { headerBlur, bottomBarBlur, blurIntensity ->
-        Triple(headerBlur, bottomBarBlur, blurIntensity)
+    ) { headerBlur, progressiveTopBlur, bottomBarBlur, blurIntensity ->
+        BlurSettings(headerBlur, progressiveTopBlur, bottomBarBlur, blurIntensity)
     }
     
     // 第 4 步：合并 UI 和 模糊设置
     private val extraSettingsFlow = combine(uiSettingsFlow, blurSettingsFlow) { uiSettings, blur ->
         uiSettings.copy(
-            headerBlurEnabled = blur.first,
-            bottomBarBlurEnabled = blur.second,
-            blurIntensity = blur.third
+            headerBlurEnabled = blur.headerBlur,
+            progressiveTopBlurEnabled = blur.progressiveTopBlur,
+            bottomBarBlurEnabled = blur.bottomBarBlur,
+            blurIntensity = blur.blurIntensity
         )
     }
     
@@ -559,6 +572,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             isBottomBarFloating = extra.isBottomBarFloating,
             bottomBarLabelMode = extra.bottomBarLabelMode,
             headerBlurEnabled = extra.headerBlurEnabled,
+            progressiveTopBlurEnabled = extra.progressiveTopBlurEnabled,
             bottomBarBlurEnabled = extra.bottomBarBlurEnabled,
             blurIntensity = extra.blurIntensity,  //  模糊强度
             displayMode = extra.displayMode,
@@ -624,6 +638,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             isBottomBarFloating = settings.isBottomBarFloating,
             bottomBarLabelMode = settings.bottomBarLabelMode,
             headerBlurEnabled = settings.headerBlurEnabled,
+            progressiveTopBlurEnabled = settings.progressiveTopBlurEnabled,
             bottomBarBlurEnabled = settings.bottomBarBlurEnabled,
             blurIntensity = settings.blurIntensity,  //  模糊强度
             displayMode = settings.displayMode,
@@ -919,9 +934,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun toggleHeaderBlur(value: Boolean) {
         viewModelScope.launch {
             val resolved = resolveTopBarBlurToggleState(
-                enableHeaderBlur = value
+                enableHeaderBlur = value,
+                currentProgressiveTopBlurEnabled = state.value.progressiveTopBlurEnabled
             )
-            SettingsManager.setHeaderBlurEnabled(context, resolved.headerBlurEnabled)
+            SettingsManager.setTopBarVisualEffects(
+                context = context,
+                headerBlurEnabled = resolved.headerBlurEnabled,
+                progressiveTopBlurEnabled = resolved.progressiveTopBlurEnabled
+            )
+        }
+    }
+    fun toggleProgressiveTopBlur(value: Boolean) {
+        viewModelScope.launch {
+            val resolved = resolveProgressiveTopBlurToggleState(
+                enableProgressiveTopBlur = value,
+                currentHeaderBlurEnabled = state.value.headerBlurEnabled
+            )
+            SettingsManager.setTopBarVisualEffects(
+                context = context,
+                headerBlurEnabled = resolved.headerBlurEnabled,
+                progressiveTopBlurEnabled = resolved.progressiveTopBlurEnabled
+            )
         }
     }
     fun toggleHeaderCollapse(value: Boolean) { viewModelScope.launch { SettingsManager.setHeaderCollapseEnabled(context, value) } }

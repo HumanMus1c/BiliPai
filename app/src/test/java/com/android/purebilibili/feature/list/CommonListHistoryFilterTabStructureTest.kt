@@ -77,6 +77,32 @@ class CommonListHistoryFilterTabStructureTest {
         )
     }
 
+    @Test
+    fun historyFilterRow_supportsHorizontalPagerSwipeToSwitchCategories() {
+        val source = loadSource("src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
+
+        assertTrue(
+            source.contains("val historyPagerState = rememberPagerState("),
+            "历史分类必须声明 historyPagerState"
+        )
+        assertTrue(
+            source.contains("indicatorPositionProvider = {"),
+            "历史筛选 Tab 栏指示器必须跟随 Pager 滑动手势平滑位移"
+        )
+        assertTrue(
+            source.contains("historyPagerState.currentPage + historyPagerState.currentPageOffsetFraction"),
+            "指示器位置需由 historyPagerState 的 currentPage 与 offsetFraction 驱动"
+        )
+        assertTrue(
+            source.contains("isScrollInProgressProvider = { historyPagerState.isScrollInProgress }"),
+            "Tab 栏应监听 historyPagerState 的滑动状态"
+        )
+        assertTrue(
+            source.contains("userScrollEnabled = !isHistoryBatchMode"),
+            "历史页面 Pager 在普通模式下允许左右滑动手势，批量选择模式下禁用以防手势冲突"
+        )
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

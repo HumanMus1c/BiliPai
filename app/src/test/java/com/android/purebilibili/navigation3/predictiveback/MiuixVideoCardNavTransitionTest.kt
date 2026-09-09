@@ -1,6 +1,10 @@
 package com.android.purebilibili.navigation3.predictiveback
 
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
+import com.android.purebilibili.navigation3.resolveRelatedReturnSourceRestoreDecision
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionExposure
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import java.io.File
 import kotlin.math.abs
@@ -74,6 +78,43 @@ class MiuixVideoCardNavTransitionTest {
             assertEquals(sourceScale, resolveMiuixVideoCardOuterScale(sourceScale, 0f, 1f))
             assertEquals(1f, resolveMiuixVideoCardOuterScale(sourceScale, 1f, 1f))
         }
+    }
+
+    @Test
+    fun ordinaryRelatedSlideKeepsSourceUntilItsActualExitCompletes() {
+        val scope = object : NavTransitionScope {
+            override var relativeDepth = -.4f
+            override var role = NavRole.Outgoing
+            override val change = NavChange.Pop
+            override val layoutSize = IntSize(1080, 2400)
+            override val layoutDirection = LayoutDirection.Ltr
+            override val density = Density(3f)
+            override val gesture: NavGesture? = null
+            override val settle: NavSettle? = null
+        }
+        val progress = MiuixVideoCardTransitionProgress()
+        val fallback = NavTransitions.MiuixDefault
+        val observed = progress.observe(fallback)
+        with(observed) { Modifier.transformEntry(scope) }
+        assertEquals(fallback.motion, observed.motion)
+        assertEquals(fallback.opaqueDepth, observed.opaqueDepth)
+        assertEquals(VideoCardTransitionSettleState.AutoReturn, progress.settleStateOrNull())
+        val moving = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = false,
+            transitionAnimated = true,
+            exposure = VideoCardTransitionExposure.Returning,
+        )
+        assertEquals(false, moving.shouldRestore)
+        scope.relativeDepth = -1f
+        assertEquals(VideoCardTransitionSettleState.Idle, progress.settleStateOrNull())
+        val finished = resolveRelatedReturnSourceRestoreDecision(
+            restorePending = true,
+            transitionObserved = moving.transitionObserved,
+            transitionAnimated = true,
+            exposure = VideoCardTransitionExposure.Idle,
+        )
+        assertTrue(finished.shouldRestore)
     }
 
     @Test

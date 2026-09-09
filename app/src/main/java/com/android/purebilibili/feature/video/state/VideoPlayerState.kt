@@ -1129,7 +1129,11 @@ fun rememberVideoPlayerState(
             //  检查是否有小窗在使用这个 player
             val miniPlayerManager = MiniPlayerManager.getInstance(context)
             // 仅当当前实例仍被 MiniPlayerManager 持有时才保留
-            val shouldKeepPlayer = miniPlayerManager.isActive && miniPlayerManager.isPlayerManaged(player)
+            val shouldKeepPlayer = miniPlayerManager.isPlayerManaged(player) &&
+                (
+                    miniPlayerManager.isActive ||
+                        com.android.purebilibili.feature.audio.player.AudioNowPlayingSession.active.value
+                )
             
             if (shouldKeepPlayer) {
                 // 小窗模式下不释放 player，只释放其他资源

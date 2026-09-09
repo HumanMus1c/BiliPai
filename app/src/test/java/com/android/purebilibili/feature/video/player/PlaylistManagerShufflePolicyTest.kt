@@ -12,6 +12,7 @@ class PlaylistManagerShufflePolicyTest {
     fun setUp() {
         PlaylistManager.clearPlaylist()
         PlaylistManager.setPlayMode(PlayMode.SEQUENTIAL)
+        PlaylistManager.setShuffleEnabled(false)
     }
 
     @Test
@@ -138,13 +139,13 @@ class PlaylistManagerShufflePolicyTest {
     }
 
     @Test
-    fun `repeat one mode should keep current item on next`() {
+    fun `repeat one skip still advances to the next track`() {
         PlaylistManager.setPlaylist(
             items = listOf(
                 playlistItem("BV1"),
                 playlistItem("BV2")
             ),
-            startIndex = 1
+            startIndex = 0
         )
         PlaylistManager.setPlayMode(PlayMode.REPEAT_ONE)
 

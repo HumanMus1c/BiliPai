@@ -24,6 +24,7 @@ fun DynamicSubReplyPreviewHost(
     onCommentLike: ((Long) -> Unit)? = null,
     currentMid: Long = 0L,
     onDeleteComment: ((Long) -> Unit)? = null,
+    onCoveredBlurProgressChange: ((Float) -> Unit)? = null,
 ) {
     val emoteCatalogSessionKey = DynamicEmoteCatalog.currentSessionKey()
     var emoteMap by remember(emoteCatalogSessionKey) {
@@ -68,6 +69,7 @@ fun DynamicSubReplyPreviewHost(
             previewSourceRect = rect
             previewTextContent = textContent
             showImagePreview = true
-        }
+        },
+        onCoveredBlurProgressChange = onCoveredBlurProgressChange,
     )
 }

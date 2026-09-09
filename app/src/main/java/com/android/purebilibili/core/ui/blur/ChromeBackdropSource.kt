@@ -1,12 +1,16 @@
 package com.android.purebilibili.core.ui.blur
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import kotlinx.coroutines.CompletableDeferred
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -16,7 +20,10 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 internal class ChromeBackdropSource(
     val backdrop: LayerBackdrop,
     val modifier: Modifier,
-)
+    private val recorded: State<Boolean>,
+) {
+    val isReady: Boolean get() = recorded.value
+}
 
 /**
  * Miuix's source draws its children to the screen, then invokes onDraw to record them again.
@@ -31,10 +38,21 @@ internal class ChromeBackdropSource(
 @Composable
 internal fun rememberChromeBackdropSource(): ChromeBackdropSource {
     val contentLayer = rememberGraphicsLayer()
-    val backdrop = rememberLayerBackdrop(onDraw = { drawLayer(contentLayer) })
+    val recorded = remember(contentLayer) { mutableStateOf(false) }
+    val firstRecording = remember(contentLayer) { CompletableDeferred<Unit>() }
+    LaunchedEffect(firstRecording) {
+        firstRecording.await()
+        recorded.value = true
+    }
+    val backdrop = rememberLayerBackdrop(onDraw = {
+        drawLayer(contentLayer)
+        // Publish once, after the source has actually recorded; never guess using a delay.
+        firstRecording.complete(Unit)
+    })
     return remember(backdrop, contentLayer) {
         ChromeBackdropSource(
             backdrop = backdrop,
+            recorded = recorded,
             modifier = Modifier
                 .layerBackdrop(backdrop)
                 .drawWithContent {
