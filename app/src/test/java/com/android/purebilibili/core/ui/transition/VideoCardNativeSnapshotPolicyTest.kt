@@ -7,6 +7,18 @@ import kotlin.test.assertTrue
 
 class VideoCardNativeSnapshotPolicyTest {
     @Test
+    fun repeatedRelatedClickDoesNotBorrowTheParentHeldTransition() {
+        val relatedKey = "video:BVrelated"
+        val parentKey = "home:BVparent"
+        // Clicking again writes the related key while the restored parent is still HELD.
+        assertFalse(isRecordedNativeCardSource("BVrelated", parentKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVrelated", null, relatedKey))
+        assertTrue(isRecordedNativeCardSource("BVrelated", relatedKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVother", relatedKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVrelated", relatedKey, parentKey))
+    }
+
+    @Test
     fun unrecordedNativeLayerFallsBackToReconstructedChrome() {
         assertFalse(isNativeVideoCardLayerDrawable(widthPx = 0, heightPx = 0))
         assertFalse(isNativeVideoCardLayerDrawable(widthPx = 320, heightPx = 1))

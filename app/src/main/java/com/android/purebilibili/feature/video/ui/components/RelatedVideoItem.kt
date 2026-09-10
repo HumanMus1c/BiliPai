@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -280,7 +281,7 @@ fun RelatedVideoItem(
         onClick()
         Unit
     }
-    val coverShape = AppShapes.mediaCover(legacyLevel = ContainerLevel.Field)
+    val coverShape = AppShapes.mediaCover()
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     val coverHeight = coverWidth / coverAspectRatio
     // 排版对齐首页单列卡片:标题用 feed 紧凑级,统计用 labelSmall。
@@ -310,11 +311,10 @@ fun RelatedVideoItem(
             .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerRelatedVideoClick)
     ) {
+        val effectiveCoverAspectRatio = if (coverAspectRatio <= 1f) 16f / 9f else coverAspectRatio
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // Keep the cover as the minimum row height, but let the information column
-                // grow when title + UP/publish + statistics need more vertical space.
                 .heightIn(min = coverHeight),
             horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
             verticalAlignment = Alignment.Top,
@@ -322,7 +322,7 @@ fun RelatedVideoItem(
             Box(
                 modifier = Modifier
                     .width(coverWidth)
-                    .aspectRatio(coverAspectRatio)
+                    .aspectRatio(effectiveCoverAspectRatio)
                     .onGloballyPositioned { coordinates ->
                         coverCoordinatesRef.value = coordinates
                     }
@@ -356,10 +356,8 @@ fun RelatedVideoItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = coverHeight),
-                // Keep both sections in normal flow while pinning metadata to the bottom.
-                // Unlike the old weighted-headline layout, the title cannot collapse during
-                // a shared return remeasure; taller content can still grow beyond the cover.
+                    .heightIn(min = coverHeight)
+                    .padding(vertical = AppSpacingTokens.Small),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 AppText(

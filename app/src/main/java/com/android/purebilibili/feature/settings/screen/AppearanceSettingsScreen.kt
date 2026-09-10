@@ -1405,13 +1405,13 @@ fun AppearanceSettingsContent(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 if (resolvedHomeWallpaperUri.isNotBlank()) {
-                                    AsyncImage(
-                                        model = coil3.request.ImageRequest.Builder(context)
+                                    com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
+                                        uri = resolvedHomeWallpaperUri,
+                                        playbackEnabled = false,
+                                        imageModel = coil3.request.ImageRequest.Builder(context)
                                             .data(resolvedHomeWallpaperUri)
                                             .crossfade(true)
                                             .build(),
-                                        contentDescription = null,
-                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {

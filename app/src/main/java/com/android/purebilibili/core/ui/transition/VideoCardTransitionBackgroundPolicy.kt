@@ -47,14 +47,15 @@ private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
 private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = VideoHeroMotionTokens.OPEN_BLUR_QUANTUM_PX
 /** 返回消糊段更粗量化，降低 BlurEffect 每帧更新次数。 */
 internal const val VIDEO_CARD_TRANSITION_RETURN_BLUR_QUANTUM_PX = VideoHeroMotionTokens.RETURN_BLUR_QUANTUM_PX
-// 页面整体保持克制后退 1.5%（缩至 ~0.985）；避免大幅缩放拉出白边缝隙及顶栏模糊断层。
-internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0.015f
+// 背景始终铺满视口；只有前景视频卡片缩放，背景用模糊和遮罩区分层次。
+internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0f
 private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION =
     VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION
-private const val VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION = 0.012f
+private const val VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION =
+    VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION
 // 保持遮罩克制，让页面后退与 shared 卡片放大承担主要层级对比。
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.10f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.14f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.08f
 private const val VIDEO_CARD_TRANSITION_REDUCED_SCRIM_ALPHA = 0.08f
 /** 景深缩放露出的边缘：至少压到这个 tint 强度，避免浅色主题读成「白条」。 */
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.36f
@@ -175,6 +176,7 @@ internal data class VideoCardTransitionBackgroundFrame(
 internal data class VideoCardTransitionBackgroundState(
     val progressProvider: () -> Float = { 0f },
     val sourceRouteProvider: () -> String? = { null },
+    val sourceKeyProvider: () -> String? = { null },
     val phaseProvider: () -> VideoCardTransitionBackgroundPhase = {
         VideoCardTransitionBackgroundPhase.IDLE
     },
@@ -248,41 +250,15 @@ internal fun resolveVideoCardTransitionContentScale(
 }
 
 /**
- * 背景后退的缩放原点（0–1 比例）。
- *
- * 飞卡从源卡 bounds 放大，背景若仍绕屏幕中心缩，冻结页上的源卡会漂向中心、
- * 和 overlay 飞卡拆开。绕被点击卡片中心后退，页面作为远平面从焦点四周沉下去。
+ * 背景作为整页远平面围绕屏幕中心退后，点击不同卡片时不改变后退方向。
+ * 飞卡自己的 bounds morph 仍从被点击卡片出发；这里只控制背后的列表与 chrome。
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveVideoCardTransitionBackgroundScalePivot(
     sourceBounds: Rect?,
     canvasWidth: Float,
     canvasHeight: Float,
-): Offset {
-    if (
-        sourceBounds == null ||
-        !canvasWidth.isFinite() ||
-        !canvasHeight.isFinite() ||
-        canvasWidth <= 1f ||
-        canvasHeight <= 1f
-    ) {
-        return Offset(0.5f, 0.5f)
-    }
-    val bounds = sourceBounds
-    if (
-        !bounds.left.isFinite() ||
-        !bounds.top.isFinite() ||
-        !bounds.right.isFinite() ||
-        !bounds.bottom.isFinite() ||
-        bounds.width <= 1f ||
-        bounds.height <= 1f
-    ) {
-        return Offset(0.5f, 0.5f)
-    }
-    return Offset(
-        x = (bounds.center.x / canvasWidth).coerceIn(0f, 1f),
-        y = (bounds.center.y / canvasHeight).coerceIn(0f, 1f),
-    )
-}
+): Offset = Offset(0.5f, 0.5f)
 
 internal fun resolveVideoCardTransitionOverlayDepthPivot(
     sourceBounds: Rect?,
@@ -448,12 +424,8 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
             scaleReduction = scaleReduction,
         ),
         useLightScrimTint = isLightBackground,
-        cornerRadiusPx = resolveVideoCardTransitionBackgroundCornerRadiusPx(
-            depthProgress = if (phase == VideoCardTransitionBackgroundPhase.IDLE) 0f else depthProgress,
-            motionTier = motionTier,
-            density = density,
-            deviceCornerRadiusPx = deviceCornerRadiusPx,
-        ),
+        // Full-viewport background must not expose rounded gaps at the screen edges.
+        cornerRadiusPx = 0f,
     )
 }
 

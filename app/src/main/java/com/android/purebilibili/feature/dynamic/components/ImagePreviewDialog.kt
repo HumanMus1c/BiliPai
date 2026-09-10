@@ -20,6 +20,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
@@ -90,6 +91,14 @@ import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.setWindowNavigationBarColor
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import androidx.compose.ui.geometry.Offset
+import androidx.media3.common.Player
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import com.android.purebilibili.core.ui.rememberAppRefreshIcon
+import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
+import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.rememberAppDownloadIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
@@ -139,6 +148,7 @@ private class ImagePreviewBlurEffectCache {
 private data class ImagePreviewOverlayRequest(
     val token: Long,
     val images: List<String>,
+    val livePhotoVideos: Map<String, String>,
     val initialIndex: Int,
     val sourceRect: androidx.compose.ui.geometry.Rect?,
     val sourceCornerRadiusDp: Float,
@@ -168,6 +178,7 @@ private object ImagePreviewOverlayController {
 fun ImagePreviewDialog(
     images: List<String>,
     initialIndex: Int,
+    livePhotoVideos: Map<String, String> = emptyMap(),
     sourceRect: androidx.compose.ui.geometry.Rect? = null,
     sourceCornerRadiusDp: Float = resolveDrawGridCornerRadiusDp().toFloat(),
     textContent: ImagePreviewTextContent? = null,
@@ -176,13 +187,14 @@ fun ImagePreviewDialog(
     onDismiss: () -> Unit
 ) {
     val latestOnDismiss by rememberUpdatedState(onDismiss)
-    val requestToken = remember(images, initialIndex, sourceRect, sourceCornerRadiusDp) { System.nanoTime() }
+    val requestToken = remember(images, initialIndex, sourceRect, sourceCornerRadiusDp, livePhotoVideos) { System.nanoTime() }
 
     LaunchedEffect(requestToken) {
         ImagePreviewOverlayController.show(
             ImagePreviewOverlayRequest(
                 token = requestToken,
                 images = images,
+                livePhotoVideos = livePhotoVideos,
                 initialIndex = initialIndex,
                 sourceRect = sourceRect,
                 sourceCornerRadiusDp = sourceCornerRadiusDp,
@@ -219,6 +231,7 @@ fun ImagePreviewOverlayHost(
         ) {
             ImagePreviewOverlayContent(
                 images = request.images,
+                livePhotoVideos = request.livePhotoVideos,
                 initialIndex = request.initialIndex,
                 sourceRect = request.sourceRect,
                 sourceCornerRadiusDp = request.sourceCornerRadiusDp,
@@ -241,6 +254,7 @@ fun ImagePreviewOverlayHost(
 private fun ImagePreviewOverlayContent(
     images: List<String>,
     initialIndex: Int,
+    livePhotoVideos: Map<String, String> = emptyMap(),
     sourceRect: androidx.compose.ui.geometry.Rect? = null,
     sourceCornerRadiusDp: Float = resolveDrawGridCornerRadiusDp().toFloat(),
     textContent: ImagePreviewTextContent? = null,
@@ -322,15 +336,16 @@ private fun ImagePreviewOverlayContent(
             )
         )
     }
+    
     // 竖滑跟手用状态值，避免每帧 launch snapTo 竞态导致滑不动。
     var verticalDismissOffsetYPx by remember { mutableFloatStateOf(0f) }
     val verticalDismissSnapAnim = remember { androidx.compose.animation.core.Animatable(0f) }
 
-    fun handleImageSaveResult(success: Boolean) {
+    fun handleImageSaveResult(success: Boolean, successMessage: String = "图片已保存到相册") {
         haptic(resolveImagePreviewSaveFeedback(success))
         Toast.makeText(
             context,
-            if (success) "图片已保存到相册" else "保存失败，请重试",
+            if (success) successMessage else "保存失败，请重试",
             Toast.LENGTH_SHORT
         ).show()
     }
@@ -363,21 +378,22 @@ private fun ImagePreviewOverlayContent(
         }
     }
     
-    //  存储权限状态（Android 9 及以下需要）
-    var pendingSaveUrls by remember { mutableStateOf<List<String>>(emptyList()) }
+    val currentLiveVideoUrl = remember(pagerState.currentPage, livePhotoVideos, images) {
+        val raw = images.getOrNull(pagerState.currentPage).orEmpty()
+        resolveLivePhotoVideoUrl(raw, pagerState.currentPage, livePhotoVideos)
+    }
+    var isLivePhotoPlaying by remember(pagerState.currentPage) { mutableStateOf(true) }
+    var isLivePhotoEnabled by remember(pagerState.currentPage) { mutableStateOf(true) }
+    var isLivePhotoMuted by remember(pagerState.currentPage) { mutableStateOf(false) }
+    var showLivePhotoMenu by remember(pagerState.currentPage) { mutableStateOf(false) }
+    var livePhotoPlayer by remember { mutableStateOf<Player?>(null) }
+
+    var pendingSaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val storagePermission = com.android.purebilibili.core.util.rememberStoragePermissionState { granted ->
-        if (granted && pendingSaveUrls.isNotEmpty()) {
-            // 权限授予后执行保存
-            val urls = pendingSaveUrls
-            pendingSaveUrls = emptyList()
-            isSaving = true
-            scope.launch {
-                val success = urls.map { saveImageToGallery(context, it) }.all { it }
-                isSaving = false
-                withContext(Dispatchers.Main) {
-                    handleImageSaveResult(success)
-                }
-            }
+        if (granted) {
+            val action = pendingSaveAction
+            pendingSaveAction = null
+            action?.invoke()
         }
     }
 
@@ -397,7 +413,41 @@ private fun ImagePreviewOverlayContent(
                 }
             }
         } else {
-            pendingSaveUrls = listOf(imageUrl)
+            pendingSaveAction = { requestSaveCurrentImage(imageUrl) }
+            storagePermission.request()
+        }
+    }
+
+    fun requestSaveMotionPhoto(imageUrl: String, videoUrl: String) {
+        if (imageUrl.isEmpty() || videoUrl.isEmpty() || isSaving) return
+        if (storagePermission.isGranted) {
+            isSaving = true
+            scope.launch {
+                val success = saveMotionPhotoToGallery(context, imageUrl, videoUrl)
+                isSaving = false
+                withContext(Dispatchers.Main) {
+                    handleImageSaveResult(success, successMessage = "实况照片已保存到相册")
+                }
+            }
+        } else {
+            pendingSaveAction = { requestSaveMotionPhoto(imageUrl, videoUrl) }
+            storagePermission.request()
+        }
+    }
+
+    fun requestSaveLivePhotoVideo(videoUrl: String) {
+        if (videoUrl.isEmpty() || isSaving) return
+        if (storagePermission.isGranted) {
+            isSaving = true
+            scope.launch {
+                val success = saveLivePhotoVideoToGallery(context, videoUrl)
+                isSaving = false
+                withContext(Dispatchers.Main) {
+                    handleImageSaveResult(success, successMessage = "实况视频已保存到相册")
+                }
+            }
+        } else {
+            pendingSaveAction = { requestSaveLivePhotoVideo(videoUrl) }
             storagePermission.request()
         }
     }
@@ -413,7 +463,7 @@ private fun ImagePreviewOverlayContent(
                 withContext(Dispatchers.Main) { handleImageSaveResult(success) }
             }
         } else {
-            pendingSaveUrls = urls
+            pendingSaveAction = { requestSaveAllImages() }
             storagePermission.request()
         }
     }
@@ -805,6 +855,53 @@ private fun ImagePreviewOverlayContent(
                                 }
                             }
                         )
+                        val currentRawUrl = images.getOrNull(page).orEmpty()
+                        val liveVideoUrl = resolveLivePhotoVideoUrl(
+                            rawUrl = currentRawUrl,
+                            pageIndex = page,
+                            livePhotoVideos = livePhotoVideos
+                        )
+                        if (
+                            !liveVideoUrl.isNullOrBlank() &&
+                            isLivePhotoEnabled &&
+                            page == pagerState.currentPage &&
+                            !isDismissing &&
+                            transitionFrame.visualProgress >= 0.85f && activeZoomScale <= 1.05f
+                        ) {
+                            LivePhotoPlayback(
+                                videoUrl = liveVideoUrl,
+                                modifier = Modifier.fillMaxSize(),
+                                isPlaying = isLivePhotoPlaying,
+                                isMuted = isLivePhotoMuted,
+                                playerRef = { livePhotoPlayer = it },
+                                onClick = {
+                                    if (showLivePhotoMenu) {
+                                        showLivePhotoMenu = false
+                                    } else if (!useCommentPreviewChrome) {
+                                        triggerDismiss()
+                                    }
+                                },
+                                onLongPress = {
+                                    if (
+                                        page == pagerState.currentPage &&
+                                        shouldHandleImagePreviewLongPressSave(
+                                            longPressSaveEnabled = longPressSaveEnabled,
+                                            imageUrl = imageUrl,
+                                            isSaving = isSaving
+                                        )
+                                    ) {
+                                        haptic(resolveImagePreviewLongPressSaveStartFeedback())
+                                        if (onImageLongPress != null) {
+                                            onImageLongPress(imageUrl)
+                                        } else if (!useCommentPreviewChrome) {
+                                            showOrdinaryImageActions = true
+                                        } else {
+                                            requestSaveCurrentImage(imageUrl)
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1239,6 +1336,160 @@ private fun ImagePreviewOverlayContent(
                             .then(chromeModifier)
                     )
                 }
+
+                // 若展开了实况菜单，点击背景空白区域收起菜单
+                if (showLivePhotoMenu) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { showLivePhotoMenu = false })
+                            }
+                    )
+                }
+
+                // 左上角实况照片控制胶囊与下拉菜单（对齐系统实况相册交互）
+                if (!currentLiveVideoUrl.isNullOrBlank() && !useCommentPreviewChrome) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(
+                                start = maxOf(12.dp, safeDrawingPadding.calculateStartPadding(layoutDirection) + 4.dp),
+                                top = overlayPadding.top
+                            )
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MediaContrastPalette.Scrim.copy(alpha = 0.65f))
+                                    .clickable { showLivePhotoMenu = !showLivePhotoMenu }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isLivePhotoEnabled) {
+                                    LivePhotoIcon(tint = Color.White)
+                                } else {
+                                    LivePhotoOffIcon(tint = Color.White.copy(alpha = 0.8f))
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                AppText(
+                                    text = if (isLivePhotoEnabled) "实况" else "实况已关",
+                                    color = Color.White,
+                                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                AppIcon(
+                                    imageVector = if (showLivePhotoMenu) rememberAppChevronUpIcon() else rememberAppChevronDownIcon(),
+                                    contentDescription = "实况菜单",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            if (showLivePhotoMenu) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MediaContrastPalette.Scrim.copy(alpha = 0.88f))
+                                        .padding(vertical = 4.dp)
+                                        .width(IntrinsicSize.Max)
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    isLivePhotoEnabled = !isLivePhotoEnabled
+                                                    if (isLivePhotoEnabled) {
+                                                        isLivePhotoPlaying = true
+                                                    }
+                                                    showLivePhotoMenu = false
+                                                }
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (isLivePhotoEnabled) {
+                                                LivePhotoOffIcon(tint = Color.White)
+                                            } else {
+                                                LivePhotoIcon(tint = Color.White)
+                                            }
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            AppText(
+                                                text = if (isLivePhotoEnabled) "关闭实况" else "开启实况",
+                                                color = Color.White,
+                                                fontSize = MaterialTheme.typography.bodyMedium.fontSize
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(0.5.dp)
+                                                .background(Color.White.copy(alpha = 0.15f))
+                                        )
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    isLivePhotoEnabled = true
+                                                    isLivePhotoPlaying = true
+                                                    livePhotoPlayer?.seekTo(0)
+                                                    livePhotoPlayer?.play()
+                                                    showLivePhotoMenu = false
+                                                }
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            AppIcon(
+                                                imageVector = rememberAppRefreshIcon(),
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            AppText(
+                                                text = "重新播放",
+                                                color = Color.White,
+                                                fontSize = MaterialTheme.typography.bodyMedium.fontSize
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 右下角声音切换按钮（支持有声实况播放与静音切换）
+                if (!currentLiveVideoUrl.isNullOrBlank() && isLivePhotoEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = maxOf(12.dp, safeDrawingPadding.calculateEndPadding(layoutDirection) + 4.dp),
+                                bottom = overlayPadding.bottom
+                            )
+                            .clip(CircleShape)
+                            .background(MediaContrastPalette.Scrim.copy(alpha = 0.65f))
+                            .clickable { isLivePhotoMuted = !isLivePhotoMuted }
+                            .padding(8.dp)
+                    ) {
+                        AppIcon(
+                            imageVector = if (isLivePhotoMuted) {
+                                Icons.AutoMirrored.Filled.VolumeOff
+                            } else {
+                                Icons.AutoMirrored.Filled.VolumeUp
+                            },
+                            contentDescription = if (isLivePhotoMuted) "开启声音" else "静音",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
     }
 
@@ -1269,6 +1520,22 @@ private fun ImagePreviewOverlayContent(
                             requestSaveCurrentImage(currentImageUrl)
                         }
                     )
+                    if (!currentLiveVideoUrl.isNullOrBlank()) {
+                        ImagePreviewActionButton(
+                            label = "保存实况照片 (Motion Photo)",
+                            onClick = {
+                                showOrdinaryImageActions = false
+                                requestSaveMotionPhoto(currentImageUrl, currentLiveVideoUrl)
+                            }
+                        )
+                        ImagePreviewActionButton(
+                            label = "保存实况视频 (MP4)",
+                            onClick = {
+                                showOrdinaryImageActions = false
+                                requestSaveLivePhotoVideo(currentLiveVideoUrl)
+                            }
+                        )
+                    }
                     if (images.size > 1) {
                         ImagePreviewActionButton(
                             label = "保存全部图片",
@@ -1548,7 +1815,7 @@ data class Quad(val left: androidx.compose.ui.unit.Dp, val top: androidx.compose
  * 1. 修复协议头（http -> https, // -> https://）
  * 2. 移除分辨率限制参数（@...）以获取原图
  */
-private fun normalizeImageUrl(rawSrc: String): String {
+internal fun normalizeImageUrl(rawSrc: String): String {
     val trimmed = rawSrc.trim()
     var result = when {
         trimmed.startsWith("https://") -> trimmed
@@ -1813,3 +2080,441 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
         }
     }
 }
+
+/**
+ * 健壮解析当前页对应的实况视频 URL（对齐 PiliPlus 数据结构，兼容 http/https/相对路径及 scheme 差异）
+ */
+internal fun resolveLivePhotoVideoUrl(
+    rawUrl: String,
+    pageIndex: Int,
+    livePhotoVideos: Map<String, String>
+): String? {
+    if (livePhotoVideos.isEmpty()) return null
+    if (rawUrl.isNotBlank()) {
+        // 1. 直接命中
+        livePhotoVideos[rawUrl]?.let { return it }
+        // 2. 归一化图片 URL 命中
+        val normalized = normalizeImageUrl(rawUrl)
+        livePhotoVideos[normalized]?.let { return it }
+        // 3. 归一化实况视频 URL 命中
+        normalizeLivePhotoVideoUrl(rawUrl)?.let { livePhotoVideos[it] }?.let { return it }
+        // 4. 去除协议头匹配路径（兼容 http:// 与 https:// 混用场景）
+        val stripped = rawUrl.removePrefix("https:").removePrefix("http:").substringBefore("@").substringBefore("?")
+        for ((key, value) in livePhotoVideos) {
+            val keyStripped = key.removePrefix("https:").removePrefix("http:").substringBefore("@").substringBefore("?")
+            if (keyStripped.isNotEmpty() && (keyStripped == stripped || stripped.endsWith(keyStripped) || keyStripped.endsWith(stripped))) {
+                return value
+            }
+        }
+    }
+    return null
+}
+
+private const val BROWSER_USER_AGENT =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+/**
+ * 合成并保存符合 Google / Android 相册规范的 Motion Photo（实况动态照片 JPEG）
+ * 包含 XMP 目录元数据与末尾追加的 MP4 视频流，在小米/华为/OPPO/vivo/三星/Google相册中均可直接作为实况照片互动（长按播放、可随时暂停打断）。
+ */
+suspend fun saveMotionPhotoToGallery(
+    context: android.content.Context,
+    imageUrl: String,
+    videoUrl: String
+): Boolean {
+    return withContext(Dispatchers.IO) {
+        try {
+            // 1. 下载实况视频 MP4 数据
+            val videoConn = java.net.URL(videoUrl).openConnection() as java.net.HttpURLConnection
+            videoConn.setRequestProperty("Referer", "https://www.bilibili.com/")
+            videoConn.setRequestProperty("User-Agent", BROWSER_USER_AGENT)
+            videoConn.connect()
+            if (videoConn.responseCode !in 200..299) {
+                Log.e("ImagePreview", "Failed to download live video: ${videoConn.responseCode}")
+                return@withContext false
+            }
+            val videoBytes = videoConn.inputStream.use { it.readBytes() }
+            videoConn.disconnect()
+
+            // 2. 下载并转码静态图片为标准 JPEG
+            val imageConn = java.net.URL(normalizeImageUrl(imageUrl)).openConnection() as java.net.HttpURLConnection
+            imageConn.setRequestProperty("Referer", "https://www.bilibili.com/")
+            imageConn.setRequestProperty("User-Agent", BROWSER_USER_AGENT)
+            imageConn.connect()
+            if (imageConn.responseCode !in 200..299) {
+                Log.e("ImagePreview", "Failed to download image: ${imageConn.responseCode}")
+                return@withContext false
+            }
+            val bitmap = imageConn.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
+            imageConn.disconnect()
+            if (bitmap == null) return@withContext false
+
+            val rawJpegStream = java.io.ByteArrayOutputStream()
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, rawJpegStream)
+            val rawJpegBytes = rawJpegStream.toByteArray()
+
+            // 3. 通过 tempFile 和 ExifInterface 注入标准 EXIF APP1（确保系统相册优先识别为标准相机实况照片）
+            var jpegWithExif = rawJpegBytes
+            try {
+                val tempFile = File.createTempFile("motion_photo_temp_", ".jpg", context.cacheDir)
+                try {
+                    tempFile.outputStream().use { it.write(rawJpegBytes) }
+                    val exif = android.media.ExifInterface(tempFile.absolutePath)
+                    exif.setAttribute(android.media.ExifInterface.TAG_MAKE, Build.MANUFACTURER)
+                    exif.setAttribute(android.media.ExifInterface.TAG_MODEL, Build.MODEL)
+                    val now = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+                    exif.setAttribute(android.media.ExifInterface.TAG_DATETIME, now)
+                    exif.setAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL, now)
+                    exif.saveAttributes()
+                    jpegWithExif = tempFile.readBytes()
+                } finally {
+                    tempFile.delete()
+                }
+            } catch (e: Exception) {
+                Log.w("ImagePreview", "Failed to write EXIF attributes, fallback to raw JPEG", e)
+            }
+
+            // 4. 构建 Google / Android 官方 Motion Photo 1.0 标准 XMP 元数据（兼容 MicroVideo、小米 MiCamera 与新版 Container 规范）
+            val videoSize = videoBytes.size
+            val xmpString = """
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.1.0-jc003">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+        xmlns:Camera="http://ns.google.com/photos/1.0/camera/"
+        xmlns:GCamera="http://ns.google.com/photos/1.0/camera/"
+        xmlns:MiCamera="http://ns.xiaomi.com/photos/1.0/camera/"
+        xmlns:Container="http://ns.google.com/photos/1.0/container/"
+        xmlns:Item="http://ns.google.com/photos/1.0/container/item/"
+        Camera:MotionPhoto="1"
+        Camera:MotionPhotoVersion="1"
+        Camera:MotionPhotoPresentationTimestampUs="0"
+        GCamera:MotionPhoto="1"
+        GCamera:MotionPhotoVersion="1"
+        GCamera:MotionPhotoPresentationTimestampUs="0"
+        GCamera:MicroVideo="1"
+        GCamera:MicroVideoVersion="1"
+        GCamera:MicroVideoOffset="$videoSize"
+        GCamera:MicroVideoPresentationTimestampUs="0"
+        MiCamera:MotionPhoto="1"
+        MiCamera:MotionPhotoVersion="1"
+        MiCamera:MotionPhotoPresentationTimestampUs="0">
+      <Camera:MotionPhoto>1</Camera:MotionPhoto>
+      <Camera:MotionPhotoVersion>1</Camera:MotionPhotoVersion>
+      <Camera:MotionPhotoPresentationTimestampUs>0</Camera:MotionPhotoPresentationTimestampUs>
+      <GCamera:MotionPhoto>1</GCamera:MotionPhoto>
+      <GCamera:MotionPhotoVersion>1</GCamera:MotionPhotoVersion>
+      <GCamera:MotionPhotoPresentationTimestampUs>0</GCamera:MotionPhotoPresentationTimestampUs>
+      <GCamera:MicroVideo>1</GCamera:MicroVideo>
+      <GCamera:MicroVideoVersion>1</GCamera:MicroVideoVersion>
+      <GCamera:MicroVideoOffset>$videoSize</GCamera:MicroVideoOffset>
+      <GCamera:MicroVideoPresentationTimestampUs>0</GCamera:MicroVideoPresentationTimestampUs>
+      <MiCamera:MotionPhoto>1</MiCamera:MotionPhoto>
+      <MiCamera:MotionPhotoVersion>1</MiCamera:MotionPhotoVersion>
+      <MiCamera:MotionPhotoPresentationTimestampUs>0</MiCamera:MotionPhotoPresentationTimestampUs>
+      <Container:Directory>
+        <rdf:Seq>
+          <rdf:li rdf:parseType="Resource">
+            <Container:Item
+                Item:Mime="image/jpeg"
+                Item:Semantic="Primary"
+                Item:Length="0"
+                Item:Padding="0"/>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <Container:Item
+                Item:Mime="video/mp4"
+                Item:Semantic="MotionPhoto"
+                Item:Length="$videoSize"
+                Item:Padding="0"/>
+          </rdf:li>
+        </rdf:Seq>
+      </Container:Directory>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+""".trimIndent()
+
+            // 5. 打包 JPEG APP1 XMP 数据段
+            val xmpNamespace = "http://ns.adobe.com/xap/1.0/\u0000".toByteArray(Charsets.UTF_8)
+            val xmpPayload = xmpString.toByteArray(Charsets.UTF_8)
+            val app1PayloadLen = xmpNamespace.size + xmpPayload.size
+            val app1Len = app1PayloadLen + 2
+            val app1Segment = java.io.ByteArrayOutputStream().apply {
+                write(0xFF)
+                write(0xE1)
+                write((app1Len shr 8) and 0xFF)
+                write(app1Len and 0xFF)
+                write(xmpNamespace)
+                write(xmpPayload)
+            }.toByteArray()
+
+            // 6. 确定 XMP 插入位置：紧跟在 EXIF APP1 之后，确保 EXIF 永远位于第一个 APP1
+            var insertPos = 2
+            var offset = 2
+            while (offset + 4 < jpegWithExif.size) {
+                if ((jpegWithExif[offset].toInt() and 0xFF) != 0xFF) break
+                val marker = jpegWithExif[offset + 1].toInt() and 0xFF
+                if (marker == 0xDA || marker == 0xD9) break // SOS or EOI
+                val segLen = ((jpegWithExif[offset + 2].toInt() and 0xFF) shl 8) or (jpegWithExif[offset + 3].toInt() and 0xFF)
+                if (marker == 0xE1 && offset + 8 <= jpegWithExif.size) {
+                    val isExif = jpegWithExif[offset + 4] == 'E'.code.toByte() &&
+                                 jpegWithExif[offset + 5] == 'x'.code.toByte() &&
+                                 jpegWithExif[offset + 6] == 'i'.code.toByte() &&
+                                 jpegWithExif[offset + 7] == 'f'.code.toByte()
+                    if (isExif) {
+                        insertPos = offset + 2 + segLen
+                        break
+                    }
+                }
+                offset += 2 + segLen
+            }
+
+            // 7. 组装 Motion Photo：JPEG头部 + APP1 XMP + JPEG剩余数据与EOI + MP4视频数据
+            val motionPhotoStream = java.io.ByteArrayOutputStream(jpegWithExif.size + app1Segment.size + videoBytes.size)
+            motionPhotoStream.write(jpegWithExif, 0, insertPos)
+            motionPhotoStream.write(app1Segment)
+            motionPhotoStream.write(jpegWithExif, insertPos, jpegWithExif.size - insertPos)
+            motionPhotoStream.write(videoBytes)
+            val finalBytes = motionPhotoStream.toByteArray()
+
+            // 8. 保存到相册
+            val fileName = "BiliPai_Live_${System.currentTimeMillis()}.jpg"
+
+            // 8.1 优先检查是否配置了自定义 SAF 保存目录
+            if (saveBytesToCustomImageSaveDirectory(context, finalBytes, fileName, "image/jpeg")) {
+                Log.d("ImagePreview", "Motion photo saved to custom directory: $fileName")
+                return@withContext true
+            }
+
+            // 8.2 插入 MediaStore（针对小米 MIUI/HyperOS 及各厂商系统相册优化）
+            // 注意：绝不能在 ContentValues 中放入 "is_motion_photo"，因为该列在系统 MediaProvider 中为只读索引列，
+            // 传入会导致小米/MIUI等设备直接抛出 IllegalArgumentException: Invalid column 导致保存失败！
+            // 此外，小米设备禁止第三方应用向 "DCIM/Camera" 写入文件（报错权限拒绝），需优先使用 "DCIM/BiliPai" 或 "Pictures/BiliPai"。
+            var insertedUri: Uri? = null
+            var savedRelativePath: String? = null
+
+            val targetPaths = listOf(
+                "DCIM/BiliPai",
+                resolveDefaultImageMediaStoreRelativePath(),
+                "DCIM",
+                "Pictures"
+            )
+
+            for (relPath in targetPaths) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.Images.Media.RELATIVE_PATH, relPath)
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                }
+                try {
+                    val uri = context.contentResolver.insert(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        values
+                    )
+                    if (uri != null) {
+                        insertedUri = uri
+                        savedRelativePath = relPath
+                        break
+                    }
+                } catch (e: Exception) {
+                    Log.w("ImagePreview", "Failed to insert MediaStore into $relPath: ${e.message}")
+                }
+            }
+
+            // 如果指定相对路径均失败，尝试不指定 RELATIVE_PATH
+            if (insertedUri == null) {
+                val fallbackValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                }
+                insertedUri = try {
+                    context.contentResolver.insert(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        fallbackValues
+                    )
+                } catch (e: Exception) {
+                    Log.e("ImagePreview", "Fallback insert MediaStore failed", e)
+                    null
+                }
+            }
+
+            val uri = insertedUri ?: return@withContext false
+
+            val writeSuccess = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(finalBytes)
+                    outputStream.flush()
+                }
+                true
+            }.getOrDefault(false)
+
+            if (!writeSuccess) {
+                try { context.contentResolver.delete(uri, null, null) } catch (_: Exception) {}
+                return@withContext false
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val finishValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.IS_PENDING, 0)
+                }
+                try {
+                    context.contentResolver.update(uri, finishValues, null, null)
+                } catch (e: Exception) {
+                    Log.w("ImagePreview", "Failed to clear IS_PENDING", e)
+                }
+            }
+
+            // 9. 通知系统 MediaScanner 立即建立实况照片索引并触发实况解析
+            try {
+                val projection = arrayOf(MediaStore.Images.Media.DATA)
+                var filePath = context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                        if (idx >= 0) cursor.getString(idx) else null
+                    } else null
+                }
+                if (filePath.isNullOrBlank() && savedRelativePath != null) {
+                    val root = android.os.Environment.getExternalStorageDirectory()
+                    filePath = File(root, "$savedRelativePath/$fileName").absolutePath
+                }
+                if (!filePath.isNullOrBlank()) {
+                    android.media.MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(filePath),
+                        arrayOf("image/jpeg")
+                    ) { path, scannedUri ->
+                        Log.d("ImagePreview", "MediaScanner indexed: $path -> $scannedUri")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("ImagePreview", "MediaScanner scanFile failed", e)
+            }
+
+            Log.d("ImagePreview", "Motion photo saved successfully: $fileName, size: ${finalBytes.size}")
+            true
+        } catch (e: Exception) {
+            Log.e("ImagePreview", "Error saving motion photo", e)
+            false
+        }
+    }
+}
+
+/**
+ * 保存实况视频文件到本地相册（对齐 PiliPlus downloadLivePhoto）
+ */
+suspend fun saveLivePhotoVideoToGallery(context: android.content.Context, videoUrl: String): Boolean {
+    return withContext(Dispatchers.IO) {
+        try {
+            val url = java.net.URL(videoUrl)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.setRequestProperty("Referer", "https://www.bilibili.com/")
+            connection.setRequestProperty(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            connection.connect()
+
+            if (connection.responseCode !in 200..299) {
+                Log.e("ImagePreview", "Failed to download live video: ${connection.responseCode}")
+                return@withContext false
+            }
+
+            val inputStream = connection.inputStream
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+            connection.disconnect()
+
+            val fileName = "BiliPai_Live_${System.currentTimeMillis()}.mp4"
+            val mimeType = "video/mp4"
+
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Video.Media.MIME_TYPE, mimeType)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/BiliPai")
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+            }
+
+            val uri = context.contentResolver.insert(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                contentValues
+            ) ?: return@withContext false
+
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(bytes)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
+            }
+
+            Log.d("ImagePreview", "Live photo video saved successfully: $fileName")
+            true
+        } catch (e: Exception) {
+            Log.e("ImagePreview", "Error saving live photo video", e)
+            false
+        }
+    }
+}
+
+@Composable
+private fun LivePhotoIcon(
+    modifier: Modifier = Modifier,
+    tint: Color = Color.White
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier.size(16.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val outerRadius = size.minDimension / 2f - 1.5f
+        val innerRadius = outerRadius * 0.46f
+        drawCircle(
+            color = tint,
+            radius = outerRadius,
+            center = center,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.8f)
+        )
+        drawCircle(
+            color = tint,
+            radius = innerRadius,
+            center = center
+        )
+    }
+}
+
+@Composable
+private fun LivePhotoOffIcon(
+    modifier: Modifier = Modifier,
+    tint: Color = Color.White
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier.size(16.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val outerRadius = size.minDimension / 2f - 1.5f
+        val innerRadius = outerRadius * 0.46f
+        drawCircle(
+            color = tint,
+            radius = outerRadius,
+            center = center,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.8f)
+        )
+        drawCircle(
+            color = tint,
+            radius = innerRadius,
+            center = center
+        )
+        drawLine(
+            color = tint,
+            start = Offset(2f, size.height - 2f),
+            end = Offset(size.width - 2f, 2f),
+            strokeWidth = 1.8f
+        )
+    }
+}
+

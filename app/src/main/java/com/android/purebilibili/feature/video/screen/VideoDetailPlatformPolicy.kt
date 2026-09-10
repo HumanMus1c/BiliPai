@@ -499,7 +499,9 @@ internal fun resolveVideoDetailCommentThreadHostMainSheetVisible(
     useEmbeddedPresentation: Boolean,
     subReplyVisible: Boolean
 ): Boolean {
-    return useEmbeddedPresentation && subReplyVisible
+    // 楼中楼直接覆盖在视频详情页上方，不额外铺设一层“主评论列表”，
+    // 从而在预测返回手势过程中直接露出底层的原视频详情页（保留“简介/评论/发弹幕”栏与原本的滚动位置）。
+    return false
 }
 
 internal fun shouldForceInitializeDetachedCommentThreadHostForRoute(

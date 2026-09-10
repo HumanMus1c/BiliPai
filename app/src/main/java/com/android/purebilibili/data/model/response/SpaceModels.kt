@@ -146,7 +146,45 @@ data class SpaceAggregateImages(
     @JsonNames("imgUrl", "img_url")
     val imgUrl: String = "",
     @JsonNames("night_imgurl", "night_img_url", "nightImgurl")
-    val nightImgUrl: String = ""
+    val nightImgUrl: String = "",
+    @SerialName("collection_top_simple")
+    val collectionTopSimple: SpaceCollectionTopSimple? = null
+)
+
+@Serializable
+data class SpaceCollectionTopSimple(
+    val top: SpaceCollectionTop? = null
+)
+
+@Serializable
+data class SpaceCollectionTop(
+    @JsonNames("result", "imgUrls", "img_urls")
+    val result: List<SpaceCollectionTopItem> = emptyList()
+)
+
+@Serializable
+data class SpaceCollectionTopItem(
+    val item: SpaceCollectionTopItemDetail? = null,
+    val cover: String = "",
+    val title: SpaceCollectionTopTitle? = null
+)
+
+@Serializable
+data class SpaceCollectionTopItemDetail(
+    val image: SpaceCollectionTopImage? = null
+)
+
+@Serializable
+data class SpaceCollectionTopImage(
+    @SerialName("default_image")
+    val defaultImage: String = ""
+)
+
+@Serializable
+data class SpaceCollectionTopTitle(
+    val title: String = "",
+    @SerialName("sub_title")
+    val subTitle: String = ""
 )
 
 @Serializable
@@ -663,7 +701,9 @@ data class SpaceDynamicDrawItem(
     @JsonNames("src", "url")
     val src: String = "",
     val width: Int = 0,
-    val height: Int = 0
+    val height: Int = 0,
+    @JsonNames("live_url", "liveUrl")
+    val live_url: String? = null
 )
 
 @kotlinx.serialization.Serializable

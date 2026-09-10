@@ -111,7 +111,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         title = "隐私与权限",
         subtitle = "隐私无痕、权限管理与黑名单",
         section = "设置",
-        aliases = listOf("隐私", "无痕", "权限", "权限管理", "黑名单", "屏蔽", "拉黑")
+        aliases = listOf("搜索框推荐词", "默认搜索词", "一小时前搜索", "搜索提示", "搜索推荐词", "搜索发现推荐", "推荐词", "搜索联想词", "搜索建议", "联想开关", "隐私", "无痕", "权限", "权限管理", "黑名单", "屏蔽", "拉黑")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.DIAGNOSTICS,
@@ -533,6 +533,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         subtitle = "页面动画、玻璃效果、触感反馈与点按文字复制",
         section = "动画与效果",
         aliases = listOf(
+            "骨架呼吸动画", "骨架屏", "加载动画", "呼吸脉冲",
             "动画与效果",
             "触感反馈",
             "点按文字复制",

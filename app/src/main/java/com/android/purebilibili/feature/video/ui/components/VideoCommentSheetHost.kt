@@ -45,6 +45,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -358,7 +359,8 @@ fun VideoCommentSheetHost(
     maxTimestampMs: Long? = null,
     onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)? = null,
     forceInitialize: Boolean = false,
-    handleFraudEvents: Boolean = true
+    handleFraudEvents: Boolean = true,
+    onCoveredBlurProgressChange: ((Float) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -554,6 +556,21 @@ fun VideoCommentSheetHost(
         rootReplyId = subReplyState.rootReply?.rpid,
         onDismiss = commentViewModel::closeSubReply,
     )
+    val threadCoveredBlurProgress = if (
+        hostContent == VideoCommentSheetHostContent.THREAD_DETAIL
+    ) {
+        resolveCommentThreadCoveredBlurProgress(maxOf(threadBackProgress, threadDrag.revealProgress))
+    } else {
+        0f
+    }
+    SideEffect {
+        onCoveredBlurProgressChange?.invoke(threadCoveredBlurProgress)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            onCoveredBlurProgressChange?.invoke(0f)
+        }
+    }
 
     LaunchedEffect(aid, mainSheetVisible, forceInitialize, preferredSortMode, upMid, expectedReplyCount) {
         if (shouldInitializeVideoCommentSheetHost(mainSheetVisible, forceInitialize)) {
@@ -748,13 +765,7 @@ fun VideoCommentSheetHost(
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         if (mainSheetVisible && hostContent != VideoCommentSheetHostContent.HIDDEN) {
-                            val coveredBlurProgress = if (
-                                hostContent == VideoCommentSheetHostContent.THREAD_DETAIL
-                            ) {
-                                resolveCommentThreadCoveredBlurProgress(maxOf(threadBackProgress, threadDrag.revealProgress))
-                            } else {
-                                0f
-                            }
+                            val coveredBlurProgress = threadCoveredBlurProgress
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()

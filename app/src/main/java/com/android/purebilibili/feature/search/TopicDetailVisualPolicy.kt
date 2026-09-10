@@ -10,6 +10,8 @@ internal enum class TopicParticipateChrome {
 
 internal const val TOPIC_PARTICIPATE_BUTTON_WIDTH_DP = 148
 internal const val TOPIC_SORT_ITEM_WIDTH_DP = 72
+internal const val TOPIC_TAG_CAPSULE_SIZE_DP = 54
+internal const val TOPIC_TAG_CAPSULE_ICON_SIZE_DP = 28
 
 internal fun resolveTopicParticipateChrome(
     uiStyle: AppUiStyle,

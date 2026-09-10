@@ -345,17 +345,6 @@ fun HomeScreen(
         globalScrollOffset.floatValue = 0f
     }
 
-    suspend fun withHomeHeaderRevealLock(block: suspend () -> Unit) {
-        homeHeaderRevealLock = true
-        revealHomeHeaderNow()
-        try {
-            block()
-        } finally {
-            revealHomeHeaderNow()
-            homeHeaderRevealLock = false
-        }
-    }
-
     fun animateHeaderOffsetTo(targetValue: Float) {
         val transition = resolveHomeHeaderSettleTransition(
             currentHeaderOffsetPx = headerOffsetHeightPx,
@@ -380,6 +369,20 @@ fun HomeScreen(
                     headerSettleAnimationJob = null
                 }
             }
+        }
+    }
+
+    suspend fun withHomeHeaderRevealLock(block: suspend () -> Unit) {
+        homeHeaderRevealLock = true
+        topTabsAutoCollapsedByScroll = false
+        globalScrollOffset.floatValue = 0f
+        animateHeaderOffsetTo(0f)
+        try {
+            block()
+        } finally {
+            headerSettleAnimationJob?.join()
+            setHeaderOffsetImmediate(0f)
+            homeHeaderRevealLock = false
         }
     }
 
@@ -1282,10 +1285,14 @@ fun HomeScreen(
                             viewModel.refresh()
                         } else {
                             val listState = requireNotNull(gridState)
-                            if (listState.firstVisibleItemIndex > 12) {
-                                listState.scrollToItem(12)
+                            val currentIndex = listState.firstVisibleItemIndex
+                            val plan = resolveScrollToTopPlan(currentIndex)
+                            plan.preJumpIndex?.let { preJump ->
+                                if (currentIndex > preJump) {
+                                    listState.scrollToItem(preJump)
+                                }
                             }
-                            listState.animateScrollToItem(0)
+                            listState.animateScrollToItem(plan.animateTargetIndex)
                         }
                     }
                 }
@@ -1554,6 +1561,9 @@ fun HomeScreen(
     ) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (homeHeaderRevealLock) {
+                    return Offset.Zero
+                }
                 if (!shouldHandleHomeVerticalPreScroll(deltaX = available.x, deltaY = available.y)) {
                     return Offset.Zero
                 }
@@ -1719,6 +1729,8 @@ fun HomeScreen(
         Modifier
     }
     val scaffoldLayout: @Composable () -> Unit = {
+        // Composite header and feed before applying depth; separate blur layers form a seam.
+        Box(modifier = Modifier.fillMaxSize().then(homeFeedSnapshotModifier)) {
         AppScaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1736,8 +1748,8 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            // 快照在 haze/backdrop 内侧：顶栏 overlay 才能采到退后页，而不是空层。
-                            .then(homeFeedSnapshotModifier)
+                            // Header samples the untransformed feed; the enclosing snapshot
+                            // then transforms their completed composition exactly once.
                             .then(homeMiuixBackdropSource?.modifier ?: Modifier)
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .then(
@@ -1750,6 +1762,7 @@ fun HomeScreen(
                     ) {
                     HomeWallpaperBackdrop(
                         wallpaperUri = homeWallpaperUri,
+                        playbackEnabled = isTopLevelActive,
                         appearance = homeWallpaperBackdropAppearance,
                         baseColor = AppSurfaceTokens.chromeBackground(),
                         isDataSaverActive = isDataSaverActive
@@ -2258,7 +2271,8 @@ fun HomeScreen(
         val headerOffsetProvider = remember { { headerOffsetHeightPx } }
         val videoCardClock = LocalVideoCardTransitionClock.current
         val videoCardSettleState = videoCardClock?.settleState
-        val homeHeaderChromeVisible = shouldShowHomeOverlayChromeDuringVideoCardTransition(
+        val homeHeaderChromeVisible = homeFeedOwnsVideoCardSnapshot ||
+            shouldShowHomeOverlayChromeDuringVideoCardTransition(
             exposure = resolveVideoCardTransitionExposure(
                 phase = videoCardClock?.phase ?: VideoCardTransitionBackgroundPhase.IDLE,
                 predictiveBackInProgress = videoCardSettleState ==
@@ -2279,7 +2293,7 @@ fun HomeScreen(
         homeHeaderVisibilityState.targetState = homeHeaderChromeVisible
         val headerDepthDensity = LocalDensity.current
         val activeHeaderDepthClock = videoCardClock?.takeIf {
-            it.phase != VideoCardTransitionBackgroundPhase.IDLE &&
+            !homeFeedOwnsVideoCardSnapshot && it.phase != VideoCardTransitionBackgroundPhase.IDLE &&
                 (homeHeaderVisibilityState.currentState || homeHeaderVisibilityState.targetState)
         }
         // Keep the RenderEffect layer full-screen even though only the header paints into it.
@@ -2587,6 +2601,7 @@ fun HomeScreen(
             )
             }
         }
+        } // Unified header/feed depth snapshot
     }
 
     val scaffoldContent: @Composable () -> Unit = {

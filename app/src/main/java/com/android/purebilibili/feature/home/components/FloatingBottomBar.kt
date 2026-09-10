@@ -549,9 +549,10 @@ fun FloatingBottomBar(
     } else {
         1f
     }
-    // The lens owns its flat geometry; the recorded glyphs retain the shell's content band.
+    // Record the full shell behind segmented indicators, including their top/bottom edges.
+    // An inner-content-height capture exposes the sharp page through the taller lens.
     val capturedContentHeight = if (segmentedGeometry) {
-        (shellHeight - verticalPadding * 2).coerceAtLeast(0.dp)
+        maxOf(shellHeight, fittedIndicatorHeight)
     } else {
         fittedIndicatorHeight
     }
@@ -1014,7 +1015,7 @@ fun FloatingBottomBar(
                         }
                         .drawBackdrop(
                             backdrop = backdrop,
-                            shape = { pillShape },
+                            shape = { if (segmentedGeometry) androidx.compose.ui.graphics.RectangleShape else pillShape },
                             effects = {
                                 vibrancy(liquidGlassTuning.saturation)
                                 blur(
@@ -1155,8 +1156,11 @@ fun FloatingBottomBar(
                         }
                         .clip(pillShape)
                         .then(
-                            if (indicatorIdleSurfaceColorOverride != null) {
-                                Modifier.background(indicatorIdleSurfaceColorOverride, pillShape)
+                            if (indicatorIdleSurfaceColorOverride != null || isLiquidGlassMode) {
+                                Modifier.background(
+                                    indicatorIdleSurfaceColorOverride ?: colors.contentColor.copy(alpha = 0.1f),
+                                    pillShape,
+                                )
                             } else {
                                 Modifier
                             }

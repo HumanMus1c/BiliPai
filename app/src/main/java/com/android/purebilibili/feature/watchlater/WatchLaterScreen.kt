@@ -738,9 +738,7 @@ fun WatchLaterScreen(
             ) {
                 Column {
                 AppTopBar(
-                    title = resolveWatchLaterTitle(
-                        state.totalCount.takeIf { it > 0 } ?: state.items.size
-                    ),
+                    title = "",
                     navigationIcon = {
                         AppIconButton(onClick = onBack) {
                             AppIcon(rememberAppBackIcon(), contentDescription = "返回")
@@ -944,6 +942,7 @@ fun WatchLaterScreen(
                         .padding(horizontal = AppSpacingTokens.Medium),
                     backdrop = watchLaterChromeBackdrop,
                 )
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 val watchLaterFilterOptions = remember(state.filter, state.totalCount) {
                     WatchLaterFilter.entries.map { filter ->
                         AppSegmentOption(
@@ -1326,6 +1325,7 @@ private fun WatchLaterVideoCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
+    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.toInt()
     val cardClick = {
         if (!isBatchMode) {
             cardBoundsRef.value?.let { bounds ->
@@ -1335,7 +1335,7 @@ private fun WatchLaterVideoCard(
                     bounds = bounds,
                     screenWidth = screenWidthPx,
                     screenHeight = screenHeightPx,
-                    sourceCornerDp = 8,
+                    sourceCornerDp = cardCornerRadiusDp,
                     coverBounds = coverBoundsRef.value,
                     sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(

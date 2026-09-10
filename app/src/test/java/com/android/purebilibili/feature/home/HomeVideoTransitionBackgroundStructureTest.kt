@@ -8,6 +8,17 @@ import kotlin.test.assertTrue
 class HomeVideoTransitionBackgroundStructureTest {
 
     @Test
+    fun headerAndFeedShareOneDepthSnapshot() {
+        val source = homeScreenSource()
+        val layout = source.substringAfter("val scaffoldLayout: @Composable () -> Unit = {")
+            .substringBefore("val scaffoldContent:")
+        assertTrue(layout.indexOf(".then(homeFeedSnapshotModifier)") < layout.indexOf("AppScaffold("))
+        assertTrue(layout.contains("homeFeedOwnsVideoCardSnapshot ||"))
+        assertTrue(layout.contains("!homeFeedOwnsVideoCardSnapshot && it.phase"))
+        assertTrue(layout.split(".then(homeFeedSnapshotModifier)").size == 2)
+    }
+
+    @Test
     fun homeRootNoLongerOwnsVideoTransitionBackgroundBlurAndScrim() {
         val source = homeScreenSource()
 
@@ -17,7 +28,7 @@ class HomeVideoTransitionBackgroundStructureTest {
     }
 
     @Test
-    fun homeFeedRecordsHostSnapshotUnderTheLiveHeaderOverlay() {
+    fun homePageRecordsHostSnapshotAndRetainsHeaderFallback() {
         val source = homeScreenSource()
 
         assertTrue(source.contains("shouldHomeFeedOwnVideoCardTransitionSnapshot("))

@@ -32,8 +32,15 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
-    data object Search : BiliPaiNavKey {
+    data class Search(
+        val keyword: String = "",
+        val openId: Long = 0L,
+    ) : BiliPaiNavKey {
         override val routeBase: String = "search"
+
+        companion object : BiliPaiNavKey {
+            override val routeBase: String = "search"
+        }
     }
 
     @Serializable

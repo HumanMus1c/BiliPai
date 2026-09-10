@@ -18,6 +18,7 @@ internal const val DYNAMIC_RICH_TEXT_URL_TAG = "URL"
 internal const val DYNAMIC_RICH_TEXT_USER_TAG = "USER"
 internal const val DYNAMIC_RICH_TEXT_VOTE_TAG = "VOTE"
 internal const val DYNAMIC_RICH_TEXT_TOPIC_TAG = "TOPIC"
+internal const val DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG = "TOPIC_KEYWORD"
 
 internal enum class DynamicRichTextOpenMode {
     IN_APP,
@@ -528,6 +529,8 @@ private fun AnnotatedString.Builder.appendDynamicRichTextTopic(
     node: RichTextNode,
     primaryColor: Color,
 ) {
+    val displayToken = resolveDynamicRichTextNodeToken(node)
+    val keyword = displayToken.trim().removePrefix("#").removeSuffix("#").trim()
     val topicId = resolveDynamicRichTextTopicId(node)
     if (topicId != null) {
         pushStringAnnotation(
@@ -535,9 +538,16 @@ private fun AnnotatedString.Builder.appendDynamicRichTextTopic(
             annotation = topicId.toString(),
         )
     }
-    withStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold)) {
-        append(resolveDynamicRichTextNodeToken(node))
+    if (keyword.isNotEmpty()) {
+        pushStringAnnotation(
+            tag = DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG,
+            annotation = keyword,
+        )
     }
+    withStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold)) {
+        append(displayToken)
+    }
+    if (keyword.isNotEmpty()) pop()
     if (topicId != null) pop()
 }
 
@@ -661,21 +671,70 @@ private fun AnnotatedString.Builder.appendDynamicRichTextExpandableText(
     }
 }
 
+private val DYNAMIC_RICH_TEXT_TOPIC_PATTERN = Regex("""#([^#\n\r\t]+)#""")
+
+private data class DynamicPlainTextToken(
+    val range: IntRange,
+    val isUrl: Boolean,
+    val value: String,
+    val keyword: String? = null
+)
+
 private fun AnnotatedString.Builder.appendDynamicRichTextPlainText(
     text: String,
     primaryColor: Color
 ) {
-    var lastIndex = 0
+    val tokens = mutableListOf<DynamicPlainTextToken>()
     DYNAMIC_RICH_TEXT_URL_PATTERN.findAll(text).forEach { match ->
-        if (match.range.first > lastIndex) {
-            append(text.substring(lastIndex, match.range.first))
-        }
-        appendDynamicRichTextLink(
-            displayText = match.value,
-            targetUrl = match.value,
-            primaryColor = primaryColor
+        tokens += DynamicPlainTextToken(
+            range = match.range,
+            isUrl = true,
+            value = match.value
         )
-        lastIndex = match.range.last + 1
+    }
+    DYNAMIC_RICH_TEXT_TOPIC_PATTERN.findAll(text).forEach { match ->
+        val overlapsUrl = tokens.any { existing ->
+            match.range.first <= existing.range.last && match.range.last >= existing.range.first
+        }
+        if (!overlapsUrl) {
+            val kw = match.groupValues[1].trim()
+            if (kw.isNotEmpty()) {
+                tokens += DynamicPlainTextToken(
+                    range = match.range,
+                    isUrl = false,
+                    value = match.value,
+                    keyword = kw
+                )
+            }
+        }
+    }
+    tokens.sortBy { it.range.first }
+
+    var lastIndex = 0
+    tokens.forEach { token ->
+        if (token.range.first > lastIndex) {
+            append(text.substring(lastIndex, token.range.first))
+        }
+        if (token.isUrl) {
+            appendDynamicRichTextLink(
+                displayText = token.value,
+                targetUrl = token.value,
+                primaryColor = primaryColor
+            )
+        } else {
+            val kw = token.keyword.orEmpty()
+            if (kw.isNotEmpty()) {
+                pushStringAnnotation(
+                    tag = DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG,
+                    annotation = kw
+                )
+            }
+            withStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold)) {
+                append(token.value)
+            }
+            if (kw.isNotEmpty()) pop()
+        }
+        lastIndex = token.range.last + 1
     }
     if (lastIndex < text.length) {
         append(text.substring(lastIndex))

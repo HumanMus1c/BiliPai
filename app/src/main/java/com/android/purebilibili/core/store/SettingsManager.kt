@@ -5835,6 +5835,15 @@ object SettingsManager {
     private val KEY_PRIVACY_CONTENT_AUTHENTICATION_ENABLED =
         booleanPreferencesKey("privacy_content_authentication_enabled")
     
+    private val KEY_SEARCH_SUGGESTIONS_ENABLED = booleanPreferencesKey("search_suggestions_enabled")
+
+    fun getSearchSuggestionsEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SEARCH_SUGGESTIONS_ENABLED] ?: true }
+
+    suspend fun setSearchSuggestionsEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_SEARCH_SUGGESTIONS_ENABLED] = value }
+    }
+
     // --- 不记录播放历史和搜索历史 ---
     fun getPrivacyModeEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_PRIVACY_MODE_ENABLED] ?: false }  // 默认关闭

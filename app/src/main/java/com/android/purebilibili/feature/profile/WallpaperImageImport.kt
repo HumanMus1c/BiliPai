@@ -62,3 +62,50 @@ internal fun copyWallpaperImage(
         throw error
     }
 }
+
+
+/** Preserve original GIF bytes and video format; validate off the main thread. */
+internal suspend fun importWallpaperMedia(
+    context: Context,
+    source: Uri,
+    destinationDirectory: File,
+): File {
+    val video = withContext(Dispatchers.IO) {
+        context.contentResolver.getType(source)?.startsWith("video/") == true ||
+            com.android.purebilibili.core.ui.wallpaper.isVideoWallpaper(source.toString())
+    }
+    if (!video) return importWallpaperImage(context, source, destinationDirectory)
+    var imported: File? = null
+    try {
+        return withContext(Dispatchers.IO) {
+            if (!destinationDirectory.isDirectory && !destinationDirectory.mkdirs()) {
+                throw IOException("无法创建壁纸目录")
+            }
+            val extension = android.webkit.MimeTypeMap.getSingleton()
+                .getExtensionFromMimeType(context.contentResolver.getType(source).orEmpty())
+                ?.takeIf { com.android.purebilibili.core.ui.wallpaper.isVideoWallpaper("wallpaper.$it") }
+                ?: source.lastPathSegment?.substringAfterLast('.', "")?.takeIf {
+                    it.lowercase() in setOf("mp4", "m4v", "webm", "mkv", "mov", "3gp")
+                } ?: "video"
+            val file = File.createTempFile("wallpaper_", ".$extension", destinationDirectory)
+            imported = file
+            val input = context.contentResolver.openInputStream(source)
+                ?: throw IOException("无法读取所选视频")
+            input.use { stream -> file.outputStream().use { stream.copyTo(it) } }
+            val metadata = android.media.MediaMetadataRetriever()
+            try {
+                metadata.setDataSource(file.absolutePath)
+                val width = metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    ?.toIntOrNull() ?: 0
+                if (width <= 0) throw IOException("视频损坏或格式不受支持")
+            } finally {
+                metadata.release()
+            }
+            ensureActive()
+            file
+        }
+    } catch (error: Throwable) {
+        imported?.delete()
+        throw error
+    }
+}

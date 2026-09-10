@@ -439,6 +439,7 @@ internal fun BiliPaiNavDisplayHost(
         isReturningToVideoDetail = isCardMorphDestinationNavKey(currentBackTarget),
     )
     val transitionBackgroundState = remember(
+        sourceMetadata.sourceKey,
         sourceMetadata.sourceRoute,
         sourceMetadata.sourceCornerDp,
         sourceMetadata.sourceBounds,
@@ -452,6 +453,7 @@ internal fun BiliPaiNavDisplayHost(
         VideoCardTransitionBackgroundState(
             progressProvider = videoCardProgressProvider,
             sourceRouteProvider = { sourceMetadata.sourceRoute },
+            sourceKeyProvider = { sourceMetadata.sourceKey },
             phaseProvider = { videoCardClock.phase },
             exposureProvider = videoCardExposureProvider,
             sourceCornerDpProvider = { sourceMetadata.sourceCornerDp },

@@ -42,6 +42,9 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RAT
 
 @Composable
 internal fun rememberHomeFeedSkeletonPulse(): Float {
+    if (com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()) {
+        return com.android.purebilibili.core.ui.skeleton.rememberGentleSkeletonPulse().value
+    }
     val transition = rememberInfiniteTransition(label = "homeFeedSkeletonPulse")
     val pulse by transition.animateFloat(
         initialValue = 0f,

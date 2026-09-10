@@ -1335,7 +1335,7 @@ private fun SubReplyDetailItem(
                         AppIcon(
                             imageVector = likeFilledIcon,
                             contentDescription = "Like",
-                            tint = if (isLiked) appearance.primaryTextColor else appearance.actionTint,
+                            tint = if (isLiked) appearance.accentColor else appearance.actionTint,
                             modifier = Modifier.size(16.dp)
                         )
                         if (displayLikeCount > 0) {
@@ -1343,7 +1343,7 @@ private fun SubReplyDetailItem(
                             AppText(
                                 text = FormatUtils.formatStat(displayLikeCount.toLong()),
                                 fontSize = 12.sp,
-                                color = if (isLiked) appearance.primaryTextColor else appearance.actionTint
+                                color = if (isLiked) appearance.accentColor else appearance.actionTint
                             )
                         }
                     }

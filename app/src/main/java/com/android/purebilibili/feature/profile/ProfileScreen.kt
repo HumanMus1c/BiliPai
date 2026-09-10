@@ -881,10 +881,10 @@ private fun BoxScope.ProfileBackground(
     ) {
         if (shouldRenderProfileImmersiveBackground(user.topPhoto.isNotEmpty(), deferImmersiveRenderBudget)) {
             if (user.topPhoto.isNotEmpty()) {
-                AsyncImage(
-                    model = wallpaperRequest,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
+                    uri = user.topPhoto,
+                    imageModel = wallpaperRequest,
+                    playbackEnabled = playSkinVideo && !deferImmersiveRenderBudget,
                     alignment = androidx.compose.ui.BiasAlignment(
                         bgTransform.offsetX,
                         bgTransform.offsetY
@@ -1130,7 +1130,7 @@ private fun ProfileSpaceContent(
                     onClick = {
                         showPhotoPickerDialog = false
                         photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                         )
                     }
                 ) {
@@ -3215,7 +3215,7 @@ private fun MobileProfileContent(
                     onClick = {
                         showPhotoPickerDialog = false
                         photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                         )
                     }
                 ) {

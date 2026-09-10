@@ -206,8 +206,30 @@ private fun DrawGridImage(
             }
         }
 
-        //  [新增] 长图徽标（对齐 BiliPai image_grid_view 右下角"长图"标记）
-        if (displayCount == 1 &&
+        // 实况与长图徽标（Live 标记位于右上角）
+        val isLive = !item.live_url.isNullOrBlank()
+        if (isLive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(AppSpacingTokens.ExtraSmall)
+                    .background(
+                        MediaContrastPalette.Scrim.copy(alpha = 0.6f),
+                        RoundedCornerShape(AppSpacingTokens.ExtraSmall)
+                    )
+                    .padding(
+                        horizontal = AppSpacingTokens.Small,
+                        vertical = AppSpacingTokens.Micro
+                    )
+            ) {
+                AppText(
+                    "Live",
+                    color = MediaContrastPalette.Foreground,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
+            }
+        } else if (displayCount == 1 &&
             shouldShowDrawGridLongImageBadge(width = item.width, height = item.height)
         ) {
             Box(

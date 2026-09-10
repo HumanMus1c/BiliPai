@@ -247,7 +247,7 @@ class SpaceScreenStructureTest {
     }
 
     @Test
-    fun `space follow actions share the name and level row`() {
+    fun `space follow actions follow piliplus header layout next to avatar`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
         assertTrue(source.contains("SpaceHeaderRelationActions("))
@@ -255,8 +255,8 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("onMessageClick = onMessageClick"))
         assertTrue(source.contains("if (!isOwner)"))
         assertTrue(
-            source.contains("名字 + 等级 + 私信/关注同一行垂直居中对齐"),
-            "relation actions should align on the name/level row"
+            source.contains("PiliPlus 风格头部结构"),
+            "relation actions should follow piliplus header layout next to avatar"
         )
         assertFalse(source.contains("resolveSpaceHeaderActionTopPaddingDp("))
         assertFalse(source.contains("topChromeInset = scaffoldPadding.calculateTopPadding()"))

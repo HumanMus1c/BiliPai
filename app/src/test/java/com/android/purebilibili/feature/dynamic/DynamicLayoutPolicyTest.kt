@@ -111,11 +111,11 @@ class DynamicLayoutPolicyTest {
     @Test
     fun `dynamic share and comment actions keep readable text labels`() {
         assertEquals("转发", resolveDynamicActionButtonText(label = "转发", count = 0))
-        assertNull(resolveDynamicActionButtonText(label = "评论", count = 0))
+        assertEquals("评论", resolveDynamicActionButtonText(label = "评论", count = 0))
         assertEquals("9", resolveDynamicActionButtonText(label = "评论", count = 9))
         assertEquals("1.2k", resolveDynamicActionButtonText(label = "评论", count = 1200))
         assertEquals("85", resolveDynamicActionButtonText(label = "点赞", count = 85))
-        assertNull(resolveDynamicActionButtonText(label = "点赞", count = 0))
+        assertEquals("点赞", resolveDynamicActionButtonText(label = "点赞", count = 0))
     }
 
     @Test

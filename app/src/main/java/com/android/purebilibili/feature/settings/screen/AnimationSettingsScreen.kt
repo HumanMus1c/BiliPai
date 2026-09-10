@@ -175,6 +175,7 @@ fun AnimationSettingsContent(
         .collectAsStateWithLifecycle(initialValue = LiquidGlassReadabilityMode.STABLE)
     val uiEntranceAnimationEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val skeletonBreathingEnabled = com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()
     val globalTextTapCopyEnabled by SettingsManager
         .getGlobalTextTapCopyEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -659,6 +660,20 @@ fun AnimationSettingsContent(
                             )
                             AppPreferenceDivider()
                         }
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                            title = "骨架呼吸动画",
+                            subtitle = "轻微、舒缓的全局加载脉冲；关闭后恢复应用默认效果",
+                            checked = skeletonBreathingEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    com.android.purebilibili.core.store.SkeletonSettingsStore
+                                        .setBreathingEnabled(context, enabled)
+                                }
+                            },
+                            iconTint = iOSBlue,
+                        )
+                        AppPreferenceDivider()
                         // 磨砂效果 (始终显示)
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),

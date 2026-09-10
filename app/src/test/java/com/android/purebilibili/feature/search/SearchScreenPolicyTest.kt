@@ -408,6 +408,16 @@ class SearchScreenPolicyTest {
     }
 
     @Test
+    fun filterAndLayoutActionsUseCircularLiquidSurfaces() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchVideoFilterSheet.kt")
+            .substringBefore("if (showFilterSheet)")
+        assertEquals(2, Regex("BottomBarMatchedReusableLiquidDock\\(").findAll(source).count())
+        assertEquals(2, Regex("shape = CircleShape").findAll(source).count())
+        assertEquals(2, Regex("backdrop = miuixBackdrop").findAll(source).count())
+        assertTrue(source.contains("reuseEnabled = true"))
+    }
+
+    @Test
     fun searchResultTransition_usesPagerAndKeepsFilterBarOutsidePager() {
         val searchSource = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
         val filterSheetSource = loadSource(

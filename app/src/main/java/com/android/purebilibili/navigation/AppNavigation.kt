@@ -814,6 +814,7 @@ fun AppNavigation(
         }
         var lastVideoDetailOpenId by remember { mutableLongStateOf(0L) }
         var lastLiveAreaDetailOpenId by remember { mutableLongStateOf(0L) }
+        var lastSearchOpenId by remember { mutableLongStateOf(0L) }
         fun pushNavigation3KeyDirect(key: BiliPaiNavKey) {
             val sessionScopedKey = when (key) {
                 is BiliPaiNavKey.VideoDetail -> {
@@ -839,6 +840,26 @@ fun AppNavigation(
                         lastLiveAreaDetailOpenId = nextOpenId
                         key.copy(openId = nextOpenId)
                     }
+                }
+                is BiliPaiNavKey.Search -> {
+                    if (key.openId > 0L) {
+                        key
+                    } else {
+                        val nextOpenId = maxOf(
+                            SystemClock.uptimeMillis(),
+                            lastSearchOpenId + 1L,
+                        )
+                        lastSearchOpenId = nextOpenId
+                        key.copy(openId = nextOpenId)
+                    }
+                }
+                BiliPaiNavKey.Search -> {
+                    val nextOpenId = maxOf(
+                        SystemClock.uptimeMillis(),
+                        lastSearchOpenId + 1L,
+                    )
+                    lastSearchOpenId = nextOpenId
+                    BiliPaiNavKey.Search(openId = nextOpenId)
                 }
                 else -> key
             }
@@ -1497,7 +1518,7 @@ fun AppNavigation(
         fun pushSearchRouteInNavigation3(keyword: String) {
             val normalizedKeyword = keyword.trim()
             if (normalizedKeyword.isNotEmpty()) {
-                pushNavigation3Route(ScreenRoutes.Search.route) {
+                pushNavigation3Key(BiliPaiNavKey.Search(keyword = normalizedKeyword)) {
                     inAppSearchKeyword = normalizedKeyword
                 }
             }
@@ -2392,6 +2413,9 @@ fun AppNavigation(
                                     pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
                                 }
                             },
+                            onTopicKeywordClick = { keyword ->
+                                pushSearchRouteInNavigation3(keyword)
+                            },
                             onLiveClick = { roomId, title, uname ->
                                 pushNavigation3Route(ScreenRoutes.Live.createRoute(roomId, title, uname))
                             },
@@ -2425,9 +2449,12 @@ fun AppNavigation(
                             val homeState by homeViewModel.uiState.collectAsStateWithLifecycle(
                                 context = kotlin.coroutines.EmptyCoroutineContext
                             )
+                            val searchKey = key as? BiliPaiNavKey.Search
+                            val initialSearchKeyword = searchKey?.keyword?.takeIf { it.isNotBlank() }
+                                ?: effectiveInitialSearchKeyword.orEmpty()
                             SearchScreen(
                                 userFace = homeState.user.face,
-                                initialKeyword = effectiveInitialSearchKeyword.orEmpty(),
+                                initialKeyword = initialSearchKeyword,
                                 onInitialKeywordConsumed = consumeInitialSearchKeyword,
                                 entryMotionSource = searchEntryMotionSource,
                                 entryMotionKey = searchEntryMotionKey,
@@ -2516,6 +2543,9 @@ fun AppNavigation(
                                         if (nestedTopicId > 0L) {
                                             pushNavigation3Key(BiliPaiNavKey.TopicDetail(nestedTopicId))
                                         }
+                                    },
+                                    onTopicKeywordClick = { keyword ->
+                                        pushSearchRouteInNavigation3(keyword)
                                     },
                                     onLiveClick = { roomId, title, uname ->
                                         pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
@@ -3557,6 +3587,9 @@ fun AppNavigation(
                                             pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
                                         }
                                     },
+                                    onTopicKeywordClick = { keyword ->
+                                        pushSearchRouteInNavigation3(keyword)
+                                    },
                                     onArticleClick = { articleId, title ->
                                         if (canNavigate(false)) {
                                             coroutineScope.launch {
@@ -3676,6 +3709,9 @@ fun AppNavigation(
                                             if (topicId > 0L) {
                                                 pushNavigation3Key(BiliPaiNavKey.TopicDetail(topicId))
                                             }
+                                        },
+                                        onTopicKeywordClick = { keyword ->
+                                            pushSearchRouteInNavigation3(keyword)
                                         },
                                         onArticleClick = { articleId, title ->
                                             pushNavigation3Key(

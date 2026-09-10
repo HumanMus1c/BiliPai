@@ -132,7 +132,7 @@ class SpaceViewModel(
     private var followToggleInFlight = false
 
     private val _selectedMainTab = MutableStateFlow(
-        savedStateHandle.get<Int>(KEY_SELECTED_MAIN_TAB) ?: 2
+        savedStateHandle.get<Int>(KEY_SELECTED_MAIN_TAB) ?: 0
     )
     val selectedMainTab = _selectedMainTab.asStateFlow()
     private val hasSavedMainTabPreference = savedStateHandle.contains(KEY_SELECTED_MAIN_TAB)
@@ -443,11 +443,13 @@ class SpaceViewModel(
                 }
 
                 val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
-                val resolvedTopPhoto = resolveSpaceTopPhoto(
-                    topPhoto = info.topPhoto,
-                    cardLargePhoto = userCardTopPhoto.first,
-                    cardSmallPhoto = userCardTopPhoto.second
-                ).ifBlank { currentState.userInfo.topPhoto }
+                val resolvedTopPhoto = currentState.userInfo.topPhoto.ifBlank {
+                    resolveSpaceTopPhoto(
+                        topPhoto = info.topPhoto,
+                        cardLargePhoto = userCardTopPhoto.first,
+                        cardSmallPhoto = userCardTopPhoto.second
+                    )
+                }
                 val mergedUserInfo = currentState.userInfo.copy(
                     name = info.name.ifBlank { currentState.userInfo.name },
                     sex = info.sex.ifBlank { currentState.userInfo.sex },

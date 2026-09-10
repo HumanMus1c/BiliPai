@@ -70,6 +70,14 @@ class BangumiLiquidGlassStructureTest {
     }
 
     @Test
+    fun `progressive source stays mounted while skeleton loading changes`() {
+        val source = sourceOf("BangumiScreen.kt")
+        assertTrue(source.contains(
+            "progressiveBlur || (themeConfig.liquidGlassEnabled && shouldCaptureBangumiHubChrome(state))",
+        ))
+    }
+
+    @Test
     fun `follow grid scrolls behind both fixed chrome rows`() {
         val screen = sourceOf("BangumiScreen.kt")
         val content = sourceOf("BangumiHubContent.kt")

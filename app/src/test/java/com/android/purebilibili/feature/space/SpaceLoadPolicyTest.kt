@@ -681,6 +681,52 @@ class SpaceLoadPolicyTest {
     }
 
     @Test
+    fun `resolveSpaceAggregateTopPhoto prefers collection top simple image`() {
+        val images = SpaceAggregateImages(
+            imgUrl = "https://i0.hdslb.com/bfs/space/fallback.jpg",
+            collectionTopSimple = com.android.purebilibili.data.model.response.SpaceCollectionTopSimple(
+                top = com.android.purebilibili.data.model.response.SpaceCollectionTop(
+                    result = listOf(
+                        com.android.purebilibili.data.model.response.SpaceCollectionTopItem(
+                            item = com.android.purebilibili.data.model.response.SpaceCollectionTopItemDetail(
+                                image = com.android.purebilibili.data.model.response.SpaceCollectionTopImage(
+                                    defaultImage = "https://i0.hdslb.com/bfs/space/collection-default.png"
+                                )
+                            ),
+                            cover = "https://i0.hdslb.com/bfs/space/collection-cover.png"
+                        )
+                    )
+                )
+            )
+        )
+
+        val resolved = resolveSpaceAggregateTopPhoto(images)
+        assertEquals("https://i0.hdslb.com/bfs/space/collection-default.png", resolved)
+    }
+
+    @Test
+    fun `resolveSpaceAggregateTopPhoto falls back to collection cover then imgUrl`() {
+        val coverOnly = SpaceAggregateImages(
+            imgUrl = "https://i0.hdslb.com/bfs/space/fallback.jpg",
+            collectionTopSimple = com.android.purebilibili.data.model.response.SpaceCollectionTopSimple(
+                top = com.android.purebilibili.data.model.response.SpaceCollectionTop(
+                    result = listOf(
+                        com.android.purebilibili.data.model.response.SpaceCollectionTopItem(
+                            cover = "https://i0.hdslb.com/bfs/space/collection-cover.png"
+                        )
+                    )
+                )
+            )
+        )
+        assertEquals("https://i0.hdslb.com/bfs/space/collection-cover.png", resolveSpaceAggregateTopPhoto(coverOnly))
+
+        val imgUrlOnly = SpaceAggregateImages(
+            imgUrl = "https://i0.hdslb.com/bfs/space/img-url.jpg"
+        )
+        assertEquals("https://i0.hdslb.com/bfs/space/img-url.jpg", resolveSpaceAggregateTopPhoto(imgUrlOnly))
+    }
+
+    @Test
     fun `shouldApplySpaceVideoResult requires matching list generation and filters`() {
         assertTrue(
             shouldApplySpaceVideoResult(

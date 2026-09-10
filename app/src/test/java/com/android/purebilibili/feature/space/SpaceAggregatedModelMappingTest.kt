@@ -208,7 +208,7 @@ class SpaceAggregatedModelMappingTest {
         assertEquals("BVlike1", seed.homeLikeVideos.single().bvid)
         assertEquals("5566", seed.homeBangumiItems.single().param)
         assertEquals("7788", seed.homeComicItems.single().param)
-        assertEquals(SpaceMainTab.CONTRIBUTION, seed.defaultMainTab)
+        assertEquals(SpaceMainTab.HOME, seed.defaultMainTab)
         assertEquals(SpaceSubTab.VIDEO, seed.defaultSubTab)
         assertEquals(listOf("主页", "动态", "投稿", "收藏", "追番"), seed.mainTabs.map { it.title })
         assertEquals(listOf("视频", "图文", "赛季合集"), seed.contributionTabs.map { it.title })

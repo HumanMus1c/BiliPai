@@ -524,17 +524,8 @@ internal fun resolveHomeTopSearchContainerShape(
 }
 
 internal fun resolveHomeTopEdgeButtonShape(
-    chromePolicy: AppTopChromePolicy,
-): Shape {
-    return when (chromePolicy.tabPresentation) {
-        AppTopTabPresentation.MOVING_CAPSULE -> CircleShape
-        // Preserve the former semantic Dialog radii: 14dp scaled by each native profile.
-        AppTopTabPresentation.MATERIAL_UNDERLINE,
-        AppTopTabPresentation.TONAL_CAPSULE -> RoundedCornerShape(
-            chromePolicy.compactChromeSpec.secondaryButtonCornerRadiusDp.dp
-        )
-    }
-}
+    @Suppress("UNUSED_PARAMETER") chromePolicy: AppTopChromePolicy,
+): Shape = CircleShape
 
 /**
  * 顶部行统一控件高度：头像、搜索胶囊、设置按钮共用（36dp），两主题一致。

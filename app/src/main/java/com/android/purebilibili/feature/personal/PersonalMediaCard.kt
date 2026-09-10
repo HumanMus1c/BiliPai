@@ -107,16 +107,21 @@ internal fun PersonalMediaCardFrame(
                     }
                 }
             } else {
+                val coverShape = AppShapes.mediaCover()
+
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = minimumHeight),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    val resolvedCoverWidth = coverWidth ?: (minimumHeight * coverAspectRatio)
+                    val effectiveAspectRatio = if (coverAspectRatio <= 1f) 16f / 9f else coverAspectRatio
+                    val resolvedCoverWidth = coverWidth ?: (minimumHeight * effectiveAspectRatio)
                     Box(
                         modifier = coverModifier
                             .width(resolvedCoverWidth)
-                            .aspectRatio(coverAspectRatio)
-                            .clip(cardShape),
+                            .aspectRatio(effectiveAspectRatio)
+                            .clip(coverShape),
                     ) {
                         coverContent()
                         coverOverlayContent?.invoke(this)
@@ -125,7 +130,13 @@ internal fun PersonalMediaCardFrame(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(AppSpacingTokens.Medium),
+                            .heightIn(min = minimumHeight)
+                            .padding(
+                                start = AppSpacingTokens.Medium,
+                                top = AppSpacingTokens.Small,
+                                bottom = AppSpacingTokens.Small,
+                                end = if (trailingContent != null) AppSpacingTokens.None else AppSpacingTokens.Medium,
+                            ),
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     ) {
                         overlineContent?.invoke()
@@ -137,7 +148,7 @@ internal fun PersonalMediaCardFrame(
                         Row(
                             modifier = Modifier
                                 .align(Alignment.Bottom)
-                                .padding(end = AppSpacingTokens.Small),
+                                .padding(end = AppSpacingTokens.Small, bottom = AppSpacingTokens.Small),
                             verticalAlignment = Alignment.Bottom,
                             content = content,
                         )
@@ -179,6 +190,7 @@ internal fun PersonalMediaCardSkeleton(
     val coverHeight = PERSONAL_LIST_BASE_MIN_HEIGHT_DP.dp
     val coverWidth = coverHeight * PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO
     val cardShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.mediaCover()
 
     AppSurface(
         modifier = modifier
@@ -190,7 +202,7 @@ internal fun PersonalMediaCardSkeleton(
         Row(modifier = Modifier.fillMaxSize()) {
             ContentSkeletonBlock(
                 color = color,
-                shape = cardShape,
+                shape = coverShape,
                 modifier = Modifier
                     .width(coverWidth)
                     .fillMaxHeight(),

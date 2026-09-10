@@ -122,6 +122,7 @@ fun SettingsScreen(
     // State Collection
     val state by viewModel.state.collectAsStateWithLifecycle()
     val privacyModeEnabled by SettingsManager.getPrivacyModeEnabled(context).collectAsStateWithLifecycle(initialValue = false)
+    val searchSuggestionsEnabled by SettingsManager.getSearchSuggestionsEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val privacyContentAuthenticationEnabled by SettingsManager
         .getPrivacyContentAuthenticationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -311,6 +312,9 @@ fun SettingsScreen(
     val onImageSavePathAction = { showImageSavePathDialog = true }
     
     // Logic Callbacks
+    val onSearchSuggestionsChange: (Boolean) -> Unit = { enabled ->
+        scope.launch { SettingsManager.setSearchSuggestionsEnabled(context, enabled) }
+    }
     val onPrivacyModeChange: (Boolean) -> Unit = { enabled ->
         scope.launch { SettingsManager.setPrivacyModeEnabled(context, enabled) }
     }
@@ -1030,6 +1034,7 @@ fun SettingsScreen(
                     onBlockedListClick = onBlockedListClickAction,
                     onCommentFraudHistoryClick = onCommentFraudHistoryClickAction,
                     onPrivacyModeChange = onPrivacyModeChange,
+                    onSearchSuggestionsChange = onSearchSuggestionsChange,
                     onPrivacyContentAuthenticationChange = onPrivacyContentAuthenticationChange,
                     onCrashTrackingChange = onCrashTrackingChange,
                     onAnalyticsChange = onAnalyticsChange,
@@ -1038,6 +1043,7 @@ fun SettingsScreen(
                     onAutoCheckUpdateChange = onAutoCheckUpdateChange,
                     onAppUpdateChannelChange = onAppUpdateChannelChange,
                     privacyModeEnabled = privacyModeEnabled,
+                    searchSuggestionsEnabled = searchSuggestionsEnabled,
                     customDownloadPath = downloadExportTreeUri ?: customDownloadPath,
                     customImageSavePath = imageSaveTreeUri,
                     cacheSize = state.cacheSize,
@@ -1190,6 +1196,7 @@ private fun MobileSettingsNavLayout(
     onBlockedListClick: () -> Unit,
     onCommentFraudHistoryClick: () -> Unit,
     onPrivacyModeChange: (Boolean) -> Unit,
+    onSearchSuggestionsChange: (Boolean) -> Unit,
     onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     onCrashTrackingChange: (Boolean) -> Unit,
     onAnalyticsChange: (Boolean) -> Unit,
@@ -1198,6 +1205,7 @@ private fun MobileSettingsNavLayout(
     onAutoCheckUpdateChange: (Boolean) -> Unit,
     onAppUpdateChannelChange: (SettingsManager.AppUpdateChannel) -> Unit,
     privacyModeEnabled: Boolean,
+    searchSuggestionsEnabled: Boolean,
     privacyContentAuthenticationEnabled: Boolean,
     customDownloadPath: String?,
     customImageSavePath: String?,
@@ -1291,6 +1299,7 @@ private fun MobileSettingsNavLayout(
         onTipsClick = onTipsClick,
         onOpenLinksClick = onOpenLinksClick,
         onPrivacyModeChange = onPrivacyModeChange,
+        onSearchSuggestionsChange = onSearchSuggestionsChange,
         onPrivacyContentAuthenticationChange = onPrivacyContentAuthenticationChange,
         onCrashTrackingChange = onCrashTrackingChange,
         onAnalyticsChange = onAnalyticsChange,
@@ -1309,6 +1318,7 @@ private fun MobileSettingsNavLayout(
     )
     val rootCategoryState = SettingsRootCategoryState(
         privacyModeEnabled = privacyModeEnabled,
+        searchSuggestionsEnabled = searchSuggestionsEnabled,
         privacyContentAuthenticationEnabled = privacyContentAuthenticationEnabled,
         crashTrackingEnabled = crashTrackingEnabled,
         analyticsEnabled = analyticsEnabled,

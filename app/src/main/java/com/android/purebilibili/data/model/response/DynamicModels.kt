@@ -453,7 +453,8 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
             url = normalizeOpusImageUrl(url),
             width = pic["width"]?.jsonPrimitive?.intOrNull ?: 0,
             height = pic["height"]?.jsonPrimitive?.intOrNull ?: 0,
-            size = pic["size"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+            size = pic["size"]?.jsonPrimitive?.doubleOrNull ?: 0.0,
+            live_url = pic["live_url"]?.jsonPrimitive?.contentOrNull,
         )
     }
 
@@ -1220,7 +1221,8 @@ data class OpusPic(
     val url: String = "",
     val width: Int = 0,
     val height: Int = 0,
-    val size: Double = 0.0
+    val size: Double = 0.0,
+    val live_url: String? = null,
 )
 
 @Serializable
@@ -1406,7 +1408,8 @@ data class DrawMajor(
 data class DrawItem(
     val src: String = "", // 图片 URL
     val width: Int = 0,
-    val height: Int = 0
+    val height: Int = 0,
+    val live_url: String? = null,
 )
 
 @Serializable

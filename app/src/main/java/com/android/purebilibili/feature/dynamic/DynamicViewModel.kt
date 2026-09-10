@@ -1140,9 +1140,21 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             _commentTotalCount.value = fallbackCount
             
             try {
-                val targets = resolveDynamicCommentTargets(item)
+                var effectiveItem = item
+                var targets = resolveDynamicCommentTargets(effectiveItem)
+                if (targets.isEmpty() && effectiveItem.id_str.isNotBlank()) {
+                    com.android.purebilibili.core.util.Logger.d(
+                        "DynamicVM",
+                        "未获取到评论参数，对齐 PiliPlus 动态详情拉取 basic 补全: dynamicId=${effectiveItem.id_str}"
+                    )
+                    DynamicRepository.getDynamicDetail(effectiveItem.id_str).getOrNull()?.let { fullDetail ->
+                        effectiveItem = fullDetail
+                        _selectedDynamic.value = fullDetail
+                        targets = resolveDynamicCommentTargets(fullDetail)
+                    }
+                }
                 if (targets.isEmpty()) {
-                    com.android.purebilibili.core.util.Logger.e("DynamicVM", "无法获取评论参数: type=${item.type}")
+                    com.android.purebilibili.core.util.Logger.e("DynamicVM", "无法获取评论参数: type=${effectiveItem.type}")
                     return@launch
                 }
 
@@ -1150,7 +1162,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 targets.forEachIndexed { index, target ->
                     com.android.purebilibili.core.util.Logger.d(
                         "DynamicVM",
-                        "加载动态评论候选: oid=${target.oid}, type=${target.type}, dynamicId=${item.id_str}, dynamicType=${item.type}"
+                        "加载动态评论候选: oid=${target.oid}, type=${target.type}, dynamicId=${effectiveItem.id_str}, dynamicType=${effectiveItem.type}"
                     )
                     val exactCount = CommentRepository.getCommentCountForSubject(
                         oid = target.oid,

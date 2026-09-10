@@ -368,17 +368,16 @@ fun ProfileWallpaperAdjustmentSheet(
                                 }
                             }
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
+                        com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
+                            uri = imageUri,
+                            imageModel = ImageRequest.Builder(LocalContext.current)
                                 .data(imageUri)
                                 .crossfade(true)
                                 .build(),
-                            contentDescription = null,
                             alignment = androidx.compose.ui.BiasAlignment(
                                 currentTransform.offsetX,
                                 currentTransform.offsetY
                             ),
-                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer(

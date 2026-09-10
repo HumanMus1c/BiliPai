@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -219,6 +220,7 @@ internal data class SettingsRootCategoryActions(
     val onTipsClick: () -> Unit,
     val onOpenLinksClick: () -> Unit,
     val onPrivacyModeChange: (Boolean) -> Unit,
+    val onSearchSuggestionsChange: (Boolean) -> Unit,
     val onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     val onCrashTrackingChange: (Boolean) -> Unit,
     val onAnalyticsChange: (Boolean) -> Unit,
@@ -238,6 +240,7 @@ internal data class SettingsRootCategoryActions(
 
 internal data class SettingsRootCategoryState(
     val privacyModeEnabled: Boolean,
+    val searchSuggestionsEnabled: Boolean,
     val privacyContentAuthenticationEnabled: Boolean,
     val crashTrackingEnabled: Boolean,
     val analyticsEnabled: Boolean,
@@ -785,8 +788,10 @@ internal fun SettingsRootCategoryContent(
                     SettingsDetailGroup(title = "隐私与权限") {
                         PrivacySection(
                             privacyModeEnabled = state.privacyModeEnabled,
+                            searchSuggestionsEnabled = state.searchSuggestionsEnabled,
                             privacyContentAuthenticationEnabled = state.privacyContentAuthenticationEnabled,
                             onPrivacyModeChange = actions.onPrivacyModeChange,
+                            onSearchSuggestionsChange = actions.onSearchSuggestionsChange,
                             onPrivacyContentAuthenticationChange = actions.onPrivacyContentAuthenticationChange,
                             onPermissionClick = actions.onPermissionClick,
                             onBlockedListClick = actions.onBlockedListClick,
@@ -1009,8 +1014,10 @@ internal fun SettingsRootCategoryContent(
                     SettingsDetailGroup(title = "隐私与安全") {
                         PrivacySection(
                             privacyModeEnabled = state.privacyModeEnabled,
+                            searchSuggestionsEnabled = state.searchSuggestionsEnabled,
                             privacyContentAuthenticationEnabled = state.privacyContentAuthenticationEnabled,
                             onPrivacyModeChange = actions.onPrivacyModeChange,
+                            onSearchSuggestionsChange = actions.onSearchSuggestionsChange,
                             onPrivacyContentAuthenticationChange = actions.onPrivacyContentAuthenticationChange,
                             onPermissionClick = actions.onPermissionClick,
                             onBlockedListClick = actions.onBlockedListClick,
@@ -1482,13 +1489,20 @@ internal fun resolveHomeRefreshSliderSteps(): Int {
 @Composable
 fun PrivacySection(
     privacyModeEnabled: Boolean,
+    searchSuggestionsEnabled: Boolean,
     privacyContentAuthenticationEnabled: Boolean,
     onPrivacyModeChange: (Boolean) -> Unit,
+    onSearchSuggestionsChange: (Boolean) -> Unit,
     onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     onPermissionClick: () -> Unit,
     onBlockedListClick: () -> Unit, // [New]
     onCommentFraudHistoryClick: () -> Unit // [New]
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val searchHintEnabled by remember(context) {
+        com.android.purebilibili.core.store.SearchHintSettingsStore.isEnabled(context)
+    }.collectAsStateWithLifecycle(initialValue = true)
     val siblingTints = remember { resolveSettingsSiblingIconTints(4, paletteOffset = 4) }
     val permissionVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PERMISSION)
     val blockedListVisual = rememberSettingsEntryVisual(SettingsSearchTarget.BLOCKED_LIST)
@@ -1498,6 +1512,29 @@ fun PrivacySection(
     )
 
     SettingsCardGroup {
+        SettingSwitchItem(
+            icon = visibilityOffIcon,
+            title = "搜索框推荐词",
+            subtitle = "显示应用提供的默认搜索词；关闭后显示固定搜索提示",
+            checked = searchHintEnabled,
+            onCheckedChange = { enabled ->
+                scope.launch {
+                    com.android.purebilibili.core.store.SearchHintSettingsStore.setEnabled(context, enabled)
+                }
+            },
+            iconTint = siblingTints[0],
+        )
+        SettingsAdaptiveDivider()
+
+        SettingSwitchItem(
+            icon = visibilityOffIcon,
+            title = "搜索推荐词",
+            subtitle = "在搜索页显示关注更新和推荐词（如关注 UP 主更新等），默认开启",
+            checked = searchSuggestionsEnabled,
+            onCheckedChange = onSearchSuggestionsChange,
+            iconTint = siblingTints[0],
+        )
+        SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = visibilityOffIcon,
             title = "不记录历史",

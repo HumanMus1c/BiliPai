@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -90,6 +91,7 @@ fun TopicDetailScreen(
     onBangumiClick: (Long, Long) -> Unit,
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit,
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onLiveClick: (Long, String, String) -> Unit,
     onMusicClick: (Long) -> Unit = {},
     onCollectionClick: (Long, Long, String, String) -> Unit = { _, _, _, _ -> },
@@ -192,6 +194,7 @@ fun TopicDetailScreen(
                                             viewModel.selectSort(option.sortBy)
                                         }
                                     },
+                                    modifier = Modifier,
                                 )
                             }
                         }
@@ -202,6 +205,7 @@ fun TopicDetailScreen(
                                 onBangumiClick = onBangumiClick,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
+                                onTopicKeywordClick = onTopicKeywordClick,
                                 onLiveClick = onLiveClick,
                                 onMusicClick = onMusicClick,
                                 onCollectionClick = onCollectionClick,
@@ -337,7 +341,9 @@ private fun TopicSortControl(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (options.isEmpty()) return
     val itemWidth = TOPIC_SORT_ITEM_WIDTH_DP.dp
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -350,10 +356,6 @@ private fun TopicSortControl(
             height = 40.dp,
             indicatorHeight = 34.dp,
             labelFontSize = 13.sp,
-            // This control is inside the page source captured by topicBackdrop. Reusing that
-            // same source here would make the liquid lens sample an ancestor that contains
-            // the lens itself, producing a cyclic RenderNode graph and RenderThread overflow.
-            // Let the segmented control own its isolated local backdrop instead.
             backdrop = null,
             modifier = Modifier.width(resolveTopicSortControlWidthDp(options.size).dp),
         )
@@ -446,6 +448,28 @@ private fun TopicParticipateButton(
 }
 
 @Composable
+internal fun TopicTagCapsule(
+    modifier: Modifier = Modifier,
+    size: Dp = TOPIC_TAG_CAPSULE_SIZE_DP.dp,
+    iconSize: Dp = TOPIC_TAG_CAPSULE_ICON_SIZE_DP.dp,
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(AppShapes.container(ContainerLevel.Chip))
+            .background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center,
+    ) {
+        AppIcon(
+            painter = painterResource(R.drawable.ms_tag_24),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
 private fun TopicHeaderCard(
     details: TopicTopDetails?,
     onUserClick: (Long) -> Unit,
@@ -465,19 +489,11 @@ private fun TopicHeaderCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(normalizeSearchImageUrl(topic?.sharePic.orEmpty()))
-                    .crossfade(true)
-                    .build(),
-                contentDescription = topic?.name,
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(AppShapes.container(ContainerLevel.Chip))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
+            TopicTagCapsule(
+                modifier = Modifier.size(TOPIC_TAG_CAPSULE_SIZE_DP.dp),
+                iconSize = TOPIC_TAG_CAPSULE_ICON_SIZE_DP.dp,
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {

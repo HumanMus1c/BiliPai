@@ -268,6 +268,8 @@ private fun rememberProfileSkeletonBlockColor(): Color {
     val reduceMotion = rememberSystemReduceMotion()
     val pulse = if (reduceMotion) {
         0.45f
+    } else if (com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()) {
+        com.android.purebilibili.core.ui.skeleton.rememberGentleSkeletonPulse().value
     } else {
         val transition = rememberInfiniteTransition(label = "profileSkeletonPulse")
         val animatedPulse by transition.animateFloat(

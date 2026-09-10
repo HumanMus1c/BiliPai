@@ -316,6 +316,9 @@ private fun SkeletonBlock(
 
 @Composable
 private fun rememberVideoSkeletonPulse(): Float {
+    if (com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()) {
+        return com.android.purebilibili.core.ui.skeleton.rememberGentleSkeletonPulse().value
+    }
     val transition = rememberInfiniteTransition(label = "videoSkeletonPulse")
     val pulse by transition.animateFloat(
         initialValue = 0f,

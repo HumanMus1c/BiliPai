@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +72,7 @@ fun ForwardedContent(
     onBangumiClick: (Long, Long) -> Unit,
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit = {},
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onDynamicDetailClick: ((String) -> Unit)? = null,
     onArticleClick: ((Long, String) -> Unit)? = null,
     onLiveClick: ((Long, String, String) -> Unit)? = null,
@@ -78,6 +80,7 @@ fun ForwardedContent(
     gifImageLoader: ImageLoader,
     defaultPreviewTextVisible: Boolean = true
 ) {
+    val context = LocalContext.current
     val author = orig.modules.module_author
     val content = orig.modules.module_dynamic
     var previewState by remember { mutableStateOf<ForwardedImagePreviewState?>(null) }
@@ -106,9 +109,10 @@ fun ForwardedContent(
         )
     }
     val origDynamicId = remember(orig.id_str) { orig.id_str.trim() }
-    val openOrigDynamic = remember(origDynamicId, onDynamicDetailClick) {
+    val openOrigDynamic = remember(origDynamicId, orig, onDynamicDetailClick) {
         {
             if (origDynamicId.isNotEmpty()) {
+                com.android.purebilibili.data.repository.DynamicRepository.rememberDynamicDetailSeed(orig)
                 onDynamicDetailClick?.invoke(origDynamicId)
             }
         }
@@ -153,10 +157,25 @@ fun ForwardedContent(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
 
-        content?.topic?.takeIf { it.id > 0L && it.name.isNotBlank() }?.let { topic ->
+        content?.topic?.takeIf { it.name.isNotBlank() }?.let { topic ->
             DynamicTopicLabel(
                 topicName = topic.name,
-                onClick = { onTopicClick(topic.id) },
+                onClick = {
+                    val kw = topic.name.trim().removePrefix("#").removeSuffix("#").trim()
+                    if (onTopicKeywordClick != null && kw.isNotEmpty()) {
+                        onTopicKeywordClick(kw)
+                    } else if (topic.id > 0L) {
+                        onTopicClick(topic.id)
+                    } else if (kw.isNotEmpty()) {
+                        val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8.name())
+                        val inAppIntent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(searchUrl)
+                        ).setPackage(context.packageName)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        runCatching { context.startActivity(inAppIntent) }
+                    }
+                },
                 modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
             )
         }
@@ -179,6 +198,7 @@ fun ForwardedContent(
                     desc = desc,
                     onUserClick = onUserClick,
                     onTopicClick = onTopicClick,
+                    onTopicKeywordClick = onTopicKeywordClick,
                     onBlankTap = openOrigDynamic.takeIf {
                         onDynamicDetailClick != null && origDynamicId.isNotEmpty()
                     },
@@ -240,7 +260,8 @@ fun ForwardedContent(
                     com.android.purebilibili.data.model.response.DrawItem(
                         src = pic.url,
                         width = pic.width,
-                        height = pic.height
+                        height = pic.height,
+                        live_url = pic.live_url
                     )
                 }
                 DrawGridV2(
@@ -274,6 +295,20 @@ fun ForwardedContent(
 
     previewState?.let { state ->
         ImagePreviewDialog(
+            livePhotoVideos = buildMap {
+                content?.major?.opus?.pics.orEmpty().forEach { pic ->
+                    normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                        put(pic.url, liveUrl)
+                        put(normalizeImageUrl(pic.url), liveUrl)
+                    }
+                }
+                content?.major?.draw?.items.orEmpty().forEach { pic ->
+                    normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                        put(pic.src, liveUrl)
+                        put(normalizeImageUrl(pic.src), liveUrl)
+                    }
+                }
+            },
             images = state.images,
             initialIndex = state.initialIndex,
             sourceRect = previewSourceRect,

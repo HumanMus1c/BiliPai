@@ -270,6 +270,28 @@ private fun <T> Flow<T>.asAnyFlow(): Flow<Any?> = map { it }
 
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+    val searchHistory = com.android.purebilibili.core.store.SettingsSearchHistoryStore.observe(application)
+
+    fun recordSearchQuery(query: String) {
+        viewModelScope.launch {
+            if (!SettingsManager.getPrivacyModeEnabled(getApplication()).first()) {
+                com.android.purebilibili.core.store.SettingsSearchHistoryStore.record(getApplication(), query)
+            }
+        }
+    }
+
+    fun deleteSearchHistory(query: String) {
+        viewModelScope.launch {
+            com.android.purebilibili.core.store.SettingsSearchHistoryStore.delete(getApplication(), query)
+        }
+    }
+
+    fun clearSearchHistory() {
+        viewModelScope.launch {
+            com.android.purebilibili.core.store.SettingsSearchHistoryStore.clear(getApplication())
+        }
+    }
+
     private val context = application.applicationContext
 
     private data class DiagnosticsState(

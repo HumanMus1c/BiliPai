@@ -52,6 +52,8 @@ import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.liquidDockViewport
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.components.AppFilterChip
@@ -186,38 +188,57 @@ fun SearchVideoFilterBar(
         // Always circular Material ripple. Miuix IconButton indication is square;
         // clip + unbounded radius keeps the wave circular under every preset.
         val filterInteraction = remember { MutableInteractionSource() }
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = filterInteraction,
-                    indication = ripple(
-                        bounded = false,
-                        radius = 20.dp
+        BottomBarMatchedReusableLiquidDock(
+            shape = CircleShape,
+            backdrop = miuixBackdrop,
+            reuseEnabled = true,
+            useNeutralLiquidContainer = true,
+            shellLensIntensity = resolveFloatingDockGeometryScale(48f),
+            modifier = Modifier.size(48.dp),
+        ) { _ ->
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = filterInteraction,
+                        indication = ripple(
+                            bounded = false,
+                            radius = 20.dp
+                        ),
+                        role = Role.Button,
+                        onClick = { showFilterSheet = true }
                     ),
-                    role = Role.Button,
-                    onClick = { showFilterSheet = true }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            AppIcon(
-                imageVector = Icons.Outlined.FilterList,
-                contentDescription = "筛选",
-                tint = if (filterActive) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.outline
-                },
-                modifier = Modifier.size(20.dp)
+                contentAlignment = Alignment.Center
+            ) {
+                AppIcon(
+                    imageVector = Icons.Outlined.FilterList,
+                    contentDescription = "筛选",
+                    tint = if (filterActive) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.size(4.dp))
+        BottomBarMatchedReusableLiquidDock(
+            shape = CircleShape,
+            backdrop = miuixBackdrop,
+            reuseEnabled = true,
+            useNeutralLiquidContainer = true,
+            shellLensIntensity = resolveFloatingDockGeometryScale(48f),
+            modifier = Modifier.size(48.dp),
+        ) { _ ->
+            VideoListLayoutToggle(
+                singleColumn = singleColumn,
+                onClick = onLayoutToggle,
+                modifier = Modifier.size(48.dp),
+                iconModifier = Modifier.size(20.dp),
             )
         }
-        VideoListLayoutToggle(
-            singleColumn = singleColumn,
-            onClick = onLayoutToggle,
-            modifier = Modifier.size(48.dp),
-            iconModifier = Modifier.size(20.dp),
-        )
     }
 
     if (showFilterSheet) {

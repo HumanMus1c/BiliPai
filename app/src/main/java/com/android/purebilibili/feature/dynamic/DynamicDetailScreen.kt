@@ -21,14 +21,19 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppRadioButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextField
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +92,14 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
+internal fun resolveDynamicDetailBottomBarColor(
+    uiStyle: AppUiStyle,
+    colorScheme: ColorScheme,
+): Color = when (uiStyle) {
+    AppUiStyle.MIUIX -> colorScheme.background
+    AppUiStyle.MATERIAL3 -> colorScheme.surface
+}
+
 private sealed interface DynamicDetailUiState {
     data object Loading : DynamicDetailUiState
     data class Success(val item: DynamicItem) : DynamicDetailUiState
@@ -104,6 +117,7 @@ fun DynamicDetailScreen(
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit = {},
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onArticleClick: (articleId: Long, title: String) -> Unit = { _, _ -> },
     onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
     onMusicClick: ((Long) -> Unit)? = null,
@@ -216,8 +230,12 @@ fun DynamicDetailScreen(
             }
 
             is DynamicDetailUiState.Success -> {
+                val commentTargetKey = remember(state.item) {
+                    val basic = state.item.basic
+                    "${state.item.id_str}_${basic?.comment_id_str}_${basic?.comment_type}"
+                }
                 LaunchedEffect(
-                    state.item.id_str,
+                    commentTargetKey,
                     openCommentRootRpid,
                     openCommentTargetRpid
                 ) {
@@ -261,6 +279,7 @@ fun DynamicDetailScreen(
                             onBangumiClick = onBangumiClick,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onTopicKeywordClick = onTopicKeywordClick,
                             onArticleClick = onArticleClick,
                             onLiveClick = onLiveClick,
                             onMusicClick = onMusicClick,
@@ -494,23 +513,28 @@ fun DynamicDetailScreen(
                                         ) {
                                             commentContent()
                                         }
-                                        AppSurface(
+                                        Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
-                                                .imePadding(),
-                                            color = MaterialTheme.colorScheme.surface,
-                                            tonalElevation = 3.dp,
-                                            shadowElevation = 8.dp,
+                                                .imePadding()
                                         ) {
-                                            commentComposer(
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(
-                                                        horizontal = AppSpacingTokens.Large,
-                                                        vertical = AppSpacingTokens.Medium,
-                                                    )
-                                            )
+                                            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                            AppSurface(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                color = resolveDynamicDetailBottomBarColor(LocalAppUiStyle.current, MaterialTheme.colorScheme),
+                                                tonalElevation = 0.dp,
+                                                shadowElevation = 0.dp,
+                                            ) {
+                                                commentComposer(
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(
+                                                            horizontal = AppSpacingTokens.Large,
+                                                            vertical = AppSpacingTokens.Medium,
+                                                        )
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -557,23 +581,28 @@ fun DynamicDetailScreen(
                                     )
                                 }
                             } else {
-                                AppSurface(
+                                Column(
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .fillMaxWidth()
-                                        .imePadding(),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    tonalElevation = 3.dp,
-                                    shadowElevation = 8.dp,
+                                        .imePadding()
                                 ) {
-                                    commentComposer(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(
-                                                horizontal = AppSpacingTokens.Large,
-                                                vertical = AppSpacingTokens.Medium,
-                                            ),
-                                    )
+                                    AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    AppSurface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = resolveDynamicDetailBottomBarColor(LocalAppUiStyle.current, MaterialTheme.colorScheme),
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp,
+                                    ) {
+                                        commentComposer(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    horizontal = AppSpacingTokens.Large,
+                                                    vertical = AppSpacingTokens.Medium,
+                                                ),
+                                        )
+                                    }
                                 }
                             }
                         }

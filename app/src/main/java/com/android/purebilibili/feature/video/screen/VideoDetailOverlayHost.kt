@@ -893,6 +893,7 @@ internal fun DetachedVideoCommentThreadHost(
     topReservedPx: Int,
     onTimestampClick: (Long) -> Unit,
     onBackToTop: () -> Unit = {},
+    onCoveredBlurProgressChange: ((Float) -> Unit)? = null,
 ) {
     if (!visible) return
 
@@ -928,6 +929,7 @@ internal fun DetachedVideoCommentThreadHost(
         forceInitialize = forceInitialize,
         handleFraudEvents = false,
         // 楼中楼（嵌入呈现）不盖全屏阴影：播放器上方保持可见，点背景关闭仍有效。
-        maxScrimAlphaOverride = 0f
+        maxScrimAlphaOverride = 0f,
+        onCoveredBlurProgressChange = onCoveredBlurProgressChange
     )
 }

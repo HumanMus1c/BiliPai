@@ -204,7 +204,7 @@ class VideoDetailScreenPolicyTest {
         assertTrue(
             relatedVideoSource.indexOf("restoreVideoDetailParentUiSnapshot(") <
                 relatedVideoSource.indexOf(
-                    "videoCardDepthBackgroundState.phaseProvider() !="
+                    "canReleaseRelatedVideoNavigation("
                 )
         )
         // 相关推荐 push / 同页切集前必须清掉单例弹幕会话，避免新页绑定时弹幕不显示。

@@ -37,6 +37,12 @@ class TopicDetailVisualPolicyTest {
     }
 
     @Test
+    fun topicTagCapsuleGeometryTokensAreDefined() {
+        assertEquals(54, TOPIC_TAG_CAPSULE_SIZE_DP)
+        assertEquals(28, TOPIC_TAG_CAPSULE_ICON_SIZE_DP)
+    }
+
+    @Test
     fun skeletonOnlyAppearsForTheFirstEmptyLoad() {
         assertTrue(
             shouldShowTopicInitialSkeleton(

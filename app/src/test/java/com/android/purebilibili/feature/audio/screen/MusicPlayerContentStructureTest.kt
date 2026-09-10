@@ -15,6 +15,9 @@ class MusicPlayerContentStructureTest {
 
         assertTrue(compactBranch.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(compactBranch.contains("resolveMusicPlayerPageTabs()"))
+        assertTrue(compactBranch.contains("height = 48.dp"))
+        assertTrue(compactBranch.contains("indicatorHeight = 36.dp"))
+        assertTrue(compactBranch.contains("containerVerticalPadding = 6.dp"))
         assertTrue(compactBranch.contains("indicatorPositionProvider"))
         assertTrue(compactBranch.contains("animateScrollToPage"))
         assertTrue(compactBranch.contains("navigationBarsPadding()"))
@@ -24,8 +27,15 @@ class MusicPlayerContentStructureTest {
         assertTrue(!compactBranch.contains("forceLiquidChrome = true"))
         assertTrue(!compactBranch.contains("containerColorOverride"))
         assertTrue(!compactBranch.contains("indicatorIdleSurfaceColorOverride"))
-        assertTrue(!compactBranch.contains("selectedTextColorOverride"))
-        assertTrue(!compactBranch.contains("unselectedTextColorOverride"))
+        assertTrue(compactBranch.contains("selectedTextColorOverride = MusicContentColor"))
+        assertTrue(compactBranch.contains("unselectedTextColorOverride = MusicContentColor"))
+    }
+
+    @Test
+    fun `music backdrop records opaque page background before glass samples it`() {
+        val source = loadSource()
+        assertTrue(source.contains("musicBackdropSource.takeIf { it.isReady }?.backdrop"))
+        assertTrue(source.contains(".then(musicBackdropSource.modifier)\n                    .background(pageBackground)"))
     }
 
     @Test
@@ -134,8 +144,8 @@ class MusicPlayerContentStructureTest {
         val topButtons = source.substringAfter("private fun GlassIconButton(")
 
         assertTrue(source.contains("MiuixBackdrop?"))
-        assertTrue(source.contains("rememberMiuixLayerBackdrop()"))
-        assertTrue(source.contains(".miuixLayerBackdrop(musicBackdrop)"))
+        assertTrue(source.contains("rememberChromeBackdropSource()"))
+        assertTrue(source.contains(".then(musicBackdropSource.modifier)"))
         assertTrue(topButtons.contains(".biliPaiFloatingDockShell("))
         assertTrue(topButtons.contains("backdrop = miuixBackdrop"))
         assertTrue(topButtons.contains("enabled = glassEnabled"))

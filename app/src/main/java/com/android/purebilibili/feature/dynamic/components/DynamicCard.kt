@@ -102,6 +102,7 @@ fun DynamicCardV2(
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit = {},
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
     onMusicClick: ((Long) -> Unit)? = null,
     onCollectionClick: ((Long, Long, String, String) -> Unit)? = null,
@@ -750,10 +751,25 @@ fun DynamicCardV2(
             }
         }
 
-        content?.topic?.takeIf { it.id > 0L && it.name.isNotBlank() }?.let { topic ->
+        content?.topic?.takeIf { it.name.isNotBlank() }?.let { topic ->
             DynamicTopicLabel(
                 topicName = topic.name,
-                onClick = { onTopicClick(topic.id) },
+                onClick = {
+                    val kw = topic.name.trim().removePrefix("#").removeSuffix("#").trim()
+                    if (onTopicKeywordClick != null && kw.isNotEmpty()) {
+                        onTopicKeywordClick(kw)
+                    } else if (topic.id > 0L) {
+                        onTopicClick(topic.id)
+                    } else if (kw.isNotEmpty()) {
+                        val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8.name())
+                        val inAppIntent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(searchUrl)
+                        ).setPackage(context.packageName)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        runCatching { context.startActivity(inAppIntent) }
+                    }
+                },
                 modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
             )
         }
@@ -791,6 +807,7 @@ fun DynamicCardV2(
                     desc = desc,
                     onUserClick = onUserClick,
                     onTopicClick = onTopicClick,
+                    onTopicKeywordClick = onTopicKeywordClick,
                     onVoteClick = { voteId -> pendingVoteId = voteId },
                     onVideoClick = onVideoClick,
                     onDynamicDetailClick = openDynamicDetail,
@@ -865,6 +882,20 @@ fun DynamicCardV2(
             // 全屏图片预览
             if (selectedImageIndex >= 0) {
                 ImagePreviewDialog(
+                    livePhotoVideos = buildMap {
+                        content?.major?.opus?.pics.orEmpty().forEach { pic ->
+                            normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                put(pic.url, liveUrl)
+                                put(normalizeImageUrl(pic.url), liveUrl)
+                            }
+                        }
+                        content?.major?.draw?.items.orEmpty().forEach { pic ->
+                            normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                put(pic.src, liveUrl)
+                                put(normalizeImageUrl(pic.src), liveUrl)
+                            }
+                        }
+                    },
                     images = draw.items.map { it.src },
                     initialIndex = selectedImageIndex,
                     sourceRect = sourceRect,  //  [新增] 传递源位置用于展开动画
@@ -945,6 +976,7 @@ fun DynamicCardV2(
                                         desc = richBlockDesc,
                                         onUserClick = onUserClick,
                                         onTopicClick = onTopicClick,
+                                        onTopicKeywordClick = onTopicKeywordClick,
                                         onVoteClick = { voteId -> pendingVoteId = voteId },
                                         onVideoClick = onVideoClick,
                                         onDynamicDetailClick = openDynamicDetail,
@@ -1158,6 +1190,20 @@ fun DynamicCardV2(
 
                 if (fullContentSelectedImageIndex >= 0) {
                     ImagePreviewDialog(
+                        livePhotoVideos = buildMap {
+                            content?.major?.opus?.pics.orEmpty().forEach { pic ->
+                                normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                    put(pic.url, liveUrl)
+                                    put(normalizeImageUrl(pic.url), liveUrl)
+                                }
+                            }
+                            content?.major?.draw?.items.orEmpty().forEach { pic ->
+                                normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                    put(pic.src, liveUrl)
+                                    put(normalizeImageUrl(pic.src), liveUrl)
+                                }
+                            }
+                        },
                         images = previewImages,
                         initialIndex = fullContentSelectedImageIndex,
                         textContent = opusPreviewText,
@@ -1170,7 +1216,8 @@ fun DynamicCardV2(
                     DrawItem(
                         src = pic.url,
                         width = pic.width,
-                        height = pic.height
+                        height = pic.height,
+                        live_url = pic.live_url
                     )
                 }
                 DrawGridV2(
@@ -1190,6 +1237,20 @@ fun DynamicCardV2(
                 // 全屏图片预览
                 if (selectedImageIndex >= 0) {
                     ImagePreviewDialog(
+                        livePhotoVideos = buildMap {
+                            content?.major?.opus?.pics.orEmpty().forEach { pic ->
+                                normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                    put(pic.url, liveUrl)
+                                    put(normalizeImageUrl(pic.url), liveUrl)
+                                }
+                            }
+                            content?.major?.draw?.items.orEmpty().forEach { pic ->
+                                normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                    put(pic.src, liveUrl)
+                                    put(normalizeImageUrl(pic.src), liveUrl)
+                                }
+                            }
+                        },
                         images = opus.pics.map { it.url },
                         initialIndex = selectedImageIndex,
                         sourceRect = sourceRect,  //  [新增] 传递源位置用于展开动画
@@ -1237,6 +1298,20 @@ fun DynamicCardV2(
 
                 if (selectedImageIndex >= 0) {
                     ImagePreviewDialog(
+                    livePhotoVideos = buildMap {
+                        content?.major?.opus?.pics.orEmpty().forEach { pic ->
+                            normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                put(pic.url, liveUrl)
+                                put(normalizeImageUrl(pic.url), liveUrl)
+                            }
+                        }
+                        content?.major?.draw?.items.orEmpty().forEach { pic ->
+                            normalizeLivePhotoVideoUrl(pic.live_url)?.let { liveUrl ->
+                                put(pic.src, liveUrl)
+                                put(normalizeImageUrl(pic.src), liveUrl)
+                            }
+                        }
+                    },
                         images = articleCovers,
                         initialIndex = selectedImageIndex,
                         sourceRect = sourceRect,
@@ -1419,6 +1494,7 @@ fun DynamicCardV2(
                 onBangumiClick = onBangumiClick,
                 onUserClick = onUserClick,
                 onTopicClick = onTopicClick,
+                onTopicKeywordClick = onTopicKeywordClick,
                 onDynamicDetailClick = openDynamicDetail,
                 onArticleClick = onArticleClick,
                 onLiveClick = onLiveClick,
@@ -1766,6 +1842,7 @@ fun RichTextContent(
     desc: DynamicDesc,
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit = {},
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onVoteClick: (Long) -> Unit = {},
     onBlankTap: (() -> Unit)? = null,
     onVideoClick: ((String) -> Unit)? = null,
@@ -1895,6 +1972,32 @@ fun RichTextContent(
                         }
 
                     annotatedText.getStringAnnotations(
+                        tag = DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG,
+                        start = searchStart,
+                        end = searchEnd
+                    ).firstOrNull()?.item?.takeIf { it.isNotBlank() }?.let { keyword ->
+                        if (onTopicKeywordClick != null) {
+                            onTopicKeywordClick(keyword)
+                            return@detectTapGestures
+                        }
+                        val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(keyword, java.nio.charset.StandardCharsets.UTF_8.name())
+                        if (onLinkClick != null) {
+                            onLinkClick(searchUrl)
+                        } else {
+                            val inAppIntent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(searchUrl)
+                            ).setPackage(context.packageName)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val launched = runCatching { context.startActivity(inAppIntent) }.isSuccess
+                            if (!launched) {
+                                openDynamicRichTextLinkExternally(context, searchUrl, uriHandler)
+                            }
+                        }
+                        return@detectTapGestures
+                    }
+
+                    annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
                         start = searchStart,
                         end = searchEnd
@@ -1970,7 +2073,20 @@ fun RichTextContent(
                                             true
                                         } else false
                                     }
-                                    is BilibiliNavigationTarget.Search -> false
+                                    is BilibiliNavigationTarget.Search -> {
+                                        if (onTopicKeywordClick != null) {
+                                            onTopicKeywordClick(target.keyword)
+                                            true
+                                        } else {
+                                            val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(target.keyword, java.nio.charset.StandardCharsets.UTF_8.name())
+                                            val inAppIntent = android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse(searchUrl)
+                                            ).setPackage(context.packageName)
+                                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            runCatching { context.startActivity(inAppIntent) }.isSuccess
+                                        }
+                                    }
                                 }
                                 if (handled) return@launch
                             }

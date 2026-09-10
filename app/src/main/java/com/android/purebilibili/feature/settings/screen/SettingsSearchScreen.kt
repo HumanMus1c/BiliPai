@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.feature.settings.SettingsSearchHistorySection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +50,8 @@ fun SettingsSearchScreen(
     onCategoryClick: (SettingsRootCategory) -> Unit = {},
     mainHazeState: HazeState? = null,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle(initialValue = emptyList())
     val searchResults = remember(searchQuery) {
         resolveSettingsSearchResults(query = searchQuery, maxResults = 20)
     }
@@ -77,6 +81,7 @@ fun SettingsSearchScreen(
             SettingsSearchBarSection(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
+                onSearch = { viewModel.recordSearchQuery(searchQuery) },
             )
         },
     ) {
@@ -87,9 +92,20 @@ fun SettingsSearchScreen(
         ) {
             EntranceGroup(startWhen = rootEntranceStartWhen) {
                 SettingsRootCategoryEntranceSection {
-                    SettingsSearchResultsSection(
+                    if (searchQuery.isBlank()) {
+                        SettingsSearchHistorySection(
+                            history = searchHistory,
+                            onQueryClick = {
+                                searchQuery = it
+                                viewModel.recordSearchQuery(it)
+                            },
+                            onDelete = viewModel::deleteSearchHistory,
+                            onClear = viewModel::clearSearchHistory,
+                        )
+                    } else SettingsSearchResultsSection(
                         results = searchResults,
                         onResultClick = { result ->
+                            viewModel.recordSearchQuery(searchQuery)
                             val category = resolveSettingsRootCategoryForSearchTarget(result.target)
                             if (isSceneSettingsSearchTarget(result.target) && category != null) {
                                 onCategoryClick(category)

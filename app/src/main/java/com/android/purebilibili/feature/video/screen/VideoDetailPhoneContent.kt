@@ -1,7 +1,12 @@
 package com.android.purebilibili.feature.video.screen
 
 import android.content.Context
+import android.graphics.RenderEffect as AndroidRenderEffect
+import android.graphics.Shader
 import android.os.Build
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -107,7 +112,8 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     onShareVideo: (VideoSharePayload) -> Unit,
     externalPlaylistQueueTitle: String,
     playlistItems: List<PlaylistItem>,
-    onShowExternalPlaylistQueueSheet: () -> Unit
+    onShowExternalPlaylistQueueSheet: () -> Unit,
+    commentThreadCoveredBlurProgress: Float = 0f,
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val danmakuManager = rememberDanmakuManager(success.info.bvid)
@@ -185,6 +191,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             .indexOfFirst { it.cid == success.info.cid }
                             .coerceAtLeast(0)
 
+                        val coveredBlurProgress = if (isCommentThreadVisible) commentThreadCoveredBlurProgress else 0f
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -196,6 +203,25 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     }
                                 )
                                 .hazeSourceCompat(hazeState)
+                                .graphicsLayer {
+                                    renderEffect = null
+                                    if (coveredBlurProgress > 0f &&
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                                    ) {
+                                        val blurFrame = resolvePredictiveBackBlurFrame(
+                                            progress = coveredBlurProgress,
+                                        )
+                                        renderEffect = if (blurFrame.blurRadiusPx > 0.5f) {
+                                            AndroidRenderEffect.createBlurEffect(
+                                                blurFrame.blurRadiusPx,
+                                                blurFrame.blurRadiusPx,
+                                                Shader.TileMode.CLAMP,
+                                            ).asComposeRenderEffect()
+                                        } else {
+                                            null
+                                        }
+                                    }
+                                }
                         ) {
                             VideoContentSection(
                                 data = VideoContentData(

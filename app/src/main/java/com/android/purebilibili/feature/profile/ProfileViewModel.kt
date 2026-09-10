@@ -659,38 +659,20 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         mobileTransform: ProfileWallpaperTransform = ProfileWallpaperTransform(),
         tabletTransform: ProfileWallpaperTransform = ProfileWallpaperTransform()
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                
+                val wallpaper = importWallpaperMedia(context, uri, File(context.filesDir, "profile_wallpaper"))
                 SettingsManager.setProfileBgTransform(context, false, mobileTransform)
                 SettingsManager.setProfileBgTransform(context, true, tabletTransform)
-                
-                // 1. 创建图片保存目录
-                val imagesDir = File(context.filesDir, "images")
-                if (!imagesDir.exists()) imagesDir.mkdirs()
-                
-                // 2. 创建目标文件 (profile_bg.jpg)
-                // 使用固定文件名，每次覆盖，节省空间
-                val destFile = File(imagesDir, "profile_bg.jpg")
-                
-                // 3. 复制文件
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(destFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                
-                // 4. 保存文件路径到设置 (使用 file:// URI)
-                val savedUri = Uri.fromFile(destFile).toString()
-                SettingsManager.setProfileBgUri(context, savedUri)
-                
-                // 5. 刷新界面 (重新加载)
+                SettingsManager.setProfileBgUri(context, Uri.fromFile(wallpaper).toString())
                 loadProfile(force = true)
-                
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // 可以增加一个 Toast 或 Error State 通知用户失败
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(getApplication(), error.message ?: "壁纸导入失败", android.widget.Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -1096,7 +1078,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             _splashSaveState.value = WallpaperSaveState.Loading
             try {
                 val context = getApplication<Application>()
-                val wallpaper = importWallpaperImage(context, Uri.parse(uri), File(context.filesDir, "home_wallpaper"))
+                val wallpaper = importWallpaperMedia(context, Uri.parse(uri), File(context.filesDir, "home_wallpaper"))
                 SettingsManager.setHomeWallpaperUri(context, Uri.fromFile(wallpaper).toString())
 
                 withContext(Dispatchers.Main) {

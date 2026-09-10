@@ -724,6 +724,10 @@ fun SearchScreen(
     
     //  读取动画设置开关
     val context = LocalContext.current
+    val searchHintEnabled by remember(context) {
+        com.android.purebilibili.core.store.SearchHintSettingsStore.isEnabled(context)
+    }.collectAsStateWithLifecycle(initialValue = true)
+    val displayedSearchHint = state.defaultSearchHint.takeIf { searchHintEnabled }.orEmpty()
     val scope = rememberCoroutineScope()
     val searchTabs = remember { resolveSearchFilterTabs() }
     val searchPagerState = rememberPagerState(
@@ -1067,8 +1071,8 @@ fun SearchScreen(
                                     }
                                 },
                                 focusRequester = searchFocusRequester,
-                                placeholder = state.defaultSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
-                                suggestedKeyword = state.defaultSearchHint,
+                                placeholder = displayedSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
+                                suggestedKeyword = displayedSearchHint,
                                 autoFocusEnabled = false,
                                 reducedMotionBudget = effectiveSearchMotionBudget == SearchMotionBudget.REDUCED,
                                 isScrollInProgressProvider = { isSearchResultsScrolling },
@@ -2092,8 +2096,8 @@ fun SearchScreen(
                     }
                 },
                 focusRequester = searchFocusRequester,
-                placeholder = state.defaultSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
-                suggestedKeyword = state.defaultSearchHint,
+                placeholder = displayedSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
+                suggestedKeyword = displayedSearchHint,
                 autoFocusEnabled = shouldAutoFocusSearchField(
                     startupSettled = startupSettled,
                     query = state.query,

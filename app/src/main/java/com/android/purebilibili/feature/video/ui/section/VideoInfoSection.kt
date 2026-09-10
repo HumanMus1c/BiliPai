@@ -99,6 +99,8 @@ private val VIDEO_DESCRIPTION_URL_PATTERN =
     """((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])""".toRegex()
 private val VIDEO_DESCRIPTION_INLINE_BVID_PATTERN =
     Regex("""(?<![A-Za-z0-9])BV[a-zA-Z0-9]{10}(?![A-Za-z0-9])""", RegexOption.IGNORE_CASE)
+private val VIDEO_DESCRIPTION_TOPIC_PATTERN =
+    Regex("""#([^#\n\r\t]+)#""")
 
 internal fun buildVideoDescriptionAnnotatedString(
     desc: String,
@@ -131,6 +133,23 @@ internal fun buildVideoDescriptionAnnotatedString(
                 displayText = match.value,
                 priority = 1
             )
+        }
+    }
+    VIDEO_DESCRIPTION_TOPIC_PATTERN.findAll(desc).forEach { match ->
+        val overlapsUrl = matches.any { existing ->
+            match.range.first <= existing.range.last && match.range.last >= existing.range.first
+        }
+        if (!overlapsUrl) {
+            val topic = match.groupValues[1].trim()
+            if (topic.isNotEmpty()) {
+                val encoded = java.net.URLEncoder.encode(topic, java.nio.charset.StandardCharsets.UTF_8.name())
+                matches += LinkMatch(
+                    range = match.range,
+                    annotation = "bilibili://search?keyword=$encoded",
+                    displayText = match.value,
+                    priority = 2
+                )
+            }
         }
     }
     matches.sortWith(compareBy<LinkMatch> { it.range.first }.thenBy { it.priority })

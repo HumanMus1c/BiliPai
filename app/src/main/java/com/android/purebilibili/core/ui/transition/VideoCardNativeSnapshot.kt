@@ -49,8 +49,14 @@ internal fun shouldHideStationarySourceCard(
     )
 }
 
-internal fun isRecordedNativeCardSource(bvid: String): Boolean {
-    val clicked = CardPositionManager.lastClickedVideoSourceKey ?: return false
+internal fun isRecordedNativeCardSource(
+    bvid: String,
+    activeSourceKey: String?,
+    recordedSourceKey: String? = CardPositionManager.lastClickedVideoSourceKey,
+): Boolean {
+    val clicked = recordedSourceKey ?: return false
+    // A click updates the pending key before navigation replaces the previous HELD session.
+    if (activeSourceKey != clicked) return false
     val id = bvid.trim()
     if (id.isEmpty()) return false
     return clicked == id || clicked.endsWith(":$id")
@@ -83,7 +89,7 @@ internal fun Modifier.recordNativeVideoCardLayer(
             }
         }
         val hide = shouldHideStationarySourceCard(
-            isSharedMorphSourceCard = isRecordedNativeCardSource(bvid),
+            isSharedMorphSourceCard = isRecordedNativeCardSource(bvid, bgState.sourceKeyProvider()),
             phase = bgState.phaseProvider(),
             depthProgress = bgState.progressProvider(),
             isReturnGestureInProgress = bgState.isReturnGestureInProgressProvider() ||

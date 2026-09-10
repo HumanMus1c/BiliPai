@@ -780,13 +780,12 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `md3 home header keeps search pill and edge controls less circular`() {
+    fun `md3 home header keeps search pill and uses circular edge controls`() {
         val searchShape = resolveHomeTopSearchContainerShape(UiPreset.MD3)
         val edgeShape = resolveHomeTopEdgeButtonShape(UiPreset.MD3)
 
         assertTrue(searchShape is RoundedCornerShape)
-        assertTrue(edgeShape is RoundedCornerShape)
-        assertNotEquals(CircleShape, edgeShape)
+        assertEquals(CircleShape, edgeShape)
         assertEquals(36.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
         assertEquals(16.dp, resolveHomeTopSearchContentHorizontalPadding(UiPreset.MD3))
         assertEquals(12.dp, resolveHomeTopSearchIconTextGap(UiPreset.MD3))
@@ -804,7 +803,7 @@ class HomeHeaderVisualPolicyTest {
         )
 
         assertTrue(searchShape is RoundedCornerShape)
-        assertTrue(edgeShape is RoundedCornerShape)
+        assertEquals(CircleShape, edgeShape)
         assertEquals(
             48.dp,
             resolveHomeTopSearchBarHeight(

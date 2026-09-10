@@ -14,6 +14,15 @@ import kotlin.test.assertTrue
 class FloatingBottomBarStructureTest {
 
     @Test
+    fun `segmented lens records a full blurred surface`() {
+        val source = loadFloatingBottomBarSource()
+        assertTrue(source.contains("maxOf(shellHeight, fittedIndicatorHeight)"))
+        assertFalse(source.contains("(shellHeight - verticalPadding * 2).coerceAtLeast(0.dp)"))
+        assertTrue(source.contains("if (segmentedGeometry) androidx.compose.ui.graphics.RectangleShape else pillShape"))
+        assertTrue(source.contains("indicatorIdleSurfaceColorOverride != null || isLiquidGlassMode"))
+    }
+
+    @Test
     fun `public API exposes BiliPai layout knobs`() {
         val source = loadFloatingBottomBarSource()
 

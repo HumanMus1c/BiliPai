@@ -34,11 +34,13 @@ import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIco
 internal fun SettingsSearchBarSection(
     query: String,
     onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit = {},
 ) {
     val placeholder = stringResource(R.string.settings_search_placeholder)
     AppLiquidAwareSearchField(
         query = query,
         onQueryChange = onQueryChange,
+        onSearch = onSearch,
         placeholder = placeholder,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     )

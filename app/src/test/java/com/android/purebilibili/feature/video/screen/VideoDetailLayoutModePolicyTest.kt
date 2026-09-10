@@ -223,8 +223,8 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneCommentThreadHost_usesMainSheetPresentationWhenEmbeddedPathIsEnabled() {
-        assertTrue(
+    fun phoneCommentThreadHost_doesNotOverlayExtraMainSheetUnderneathSubReply() {
+        assertFalse(
             resolveVideoDetailCommentThreadHostMainSheetVisible(
                 useEmbeddedPresentation = true,
                 subReplyVisible = true

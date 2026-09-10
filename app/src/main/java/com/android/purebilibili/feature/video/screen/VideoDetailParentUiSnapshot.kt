@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.PagerState
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 
 /** Click-time UI position retained while a related-detail entry covers its parent. */
 internal data class VideoDetailParentUiSnapshot(
@@ -62,3 +63,12 @@ private suspend fun restoreVideoDetailListPosition(
         )
     }
 }
+
+/** Nested back navigation restores the parent's HELD session rather than global IDLE. */
+internal fun canReleaseRelatedVideoNavigation(
+    phase: VideoCardTransitionBackgroundPhase,
+    gestureInProgress: Boolean,
+    gestureRestoreInProgress: Boolean,
+): Boolean = !gestureInProgress && !gestureRestoreInProgress &&
+    (phase == VideoCardTransitionBackgroundPhase.IDLE ||
+        phase == VideoCardTransitionBackgroundPhase.HELD)

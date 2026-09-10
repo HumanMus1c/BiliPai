@@ -94,6 +94,7 @@ internal fun HomeWallpaperBackdrop(
     appearance: HomeWallpaperBackdropAppearance,
     baseColor: Color,
     isDataSaverActive: Boolean = false,
+    playbackEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -140,10 +141,10 @@ internal fun HomeWallpaperBackdrop(
                 }
             )
 
-        AsyncImage(
-            model = imageRequest,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
+        com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
+            uri = wallpaperUri,
+            imageModel = imageRequest,
+            playbackEnabled = playbackEnabled && !isDataSaverActive,
             modifier = imageModifier
         )
         Box(

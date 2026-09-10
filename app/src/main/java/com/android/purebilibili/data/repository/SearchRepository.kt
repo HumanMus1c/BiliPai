@@ -587,50 +587,66 @@ object SearchRepository {
     }
 
     //  获取搜索发现（优先最近搜索/关注 UP，再补官方推荐和热搜）
-    suspend fun getSearchRecommend(historyKeywords: List<String>): Result<List<HotItem>> = withContext(Dispatchers.IO) {
+    suspend fun getSearchRecommend(
+        historyKeywords: List<String>,
+        enablePersonalizedRecommend: Boolean = true
+    ): Result<List<HotItem>> = withContext(Dispatchers.IO) {
         val fallbackKeywords = listOf("黑神话悟空", "原神", "初音未来", "JOJO", "罗翔说刑法", "何同学", "毕业季", "猫咪", "我的世界", "战鹰")
-        val historySuggestions = try {
-            val lastKeyword = historyKeywords.firstOrNull()
-            if (!lastKeyword.isNullOrBlank()) {
-                val response = api.getSearchSuggest(lastKeyword)
-                response.result?.tag
-                    ?.mapNotNull { tag ->
-                        tag.term.ifBlank { tag.value.ifBlank { tag.name } }
-                            .replace(Regex("<.*?>"), "")
-                            .trim()
-                            .takeIf { it.isNotBlank() && it != lastKeyword }
-                    }
-                    ?.take(8)
-                    .orEmpty()
-            } else {
+        val historySuggestions = if (enablePersonalizedRecommend) {
+            try {
+                val lastKeyword = historyKeywords.firstOrNull()
+                if (!lastKeyword.isNullOrBlank()) {
+                    val response = api.getSearchSuggest(lastKeyword)
+                    response.result?.tag
+                        ?.mapNotNull { tag ->
+                            tag.term.ifBlank { tag.value.ifBlank { tag.name } }
+                                .replace(Regex("<.*?>"), "")
+                                .trim()
+                                .takeIf { it.isNotBlank() && it != lastKeyword }
+                        }
+                        ?.take(8)
+                        .orEmpty()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
                 emptyList()
             }
-        } catch (e: Exception) {
+        } else {
             emptyList()
         }
 
-        val followedUpNames = try {
-            val navResponse = navApi.getNavInfo()
-            val mid = navResponse.data?.mid ?: 0L
-            if (navResponse.data?.isLogin == true && mid > 0L) {
-                navApi.getFollowings(mid, pn = 1, ps = 20)
-                    .data
-                    ?.list
-                    ?.mapNotNull { user -> user.uname.trim().takeIf { it.isNotBlank() } }
-                    .orEmpty()
-            } else {
+        val followedUpNames = if (enablePersonalizedRecommend) {
+            try {
+                val navResponse = navApi.getNavInfo()
+                val mid = navResponse.data?.mid ?: 0L
+                if (navResponse.data?.isLogin == true && mid > 0L) {
+                    navApi.getFollowings(mid, pn = 1, ps = 20)
+                        .data
+                        ?.list
+                        ?.mapNotNull { user -> user.uname.trim().takeIf { it.isNotBlank() } }
+                        .orEmpty()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
                 emptyList()
             }
-        } catch (e: Exception) {
+        } else {
             emptyList()
         }
 
         val officialItems = try {
             val recommendResponse = api.getSearchRecommend()
             if (recommendResponse.code == 0) {
-                recommendResponse.data?.list
+                val list = recommendResponse.data?.list
                     ?.filter { item -> item.keyword.isNotBlank() || item.show_name.isNotBlank() }
                     ?: emptyList()
+                if (!enablePersonalizedRecommend) {
+                    list.filter { it.recommend_reason.isBlank() }
+                } else {
+                    list
+                }
             } else {
                 emptyList()
             }

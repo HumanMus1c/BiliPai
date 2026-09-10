@@ -15,8 +15,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -136,7 +139,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
-    val coverShape = AppShapes.mediaCover(legacyLevel = ContainerLevel.Field)
+    val coverShape = AppShapes.mediaCover()
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedReady,
@@ -199,6 +202,8 @@ internal fun HomeStyleSingleColumnVideoCard(
     }
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
 
+    val minCoverHeight = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
+
     Row(
         modifier = modifier
             .adaptiveCardHoverEffect(shape = cardShape)
@@ -219,14 +224,15 @@ internal fun HomeStyleSingleColumnVideoCard(
             .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
             .combinedClickable(onClick = triggerClick, onLongClick = onLongClick)
-            .padding(AppSpacingTokens.Small),
+            .heightIn(min = minCoverHeight),
         horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        val effectiveCoverAspectRatio = if (coverAspectRatio <= 1f) 16f / 9f else coverAspectRatio
         Box(
             modifier = Modifier
                 .width(coverWidth)
-                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
+                .aspectRatio(effectiveCoverAspectRatio)
                 .onGloballyPositioned { coordinates ->
                     coverBounds.value = coordinates.boundsInRoot()
                 }
@@ -257,7 +263,14 @@ internal fun HomeStyleSingleColumnVideoCard(
         }
 
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = minCoverHeight)
+                .padding(
+                    top = AppSpacingTokens.Small,
+                    bottom = AppSpacingTokens.Small,
+                    end = if (onMoreClick != null || trailingContent != null) AppSpacingTokens.None else AppSpacingTokens.Small,
+                ),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
         ) {
             AppText(
@@ -301,12 +314,17 @@ internal fun HomeStyleSingleColumnVideoCard(
         }
 
         if (trailingContent != null) {
-            Box(modifier = Modifier.align(Alignment.Bottom)) { trailingContent() }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Bottom)
+                    .padding(end = AppSpacingTokens.Small, bottom = AppSpacingTokens.ExtraSmall),
+            ) { trailingContent() }
         } else if (onMoreClick != null) {
             val moreHaptic = rememberHapticFeedback()
             Box(
                 modifier = Modifier
                     .align(Alignment.Bottom)
+                    .padding(end = AppSpacingTokens.Micro, bottom = AppSpacingTokens.Micro)
                     .size(AppChromeSizeTokens.MinimumTouchTarget)
                     .clip(CircleShape)
                     .semantics { contentDescription = "更多操作" }

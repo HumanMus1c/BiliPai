@@ -13,6 +13,7 @@ import com.android.purebilibili.data.model.response.SeriesItem
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceAggregateData
 import com.android.purebilibili.data.model.response.SpaceAggregateFavoriteItem
+import com.android.purebilibili.data.model.response.SpaceAggregateImages
 import com.android.purebilibili.data.model.response.SpaceAudioItem
 import com.android.purebilibili.data.model.response.SpaceUserInfo
 import com.android.purebilibili.data.model.response.SpaceVideoItem
@@ -370,6 +371,17 @@ internal data class SpaceInitialSeed(
     val defaultContributionTabId: String
 )
 
+internal fun resolveSpaceAggregateTopPhoto(images: SpaceAggregateImages?): String {
+    if (images == null) return ""
+    val collectionTopItem = images.collectionTopSimple?.top?.result?.firstOrNull()
+    val collectionPhoto = collectionTopItem?.item?.image?.defaultImage?.takeIf { it.isNotBlank() }
+        ?: collectionTopItem?.cover?.takeIf { it.isNotBlank() }
+    if (!collectionPhoto.isNullOrBlank()) {
+        return collectionPhoto
+    }
+    return images.imgUrl.ifBlank { images.nightImgUrl }
+}
+
 internal fun resolveSpaceInitialSeedFromAggregate(
     data: SpaceAggregateData,
     cardLargePhoto: String = "",
@@ -380,7 +392,7 @@ internal fun resolveSpaceInitialSeedFromAggregate(
     if (card.name.isBlank() || card.face.isBlank()) return null
 
     val topPhoto = resolveSpaceTopPhoto(
-        topPhoto = data.images?.imgUrl.orEmpty().ifBlank { data.images?.nightImgUrl.orEmpty() },
+        topPhoto = resolveSpaceAggregateTopPhoto(data.images),
         cardLargePhoto = cardLargePhoto,
         cardSmallPhoto = cardSmallPhoto
     )
@@ -526,7 +538,7 @@ internal fun resolveSpaceAggregateDefaultSelection(
         "home" -> Triple(SpaceMainTab.HOME, contributionTab.subTab, contributionTab.id)
         "favorite" -> Triple(SpaceMainTab.FAVORITE, contributionTab.subTab, contributionTab.id)
         "bangumi" -> Triple(SpaceMainTab.BANGUMI, contributionTab.subTab, contributionTab.id)
-        else -> Triple(SpaceMainTab.CONTRIBUTION, contributionTab.subTab, contributionTab.id)
+        else -> Triple(SpaceMainTab.HOME, contributionTab.subTab, contributionTab.id)
     }
 }
 

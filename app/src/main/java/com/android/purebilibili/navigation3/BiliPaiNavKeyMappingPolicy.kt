@@ -41,6 +41,13 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         BiliPaiNavKey.Home -> ScreenRoutes.Home.route
         BiliPaiNavKey.ListenVideo -> ScreenRoutes.ListenVideo.route
         BiliPaiNavKey.Dynamic -> ScreenRoutes.Dynamic.route
+        is BiliPaiNavKey.Search -> {
+            if (keyword.isNotEmpty()) {
+                "search?keyword=${encodeRouteValue(keyword)}"
+            } else {
+                ScreenRoutes.Search.route
+            }
+        }
         BiliPaiNavKey.Search -> ScreenRoutes.Search.route
         BiliPaiNavKey.SearchTrending -> ScreenRoutes.SearchTrending.route
         is BiliPaiNavKey.TopicDetail -> ScreenRoutes.TopicDetail.createRoute(topicId)
@@ -147,7 +154,14 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         normalized == ScreenRoutes.Home.route -> BiliPaiNavKey.Home
         normalized == ScreenRoutes.ListenVideo.route -> BiliPaiNavKey.ListenVideo
         normalized == ScreenRoutes.Dynamic.route -> BiliPaiNavKey.Dynamic
-        normalized == ScreenRoutes.Search.route -> BiliPaiNavKey.Search
+        routeBase == ScreenRoutes.Search.route -> {
+            val keyword = query["keyword"].orEmpty()
+            if (keyword.isNotEmpty()) {
+                BiliPaiNavKey.Search(keyword = keyword)
+            } else {
+                BiliPaiNavKey.Search
+            }
+        }
         normalized == ScreenRoutes.SearchTrending.route -> BiliPaiNavKey.SearchTrending
         segments.firstOrNull() == "topic" && segments.size >= 2 -> {
             BiliPaiNavKey.TopicDetail(topicId = segments[1].toLongOrNull() ?: 0L)
@@ -346,6 +360,7 @@ internal fun isCardReturnTargetNavKey(key: BiliPaiNavKey): Boolean {
         BiliPaiNavKey.Home,
         BiliPaiNavKey.MainHost,
         BiliPaiNavKey.Dynamic,
+        is BiliPaiNavKey.Search,
         BiliPaiNavKey.Search,
         BiliPaiNavKey.History,
         is BiliPaiNavKey.HistorySearch,

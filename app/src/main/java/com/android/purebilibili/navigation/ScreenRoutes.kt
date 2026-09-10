@@ -6,7 +6,11 @@ import java.nio.charset.StandardCharsets
 sealed class ScreenRoutes(val route: String) {
     object Home : ScreenRoutes("home")
     object ListenVideo : ScreenRoutes("listen_video")
-    object Search : ScreenRoutes("search")
+    object Search : ScreenRoutes("search") {
+        fun createRoute(keyword: String = ""): String {
+            return if (keyword.isBlank()) "search" else "search?keyword=${URLEncoder.encode(keyword, StandardCharsets.UTF_8.name())}"
+        }
+    }
     object SearchTrending : ScreenRoutes("search_trending")
     object TopicDetail : ScreenRoutes("topic/{topicId}") {
         fun createRoute(topicId: Long): String {

@@ -413,7 +413,8 @@ internal fun resolveSpaceDynamicCardItem(item: SpaceDynamicItem): DynamicItem {
                                         DrawItem(
                                             src = drawItem.src,
                                             width = drawItem.width,
-                                            height = drawItem.height
+                                            height = drawItem.height,
+                                            live_url = drawItem.live_url
                                         )
                                     }
                                 )
@@ -430,7 +431,8 @@ internal fun resolveSpaceDynamicCardItem(item: SpaceDynamicItem): DynamicItem {
                                         OpusPic(
                                             url = pic.src,
                                             width = pic.width,
-                                            height = pic.height
+                                            height = pic.height,
+                                            live_url = pic.live_url
                                         )
                                     },
                                     title = opus.title

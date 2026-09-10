@@ -201,6 +201,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private val searchDao = AppDatabase.getDatabase(application).searchHistoryDao()
     
     //  防抖任务
+    private var searchRecommendEnabled = true
     private var suggestJob: Job? = null
     private var activeSearchJob: Job? = null
     private var activeLoadMoreJob: Job? = null
@@ -213,6 +214,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         loadHistory()
+        viewModelScope.launch {
+            com.android.purebilibili.core.store.SettingsManager.getSearchSuggestionsEnabled(application)
+                .collect { enabled ->
+                    val changed = (searchRecommendEnabled != enabled)
+                    searchRecommendEnabled = enabled
+                    if (changed && landingBootstrapStarted) {
+                        refreshDiscoverInternal()
+                    }
+                }
+        }
     }
 
     private fun ensureBlockedUpObserver() {
@@ -339,11 +350,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     //  防抖加载搜索建议
     private fun loadSuggestions(keyword: String) {
         suggestJob?.cancel()
+        val trimmed = keyword.trim()
+        if (trimmed.isEmpty()) {
+            _uiState.update { it.copy(suggestions = emptyList()) }
+            return
+        }
         suggestJob = viewModelScope.launch {
             delay(300) // 防抖 300ms
-            val result = SearchRepository.getSuggest(keyword)
+            val result = SearchRepository.getSuggest(trimmed)
             result.onSuccess { suggestions ->
-                if (keyword != _uiState.value.query) return@onSuccess
+                if (trimmed != _uiState.value.query.trim()) return@onSuccess
                 _uiState.update {
                     it.copy(
                         suggestions = suggestions
@@ -352,7 +368,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 }
             }.onFailure {
-                if (keyword != _uiState.value.query) return@onFailure
+                if (trimmed != _uiState.value.query.trim()) return@onFailure
                 _uiState.update { it.copy(suggestions = emptyList()) }
             }
         }
@@ -1239,7 +1255,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private suspend fun refreshDiscoverInternal() {
         val historyKeywords = _uiState.value.historyList.map { it.keyword }
         _uiState.update { it.copy(isRefreshingDiscoverList = true, discoverListError = null) }
-        val result = SearchRepository.getSearchRecommend(historyKeywords)
+        val result = SearchRepository.getSearchRecommend(
+            historyKeywords = historyKeywords,
+            enablePersonalizedRecommend = searchRecommendEnabled
+        )
 
         result.onSuccess { list ->
             _uiState.update {

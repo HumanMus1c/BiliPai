@@ -8,6 +8,18 @@ import kotlin.test.assertTrue
 class PersonalListSelectorStructureTest {
 
     @Test
+    fun favoriteFolderSelector_reusesPageBackdropForLiquidSurface() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
+        val selector = source.substringAfter("private fun FavoriteFolderSelector(")
+            .substringBefore("AppDropdownMenu(")
+        assertTrue(source.contains("backdrop = commonListChromeBackdrop,"))
+        assertTrue(selector.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(selector.contains("reuseEnabled = true"))
+        assertTrue(selector.contains("backdrop = backdrop"))
+        assertTrue(selector.contains("color = if (liquidChromeActive) Color.Transparent else"))
+    }
+
+    @Test
     fun favoritePrimarySelectors_areTapFirstAndAlwaysReachable() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",

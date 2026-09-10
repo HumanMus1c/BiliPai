@@ -50,6 +50,9 @@ import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun rememberContentSkeletonPulse(): Float {
+    if (com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()) {
+        return com.android.purebilibili.core.ui.skeleton.rememberGentleSkeletonPulse().value
+    }
     val transition = rememberInfiniteTransition(label = "contentSkeletonPulse")
     val pulse by transition.animateFloat(
         initialValue = 0f,

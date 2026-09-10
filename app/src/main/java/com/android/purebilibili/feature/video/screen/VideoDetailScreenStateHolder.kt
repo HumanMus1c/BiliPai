@@ -915,7 +915,7 @@ internal fun VideoDetailScreenStateHolder(
         isVisible,
         relatedParentWasCovered,
         relatedParentUiSnapshot,
-        videoCardDepthBackgroundState.phaseProvider(),
+        videoCardDepthBackgroundState,
         transitionEnterDurationMillis,
     ) {
         if (!hasCommittedRelatedVideoNavigation) return@LaunchedEffect
@@ -949,11 +949,13 @@ internal fun VideoDetailScreenStateHolder(
 
         // The parent can become the top key before Miuix has finished the return morph. Keep the
         // navigation-leave guards until the flying layer has completely parked.
-        if (videoCardDepthBackgroundState.phaseProvider() !=
-            VideoCardTransitionBackgroundPhase.IDLE
-        ) {
-            return@LaunchedEffect
-        }
+        snapshotFlow {
+            canReleaseRelatedVideoNavigation(
+                phase = videoCardDepthBackgroundState.phaseProvider(),
+                gestureInProgress = videoCardDepthBackgroundState.isReturnGestureInProgressProvider(),
+                gestureRestoreInProgress = videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
+            )
+        }.first { it }
 
         // Let the already-restored parent produce one live frame before reactivating its player.
         withFrameNanos { }
@@ -1087,6 +1089,7 @@ internal fun VideoDetailScreenStateHolder(
     //  监听评论状态
     val commentState by commentViewModel.commentState.collectAsStateWithLifecycle()
     val subReplyState by commentViewModel.subReplyState.collectAsStateWithLifecycle()
+    var subReplyCoveredBlurProgress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(
         openCommentRootRpidFromRoute,
@@ -4745,6 +4748,7 @@ internal fun VideoDetailScreenStateHolder(
                                         isPortraitFullscreen = isPortraitFullscreen,
                                         showCommentInput = showCommentInput,
                                         isCommentThreadVisible = subReplyState.visible,
+                                        commentThreadCoveredBlurProgress = if (subReplyState.visible) subReplyCoveredBlurProgress else 0f,
                                         showFavoriteFolderDialog = showFavoriteFolderDialog,
                                         downloadProgress = downloadProgress,
                                         danmakuEnabledForDetail = effectiveDanmakuEnabledForDetail,
@@ -5166,6 +5170,9 @@ internal fun VideoDetailScreenStateHolder(
             onBackToTop = {
                 // 评论区下滑缩小播放器后,一键回顶同时恢复播放器全尺寸。
                 commentBackToTopRestoreFlow.tryEmit(Unit)
+            },
+            onCoveredBlurProgressChange = { progress ->
+                subReplyCoveredBlurProgress = progress
             }
         )
 

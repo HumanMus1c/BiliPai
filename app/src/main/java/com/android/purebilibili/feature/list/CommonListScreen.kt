@@ -71,6 +71,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -1714,6 +1715,7 @@ fun CommonListScreen(
                         (foldersState.isNotEmpty() || subscribedFoldersState.isNotEmpty())
                     ) {
                         FavoriteFolderSelector(
+                            backdrop = commonListChromeBackdrop,
                             folders = foldersState,
                             selectedFolderIndex = selectedFolderIndex,
                             selectedFolderItems = selectedFolderUiState.items,
@@ -2186,6 +2188,8 @@ private fun FavoriteFolderSelector(
     layout: CommonListFavoriteHeaderLayout,
     onFolderSelected: (Int) -> Unit,
     onSubscribedSelected: () -> Unit,
+    modifier: Modifier = Modifier,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
     val selectedFolder = folders.getOrNull(selectedFolderIndex)
     if (selectedFolder == null && !subscribedSelected) return
@@ -2200,7 +2204,7 @@ private fun FavoriteFolderSelector(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(
                 start = layout.folderChipRowHorizontalPaddingDp.dp,
@@ -2208,45 +2212,54 @@ private fun FavoriteFolderSelector(
                 top = layout.folderChipRowTopPaddingDp.dp,
             ),
     ) {
-        AppSurface(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth(),
+        BottomBarMatchedReusableLiquidDock(
             shape = AppShapes.container(ContainerLevel.Pill),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
-                    .padding(horizontal = layout.folderChipHorizontalPaddingDp.dp),
-                horizontalArrangement = Arrangement.spacedBy(layout.folderChipSpacingDp.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            backdrop = backdrop,
+            reuseEnabled = true,
+            useNeutralLiquidContainer = true,
+        ) { liquidChromeActive ->
+            AppSurface(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = AppShapes.container(ContainerLevel.Pill),
+                color = if (liquidChromeActive) Color.Transparent else
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f),
             ) {
-                FavoriteFolderChipPreview(
-                    coverUrl = selectedPreviewCover,
-                    selected = true,
-                )
-                AppText(
-                    text = if (subscribedSelected) "追更（订阅）" else selectedFolder?.title.orEmpty(),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                AppText(
-                    text = if (subscribedSelected) "1/${folders.size + 1}" else
-                        "${selectedFolderIndex + 2}/${folders.size + 1}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                AppIcon(
-                    imageVector = rememberAppChevronDownIcon(),
-                    contentDescription = "切换收藏夹",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
+                        .padding(horizontal = layout.folderChipHorizontalPaddingDp.dp),
+                    horizontalArrangement = Arrangement.spacedBy(layout.folderChipSpacingDp.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FavoriteFolderChipPreview(
+                        coverUrl = selectedPreviewCover,
+                        selected = true,
+                    )
+                    AppText(
+                        text = if (subscribedSelected) "追更（订阅）" else selectedFolder?.title.orEmpty(),
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    AppText(
+                        text = if (subscribedSelected) "1/${folders.size + 1}" else
+                            "${selectedFolderIndex + 2}/${folders.size + 1}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AppIcon(
+                        imageVector = rememberAppChevronDownIcon(),
+                        contentDescription = "切换收藏夹",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
         AppDropdownMenu(
@@ -2446,7 +2459,7 @@ private fun CommonListContent(
         .fillMaxSize()
         .padding(top = fixedHeaderInset)
     if (isLoading && items.isEmpty()) {
-        val historySkeletonBlockColor = if (isHistoryPersonalList) {
+        val historySkeletonBlockColor = if (isPersonalList) {
             com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor(
                 com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse()
             )
@@ -2456,18 +2469,20 @@ private fun CommonListContent(
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             contentPadding = PaddingValues(
-                start = spacing,
-                end = spacing,
-                top = scrollableHeaderInset + spacing,
-                bottom = padding.calculateBottomPadding() + spacing
+                start = gridOuterPaddingDp.dp,
+                end = gridOuterPaddingDp.dp,
+                top = scrollableHeaderInset + gridOuterPaddingDp.dp,
+                bottom = padding.calculateBottomPadding() + gridOuterPaddingDp.dp
             ),
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
+            horizontalArrangement = Arrangement.spacedBy(gridItemSpacingDp.dp),
+            verticalArrangement = Arrangement.spacedBy(gridItemSpacingDp.dp),
             modifier = viewportModifier
         ) {
             items(columns * 4, key = { it }) {
                 if (isHistoryPersonalList) {
                     HistoryPersonalCardSkeleton(blockColor = historySkeletonBlockColor)
+                } else if (isFavoritePersonalList) {
+                    FavoritePersonalCardSkeleton(stacked = columns > 1, blockColor = requireNotNull(historySkeletonBlockColor))
                 } else {
                     VideoGridItemSkeleton(coverAspectRatio = skeletonCoverAspectRatio)
                 }

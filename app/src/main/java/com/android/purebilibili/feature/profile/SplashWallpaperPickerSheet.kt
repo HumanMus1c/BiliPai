@@ -96,7 +96,9 @@ fun SplashWallpaperPickerSheet(
             showSplashAdjustmentSheet = false
             importScope.launch {
                 try {
-                    val file = importWallpaperImage(
+                    val file = if (target == WallpaperPickerTarget.HOME) importWallpaperMedia(
+                        context, uri, File(context.cacheDir, "wallpaper_imports"),
+                    ) else importWallpaperImage(
                         context = context,
                         source = uri,
                         destinationDirectory = File(context.cacheDir, "wallpaper_imports"),
@@ -109,7 +111,7 @@ fun SplashWallpaperPickerSheet(
                     throw cancelled
                 } catch (error: Exception) {
                     Logger.w("SplashWallpaperPicker", "Unable to import selected wallpaper", error)
-                    Toast.makeText(context, "无法导入图片，请确认图片已下载到本机并重新选择", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "无法导入壁纸，请确认文件已下载到本机且格式受支持", Toast.LENGTH_LONG).show()
                 } finally {
                     isImportingWallpaper = false
                 }
@@ -119,7 +121,7 @@ fun SplashWallpaperPickerSheet(
     val openCustomWallpaperPicker = {
         if (!isImportingWallpaper) {
             customWallpaperPickerLauncher.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                PickVisualMediaRequest(if (target == WallpaperPickerTarget.HOME) ActivityResultContracts.PickVisualMedia.ImageAndVideo else ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         }
     }
@@ -300,6 +302,14 @@ fun SplashWallpaperPickerSheet(
                         }
                     }
                 }
+            }
+
+            if (target == WallpaperPickerTarget.HOME && isUserSelectedSplashWallpaperUri(selectedUrl)) {
+                com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
+                    uri = selectedUrl.orEmpty(),
+                    modifier = Modifier.fillMaxWidth().height(140.dp)
+                        .clip(AppShapes.container(ContainerLevel.Card)),
+                )
             }
 
             // 3. 底部操作栏

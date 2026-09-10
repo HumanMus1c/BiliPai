@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -33,6 +34,15 @@ import com.android.purebilibili.core.theme.LocalAppUiStyle
  * 骨架屏闪光特效 Modifier（深浅色主题自适应）。
  */
 fun Modifier.shimmerEffect(): Modifier = composed {
+    if (com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()) {
+        val pulse = com.android.purebilibili.core.ui.skeleton.rememberGentleSkeletonPulse()
+        val onSurface = MaterialTheme.colorScheme.onSurface
+        val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+        return@composed this.then(Modifier.drawBehind {
+            val alpha = if (dark) 0.10f + 0.08f * pulse.value else 0.08f + 0.06f * pulse.value
+            drawRect(onSurface.copy(alpha = alpha))
+        })
+    }
     var size by remember { mutableStateOf(IntSize.Zero) }
     val transition = rememberInfiniteTransition(label = "shimmer")
     val startOffsetX by transition.animateFloat(

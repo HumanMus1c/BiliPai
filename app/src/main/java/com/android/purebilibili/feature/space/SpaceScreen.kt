@@ -34,7 +34,10 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
@@ -90,6 +93,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -207,6 +211,7 @@ fun SpaceScreen(
     onLiveClick: (Long, String, String) -> Unit = { _, _, _ -> },
     onUserClick: (Long) -> Unit = {},
     onTopicClick: (Long) -> Unit = {},
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onPlayAllAudioClick: ((String, Long) -> Unit)? = null,
     onDynamicDetailClick: (String) -> Unit = {},
     onArticleClick: (Long, String) -> Unit = { _, _ -> },
@@ -265,7 +270,7 @@ fun SpaceScreen(
 
     val currentSuccessState = uiState as? SpaceUiState.Success
     var contributionVideoLayoutMode by rememberSaveable(mid) {
-        mutableStateOf(defaultSpaceContributionVideoLayoutMode())
+        mutableStateOf(SpaceContributionVideoLayoutMode.SINGLE_COLUMN)
     }
     val nextContributionVideoLayoutMode = toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
     val showContributionVideoMenuActions = currentSuccessState?.let { state ->
@@ -357,6 +362,7 @@ fun SpaceScreen(
                 modifier = Modifier.background(
                     if (spaceChromeBackdrop != null) Color.Transparent
                     else com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface)
+                        .copy(alpha = pinnedTopChromeScrim)
                 ),
             ) {
             Column(
@@ -369,13 +375,14 @@ fun SpaceScreen(
                             Modifier.unifiedBlur(
                                 hazeState = hazeState,
                                 surfaceType = BlurSurfaceType.HEADER,
-                                isScrolling = isSpaceScrolling
+                                isScrolling = isSpaceScrolling,
+                                enabled = pinnedTopChromeScrim > 0f
                             )
                         }
                     )
             ) {
                 AppTopBar(
-                    title = screenTitle,
+                    title = if (pinnedTopChromeScrim > 0.4f) screenTitle else "",
                     navigationIcon = {
                         AppIconButton(onClick = onBack) {
                             AppIcon(
@@ -604,6 +611,7 @@ fun SpaceScreen(
                             onLiveClick = onLiveClick,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onTopicKeywordClick = onTopicKeywordClick,
                             onPlayAllAudioClick = onPlayAllAudioClick,
                             onDynamicDetailClick = onDynamicDetailClick,
                             onArticleClick = onArticleClick,
@@ -611,6 +619,7 @@ fun SpaceScreen(
                             onMainTabSelected = viewModel::selectMainTab,
                             onContributionTabSelected = viewModel::selectContributionTab,
                             onCategorySelected = viewModel::selectCategory,
+                            onSelectSortOrder = viewModel::selectSortOrder,
                             contributionVideoLayoutMode = contributionVideoLayoutMode,
                             onLoadMoreVideos = viewModel::loadMoreVideos,
                             onLoadHome = viewModel::loadSpaceHome,
@@ -939,6 +948,7 @@ private fun SpaceContent(
     onLiveClick: (Long, String, String) -> Unit,
     onUserClick: (Long) -> Unit,
     onTopicClick: (Long) -> Unit,
+    onTopicKeywordClick: ((String) -> Unit)? = null,
     onPlayAllAudioClick: ((String, Long) -> Unit)?,
     onDynamicDetailClick: (String) -> Unit,
     onArticleClick: (Long, String) -> Unit,
@@ -946,6 +956,7 @@ private fun SpaceContent(
     onMainTabSelected: (SpaceMainTab) -> Unit,
     onContributionTabSelected: (String) -> Unit,
     onCategorySelected: (Int) -> Unit,
+    onSelectSortOrder: (VideoSortOrder) -> Unit = {},
     contributionVideoLayoutMode: SpaceContributionVideoLayoutMode,
     onLoadMoreVideos: () -> Unit,
     onLoadHome: () -> Unit,
@@ -1200,13 +1211,14 @@ private fun SpaceContent(
             widthSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current.widthSizeClass,
         )
         val spaceFeedCoverAspectRatio = spaceFeedCardLayout.coverAspectRatio
+        val outerPaddingDp = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridColumns),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
-                end = maxOf(16, spaceFeedCardLayout.outerPaddingDp).dp,
+                start = outerPaddingDp,
+                end = outerPaddingDp,
                 top = chromeTopInset,
                 bottom = bottomInset + 24.dp
             ),
@@ -1227,35 +1239,12 @@ private fun SpaceContent(
                     onAvatarClick = onAvatarClick,
                     onLiveClick = { roomId, title, uname -> onLiveClick(roomId, title, uname) },
                     sharedTransitionScope = lazyGridSharedTransitionScope,
-                    animatedVisibilityScope = lazyGridAnimatedVisibilityScope
+                    animatedVisibilityScope = lazyGridAnimatedVisibilityScope,
+                    chromeTopInset = chromeTopInset,
+                    outerPadding = outerPaddingDp
                 )
             }
 
-            val showSearch = selectedMainTab == SpaceMainTab.DYNAMIC ||
-                (selectedMainTab == SpaceMainTab.CONTRIBUTION &&
-                    selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO))
-            if (showSearch) {
-                item(key = "space_search", span = { GridItemSpan(maxLineSpan) }) {
-                    if (state.isSearchMode) {
-                        LaunchedEffect(state.isSearchMode, currentSearchScope) {
-                            searchFocusRequester.requestFocus()
-                        }
-                        AppLiquidAwareSearchField(
-                            query = state.searchQuery,
-                            onQueryChange = onSearchQueryChange,
-                            placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .focusRequester(searchFocusRequester),
-                        )
-                    } else if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) {
-                        SpaceSearchEntryChip(
-                            label = resolveSpaceSearchEntryLabel(currentSearchScope),
-                            onClick = onSearchEntryClick,
-                        )
-                    }
-                }
-            }
             item(key = "space_tabs", span = { GridItemSpan(maxLineSpan) }) {
                 SpaceContentTabs(
                     state = state,
@@ -1263,6 +1252,32 @@ private fun SpaceContent(
                     onContributionTabSelected = onContributionTabSelected,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            val showSearch = selectedMainTab == SpaceMainTab.DYNAMIC ||
+                (selectedMainTab == SpaceMainTab.CONTRIBUTION &&
+                    selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO))
+            if (showSearch && state.isSearchMode) {
+                item(key = "space_search", span = { GridItemSpan(maxLineSpan) }) {
+                    LaunchedEffect(state.isSearchMode, currentSearchScope) {
+                        searchFocusRequester.requestFocus()
+                    }
+                    AppLiquidAwareSearchField(
+                        query = state.searchQuery,
+                        onQueryChange = onSearchQueryChange,
+                        placeholder = resolveSpaceSearchPlaceholder(currentSearchScope),
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .focusRequester(searchFocusRequester),
+                    )
+                }
+            } else if (false && shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) {
+                item(key = "space_search_entry", span = { GridItemSpan(maxLineSpan) }) {
+                    SpaceSearchEntryChip(
+                        label = resolveSpaceSearchEntryLabel(currentSearchScope),
+                        onClick = onSearchEntryClick,
+                    )
+                }
             }
 
         when (selectedMainTab) {
@@ -1588,6 +1603,7 @@ private fun SpaceContent(
                             onBangumiClick = { seasonId, _ -> onBangumiClick(seasonId) },
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onTopicKeywordClick = onTopicKeywordClick,
                             onLiveClick = { roomId, title, uname ->
                                 onLiveClick(roomId, title, uname)
                             },
@@ -1602,6 +1618,7 @@ private fun SpaceContent(
                             onCourseClick = onWebClick,
                             onArticleClick = onArticleClick,
                             onDynamicDetailClick = onDynamicDetailClick,
+                            isDetail = true,
                             gifImageLoader = context.imageLoader,
                             onCommentClick = { onDynamicDetailClick(dynamic.id_str) },
                             onRepostClick = onSpaceDynamicRepostClick,
@@ -1636,6 +1653,86 @@ private fun SpaceContent(
             SpaceMainTab.CONTRIBUTION -> {
                 when (selectedContributionTab.subTab) {
                     SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO -> {
+                        if (state.videos.isNotEmpty() || state.totalVideos > 0) {
+                            item(key = "space_video_summary_bar", span = { GridItemSpan(maxLineSpan) }) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val totalCount = state.totalVideos.takeIf { it > 0 } ?: state.videos.size
+                                    AppText(
+                                        text = "共${totalCount}视频",
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                state.videos.firstOrNull()?.let { playVideoFromSpace(it.bvid) }
+                                            }
+                                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        AppIcon(
+                                            imageVector = Icons.Outlined.PlayCircleOutline,
+                                            contentDescription = "播放全部",
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        AppText(
+                                            text = "播放全部",
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.weight(1f))
+
+                                    var sortMenuExpanded by remember { mutableStateOf(false) }
+                                    Box {
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .clickable { sortMenuExpanded = true }
+                                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            AppIcon(
+                                                imageVector = Icons.AutoMirrored.Outlined.Sort,
+                                                contentDescription = "排序",
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            AppText(
+                                                text = resolveSpaceVideoSortCompactLabel(state.sortOrder) + "发布",
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = sortMenuExpanded,
+                                            onDismissRequest = { sortMenuExpanded = false }
+                                        ) {
+                                            VideoSortOrder.entries.forEach { order ->
+                                                DropdownMenuItem(
+                                                    text = { AppText(order.displayName) },
+                                                    onClick = {
+                                                        onSelectSortOrder(order)
+                                                        sortMenuExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (state.videos.isEmpty() && !state.isLoadingMore) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 SpaceSectionEmptyState(
@@ -2151,7 +2248,9 @@ private fun SpaceHeader(
     onAvatarClick: () -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
-    animatedVisibilityScope: AnimatedVisibilityScope?
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    chromeTopInset: Dp = 0.dp,
+    outerPadding: Dp = 16.dp
 ) {
     val context = LocalContext.current
     val topPhotoUrl = normalizeSpaceTopPhotoUrl(userInfo.topPhoto)
@@ -2178,19 +2277,18 @@ private fun SpaceHeader(
         colorScheme = colorScheme
     )
 
-    // BiliPai 式布局：
-    // - hero 背景 156dp
-    // - 头像 80dp 左下，底部 32dp 伸出背景；stats 独占头像右侧
-    // - 名字 + 等级 + 私信/关注同一行垂直居中对齐；名字可收缩，按钮固定在行尾
-    // - 徽标 / sign / UID 继续在信息区下方
-    // - 返回按钮和 UP 名由外层 AppTopBar 钉住，header 不再整块上移把名字带走
-    val heroHeight = 156.dp
+    // PiliPlus 风格头部结构：
+    // - hero 背景全宽沉浸延伸至状态栏，按标准 1125:396 (约 2.84:1) 比例完整展示，横向不裁切
+    // - 头像 80dp（顶部 24dp 压在背景图上，底部 56dp 伸出背景，带 2dp 边框与认证标）
+    // - 头像右侧独立区域：上层 3 项数据统计（粉丝/关注/获赞），下层私信与关注操作按钮
+    // - 名字 + 等级 + VIP 独占整行，位于头像与操作区下方
+    val configuration = LocalConfiguration.current
+    val bannerAspectRatio = 1125f / 396f
+    val bannerTotalHeightDp = configuration.screenWidthDp.dp / bannerAspectRatio
+    val heroHeight = (bannerTotalHeightDp - chromeTopInset).coerceAtLeast(0.dp)
     val avatarSize = 80.dp
-    val avatarOverlap = 32.dp
-    val density = LocalDensity.current
-    val bannerParallaxPx = with(density) {
-        (heroHeight.value * collapseFraction * 0.35f).dp.roundToPx()
-    }
+    val avatarBannerOverlap = 24.dp
+    val actionsTopMargin = 8.dp
 
     Column(
         modifier = Modifier
@@ -2198,15 +2296,30 @@ private fun SpaceHeader(
             .background(MaterialTheme.colorScheme.surface)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(heroHeight + avatarOverlap)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // 背景 hero（头像伸出部分下方为 surface 色）
+            // 背景 hero（突破内边距全宽延伸至屏幕顶端，按标准比例完整呈现）
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(heroHeight)
+                    .layout { measurable, constraints ->
+                        val horizontalInsetPx = outerPadding.roundToPx()
+                        val topInsetPx = chromeTopInset.roundToPx()
+                        val targetWidth = constraints.maxWidth + horizontalInsetPx * 2
+                        val bannerTotalHeightPx = (targetWidth / bannerAspectRatio).roundToInt()
+                        val visibleHeightPx = (bannerTotalHeightPx - topInsetPx).coerceAtLeast(0)
+                        val placeable = measurable.measure(
+                            constraints.copy(
+                                minWidth = targetWidth,
+                                maxWidth = targetWidth,
+                                minHeight = bannerTotalHeightPx,
+                                maxHeight = bannerTotalHeightPx
+                            )
+                        )
+                        layout(constraints.maxWidth, visibleHeightPx) {
+                            placeable.placeRelative(-horizontalInsetPx, -topInsetPx)
+                        }
+                    }
                     .align(Alignment.TopCenter)
                     .clickable(
                         enabled = shouldEnableSpaceTopPhotoPreview(topPhotoUrl),
@@ -2217,15 +2330,12 @@ private fun SpaceHeader(
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(topPhotoUrl)
-                            .size(1440, 900)
-                            .scale(Scale.FILL)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .offset { IntOffset(0, bannerParallaxPx) }
+                        contentScale = ContentScale.FillWidth,
+                        alignment = Alignment.TopCenter,
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Box(
@@ -2245,27 +2355,24 @@ private fun SpaceHeader(
 
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .height(chromeTopInset.coerceAtLeast(48.dp))
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(
-                                    colorScheme.surface.copy(alpha = 0.04f),
-                                    Color.Transparent,
-                                    colorScheme.surface.copy(alpha = 0.55f),
-                                    colorScheme.surface.copy(alpha = 0.92f)
-                                )
+                                0.0f to Color.Black.copy(alpha = 0.18f),
+                                1.0f to Color.Transparent
                             )
                         )
                 )
             }
 
-            // 头像（左下）+ stats（右侧均分，不再和操作按钮抢宽度）
+            // PiliPlus 风格头部结构：
+            // 头像靠左（80dp，顶部 24dp 压在背景图上），右侧为两行区域（上行 3 项数据，下行私信+关注操作按钮）
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.Bottom
+                    .padding(top = heroHeight - avatarBannerOverlap, start = 4.dp, end = 0.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                     with(sharedTransitionScope) {
@@ -2295,6 +2402,7 @@ private fun SpaceHeader(
                             .fillMaxSize()
                             .then(avatarModifier)
                             .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     )
 
@@ -2311,91 +2419,111 @@ private fun SpaceHeader(
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier
-                                    .padding(6.dp)
-                                    .size(16.dp)
+                                    .padding(4.dp)
+                                    .size(14.dp)
+                            )
+                        }
+                    } else if (userInfo.official.type >= 0) {
+                        AppSurface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 2.dp),
+                            shape = CircleShape,
+                            color = if (userInfo.official.type == 0) Color(0xFFFFCC00) else Color(0xFF23ADE5)
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Bolt,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .padding(3.dp)
+                                    .size(14.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Row(
+                // 右侧操作区：上层数据统计，下层关注/私信按钮
+                Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(top = avatarBannerOverlap + actionsTopMargin),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    metrics.forEachIndexed { index, metric ->
-                        SpaceHeaderStat(
-                            label = metric.label,
-                            value = metric.value,
-                            modifier = Modifier.weight(1f),
-                            onClick = when (metric.label) {
-                                "粉丝" -> onFansClick
-                                "关注" -> onFollowingClick
-                                else -> null
-                            },
-                        )
-                        if (index < metrics.lastIndex) {
-                            SpaceHeaderMetricDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        metrics.forEachIndexed { index, metric ->
+                            SpaceHeaderStat(
+                                label = metric.label,
+                                value = metric.value,
+                                modifier = Modifier.weight(1f),
+                                onClick = when (metric.label) {
+                                    "粉丝" -> onFansClick
+                                    "关注" -> onFollowingClick
+                                    else -> null
+                                },
+                            )
+                            if (index < metrics.lastIndex) {
+                                SpaceHeaderMetricDivider()
+                            }
                         }
+                    }
+
+                    if (!isOwner) {
+                        SpaceHeaderRelationActions(
+                            followLabel = followLabel,
+                            isFollowed = userInfo.isFollowed,
+                            followButtonColors = followButtonColors,
+                            onMessageClick = onMessageClick,
+                            onFollowClick = onFollowClick,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
         }
 
-        // 信息区：名字 + 等级 + 私信/关注同一行垂直居中对齐
+        // 信息区：名字 + 等级 + VIP 标识（独占整行）
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(start = 4.dp, end = 0.dp, top = 10.dp, bottom = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    AppText(
-                        text = userInfo.name,
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .copyOnLongPress(userInfo.name, "UP主名称"),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        // VIP name tint uses theme secondary (readable on light/dark).
-                        color = if (userInfo.vip.status == 1) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    UserLevelBadge(level = userInfo.level)
-                    if (userInfo.vip.status == 1) {
-                        com.android.purebilibili.core.ui.components.UserVipBadge(
-                            label = com.android.purebilibili.core.ui.components
-                                .resolveUserVipBadgeLabel(
-                                    label = userInfo.vip.label.text,
-                                    vipType = userInfo.vip.type,
-                                ),
-                            compact = true,
-                        )
-                    }
-                }
-                if (!isOwner) {
-                    SpaceHeaderRelationActions(
-                        followLabel = followLabel,
-                        isFollowed = userInfo.isFollowed,
-                        followButtonColors = followButtonColors,
-                        onMessageClick = onMessageClick,
-                        onFollowClick = onFollowClick
+                AppText(
+                    text = userInfo.name,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .copyOnLongPress(userInfo.name, "UP主名称"),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (userInfo.vip.status == 1 && userInfo.vip.type == 2) {
+                        Color(0xFFFB7299)
+                    } else if (userInfo.vip.status == 1) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                UserLevelBadge(level = userInfo.level)
+                if (userInfo.vip.status == 1) {
+                    com.android.purebilibili.core.ui.components.UserVipBadge(
+                        label = com.android.purebilibili.core.ui.components
+                            .resolveUserVipBadgeLabel(
+                                label = userInfo.vip.label.text,
+                                vipType = userInfo.vip.type,
+                            ),
+                        compact = true,
                     )
                 }
             }
@@ -3493,8 +3621,9 @@ private fun SpaceArchiveListItemRow(
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
+    val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
     val coverShape = AppShapes.mediaCover()
-    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
+    val cardCornerRadiusDp = cardCornerDp.value.roundToInt()
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
@@ -3561,16 +3690,17 @@ private fun SpaceArchiveListItemRow(
                 }
                 onClick()
             }
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .heightIn(min = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Box(
             modifier = Modifier
+                .width(coverWidth)
+                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
                 .onGloballyPositioned { coordinates ->
                     coverBounds = coordinates.boundsInRoot()
                 }
-                .width(coverWidth)
-                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
                 .clip(coverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
@@ -3622,6 +3752,11 @@ private fun SpaceArchiveListItemRow(
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
+                .padding(
+                    top = AppSpacingTokens.Small,
+                    bottom = AppSpacingTokens.Small,
+                    end = AppSpacingTokens.Small,
+                )
                 .videoCardShellReturnChromeAlpha(
                     enabled = useCardShellSharedBounds,
                     bvid = sharedTransitionKey.orEmpty(),
@@ -4137,63 +4272,60 @@ private fun SpaceHeaderRelationActions(
     onFollowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val actionBorderShape = AppShapes.borderedContainer(ContainerLevel.Card)
-    val actionShape = AppShapes.container(ContainerLevel.Card)
-
-    // Same-row chips with the name/level line; fixed height for vertical center alignment.
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         AppSurface(
-            shape = actionBorderShape,
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+            onClick = onMessageClick,
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             border = BorderStroke(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            ),
+            modifier = Modifier
+                .height(36.dp)
+                .width(46.dp)
         ) {
-            AppIconButton(
-                modifier = Modifier.size(32.dp),
-                onClick = onMessageClick
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
                 AppIcon(
                     imageVector = Icons.Outlined.Email,
                     contentDescription = "私信",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
         AppSurface(
             onClick = onFollowClick,
-            shape = actionShape,
+            shape = RoundedCornerShape(18.dp),
             color = followButtonColors.backgroundColor,
+            border = if (isFollowed) {
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
+            } else null,
             modifier = Modifier
-                .widthIn(min = 80.dp, max = 100.dp)
-                .height(32.dp)
+                .weight(1f)
+                .height(36.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                if (isFollowed) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.Menu,
-                        contentDescription = null,
-                        tint = followButtonColors.textColor,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
                 AppText(
                     text = followLabel,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = followButtonColors.textColor,
                     maxLines = 1,
@@ -4213,22 +4345,21 @@ private fun SpaceHeaderStat(
 ) {
     Column(
         modifier = modifier
-            .heightIn(min = 48.dp)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppText(
             text = FormatUtils.formatStat(value),
-            fontSize = 17.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = label,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -4241,8 +4372,8 @@ private fun SpaceHeaderMetricDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(30.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
+            .height(16.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     )
 }
 
