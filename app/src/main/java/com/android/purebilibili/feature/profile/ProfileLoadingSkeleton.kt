@@ -125,9 +125,7 @@ private fun ProfilePhoneLoadingSkeleton(blockColor: Color) {
         item {
             Column(
                 modifier = Modifier
-                    .offset(y = (-layoutTokens.contentSheetTopOverlapDp).dp)
                     .fillMaxWidth()
-                    .clip(AppShapes.container(ContainerLevel.Sheet))
                     .background(AppSurfaceTokens.surface())
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),

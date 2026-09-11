@@ -136,6 +136,20 @@ class RelatedVideoItemPolicyTest {
     }
 
     @Test
+    fun `related video return media keeps the rounded cover clip through handoff`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
+        ).readText()
+
+        assertTrue(source.contains("val returnMediaClipShape = AppShapes.mediaCover()"))
+        assertTrue(
+            Regex("videoDetailReturnMediaLayout\\([\\s\\S]*?clipShape = returnMediaClipShape")
+                .findAll(source)
+                .count() >= 2
+        )
+    }
+
+    @Test
     fun `press haptic is disabled for related cards`() {
         assertFalse(
             shouldTriggerRelatedVideoPressHaptic(

@@ -6,14 +6,13 @@ import kotlin.math.roundToInt
 const val BottomBarReferenceShellHeightDp = 64f
 
 /** Home floating bottom-bar rest indicator height. */
-const val BottomBarReferenceIndicatorHeightDp = 48f
+const val BottomBarReferenceIndicatorHeightDp = 56f
 
 /** Home floating bottom-bar pressed / drag height. */
 const val BottomBarReferencePressedHeightDp = 78f
 
-/** Shared compact bloom used by the home floating bottom bar itself. */
-const val BottomBarReferencePressedScale = BottomBarReferencePressedHeightDp /
-    BottomBarReferenceIndicatorHeightDp
+/** HyperIsland liquid indicator press bloom: 56dp -> 78dp. */
+const val BottomBarReferencePressedScale = BottomBarReferencePressedHeightDp / 56f
 
 data class MatchedLiquidIndicatorGeometry(
     val dockHeightDp: Float,
@@ -40,8 +39,12 @@ fun resolveMatchedLiquidIndicatorPressedScale(
     indicatorHeightDp: Float,
 ): Float {
     if (dockHeightDp <= 0f || indicatorHeightDp <= 0f) return 1f
-    val pressedHeight = dockHeightDp *
-        (BottomBarReferencePressedHeightDp / BottomBarReferenceShellHeightDp)
+    // Preserve HyperIsland's 56 -> 78 bloom proportion on compact chrome, while capping the
+    // physical glass body at 78dp so short global controls do not turn into oversized bubbles.
+    val pressedHeight = minOf(
+        BottomBarReferencePressedHeightDp,
+        dockHeightDp * BottomBarReferencePressedScale,
+    )
     return (pressedHeight / indicatorHeightDp).coerceAtLeast(1f)
 }
 

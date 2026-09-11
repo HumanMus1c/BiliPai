@@ -756,10 +756,10 @@ fun DynamicCardV2(
                 topicName = topic.name,
                 onClick = {
                     val kw = topic.name.trim().removePrefix("#").removeSuffix("#").trim()
-                    if (onTopicKeywordClick != null && kw.isNotEmpty()) {
-                        onTopicKeywordClick(kw)
-                    } else if (topic.id > 0L) {
+                    if (topic.id > 0L) {
                         onTopicClick(topic.id)
+                    } else if (onTopicKeywordClick != null && kw.isNotEmpty()) {
+                        onTopicKeywordClick(kw)
                     } else if (kw.isNotEmpty()) {
                         val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8.name())
                         val inAppIntent = android.content.Intent(
@@ -1971,6 +1971,20 @@ fun RichTextContent(
                             return@detectTapGestures
                         }
 
+                    // 带 topicId 的话题标签优先跳转话题详情页，而不是关键词搜索。
+                    annotatedText.getStringAnnotations(
+                        tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
+                        start = searchStart,
+                        end = searchEnd
+                    ).firstOrNull()?.item
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0L }
+                        ?.let { topicId ->
+                            onTopicClick(topicId)
+                            return@detectTapGestures
+                        }
+
+                    // 无 topicId 的话题（纯 #关键词# 或链接搜索）才回落到关键词搜索。
                     annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG,
                         start = searchStart,
@@ -1996,18 +2010,6 @@ fun RichTextContent(
                         }
                         return@detectTapGestures
                     }
-
-                    annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()?.item
-                        ?.toLongOrNull()
-                        ?.takeIf { it > 0L }
-                        ?.let { topicId ->
-                            onTopicClick(topicId)
-                            return@detectTapGestures
-                        }
 
                     val urlAnnotation = annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_URL_TAG,

@@ -1428,11 +1428,13 @@ private fun LightweightHomeTopTabs(
         val topTabMotionVelocityPxPerSecond = with(density) {
             topTabMotionVelocityItemsPerSecond * itemWidth.toPx()
         }
-        val topTabIndicatorScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
-            isDragging = topTabShouldStretchIndicator
-        )
         val topTabIndicatorInteractionSource = remember { MutableInteractionSource() }
         val topTabIndicatorPressed by topTabIndicatorInteractionSource.collectIsPressedAsState()
+        // 照搬 HyperIsland LiquidGlassNavigationBar：指示器放大只由这一条 scale 弹簧驱动
+        // （spring(0.6f, 250f, 0.001f)），拖拽、翻页与按下都会启动它。
+        val topTabIndicatorScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
+            isDragging = topTabShouldStretchIndicator || topTabIndicatorPressed
+        )
         val topTabPressProgress = rememberBottomBarIndicatorDragScaleProgress(
             isDragging = topTabIndicatorPressed
         )
@@ -1481,9 +1483,13 @@ private fun LightweightHomeTopTabs(
             )
         }
         val topTabIndicatorLayerTransform = resolveTopTabIndicatorLayerTransform(
-            motionProgress = topTabIndicatorLayerScaleProgress,
+            motionProgress = topTabIndicatorScaleProgress,
             velocityItemsPerSecond = topTabMotionVelocityItemsPerSecond,
             dragScaleTarget = topTabIndicatorGeometry.pressedScale,
+            dragScaleTransform = rememberBottomBarIndicatorLayerScaleTransform(
+                active = topTabShouldStretchIndicator || topTabIndicatorPressed,
+                target = topTabIndicatorGeometry.pressedScale
+            ),
             motionSpec = topTabMotionSpec
         )
         // Selected-tab pill position: item slot center minus half the pill width, so the
@@ -2615,6 +2621,7 @@ internal fun resolveTopTabIndicatorLayerTransform(
     motionProgress: Float,
     velocityItemsPerSecond: Float,
     dragScaleTarget: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET,
+    dragScaleTransform: BottomBarIndicatorLayerTransform? = null,
     motionSpec: com.android.purebilibili.core.ui.motion.BottomBarMotionSpec =
         resolveSegmentedControlMotionSpec()
 ): BottomBarIndicatorLayerTransform {
@@ -2623,6 +2630,7 @@ internal fun resolveTopTabIndicatorLayerTransform(
         velocityItemsPerSecond = velocityItemsPerSecond,
         isDragging = true,
         dragScaleProgress = motionProgress,
+        dragScaleTransform = dragScaleTransform,
         dragScaleTarget = dragScaleTarget,
         motionSpec = motionSpec
     )

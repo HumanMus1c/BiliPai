@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
@@ -22,6 +23,8 @@ fun AppBackToTopButton(
     visible: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    buttonModifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
     contentDescription: String = "回到顶部",
 ) {
     AnimatedVisibility(
@@ -34,7 +37,8 @@ fun AppBackToTopButton(
     ) {
         AppSmallFloatingActionButton(
             onClick = onClick,
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+            modifier = buttonModifier,
+            containerColor = containerColor,
             contentColor = MaterialTheme.colorScheme.primary,
         ) {
             AppIcon(

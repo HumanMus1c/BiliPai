@@ -22,7 +22,7 @@ import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.components.AppIconButton
-import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppTextField
@@ -88,7 +88,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -125,7 +124,6 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
-import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperChromeColor
@@ -1853,31 +1851,18 @@ fun CommonListScreen(
                 }
             }
 
-            AnimatedVisibility(
+            AppLiquidGlassBackToTopButton(
                 visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
+                onClick = {
+                    coroutineScope.launch {
+                        scrollCommonListToTop()
+                    }
+                },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, bottom = commonListBottomPadding + AppSpacingTokens.Medium),
-                enter = androidx.compose.animation.fadeIn(animationSpec = AppMotionTokens.standardSpec()) +
-                    androidx.compose.animation.scaleIn(initialScale = 0.92f),
-                exit = androidx.compose.animation.fadeOut(animationSpec = AppMotionTokens.standardSpec()) +
-                    androidx.compose.animation.scaleOut(targetScale = 0.92f)
-            ) {
-                AppSmallFloatingActionButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            scrollCommonListToTop()
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2),
-                    contentColor = MaterialTheme.colorScheme.primary
-                ) {
-                    AppIcon(
-                        imageVector = rememberAppChevronUpIcon(),
-                        contentDescription = "回到顶部"
-                    )
-                }
-            }
+                backdrop = commonListChromeBackdrop,
+            )
         }
     }
 

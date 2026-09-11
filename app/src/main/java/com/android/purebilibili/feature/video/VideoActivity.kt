@@ -135,11 +135,17 @@ class VideoActivity : ComponentActivity() {
                 WindowMetricsCalculator.getOrCreate()
                     .computeMaximumWindowMetrics(this@VideoActivity)
             }
+            val materialWindowAdaptiveInfo =
+                androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2()
             val windowSizeClass = calculateWindowSizeClass(
                 metrics = maximumWindowMetrics,
+                adaptiveWindowSizeClass = materialWindowAdaptiveInfo.windowSizeClass,
             )
             val windowWidthSizeClass = windowSizeClass.widthSizeClass
-            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(windowSizeClass)
+            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(
+                windowSizeClass = windowSizeClass,
+                windowPosture = materialWindowAdaptiveInfo.windowPosture,
+            )
             val videoTransitionAdaptiveInfo = remember(
                 windowWidthSizeClass,
                 appWindowAdaptiveInfo.posture,

@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,9 +20,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -70,6 +76,15 @@ fun BangumiScreen(
     var searchQuery by remember { mutableStateOf("") }
     val selectionActive = state.page == BangumiHubPage.FOLLOW &&
         state.followStates[state.channel to state.followStatus]?.selectedIds?.isNotEmpty() == true
+    var scrollToTopRequestId by remember { mutableIntStateOf(0) }
+    var homeScrollIndex by remember { mutableIntStateOf(0) }
+    var homeScrollOffset by remember { mutableIntStateOf(0) }
+    val shouldShowBackToTop by remember {
+        derivedStateOf<Boolean> {
+            state.page == BangumiHubPage.HOME &&
+                (homeScrollIndex > 2 || (homeScrollIndex > 0 && homeScrollOffset > 300))
+        }
+    }
 
     val showPgcTimeline by SettingsManager.getShowPgcTimeline(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -190,52 +205,77 @@ fun BangumiScreen(
         },
     ) { contentPadding ->
         val listTopPadding = contentPadding.calculateTopPadding()
-        // Every consumer is in topBar; nested in-list controls keep their local backdrops.
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(chromeSource?.modifier ?: Modifier)
-                .globalWallpaperAwareBackground(MaterialTheme.colorScheme.background),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            Box(modifier = Modifier.fillMaxSize().responsiveContentWidth()) {
-                BangumiHubContent(
-                    state = state,
-                    onBangumiClick = onBangumiClick,
-                    onEpisodeClick = onBangumiEpisodeClick,
-                    onRefreshHome = { viewModel.refreshHome() },
-                    onLoadMoreHomeRecommendations = viewModel::loadMoreHomeRecommendations,
-                    onLoadMoreHomeFollows = viewModel::loadMoreHomeFollows,
-                    onRetryTimeline = viewModel::retryTimeline,
-                    onTimelineRangeSelected = viewModel::selectTimelineRange,
-                    onOpenIndex = viewModel::openIndex,
-                    onOpenFollow = viewModel::openFollowManager,
-                    onIndexCategorySelected = viewModel::selectIndexCategory,
-                    onIndexFilterSelected = viewModel::selectIndexFilter,
-                    onToggleFiltersExpanded = viewModel::toggleIndexFiltersExpanded,
-                    onRetryIndexConditions = viewModel::retryIndexConditions,
-                    onRetryIndexResults = viewModel::retryIndexResults,
-                    onLoadMoreIndexResults = viewModel::loadMoreIndexResults,
-                    onFollowStatusSelected = viewModel::selectFollowStatus,
-                    onRefreshFollow = viewModel::refreshFollowManager,
-                    onLoadMoreFollow = viewModel::loadMoreFollowManager,
-                    onToggleFollowSelection = viewModel::toggleFollowSelection,
-                    onSelectAllFollow = viewModel::selectAllFollowItems,
-                    onClearFollowSelection = viewModel::clearFollowSelection,
-                    onMoveSelectedFollow = viewModel::moveSelectedFollowItems,
-                    onMoveSingleFollow = viewModel::updateSingleFollowItem,
-                    onUnfollowSingle = viewModel::unfollowSingleItem,
-                    onSearchCategorySelected = viewModel::selectSearchCategory,
-                    onLoadMoreSearch = viewModel::loadMoreSearch,
-                    onSaveCover = { url, title ->
-                        scope.launch {
-                            val saved = DownloadManager.saveImageToGallery(context, url, title)
-                            snackbarHostState.showSnackbar(if (saved) "封面已保存" else "保存封面失败")
-                        }
-                    },
-                    listTopPadding = listTopPadding,
-                    showFollowStatusTabs = false,
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(chromeSource?.modifier ?: Modifier)
+                    .globalWallpaperAwareBackground(MaterialTheme.colorScheme.background),
+            ) {
+                Box(modifier = Modifier.fillMaxSize().responsiveContentWidth()) {
+                    BangumiHubContent(
+                        state = state,
+                        onBangumiClick = onBangumiClick,
+                        onEpisodeClick = onBangumiEpisodeClick,
+                        onRefreshHome = { viewModel.refreshHome() },
+                        onLoadMoreHomeRecommendations = viewModel::loadMoreHomeRecommendations,
+                        onLoadMoreHomeFollows = viewModel::loadMoreHomeFollows,
+                        onRetryTimeline = viewModel::retryTimeline,
+                        onTimelineRangeSelected = viewModel::selectTimelineRange,
+                        onOpenIndex = viewModel::openIndex,
+                        onOpenFollow = viewModel::openFollowManager,
+                        onIndexCategorySelected = viewModel::selectIndexCategory,
+                        onIndexFilterSelected = viewModel::selectIndexFilter,
+                        onToggleFiltersExpanded = viewModel::toggleIndexFiltersExpanded,
+                        onRetryIndexConditions = viewModel::retryIndexConditions,
+                        onRetryIndexResults = viewModel::retryIndexResults,
+                        onLoadMoreIndexResults = viewModel::loadMoreIndexResults,
+                        onFollowStatusSelected = viewModel::selectFollowStatus,
+                        onRefreshFollow = viewModel::refreshFollowManager,
+                        onLoadMoreFollow = viewModel::loadMoreFollowManager,
+                        onToggleFollowSelection = viewModel::toggleFollowSelection,
+                        onSelectAllFollow = viewModel::selectAllFollowItems,
+                        onClearFollowSelection = viewModel::clearFollowSelection,
+                        onMoveSelectedFollow = viewModel::moveSelectedFollowItems,
+                        onMoveSingleFollow = viewModel::updateSingleFollowItem,
+                        onUnfollowSingle = viewModel::unfollowSingleItem,
+                        onSearchCategorySelected = viewModel::selectSearchCategory,
+                        onLoadMoreSearch = viewModel::loadMoreSearch,
+                        onSaveCover = { url, title ->
+                            scope.launch {
+                                val saved = DownloadManager.saveImageToGallery(context, url, title)
+                                snackbarHostState.showSnackbar(if (saved) "封面已保存" else "保存封面失败")
+                            }
+                        },
+                        onHomeScrollChanged = { index, offset ->
+                            homeScrollIndex = index
+                            homeScrollOffset = offset
+                        },
+                        scrollToTopRequestId = scrollToTopRequestId,
+                        listBottomPadding = maxOf(navBarBottom, 16.dp) + 80.dp,
+                        listTopPadding = listTopPadding,
+                        tabBackdrop = null,
+                        showFollowStatusTabs = false,
+                    )
+                }
             }
+
+            AppLiquidGlassBackToTopButton(
+                visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
+                onClick = {
+                    scrollToTopRequestId++
+                },
+                backdrop = chromeBackdrop,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 20.dp,
+                        bottom = maxOf(navBarBottom, 16.dp) + 20.dp,
+                    ),
+            )
         }
     }
 }

@@ -122,7 +122,6 @@ import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.components.BottomBarIndicatorLayerTransform
 import com.android.purebilibili.feature.home.components.BottomBarLiquidOrientation
 import com.android.purebilibili.feature.home.components.BottomBarMatchedLiquidIndicator
-import com.android.purebilibili.feature.home.components.FloatingBottomBarPressedScale
 import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.bottomBarMatchedCaptureOverflow
 import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation
@@ -138,7 +137,7 @@ import com.android.purebilibili.feature.home.components.resolveBottomBarIndicato
 import com.android.purebilibili.feature.home.components.resolveBottomBarLiquidGlassHighlightAlpha
 import com.android.purebilibili.feature.home.components.resolveBottomBarRefractionMotionProfile
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
-import com.android.purebilibili.feature.home.components.rememberBottomBarIndicatorDragScaleProgress
+import com.android.purebilibili.feature.home.components.rememberBottomBarIndicatorLayerScaleTransform
 import com.android.purebilibili.feature.home.components.normalizeTopTabLabelMode
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionProgress
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionSpec
@@ -652,14 +651,14 @@ private fun PartitionSideRail(
             valueRange = 0f..maxTabIndex.toFloat(),
             visibilityThreshold = 0.001f,
             initialScale = 1f,
-            pressedScale = FloatingBottomBarPressedScale,
+            pressedScale = indicatorGeometry.pressedScale,
             canDrag = { offset ->
                 val animation = holder.instance ?: return@DampedDragAnimation true
                 if (holder.itemSlotHeightPx <= 0f) return@DampedDragAnimation false
                 val indicatorY = resolvePartitionSideRailIndicatorOffsetPx(
                     indicatorPosition = animation.value,
-                    firstVisibleItemIndex = holder.firstVisibleItemIndex,
-                    firstVisibleItemScrollOffsetPx = holder.firstVisibleItemScrollOffsetPx,
+                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffsetPx = listState.firstVisibleItemScrollOffset,
                     contentTopPaddingPx = holder.contentTopPaddingPx,
                     itemSlotHeightPx = holder.itemSlotHeightPx,
                 )
@@ -673,7 +672,7 @@ private fun PartitionSideRail(
                 currentIndex = targetIndex
                 animateToValue(targetIndex.toFloat(), animatePress = false)
                 animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                    offsetAnimation.snapTo(0f)
+                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
             },
             onDrag = { _, dragAmount ->
@@ -722,8 +721,8 @@ private fun PartitionSideRail(
                                 railWidthPx = size.width,
                                 indicatorOffsetPx = resolvePartitionSideRailIndicatorOffsetPx(
                                     indicatorPosition = animation.value,
-                                    firstVisibleItemIndex = holder.firstVisibleItemIndex,
-                                    firstVisibleItemScrollOffsetPx = holder.firstVisibleItemScrollOffsetPx,
+                                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                                    firstVisibleItemScrollOffsetPx = listState.firstVisibleItemScrollOffset,
                                     contentTopPaddingPx = holder.contentTopPaddingPx,
                                     itemSlotHeightPx = itemSlotHeightPx,
                                 ),
@@ -809,7 +808,6 @@ private fun PartitionSideRail(
                     showIcon = showIcon,
                     showText = showText,
                     iconFamily = iconFamily,
-                    forceUnselectedColor = liquidGlassIndicatorEnabled,
                     onClick = { onPartitionSelected(partition) }
                 )
             }
@@ -821,7 +819,7 @@ private fun PartitionSideRail(
             itemSlotHeightPx = itemSlotHeightPx,
             itemHeightPx = itemHeightPx,
             indicatorHeight = PartitionSideRailIndicatorHeight,
-            dragScaleTarget = FloatingBottomBarPressedScale,
+            dragScaleTarget = indicatorGeometry.pressedScale,
             indicatorOffsetPxProvider = currentIndicatorOffsetPxProvider,
             indicatorWidth = indicatorWidth,
             liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
@@ -887,7 +885,7 @@ private fun PartitionSideRailMovingIndicator(
                 modifier = Modifier
                     .graphicsLayer {
                         translationX = with(density) { horizontalPadding.start.toPx() }
-                        translationY = indicatorTopPx
+                        translationY = indicatorOffsetPxProvider()
                     }
                     .width(indicatorWidth)
                     .height(with(density) { itemHeightPx.toDp() })
@@ -931,46 +929,58 @@ private fun PartitionSideRailMovingIndicator(
     SideEffect {
         onVideoListPushChanged(videoListPushPx)
     }
-    val indicatorDragScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
-        isDragging = dragAnimation.isDragging
+    // 照搬 HyperIsland LiquidGlassNavigationBar：scaleX 与 scaleY 是两条独立 Animatable
+    // （spring(0.6f, 250f, 0.001f) / spring(0.7f, 250f, 0.001f)）；pressProgress
+    // （spring(1f, 1000f)）只负责高光与 lens，不再用 maxOf 把两种弹簧混进缩放曲线。
+    val indicatorLayerScaleTransform = rememberBottomBarIndicatorLayerScaleTransform(
+        active = dragAnimation.isDragging || pressProgress > 0f,
+        target = dragScaleTarget
     )
-    val indicatorLayerScaleProgress = maxOf(indicatorDragScaleProgress, pressProgress)
     val indicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(
         progress = pressProgress
     )
 
     Box(modifier = modifier.then(highlightModifier)) {
         val indicatorHeightPx = with(density) { indicatorHeight.toPx() }
-        val centeredIndicatorOffsetPx = indicatorOffsetPxProvider() +
-            ((itemHeightPx - indicatorHeightPx) / 2f).coerceAtLeast(0f)
-        BottomBarMatchedLiquidIndicator(
-            visible = true,
-            dockContentAlpha = 1f,
-            indicatorTranslationXPx = with(density) { horizontalPadding.start.toPx() },
-            indicatorTranslationYPx = centeredIndicatorOffsetPx,
-            indicatorPanelOffsetPx = 0f,
-            indicatorWidth = indicatorWidth,
-            indicatorHeight = indicatorHeight,
-            shellShape = shape,
-            liquidGlassPreset = liquidGlassPreset,
-            contentBackdrop = contentBackdrop,
-            backdrop = backdrop,
-            indicatorLensSpec = indicatorLensSpec,
-            liquidGlassTuning = liquidGlassTuning,
-            effectivePressProgress = pressProgress,
-            indicatorIdleSurfaceColor = resolveAndroidNativeIdleIndicatorSurfaceColor(darkTheme = isDarkTheme),
-            glassEnabled = liquidGlassIndicatorEnabled,
-            motionProgress = motionProgress,
-            velocityItemsPerSecond = dragAnimation.velocity,
-            isDragging = dragAnimation.isDragging,
-            indicatorLayerScaleProgress = indicatorLayerScaleProgress,
-            dragScaleTarget = dragScaleTarget,
-            bottomBarMotionSpec = motionSpec,
-            isDarkTheme = isDarkTheme,
-            orientation = BottomBarLiquidOrientation.VERTICAL,
-            indicatorAlignment = Alignment.TopStart,
-            interactionModifier = interactionModifier,
-        )
+        val centeringOffsetPx = ((itemHeightPx - indicatorHeightPx) / 2f).coerceAtLeast(0f)
+        val centeredIndicatorOffsetPx = 0f
+        Box(
+            modifier = Modifier.graphicsLayer {
+                translationY = indicatorOffsetPxProvider() + centeringOffsetPx
+            }
+        ) {
+            BottomBarMatchedLiquidIndicator(
+                visible = true,
+                dockContentAlpha = 1f,
+                indicatorTranslationXPx = with(density) { horizontalPadding.start.toPx() },
+                indicatorTranslationYPx = centeredIndicatorOffsetPx,
+                indicatorPanelOffsetPx = 0f,
+                indicatorWidth = indicatorWidth,
+                indicatorHeight = indicatorHeight,
+                shellShape = shape,
+                liquidGlassPreset = liquidGlassPreset,
+                contentBackdrop = contentBackdrop,
+                backdrop = backdrop,
+                indicatorLensSpec = indicatorLensSpec,
+                liquidGlassTuning = liquidGlassTuning,
+                effectivePressProgress = pressProgress,
+                indicatorIdleSurfaceColor = resolveAndroidNativeIdleIndicatorSurfaceColor(
+                    darkTheme = isDarkTheme,
+                ),
+                glassEnabled = liquidGlassIndicatorEnabled,
+                motionProgress = motionProgress,
+                velocityItemsPerSecond = dragAnimation.velocity,
+                isDragging = dragAnimation.isDragging,
+                indicatorLayerScaleProgress = 0f,
+                indicatorLayerScaleTransform = indicatorLayerScaleTransform,
+                dragScaleTarget = dragScaleTarget,
+                bottomBarMotionSpec = motionSpec,
+                isDarkTheme = isDarkTheme,
+                orientation = BottomBarLiquidOrientation.VERTICAL,
+                indicatorAlignment = Alignment.TopStart,
+                interactionModifier = interactionModifier,
+            )
+        }
     }
 }
 
@@ -984,7 +994,6 @@ private fun PartitionSideRailItem(
     iconFamily: AppSemanticIconFamily,
     onClick: () -> Unit,
     interactive: Boolean = true,
-    forceUnselectedColor: Boolean = false,
     contentColorOverride: Color? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -1018,7 +1027,6 @@ private fun PartitionSideRailItem(
             verticalArrangement = Arrangement.Center
         ) {
             val contentColor = contentColorOverride ?: when {
-                forceUnselectedColor -> unselectedColor
                 clampedSelectionProgress > 0f -> lerp(
                     unselectedColor,
                     selectedColor,

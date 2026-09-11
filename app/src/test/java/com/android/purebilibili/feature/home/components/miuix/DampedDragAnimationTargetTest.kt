@@ -16,10 +16,11 @@ import kotlinx.coroutines.withContext
 class DampedDragAnimationTargetTest {
 
     @Test
-    fun `velocity uses the home reference without a selectable range divisor`() {
-        assertEquals(2f, normalizeFloatingDockDragVelocity(8f))
-        assertEquals(-2f, normalizeFloatingDockDragVelocity(-8f))
-        assertEquals(0f, normalizeFloatingDockDragVelocity(0f))
+    fun `velocity normalization follows the selectable range`() {
+        assertEquals(2f, normalizeFloatingDockDragVelocity(8f, 0f..4f))
+        assertEquals(-2f, normalizeFloatingDockDragVelocity(-8f, 0f..4f))
+        assertEquals(0f, normalizeFloatingDockDragVelocity(0f, 0f..4f))
+        assertEquals(8f, normalizeFloatingDockDragVelocity(8f, 0f..1f))
     }
 
     @Test

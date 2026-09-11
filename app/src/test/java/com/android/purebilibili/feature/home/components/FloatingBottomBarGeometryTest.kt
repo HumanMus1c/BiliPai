@@ -10,6 +10,11 @@ import kotlin.test.assertTrue
 class FloatingBottomBarGeometryTest {
 
     @Test
+    fun `home dock restores original 56 to 78 press bloom ratio`() {
+        assertEquals(78f / 56f, FloatingBottomBarPressedScale, 0.0001f)
+    }
+
+    @Test
     fun `home top icon text and combined modes keep fuller flat indicators`() {
         // 0: icon + label, 1: icon only, 2: label only. Use the actual dock width policy.
         for (mode in listOf(0, 1, 2)) {
@@ -52,7 +57,8 @@ class FloatingBottomBarGeometryTest {
         assertEquals(30f, resolveFloatingDockIndicatorHeightDp(
             30f, 48f, FloatingBottomBarGeometryMode.Segmented, 40f,
         ), 0.001f)
-        assertEquals(52f, resolveFloatingDockIndicatorHeightDp(
+        // Dock 模式也留静止边距（56dp 壳 → 56 × 4/64 = 3.5dp/侧 → 49dp 指示器）。
+        assertEquals(49f, resolveFloatingDockIndicatorHeightDp(
             52f, 75f, FloatingBottomBarGeometryMode.Dock, 56f,
         ), 0.001f)
     }
@@ -181,21 +187,16 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
-    fun `narrow tabs reduce velocity stretch toward the search-off slot`() {
-        val wide = resolveFloatingDockIndicatorLayerScaleX(
-            baseScaleX = 1.5f,
-            velocity = 8f,
-            tabWidthPx = 75f,
-            referenceTabWidthPx = 75f,
-        )
-        val narrow = resolveFloatingDockIndicatorLayerScaleX(
-            baseScaleX = 1.5f,
-            velocity = 8f,
-            tabWidthPx = 56f,
-            referenceTabWidthPx = 75f,
-        )
-        assertTrue(narrow < wide)
-        assertTrue(narrow >= 1.5f)
+    fun `velocity deformation follows HyperIsland on both axes and directions`() {
+        val forwardX = resolveFloatingDockIndicatorLayerScaleX(1.4f, 8f)
+        val backwardX = resolveFloatingDockIndicatorLayerScaleX(1.4f, -8f)
+        val forwardY = resolveFloatingDockIndicatorLayerScaleY(1.4f, 8f)
+        val backwardY = resolveFloatingDockIndicatorLayerScaleY(1.4f, -8f)
+
+        assertTrue(forwardX > 1.4f)
+        assertTrue(backwardX < 1.4f)
+        assertTrue(forwardY < 1.4f)
+        assertTrue(backwardY > 1.4f)
     }
 
     @Test
@@ -360,21 +361,16 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
-    fun `home rest indicator keeps a 4dp vertical inset inside the 64dp shell`() {
+    fun `home rest indicator keeps the HyperIsland 4dp per 64dp shell vertical inset`() {
         assertEquals(
             4f,
-            resolveFloatingDockRestIndicatorVerticalInsetDp(
-                shellHeightDp = 64f,
-                indicatorHeightDp = 56f,
-            ),
+            resolveFloatingDockRestIndicatorVerticalInsetDp(shellHeightDp = 64f),
             0.001f,
         )
+        // 56dp 壳按同一比例得到 3.5dp。原先这里期望 0f：指示器与壳同高、静止边距为 0。
         assertEquals(
-            0f,
-            resolveFloatingDockRestIndicatorVerticalInsetDp(
-                shellHeightDp = 56f,
-                indicatorHeightDp = 56f,
-            ),
+            3.5f,
+            resolveFloatingDockRestIndicatorVerticalInsetDp(shellHeightDp = 56f),
             0.001f,
         )
     }
@@ -416,7 +412,7 @@ class FloatingBottomBarGeometryTest {
             indicatorHeightDp = 30f,
         )
         assertEquals((78f - 64f) / 2f, homeOverflow, 0.001f)
-        assertEquals((40f * 78f / 64f - 40f) / 2f, compactOverflow, 0.001f)
+        assertEquals((40f * 78f / 56f - 40f) / 2f, compactOverflow, 0.001f)
         assertTrue(compactOverflow > 0f)
     }
 

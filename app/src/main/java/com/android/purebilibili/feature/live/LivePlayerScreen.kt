@@ -373,12 +373,11 @@ fun LivePlayerScreen(
     }
 
     fun exitLiveRoom() {
-        if (isFullscreen) {
-            toggleFullscreen()
-        } else {
-            miniPlayerManager.markLeavingByNavigation(forceStop = true)
-            onBack()
-        }
+        // The visible back affordance means leave the room. Toggling fullscreen here first
+        // briefly selects LandscapeSplit on tablets/foldables and exposes its chat column.
+        // System back remains responsible for the conventional exit-fullscreen-first flow.
+        miniPlayerManager.markLeavingByNavigation(forceStop = true)
+        onBack()
     }
 
     fun captureLiveScreenshot() {

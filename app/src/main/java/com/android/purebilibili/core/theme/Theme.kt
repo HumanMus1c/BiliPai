@@ -182,6 +182,9 @@ internal fun resolveMiuixColorSchemeMode(
     }
 }
 
+internal fun shouldUseNativeMiuixPalette(uiStyle: AppUiStyle): Boolean =
+    uiStyle == AppUiStyle.MIUIX
+
 internal fun resolvePaletteStylePreference(rawValue: String?): PaletteStyle {
     return runCatching {
         rawValue?.let(PaletteStyle::valueOf)
@@ -1166,7 +1169,9 @@ fun PureBiliBiliTheme(
         )
     }
     val staticMaterialScheme = if (darkTheme) resolvedDarkMaterialScheme else resolvedLightMaterialScheme
-    val useNativeMiuix = uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled
+    // Liquid glass changes chrome rendering, not the app's base palette. Keep Miuix's
+    // native light-gray surfaces stable when the effect is toggled on or off.
+    val useNativeMiuix = shouldUseNativeMiuixPalette(uiStyle)
     val miuixLightColors = remember(resolvedLightMaterialScheme, useNativeMiuix, effectiveThemeRoleOverrides) {
         if (useNativeMiuix) {
             resolveNativeMiuixColors(

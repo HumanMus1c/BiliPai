@@ -1,9 +1,7 @@
 // 文件路径: core/util/WindowSizeUtils.kt
 package com.android.purebilibili.core.util
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.hardware.input.InputManager
 import android.view.InputDevice
@@ -12,9 +10,9 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
@@ -24,10 +22,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import androidx.window.layout.FoldingFeature
-import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowMetrics
-import kotlinx.coroutines.flow.collect
 import kotlin.math.min
 
 /**
@@ -75,6 +70,36 @@ internal fun resolveWindowHeightSizeClass(heightDp: Dp): WindowHeightSizeClass {
         heightDp < 900.dp -> WindowHeightSizeClass.Medium
         else -> WindowHeightSizeClass.Expanded
     }
+}
+
+internal fun resolveWindowWidthSizeClass(
+    adaptiveSizeClass: androidx.window.core.layout.WindowSizeClass,
+): WindowWidthSizeClass = when {
+    adaptiveSizeClass.isWidthAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.WIDTH_DP_EXTRA_LARGE_LOWER_BOUND
+    ) -> WindowWidthSizeClass.ExtraLarge
+    adaptiveSizeClass.isWidthAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND
+    ) -> WindowWidthSizeClass.Large
+    adaptiveSizeClass.isWidthAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
+    ) -> WindowWidthSizeClass.Expanded
+    adaptiveSizeClass.isWidthAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
+    ) -> WindowWidthSizeClass.Medium
+    else -> WindowWidthSizeClass.Compact
+}
+
+internal fun resolveWindowHeightSizeClass(
+    adaptiveSizeClass: androidx.window.core.layout.WindowSizeClass,
+): WindowHeightSizeClass = when {
+    adaptiveSizeClass.isHeightAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND
+    ) -> WindowHeightSizeClass.Expanded
+    adaptiveSizeClass.isHeightAtLeastBreakpoint(
+        androidx.window.core.layout.WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND
+    ) -> WindowHeightSizeClass.Medium
+    else -> WindowHeightSizeClass.Compact
 }
 
 internal fun resolveStableDeviceWidthSizeClass(
@@ -200,21 +225,12 @@ fun rememberIsFlatFoldable(): Boolean {
 @Composable
 fun rememberAppWindowAdaptiveInfo(
     windowSizeClass: WindowSizeClass,
+    windowPosture: androidx.compose.material3.adaptive.Posture,
 ): AppWindowAdaptiveInfo {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val activity = remember(context) { context.findActivity() }
-    val foldingFeatureInfo by produceState(AppFoldingFeatureInfo(), activity) {
-        val hostActivity = activity ?: return@produceState
-        WindowInfoTracker.getOrCreate(hostActivity)
-            .windowLayoutInfo(hostActivity)
-            .collect { layoutInfo ->
-                value = layoutInfo.displayFeatures
-                    .filterIsInstance<FoldingFeature>()
-                    .firstOrNull()
-                    ?.toAppFoldingFeatureInfo()
-                    ?: AppFoldingFeatureInfo()
-            }
+    val foldingFeatureInfo = remember(windowPosture) {
+        windowPosture.toAppFoldingFeatureInfo()
     }
     val precisePointerConnected by produceState(
         initialValue = context.hasPrecisePointer(),
@@ -254,27 +270,30 @@ fun rememberAppWindowAdaptiveInfo(
     }
 }
 
-private fun FoldingFeature.toAppFoldingFeatureInfo(): AppFoldingFeatureInfo {
-    val orientation = when (orientation) {
-        FoldingFeature.Orientation.VERTICAL -> AppHingeOrientation.Vertical
-        FoldingFeature.Orientation.HORIZONTAL -> AppHingeOrientation.Horizontal
-        else -> AppHingeOrientation.None
+private fun androidx.compose.material3.adaptive.Posture.toAppFoldingFeatureInfo(): AppFoldingFeatureInfo {
+    val hinge = hingeList.firstOrNull() ?: return AppFoldingFeatureInfo()
+    val orientation = if (hinge.isVertical) {
+        AppHingeOrientation.Vertical
+    } else {
+        AppHingeOrientation.Horizontal
     }
-    val posture = when (state) {
-        FoldingFeature.State.FLAT -> AppFoldPosture.Flat
-        FoldingFeature.State.HALF_OPENED -> when (orientation) {
-            AppHingeOrientation.Vertical -> AppFoldPosture.Book
-            AppHingeOrientation.Horizontal -> AppFoldPosture.Tabletop
-            AppHingeOrientation.None -> AppFoldPosture.None
-        }
-        else -> AppFoldPosture.None
+    val posture = when {
+        isTabletop -> AppFoldPosture.Tabletop
+        hinge.isFlat -> AppFoldPosture.Flat
+        hinge.isVertical -> AppFoldPosture.Book
+        else -> AppFoldPosture.Tabletop
     }
     return AppFoldingFeatureInfo(
         posture = posture,
         hingeOrientation = orientation,
-        hingeBounds = IntRect(bounds.left, bounds.top, bounds.right, bounds.bottom),
-        isSeparating = isSeparating,
-        isOccluding = occlusionType == FoldingFeature.OcclusionType.FULL,
+        hingeBounds = IntRect(
+            hinge.bounds.left.toInt(),
+            hinge.bounds.top.toInt(),
+            hinge.bounds.right.toInt(),
+            hinge.bounds.bottom.toInt(),
+        ),
+        isSeparating = hinge.isSeparating,
+        isOccluding = hinge.isOccluding,
     )
 }
 
@@ -290,22 +309,14 @@ private fun Context.hasPrecisePointer(): Boolean {
     }
 }
 
-private fun Context.findActivity(): Activity? {
-    var currentContext = this
-    while (currentContext is ContextWrapper) {
-        if (currentContext is Activity) return currentContext
-        currentContext = currentContext.baseContext
-    }
-    return currentContext as? Activity
-}
-
 /**
  * 📏 计算当前窗口尺寸类型
  */
 @Composable
 fun calculateWindowSizeClass(
     densityMultiplier: Float = 1f,
-    metrics: WindowMetrics
+    metrics: WindowMetrics,
+    adaptiveWindowSizeClass: androidx.window.core.layout.WindowSizeClass,
 ): WindowSizeClass {
     val configuration = LocalConfiguration.current
     val widthDp = (configuration.screenWidthDp / densityMultiplier).dp
@@ -314,8 +325,8 @@ fun calculateWindowSizeClass(
         min(metrics.widthDp, metrics.heightDp).toInt()
     )
     
-    val widthSizeClass = resolveWindowWidthSizeClass(widthDp)
-    val heightSizeClass = resolveWindowHeightSizeClass(heightDp)
+    val widthSizeClass = resolveWindowWidthSizeClass(adaptiveWindowSizeClass)
+    val heightSizeClass = resolveWindowHeightSizeClass(adaptiveWindowSizeClass)
     
     return remember(widthDp, heightDp, deviceWidthSizeClass) {
         WindowSizeClass(

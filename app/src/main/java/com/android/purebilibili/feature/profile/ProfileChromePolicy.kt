@@ -43,12 +43,11 @@ fun resolveProfileHeroChrome(
     onSurfaceVariantColor: Color
 ): ProfileHeroChrome {
     if (hasWallpaper) {
-        val scrimBottomAlpha = if (isDarkTheme) 0.65f else 0.55f
         return ProfileHeroChrome(
             textColor = Color.White,
             secondaryTextColor = Color.White.copy(alpha = 0.72f),
             scrimTopAlpha = 0f,
-            scrimBottomAlpha = scrimBottomAlpha,
+            scrimBottomAlpha = 0f,
             avatarBorderColor = Color.White.copy(alpha = 0.88f),
             actionButtonContentColor = Color.White,
             actionButtonBorderAlpha = 0.42f,

@@ -40,7 +40,7 @@ class FloatingBottomBarStructureTest {
         assertTrue(source.contains("indicatorHeight: Dp = FloatingBottomBarIndicatorHeight"))
         assertTrue(source.contains("dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING"))
         assertTrue(source.contains("FloatingBottomBarDefaultShellHeight: Dp = 56.dp"))
-        assertTrue(source.contains("FloatingBottomBarIndicatorHeight: Dp = 52.dp"))
+        assertTrue(source.contains("FloatingBottomBarIndicatorHeight: Dp = 56.dp"))
         assertTrue(source.contains("BottomBarReferencePressedScale"))
     }
 
@@ -105,7 +105,8 @@ class FloatingBottomBarStructureTest {
 
         assertTrue(source.contains("import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation"))
         assertTrue(body.contains("DampedDragAnimation("))
-        assertTrue(body.contains("pressedScale = matchedGeometry.pressedScale"))
+        assertTrue(body.contains("pressedScale = pressedScale"))
+        assertTrue(body.contains("val pressedScale = matchedGeometry.pressedScale"))
         assertTrue(body.contains("floatingDockScaleOverflow("))
         assertTrue(body.contains("overflow = scaleOverflowDp"))
         assertTrue(body.contains("shellHeight = shellHeight"))
@@ -135,16 +136,18 @@ class FloatingBottomBarStructureTest {
         assertFalse(baseRow.contains(".then(dampedDragAnimation.modifier)"))
         assertTrue(movingIndicator.contains("interactiveHighlight?.gestureModifier"))
         assertTrue(movingIndicator.contains(".then(dampedDragAnimation.modifier)"))
-        assertTrue(body.contains("offsetAnimation.snapTo(0f)"))
+        assertTrue(body.contains("offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))"))
         val dragRememberKeys = body
             .substringAfter("val dampedDragAnimation = remember(")
             .substringBefore(") {")
         assertFalse(dragRememberKeys.contains("matchedGeometry.pressedScale"))
-        assertTrue(body.contains("dampedDragAnimation.pressedScale = matchedGeometry.pressedScale"))
+        assertTrue(body.contains("dampedDragAnimation.pressedScale = pressedScale"))
         assertTrue(body.contains("remember(animationScope) {"))
         assertFalse(body.contains("remember(animationScope, tabWidthPx)"))
         assertTrue(dragPort.contains("releaseJob?.cancel()"))
-        assertTrue(dragPort.contains("pressJob?.join()"))
+        // 照搬 HyperIsland：release 直接接管放大动画，不等待 pressJob 跑完，
+        // 否则缩放会先到峰值再停住、之后才缩回（放大 → 停顿 → 缩小）。
+        assertFalse(dragPort.contains("pressJob?.join()"))
         assertFalse(dragPort.contains("isInside && wasInside"))
         assertTrue(body.contains("resolveFloatingDockIndicatorLayerScaleX("))
         assertTrue(body.contains("LocalFloatingBottomBarIndicatorStretchX provides indicatorStretchXProvider"))

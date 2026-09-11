@@ -40,7 +40,7 @@ data class BottomBarIndicatorMotionSpec(
     val deformationScaleXDelta: Float,
     val deformationScaleYCompressionRatio: Float,
     val scaleSpring: MotionSpringConfig,
-    val dragScaleSpring: MotionSpringConfig,
+    val scaleYSpring: MotionSpringConfig,
     val lensVelocityRangePxPerSecond: Float,
     val railFractionStretchMultiplier: Float,
     val capsuleVelocityNormalizationDivisor: Float,
@@ -53,6 +53,20 @@ data class BottomBarMotionSpec(
     val drag: BottomBarDragMotionSpec,
     val refraction: BottomBarRefractionMotionSpec,
     val indicator: BottomBarIndicatorMotionSpec
+)
+
+// 照搬 HyperIsland LiquidGlassNavigationBar 的按下放大弹簧：
+// scaleX = spring(0.6f, 250f, 0.001f)，scaleY = spring(0.7f, 250f, 0.001f)。
+// 四套 profile 共用同一组放大弹簧，避免各自维护一套更长的放大时长。
+private val hyperIslandIndicatorScaleXSpring = MotionSpringConfig(
+    dampingRatio = 0.6f,
+    stiffness = 250f,
+    visibilityThreshold = 0.001f
+)
+private val hyperIslandIndicatorScaleYSpring = MotionSpringConfig(
+    dampingRatio = 0.7f,
+    stiffness = 250f,
+    visibilityThreshold = 0.001f
 )
 
 enum class BottomBarMotionProfile {
@@ -87,14 +101,8 @@ fun resolveBottomBarMotionSpec(
             indicator = base.indicator.copy(
                 deformationScaleXDelta = 0.42f,
                 deformationScaleYCompressionRatio = 0.58f,
-                scaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.44f,
-                    stiffness = 520f
-                ),
-                dragScaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.56f,
-                    stiffness = 360f
-                ),
+                scaleSpring = hyperIslandIndicatorScaleXSpring,
+                scaleYSpring = hyperIslandIndicatorScaleYSpring,
                 lensVelocityRangePxPerSecond = 2200f
             )
         )
@@ -121,14 +129,8 @@ fun resolveBottomBarMotionSpec(
             indicator = base.indicator.copy(
                 deformationScaleXDelta = 0.40f,
                 deformationScaleYCompressionRatio = 0.54f,
-                scaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.46f,
-                    stiffness = 620f
-                ),
-                dragScaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.54f,
-                    stiffness = 400f
-                ),
+                scaleSpring = hyperIslandIndicatorScaleXSpring,
+                scaleYSpring = hyperIslandIndicatorScaleYSpring,
                 lensVelocityRangePxPerSecond = 2500f,
                 railFractionStretchMultiplier = 0.095f,
                 capsuleVelocityNormalizationDivisor = 10.5f,
@@ -156,14 +158,8 @@ fun resolveBottomBarMotionSpec(
             indicator = base.indicator.copy(
                 deformationScaleXDelta = 0.30f,
                 deformationScaleYCompressionRatio = 0.48f,
-                scaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.58f,
-                    stiffness = 620f
-                ),
-                dragScaleSpring = MotionSpringConfig(
-                    dampingRatio = 0.64f,
-                    stiffness = 430f
-                ),
+                scaleSpring = hyperIslandIndicatorScaleXSpring,
+                scaleYSpring = hyperIslandIndicatorScaleYSpring,
                 lensVelocityRangePxPerSecond = 2800f,
                 railFractionStretchMultiplier = 0.065f,
                 capsuleVelocityNormalizationDivisor = 11f,
@@ -207,14 +203,8 @@ private fun createDefaultBottomBarMotionSpec(): BottomBarMotionSpec {
         indicator = BottomBarIndicatorMotionSpec(
             deformationScaleXDelta = 0.34f,
             deformationScaleYCompressionRatio = 0.52f,
-            scaleSpring = MotionSpringConfig(
-                dampingRatio = 0.5f,
-                stiffness = 600f
-            ),
-            dragScaleSpring = MotionSpringConfig(
-                dampingRatio = 0.6f,
-                stiffness = 400f
-            ),
+            scaleSpring = hyperIslandIndicatorScaleXSpring,
+            scaleYSpring = hyperIslandIndicatorScaleYSpring,
             lensVelocityRangePxPerSecond = 2600f,
             railFractionStretchMultiplier = 0.08f,
             capsuleVelocityNormalizationDivisor = 10f,

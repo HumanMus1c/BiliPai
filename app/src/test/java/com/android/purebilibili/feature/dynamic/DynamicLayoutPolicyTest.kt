@@ -63,13 +63,13 @@ class DynamicLayoutPolicyTest {
     }
 
     @Test
-    fun `dynamic top tab row uses bottom bar liquid glass proportions`() {
+    fun `dynamic top tab row uses tight top dock indicator insets`() {
         val spec = resolveDynamicTopBarLiquidTabSpec()
 
         assertEquals(0, spec.topPaddingDp)
         assertEquals(0, spec.bottomPaddingDp)
         assertEquals(50, spec.heightDp)
-        assertEquals(38, spec.indicatorHeightDp)
+        assertEquals(42, spec.indicatorHeightDp)
         assertEquals(13, spec.labelFontSizeSp)
     }
 

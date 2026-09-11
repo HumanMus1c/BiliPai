@@ -13,6 +13,24 @@ import kotlin.test.assertTrue
 class WindowSizeUtilsTest {
 
     @Test
+    fun `material adaptive V2 size class maps all app breakpoints`() {
+        val compact = androidx.window.core.layout.WindowSizeClass(599, 479)
+        val medium = androidx.window.core.layout.WindowSizeClass(600, 480)
+        val expanded = androidx.window.core.layout.WindowSizeClass(840, 900)
+        val large = androidx.window.core.layout.WindowSizeClass(1200, 900)
+        val extraLarge = androidx.window.core.layout.WindowSizeClass(1600, 900)
+
+        assertEquals(WindowWidthSizeClass.Compact, resolveWindowWidthSizeClass(compact))
+        assertEquals(WindowHeightSizeClass.Compact, resolveWindowHeightSizeClass(compact))
+        assertEquals(WindowWidthSizeClass.Medium, resolveWindowWidthSizeClass(medium))
+        assertEquals(WindowHeightSizeClass.Medium, resolveWindowHeightSizeClass(medium))
+        assertEquals(WindowWidthSizeClass.Expanded, resolveWindowWidthSizeClass(expanded))
+        assertEquals(WindowWidthSizeClass.Large, resolveWindowWidthSizeClass(large))
+        assertEquals(WindowWidthSizeClass.ExtraLarge, resolveWindowWidthSizeClass(extraLarge))
+        assertEquals(WindowHeightSizeClass.Expanded, resolveWindowHeightSizeClass(extraLarge))
+    }
+
+    @Test
     fun `responsive text scaling keeps unspecified units`() {
         val scaled = TextUnit.Unspecified.scaledIfSpecified(1.2f)
 

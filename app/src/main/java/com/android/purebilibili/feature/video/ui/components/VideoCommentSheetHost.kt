@@ -10,8 +10,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -40,10 +38,9 @@ import com.android.purebilibili.core.ui.skeleton.CommentListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -73,7 +70,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.onSizeChanged
-import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion
 import androidx.compose.ui.graphics.graphicsLayer
@@ -1015,8 +1011,9 @@ internal fun VideoCommentMainList(
                     }
                 }
 
-                VideoCommentBackToTopButton(
+                AppLiquidGlassBackToTopButton(
                     visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
+                    backdrop = commentChromeBackdrop,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 20.dp, bottom = 20.dp),
@@ -1029,31 +1026,6 @@ internal fun VideoCommentMainList(
                     }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun VideoCommentBackToTopButton(
-    visible: Boolean,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.92f),
-        exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.92f)
-    ) {
-        AppSmallFloatingActionButton(
-            onClick = onClick,
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-            contentColor = MaterialTheme.colorScheme.primary
-        ) {
-            AppIcon(
-                imageVector = rememberAppChevronUpIcon(),
-                contentDescription = "回到顶部"
-            )
         }
     }
 }

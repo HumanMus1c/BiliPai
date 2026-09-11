@@ -48,7 +48,7 @@ class PartitionScreenStructureTest {
         assertTrue(source.contains(".layerBackdrop(railContentBackdrop)"))
         assertTrue(source.contains("contentBackdrop = combinedBackdrop"))
         assertTrue(source.contains("backdrop = railPageBackdrop"))
-        assertTrue(source.contains("forceUnselectedColor = liquidGlassIndicatorEnabled"))
+        assertFalse(source.contains("forceUnselectedColor"))
         assertFalse(source.contains("partitionSideRailSweepSelection("))
         assertFalse(source.contains("PartitionVideoRow("))
         assertFalse(source.contains("videoTitleSharedElementKey("))
@@ -106,6 +106,7 @@ class PartitionScreenStructureTest {
         assertTrue(indicator.contains("contentAlignment = Alignment.CenterStart"))
         assertTrue(indicator.contains("PartitionSideRailMd3UnderlineStartPadding"))
         assertTrue(indicator.contains("onVideoListPushChanged(0f)"))
+        assertTrue(indicator.contains("resolveAndroidNativeIdleIndicatorSurfaceColor("))
         assertTrue(indicator.indexOf("return") < indicator.indexOf("BottomBarMatchedLiquidIndicator("))
     }
 

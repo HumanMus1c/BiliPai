@@ -121,12 +121,20 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
     )
 }
 
-/** Draws the shared gradient beyond the chrome without enlarging its layout or touch region. */
+/**
+ * Draws the shared gradient beyond the chrome without enlarging its layout or touch region.
+ *
+ * When [extendBelowBounds] is false the progressive blur is confined to the chrome's own height
+ * and does not bleed below its bottom edge. This is used by layouts that stack content directly
+ * under the bar (e.g. the dynamic feed's horizontal UP list) so the blur layer never overlaps
+ * that content. The blur effect inside the chrome itself is unchanged.
+ */
 @androidx.compose.runtime.Composable
 internal fun BiliPaiImmersiveTopBar(
     backdrop: Backdrop?,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    extendBelowBounds: Boolean = true,
     content: @androidx.compose.runtime.Composable () -> Unit,
 ) {
     val active = shouldUseBiliPaiProgressiveTopBlur(enabled, backdrop != null) &&
@@ -138,7 +146,7 @@ internal fun BiliPaiImmersiveTopBar(
                     .matchParentSize()
                     .layout { measurable, constraints ->
                         val extension = resolveProgressiveTopBlurBottomExtension(
-                            enabled = true,
+                            enabled = extendBelowBounds,
                             endFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.endFraction,
                         ).roundToPx()
                         val extended = constraints.copy(

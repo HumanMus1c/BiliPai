@@ -58,6 +58,19 @@ class LiveTokenAdoptionStructureTest {
     }
 
     @Test
+    fun live_player_visible_back_leaves_without_exposing_split_chat() {
+        val source = File(liveRoot, "LivePlayerScreen.kt").readText()
+        val exitBlock = source
+            .substringAfter("fun exitLiveRoom() {")
+            .substringBefore("fun captureLiveScreenshot()")
+
+        assertTrue(exitBlock.contains("markLeavingByNavigation(forceStop = true)"))
+        assertTrue(exitBlock.contains("onBack()"))
+        assertFalse(exitBlock.contains("toggleFullscreen()"))
+        assertTrue(source.contains("else if (isFullscreen) toggleFullscreen()"))
+    }
+
+    @Test
     fun live_area_detail_renders_room_summary_in_all_content_states() {
         val source = File(liveRoot, "LiveAreaDetailScreen.kt").readText()
 

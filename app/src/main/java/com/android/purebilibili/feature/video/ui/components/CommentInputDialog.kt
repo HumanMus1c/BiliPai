@@ -692,7 +692,7 @@ fun CommentInputDialog(
                                     },
                                     selectedValue = currentTab,
                                     onSelectionChange = { currentTab = it },
-                                    modifier = Modifier.height(48.dp),
+                                    height = 48.dp,
                                     scrollable = true,
                                 )
 

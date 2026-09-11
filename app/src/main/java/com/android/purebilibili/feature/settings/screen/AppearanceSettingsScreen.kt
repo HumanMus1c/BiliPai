@@ -467,6 +467,9 @@ fun AppearanceSettingsContent(
     val showOnlineCount by SettingsManager
         .getShowOnlineCount(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val showProfileEditButton by SettingsManager
+        .getShowProfileEditButton(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
     val effectiveLiquidGlassEnabled = resolveHomeChromeLiquidGlassEnabled(
         userEnabled = state.androidNativeLiquidGlassEnabled,
@@ -1601,6 +1604,24 @@ fun AppearanceSettingsContent(
                                 }
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSPurple
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_edit_note_24),
+                            title = "编辑资料按钮",
+                            subtitle = if (showProfileEditButton) {
+                                "个人主页显示“编辑资料”按钮"
+                            } else {
+                                "个人主页隐藏“编辑资料”按钮"
+                            },
+                            checked = showProfileEditButton,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setShowProfileEditButton(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
                         )
                         
                         // 网格列数设置 (仅在双列网格模式下显示)

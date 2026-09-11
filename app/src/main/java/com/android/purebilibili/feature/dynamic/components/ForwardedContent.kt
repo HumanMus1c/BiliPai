@@ -162,10 +162,10 @@ fun ForwardedContent(
                 topicName = topic.name,
                 onClick = {
                     val kw = topic.name.trim().removePrefix("#").removeSuffix("#").trim()
-                    if (onTopicKeywordClick != null && kw.isNotEmpty()) {
-                        onTopicKeywordClick(kw)
-                    } else if (topic.id > 0L) {
+                    if (topic.id > 0L) {
                         onTopicClick(topic.id)
+                    } else if (onTopicKeywordClick != null && kw.isNotEmpty()) {
+                        onTopicKeywordClick(kw)
                     } else if (kw.isNotEmpty()) {
                         val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8.name())
                         val inAppIntent = android.content.Intent(

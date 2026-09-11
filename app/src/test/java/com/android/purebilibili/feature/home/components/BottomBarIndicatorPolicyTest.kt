@@ -626,8 +626,8 @@ class BottomBarIndicatorPolicyTest {
             motionSpec = resolveBottomBarMotionSpec(BottomBarMotionProfile.ANDROID_NATIVE_FLOATING)
         )
 
-        assertEquals(78f / 48f, transform.scaleX, 0.001f)
-        assertEquals(78f / 48f, transform.scaleY, 0.001f)
+        assertEquals(78f / 56f, transform.scaleX, 0.001f)
+        assertEquals(78f / 56f, transform.scaleY, 0.001f)
     }
 
     @Test
@@ -684,10 +684,10 @@ class BottomBarIndicatorPolicyTest {
 
         assertEquals(full.scaleX, partial.scaleX, 0.001f)
         assertEquals(full.scaleY, partial.scaleY, 0.001f)
-        assertEquals(78f / 48f, partial.scaleX, 0.001f)
-        assertEquals(78f / 48f, partial.scaleY, 0.001f)
+        assertEquals(78f / 56f, partial.scaleX, 0.001f)
+        assertEquals(78f / 56f, partial.scaleY, 0.001f)
         assertTrue(deformed.scaleX > partial.scaleX)
-        assertEquals(partial.scaleY, deformed.scaleY, 0.001f)
+        assertTrue(deformed.scaleY < partial.scaleY)
     }
 
     @Test
@@ -736,7 +736,7 @@ class BottomBarIndicatorPolicyTest {
 
     @Test
     fun `indicator velocity deformation follows BiliPai constants without changing drag scale target`() {
-        val baseScale = 78f / 48f
+        val baseScale = 78f / 56f
         val transform = resolveBottomBarIndicatorLayerTransform(
             motionProgress = 1f,
             velocityItemsPerSecond = 2f,
@@ -746,7 +746,7 @@ class BottomBarIndicatorPolicyTest {
         )
 
         assertEquals(baseScale / (1f - ((2f / 10f) * 0.75f)), transform.scaleX, 0.001f)
-        assertEquals(baseScale, transform.scaleY, 0.001f)
+        assertEquals(baseScale * (1f - ((2f / 10f) * 0.25f)), transform.scaleY, 0.001f)
     }
 
     @Test
@@ -758,8 +758,8 @@ class BottomBarIndicatorPolicyTest {
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("BottomBarReferencePressedScale"))
-        assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.82f, 520f, 0.001f)"))
-        assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.86f, 560f, 0.001f)"))
+        assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)"))
+        assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))
         assertTrue(source.contains("scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec)"))
     }

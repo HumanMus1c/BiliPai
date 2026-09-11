@@ -1,7 +1,9 @@
 package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -247,6 +249,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
     },
     inverseScaleYProvider: () -> Float = inverseScaleXProvider,
     contentTopInset: Dp = 0.dp,
+    clipShape: Shape? = null,
 ): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
@@ -270,4 +273,4 @@ internal fun Modifier.videoDetailReturnMediaLayout(
             placeable.place(frame.offsetXPx, frame.offsetYPx)
         }
     }
-}
+}.then(if (clipShape != null) Modifier.clip(clipShape) else Modifier)

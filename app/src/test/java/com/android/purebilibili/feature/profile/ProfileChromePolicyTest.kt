@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class ProfileChromePolicyTest {
 
     @Test
-    fun wallpaperHero_usesWhiteTextAndStrongerDarkThemeScrim() {
+    fun wallpaperHero_usesWhiteTextAndNoDistortedScrim() {
         val lightHero = resolveProfileHeroChrome(
             hasWallpaper = true,
             isDarkTheme = false,
@@ -25,8 +25,8 @@ class ProfileChromePolicyTest {
         )
 
         assertEquals(Color.White, lightHero.textColor)
-        assertEquals(0.55f, lightHero.scrimBottomAlpha)
-        assertEquals(0.65f, darkHero.scrimBottomAlpha)
+        assertEquals(0f, lightHero.scrimBottomAlpha)
+        assertEquals(0f, darkHero.scrimBottomAlpha)
         assertFalse(lightHero.useLightStatusBarIcons)
     }
 

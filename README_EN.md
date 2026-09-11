@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-09-07 · Current build: 0.2.3-beta.27 · Latest documented release: v0.2.3-beta.27</sub>
+  <sub>Last updated: 2026-09-10 · Current build: 0.2.3-beta.32 · Latest documented release: v0.2.3-beta.31</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.27-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.32-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,9 +452,9 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.27 · 2026-09-07)
+### Current source build (v0.2.3-beta.32 · 2026-09-10)
 
-- Current source build: `0.2.3-beta.27` / `versionCode 344`.
+- Current source build: `0.2.3-beta.32` / `versionCode 354`.
 - Segmented navigation prevents right-angle protrusion during scrolling; category and filter bars upgraded to adaptive sliding liquid track; long labels fully visible without truncation.
 - Search results page adapted for tablets and foldables with multi-column grid layout and user-customizable column counts.
 - Dynamic feed detail and incremental refresh refactored with fallback recovery for offline stability; enriched rich text and comments panel interactions.
@@ -473,7 +473,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.27-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.27.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.32-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.32.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

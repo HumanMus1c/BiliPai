@@ -121,8 +121,12 @@ internal fun resolveLiquidGlassTuning(
         refractionAmount = midpointLerp(24f, 24f, 8f, normalizedProgress),
         refractionHeight = midpointLerp(24f, 24f, 8f, normalizedProgress),
         indicatorTintAlpha = midpointLerp(0.20f, 0.28f, 0.38f, normalizedProgress),
-        indicatorLensBoost = midpointLerp(1.35f, 1f, 0.78f, frostWeight),
-        indicatorEdgeWarpBoost = midpointLerp(1.40f, 1f, 0.82f, frostWeight),
+        // 照搬 HyperIsland LiquidGlassNavigationBar 的指示器 lens：
+        // refractionHeight = 10dp、refractionAmount = 14dp（按壳高比例换算），
+        // chromaticAberration = 0.5f。参考不再额外放大折射 —— 原先的 1.35/1.40 系数
+        // 会把 CLEAR 端的折射推到 11.8dp/17.15dp，比参考长一截（上下色散被摊薄）。
+        indicatorLensBoost = 1f,
+        indicatorEdgeWarpBoost = 1f,
         indicatorChromaticBoost = midpointLerp(1.20f, 1f, 0.70f, frostWeight),
         contentReadabilityBoost = contentReadabilityBoost,
         contentReadabilityScrimAlpha = contentReadabilityScrimAlpha,

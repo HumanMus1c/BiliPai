@@ -931,7 +931,7 @@ private fun BoxScope.ProfileBackground(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.72f)
+                    .fillMaxHeight(0.38f)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
@@ -1065,6 +1065,9 @@ private fun ProfileSpaceContent(
     var tempSelectedUri by remember { mutableStateOf<Uri?>(null) }
     val customBackgroundUri by viewModel.getProfileBgUri().collectAsStateWithLifecycle(initialValue = null
         )
+    val context = LocalContext.current
+    val showProfileEditButton by SettingsManager.getShowProfileEditButton(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -1203,6 +1206,7 @@ private fun ProfileSpaceContent(
                         compact = true,
                         heroChrome = heroChrome,
                         showWallpaperAction = true,
+                        showEditProfileButton = showProfileEditButton,
                         onEditClick = { showEditDialog = true },
                         onWallpaperActionClick = { showWallpaperActionSheet = true },
                         onFollowingClick = onFollowingClick
@@ -1251,7 +1255,19 @@ private fun ProfileSpaceContent(
                     .profileProgressiveBackdrop(progressiveTopChrome.backdrop)
                     .globalWallpaperAwareBackground(colorScheme.surface),
             ) {
-                captureBackground()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = if (mobileListState.firstVisibleItemIndex > 0) {
+                                -100000f
+                            } else {
+                                -mobileListState.firstVisibleItemScrollOffset.toFloat()
+                            }
+                        }
+                ) {
+                    captureBackground()
+                }
                 LazyColumn(
                     state = mobileListState,
                     modifier = Modifier.fillMaxSize(),
@@ -1264,6 +1280,7 @@ private fun ProfileSpaceContent(
                         heroChrome = heroChrome,
                         layoutTokens = layoutTokens,
                         showWallpaperAction = false,
+                        showEditProfileButton = showProfileEditButton,
                         onEditClick = { showEditDialog = true },
                         onWallpaperActionClick = { showWallpaperActionSheet = true },
                         onFollowingClick = onFollowingClick
@@ -1555,6 +1572,7 @@ private fun ProfileSpaceHeroHeader(
     heroChrome: ProfileHeroChrome,
     layoutTokens: ProfileLayoutTokens,
     showWallpaperAction: Boolean,
+    showEditProfileButton: Boolean = false,
     onEditClick: () -> Unit,
     onWallpaperActionClick: () -> Unit,
     onFollowingClick: () -> Unit
@@ -1576,6 +1594,7 @@ private fun ProfileSpaceHeroHeader(
             compact = false,
             heroChrome = heroChrome,
             showWallpaperAction = showWallpaperAction,
+            showEditProfileButton = showEditProfileButton,
             onEditClick = onEditClick,
             onWallpaperActionClick = onWallpaperActionClick,
             onFollowingClick = onFollowingClick,
@@ -1595,38 +1614,26 @@ private fun ProfileContentSheet(
     layoutTokens: ProfileLayoutTokens,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = AppShapes.borderedContainer(ContainerLevel.Sheet)
-    AppSurface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = (-layoutTokens.contentSheetTopOverlapDp).dp),
-        shape = shape,
-        color = Color.Transparent,
-        border = BorderStroke(0.5.dp, contentChrome.sheetBorderColor),
-        shadowElevation = contentChrome.sheetShadowElevationDp.dp,
-        tonalElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            contentChrome.sheetGradientTopColor,
-                            contentChrome.sheetGradientBottomColor
-                        ),
-                        startY = 0f,
-                        endY = 360f
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        contentChrome.sheetGradientTopColor,
+                        contentChrome.sheetGradientBottomColor
                     ),
-                    shape = shape
+                    startY = 0f,
+                    endY = 360f
                 )
-                .padding(
-                    top = layoutTokens.contentSheetTopPaddingDp.dp,
-                    bottom = layoutTokens.contentSheetBottomPaddingDp.dp
-                ),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            content = content
-        )
-    }
+            )
+            .padding(
+                top = layoutTokens.contentSheetTopPaddingDp.dp,
+                bottom = layoutTokens.contentSheetBottomPaddingDp.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        content = content
+    )
 }
 
 @Composable
@@ -1636,6 +1643,7 @@ private fun ProfileSpaceHeader(
     compact: Boolean,
     heroChrome: ProfileHeroChrome,
     showWallpaperAction: Boolean,
+    showEditProfileButton: Boolean = false,
     onEditClick: () -> Unit,
     onWallpaperActionClick: () -> Unit,
     onFollowingClick: () -> Unit,
@@ -1756,30 +1764,36 @@ private fun ProfileSpaceHeader(
             contentColor = textColor,
             secondaryColor = secondaryColor,
             containerColor = metaChipContainer,
-            borderColor = metaChipBorder
+            borderColor = metaChipBorder,
+            onEditClick = onEditClick,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppOutlinedButton(
-                onClick = onEditClick,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = heroChrome.actionButtonContentColor),
-                border = BorderStroke(1.dp, heroChrome.actionButtonContentColor.copy(alpha = heroChrome.actionButtonBorderAlpha)),
-                shape = AppShapes.container(ContainerLevel.Card)
+        if (showEditProfileButton || showWallpaperAction) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AppText("编辑资料")
-            }
-            if (showWallpaperAction) {
-                ProfileWallpaperMenuButton(
-                    contentColor = heroChrome.actionButtonContentColor,
-                    borderColor = heroChrome.actionButtonContentColor.copy(alpha = heroChrome.actionButtonBorderAlpha),
-                    onClick = onWallpaperActionClick
-                )
+                if (showEditProfileButton) {
+                    AppOutlinedButton(
+                        onClick = onEditClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = heroChrome.actionButtonContentColor),
+                        border = BorderStroke(1.dp, heroChrome.actionButtonContentColor.copy(alpha = heroChrome.actionButtonBorderAlpha)),
+                        shape = AppShapes.container(ContainerLevel.Card)
+                    ) {
+                        AppText("编辑资料")
+                    }
+                }
+                if (showWallpaperAction) {
+                    ProfileWallpaperMenuButton(
+                        contentColor = heroChrome.actionButtonContentColor,
+                        borderColor = heroChrome.actionButtonContentColor.copy(alpha = heroChrome.actionButtonBorderAlpha),
+                        onClick = onWallpaperActionClick,
+                        modifier = if (!showEditProfileButton) Modifier.weight(1f) else Modifier
+                    )
+                }
             }
         }
     }
@@ -1792,7 +1806,8 @@ private fun ProfileIdentityDrawer(
     contentColor: Color,
     secondaryColor: Color,
     containerColor: Color,
-    borderColor: Color
+    borderColor: Color,
+    onEditClick: (() -> Unit)? = null
 ) {
     val shape = AppShapes.container(ContainerLevel.Card)
     AnimatedVisibility(
@@ -1803,7 +1818,8 @@ private fun ProfileIdentityDrawer(
         AppSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(shape),
+                .clip(shape)
+                .then(if (onEditClick != null) Modifier.clickable(onClick = onEditClick) else Modifier),
             shape = shape,
             color = containerColor,
             border = BorderStroke(0.6.dp, borderColor),
@@ -1903,8 +1919,7 @@ private fun ProfileSpaceTabs(
         options = tabs.map { AppSegmentOption(it.tab, it.title) },
         selectedValue = tabs[selectedIndex].tab,
         onSelectionChange = onTabSelected,
-        scrollable = true,
-        minTabWidth = 72.dp,
+        scrollable = false,
         dragSelectionEnabled = tabs.size > 1,
         tapPressRefractionEnabled = true,
         modifier = Modifier

@@ -116,6 +116,7 @@ fun HomeBangumiTabPage(
                 scrollToTopRequestId = scrollToTopRequestId,
                 listBottomPadding = contentPadding.calculateBottomPadding(),
                 listTopPadding = channelHeight,
+                tabBackdrop = null,
             )
         }
         AppLiquidAwareTabRow(

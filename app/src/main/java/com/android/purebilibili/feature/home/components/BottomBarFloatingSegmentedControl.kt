@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -149,9 +150,17 @@ internal fun BottomBarFloatingSegmentedControl(
     val onSelectedState = rememberUpdatedState(onSelected)
     val enabledState = rememberUpdatedState(enabled)
     val onItemReselectedState = rememberUpdatedState(onItemReselected)
+    // Scrollable timeline/live rows are commonly hosted by clipping lazy/list parents. Report
+    // the vertical bloom room as part of this component's layout instead of relying on draw
+    // overflow alone; the 40dp dock remains centered while its refraction can reach outside it.
+    val scaleOverflow = resolveCompactDockScaleOverflowDp(
+        shellHeightDp = effectiveHeight.value,
+        indicatorHeightDp = indicatorHeight.value,
+    ).dp
+    val viewportHeight = effectiveHeight + scaleOverflow * 2
 
     BoxWithConstraints(
-        modifier = rootModifier.height(effectiveHeight)
+        modifier = rootModifier.height(viewportHeight)
     ) {
         val indicatorWidthDp = when {
             constraints.hasBoundedWidth ->
@@ -199,7 +208,9 @@ internal fun BottomBarFloatingSegmentedControl(
             },
             backdrop = effectiveBackdrop,
             tabsCount = itemCount,
-            modifier = Modifier.matchParentSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(viewportHeight),
             mode = floatingMode,
             colors = FloatingBottomBarColors(
                 containerColor = shellColor,

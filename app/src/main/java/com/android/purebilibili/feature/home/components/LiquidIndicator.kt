@@ -135,6 +135,8 @@ internal fun LiquidIndicator(
     val targetScaleX = 1f + deformation
     val targetScaleY = 1f - (deformation * motionSpec.indicator.deformationScaleYCompressionRatio)
 
+    // 放大弹簧照搬 HyperIsland LiquidGlassNavigationBar：X 用 scaleSpring(0.6/250)、
+    // Y 用 scaleYSpring(0.7/250)，不再叠加 BiliPai 早先恒为 1f 的 dragScale 层。
     val scaleX by animateFloatAsState(
         targetValue = targetScaleX,
         animationSpec = motionSpec.indicator.scaleSpring.toSpringSpec(),
@@ -142,17 +144,9 @@ internal fun LiquidIndicator(
     )
     val scaleY by animateFloatAsState(
         targetValue = targetScaleY,
-        animationSpec = motionSpec.indicator.scaleSpring.toSpringSpec(),
+        animationSpec = motionSpec.indicator.scaleYSpring.toSpringSpec(),
         label = "scaleY"
     )
-    val dragScale by animateFloatAsState(
-        targetValue = if (isDragging) 1.0f else 1f,
-        animationSpec = motionSpec.indicator.dragScaleSpring.toSpringSpec(),
-        label = "dragScale"
-    )
-
-    val finalScaleX = scaleX * dragScale
-    val finalScaleY = scaleY * dragScale
 
     // 指示器形状
     val shape = RoundedCornerShape(indicatorHeight / 2)
@@ -177,8 +171,8 @@ internal fun LiquidIndicator(
                         viewportShiftPx = viewportShiftPx
                     )
                     
-                    this.scaleX = finalScaleX
-                    this.scaleY = finalScaleY
+                    this.scaleX = scaleX
+                    this.scaleY = scaleY
                     shadowElevation = 0f
                 }
                 .size(indicatorWidth, indicatorHeight)

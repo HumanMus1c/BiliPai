@@ -1416,11 +1416,17 @@ open class MainActivity : AppCompatActivity() {
             }
 
             //  📐 [平板适配] 计算窗口尺寸类
+            val materialWindowAdaptiveInfo =
+                androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2()
             val windowSizeClass = calculateWindowSizeClass(
                 densityMultiplier = displayMetricsSnapshot.effectiveDensityMultiplier,
-                metrics = windowMetrics!!
+                metrics = windowMetrics!!,
+                adaptiveWindowSizeClass = materialWindowAdaptiveInfo.windowSizeClass,
             )
-            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(windowSizeClass)
+            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(
+                windowSizeClass = windowSizeClass,
+                windowPosture = materialWindowAdaptiveInfo.windowPosture,
+            )
 
             // 6. 传入参数
             PureBiliBiliTheme(

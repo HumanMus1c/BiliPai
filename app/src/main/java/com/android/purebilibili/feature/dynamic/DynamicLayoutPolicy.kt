@@ -57,9 +57,8 @@ internal fun resolveDynamicTopBarLiquidTabSpec(): DynamicTopBarLiquidTabSpec {
         topPaddingDp = 0,
         bottomPaddingDp = 0,
         heightDp = heightDp,
-        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
-            heightDp.toFloat()
-        ),
+        // Top docks use a tighter 4dp vertical inset than the taller bottom navigation dock.
+        indicatorHeightDp = heightDp - 8,
         labelFontSizeSp = 13
     )
 }

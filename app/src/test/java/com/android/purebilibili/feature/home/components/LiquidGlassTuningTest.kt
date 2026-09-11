@@ -55,8 +55,14 @@ class LiquidGlassTuningTest {
         val middle = resolveLiquidGlassTuning(progress = 0.5f)
         val frosted = resolveLiquidGlassTuning(progress = 1f)
 
-        assertTrue(clear.indicatorLensBoost > middle.indicatorLensBoost)
-        assertTrue(middle.indicatorLensBoost > frosted.indicatorLensBoost)
+        // 照搬参考项目：指示器折射基准不随雾化程度放大，
+        // 三档都等于上游的 10dp / 14dp 基准（否则上下色散比参考更长）。
+        assertEquals(1f, clear.indicatorLensBoost, 0.0001f)
+        assertEquals(1f, middle.indicatorLensBoost, 0.0001f)
+        assertEquals(1f, frosted.indicatorLensBoost, 0.0001f)
+        assertEquals(1f, clear.indicatorEdgeWarpBoost, 0.0001f)
+        assertEquals(1f, middle.indicatorEdgeWarpBoost, 0.0001f)
+        assertEquals(1f, frosted.indicatorEdgeWarpBoost, 0.0001f)
         assertTrue(
             clear.shellChromaticAberrationAmount >= middle.shellChromaticAberrationAmount
         )

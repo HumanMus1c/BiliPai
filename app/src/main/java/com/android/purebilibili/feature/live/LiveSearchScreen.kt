@@ -28,7 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppBackToTopButton
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -300,12 +302,17 @@ fun LiveSearchScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
+        val liveSearchBackdrop = rememberLayerBackdrop()
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 ,
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(liveSearchBackdrop)
+            ) {
                 if (!hasSubmitted) {
                     LiveSearchState("输入关键词后搜索直播间或主播")
                 } else {
@@ -398,7 +405,7 @@ fun LiveSearchScreen(
                 }
             }
 
-            AppBackToTopButton(
+            AppLiquidGlassBackToTopButton(
                 visible = backToTopButtonEnabled && hasSubmitted && !isLoading && hasScrolledAwayFromTop,
                 onClick = {
                     scope.launch {
@@ -415,6 +422,7 @@ fun LiveSearchScreen(
                         end = AppSpacingTokens.Large,
                         bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
                     ),
+                backdrop = liveSearchBackdrop,
             )
         }
     }

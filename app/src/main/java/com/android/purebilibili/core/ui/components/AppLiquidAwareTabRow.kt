@@ -159,14 +159,13 @@ fun <T> AppLiquidAwareTabRow(
     val isCompact = (compactMiuixWhenTwoOptions && options.size <= 2) || (minTabWidth.isSpecified && !scrollable)
     // Liquid rows and MD3 retain beta.21's 72dp default and overflow contract. Only the
     // non-glass Miuix renderer uses beta.22's 48dp accessibility minimum.
-    val needsHorizontalScroll = !isCompact && (scrollable || options.size > 4 || readableTabWidth > resolvedMinTabWidth)
+    val needsHorizontalScroll = scrollable && !isCompact && (options.size > 4 || readableTabWidth > resolvedMinTabWidth)
     if (needsHorizontalScroll) {
         val scrollState = rememberScrollState()
         val density = LocalDensity.current
         BoxWithConstraints(
             modifier = modifier
                 .widthIn(max = viewportMaxWidth)
-                .clip(CircleShape)
                 .liquidDockViewport(),
             contentAlignment = Alignment.CenterStart,
         ) {

@@ -128,13 +128,15 @@ internal fun resolveCompactDockScaleOverflowDp(
     return ((geometry.pressedHeightDp - shellHeightDp) / 2f).coerceAtLeast(0f)
 }
 
-/** Resting 64/56 dock keeps a 4dp inset on each side of the moving pill. */
+/** HyperIsland 静止几何：64dp 壳配 56dp 指示器，即上下各留 4dp（= 壳高 × 4/64）。 */
+internal const val FLOATING_DOCK_REST_INDICATOR_INSET_RATIO = 4f / 64f
+
+/** 静止时指示器单侧的垂直留白，按参考项目比例换算，任何壳高都得到相同的视觉边距。 */
 internal fun resolveFloatingDockRestIndicatorVerticalInsetDp(
     shellHeightDp: Float,
-    indicatorHeightDp: Float,
 ): Float {
-    if (shellHeightDp <= 0f || indicatorHeightDp <= 0f) return 0f
-    return ((shellHeightDp - indicatorHeightDp) / 2f).coerceAtLeast(0f)
+    if (shellHeightDp <= 0f) return 0f
+    return shellHeightDp * FLOATING_DOCK_REST_INDICATOR_INSET_RATIO
 }
 
 /**
@@ -193,7 +195,6 @@ internal fun Modifier.floatingDockScaleOverflow(
 internal const val FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR = 10f
 internal const val FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f
 internal const val FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP = 0.2f
-internal const val FLOATING_DOCK_VELOCITY_REFERENCE_TAB_WIDTH_DP = 75f
 
 enum class FloatingBottomBarGeometryMode { Dock, Segmented, TopNavigation }
 
@@ -240,28 +241,38 @@ internal fun resolveFloatingDockIndicatorHeightDp(
             resolveSegmentedControlIndicatorHeightDp(tabWidthDp, insetHeight)
         }
     }
+    // Dock 模式同样留出静止垂直边距，按 HyperIsland 的 64/56 比例（壳高 × 4/64）。
+    // 兜底：调用方即使把高度传满壳高，指示器也不会贴住上下边缘。
+    val restingInsetDp = shellHeightDp
+        ?.let { resolveFloatingDockRestIndicatorVerticalInsetDp(it) }
+        ?: 0f
+    val restingHeightDp = (shellHeightDp ?: requestedHeightDp) - restingInsetDp * 2f
+    val cappedHeightDp = min(requestedHeightDp, restingHeightDp).coerceAtLeast(0f)
     // A slot that is already wider than the pill can keep the authored height.
     // Forcing the 1.35 aspect here flattens icon+label after search takes a side slot.
-    if (tabWidthDp >= requestedHeightDp) return requestedHeightDp
+    if (tabWidthDp >= cappedHeightDp) return cappedHeightDp
     val maxHeightForCapsule = tabWidthDp / FLOATING_DOCK_MIN_INDICATOR_ASPECT
-    return min(requestedHeightDp, maxHeightForCapsule)
+    return min(cappedHeightDp, maxHeightForCapsule)
 }
 
 internal fun resolveFloatingDockIndicatorLayerScaleX(
     baseScaleX: Float,
     velocity: Float,
-    tabWidthPx: Float,
-    referenceTabWidthPx: Float,
 ): Float {
-    val widthRatio = if (tabWidthPx <= 0f || referenceTabWidthPx <= 0f) {
-        1f
-    } else {
-        (tabWidthPx / referenceTabWidthPx).coerceIn(0.55f, 1f)
-    }
-    val normalizedVelocity = velocity * widthRatio / FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR
-    val velocityScale = (abs(normalizedVelocity) * FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
-        .coerceIn(0f, FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP)
+    val normalizedVelocity = velocity / FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR
+    val velocityScale = (normalizedVelocity * FLOATING_DOCK_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
+        .coerceIn(-FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP, FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP)
     return baseScaleX / (1f - velocityScale)
+}
+
+internal fun resolveFloatingDockIndicatorLayerScaleY(
+    baseScaleY: Float,
+    velocity: Float,
+): Float {
+    val normalizedVelocity = velocity / FLOATING_DOCK_INDICATOR_VELOCITY_DIVISOR
+    val velocityScale = (normalizedVelocity * 0.25f)
+        .coerceIn(-FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP, FLOATING_DOCK_INDICATOR_VELOCITY_CLAMP)
+    return baseScaleY * (1f - velocityScale)
 }
 
 internal fun resolveFloatingDockCapturedContentHorizontalScale(

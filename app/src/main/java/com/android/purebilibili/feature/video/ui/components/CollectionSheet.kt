@@ -64,10 +64,18 @@ fun CollectionSheet(
             currentCid = currentCid
         )
     }
-    val sortMode by SettingsManager
+    val storedSortMode by SettingsManager
         .getCollectionSortMode(context, collectionSubscriptionId)
-        .collectAsStateWithLifecycle(initialValue = CollectionSortMode.ASCENDING
-        )
+        .collectAsStateWithLifecycle(initialValue = CollectionSortMode.ASCENDING)
+    var localSortMode by remember(collectionSubscriptionId) {
+        mutableStateOf<CollectionSortMode?>(null)
+    }
+    LaunchedEffect(storedSortMode) {
+        if (localSortMode == storedSortMode) {
+            localSortMode = null
+        }
+    }
+    val sortMode = localSortMode ?: storedSortMode
     val sortedEpisodes = remember(allEpisodes, sortMode, currentBvid, currentCid) {
         sortCollectionEpisodes(
             episodes = allEpisodes,
@@ -153,6 +161,7 @@ fun CollectionSheet(
                     selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
                     onScaleChange = { index ->
                         sortModes.getOrNull(index)?.let { nextMode ->
+                            localSortMode = nextMode
                             scope.launch {
                                 SettingsManager.setCollectionSortMode(context, collectionSubscriptionId, nextMode)
                             }

@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import com.android.purebilibili.core.ui.components.AppIcon
-import com.android.purebilibili.core.ui.components.AppBackToTopButton
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.FilterChipDefaults
@@ -242,12 +244,17 @@ fun LiveAreaDetailScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
+        val liveAreaBackdrop = rememberLayerBackdrop()
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 ,
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(liveAreaBackdrop)
+            ) {
                 when {
                 isLoading -> ContentVideoGridSkeletonFixedColumns(
                     columns = gridColumns,
@@ -300,7 +307,7 @@ fun LiveAreaDetailScreen(
                 }
             }
 
-            AppBackToTopButton(
+            AppLiquidGlassBackToTopButton(
                 visible = backToTopButtonEnabled && rooms.isNotEmpty() && hasScrolledAwayFromTop,
                 onClick = {
                     scope.launch {
@@ -313,6 +320,7 @@ fun LiveAreaDetailScreen(
                         end = AppSpacingTokens.Large,
                         bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
                     ),
+                backdrop = liveAreaBackdrop,
             )
         }
     }

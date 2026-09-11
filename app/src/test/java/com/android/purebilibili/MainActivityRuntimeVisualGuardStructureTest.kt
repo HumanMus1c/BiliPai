@@ -30,7 +30,8 @@ class MainActivityRuntimeVisualGuardStructureTest {
         ).first { it.exists() }.readText()
 
         assertTrue(mainSource.contains("widthSizeClass = windowSizeClass.widthSizeClass"))
-        assertTrue(videoSource.contains("resolveWindowWidthSizeClass("))
+        assertTrue(mainSource.contains("currentWindowAdaptiveInfoV2()"))
+        assertTrue(videoSource.contains("currentWindowAdaptiveInfoV2()"))
         assertTrue(videoSource.contains("ProvideRuntimeVisualGuard(widthSizeClass = windowWidthSizeClass)"))
     }
 

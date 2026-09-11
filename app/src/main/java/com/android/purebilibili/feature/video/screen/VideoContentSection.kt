@@ -49,16 +49,18 @@ import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
-import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
-import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import com.android.purebilibili.core.store.HomeSettings
@@ -1310,10 +1312,13 @@ internal fun VideoCommentTab(
                 title = "${sortMode.label}评论",
             )
         }
+        val commentBackdrop = rememberLayerBackdrop()
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(commentBackdrop),
                 contentPadding = contentPadding
             ) {
             if (isRepliesLoading && replies.isEmpty()) {
@@ -1407,32 +1412,21 @@ internal fun VideoCommentTab(
             }
             }
 
-            androidx.compose.animation.AnimatedVisibility(
+            AppLiquidGlassBackToTopButton(
                 visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                },
+                backdrop = commentBackdrop,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = 20.dp,
                         bottom = contentPadding.calculateBottomPadding() + 12.dp
                     ),
-                enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.92f),
-                exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.92f)
-            ) {
-                AppSmallFloatingActionButton(
-                    onClick = {
-                        scope.launch {
-                            listState.animateScrollToItem(0)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                    contentColor = MaterialTheme.colorScheme.primary
-                ) {
-                    AppIcon(
-                        imageVector = rememberAppChevronUpIcon(),
-                        contentDescription = "回到顶部"
-                    )
-                }
-            }
+            )
         }
     }
 }

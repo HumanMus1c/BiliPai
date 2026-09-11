@@ -11,14 +11,16 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 
 /**
- * Frame the viewport to a pill dock shape so the ends never expose sharp corners
- * while the inner rail scrolls horizontally.
+ * Non-glass rails keep their conventional rounded viewport. Liquid-glass rails must remain
+ * unclipped so the moving indicator can bloom and disperse beyond both vertical dock edges.
+ * The liquid shell and indicator already draw their own capsule shapes.
  */
 @Composable
 internal fun Modifier.liquidDockViewport(): Modifier {
     val uiStyle = LocalAppUiStyle.current
     val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
-    val shape = if (uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled) {
+    if (liquidGlassEnabled) return this
+    val shape = if (uiStyle == AppUiStyle.MIUIX) {
         AppShapes.container(ContainerLevel.Card)
     } else {
         CircleShape

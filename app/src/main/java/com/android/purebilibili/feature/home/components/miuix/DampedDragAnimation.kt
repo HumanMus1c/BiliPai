@@ -2,6 +2,7 @@
 // design-system DampedDragAnimationState used by top tabs / segmented controls.
 package com.android.purebilibili.feature.home.components.miuix
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
@@ -29,9 +30,10 @@ enum class DampedDragTrackingMode {
     DIRECT,
 }
 
-// Match the five-destination home dock; a two-item control must not amplify the
-// same slot velocity fourfold merely because its selectable range is shorter.
-internal fun normalizeFloatingDockDragVelocity(slotVelocity: Float): Float = slotVelocity / 4f
+internal fun normalizeFloatingDockDragVelocity(
+    slotVelocity: Float,
+    valueRange: ClosedRange<Float>,
+): Float = slotVelocity / (valueRange.endInclusive - valueRange.start).coerceAtLeast(1f)
 
 /**
  * Floating dock damped-drag kernel: spring-followed value, press/scale springs, velocity
@@ -57,10 +59,11 @@ class DampedDragAnimation(
         spring(0.5f, 300f, visibilityThreshold * 10f)
     private val pressProgressAnimationSpec =
         spring(1f, 1000f, 0.001f)
+    // Motion tuning copied from HyperIsland's LiquidGlassNavigationBar.
     private val scaleXAnimationSpec =
-        spring(0.82f, 520f, 0.001f)
+        spring(0.6f, 250f, 0.001f)
     private val scaleYAnimationSpec =
-        spring(0.86f, 560f, 0.001f)
+        spring(0.7f, 250f, 0.001f)
 
     private val valueAnimation =
         Animatable(initialValue, visibilityThreshold)
@@ -199,13 +202,15 @@ class DampedDragAnimation(
                     .filter { it <= threshold }
                     .first()
             }
-            // Finish the visible press before taking ownership of its scale Animatables.
-            // A tap schedules press and release in the same turn; cancelling here earlier
-            // would suppress the entire enlargement, especially without a moving pager.
-            pressJob?.join()
+            // 照搬 HyperIsland LiquidGlassNavigationBar 的 release()：直接接管正在跑的
+            // 放大动画，不等待它结束。原先这里的 pressJob?.join() 会让缩放先跑到峰值停住、
+            // 之后才开始缩回（放大 → 停顿 → 缩小），破坏连贯性。
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
+            // 速度形变是非对称的（scaleX 除以 1-v、scaleY 乘以 1-v），不归零就会留下
+            // 椭圆残影。参考项目靠 animateToValue 里的归零，这里补上 release 路径。
+            launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
         }
     }
 
@@ -264,10 +269,13 @@ class DampedDragAnimation(
 
     private fun updateVelocity() {
         velocityTracker.addPosition(
-            System.currentTimeMillis(),
+            SystemClock.uptimeMillis(),
             Offset(value, 0f)
         )
-        val targetVelocity = normalizeFloatingDockDragVelocity(velocityTracker.calculateVelocity().x)
+        val targetVelocity = normalizeFloatingDockDragVelocity(
+            slotVelocity = velocityTracker.calculateVelocity().x,
+            valueRange = valueRange,
+        )
         animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }
     }
 }

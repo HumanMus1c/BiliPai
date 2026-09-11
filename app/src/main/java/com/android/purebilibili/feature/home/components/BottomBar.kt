@@ -1,6 +1,7 @@
 // 文件路径: feature/home/components/BottomBar.kt
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.core.ui.AppIconStyle
 import com.android.purebilibili.core.ui.rememberResolvedAppIconStyle
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -167,7 +169,6 @@ import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.LiquidGlassStyle // [New] Top-level enum
 import com.android.purebilibili.core.store.LiquidGlassMode
 import androidx.compose.animation.core.EaseOut
-import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.sign
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop as MiuixLayerBackdrop
@@ -571,12 +572,19 @@ internal fun resolveBiliPaiBottomBarDockHeight(
     } else if (hasUiSkinDecoration) {
         resolveBottomBarSkinDockHeight()
     } else {
-        56.dp
+        // 照搬 HyperIsland 的壳高 64dp：指示器静止 56dp、按下 78dp、
+        // 指示器 lens 绝对 10dp/14dp 都由此推导，静止时上下各留 4dp。
+        com.android.purebilibili.core.ui.BottomBarReferenceShellHeightDp.dp
     }
 }
 
 internal fun resolveBiliPaiBottomBarIndicatorHeight(dockHeight: Dp): Dp {
-    return (dockHeight - 4.dp).coerceAtLeast(1.dp)
+    // 照搬 HyperIsland 的静止几何：64dp 壳配 56dp 指示器，也就是指示器 = 壳高 × 56/64，
+    // 静止时上下各留出 4dp（以 64dp 壳计）比例的垂直边距。
+    // 原先的 minOf(dockHeight, 56dp) 会让 56dp 壳的指示器与壳同高，静止 inset 变成 0。
+    // 按下 bloom 的绝对高度不受影响：resolveMatchedLiquidIndicatorPressedScale 以新基准换算。
+    val scaledHeight = resolveMatchedLiquidIndicatorHeightDp(dockHeight.value)
+    return minOf(dockHeight, scaledHeight.coerceAtLeast(1f).dp)
 }
 
 internal fun resolveBiliPaiBottomBarSearchHeight(searchExpanded: Boolean): Dp {
@@ -1648,16 +1656,26 @@ internal fun resolveBottomBarIndicatorLayerTransform(
     } else {
         0f
     }
-    // Direction changes which edge leads, not the capsule's thickness. Stretch along the
-    // travel axis with speed magnitude and keep the cross-axis at its press scale.
-    val velocityScaleX = (abs(velocity) * BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
-        .coerceIn(0f, BILIPAI_INDICATOR_VELOCITY_CLAMP)
+    // HyperIsland: the leading/trailing direction affects both longitudinal stretch and
+    // cross-axis compression, producing the asymmetric liquid handoff while dragging.
+    val velocityScaleX = (velocity * BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER)
+        .coerceIn(-BILIPAI_INDICATOR_VELOCITY_CLAMP, BILIPAI_INDICATOR_VELOCITY_CLAMP)
+    val velocityScaleY = (velocity * 0.25f)
+        .coerceIn(-BILIPAI_INDICATOR_VELOCITY_CLAMP, BILIPAI_INDICATOR_VELOCITY_CLAMP)
     return BottomBarIndicatorLayerTransform(
         scaleX = baseScaleX / (1f - velocityScaleX),
-        scaleY = baseScaleY
+        scaleY = baseScaleY * (1f - velocityScaleY)
     )
 }
 
+/**
+ * 指示器按下放大的进度。
+ *
+ * 照搬 HyperIsland LiquidGlassNavigationBar 的
+ * `scaleXAnimation.animateTo(78f / 56f, spring(0.6f, 250f, 0.001f))`：
+ * 进入与退出共用同一条 spring(0.6f, 250f)，不再使用 BiliPai 早先的
+ * tween(90ms 进入 / 220ms 退出)。
+ */
 @Composable
 internal fun rememberBottomBarIndicatorDragScaleProgress(
     isDragging: Boolean
@@ -1666,13 +1684,37 @@ internal fun rememberBottomBarIndicatorDragScaleProgress(
     LaunchedEffect(isDragging) {
         progress.animateTo(
             targetValue = if (isDragging) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = if (isDragging) 90 else 220,
-                easing = if (isDragging) EaseOut else FastOutSlowInEasing
+            animationSpec = spring(
+                dampingRatio = 0.6f,
+                stiffness = 250f,
+                visibilityThreshold = 0.001f
             )
         )
     }
     return progress.value
+}
+
+/**
+ * 指示器按下/拖拽放大的 X/Y 形变。
+ *
+ * 照搬 HyperIsland LiquidGlassNavigationBar 的两条独立 Animatable：
+ * `scaleXAnimation.animateTo(78f / 56f, spring(0.6f, 250f, 0.001f))` 与
+ * `scaleYAnimation.animateTo(78f / 56f, spring(0.7f, 250f, 0.001f))` ——
+ * BiliPai 不再把两条弹簧压成单条 progress。
+ */
+@Composable
+internal fun rememberBottomBarIndicatorLayerScaleTransform(
+    active: Boolean,
+    target: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET
+): BottomBarIndicatorLayerTransform {
+    val scaleX = remember { Animatable(1f) }
+    val scaleY = remember { Animatable(1f) }
+    LaunchedEffect(active, target) {
+        val resolvedTarget = if (active) target.coerceAtLeast(1f) else 1f
+        launch { scaleX.animateTo(resolvedTarget, spring(0.6f, 250f, 0.001f)) }
+        launch { scaleY.animateTo(resolvedTarget, spring(0.7f, 250f, 0.001f)) }
+    }
+    return BottomBarIndicatorLayerTransform(scaleX = scaleX.value, scaleY = scaleY.value)
 }
 
 internal fun resolveBottomBarVisualIndicatorPosition(

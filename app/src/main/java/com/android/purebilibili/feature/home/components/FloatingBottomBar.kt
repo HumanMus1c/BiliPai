@@ -16,6 +16,7 @@ package com.android.purebilibili.feature.home.components
 import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -252,7 +253,7 @@ fun PlainMiuixFloatingBottomBar(
 }
 
 /** Flatter resting indicator; the shell and indicator retain the same capsule shape. */
-val FloatingBottomBarIndicatorHeight: Dp = 52.dp
+val FloatingBottomBarIndicatorHeight: Dp = 56.dp
 
 val FloatingBottomBarDefaultShellHeight: Dp = 56.dp
 
@@ -460,13 +461,13 @@ fun FloatingBottomBar(
     content: @Composable RowScope.() -> Unit
 ) {
     val isInDark = isSystemInDarkTheme()
+    val isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass
     val segmentedGeometry = geometryMode != FloatingBottomBarGeometryMode.Dock
-    val allowOverflow = !segmentedGeometry
+    val allowOverflow = isLiquidGlassMode || !segmentedGeometry
     val horizontalPadding = contentHorizontalPadding.coerceAtLeast(0.dp)
     val verticalPadding = contentVerticalPadding.coerceIn(0.dp, shellHeight.coerceAtLeast(0.dp) / 2)
     val horizontalPaddingLatest = rememberUpdatedState(horizontalPadding)
     val pillShape = remember { resolveSharedBottomBarCapsuleShape() }
-    val isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass
     val isBlurMode = mode == FloatingBottomBarMode.Blur
     val adaptiveReadabilityEnabled = isLiquidGlassMode &&
         liquidGlassTuning.readabilityMode == LiquidGlassReadabilityMode.ADAPTIVE
@@ -516,12 +517,6 @@ fun FloatingBottomBar(
     val tabPressScale = remember(shellHeight) {
         resolveCompactDockTabPressScale(shellHeight.value)
     }
-    val scaleOverflowDp = remember(shellHeight, indicatorHeight) {
-        resolveCompactDockScaleOverflowDp(
-            shellHeightDp = shellHeight.value,
-            indicatorHeightDp = indicatorHeight.value,
-        ).dp
-    }
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
     val layoutDirection = LocalLayoutDirection.current
     val configuration = LocalConfiguration.current
@@ -562,6 +557,12 @@ fun FloatingBottomBar(
             indicatorHeightDp = fittedIndicatorHeight.value,
         )
     }
+    val pressedScale = matchedGeometry.pressedScale
+    val scaleOverflowDp = remember(shellHeight, fittedIndicatorHeight, pressedScale) {
+        ((fittedIndicatorHeight.value * pressedScale - shellHeight.value) / 2f)
+            .coerceAtLeast(0f)
+            .dp
+    }
     class DockDragHitTest {
         var dockWindowLeftPx = 0f
         var screenWidthPx = 0f
@@ -588,16 +589,12 @@ fun FloatingBottomBar(
 
     val offsetAnimation = remember { Animatable(0f) }
     val rubberBandPx = with(density) { 4.dp.toPx() }
-    val panelOffset by remember(rubberBandPx, density, horizontalPadding) {
+    val panelOffset by remember(rubberBandPx) {
         derivedStateOf {
             if (totalWidthPx == 0f) {
                 0f
             } else {
-                val referenceWidth = resolveFloatingDockDragReferenceWidthPx(
-                    tabWidthPx = tabWidthPx,
-                    horizontalPaddingPx = with(density) { horizontalPadding.toPx() },
-                )
-                val fraction = (offsetAnimation.value / referenceWidth).fastCoerceIn(-1f, 1f)
+                val fraction = (offsetAnimation.value / totalWidthPx).fastCoerceIn(-1f, 1f)
                 rubberBandPx * fraction.sign * EaseOut.transform(abs(fraction))
             }
         }
@@ -631,7 +628,7 @@ fun FloatingBottomBar(
             valueRange = 0f..maxTabIndex.toFloat(),
             visibilityThreshold = 0.001f,
             initialScale = 1f,
-            pressedScale = matchedGeometry.pressedScale,
+            pressedScale = pressedScale,
             trackingMode = dragTrackingMode,
             canDrag = { offset ->
                 val animation = holder.instance ?: return@DampedDragAnimation true
@@ -645,6 +642,7 @@ fun FloatingBottomBar(
                     totalWidthPx - padding - tabWidthPx - indicatorX + offset.x
                 }
                 if (globalTouchX !in 0f..totalWidthPx) return@DampedDragAnimation false
+                if (segmentedGeometry) return@DampedDragAnimation true
                 shouldAcceptFloatingDockDragAtWindowX(
                     windowX = dragHitTest.dockWindowLeftPx + globalTouchX,
                     screenWidthPx = dragHitTest.screenWidthPx,
@@ -671,10 +669,8 @@ fun FloatingBottomBar(
                 if (targetIndex != selected) {
                     onSelectedLatest.value(targetIndex)
                 }
-                // The indicator position spring already settles the gesture. Keeping a second,
-                // slower rubber-band spring here makes release visibly rebound twice.
                 animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                    offsetAnimation.snapTo(0f)
+                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
             },
             onDrag = { _, dragAmount ->
@@ -693,7 +689,7 @@ fun FloatingBottomBar(
     SideEffect {
         // Search reserving space beside the dock can retarget indicator geometry. Updating the
         // field keeps press bloom in sync without recreating the pointerInput owner.
-        dampedDragAnimation.pressedScale = matchedGeometry.pressedScale
+        dampedDragAnimation.pressedScale = pressedScale
     }
     // Pager swipes are already continuous state. When explicitly requested, read that position
     // in layout/draw instead of depending solely on the coroutine mirror above. This keeps the
@@ -979,16 +975,14 @@ fun FloatingBottomBar(
             )
         }
 
-        val referenceTabWidthPx = with(density) {
-            FLOATING_DOCK_VELOCITY_REFERENCE_TAB_WIDTH_DP.dp.toPx()
-        }
         val indicatorStretchXProvider: () -> Float = {
-            val scaleY = dampedDragAnimation.scaleY.coerceAtLeast(0.001f)
+            val scaleY = resolveFloatingDockIndicatorLayerScaleY(
+                baseScaleY = dampedDragAnimation.scaleY,
+                velocity = dampedDragAnimation.velocity,
+            ).coerceAtLeast(0.001f)
             resolveFloatingDockIndicatorLayerScaleX(
                 baseScaleX = dampedDragAnimation.scaleX,
                 velocity = dampedDragAnimation.velocity,
-                tabWidthPx = tabWidthPx,
-                referenceTabWidthPx = referenceTabWidthPx,
             ) / scaleY
         }
         if (isLiquidGlassMode && backdrop != null) {
@@ -1103,12 +1097,13 @@ fun FloatingBottomBar(
                                 pillHighlight?.value?.copy(alpha = dampedDragAnimation.pressProgress)
                             },
                             layerBlock = {
-                                scaleY = dampedDragAnimation.scaleY
+                                scaleY = resolveFloatingDockIndicatorLayerScaleY(
+                                    baseScaleY = dampedDragAnimation.scaleY,
+                                    velocity = dampedDragAnimation.velocity,
+                                )
                                 scaleX = resolveFloatingDockIndicatorLayerScaleX(
                                     baseScaleX = dampedDragAnimation.scaleX,
                                     velocity = dampedDragAnimation.velocity,
-                                    tabWidthPx = tabWidthPx,
-                                    referenceTabWidthPx = referenceTabWidthPx,
                                 )
                             },
                             onDrawSurface = {

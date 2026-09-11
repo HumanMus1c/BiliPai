@@ -112,6 +112,8 @@ fun DynamicTopBarWithTabs(
     hazeState: HazeState? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
+    /** True when the horizontal UP user list is visible directly below the bar. */
+    shouldShowHorizontalUserList: Boolean = false,
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -150,6 +152,9 @@ fun DynamicTopBarWithTabs(
     BiliPaiImmersiveTopBar(
         backdrop = dockBackdrop,
         enabled = isProgressiveBlurActive,
+        // 横条 + 用户列表可见时，不让顶栏的渐进模糊向下越界盖住 UP 头像。
+        // 顶栏自身渐进模糊效果保持不变，仅收敛其向下延伸。
+        extendBelowBounds = !(displayMode.isHorizontalUserList() && shouldShowHorizontalUserList),
         modifier = modifier.then(
             if (!isProgressiveBlurActive && headerBlurEnabled && hazeState != null) {
                 Modifier.unifiedBlur(hazeState = hazeState, surfaceType = BlurSurfaceType.HEADER)

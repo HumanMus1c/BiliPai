@@ -1,6 +1,7 @@
 // 文件路径: core/ui/animation/DampedDragAnimation.kt
 package com.android.purebilibili.core.ui.animation
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
@@ -117,8 +118,9 @@ class DampedDragAnimationState internal constructor(
     private val valueAnimationSpec = spring(1f, 1000f, 0.001f)
     private val velocityAnimationSpec = spring(0.5f, 300f, 0.01f)
     private val pressProgressAnimationSpec = spring(1f, 1000f, 0.001f)
-    private val scaleXAnimationSpec = spring(0.82f, 520f, 0.001f)
-    private val scaleYAnimationSpec = spring(0.86f, 560f, 0.001f)
+    // Motion tuning copied from HyperIsland's LiquidGlassNavigationBar.
+    private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)
+    private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)
 
     private val valueAnimation = Animatable(initialIndex.toFloat(), 0.001f)
     private val velocityAnimation = Animatable(0f, 5f)
@@ -193,13 +195,15 @@ class DampedDragAnimationState internal constructor(
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(1f, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(1f, scaleYAnimationSpec) }
+            // 速度形变是非对称的，不归零会留下椭圆残影。
+            launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
         }
     }
 
     private fun updateDeformationVelocity(value: Float) {
         val valueRange = (itemCount - 1).toFloat().coerceAtLeast(1f)
         deformationVelocityTracker.addPosition(
-            System.currentTimeMillis(),
+            SystemClock.uptimeMillis(),
             Offset(value, 0f)
         )
         val targetVelocity = deformationVelocityTracker.calculateVelocity().x / valueRange
@@ -361,7 +365,7 @@ class DampedDragAnimationState internal constructor(
         )
         offsetJob?.cancel()
         offsetJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            offsetAnimation.snapTo(0f)
+            offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
         }
     }
 

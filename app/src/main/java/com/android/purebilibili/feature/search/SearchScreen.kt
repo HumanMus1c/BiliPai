@@ -7,7 +7,7 @@ import com.android.purebilibili.core.ui.components.videoListItemModifier
 import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppAssistChip
-import com.android.purebilibili.core.ui.components.AppBackToTopButton
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
@@ -2137,7 +2137,7 @@ fun SearchScreen(
             }
             }
 
-            AppBackToTopButton(
+            AppLiquidGlassBackToTopButton(
                 visible = backToTopButtonEnabled && shouldShowBackToTop,
                 onClick = {
                     scope.launch {
@@ -2148,6 +2148,7 @@ fun SearchScreen(
                         }
                     }
                 },
+                backdrop = searchChromeBackdrop,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(

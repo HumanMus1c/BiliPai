@@ -10,6 +10,12 @@ import kotlin.test.assertTrue
 class MiuixThemeBridgePolicyTest {
 
     @Test
+    fun `miuix palette selection stays independent from liquid glass rendering`() {
+        assertTrue(shouldUseNativeMiuixPalette(AppUiStyle.MIUIX))
+        assertTrue(!shouldUseNativeMiuixPalette(AppUiStyle.MATERIAL3))
+    }
+
+    @Test
     fun `native miuix custom accent reaches sliders and auxiliary controls`() {
         val primary = Color(0xFFB3261E)
         listOf(false, true).forEach { dark ->
