@@ -86,6 +86,15 @@ class BiliPaiNavDisplayHostNativeTransitionStructureTest {
         )
     }
 
+    @Test
+    fun settledOrUnavailableCardMorphReleasesNativeCardLayers() {
+        val source = loadSource()
+
+        assertTrue(source.contains("if (!cardMorphAvailable)"))
+        assertTrue(source.contains("state == VideoCardTransitionSettleState.Idle"))
+        assertTrue(source.countOccurrences("CardPositionManager.clearNativeVideoCardLayers()") == 2)
+    }
+
     private fun String.countOccurrences(needle: String): Int =
         windowed(size = needle.length, step = 1).count { it == needle }
 

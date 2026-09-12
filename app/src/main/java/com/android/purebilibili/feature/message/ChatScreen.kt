@@ -64,6 +64,7 @@ import com.android.purebilibili.core.ui.components.AppSnackbar
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.PickGalleryVisualMedia
 import com.android.purebilibili.data.model.response.EmoteInfo
 import com.android.purebilibili.data.model.response.PrivateMessageItem
 import com.android.purebilibili.data.repository.MessageSessionControlInfo
@@ -94,7 +95,7 @@ fun ChatScreen(
     var showInterceptConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = PickGalleryVisualMedia()
     ) { uri ->
         if (uri != null) {
             viewModel.sendImageMessage(context, uri)

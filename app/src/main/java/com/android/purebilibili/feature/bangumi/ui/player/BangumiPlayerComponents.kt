@@ -135,6 +135,7 @@ fun BangumiPlayerView(
     onAudioQualityChange: (Int) -> Unit = {},
     onBack: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onScreenLockChanged: (Boolean) -> Unit = {},
     sponsorSegment: SponsorSegment? = null,
     showSponsorSkipButton: Boolean = false,
     onSponsorSkip: () -> Unit = {},
@@ -184,6 +185,13 @@ fun BangumiPlayerView(
     // 控制层状态
     var showControls by remember { mutableStateOf(true) }
     var isScreenLocked by rememberSaveable { mutableStateOf(false) }
+    val latestOnScreenLockChanged by rememberUpdatedState(onScreenLockChanged)
+    LaunchedEffect(isScreenLocked) {
+        latestOnScreenLockChanged(isScreenLocked)
+    }
+    DisposableEffect(Unit) {
+        onDispose { latestOnScreenLockChanged(false) }
+    }
     var currentAspectRatio by remember { mutableStateOf(VideoAspectRatio.FIT) }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     val scope = rememberCoroutineScope()

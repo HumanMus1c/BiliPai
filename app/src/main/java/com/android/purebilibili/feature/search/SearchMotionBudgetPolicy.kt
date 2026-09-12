@@ -22,6 +22,16 @@ internal fun shouldEnableSearchHazeSource(
     startupSettled: Boolean = true
 ): Boolean = startupSettled && !isSearching
 
+/**
+ * Keep the Miuix backdrop source mounted across result-type requests. Recreating it while a tab
+ * request is in flight briefly exposes the plain chrome until the new source records its first
+ * frame, which appears as a flash when switching between video, bangumi, and other result tabs.
+ */
+internal fun shouldKeepSearchChromeBackdropSource(
+    progressiveTopBlurEnabled: Boolean,
+    liquidGlassEnabled: Boolean,
+): Boolean = progressiveTopBlurEnabled || liquidGlassEnabled
+
 internal fun resolveEffectiveSearchMotionBudget(
     startupSettled: Boolean,
     baseBudget: SearchMotionBudget

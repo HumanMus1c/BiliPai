@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.list
+
+import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
 import com.android.purebilibili.core.ui.components.resolveVideoListColumns
 import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
@@ -100,6 +102,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -480,6 +483,7 @@ fun CommonListScreen(
     ) {
         if (favoriteViewModel != null && foldersState.size > 1) foldersState.size else 0
     }
+    var hasSyncedFavoritePager by remember(pagerState) { mutableStateOf(false) }
 
     // 历史分类滑动 Pager：支持在屏幕中央左右手势滑动切换分类
     val historyFilters = remember { HistoryContentFilter.entries }
@@ -1063,8 +1067,11 @@ fun CommonListScreen(
                                     minimumValue = 0,
                                     maximumValue = pagerState.pageCount - 1,
                                 )
-                                if (pagerState.currentPage != targetPage) {
+                                if (!hasSyncedFavoritePager) {
                                     pagerState.scrollToPage(targetPage)
+                                    hasSyncedFavoritePager = true
+                                } else if (pagerState.currentPage != targetPage) {
+                                    animatePagerSelection(pagerState, targetPage)
                                 }
                             }
                         }
@@ -1764,7 +1771,7 @@ fun CommonListScreen(
                                 val targetPage = historyFilters.indexOf(filter).coerceAtLeast(0)
                                 scope.launch {
                                     if (historyPagerState.currentPage != targetPage) {
-                                        historyPagerState.animateScrollToPage(targetPage)
+                                        animatePagerSelection(historyPagerState, targetPage)
                                     }
                                     historyPagerGridStates[targetPage]?.scrollToItem(0)
                                 }

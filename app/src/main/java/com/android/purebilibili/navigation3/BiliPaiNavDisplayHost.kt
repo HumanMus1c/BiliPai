@@ -61,6 +61,7 @@ import com.android.purebilibili.core.ui.transition.shouldReleaseHostOwnedDepthLa
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionNavBackdrop
 import com.android.purebilibili.core.ui.transition.shouldUseHostOwnedVideoCardTransitionSnapshot
 import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
 import com.android.purebilibili.navigation3.predictiveback.MIUIX_PREDICTIVE_BACK_DEFAULT_MAX_PROGRESS_PERCENT
@@ -233,11 +234,20 @@ internal fun BiliPaiNavDisplayHost(
     }
     // A restored parent session must not keep the departed child's scope at depth -1.
     val videoCardTransitionProgress = remember(sourceMetadata.sourceKey) { MiuixVideoCardTransitionProgress() }
+    val videoFallbackTransition = if (cardTransitionEnabled) {
+        // 卡片形变开启时，fallback 只负责接住源卡片不可用等降级场景，避免再接管
+        // Miuix 预测返回进度。
+        predictiveBackExcludedTransition
+    } else {
+        // 关闭卡片形变后，视频页完整沿用“全局导航动画”：Miuix、AOSP、缩放、
+        // 经典与无动画都由同一个 Miuix NavDisplay 驱动，不叠加 Compose 转场。
+        globalTransition
+    }
     val observedVideoFallbackTransition = remember(
-        predictiveBackExcludedTransition,
+        videoFallbackTransition,
         videoCardTransitionProgress,
     ) {
-        videoCardTransitionProgress.observe(predictiveBackExcludedTransition)
+        videoCardTransitionProgress.observe(videoFallbackTransition)
     }
     val returningProvider = remember(videoCardClock) {
         { videoCardClock.phase != VideoCardTransitionBackgroundPhase.OPENING }
@@ -318,6 +328,7 @@ internal fun BiliPaiNavDisplayHost(
         previousStack = stackSnapshot
         if (!cardMorphAvailable) {
             videoCardClock.snapClearAndIdle()
+            CardPositionManager.clearNativeVideoCardLayers()
             return@LaunchedEffect
         }
         val previousTop = previous.lastOrNull()
@@ -345,6 +356,7 @@ internal fun BiliPaiNavDisplayHost(
                     // LiveNavTransitionScope reads the shared navigation presentation even after
                     // its video entry leaves. Release it before another route reuses that driver.
                     videoCardTransitionProgress.clear()
+                    CardPositionManager.clearNativeVideoCardLayers()
                 }
                 VideoCardTransitionDiagnostics.onMotionPhase(
                     state, heroMotion, sourceMetadata.sourceLayout, diagnosticConfiguration,

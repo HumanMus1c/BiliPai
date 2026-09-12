@@ -14,5 +14,8 @@ class AppLiquidAwareTabRowConstraintPolicyTest {
         assertTrue(source.contains("val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp"))
         assertTrue(source.contains(".widthIn(max = viewportMaxWidth)"))
         assertTrue(source.contains(".clip(CircleShape)"))
+        assertTrue(source.contains("onIndicatorPositionChanged = { position ->"))
+        assertTrue(source.contains("resolveScrollableTabIndicatorFollowDeltaPx("))
+        assertTrue(source.contains("scrollState.dispatchRawDelta("))
     }
 }

@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.navigation.animatePagerSelection
+
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -237,7 +239,7 @@ internal fun TabletCinemaLayout(
     }
     LaunchedEffect(selectedTab) {
         if (curtainPagerState.currentPage != selectedTab) {
-            curtainPagerState.animateScrollToPage(selectedTab)
+            animatePagerSelection(curtainPagerState, selectedTab)
         }
     }
     LaunchedEffect(curtainPagerState.currentPage) {
@@ -1017,7 +1019,7 @@ private fun CinemaSideCurtain(
     LaunchedEffect(selectedTab) {
         if (pagerState.currentPage != selectedTab) {
             if (transition.currentState == TabletSideCurtainState.OPEN) {
-                pagerState.animateScrollToPage(selectedTab)
+                animatePagerSelection(pagerState, selectedTab)
             } else {    // 动画中或关闭状态停用动画，避免卡动画
                 pagerState.scrollToPage(selectedTab)
             }

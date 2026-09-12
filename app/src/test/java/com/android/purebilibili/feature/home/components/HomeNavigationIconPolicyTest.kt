@@ -6,14 +6,26 @@ import kotlin.test.assertEquals
 class HomeNavigationIconPolicyTest {
 
     @Test
-    fun `uses Miuix icons where the library has an equivalent symbol`() {
+    fun `uses native Miuix icons for every home navigation role`() {
         listOf(
             "HOME",
+            "DYNAMIC",
+            "STORY",
+            "HISTORY",
             "LISTEN_VIDEO",
+            "PROFILE",
             "FAVORITE",
+            "LIVE",
             "WATCHLATER",
             "SETTINGS",
+            "PLUGINS",
+            "FOLLOW",
+            "POPULAR",
+            "ANIME",
+            "GAME",
             "PARTITION",
+            "KNOWLEDGE",
+            "TECH",
         ).forEach { tabId ->
             assertEquals(
                 HomeNavigationIconSource.MIUIX,
@@ -22,23 +34,4 @@ class HomeNavigationIconPolicyTest {
         }
     }
 
-    @Test
-    fun `uses user supplied SVG vectors for missing navigation symbols`() {
-        assertEquals(HomeNavigationIconSource.LOCAL_DYNAMIC, resolveMiuixPreferredHomeNavigationIconSource("DYNAMIC"))
-        assertEquals(HomeNavigationIconSource.LOCAL_HISTORY, resolveMiuixPreferredHomeNavigationIconSource("HISTORY"))
-        assertEquals(HomeNavigationIconSource.LOCAL_PROFILE, resolveMiuixPreferredHomeNavigationIconSource("PROFILE"))
-        assertEquals(HomeNavigationIconSource.LOCAL_STORY, resolveMiuixPreferredHomeNavigationIconSource("STORY"))
-        assertEquals(HomeNavigationIconSource.LOCAL_LIVE, resolveMiuixPreferredHomeNavigationIconSource("LIVE"))
-        assertEquals(HomeNavigationIconSource.LOCAL_GAME, resolveMiuixPreferredHomeNavigationIconSource("GAME"))
-    }
-
-    @Test
-    fun `uses Miuix for roles that previously depended on the active theme`() {
-        listOf("PLUGINS", "FOLLOW", "POPULAR", "ANIME", "KNOWLEDGE", "TECH").forEach { tabId ->
-            assertEquals(
-                HomeNavigationIconSource.MIUIX,
-                resolveMiuixPreferredHomeNavigationIconSource(tabId),
-            )
-        }
-    }
 }

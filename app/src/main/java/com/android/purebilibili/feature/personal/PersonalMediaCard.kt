@@ -12,14 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -38,6 +36,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
 import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
 import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoCardFrame
 
 /**
  * Shared visual frame for personal-list media rows.
@@ -53,6 +53,7 @@ internal fun PersonalMediaCardFrame(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     coverModifier: Modifier = Modifier,
+    coverOverlayModifier: Modifier = Modifier,
     selected: Boolean = false,
     stacked: Boolean = false,
     enabled: Boolean = true,
@@ -90,7 +91,9 @@ internal fun PersonalMediaCardFrame(
                         modifier = coverModifier.fillMaxWidth().aspectRatio(coverAspectRatio).clip(cardShape),
                     ) {
                         coverContent()
-                        coverOverlayContent?.invoke(this)
+                        Box(modifier = Modifier.fillMaxSize().then(coverOverlayModifier)) {
+                            coverOverlayContent?.invoke(this)
+                        }
                     }
                     Row(verticalAlignment = Alignment.Bottom) {
                         Column(
@@ -107,53 +110,34 @@ internal fun PersonalMediaCardFrame(
                     }
                 }
             } else {
-                val coverShape = AppShapes.mediaCover()
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = minimumHeight),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    val effectiveAspectRatio = if (coverAspectRatio <= 1f) 16f / 9f else coverAspectRatio
-                    val resolvedCoverWidth = coverWidth ?: (minimumHeight * effectiveAspectRatio)
-                    Box(
-                        modifier = coverModifier
-                            .width(resolvedCoverWidth)
-                            .aspectRatio(effectiveAspectRatio)
-                            .clip(coverShape),
-                    ) {
-                        coverContent()
-                        coverOverlayContent?.invoke(this)
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = minimumHeight)
-                            .padding(
-                                start = AppSpacingTokens.Medium,
-                                top = AppSpacingTokens.Small,
-                                bottom = AppSpacingTokens.Small,
-                                end = if (trailingContent != null) AppSpacingTokens.None else AppSpacingTokens.Medium,
-                            ),
-                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                    ) {
+                HorizontalVideoCardFrame(
+                    coverContent = coverContent,
+                    coverModifier = coverModifier,
+                    coverOverlayModifier = coverOverlayModifier,
+                    coverOverlayContent = coverOverlayContent,
+                    coverWidth = coverWidth ?: HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp,
+                    coverAspectRatio = coverAspectRatio,
+                    minimumHeight = minimumHeight,
+                    infoContent = {
                         overlineContent?.invoke()
                         headlineContent()
                         supportingContent?.invoke()
-                    }
-
-                    trailingContent?.let { content ->
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.Bottom)
-                                .padding(end = AppSpacingTokens.Small, bottom = AppSpacingTokens.Small),
-                            verticalAlignment = Alignment.Bottom,
-                            content = content,
-                        )
-                    }
-                }
+                    },
+                    trailingContent = trailingContent?.let { content ->
+                        {
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(
+                                        end = AppSpacingTokens.Small,
+                                        bottom = AppSpacingTokens.Small,
+                                    ),
+                                verticalAlignment = Alignment.Bottom,
+                                content = content,
+                            )
+                        }
+                    },
+                )
             }
 
             if (selected) {
@@ -187,32 +171,26 @@ internal fun PersonalMediaCardSkeleton(
 ) {
     val pulse = if (blockColor == null) rememberContentSkeletonPulse() else 0f
     val color = blockColor ?: rememberContentSkeletonBlockColor(pulse)
-    val coverHeight = PERSONAL_LIST_BASE_MIN_HEIGHT_DP.dp
-    val coverWidth = coverHeight * PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO
+    val minimumHeight = resolvePersonalMediaCardMinHeightDp(LocalDensity.current.fontScale).dp
     val cardShape = AppShapes.container(ContainerLevel.Card)
-    val coverShape = AppShapes.mediaCover()
 
     AppSurface(
         modifier = modifier
-            .fillMaxWidth()
-            .height(coverHeight),
+            .fillMaxWidth(),
         shape = cardShape,
         color = AppSurfaceTokens.cardContainer(),
     ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            ContentSkeletonBlock(
-                color = color,
-                shape = coverShape,
-                modifier = Modifier
-                    .width(coverWidth)
-                    .fillMaxHeight(),
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(AppSpacingTokens.Medium),
-                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-            ) {
+        HorizontalVideoCardFrame(
+            minimumHeight = minimumHeight,
+            coverContent = {
+                ContentSkeletonBlock(
+                    color = color,
+                    shape = AppShapes.mediaCover(),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            },
+            infoVerticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+            infoContent = {
                 ContentSkeletonBlock(
                     color = color,
                     modifier = Modifier
@@ -232,15 +210,17 @@ internal fun PersonalMediaCardSkeleton(
                         .fillMaxWidth(0.62f)
                         .height(12.dp),
                 )
-            }
-            ContentSkeletonBlock(
-                color = color,
-                shape = CircleShape,
-                modifier = Modifier
-                    .padding(end = AppSpacingTokens.Small)
-                    .size(24.dp)
-                    .align(Alignment.CenterVertically),
-            )
-        }
+            },
+            trailingContent = {
+                ContentSkeletonBlock(
+                    color = color,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .padding(end = AppSpacingTokens.Small)
+                        .size(24.dp)
+                        .align(Alignment.CenterEnd),
+                )
+            },
+        )
     }
 }

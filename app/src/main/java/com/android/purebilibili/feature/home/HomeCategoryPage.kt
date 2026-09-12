@@ -86,6 +86,31 @@ internal fun resolveHomeCategoryVideoGridKeys(videos: List<VideoItem>): List<Str
     }
 }
 
+/**
+ * Rows used by the truncated-card feed. A divider starts a fresh row so content below it
+ * remains aligned; full-card mode bypasses this grouping and keeps the waterfall layout.
+ */
+internal fun resolveHomeFeedAlignedRows(
+    itemCount: Int,
+    columns: Int,
+    dividerIndex: Int? = null,
+): List<IntRange> {
+    if (itemCount <= 0) return emptyList()
+    val safeColumns = columns.coerceAtLeast(1)
+    val safeDividerIndex = dividerIndex?.takeIf { it in 1 until itemCount }
+    return buildList {
+        var rowStart = 0
+        while (rowStart < itemCount) {
+            val naturalEndExclusive = (rowStart + safeColumns).coerceAtMost(itemCount)
+            val rowEndExclusive = safeDividerIndex
+                ?.takeIf { it > rowStart && it < naturalEndExclusive }
+                ?: naturalEndExclusive
+            add(rowStart until rowEndExclusive)
+            rowStart = rowEndExclusive
+        }
+    }
+}
+
 internal fun resolveHomeHeroCarouselDedupKey(video: VideoItem): String {
     return when {
         video.bvid.isNotBlank() -> "bvid_${video.bvid}"
@@ -153,6 +178,7 @@ internal fun HomeCategoryPageContent(
     showUpAvatars: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
+    showFullVideoCardContent: Boolean = false,
     homeHeroCarouselEnabled: Boolean = true,
     homeHeroCarouselAutoplayEnabled: Boolean = false,
     onHeroCarouselGestureActiveChange: (Boolean) -> Unit = {},
@@ -269,6 +295,120 @@ internal fun HomeCategoryPageContent(
         resolveHomeCategoryVideoGridKeys(visibleGridVideos)
     }
 
+    val renderVideoCard: @Composable (Int, VideoItem, Modifier) -> Unit = { index, video, itemModifier ->
+        val isDynamicDetailCard = video.dynamicId.isNotBlank() &&
+            !video.bvid.startsWith("BV", ignoreCase = true)
+        val isDissolving = video.bvid in dissolvingVideos
+
+        MaybeDissolvableVideoCard(
+            isDissolving = isDissolving,
+            onDissolveComplete = { onDissolveComplete(video.bvid) },
+            cardId = video.bvid,
+            preset = DissolveAnimationPreset.TELEGRAM_FAST,
+            preserveContentLayerWhenIdle = cardTransitionEnabled,
+            modifier = itemModifier
+                .jiggleOnDissolve(
+                    cardId = video.bvid,
+                    isCurrentCardDissolving = isDissolving
+                )
+                .then(if (index == 0) firstGridItemModifier else Modifier)
+        ) {
+            when (displayMode) {
+                1 -> StoryVideoCard(
+                    video = video,
+                    index = index,
+                    animationEnabled = cardAnimationEnabled,
+                    motionTier = cardMotionTier,
+                    transitionEnabled = cardTransitionEnabled,
+                    isReturningFromVideoDetail = isReturningFromVideoDetail,
+                    isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
+                    scrollLiteModeEnabled = isScrollInProgress,
+                    isDataSaverActive = isDataSaverActive,
+                    preferLowQualityCover = preferLowQualityCover,
+                    coverRequestSpec = coverRequestSpec,
+                    showCoverGlassBadges = showCoverGlassBadges,
+                    showInfoGlassBadges = showInfoGlassBadges,
+                    showUpBadge = showUpBadges,
+                    showUpAvatar = showUpAvatars,
+                    homeDurationStyle = homeDurationStyle,
+                    coverAspectRatio = cardLayout.coverAspectRatio,
+                    cardHorizontalPadding = cardLayout.storyCardHorizontalPaddingDp.dp,
+                    compactMetadata = cardLayout.compactMetadata,
+                    titleMinLines = cardLayout.titleMinLines,
+                    titleMaxLines = cardLayout.titleMaxLines,
+                    showOnlineCount = showOnlineCount,
+                    onUpClick = onUpClick,
+                    showPublishTime = true,
+                    onDismiss = { onDismissVideo(video) },
+                    onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
+                    onClick = { bvid, cid ->
+                        onVideoClick(
+                            HomeVideoClickRequest(
+                                bvid = bvid,
+                                dynamicId = video.dynamicId,
+                                cid = cid,
+                                coverUrl = video.pic,
+                                isVerticalVideo = video.isVertical,
+                                source = HomeVideoClickSource.GRID,
+                                sourceRoute = sourceRoute
+                            )
+                        )
+                    }
+                )
+
+                else -> ElegantVideoCard(
+                    video = video,
+                    index = index,
+                    isFollowing = video.owner.mid in followingMids && category != HomeCategory.FOLLOW,
+                    animationEnabled = cardAnimationEnabled,
+                    motionTier = cardMotionTier,
+                    transitionEnabled = cardTransitionEnabled,
+                    isReturningFromVideoDetail = isReturningFromVideoDetail,
+                    isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
+                    scrollLiteModeEnabled = isScrollInProgress,
+                    showPublishTime = true,
+                    isDataSaverActive = isDataSaverActive,
+                    preferLowQualityCover = preferLowQualityCover,
+                    coverRequestSpec = coverRequestSpec,
+                    compactStatsOnCover = compactStatsOnCover || cardLayout.compactStatsOnCover,
+                    showCoverGlassBadges = showCoverGlassBadges,
+                    showInfoGlassBadges = showInfoGlassBadges,
+                    badgeEffectMode = badgeEffectMode,
+                    infoGlassMode = infoGlassMode,
+                    wallpaperTintEnabled = wallpaperTintEnabled,
+                    wallpaperEffectMode = wallpaperEffectMode,
+                    showUpBadge = showUpBadges,
+                    showUpAvatar = showUpAvatars,
+                    homeDurationStyle = homeDurationStyle,
+                    coverAspectRatio = cardLayout.coverAspectRatio,
+                    compactMetadata = cardLayout.compactMetadata,
+                    titleMinLines = cardLayout.titleMinLines,
+                    titleMaxLines = cardLayout.titleMaxLines,
+                    showOnlineCount = showOnlineCount,
+                    onUpClick = onUpClick,
+                    onDismiss = { onDismissVideo(video) },
+                    onWatchLater = if (isDynamicDetailCard) null else ({
+                        onWatchLater(video.bvid, resolveWatchLaterAid(video))
+                    }),
+                    onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
+                    onClick = { bvid, cid ->
+                        onVideoClick(
+                            HomeVideoClickRequest(
+                                bvid = bvid,
+                                dynamicId = video.dynamicId,
+                                cid = cid,
+                                coverUrl = video.pic,
+                                isVerticalVideo = video.isVertical,
+                                source = HomeVideoClickSource.GRID,
+                                sourceRoute = sourceRoute
+                            )
+                        )
+                    }
+                )
+            }
+        }
+    }
+
     Box(modifier = modifier) {
         CompositionLocalProvider(
             LocalVideoCardSharedElementSourceRoute provides sourceRoute
@@ -375,137 +515,83 @@ internal fun HomeCategoryPageContent(
                             (oldContentStartIndex != null && oldContentStartIndex > 0 && oldContentStartIndex < visibleGridVideos.size)
                         )
 
-                // categoryState.videos.forEachIndexed 的实际渲染入口，保留锚点用于结构守卫。
-                visibleGridVideos.forEachIndexed { index, video ->
-                    val shouldInsertDividerHere = shouldShowOldContentDivider && (
-                        (oldContentAnchorBvid != null && video.bvid == oldContentAnchorBvid && index > 0) ||
-                            (oldContentAnchorBvid == null && index == oldContentStartIndex)
-                        )
-                    if (shouldInsertDividerHere) {
-                        item(
-                            key = "old_content_divider_$index",
-                            contentType = "home_old_content_divider",
-                            span = StaggeredGridItemSpan.FullLine
-                        ) {
-                            OldContentDivider()
+                val dividerIndex = if (shouldShowOldContentDivider) {
+                    if (oldContentAnchorBvid != null) {
+                        visibleGridVideos
+                            .indexOfFirst { it.bvid == oldContentAnchorBvid }
+                            .takeIf { it > 0 }
+                    } else {
+                        oldContentStartIndex
+                    }
+                } else {
+                    null
+                }
+
+                if (showFullVideoCardContent) {
+                    // Complete titles intentionally retain the independent-lane waterfall.
+                    visibleGridVideos.forEachIndexed { index, video ->
+                        if (index == dividerIndex) {
+                            item(
+                                key = "old_content_divider_$index",
+                                contentType = "home_old_content_divider",
+                                span = StaggeredGridItemSpan.FullLine
+                            ) {
+                                OldContentDivider()
+                            }
+                        }
+                        item(key = videoGridKeys[index], contentType = "home_video_card") {
+                            renderVideoCard(
+                                index,
+                                video,
+                                videoListItemModifier(enabled = cardAnimationEnabled),
+                            )
                         }
                     }
-
-                    item(
-                        key = videoGridKeys[index],
-                        contentType = "home_video_card"
-                    ) {
-                        val isDynamicDetailCard = video.dynamicId.isNotBlank() && !video.bvid.startsWith("BV", ignoreCase = true)
-                        val isDissolving = video.bvid in dissolvingVideos
-
-                        MaybeDissolvableVideoCard(
-                            isDissolving = isDissolving,
-                            onDissolveComplete = { onDissolveComplete(video.bvid) },
-                            cardId = video.bvid,
-                            preset = DissolveAnimationPreset.TELEGRAM_FAST,
-                            preserveContentLayerWhenIdle = cardTransitionEnabled,
-                            modifier = videoListItemModifier(enabled = cardAnimationEnabled)
-                                .jiggleOnDissolve(
-                                    cardId = video.bvid,
-                                    isCurrentCardDissolving = isDissolving
-                                )
-                                .then(if (index == 0) firstGridItemModifier else Modifier)
+                } else {
+                    // Truncated cards advance as complete rows. Metadata remains unabridged, but
+                    // a long timestamp can no longer pull only its own lane out of alignment.
+                    resolveHomeFeedAlignedRows(
+                        itemCount = visibleGridVideos.size,
+                        columns = gridColumns,
+                        dividerIndex = dividerIndex,
+                    ).forEach { rowIndices ->
+                        if (rowIndices.first == dividerIndex) {
+                            item(
+                                key = "old_content_divider_${rowIndices.first}",
+                                contentType = "home_old_content_divider",
+                                span = StaggeredGridItemSpan.FullLine
+                            ) {
+                                OldContentDivider()
+                            }
+                        }
+                        val rowKey = rowIndices.joinToString(
+                            prefix = "home_video_row_",
+                            separator = "_",
+                        ) { videoGridKeys[it] }
+                        item(
+                            key = rowKey,
+                            contentType = "home_video_row",
+                            span = StaggeredGridItemSpan.FullLine,
                         ) {
-                            when (displayMode) {
-                                1 -> {
-                                    StoryVideoCard(
-                                        video = video,
-                                        index = index,
-                                        animationEnabled = cardAnimationEnabled,
-                                        motionTier = cardMotionTier,
-                                        transitionEnabled = cardTransitionEnabled,
-                                        isReturningFromVideoDetail = isReturningFromVideoDetail,
-                                        isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = isScrollInProgress,
-                                        isDataSaverActive = isDataSaverActive,
-                                        preferLowQualityCover = preferLowQualityCover,
-                                        coverRequestSpec = coverRequestSpec,
-                                        showCoverGlassBadges = showCoverGlassBadges,
-                                        showInfoGlassBadges = showInfoGlassBadges,
-                                        showUpBadge = showUpBadges,
-                                        showUpAvatar = showUpAvatars,
-                                        homeDurationStyle = homeDurationStyle,
-                                        coverAspectRatio = cardLayout.coverAspectRatio,
-                                        cardHorizontalPadding = cardLayout.storyCardHorizontalPaddingDp.dp,
-                                        compactMetadata = cardLayout.compactMetadata,
-                                        titleMinLines = cardLayout.titleMinLines,
-                                        titleMaxLines = cardLayout.titleMaxLines,
-                                        showOnlineCount = showOnlineCount,
-                                        onUpClick = onUpClick,
-                                        showPublishTime = true,
-                                        onDismiss = { onDismissVideo(video) },
-                                        onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
-                                        onClick = { bvid, cid ->
-                                            onVideoClick(
-                                                HomeVideoClickRequest(
-                                                    bvid = bvid,
-                                                    dynamicId = video.dynamicId,
-                                                    cid = cid,
-                                                    coverUrl = video.pic,
-                                                    isVerticalVideo = video.isVertical,
-                                                    source = HomeVideoClickSource.GRID,
-                                                    sourceRoute = sourceRoute
-                                                )
+                            Row(
+                                modifier = videoListItemModifier(enabled = cardAnimationEnabled)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = horizontalArrangement,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                rowIndices.forEach { index ->
+                                    key(videoGridKeys[index]) {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            renderVideoCard(
+                                                index,
+                                                visibleGridVideos[index],
+                                                Modifier.fillMaxWidth(),
                                             )
                                         }
-                                    )
+                                    }
                                 }
-
-                                else -> {
-                                    ElegantVideoCard(
-                                        video = video,
-                                        index = index,
-                                        isFollowing = video.owner.mid in followingMids && category != HomeCategory.FOLLOW,
-                                        animationEnabled = cardAnimationEnabled,
-                                        motionTier = cardMotionTier,
-                                        transitionEnabled = cardTransitionEnabled,
-                                        isReturningFromVideoDetail = isReturningFromVideoDetail,
-                                        isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = isScrollInProgress,
-                                        showPublishTime = true,
-                                        isDataSaverActive = isDataSaverActive,
-                                        preferLowQualityCover = preferLowQualityCover,
-                                        coverRequestSpec = coverRequestSpec,
-                                        compactStatsOnCover = compactStatsOnCover || cardLayout.compactStatsOnCover,
-                                        showCoverGlassBadges = showCoverGlassBadges,
-                                        showInfoGlassBadges = showInfoGlassBadges,
-                                        badgeEffectMode = badgeEffectMode,
-                                        infoGlassMode = infoGlassMode,
-                                        wallpaperTintEnabled = wallpaperTintEnabled,
-                                        wallpaperEffectMode = wallpaperEffectMode,
-                                        showUpBadge = showUpBadges,
-                                        showUpAvatar = showUpAvatars,
-                                        homeDurationStyle = homeDurationStyle,
-                                        coverAspectRatio = cardLayout.coverAspectRatio,
-                                        compactMetadata = cardLayout.compactMetadata,
-                                        titleMinLines = cardLayout.titleMinLines,
-                                        titleMaxLines = cardLayout.titleMaxLines,
-                                        showOnlineCount = showOnlineCount,
-                                        onUpClick = onUpClick,
-                                        onDismiss = { onDismissVideo(video) },
-                                        onWatchLater = if (isDynamicDetailCard) null else ({
-                                            onWatchLater(video.bvid, resolveWatchLaterAid(video))
-                                        }),
-                                        onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
-                                        onClick = { bvid, cid ->
-                                            onVideoClick(
-                                                HomeVideoClickRequest(
-                                                    bvid = bvid,
-                                                    dynamicId = video.dynamicId,
-                                                    cid = cid,
-                                                    coverUrl = video.pic,
-                                                    isVerticalVideo = video.isVertical,
-                                                    source = HomeVideoClickSource.GRID,
-                                                    sourceRoute = sourceRoute
-                                                )
-                                            )
-                                        }
-                                    )
+                                repeat(gridColumns - rowIndices.count()) {
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }

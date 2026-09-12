@@ -83,6 +83,7 @@ import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.view.LayoutInflater
 import android.view.Surface
 import android.view.SurfaceView
@@ -179,6 +180,7 @@ import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTrans
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.Logger
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.feature.screenshot.AppScreenshotGestureBlockState
 import com.android.purebilibili.feature.anime4k.Anime4KConfig
@@ -1312,8 +1314,26 @@ fun VideoPlayerSection(
     }
     DisposableEffect(isFullscreen, isScreenLocked) {
         val shouldBlockAppScreenshot = isFullscreen && isScreenLocked
+        val lockedActivity = if (shouldBlockAppScreenshot) {
+            generateSequence(context) { current ->
+                (current as? ContextWrapper)?.baseContext
+            }.filterIsInstance<Activity>().firstOrNull()
+        } else {
+            null
+        }
+        val previousRequestedOrientation = lockedActivity?.requestedOrientation
+
+        if (shouldBlockAppScreenshot) {
+            lockedActivity?.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED)
+        }
         AppScreenshotGestureBlockState.fullscreenPlayerLocked = shouldBlockAppScreenshot
         onDispose {
+            if (
+                lockedActivity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LOCKED &&
+                previousRequestedOrientation != null
+            ) {
+                lockedActivity.applyPlayerRequestedOrientation(previousRequestedOrientation)
+            }
             if (shouldBlockAppScreenshot) {
                 AppScreenshotGestureBlockState.fullscreenPlayerLocked = false
             }

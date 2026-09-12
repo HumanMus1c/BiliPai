@@ -27,8 +27,10 @@ import androidx.compose.ui.semantics.semantics
 import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
 import top.yukonga.miuix.kmp.basic.BadgeDefaults as MiuixBadgeDefaults
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarDefaults as MiuixNavigationBarDefaults
 import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode as MiuixNavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
+import top.yukonga.miuix.kmp.basic.NavigationBarItemColors as MiuixNavigationBarItemColors
 import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailDefaults as MiuixNavigationRailDefaults
 import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
@@ -119,6 +121,7 @@ fun RowScope.AppPlatformNavigationBarItem(
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    colors: MiuixNavigationBarItemColors = MiuixNavigationBarDefaults.navigationBarItemColors(),
     badge: (@Composable () -> Unit)? = null,
 ) = MiuixNavigationBarItem(
     selected = selected,
@@ -132,6 +135,7 @@ fun RowScope.AppPlatformNavigationBarItem(
             this.selected = selected
         },
     enabled = enabled,
+    colors = colors,
     badge = badge,
 )
 

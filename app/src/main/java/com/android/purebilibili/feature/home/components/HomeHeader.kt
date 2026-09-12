@@ -6,6 +6,10 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import com.android.purebilibili.core.ui.resolveAppInboxIcon
+import com.android.purebilibili.core.ui.resolveAppSearchIcon
+import com.android.purebilibili.core.ui.resolveAppSettingsIcon
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
@@ -99,6 +103,26 @@ import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 
 private const val HOME_HEADER_LIQUID_GLASS_ALPHA = 0.10f
+
+internal data class HomeTopActionIcons(
+    val search: androidx.compose.ui.graphics.vector.ImageVector,
+    val settings: androidx.compose.ui.graphics.vector.ImageVector,
+    val inbox: androidx.compose.ui.graphics.vector.ImageVector,
+)
+
+internal fun resolveHomeTopActionIcons(iconFamily: AppSemanticIconFamily): HomeTopActionIcons =
+    when (iconFamily) {
+        AppSemanticIconFamily.MATERIAL -> HomeTopActionIcons(
+            search = resolveAppSearchIcon(),
+            settings = resolveAppSettingsIcon(),
+            inbox = resolveAppInboxIcon(),
+        )
+        AppSemanticIconFamily.MIUIX -> HomeTopActionIcons(
+            search = MiuixIcons.Search,
+            settings = MiuixIcons.Settings,
+            inbox = MiuixIcons.Messages,
+        )
+    }
 
 internal data class HomeTopChromeMotionPolicy(
     val isScrolling: Boolean,
@@ -1501,11 +1525,14 @@ fun HomeHeader(
     }
     val edgeButtonShape = resolveHomeTopEdgeButtonShape(topChromePolicy)
     val searchContainerShape = resolveHomeTopSearchContainerShape(topChromePolicy)
-    val searchIcon = MiuixIcons.Search
+    val topActionIcons = resolveHomeTopActionIcons(semanticVisualPolicy.effectiveIconFamily)
+    val searchIcon = topActionIcons.search
     val topRightAction = homeSettings?.homeTopRightAction ?: HomeTopRightAction.SETTINGS
-    val settingsIcon = MiuixIcons.Settings
-    val inboxIcon = MiuixIcons.Messages
-    val topRightActionIcon = if (topRightAction == HomeTopRightAction.INBOX) inboxIcon else settingsIcon
+    val topRightActionIcon = if (topRightAction == HomeTopRightAction.INBOX) {
+        topActionIcons.inbox
+    } else {
+        topActionIcons.settings
+    }
     val topRightActionContentDescription = resolveHomeTopRightActionContentDescription(
         action = topRightAction,
         unreadCount = topRightUnreadCount

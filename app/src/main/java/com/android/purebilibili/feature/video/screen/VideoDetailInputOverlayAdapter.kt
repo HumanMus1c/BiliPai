@@ -60,7 +60,6 @@ private data class CommentInputSnapshot(
     val isSending: Boolean,
     val replyToName: String?,
     val inputHint: String,
-    val canUploadImage: Boolean,
     val canInputComment: Boolean,
     val emotePackages: List<EmotePackage>,
     val mentionUsers: List<MentionSearchUser>,
@@ -173,7 +172,6 @@ internal fun VideoDetailInputOverlayAdapter(
             isSending = isSendingComment,
             replyToName = replyingToComment?.member?.uname,
             inputHint = if (replyingToComment != null) commentState.childInputHint else commentState.rootInputHint,
-            canUploadImage = commentState.canUploadImage,
             canInputComment = commentState.canInputComment,
             emotePackages = emotePackages,
             mentionUsers = mentionSearchState.users,
@@ -187,7 +185,6 @@ internal fun VideoDetailInputOverlayAdapter(
             updateDraft = viewModel::updateCommentDraft,
             send = { message, imageUris, syncToDynamic ->
                 viewModel.sendComment(message, imageUris, syncToDynamic)
-                viewModel.hideCommentInputDialog()
             },
         ),
         currentVideoPositionMsProvider = currentVideoPositionMsProvider,
@@ -230,7 +227,6 @@ private fun VideoDetailCommentInputOverlayContent(
         isSending = snapshot.isSending,
         replyToName = snapshot.replyToName,
         inputHint = snapshot.inputHint,
-        canUploadImage = snapshot.canUploadImage,
         canInputComment = snapshot.canInputComment,
         emotePackages = snapshot.emotePackages,
         mentionUsers = snapshot.mentionUsers,

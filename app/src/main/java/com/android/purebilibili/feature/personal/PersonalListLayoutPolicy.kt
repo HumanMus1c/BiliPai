@@ -1,13 +1,16 @@
 package com.android.purebilibili.feature.personal
 
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
 import kotlin.math.ceil
 import kotlin.math.max
 
 internal const val PERSONAL_LIST_MAX_ITEM_WIDTH_DP = 480f
 internal const val PERSONAL_LIST_BASE_MIN_HEIGHT_DP = 90f
 /** PiliPlus `Style.aspectRatio` for history/later horizontal covers. */
-internal const val PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO = 16f / 10f
-internal const val PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP = 140
+internal const val PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO =
+    HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
+internal const val PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
 internal const val PERSONAL_LIST_POSTER_ASPECT_RATIO = 3f / 4f
 
 /**

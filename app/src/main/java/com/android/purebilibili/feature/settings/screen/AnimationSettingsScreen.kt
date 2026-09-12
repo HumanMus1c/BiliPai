@@ -422,8 +422,8 @@ fun AnimationSettingsContent(
                         AppPreferenceDivider()
                         SettingsSingleChoicePreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
-                            title = "全局返回动画",
-                            subtitle = "让按钮返回和侧滑返回使用一致的过渡动画",
+                            title = "全局导航动画",
+                            subtitle = "用于页面进入、按钮返回和侧滑返回；关闭视频卡片转场后也沿用此设置",
                             options = predictiveBackStyleOptions,
                             selectedValue = predictiveBackStyle,
                             onSelectionChange = { style ->

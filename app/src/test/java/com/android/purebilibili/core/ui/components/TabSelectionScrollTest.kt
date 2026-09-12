@@ -36,4 +36,24 @@ class TabSelectionScrollTest {
         assertEquals(320, resolveTabSelectionScrollOffsetPx(1, 320f, 240f, 800))
         assertEquals(0, resolveTabSelectionScrollOffsetPx(1, 0f, 240f, 800))
     }
+
+    @Test
+    fun `continuous indicator drag scrolls only after crossing a viewport edge`() {
+        assertEquals(
+            0f,
+            resolveScrollableTabIndicatorFollowDeltaPx(1f, 80f, 240f, 0f, 4f, 12f),
+        )
+        assertEquals(
+            96f,
+            resolveScrollableTabIndicatorFollowDeltaPx(3f, 80f, 240f, 0f, 4f, 12f),
+        )
+        assertEquals(
+            -88f,
+            resolveScrollableTabIndicatorFollowDeltaPx(0f, 80f, 240f, 80f, 4f, 12f),
+        )
+        assertEquals(
+            0f,
+            resolveScrollableTabIndicatorFollowDeltaPx(Float.NaN, 80f, 240f, 0f),
+        )
+    }
 }

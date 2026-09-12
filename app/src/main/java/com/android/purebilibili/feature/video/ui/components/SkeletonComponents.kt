@@ -28,9 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
-import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP
-import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoCardFrame
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -267,25 +265,19 @@ private fun RelatedVideoItemSkeleton(
     modifier: Modifier = Modifier,
     @Suppress("UNUSED_PARAMETER") coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
 ) {
-    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
-    Row(
+    HorizontalVideoCardFrame(
         modifier = modifier
             .clip(VideoDetailShapes.contentCard())
             .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        SkeletonBlock(
-            modifier = Modifier
-                .width(coverWidth)
-                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO),
-            shape = VideoDetailShapes.media(),
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+        coverContent = {
+            SkeletonBlock(
+                modifier = Modifier.fillMaxSize(),
+                shape = VideoDetailShapes.media(),
+            )
+        },
+        infoVerticalArrangement = Arrangement.spacedBy(4.dp),
+        infoContent = {
             SkeletonBox(modifier = Modifier.fillMaxWidth(), height = 16.dp, cornerRadius = 8.dp)
             SkeletonBox(modifier = Modifier.fillMaxWidth(0.82f), height = 16.dp, cornerRadius = 8.dp)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -298,8 +290,8 @@ private fun RelatedVideoItemSkeleton(
                 Spacer(modifier = Modifier.width(12.dp))
                 SkeletonBox(modifier = Modifier.width(48.dp), height = 13.dp, cornerRadius = 7.dp)
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable

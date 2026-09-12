@@ -22,6 +22,7 @@ internal fun isFoldableCoverWindow(
         minOf(currentWindowWidthDp, currentWindowHeightDp) < LARGE_SCREEN_SMALLEST_WIDTH_DP
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldRequestPhysicalPlayerOrientation(
     smallestScreenWidthDp: Int,
     currentWindowWidthDp: Int? = null,
@@ -31,15 +32,11 @@ internal fun shouldRequestPhysicalPlayerOrientation(
     platformIgnoresLargeScreenOrientationRequests: Boolean =
         Build.VERSION.SDK_INT >= 36,
 ): Boolean {
-    val isCoverWindow = isFoldableCoverWindow(
-        smallestScreenWidthDp = smallestScreenWidthDp,
-        currentWindowWidthDp = currentWindowWidthDp,
-        currentWindowHeightDp = currentWindowHeightDp,
-        maximumWidthDp = maximumWidthDp,
-        maximumHeightDp = maximumHeightDp,
-    )
-    val isLargeScreen = smallestScreenWidthDp >= LARGE_SCREEN_SMALLEST_WIDTH_DP
-    return !isLargeScreen || isCoverWindow || !platformIgnoresLargeScreenOrientationRequests
+    // Preserve the user's intent even when the current platform may ignore it. Android 16 can
+    // honor this request through PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY, and Android 17
+    // can honor it after the user opts in from the app aspect-ratio settings. Replacing the
+    // request with UNSPECIFIED here prevents both supported paths from ever taking effect.
+    return true
 }
 
 /**

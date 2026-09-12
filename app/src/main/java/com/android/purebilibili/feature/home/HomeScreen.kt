@@ -44,6 +44,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.ui.common.HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER
+import com.android.purebilibili.navigation.animatePagerSelection
 import androidx.compose.material3.rememberDrawerState
 import com.android.purebilibili.feature.home.components.MineSideDrawer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -315,7 +316,6 @@ fun HomeScreen(
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
-    val pageSwitchMotionSpec = AppMotionTokens.standardSpec<Float>()
     val globalScrollOffset = LocalHomeScrollOffset.current
     val globalFeedScrollInProgress = LocalHomeFeedScrollInProgress.current
     // [Header] 首页重选/双击回顶时需要强制恢复顶部，避免自动收缩后残留空白区域。
@@ -690,7 +690,7 @@ fun HomeScreen(
         ) {
             programmaticPageSwitchInProgress = true
             try {
-                pagerState.animateScrollToPage(targetPage)
+                animatePagerSelection(pagerState, targetPage)
             } finally {
                 programmaticPageSwitchInProgress = false
             }
@@ -2130,6 +2130,7 @@ fun HomeScreen(
                                      showUpAvatars = settledShowHomeUpAvatars,
                                      homeDurationStyle = homeSettings.homeDurationStyle,
                                      homeFeedCardStyle = homeFeedCardStyle,
+                                     showFullVideoCardContent = homeSettings.showFullVideoCardContent,
                                      homeHeroCarouselEnabled = homeSettings.homeHeroCarouselEnabled,
                                      homeHeroCarouselAutoplayEnabled = homeSettings.homeHeroCarouselAutoplayEnabled,
                                      onHeroCarouselGestureActiveChange = onHeroCarouselGestureActiveChange,
@@ -2365,10 +2366,7 @@ fun HomeScreen(
                     programmaticPageSwitchInProgress = true
                     coroutineScope.launch {
                         try {
-                            pagerState.animateScrollToPage(
-                                page = index,
-                                animationSpec = pageSwitchMotionSpec
-                            )
+                            animatePagerSelection(pagerState, index)
                         } finally {
                             programmaticPageSwitchInProgress = false
                         }

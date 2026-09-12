@@ -10,9 +10,8 @@ internal fun resolveBiliPaiAutoPredictiveBackExitDirection(
     if (popRouteTransition == BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT) {
         return BiliPaiPredictiveBackExitDirection.FOLLOW_GESTURE
     }
-    // 关闭「过渡动画」后提交 pop 恒向右全宽滑出（安卓原生，见
-    // BiliPaiNavContentTransformPolicy.disabledVideoDirectionReturnTransform），
-    // 预测预览必须同向，避免「预览右滑、松手提交左滑」的换向撕裂。
+    // 关闭「过渡动画」后，提交阶段已是无动画切换；预测返回仍按安卓原生返回
+    // 方向向右跟手，避免预览方向受历史卡片列位置影响。
     if (
         popRouteTransition == BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT ||
         popRouteTransition == BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT

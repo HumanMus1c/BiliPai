@@ -1,5 +1,7 @@
 // 文件路径: feature/video/screen/VideoContentSection.kt
 package com.android.purebilibili.feature.video.screen
+
+import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -92,6 +94,7 @@ import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.CommentListHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
+import com.android.purebilibili.feature.video.ui.components.resolveCommentSortDockViewportOverflowDp
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
 import com.android.purebilibili.feature.video.ui.components.resolveReplyItemContentType
@@ -654,8 +657,9 @@ internal fun VideoContentSection(
                 // 出发的动画；否则 offset 会先归零回弹到左侧，再动画到目标页。
                 pagerState.scrollToPage(index)
             } else {
-                pagerState.animateScrollToPage(
-                    page = index,
+                animatePagerSelection(
+                    pagerState = pagerState,
+                    targetPage = index,
                     animationSpec = tween(
                         durationMillis = tabSwitchAnimationSpec.durationMs,
                         easing = FastOutSlowInEasing
@@ -763,6 +767,12 @@ internal fun VideoContentSection(
     )
     val tabBarVisibleHeightDp = with(density) {
         (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f).toDp()
+    }
+    val commentSortDockLiftDp = remember {
+        resolveCommentSortDockViewportOverflowDp(
+            containerHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
+            indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
+        )
     }
     // Match the home bottom dock: one full-size content source, with liquid docks rendered as
     // overlay siblings outside that source. A source attached only to the LazyColumns starts
@@ -981,6 +991,9 @@ internal fun VideoContentSection(
                 CommentSortFilterBar(
                     sortMode = sortMode,
                     onSortModeChange = onSortModeChange,
+                    // The liquid dock reports its press/drag bloom as layout viewport. Lift that
+                    // complete viewport so the resting 40dp shell aligns with the comment header.
+                    modifier = Modifier.offset(y = (-commentSortDockLiftDp).dp),
                     miuixBackdrop = videoContentMiuixBackdrop,
                 )
             }

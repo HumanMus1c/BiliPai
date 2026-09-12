@@ -45,6 +45,7 @@ import com.android.purebilibili.core.ui.components.AppNativeSegmentedControl
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.util.PickMultipleGalleryVisualMedia
 import com.android.purebilibili.core.ui.rememberAppDeleteIcon
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
@@ -98,7 +99,7 @@ fun DynamicPublishComposer(
     var showTopicDialog by remember { mutableStateOf(false) }
     var showEmoteDialog by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
+        PickMultipleGalleryVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
             imageUris = (imageUris + uris.map { it.toString() }).distinct().take(9)

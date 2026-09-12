@@ -118,6 +118,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("videoCoverSharedElementKey("))
         assertTrue(source.contains("clipInOverlayDuringTransition = OverlayClip(coverShape)"))
         assertTrue(horizontalArchiveCard.contains("videoCardShellSharedBoundsOrEmpty("))
+        assertTrue(horizontalArchiveCard.contains("HorizontalVideoCardFrame("))
         assertTrue(horizontalArchiveCard.contains("crossfadeSourceContent = true"))
         assertFalse(horizontalArchiveCard.contains("videoTitleSharedElementKey("))
     }

@@ -27,6 +27,30 @@ internal fun resolveTabSelectionScrollOffsetPx(
         .coerceIn(0, maxScrollPx.coerceAtLeast(0))
 }
 
+/** Keeps a continuously moving indicator inside the visible rail during a long drag. */
+internal fun resolveScrollableTabIndicatorFollowDeltaPx(
+    indicatorPosition: Float,
+    itemWidthPx: Float,
+    viewportWidthPx: Float,
+    currentScrollPx: Float,
+    contentPaddingPx: Float = 0f,
+    edgePaddingPx: Float = 0f,
+): Float {
+    if (!indicatorPosition.isFinite() || !currentScrollPx.isFinite() ||
+        itemWidthPx <= 0f || viewportWidthPx <= 0f
+    ) {
+        return 0f
+    }
+    val indicatorLeftPx = contentPaddingPx + indicatorPosition * itemWidthPx - currentScrollPx
+    val indicatorRightPx = indicatorLeftPx + itemWidthPx
+    return when {
+        indicatorLeftPx < edgePaddingPx -> indicatorLeftPx - edgePaddingPx
+        indicatorRightPx > viewportWidthPx - edgePaddingPx ->
+            indicatorRightPx - (viewportWidthPx - edgePaddingPx)
+        else -> 0f
+    }
+}
+
 /** Selection and viewport changes move the rail; manual scrolling does not re-trigger it. */
 @Composable
 internal fun KeepScrollableTabSelectionVisible(

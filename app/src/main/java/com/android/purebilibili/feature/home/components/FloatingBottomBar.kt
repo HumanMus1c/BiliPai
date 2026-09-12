@@ -545,7 +545,8 @@ fun FloatingBottomBar(
         1f
     }
     // Record the full shell behind segmented indicators, including their top/bottom edges.
-    // An inner-content-height capture exposes the sharp page through the taller lens.
+    // Keep the capture capsule-shaped: the moving lens magnifies this layer while dragging,
+    // so a rectangular capture leaks square inner corners into the liquid indicator.
     val capturedContentHeight = if (segmentedGeometry) {
         maxOf(shellHeight, fittedIndicatorHeight)
     } else {
@@ -1009,7 +1010,7 @@ fun FloatingBottomBar(
                         }
                         .drawBackdrop(
                             backdrop = backdrop,
-                            shape = { if (segmentedGeometry) androidx.compose.ui.graphics.RectangleShape else pillShape },
+                            shape = { pillShape },
                             effects = {
                                 vibrancy(liquidGlassTuning.saturation)
                                 blur(

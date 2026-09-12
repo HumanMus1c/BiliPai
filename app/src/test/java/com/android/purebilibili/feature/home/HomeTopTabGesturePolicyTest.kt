@@ -17,6 +17,8 @@ class HomeTopTabGesturePolicyTest {
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("shouldEngageHorizontalDrag"))
+        assertTrue(source.contains("resolveScrollableTabIndicatorFollowDeltaPx("))
+        assertTrue(source.contains("listState.dispatchRawDelta("))
     }
 
     @Test

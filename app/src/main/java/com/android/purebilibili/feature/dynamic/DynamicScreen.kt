@@ -6,6 +6,7 @@ import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
+import com.android.purebilibili.navigation.animatePagerSelection
 
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
@@ -318,8 +319,9 @@ fun DynamicScreen(
     LaunchedEffect(activeSelectedTab, pagerState.pageCount) {
         val targetIndex = visibleTabs.indexOfFirst { it.logicalIndex == activeSelectedTab }
         if (targetIndex in visibleTabs.indices && targetIndex != pagerState.settledPage) {
-            pagerState.animateScrollToPage(
-                page = targetIndex,
+            animatePagerSelection(
+                pagerState = pagerState,
+                targetPage = targetIndex,
                 animationSpec = pagerMotionSpec
             )
         }
@@ -374,7 +376,7 @@ fun DynamicScreen(
                 DynamicTabReselectAction.SWITCH_TAB -> {
                     // Reuse the shared pager-follow deformation: tap switching now drives the
                     // same indicator stretch, scale and settle motion as other tab docks.
-                    pagerState.animateScrollToPage(page = visibleIndex)
+                    animatePagerSelection(pagerState, visibleIndex)
                 }
             }
         }

@@ -88,11 +88,13 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.ui.transition.withMeasuredCoverDecodeSize
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.model.response.FavFolder
@@ -1329,6 +1331,7 @@ private fun WatchLaterVideoCard(
     val cardClick = {
         if (!isBatchMode) {
             cardBoundsRef.value?.let { bounds ->
+                val sourceCoverBounds = coverBoundsRef.value
                 CardPositionManager.recordVideoCardPosition(
                     bvid = item.bvid,
                     sourceRoute = sourceRoute,
@@ -1336,7 +1339,7 @@ private fun WatchLaterVideoCard(
                     screenWidth = screenWidthPx,
                     screenHeight = screenHeightPx,
                     sourceCornerDp = cardCornerRadiusDp,
-                    coverBounds = coverBoundsRef.value,
+                    coverBounds = sourceCoverBounds,
                     sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = item.title,
@@ -1351,9 +1354,18 @@ private fun WatchLaterVideoCard(
                                 showStatsInInfo = true,
                                 showOverflowMenu = !isBatchMode,
                             ),
+                        coverPresentation = VideoCardSourceCoverPresentation(
+                            showDurationOnCover = true,
+                            showHistoryProgressBar = item.duration > 0 && item.progress > 0,
+                            historyProgressFraction = if (item.duration > 0) {
+                                (item.progress.toFloat() / item.duration).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            },
+                        ),
                         coverUrl = stationaryCoverUrl,
                         coverCacheKey = stationaryCoverUrl,
-                    ),
+                    ).withMeasuredCoverDecodeSize(sourceCoverBounds),
                 )
                 nativeCardSnapshot.capture()
             }
@@ -1389,6 +1401,7 @@ private fun WatchLaterVideoCard(
                 cardBoundsRef.value = coordinates.boundsInRoot()
             },
         nativeSnapshotModifier = nativeCardSnapshot.modifier,
+        coverOverlayModifier = nativeCardSnapshot.coverOverlayModifier,
         headlineContent = {
             AppText(
                 text = item.title,

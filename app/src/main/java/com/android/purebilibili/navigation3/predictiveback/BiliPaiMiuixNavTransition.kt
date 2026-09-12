@@ -9,13 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RenderEffect as ComposeRenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.util.fastRoundToInt
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
 import top.yukonga.miuix.kmp.nav.transition.NavMotion
 import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.NavTransitionScope
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 
 internal fun biliPaiMiuixNavTransition(
     animation: BiliPaiPredictiveBackAnimationStyle,
@@ -37,7 +36,7 @@ internal fun biliPaiMiuixNavTransition(
         BiliPaiPredictiveBackAnimationStyle.MIUIX -> if (progressControlEnabled) {
             miuixPredictiveBackProgressTransition(maxPreviewFraction)
         } else {
-            miuixDepthNavTransition()
+            NavTransitions.MiuixDefault
         }
         BiliPaiPredictiveBackAnimationStyle.AOSP -> AospNavTransition
         BiliPaiPredictiveBackAnimationStyle.SCALE -> scaleNavTransition(exitDirection)
@@ -56,33 +55,6 @@ internal fun shouldUseMiuixPredictiveBackProgress(
     animation: BiliPaiPredictiveBackAnimationStyle,
     enabled: Boolean,
 ): Boolean = enabled && animation == BiliPaiPredictiveBackAnimationStyle.MIUIX
-
-/**
- * Adds MIUI-style depth blur to the retained page below every animated top entry.
- *
- * [NavTransitionScope.relativeDepth] is the shared Miuix driver for edge swipe, system predictive
- * back, and release settle. Reading it inside [graphicsLayer] keeps the effect draw-only while the
- * covered page moves from fully blurred at depth 1 to clear at depth 0.
- */
-private fun miuixDepthNavTransition(): NavTransition {
-    return object : NavTransition {
-        override fun Modifier.transformEntry(scope: NavTransitionScope): Modifier = graphicsLayer {
-            val depth = scope.relativeDepth
-            val widthPx = scope.layoutSize.width.toFloat()
-            val isRtl = scope.layoutDirection == LayoutDirection.Rtl
-            if (depth <= 0f) {
-                val direction = if (isRtl) -1f else 1f
-                translationX = (direction * (-depth).coerceIn(0f, 1f) * widthPx)
-                    .fastRoundToInt()
-                    .toFloat()
-            } else {
-                val coveredDepth = depth.coerceIn(0f, 1f)
-                translationX = (if (isRtl) 1f else -1f) * coveredDepth * widthPx * 0.25f
-                alpha = 1f - 0.1f * coveredDepth
-            }
-        }
-    }
-}
 
 private fun realtimeCoveredBlurTransition(
     baseTransition: NavTransition,

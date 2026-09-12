@@ -50,14 +50,14 @@ class PlayerOrientationPolicyTest {
     }
 
     @Test
-    fun `Android 16 plus large screens use platform adaptive orientation`() {
-        assertFalse(
+    fun `Android 16 plus large screens preserve player orientation intent`() {
+        assertTrue(
             shouldRequestPhysicalPlayerOrientation(
                 smallestScreenWidthDp = 600,
                 platformIgnoresLargeScreenOrientationRequests = true,
             )
         )
-        assertFalse(
+        assertTrue(
             shouldRequestPhysicalPlayerOrientation(
                 smallestScreenWidthDp = 720,
                 platformIgnoresLargeScreenOrientationRequests = true,

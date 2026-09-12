@@ -51,6 +51,7 @@ import com.android.purebilibili.core.ui.components.AppSwitch
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.util.Logger
+import com.android.purebilibili.core.util.PickGalleryVisualMedia
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -89,7 +90,7 @@ fun SplashWallpaperPickerSheet(
     val initialSplashTabletBias by viewModel.getSplashAlignment(true).collectAsStateWithLifecycle(initialValue = 0f
         )
     val customWallpaperPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = PickGalleryVisualMedia()
     ) { uri ->
         if (uri != null) {
             isImportingWallpaper = true

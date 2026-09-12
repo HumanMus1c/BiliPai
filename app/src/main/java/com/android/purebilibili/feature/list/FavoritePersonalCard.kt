@@ -40,11 +40,13 @@ import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.ui.transition.withMeasuredCoverDecodeSize
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
@@ -121,6 +123,7 @@ internal fun FavoritePersonalCard(
     val triggerClick = {
         if (!batchMode) {
             cardBounds.value?.let { bounds ->
+                val sourceCoverBounds = coverBounds.value
                 CardPositionManager.recordVideoCardPosition(
                     bvid = item.bvid,
                     sourceRoute = sourceRoute,
@@ -128,7 +131,7 @@ internal fun FavoritePersonalCard(
                     screenWidth = configuration.screenWidthDp * density.density,
                     screenHeight = configuration.screenHeightDp * density.density,
                     sourceCornerDp = cardCornerRadiusDp,
-                    coverBounds = coverBounds.value,
+                    coverBounds = sourceCoverBounds,
                     sourceLayout = if (stacked) VideoCardSourceLayout.STACKED else VideoCardSourceLayout.SIDE_BY_SIDE,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = item.title,
@@ -144,9 +147,14 @@ internal fun FavoritePersonalCard(
                                 ownerBeforePublish = true,
                                 showOverflowMenu = !batchMode && canRemove && onRemove != null,
                             ),
+                        coverPresentation = VideoCardSourceCoverPresentation(
+                            showDurationOnCover = true,
+                            showHistoryProgressBar = progressState.showProgressBar,
+                            historyProgressFraction = progressState.progressFraction,
+                        ),
                         coverUrl = stationaryCoverUrl,
                         coverCacheKey = stationaryCoverUrl,
-                    ),
+                    ).withMeasuredCoverDecodeSize(sourceCoverBounds),
                 )
                 nativeCardSnapshot.capture()
             }
@@ -172,6 +180,7 @@ internal fun FavoritePersonalCard(
             )
             .onGloballyPositioned { cardBounds.value = it.boundsInRoot() },
         nativeSnapshotModifier = nativeCardSnapshot.modifier,
+        coverOverlayModifier = nativeCardSnapshot.coverOverlayModifier,
         headlineContent = {
             AppText(
                 text = item.title,

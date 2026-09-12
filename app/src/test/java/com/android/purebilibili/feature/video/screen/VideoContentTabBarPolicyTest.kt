@@ -323,6 +323,7 @@ class VideoContentTabBarPolicyTest {
         assertTrue(source.contains("showSortControlInHeader = true"))
         assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("top = tabBarVisibleHeightDp + 6.dp"))
+        assertTrue(source.contains("modifier = Modifier.offset(y = (-commentSortDockLiftDp).dp)"))
         assertTrue(source.contains("contentAlignment = Alignment.TopEnd"))
         val pagerBlock = source
             .substringAfter("HorizontalPager(")

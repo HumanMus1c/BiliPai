@@ -71,6 +71,28 @@ class SearchMotionBudgetPolicyTest {
     }
 
     @Test
+    fun activeResultRequest_keepsChromeBackdropSourceMounted() {
+        assertTrue(
+            shouldKeepSearchChromeBackdropSource(
+                progressiveTopBlurEnabled = false,
+                liquidGlassEnabled = true,
+            )
+        )
+        assertTrue(
+            shouldKeepSearchChromeBackdropSource(
+                progressiveTopBlurEnabled = true,
+                liquidGlassEnabled = false,
+            )
+        )
+        assertFalse(
+            shouldKeepSearchChromeBackdropSource(
+                progressiveTopBlurEnabled = false,
+                liquidGlassEnabled = false,
+            )
+        )
+    }
+
+    @Test
     fun startupPending_forcesReducedMotionAndDisablesHaze() {
         assertEquals(
             SearchMotionBudget.REDUCED,

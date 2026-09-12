@@ -166,6 +166,7 @@ import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
 import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
+import com.android.purebilibili.feature.screenshot.AppScreenshotGestureBlockState
 import com.android.purebilibili.feature.video.ui.components.ReplyHeader
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.CommentFraudResultDialog
@@ -1186,6 +1187,7 @@ internal fun VideoDetailScreenStateHolder(
     val sponsorContributionState by viewModel.sponsorContributionUiState.collectAsStateWithLifecycle()
 
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isFullscreenPlayerLocked = AppScreenshotGestureBlockState.fullscreenPlayerLocked
 
     val interactiveChoicePanel by viewModel.interactiveChoicePanel.collectAsStateWithLifecycle()
 
@@ -2397,7 +2399,9 @@ internal fun VideoDetailScreenStateHolder(
         isPortraitFullscreen,
         windowSizeClass.isFoldableCoverScreen,
         isLandscape,
+        isFullscreenPlayerLocked,
     ) {
+        if (isFullscreenPlayerLocked) return@LaunchedEffect
         val requestedOrientation = resolvePhoneVideoRequestedOrientation(
             autoRotateEnabled = autoRotateEnabled,
             fullscreenMode = fullscreenMode,
@@ -2445,7 +2449,12 @@ internal fun VideoDetailScreenStateHolder(
         isPipMode,
         isPortraitFullscreen,
         windowSizeClass.isFoldableCoverScreen,
+        isFullscreenPlayerLocked,
     ) {
+        if (isFullscreenPlayerLocked) {
+            lastPhoneAutoRotateLandscapeAppliedAtMs = null
+            return@LaunchedEffect
+        }
         if (!shouldObservePhoneAutoRotate(
                 autoRotateEnabled = autoRotateEnabled,
                 isCompactDevice = orientationPolicyDevice,
@@ -2476,10 +2485,12 @@ internal fun VideoDetailScreenStateHolder(
         isPipMode,
         isPortraitFullscreen,
         windowSizeClass.isFoldableCoverScreen,
+        isFullscreenPlayerLocked,
     ) {
         val hostActivity = activity
         if (
             hostActivity == null ||
+            isFullscreenPlayerLocked ||
             !shouldObservePhoneAutoRotate(
                 autoRotateEnabled = autoRotateEnabled,
                 isCompactDevice = orientationPolicyDevice,

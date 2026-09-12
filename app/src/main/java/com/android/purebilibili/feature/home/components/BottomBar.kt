@@ -182,6 +182,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Search
+import top.yukonga.miuix.kmp.basic.NavigationBarDefaults as MiuixNavigationBarDefaults
 private val iosIndicatorSpecular: MiuixHighlight = MiuixHighlight(
     width = AppSpacingTokens.Micro / 2,
     alpha = 1f,
@@ -2946,6 +2947,10 @@ private fun MiuixBottomBar(
                             iconStyle = sharedBarIconStyle
                         ),
                         label = itemLabel,
+                        colors = MiuixNavigationBarDefaults.navigationBarItemColors(
+                            unselectedContentColor = skinItemColors.unselectedColor,
+                            selectedContentColor = skinItemColors.selectedColor,
+                        ),
                         badge = reminderBadgeText?.let { badgeText ->
                             {
                                 AppPlatformNavigationBadge {
@@ -4474,10 +4479,7 @@ internal fun resolveMaterialBottomBarIcon(
 internal fun resolveHomeNavigationBarIcon(
     item: BottomNavItem,
     selected: Boolean
-): ImageVector = resolveMiuixPreferredHomeNavigationIcon(
-    tabId = item.name,
-    selected = selected,
-)
+): ImageVector = resolveMiuixBottomNavigationIcon(item, selected)
 
 @Composable
 private fun resolveSharedBottomBarIcon(

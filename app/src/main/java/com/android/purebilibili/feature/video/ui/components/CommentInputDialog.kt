@@ -22,6 +22,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import com.android.purebilibili.core.util.PickMultipleGalleryVisualMedia
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,13 +41,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.mutableIntStateOf
@@ -166,6 +167,14 @@ internal fun commentDraftTextFieldValue(text: String): TextFieldValue {
     )
 }
 
+internal fun canPublishCommentDraft(
+    text: String,
+    selectedImageCount: Int,
+    canInputComment: Boolean,
+    isSending: Boolean
+): Boolean = canInputComment && !isSending &&
+    (text.isNotBlank() || selectedImageCount > 0)
+
 /**
  * 评论输入对话框
  * 
@@ -180,7 +189,6 @@ fun CommentInputDialog(
     isSending: Boolean = false,
     replyToName: String? = null,
     inputHint: String = "进来唠会嗑呗~",
-    canUploadImage: Boolean = true,
     canInputComment: Boolean = true,
     modifier: Modifier = Modifier,
     currentVideoPositionMsProvider: () -> Long = { 0L },
@@ -213,6 +221,12 @@ fun CommentInputDialog(
     var currentTab by remember { mutableIntStateOf(0) } // 0=Kaomoji, 1=Emoji, 2+=API Packages
     var selectedImageUris by remember { mutableStateOf(initialImageUris) }
     val text = textFieldValue.text
+    val canPublish = canPublishCommentDraft(
+        text = text,
+        selectedImageCount = selectedImageUris.size,
+        canInputComment = canInputComment,
+        isSending = isSending
+    )
     
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -225,7 +239,7 @@ fun CommentInputDialog(
         }
     }
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
+        PickMultipleGalleryVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
             selectedImageUris = (selectedImageUris + uris)
@@ -595,17 +609,13 @@ fun CommentInputDialog(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
                                     },
-                                    enabled = canUploadImage && canInputComment && !isSending,
+                                    enabled = canInputComment && !isSending,
                                     modifier = Modifier.size(layoutPolicy.toolbarToolButtonSizeDp.dp)
                                 ) {
                                     AppIcon(
-                                        imageVector = Icons.Filled.AddCircle,
-                                        contentDescription = "Add",
-                                        tint = if (canUploadImage) {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                                        },
+                                        imageVector = Icons.Outlined.Image,
+                                        contentDescription = "图片",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
@@ -616,14 +626,14 @@ fun CommentInputDialog(
                             // 发送按钮
                             AppButton(
                                 onClick = {
-                                    if (text.isNotBlank() && !isSending && canInputComment) {
+                                    if (canPublish) {
                                         keyboardController?.hide()
                                         focusManager.clearFocus(force = true)
                                         android.util.Log.d("CommentInputDialog", "📤 Sending comment: $text")
                                         onSend(text.trim(), selectedImageUris, isForwardToDynamic)
                                     }
                                 },
-                                enabled = text.isNotBlank() && !isSending && canInputComment,
+                                enabled = canPublish,
                                 shape = AppShapes.container(ContainerLevel.Floating),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
@@ -653,13 +663,6 @@ fun CommentInputDialog(
                         if (!canInputComment) {
                             AppText(
                                 text = "当前评论区暂不可评论",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        } else if (!canUploadImage) {
-                            AppText(
-                                text = "当前评论区不支持图片评论",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(top = 6.dp)

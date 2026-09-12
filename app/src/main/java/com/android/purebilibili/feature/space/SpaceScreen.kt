@@ -146,8 +146,8 @@ import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
-import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
-import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
+import com.android.purebilibili.feature.home.components.cards.HorizontalVideoCardFrame
 import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
@@ -164,6 +164,7 @@ import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTrans
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.ui.transition.withMeasuredCoverDecodeSize
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.components.UserLevelBadge
@@ -3078,7 +3079,7 @@ private fun SpaceHomeVideoCard(
                                 ),
                             coverUrl = stationaryCoverUrl,
                             coverCacheKey = stationaryCoverUrl,
-                        ),
+                        ).withMeasuredCoverDecodeSize(coverBounds),
                     )
                     nativeCardSnapshot.capture()
                 }
@@ -3291,7 +3292,7 @@ private fun SpaceAggregateMediaCard(
                                 ),
                             coverUrl = stationaryCoverUrl,
                             coverCacheKey = stationaryCoverUrl,
-                        ),
+                        ).withMeasuredCoverDecodeSize(coverBounds),
                     )
                     nativeCardSnapshot.capture()
                 }
@@ -3469,7 +3470,7 @@ private fun SpaceTopVideoCard(
                                 ),
                             coverUrl = stationaryCoverUrl,
                             coverCacheKey = stationaryCoverUrl,
-                        ),
+                        ).withMeasuredCoverDecodeSize(coverBounds),
                     )
                     nativeCardSnapshot.capture()
                 }
@@ -3484,28 +3485,20 @@ private fun SpaceTopVideoCard(
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(
-                modifier = coverModifier
+        HorizontalVideoCardFrame(
+            coverModifier = coverModifier
                     .onGloballyPositioned { coordinates ->
                         coverBounds = coordinates.boundsInRoot()
-                    }
-                    .width(144.dp)
-                    .height(90.dp)
-                    .clip(coverShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
+                    },
+            coverContent = {
                 AsyncImage(
                     model = stationaryCoverRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+            },
+            infoContent = {
                 AppText(
                     text = video.title,
                     fontSize = 15.sp,
@@ -3524,8 +3517,8 @@ private fun SpaceTopVideoCard(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
+            },
+        )
     }
 }
 
@@ -3621,9 +3614,7 @@ private fun SpaceArchiveListItemRow(
     }
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
-    val coverShape = AppShapes.mediaCover()
     val cardCornerRadiusDp = cardCornerDp.value.roundToInt()
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
@@ -3637,7 +3628,7 @@ private fun SpaceArchiveListItemRow(
         sharedTransitionKey ?: title,
     )
 
-    Row(
+    HorizontalVideoCardFrame(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
@@ -3683,34 +3674,34 @@ private fun SpaceArchiveListItemRow(
                                     showStatsInInfo = true,
                                     showOverflowMenu = true,
                                 ),
+                            coverPresentation = VideoCardSourceCoverPresentation(
+                                showDurationOnCover = duration.isNotBlank(),
+                                premiumBadgeText = badgeLabel.orEmpty(),
+                                showHistoryProgressBar = progressState?.showProgressBar == true,
+                                historyProgressFraction = progressState?.progressFraction ?: 0f,
+                            ),
                             coverUrl = stationaryCoverUrl,
                             coverCacheKey = stationaryCoverUrl,
-                        ),
+                        ).withMeasuredCoverDecodeSize(coverBounds),
                     )
                     nativeCardSnapshot.capture()
                 }
                 onClick()
-            }
-            .heightIn(min = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(coverWidth)
-                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
+            },
+        coverModifier = Modifier
                 .onGloballyPositioned { coordinates ->
                     coverBounds = coordinates.boundsInRoot()
-                }
-                .clip(coverShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
+                },
+        coverContent = {
             AsyncImage(
                 model = stationaryCoverRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        },
+        coverOverlayModifier = nativeCardSnapshot.coverOverlayModifier,
+        coverOverlayContent = {
             if (!badgeLabel.isNullOrBlank()) {
                 AppSurface(
                     modifier = Modifier
@@ -3747,24 +3738,13 @@ private fun SpaceArchiveListItemRow(
                     trackColor = Color.White.copy(alpha = 0.28f)
                 )
             }
-        }
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
-                .padding(
-                    top = AppSpacingTokens.Small,
-                    bottom = AppSpacingTokens.Small,
-                    end = AppSpacingTokens.Small,
-                )
-                .videoCardShellReturnChromeAlpha(
-                    enabled = useCardShellSharedBounds,
-                    bvid = sharedTransitionKey.orEmpty(),
-                    sourceRoute = sourceRoute,
-                ),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
+        },
+        infoModifier = Modifier.videoCardShellReturnChromeAlpha(
+            enabled = useCardShellSharedBounds,
+            bvid = sharedTransitionKey.orEmpty(),
+            sourceRoute = sourceRoute,
+        ),
+        infoContent = {
             AppText(
                 text = title,
                 modifier = Modifier.fillMaxWidth(),
@@ -3780,24 +3760,23 @@ private fun SpaceArchiveListItemRow(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                HorizontalVideoStatRow(
-                    playText = FormatUtils.formatStat(play),
-                    danmakuText = FormatUtils.formatStat(secondaryCount),
-                    modifier = Modifier.weight(1f),
-                )
-                AppIcon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-    }
+            HorizontalVideoStatRow(
+                playText = FormatUtils.formatStat(play),
+                danmakuText = FormatUtils.formatStat(secondaryCount),
+            )
+        },
+        trailingContent = {
+            AppIcon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(18.dp),
+            )
+        },
+    )
 }
 
 @Composable

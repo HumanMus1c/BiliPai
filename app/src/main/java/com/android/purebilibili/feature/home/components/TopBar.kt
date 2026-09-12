@@ -9,6 +9,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.resolveScrollableTabIndicatorFollowDeltaPx
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 
@@ -562,13 +563,11 @@ internal fun shouldShowTopTabText(mode: Int): Boolean {
 
 internal fun resolveTopTabIconFamily(
     chromeIconFamily: AppSemanticIconFamily,
-    useBottomBarMatchedChrome: Boolean,
     iconStyle: AppIconStyle = AppIconStyle.AUTO
 ): AppSemanticIconFamily {
     return when {
         // MD3 官方推荐样式统一使用 Material 官方字形
         iconStyle == AppIconStyle.MD3_STANDARD -> AppSemanticIconFamily.MATERIAL
-        useBottomBarMatchedChrome -> AppSemanticIconFamily.MATERIAL
         else -> chromeIconFamily
     }
 }
@@ -592,8 +591,7 @@ internal fun resolveTopTabCategoryIcon(
 ): ImageVector {
     val category = resolveTopTabCategoryForIcon(categoryKey)
     return when (iconFamily) {
-        AppSemanticIconFamily.MATERIAL,
-        AppSemanticIconFamily.MIUIX -> when (category) {
+        AppSemanticIconFamily.MATERIAL -> when (category) {
             HomeCategory.RECOMMEND -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
             HomeCategory.FOLLOW -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
             HomeCategory.POPULAR -> if (selected) {
@@ -608,6 +606,10 @@ internal fun resolveTopTabCategoryIcon(
             HomeCategory.TECH -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
             else -> Icons.AutoMirrored.Outlined.MenuOpen
         }
+        AppSemanticIconFamily.MIUIX -> resolveMiuixPreferredHomeNavigationIcon(
+            tabId = category?.name ?: "PARTITION",
+            selected = selected,
+        )
     }
 }
 
@@ -615,7 +617,7 @@ internal fun resolveTopTabPartitionIcon(iconFamily: AppSemanticIconFamily): Imag
     return if (iconFamily == AppSemanticIconFamily.MATERIAL) {
         Icons.AutoMirrored.Outlined.MenuOpen
     } else {
-        Icons.AutoMirrored.Outlined.MenuOpen
+        resolveMiuixPreferredHomeNavigationIcon(tabId = "PARTITION")
     }
 }
 
@@ -804,6 +806,7 @@ fun FluidHomeTopBar(
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(FormatUtils.fixImageUrl(user.face))
+                                    .size(128, 128)
                                     .crossfade(true).build(),
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize()
@@ -1039,7 +1042,6 @@ private fun LightweightHomeTopTabs(
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
     val topTabIconFamily = resolveTopTabIconFamily(
         chromeIconFamily = chromePolicy.effectiveIconFamily,
-        useBottomBarMatchedChrome = isFloatingStyle || hasOuterChromeSurface,
         iconStyle = chromePolicy.iconStyle
     )
     val showIcon = shouldShowTopTabIcon(normalizedLabelMode)
@@ -1362,13 +1364,48 @@ private fun LightweightHomeTopTabs(
         val selectedIndexLatest = rememberUpdatedState(selectedIndex)
         val onCategorySelectedLatest = rememberUpdatedState(onCategorySelected)
         val indicatorDragItemWidthPx = with(density) { itemWidth.toPx() }
+        val indicatorDragEdgePaddingPx = with(density) { AppSpacingTokens.Medium.toPx() }
+        val followIndicatorInViewport: (Float) -> Unit = { position ->
+            if (isViewportSyncEnabled) {
+                val layoutInfo = listState.layoutInfo
+                val currentScrollPx =
+                    listState.firstVisibleItemIndex * indicatorDragItemWidthPx +
+                        listState.firstVisibleItemScrollOffset.toFloat()
+                listState.dispatchRawDelta(
+                    resolveScrollableTabIndicatorFollowDeltaPx(
+                        indicatorPosition = position,
+                        itemWidthPx = indicatorDragItemWidthPx,
+                        viewportWidthPx = layoutInfo.viewportSize.width.toFloat(),
+                        currentScrollPx = currentScrollPx,
+                        contentPaddingPx = with(density) { topTabHorizontalPadding.toPx() },
+                        edgePaddingPx = indicatorDragEdgePaddingPx,
+                    )
+                )
+            }
+        }
+        LaunchedEffect(
+            pagerState,
+            currentPositionProvider,
+            indicatorDragItemWidthPx,
+            topTabHorizontalPadding,
+            isViewportSyncEnabled,
+        ) {
+            val activePager = pagerState ?: return@LaunchedEffect
+            snapshotFlow {
+                if (activePager.isScrollInProgress) currentPositionProvider() else null
+            }.collect { position ->
+                position?.let(followIndicatorInViewport)
+            }
+        }
         val indicatorDraggableState = rememberDraggableState { dragAmountPx ->
             if (!topTabIndicatorDirectDragActive || indicatorDragItemWidthPx <= 0f) {
                 return@rememberDraggableState
             }
-            topTabIndicatorDirectDragPosition = (
+            val nextPosition = (
                 topTabIndicatorDirectDragPosition + dragAmountPx / indicatorDragItemWidthPx
             ).coerceIn(0f, categories.lastIndex.coerceAtLeast(0).toFloat())
+            topTabIndicatorDirectDragPosition = nextPosition
+            followIndicatorInViewport(nextPosition)
         }
         LaunchedEffect(pagerState, topTabIndicatorSettlingTarget, categories.size) {
             val activePager = pagerState ?: return@LaunchedEffect

@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.live
 
+import com.android.purebilibili.navigation.animatePagerSelection
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -210,7 +212,7 @@ fun LiveAreaScreen(
                     if (areas.isEmpty()) return@LaunchedEffect
                     val target = selectedTab.coerceIn(0, areas.lastIndex)
                     if (pagerState.currentPage != target) {
-                        pagerState.animateScrollToPage(target)
+                        animatePagerSelection(pagerState, target)
                     }
                 }
                 LaunchedEffect(pagerState.currentPage, areas.size) {

@@ -34,18 +34,20 @@ class BottomPagerStatePersistenceStructureTest {
     @Test
     fun `bottom tab switch follows user input scroll mutation`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
+        val sharedMotionSource = loadSource("app/src/main/java/com/android/purebilibili/navigation/PagerSelectionMotion.kt")
         val switchNavigationSource = source
             .substringAfter("fun switchToPage(")
             .substringBefore("fun syncPage(")
 
         assertTrue(source.contains("navigationStartPage"))
-        assertTrue(switchNavigationSource.contains("pagerState.scroll(MutatePriority.UserInput)"))
-        assertTrue(switchNavigationSource.contains("scrollBy(currentValue - previousValue)"))
-        assertTrue(switchNavigationSource.contains("easing = EaseInOut"))
-        assertTrue(switchNavigationSource.contains("resolveBottomPagerNavigationDurationMillis("))
-        assertTrue(switchNavigationSource.contains("pagerState.scrollToPage(safeTargetIndex)"))
-        assertFalse(switchNavigationSource.contains("pagerState.animateScrollBy("))
-        assertTrue(switchNavigationSource.contains("scrollPixels"))
+        assertTrue(switchNavigationSource.contains("animatePagerSelection(pagerState, safeTargetIndex)"))
+        assertTrue(sharedMotionSource.contains("pagerState.scroll(MutatePriority.UserInput)"))
+        assertTrue(sharedMotionSource.contains("scrollBy(value - consumedPx)"))
+        assertTrue(sharedMotionSource.contains("easing = EaseInOut"))
+        assertTrue(sharedMotionSource.contains("resolveBottomPagerNavigationDurationMillis(pageDistance)"))
+        assertTrue(sharedMotionSource.contains("pagerState.scrollToPage(safeTargetPage)"))
+        assertFalse(sharedMotionSource.contains("pagerState.animateScrollBy("))
+        assertTrue(sharedMotionSource.contains("scrollDistancePx"))
         // No self-invented absolute seek / predictive progress path.
         assertFalse(source.contains("seekPredictiveReturnToPage"))
         assertFalse(source.contains("dispatchRawDelta"))
@@ -78,7 +80,7 @@ class BottomPagerStatePersistenceStructureTest {
             .substringBefore("fun syncPage(")
 
         assertTrue(switchNavigationSource.contains("navJob?.cancel()"))
-        assertTrue(switchNavigationSource.contains("if (navJob == job)"))
+        assertTrue(switchNavigationSource.contains("if (navJob == myJob)"))
         assertTrue(switchNavigationSource.contains("selectedPage = pagerState.currentPage"))
         assertTrue(switchNavigationSource.contains("navigationStartPage = pagerState.currentPage"))
         assertFalse(switchNavigationSource.contains("withContext(NonCancellable)"))

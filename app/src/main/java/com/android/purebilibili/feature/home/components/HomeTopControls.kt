@@ -50,6 +50,7 @@ internal fun HomeTopAvatarContent(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(FormatUtils.fixImageUrl(user.face))
+                .size(128, 128)
                 .crossfade(true)
                 .build(),
             contentDescription = "用户头像",

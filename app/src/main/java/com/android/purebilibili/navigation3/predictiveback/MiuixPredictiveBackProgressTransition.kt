@@ -98,7 +98,7 @@ internal fun miuixPredictiveBackProgressTransition(maxPreviewFraction: Float): N
     }
     return navDirectionalTransition(
         push = NavTransitions.MiuixDefault,
-        pop = pop,
+        pop = NavTransitions.MiuixDefault,
         predictivePop = pop,
     )
 }

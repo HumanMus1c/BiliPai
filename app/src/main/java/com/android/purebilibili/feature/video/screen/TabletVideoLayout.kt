@@ -1,5 +1,7 @@
 // 文件路径: feature/video/screen/TabletVideoLayout.kt
 package com.android.purebilibili.feature.video.screen
+
+import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.AppText
 
 import android.content.res.Configuration
@@ -649,7 +651,7 @@ private fun TabletSecondaryContent(
     val latestOnRequestedTabConsumed by rememberUpdatedState(onRequestedTabConsumed)
     LaunchedEffect(selectedTab) {
         if (pagerState.currentPage != selectedTab) {
-            pagerState.animateScrollToPage(selectedTab)
+            animatePagerSelection(pagerState, selectedTab)
         }
     }
     LaunchedEffect(pagerState.currentPage) {
@@ -781,7 +783,7 @@ private fun TabletSecondaryContent(
                     labels = tabs.map { it.label },
                     selectedIndex = pagerState.currentPage,
                     onSelected = { index ->
-                        scope.launch { pagerState.animateScrollToPage(index) }
+                        scope.launch { animatePagerSelection(pagerState, index) }
                     },
                     indicatorPositionProvider = {
                         pagerState.currentPage + pagerState.currentPageOffsetFraction
@@ -995,7 +997,7 @@ private fun TabletSecondaryContent(
                                 Spacer(modifier = Modifier.height(12.dp))
                                 AppTextButton(onClick = {
                                     scope.launch {
-                                        pagerState.animateScrollToPage(relatedTabIndex)
+                                        animatePagerSelection(pagerState, relatedTabIndex)
                                     }
                                 }) {
                                     AppText("切换到相关推荐")

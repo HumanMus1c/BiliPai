@@ -39,5 +39,8 @@ class RelatedVideoGridPerformancePolicyTest {
         assertTrue(source.contains("val coverRequest = remember(stationaryCoverUrl)"))
         assertTrue(source.contains("sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE"))
         assertTrue(source.contains("sourceChromeSnapshot = VideoCardSourceChromeSnapshot("))
+        assertTrue(source.contains(".withMeasuredCoverDecodeSize(sourceCoverBounds)"))
+        assertTrue(source.contains(".then(nativeCardSnapshot.coverOverlayModifier)"))
+        assertTrue(source.contains("showDurationOnCover = true"))
     }
 }

@@ -175,6 +175,7 @@ fun <T> AppLiquidAwareTabRow(
                 (readableTabWidth * options.size + AppSpacingTokens.ExtraSmall * 2).toPx()
             }
             val contentOverflows = totalContentWidthPx > viewportWidthPx
+            val dragFollowEdgePaddingPx = with(density) { AppSpacingTokens.Medium.toPx() }
             KeepScrollableTabSelectionVisible(
                 scrollState = scrollState,
                 selectedIndex = selectedIndex,
@@ -200,6 +201,20 @@ fun <T> AppLiquidAwareTabRow(
                 miuixBackdrop = miuixBackdrop,
                 preferInlineContentStyle = preferInlineContentStyle,
                 indicatorPositionProvider = indicatorPositionProvider,
+                onIndicatorPositionChanged = { position ->
+                    scrollState.dispatchRawDelta(
+                        resolveScrollableTabIndicatorFollowDeltaPx(
+                            indicatorPosition = position,
+                            itemWidthPx = itemWidthPx,
+                            viewportWidthPx = viewportWidthPx,
+                            currentScrollPx = scrollState.value.toFloat(),
+                            contentPaddingPx = with(density) {
+                                AppSpacingTokens.ExtraSmall.toPx()
+                            },
+                            edgePaddingPx = dragFollowEdgePaddingPx,
+                        )
+                    )
+                },
                 isScrollInProgressProvider = isScrollInProgressProvider,
                 externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
             )

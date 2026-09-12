@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.settings
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.android.purebilibili.core.util.PickGalleryVisualMedia
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -101,7 +102,7 @@ internal fun LiquidGlassAdjustmentPanel(
 ) {
     val context = LocalContext.current
     val previewImagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
+        contract = PickGalleryVisualMedia(),
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         runCatching {

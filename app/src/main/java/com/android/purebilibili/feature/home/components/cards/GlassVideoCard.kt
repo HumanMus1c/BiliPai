@@ -480,6 +480,7 @@ fun GlassVideoCard(
                                     AsyncImage(
                                         model = ImageRequest.Builder(LocalContext.current)
                                             .data(FormatUtils.fixImageUrl(video.owner.face))
+                                            .size(72, 72)
                                             .crossfade(100)
                                             .build(),
                                         contentDescription = null,

@@ -3534,7 +3534,6 @@ private fun VideoPageItem(
                 isSending = isSendingComment,
                 replyToName = replyingToComment?.member?.uname,
                 inputHint = if (replyingToComment != null) commentState.childInputHint else commentState.rootInputHint,
-                canUploadImage = commentState.canUploadImage,
                 canInputComment = commentState.canInputComment,
                 emotePackages = emotePackages,
                 mentionUsers = mentionSearchState.users,
@@ -3553,7 +3552,6 @@ private fun VideoPageItem(
                         syncToDynamic = syncToDynamic,
                         targetAid = activeAid
                     )
-                    viewModel.hideCommentInputDialog()
                 }
             )
         }

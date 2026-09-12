@@ -100,6 +100,7 @@ fun BangumiPlayerScreen(
     val isTablet = configuration.smallestScreenWidthDp >= 600
     var tabletFullscreen by rememberSaveable(seasonId) { mutableStateOf(false) }
     val isFullscreen = if (isTablet) tabletFullscreen else isLandscape
+    var isPlayerScreenLocked by rememberSaveable(seasonId) { mutableStateOf(false) }
     val latestIsLandscape by rememberUpdatedState(isLandscape)
     val statusBarsInsetTop = WindowInsets.statusBars
         .asPaddingValues()
@@ -399,9 +400,27 @@ fun BangumiPlayerScreen(
             activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
         }
     }
+
+    DisposableEffect(context, isFullscreen, isPlayerScreenLocked, isTablet) {
+        val activity = context.findActivity()
+        val shouldLockOrientation = !isTablet && isFullscreen && isPlayerScreenLocked
+        val previousRequestedOrientation = activity?.requestedOrientation
+        if (shouldLockOrientation) {
+            activity?.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED)
+        }
+        onDispose {
+            if (
+                activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LOCKED &&
+                previousRequestedOrientation != null
+            ) {
+                activity.applyPlayerRequestedOrientation(previousRequestedOrientation)
+            }
+        }
+    }
     
-    //  自动检测设备方向变化并解锁旋转
-    DisposableEffect(context, isTablet) {
+    // 自动检测设备方向变化；播放器锁定时不再响应传感器。
+    DisposableEffect(context, isTablet, isPlayerScreenLocked) {
+        if (isPlayerScreenLocked) return@DisposableEffect onDispose {}
         val activity = context.findActivity()
         val orientationEventListener = object : android.view.OrientationEventListener(context) {
             private var lastOrientation = -1
@@ -545,6 +564,7 @@ fun BangumiPlayerScreen(
                     onAudioQualityChange = viewModel::changeAudioQuality,
                     onBack = if (isFullscreenMode) { { toggleOrientation() } } else onBack,
                     onToggleFullscreen = { toggleOrientation() },
+                    onScreenLockChanged = { isPlayerScreenLocked = it },
                     sponsorSegment = sponsorSegment,
                     showSponsorSkipButton = showSponsorSkipButton,
                     onSponsorSkip = { viewModel.skipCurrentSponsorSegment() },

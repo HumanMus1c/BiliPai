@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui.transition
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Rect
+import kotlin.math.roundToInt
 
 internal enum class VideoCardSourceLayout {
     STACKED,
@@ -98,6 +99,14 @@ internal data class VideoCardSourceChromeSnapshot(
     /** Coil `size(w,h)` from list HomeCoverRequestSpec; 0 = omit size(). */
     val coverDecodeWidthPx: Int = 0,
     val coverDecodeHeightPx: Int = 0,
+)
+
+/** Freeze the measured source-cover decode size together with the click-time snapshot. */
+internal fun VideoCardSourceChromeSnapshot.withMeasuredCoverDecodeSize(
+    coverBounds: Rect?,
+): VideoCardSourceChromeSnapshot = copy(
+    coverDecodeWidthPx = coverBounds?.width?.roundToInt()?.coerceAtLeast(0) ?: 0,
+    coverDecodeHeightPx = coverBounds?.height?.roundToInt()?.coerceAtLeast(0) ?: 0,
 )
 
 /** Build info-presentation from the list card’s live display flags (call at click). */

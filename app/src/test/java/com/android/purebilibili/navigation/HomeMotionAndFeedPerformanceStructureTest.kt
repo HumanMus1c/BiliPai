@@ -9,13 +9,15 @@ class HomeMotionAndFeedPerformanceStructureTest {
     @Test
     fun bottomTabSwitch_usesUserInputPagerMutation() {
         val source = sourceFile("navigation/MainBottomPagerState.kt")
+        val sharedMotionSource = sourceFile("navigation/PagerSelectionMotion.kt")
 
-        assertTrue(source.contains("pagerState.scroll(MutatePriority.UserInput)"))
-        assertTrue(source.contains("scrollBy(currentValue - previousValue)"))
-        assertTrue(source.contains("easing = EaseInOut"))
-        assertTrue(source.contains("resolveBottomPagerNavigationDurationMillis("))
-        assertFalse(source.contains("pagerState.animateScrollBy("))
-        assertTrue(!source.contains("dispatchRawDelta"))
+        assertTrue(source.contains("animatePagerSelection(pagerState, safeTargetIndex)"))
+        assertTrue(sharedMotionSource.contains("pagerState.scroll(MutatePriority.UserInput)"))
+        assertTrue(sharedMotionSource.contains("scrollBy(value - consumedPx)"))
+        assertTrue(sharedMotionSource.contains("easing = EaseInOut"))
+        assertTrue(sharedMotionSource.contains("resolveBottomPagerNavigationDurationMillis(pageDistance)"))
+        assertFalse(sharedMotionSource.contains("pagerState.animateScrollBy("))
+        assertTrue(!sharedMotionSource.contains("dispatchRawDelta"))
     }
 
     @Test

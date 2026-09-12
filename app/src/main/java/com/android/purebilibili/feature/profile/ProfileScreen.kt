@@ -91,6 +91,7 @@ import com.android.purebilibili.core.theme.DarkSurface
 import com.android.purebilibili.core.theme.DarkSurfaceVariant
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.PickGalleryVisualMedia
 import com.android.purebilibili.feature.home.UserState
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
@@ -1069,7 +1070,7 @@ private fun ProfileSpaceContent(
     val showProfileEditButton by SettingsManager.getShowProfileEditButton(context)
         .collectAsStateWithLifecycle(initialValue = false)
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = PickGalleryVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             tempSelectedUri = uri
@@ -3150,7 +3151,7 @@ private fun MobileProfileContent(
         )
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = PickGalleryVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             // [Modified] Don't save immediately, show adjustment sheet

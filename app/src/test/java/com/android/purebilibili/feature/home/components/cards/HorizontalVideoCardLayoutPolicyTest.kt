@@ -20,15 +20,44 @@ class HorizontalVideoCardLayoutPolicyTest {
 
     @Test
     fun horizontalCardDoesNotLockInfoColumnToCoverHeight() {
-        val source = java.io.File(
+        val cardSource = java.io.File(
             "src/main/java/com/android/purebilibili/feature/home/components/cards/HomeStyleSingleColumnVideoCard.kt",
         ).let { file ->
             listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
         }
-        assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("HorizontalVideoStatRow("))
-        assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
-        assertTrue(!source.contains(".height(coverHeight)"))
+        val frameSource = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/HorizontalVideoCardFrame.kt",
+        ).let { file ->
+            listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
+        }
+        assertTrue(cardSource.contains("HorizontalVideoCardFrame("))
+        assertTrue(cardSource.contains("HorizontalVideoStatRow("))
+        assertTrue(frameSource.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
+        assertTrue(frameSource.contains(".heightIn(min = resolvedMinimumHeight)"))
+        assertFalse(frameSource.contains(".height(resolvedMinimumHeight)"))
+    }
+
+    @Test
+    fun sideBySideSurfacesReuseRelatedVideoFrame() {
+        val paths = listOf(
+            "feature/home/components/cards/HomeStyleSingleColumnVideoCard.kt",
+            "feature/personal/PersonalMediaCard.kt",
+            "feature/list/HistoryPersonalCard.kt",
+            "feature/space/SpaceScreen.kt",
+            "feature/video/ui/components/RelatedVideoItem.kt",
+            "feature/video/ui/components/SkeletonComponents.kt",
+        )
+
+        paths.forEach { relativePath ->
+            val source = java.io.File("src/main/java/com/android/purebilibili/$relativePath")
+                .let { file ->
+                    listOf(file, java.io.File("app/${file.path}")).first { it.exists() }.readText()
+                }
+            assertTrue(
+                source.contains("HorizontalVideoCardFrame("),
+                "$relativePath must reuse the related-video horizontal frame",
+            )
+        }
     }
 
     @Test

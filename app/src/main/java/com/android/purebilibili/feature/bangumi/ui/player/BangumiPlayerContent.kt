@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/ui/player/BangumiPlayerContent.kt
 package com.android.purebilibili.feature.bangumi.ui.player
+
+import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -94,7 +96,7 @@ fun BangumiPlayerContent(
                 options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
                 selectedValue = pagerState.currentPage,
                 onSelectionChange = { index ->
-                    scope.launch { pagerState.animateScrollToPage(index) }
+                    scope.launch { animatePagerSelection(pagerState, index) }
                 },
                 modifier = Modifier.fillMaxWidth(0.4f),
                 height = 44.dp,

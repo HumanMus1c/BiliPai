@@ -21,6 +21,18 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun cardDisabledVideoUsesSelectedGlobalNavTransition() {
+        val source = navDisplayHostSource()
+        val fallbackBlock = source
+            .substringAfter("val videoFallbackTransition = if (cardTransitionEnabled)")
+            .substringBefore("val observedVideoFallbackTransition")
+
+        assertTrue(fallbackBlock.contains("predictiveBackExcludedTransition"))
+        assertTrue(fallbackBlock.contains("globalTransition"))
+        assertTrue(source.contains("videoCardTransitionProgress.observe(videoFallbackTransition)"))
+    }
+
+    @Test
     fun navDisplayHostOwnsNavigation3RenderingAndSharedTransitionScope() {
         val source = navDisplayHostSource()
 

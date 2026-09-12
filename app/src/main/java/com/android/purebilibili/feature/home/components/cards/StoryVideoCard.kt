@@ -499,6 +499,7 @@ internal fun StoryVideoCard(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(FormatUtils.fixImageUrl(video.owner.face))
+                                .size(96, 96)
                                 .crossfade(100)
                                 .build(),
                             contentDescription = null,

@@ -37,6 +37,13 @@ class CommentSortFilterBarPolicyTest {
                 indicatorHeightDp = spec.indicatorHeightDp
             )
         )
+        assertEquals(
+            8,
+            resolveCommentSortDockViewportOverflowDp(
+                containerHeightDp = spec.heightDp,
+                indicatorHeightDp = spec.indicatorHeightDp,
+            )
+        )
     }
 
     @Test
@@ -47,6 +54,30 @@ class CommentSortFilterBarPolicyTest {
 
         assertTrue(source.contains("tapPressRefractionEnabled = true"))
         assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
+        assertTrue(source.contains("height = spec.heightDp.dp"))
+    }
+
+    @Test
+    fun `standalone comment header keeps dock fixed without press refraction`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt"
+        )
+        val headerSource = source
+            .substringAfter("fun CommentSortHeader(")
+            .substringBefore("fun CommentSortFilterBar(")
+        val dockHostSource = headerSource
+            .substringAfter("if (uiStyle == AppUiStyle.MIUIX) {")
+            .substringBefore("AppThemeAdaptiveTabRow(")
+
+        assertTrue(headerSource.contains("tapPressRefractionEnabled = false"))
+        assertFalse(headerSource.contains(".offset("))
+        assertFalse(headerSource.contains("bottomClearanceDp"))
+        assertTrue(
+            dockHostSource.contains(
+                "Modifier.width((spec.itemWidthDp * sortModes.size).dp)"
+            )
+        )
+        assertFalse(dockHostSource.contains("height = spec.heightDp.dp"))
     }
 
     @Test

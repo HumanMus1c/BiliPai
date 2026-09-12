@@ -25,7 +25,20 @@ class BiliPaiMiuixNavTransitionTest {
         ).first(File::exists).readText()
 
         assertTrue(source.contains("NONE -> return NoPredictiveBackTransition"))
+        assertTrue(source.contains("else NavTransitions.MiuixDefault"))
         assertTrue(source.contains("return realtimeCoveredBlurTransition("))
         assertTrue(source.contains("baseTransition = baseTransition"))
+    }
+
+    @Test
+    fun miuixStyleUsesLibraryDefaultForProgrammaticPush() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/MiuixPredictiveBackProgressTransition.kt"),
+            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/MiuixPredictiveBackProgressTransition.kt"),
+        ).first(File::exists).readText()
+
+        assertTrue(source.contains("push = NavTransitions.MiuixDefault"))
+        assertTrue(source.contains("pop = NavTransitions.MiuixDefault"))
+        assertTrue(source.contains("predictivePop = pop"))
     }
 }

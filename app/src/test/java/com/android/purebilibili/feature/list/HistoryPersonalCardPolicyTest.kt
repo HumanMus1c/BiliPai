@@ -41,12 +41,12 @@ class HistoryPersonalCardPolicyTest {
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("PERSONAL_LIST_HORIZONTAL_COVER_WIDTH_DP"))
         assertTrue(source.contains("resolveVideoCardCoverOverlayTextShadow()"))
         assertTrue(source.contains("FeedTitleHierarchy.Standard"))
         assertTrue(source.contains("maxLines = titleMaxLines"))
         assertFalse(source.contains("VideoStatRow("))
-        assertFalse(source.contains("PersonalMediaCardFrame("))
+        assertTrue(source.contains("HorizontalVideoCardFrame("))
+        assertTrue(source.contains("PersonalMediaCardFrame("))
         assertFalse(source.contains("MediaContrastPalette.Scrim.copy(alpha = 0.76f)"))
         assertFalse(source.contains("overlineContent"))
     }

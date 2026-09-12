@@ -391,6 +391,9 @@ class BottomBarMiuixStructureTest {
 
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBar("))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBarItem("))
+        assertTrue(miuixRendererSource.contains("colors = MiuixNavigationBarDefaults.navigationBarItemColors("))
+        assertTrue(miuixRendererSource.contains("selectedContentColor = skinItemColors.selectedColor"))
+        assertTrue(miuixRendererSource.contains("unselectedContentColor = skinItemColors.unselectedColor"))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBadge {"))
         assertTrue(miuixRendererSource.contains("shouldUseMiuixOfficialNavigationBarItem("))
         assertTrue(miuixRendererSource.contains("MiuixDockedBottomBarItem("))

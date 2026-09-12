@@ -119,8 +119,7 @@ object CardPositionManager {
         lastClickedCoverBounds = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null
-        lastClickedNativeCardLayer = null
-        lastClickedNativeCoverOverlayLayer = null
+        clearNativeVideoCardLayers()
         lastClickedCardBounds = bounds
         lastScreenDensity = density
         isSingleColumnCard = isSingleColumn
@@ -194,6 +193,12 @@ object CardPositionManager {
     internal fun recordNativeCoverOverlayLayer(layer: GraphicsLayer?) {
         lastClickedNativeCoverOverlayLayer = layer
     }
+
+    /** Release native display lists once their navigation transition has settled. */
+    internal fun clearNativeVideoCardLayers() {
+        lastClickedNativeCardLayer = null
+        lastClickedNativeCoverOverlayLayer = null
+    }
     
     /**
      * 清除记录的位置
@@ -207,8 +212,7 @@ object CardPositionManager {
         lastClickedVideoSourceCornerDp = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null
-        lastClickedNativeCardLayer = null
-        lastClickedNativeCoverOverlayLayer = null
+        clearNativeVideoCardLayers()
     }
 
     /**

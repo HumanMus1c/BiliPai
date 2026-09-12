@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.audio.screen
 
+import com.android.purebilibili.navigation.animatePagerSelection
+
 import coil3.request.allowHardware
 
 import android.os.Build
@@ -426,7 +428,7 @@ internal fun MusicPlayerContent(
                         items = resolveMusicPlayerPageTabs(),
                         selectedIndex = pagerState.currentPage,
                         onSelected = { page ->
-                            pagerScope.launch { pagerState.animateScrollToPage(page) }
+                            pagerScope.launch { animatePagerSelection(pagerState, page) }
                         },
                         itemWidth = 84.dp,
                         modifier = Modifier

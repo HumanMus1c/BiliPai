@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.live
+
+import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 
@@ -2037,13 +2039,12 @@ private fun LivePrimaryInteractionPanel(
     }
     val tabs = remember { listOf("聊天", "SC", "投票") }
     val pagerState = rememberPagerState(pageCount = { tabs.size })
-    val scope = rememberCoroutineScope()
     val selectionBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(selectedTab) {
         val target = selectedTab.coerceIn(0, tabs.lastIndex)
         if (pagerState.currentPage != target) {
-            pagerState.animateScrollToPage(target)
+            animatePagerSelection(pagerState, target)
         }
     }
 
@@ -2074,9 +2075,6 @@ private fun LivePrimaryInteractionPanel(
                 selectedValue = pagerState.currentPage,
                 onSelectionChange = { index ->
                     onSelectedTab(index)
-                    scope.launch {
-                        pagerState.animateScrollToPage(index)
-                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 height = segmentedSpec.heightDp.dp,

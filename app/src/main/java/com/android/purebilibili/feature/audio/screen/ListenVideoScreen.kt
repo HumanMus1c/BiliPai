@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.audio.screen
 
+import com.android.purebilibili.navigation.animatePagerSelection
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -220,7 +222,7 @@ internal fun ListenVideoScreen(
                 items = sectionLabels,
                 selectedIndex = pagerState.currentPage,
                 onSelected = { index ->
-                    scope.launch { pagerState.animateScrollToPage(index) }
+                    scope.launch { animatePagerSelection(pagerState, index) }
                 },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.video.ui.components
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CommentInputDialogLayoutPolicyTest {
@@ -97,6 +98,26 @@ class CommentInputDialogLayoutPolicyTest {
         assertEquals("未发送草稿", value.text)
         assertEquals(value.text.length, value.selection.start)
         assertEquals(value.text.length, value.selection.end)
+    }
+
+    @Test
+    fun imageOnlyDraft_canBePublishedLikePiliPlus() {
+        assertTrue(
+            canPublishCommentDraft(
+                text = "",
+                selectedImageCount = 1,
+                canInputComment = true,
+                isSending = false
+            )
+        )
+        assertFalse(
+            canPublishCommentDraft(
+                text = "",
+                selectedImageCount = 0,
+                canInputComment = true,
+                isSending = false
+            )
+        )
     }
 
     @Test

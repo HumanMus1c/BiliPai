@@ -23,6 +23,7 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.liquidDockViewport
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
+import com.android.purebilibili.navigation.animatePagerSelection
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -1026,7 +1027,12 @@ fun SearchScreen(
                 .globalWallpaperAwareBackground()
                 .padding(padding)
         ) {
-            val searchChromeSource = if ((progressiveTopBlurEnabled || effectiveLiquidGlassEnabled) && !state.isSearching) {
+            val searchChromeSource = if (
+                shouldKeepSearchChromeBackdropSource(
+                    progressiveTopBlurEnabled = progressiveTopBlurEnabled,
+                    liquidGlassEnabled = effectiveLiquidGlassEnabled,
+                )
+            ) {
                 com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
             } else {
                 null
@@ -1126,7 +1132,7 @@ fun SearchScreen(
                                         scrollToTopSearchType = type
                                         scrollToTopRequestId += 1
                                     } else {
-                                        scope.launch { searchPagerState.animateScrollToPage(page) }
+                                        scope.launch { animatePagerSelection(searchPagerState, page) }
                                     }
                                 }
                             )

@@ -1,9 +1,5 @@
 package com.android.purebilibili.navigation
 
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -17,7 +13,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 /**
  * 底栏 HorizontalPager 状态。切页由 UserInput 优先级接管 Pager。
@@ -70,33 +65,7 @@ internal class MainBottomPagerState(
         navJob = coroutineScope.launch {
             val myJob = coroutineContext.job
             try {
-                pagerState.scroll(MutatePriority.UserInput) {
-                    val distance = abs(safeTargetIndex - pagerState.currentPage).coerceAtLeast(2)
-                    val duration = resolveBottomPagerNavigationDurationMillis(
-                        pageDistance = distance,
-                    )
-                    val layoutInfo = pagerState.layoutInfo
-                    val pageSize = layoutInfo.pageSize + layoutInfo.pageSpacing
-                    val currentDistanceInPages =
-                        safeTargetIndex - pagerState.currentPage - pagerState.currentPageOffsetFraction
-                    val scrollPixels = currentDistanceInPages * pageSize
-
-                    var previousValue = 0f
-                    animate(
-                        initialValue = 0f,
-                        targetValue = scrollPixels,
-                        animationSpec = tween(
-                            easing = EaseInOut,
-                            durationMillis = duration,
-                        ),
-                    ) { currentValue, _ ->
-                        previousValue += scrollBy(currentValue - previousValue)
-                    }
-                }
-
-                if (pagerState.currentPage != safeTargetIndex) {
-                    pagerState.scrollToPage(safeTargetIndex)
-                }
+                animatePagerSelection(pagerState, safeTargetIndex)
             } finally {
                 if (navJob == myJob) {
                     isNavigating = false

@@ -103,7 +103,6 @@ data class CommentUiState(
     // [新增] 评论输入控制
     val rootInputHint: String = "进来唠会嗑呗~",
     val childInputHint: String = "回复一下吧~",
-    val canUploadImage: Boolean = true,
     val canInputComment: Boolean = true,
     val showUpFlag: Boolean = false,
     val pinnedReplyIds: ImmutableSet<Long> = persistentSetOf(),
@@ -389,7 +388,6 @@ class VideoCommentViewModel : ViewModel() {
                     nextPage = pageToLoad + 1,
                     rootInputHint = data.control?.rootInputText?.takeIf { it.isNotBlank() } ?: current.rootInputHint,
                     childInputHint = data.control?.childInputText?.takeIf { it.isNotBlank() } ?: current.childInputHint,
-                    canUploadImage = data.control?.canUploadPicture ?: current.canUploadImage,
                     canInputComment = data.control?.inputDisable?.not() ?: current.canInputComment,
                     showUpFlag = data.config?.showUpFlag ?: current.showUpFlag,
                     pinnedReplyIds = pinnedReplyIds.toImmutableSet(),

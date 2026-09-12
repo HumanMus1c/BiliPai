@@ -14,15 +14,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
@@ -67,17 +63,20 @@ import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.ui.transition.withMeasuredCoverDecodeSize
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.data.model.response.VideoItem
+import com.android.purebilibili.feature.home.resolveHomeCoverRequestSpec
 import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -103,6 +102,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
+    val densityValue = density.density
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
         with(density) { configuration.screenWidthDp.dp.toPx() }
     }
@@ -139,17 +139,24 @@ internal fun HomeStyleSingleColumnVideoCard(
     val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
-    val coverShape = AppShapes.mediaCover()
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedReady,
     )
-    val stationaryCoverUrl = remember(video.pic) {
-        FormatUtils.resolveVideoCoverUrl(video.pic, useLowQuality = false)
+    val coverRequestSpec = remember(densityValue) {
+        resolveHomeCoverRequestSpec(
+            cardWidthDp = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.toFloat(),
+            density = densityValue,
+            useLowQualityCover = false,
+        )
     }
-    val coverRequest = remember(stationaryCoverUrl) {
+    val stationaryCoverUrl = remember(video.pic, coverRequestSpec) {
+        coverRequestSpec.resolveUrl(video.pic)
+    }
+    val coverRequest = remember(stationaryCoverUrl, coverRequestSpec) {
         ImageRequest.Builder(context)
             .data(stationaryCoverUrl)
+            .size(coverRequestSpec.widthPx, coverRequestSpec.heightPx)
             .crossfade(false)
             .memoryCacheKey(stationaryCoverUrl)
             .diskCacheKey(stationaryCoverUrl)
@@ -157,6 +164,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     }
     val triggerClick = {
         cardBounds.value?.let { bounds ->
+            val sourceCoverBounds = coverBounds.value
             CardPositionManager.recordVideoCardPosition(
                 bvid = video.bvid,
                 sourceRoute = sourceRoute,
@@ -165,7 +173,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 screenHeight = screenHeightPx,
                 density = density.density,
                 sourceCornerDp = cardCornerDp.value.roundToInt(),
-                coverBounds = coverBounds.value,
+                coverBounds = sourceCoverBounds,
                 sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
                 sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                     title = video.title,
@@ -182,9 +190,12 @@ internal fun HomeStyleSingleColumnVideoCard(
                             showStatsInInfo = true,
                             showOverflowMenu = onMoreClick != null || trailingContent != null,
                         ),
+                    coverPresentation = VideoCardSourceCoverPresentation(
+                        showDurationOnCover = true,
+                    ),
                     coverUrl = stationaryCoverUrl,
                     coverCacheKey = stationaryCoverUrl,
-                ),
+                ).withMeasuredCoverDecodeSize(sourceCoverBounds),
             )
             nativeCardSnapshot.capture()
         }
@@ -200,11 +211,8 @@ internal fun HomeStyleSingleColumnVideoCard(
         }
         Unit
     }
-    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
-
-    val minCoverHeight = coverWidth / HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
-
-    Row(
+    val moreHaptic = rememberHapticFeedback()
+    HorizontalVideoCardFrame(
         modifier = modifier
             .adaptiveCardHoverEffect(shape = cardShape)
             .onGloballyPositioned { coordinates ->
@@ -223,28 +231,20 @@ internal fun HomeStyleSingleColumnVideoCard(
             .clip(cardShape)
             .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
-            .combinedClickable(onClick = triggerClick, onLongClick = onLongClick)
-            .heightIn(min = minCoverHeight),
-        horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        val effectiveCoverAspectRatio = if (coverAspectRatio <= 1f) 16f / 9f else coverAspectRatio
-        Box(
-            modifier = Modifier
-                .width(coverWidth)
-                .aspectRatio(effectiveCoverAspectRatio)
-                .onGloballyPositioned { coordinates ->
-                    coverBounds.value = coordinates.boundsInRoot()
-                }
-                .clip(coverShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
+            .combinedClickable(onClick = triggerClick, onLongClick = onLongClick),
+        coverModifier = Modifier.onGloballyPositioned { coordinates ->
+            coverBounds.value = coordinates.boundsInRoot()
+        },
+        coverOverlayModifier = nativeCardSnapshot.coverOverlayModifier,
+        coverContent = {
             AsyncImage(
                 model = coverRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        },
+        coverOverlayContent = {
             AppText(
                 text = FormatUtils.formatDuration(video.duration),
                 color = MediaContrastPalette.Foreground,
@@ -260,19 +260,8 @@ internal fun HomeStyleSingleColumnVideoCard(
                     .align(Alignment.BottomEnd)
                     .padding(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro),
             )
-        }
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = minCoverHeight)
-                .padding(
-                    top = AppSpacingTokens.Small,
-                    bottom = AppSpacingTokens.Small,
-                    end = if (onMoreClick != null || trailingContent != null) AppSpacingTokens.None else AppSpacingTokens.Small,
-                ),
-            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-        ) {
+        },
+        infoContent = {
             AppText(
                 text = highlightedTitle ?: androidx.compose.ui.text.AnnotatedString(video.title),
                 modifier = Modifier.fillMaxWidth(),
@@ -311,39 +300,48 @@ internal fun HomeStyleSingleColumnVideoCard(
                 playText = FormatUtils.formatStat(video.stat.view.toLong()),
                 danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
             )
-        }
-
-        if (trailingContent != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Bottom)
-                    .padding(end = AppSpacingTokens.Small, bottom = AppSpacingTokens.ExtraSmall),
-            ) { trailingContent() }
-        } else if (onMoreClick != null) {
-            val moreHaptic = rememberHapticFeedback()
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Bottom)
-                    .padding(end = AppSpacingTokens.Micro, bottom = AppSpacingTokens.Micro)
-                    .size(AppChromeSizeTokens.MinimumTouchTarget)
-                    .clip(CircleShape)
-                    .semantics { contentDescription = "更多操作" }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        moreHaptic(HapticType.LIGHT)
-                        onMoreClick()
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                AppText(
-                    text = "⋮",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = MaterialTheme.typography.titleMedium.fontSize,
-                    fontWeight = FontWeight.Bold,
-                )
+        },
+        trailingContent = when {
+            trailingContent != null -> {
+                {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = AppSpacingTokens.Small,
+                                bottom = AppSpacingTokens.ExtraSmall,
+                            ),
+                    ) { trailingContent() }
+                }
             }
-        }
-    }
+            onMoreClick != null -> {
+                {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = AppSpacingTokens.Micro, bottom = AppSpacingTokens.Micro)
+                            .size(AppChromeSizeTokens.MinimumTouchTarget)
+                            .clip(CircleShape)
+                            .semantics { contentDescription = "更多操作" }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                moreHaptic(HapticType.LIGHT)
+                                onMoreClick()
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AppText(
+                            text = "⋮",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+            else -> null
+        },
+    )
 }

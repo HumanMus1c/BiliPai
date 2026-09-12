@@ -645,6 +645,20 @@ internal fun resolveCommentReplyTargets(replyRpid: Long?, replyRoot: Long?): Pai
     return root to parent
 }
 
+internal fun resolveCommentReplyMessage(
+    message: String,
+    replyName: String?,
+    replyRoot: Long?
+): String {
+    val normalizedMessage = message.trim()
+    val normalizedName = replyName?.trim().orEmpty()
+    return if ((replyRoot ?: 0L) > 0L && normalizedName.isNotEmpty()) {
+        " 回复 @$normalizedName : $normalizedMessage"
+    } else {
+        normalizedMessage
+    }
+}
+
 internal fun resolvePlayerTransientEventChannelCapacity(): Int = Channel.BUFFERED
 
 internal data class FavoriteFolderMutation(
@@ -4883,15 +4897,24 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         ) ?: return
         val message = _commentInput.value.trim()
         
-        if (message.isEmpty()) {
+        if (message.isEmpty() && imageUris.isEmpty()) {
             viewModelScope.launch { toast("请输入评论内容") }
             return
         }
-        
+
+        // Capture before launching. The dialog can be dismissed/recomposed immediately after
+        // this call; reading the StateFlow later used to lose the reply target and publish a
+        // new root comment instead.
+        val replyTo = _replyingToComment.value
+        val outgoingMessage = resolveCommentReplyMessage(
+            message = message,
+            replyName = replyTo?.member?.uname,
+            replyRoot = replyTo?.root
+        )
+
         viewModelScope.launch {
             _isSendingComment.value = true
             
-            val replyTo = _replyingToComment.value
             val (root, parent) = resolveCommentReplyTargets(
                 replyRpid = replyTo?.rpid,
                 replyRoot = replyTo?.root
@@ -4911,7 +4934,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             com.android.purebilibili.data.repository.CommentRepository
                 .addComment(
                     aid = sendAid,
-                    message = message,
+                    message = outgoingMessage,
                     root = root,
                     parent = parent,
                     pictures = pictures,
@@ -4925,6 +4948,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         state.copy(comments = state.comments - sentDraftKey)
                     }
                     _replyingToComment.value = null
+                    _showCommentDialog.value = false
+                    clearCommentMentionSearch()
                     
                     // 通知 UI 刷新评论列表
                     _commentSentEvent.trySend(reply)

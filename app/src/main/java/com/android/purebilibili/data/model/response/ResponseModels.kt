@@ -106,10 +106,7 @@ data class ReplyPageControl(
     val childInputText: String = "",
     @SerialName("upload_picture_icon_state")
     val uploadPictureIconState: Int = 0
-) {
-    val canUploadPicture: Boolean
-        get() = uploadPictureIconState == 1 && !inputDisable
-}
+)
 
 @Serializable
 data class ReplyConfig(
