@@ -296,7 +296,7 @@ class BottomBarLayoutPolicyTest {
         assertEquals(49.dp, resolveBiliPaiBottomBarIndicatorHeight(56.dp))
         assertEquals(56.dp, resolveBiliPaiBottomBarIndicatorHeight(64.dp))
         assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = false))
-        assertEquals(56.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
+        assertEquals(48.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
     }
 
     @Test
@@ -505,9 +505,9 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `compact bottom search mode keeps home as the only dock tab`() {
+    fun `compact bottom search mode preserves tabs for unfolding`() {
         assertEquals(
-            listOf(BottomNavItem.HOME),
+            listOf(BottomNavItem.HOME, BottomNavItem.DYNAMIC, BottomNavItem.HISTORY, BottomNavItem.PROFILE),
             resolveBottomBarVisibleItemsForSearchMode(
                 visibleItems = listOf(
                     BottomNavItem.HOME,

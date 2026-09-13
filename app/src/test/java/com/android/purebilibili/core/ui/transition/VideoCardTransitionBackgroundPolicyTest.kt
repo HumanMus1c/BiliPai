@@ -556,7 +556,7 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         // density=1 时 12dp → 12px；真实机型由 DrawScope.density 换算。
         assertEquals(12f, frame.blurRadiusPx)
-        assertEquals(0f, frame.blurRadiusPx % 1f)
+        assertEquals(0f, frame.blurRadiusPx % 2f)
         assertEquals(0.14f, frame.scrimAlpha)
         assertFalse(frame.useLightScrimTint)
         assertEquals(1f, frame.contentScale, 0.0001f)
@@ -583,8 +583,28 @@ class VideoCardTransitionBackgroundPolicyTest {
         assertEquals(12f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Normal))
         assertEquals(12f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Enhanced))
         assertEquals(0f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Reduced))
-        assertEquals(1f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Normal))
-        assertEquals(1f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Enhanced))
+        assertEquals(2f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Normal))
+        assertEquals(2f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Enhanced))
+    }
+
+    @Test
+    fun openingBlurLimitsRadiusChangesAndPreservesEndpoints() {
+        for (density in listOf(1f, 2.7f, 3f)) {
+            val radii = (0..240).map { step ->
+                resolveVideoCardTransitionBackgroundFrame(
+                    progress = step / 240f,
+                    phase = VideoCardTransitionBackgroundPhase.OPENING,
+                    motionTier = MotionTier.Normal,
+                    sdkInt = 35,
+                    density = density,
+                ).blurRadiusPx
+            }
+            assertEquals(0f, radii.first())
+            assertEquals(12f * density, radii.last(), 0.001f)
+            assertTrue(radii.zipWithNext().all { (a, b) -> b >= a })
+            // At 3x density, at most 19 radii instead of the previous 37.
+            assertTrue(radii.distinct().size <= 19)
+        }
     }
 
     @Test

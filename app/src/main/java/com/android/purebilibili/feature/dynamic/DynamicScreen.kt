@@ -99,6 +99,10 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicTimelineMinColumnW
 import com.android.purebilibili.feature.dynamic.resolveDynamicTimelineVerticalSpacing
 
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicCardActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardInteractionActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardNavigationActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardPresentation
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.DynamicSidebar
 import com.android.purebilibili.feature.dynamic.components.DynamicUserLiveBadge
@@ -722,14 +726,17 @@ fun DynamicScreen(
             ) { targetMode ->
                 // Each animated layout owns one source; outgoing/incoming trees must not share it.
                 val dynamicDockSource = if (
-                    (appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.headerBlurEnabled || appThemeConfig.liquidGlassEnabled) &&
-                    !(activePresentation.isLoading && activePresentation.items.isEmpty())
+                    appThemeConfig.progressiveTopBlurEnabled ||
+                    appThemeConfig.headerBlurEnabled ||
+                    appThemeConfig.liquidGlassEnabled
                 ) {
                     com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
                 } else {
                     null
                 }
-                val dynamicDockBackdrop = dynamicDockSource?.takeIf { it.isReady }?.backdrop
+                val dynamicDockBackdrop = dynamicDockSource?.takeIf {
+                    !(activePresentation.isLoading && activePresentation.items.isEmpty()) && it.isReady
+                }?.backdrop
                 SideEffect {
                     if (activeDynamicBackdrop != dynamicDockBackdrop) {
                         activeDynamicBackdrop = dynamicDockBackdrop
@@ -1400,32 +1407,40 @@ private fun DynamicList(
     val dynamicCard: @Composable (com.android.purebilibili.data.model.response.DynamicItem) -> Unit = { item ->
         DynamicCardV2(
             item = item,
-            onVideoClick = onVideoClick,
-            onBangumiClick = onBangumiClick,
-            onArticleClick = onArticleClick,
-            onDynamicDetailClick = onDynamicDetailClick,
-            onUnfoldRelatedClick = onUnfoldRelatedClick,
-            onUserClick = onUserClick,
-            onTopicClick = onTopicClick,
-            onTopicKeywordClick = onTopicKeywordClick,
-            onLiveClick = onLiveClick,
-            onMusicClick = onMusicClick,
-            onCollectionClick = onCollectionClick,
-            onCourseClick = onCourseClick,
-            onSaveDynamicClick = { onSaveDynamicClick?.invoke(item) },
-            onShareToMessageClick = { onShareToMessageClick?.invoke(item) },
-            onCheckDynamicClick = { onCheckDynamicClick?.invoke(item.id_str) },
-            onReserveClick = onReserveClick,
             gifImageLoader = gifImageLoader,
-            onCommentClick = onCommentClick,
-            onRepostClick = onRepostClick,
-            onLikeClick = onLikeClick,
-            onWatchLaterClick = onWatchLaterClick,
-            onDeleteClick = onDeleteClick,
-            onManageAction = onManageAction,
-            onLoadReplyInteractionStatus = onLoadReplyInteractionStatus,
-            isLiked = likedDynamics.contains(item.id_str),
-            likeOverride = likeOverrides[item.id_str],
+            actions = DynamicCardActions(
+                navigation = DynamicCardNavigationActions(
+                    onVideoClick = onVideoClick,
+                    onBangumiClick = onBangumiClick,
+                    onArticleClick = onArticleClick,
+                    onDynamicDetailClick = onDynamicDetailClick,
+                    onUnfoldRelatedClick = onUnfoldRelatedClick,
+                    onUserClick = onUserClick,
+                    onTopicClick = onTopicClick,
+                    onTopicKeywordClick = onTopicKeywordClick,
+                    onLiveClick = onLiveClick,
+                    onMusicClick = onMusicClick,
+                    onCollectionClick = onCollectionClick,
+                    onCourseClick = onCourseClick,
+                ),
+                interaction = DynamicCardInteractionActions(
+                    onSaveDynamicClick = { onSaveDynamicClick?.invoke(item) },
+                    onShareToMessageClick = { onShareToMessageClick?.invoke(item) },
+                    onCheckDynamicClick = { onCheckDynamicClick?.invoke(item.id_str) },
+                    onReserveClick = onReserveClick,
+                    onCommentClick = onCommentClick,
+                    onRepostClick = onRepostClick,
+                    onLikeClick = onLikeClick,
+                    onWatchLaterClick = onWatchLaterClick,
+                    onDeleteClick = onDeleteClick,
+                    onManageAction = onManageAction,
+                    onLoadReplyInteractionStatus = onLoadReplyInteractionStatus,
+                ),
+            ),
+            presentation = DynamicCardPresentation(
+                isLiked = likedDynamics.contains(item.id_str),
+                likeOverride = likeOverrides[item.id_str],
+            ),
         )
     }
     val showSkeleton = filteredItems.isEmpty() && activeLoading

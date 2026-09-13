@@ -55,6 +55,7 @@ class CommentSortFilterBarPolicyTest {
         assertTrue(source.contains("tapPressRefractionEnabled = true"))
         assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
         assertTrue(source.contains("height = spec.heightDp.dp"))
+        assertTrue(source.contains("forceEqualWidth = true"))
     }
 
     @Test
@@ -88,7 +89,7 @@ class CommentSortFilterBarPolicyTest {
 
         assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
         assertFalse(source.contains("forceLiquidChrome"))
-        assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
+        assertTrue(source.contains("liquidGlassEffectsEnabled = liquidGlassEffectsEnabled"))
         assertTrue(source.contains("MiuixBackdrop"))
     }
 

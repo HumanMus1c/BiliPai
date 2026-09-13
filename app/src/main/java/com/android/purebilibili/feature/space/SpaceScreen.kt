@@ -190,6 +190,10 @@ import com.android.purebilibili.data.model.response.VideoSortOrder
 import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
 import com.android.purebilibili.feature.dynamic.DynamicViewModel
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicCardActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardInteractionActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardNavigationActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardPresentation
 import com.android.purebilibili.feature.dynamic.components.RichTextContent
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
@@ -349,12 +353,14 @@ fun SpaceScreen(
         enabled = spaceThemeConfig.progressiveTopBlurEnabled && !spaceThemeConfig.headerBlurEnabled,
         hasBackdrop = true,
     ) && !isLowBlurBudgetForced()
-    val spaceChromeSource = if (spaceProgressiveBlur && uiState is SpaceUiState.Success) {
+    val spaceChromeSource = if (spaceProgressiveBlur) {
         com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
         null
     }
-    val spaceChromeBackdrop = spaceChromeSource?.takeIf { it.isReady }?.backdrop
+    val spaceChromeBackdrop = spaceChromeSource?.takeIf {
+        uiState is SpaceUiState.Success && it.isReady
+    }?.backdrop
     AppScaffold(
         topBar = {
             BiliPaiImmersiveTopBar(
@@ -1600,37 +1606,45 @@ private fun SpaceContent(
                     ) { dynamic ->
                         DynamicCardV2(
                             item = dynamic,
-                            onVideoClick = playVideoFromSpace,
-                            onBangumiClick = { seasonId, _ -> onBangumiClick(seasonId) },
-                            onUserClick = onUserClick,
-                            onTopicClick = onTopicClick,
-                            onTopicKeywordClick = onTopicKeywordClick,
-                            onLiveClick = { roomId, title, uname ->
-                                onLiveClick(roomId, title, uname)
-                            },
-                            onMusicClick = onAudioClick,
-                            onCollectionClick = { mediaId, ownerMid, title, url ->
-                                if (mediaId > 0L && url.contains("medialist/detail/ml", ignoreCase = true)) {
-                                    onViewAllClick("favorite", mediaId, ownerMid, title, "")
-                                } else if (url.isNotBlank()) {
-                                    onWebClick(url, title)
-                                }
-                            },
-                            onCourseClick = onWebClick,
-                            onArticleClick = onArticleClick,
-                            onDynamicDetailClick = onDynamicDetailClick,
-                            isDetail = true,
                             gifImageLoader = context.imageLoader,
-                            onCommentClick = { onDynamicDetailClick(dynamic.id_str) },
-                            onRepostClick = onSpaceDynamicRepostClick,
-                            onLikeClickWithState = { dynamicId, isLiked ->
-                                onSpaceDynamicLikeClick(dynamicId, isLiked)
-                            },
-                            onDeleteClick = onSpaceDynamicDeleteClick,
-                            onReserveClick = onSpaceDynamicReserveClick,
-                            isLiked = likedDynamics.contains(dynamic.id_str),
-                            likeOverride = likeOverrides[dynamic.id_str],
-                            forwardCountDelta = forwardCountDeltas[dynamic.id_str] ?: 0
+                            actions = DynamicCardActions(
+                                navigation = DynamicCardNavigationActions(
+                                    onVideoClick = playVideoFromSpace,
+                                    onBangumiClick = { seasonId, _ -> onBangumiClick(seasonId) },
+                                    onUserClick = onUserClick,
+                                    onTopicClick = onTopicClick,
+                                    onTopicKeywordClick = onTopicKeywordClick,
+                                    onLiveClick = { roomId, title, uname ->
+                                        onLiveClick(roomId, title, uname)
+                                    },
+                                    onMusicClick = onAudioClick,
+                                    onCollectionClick = { mediaId, ownerMid, title, url ->
+                                        if (mediaId > 0L && url.contains("medialist/detail/ml", ignoreCase = true)) {
+                                            onViewAllClick("favorite", mediaId, ownerMid, title, "")
+                                        } else if (url.isNotBlank()) {
+                                            onWebClick(url, title)
+                                        }
+                                    },
+                                    onCourseClick = onWebClick,
+                                    onArticleClick = onArticleClick,
+                                    onDynamicDetailClick = onDynamicDetailClick,
+                                ),
+                                interaction = DynamicCardInteractionActions(
+                                    onCommentClick = { onDynamicDetailClick(dynamic.id_str) },
+                                    onRepostClick = onSpaceDynamicRepostClick,
+                                    onLikeClickWithState = { dynamicId, isLiked ->
+                                        onSpaceDynamicLikeClick(dynamicId, isLiked)
+                                    },
+                                    onDeleteClick = onSpaceDynamicDeleteClick,
+                                    onReserveClick = onSpaceDynamicReserveClick,
+                                ),
+                            ),
+                            presentation = DynamicCardPresentation(
+                                isDetail = true,
+                                isLiked = likedDynamics.contains(dynamic.id_str),
+                                likeOverride = likeOverrides[dynamic.id_str],
+                                forwardCountDelta = forwardCountDeltas[dynamic.id_str] ?: 0,
+                            ),
                         )
                     }
 

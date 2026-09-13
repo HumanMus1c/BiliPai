@@ -92,45 +92,95 @@ import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
 import com.android.purebilibili.feature.dynamic.resolveDynamicDeleteAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+@Immutable
+data class DynamicCardNavigationActions(
+    val onVideoClick: (String) -> Unit,
+    val onUserClick: (Long) -> Unit,
+    val onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
+    val onTopicClick: (Long) -> Unit = {},
+    val onTopicKeywordClick: ((String) -> Unit)? = null,
+    val onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
+    val onMusicClick: ((Long) -> Unit)? = null,
+    val onCollectionClick: ((Long, Long, String, String) -> Unit)? = null,
+    val onCourseClick: ((String, String) -> Unit)? = null,
+    val onArticleClick: ((articleId: Long, title: String) -> Unit)? = null,
+    val onDynamicDetailClick: ((dynamicId: String) -> Unit)? = null,
+    val onUnfoldRelatedClick: ((dynamicId: String) -> Unit)? = null,
+    val onPrimaryClickOverride: ((DynamicItem) -> Unit)? = null,
+)
+
+@Immutable
+data class DynamicCardInteractionActions(
+    val onCommentClick: (dynamicId: String) -> Unit = {},
+    val onRepostClick: (dynamicId: String) -> Unit = {},
+    val onLikeClick: (dynamicId: String) -> Unit = {},
+    val onLikeClickWithState: ((dynamicId: String, isLiked: Boolean) -> Unit)? = null,
+    val onWatchLaterClick: ((aid: Long) -> Unit)? = null,
+    val onSaveDynamicClick: (() -> Unit)? = null,
+    val onShareToMessageClick: (() -> Unit)? = null,
+    val onCheckDynamicClick: (() -> Unit)? = null,
+    val onReserveClick: ((DynamicReserveAction, (Result<DynamicReserveResult>) -> Unit) -> Unit)? = null,
+    val onDeleteClick: ((DynamicDeleteAction) -> Unit)? = null,
+    val onManageAction: (DynamicManageAction) -> Unit = {},
+    val onLoadReplyInteractionStatus: ((oid: Long, type: Int, onLoaded: (ReplyInteractionData?) -> Unit) -> Unit)? = null,
+)
+
+@Immutable
+data class DynamicCardActions(
+    val navigation: DynamicCardNavigationActions,
+    val interaction: DynamicCardInteractionActions = DynamicCardInteractionActions(),
+)
+
+@Immutable
+data class DynamicCardPresentation(
+    val isDetail: Boolean = false,
+    val currentUserMid: Long? = TokenManager.midCache,
+    val isLiked: Boolean = false,
+    val likeOverride: Boolean? = null,
+    val forwardCountDelta: Int = 0,
+)
+
 /**
- *  动态卡片V2 - 官方风格
+ * 动态卡片 V2。将导航、交互和展示状态分组，避免 Compose/R8 处理超大参数签名。
  */
 @Composable
 fun DynamicCardV2(
     item: DynamicItem,
-    onVideoClick: (String) -> Unit,
-    onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
-    onUserClick: (Long) -> Unit,
-    onTopicClick: (Long) -> Unit = {},
-    onTopicKeywordClick: ((String) -> Unit)? = null,
-    onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> },
-    onMusicClick: ((Long) -> Unit)? = null,
-    onCollectionClick: ((Long, Long, String, String) -> Unit)? = null,
-    onCourseClick: ((String, String) -> Unit)? = null,
-    onArticleClick: ((articleId: Long, title: String) -> Unit)? = null,
-    onDynamicDetailClick: ((dynamicId: String) -> Unit)? = null,
-    onUnfoldRelatedClick: ((dynamicId: String) -> Unit)? = null,
-    isDetail: Boolean = false,
-    onPrimaryClickOverride: ((DynamicItem) -> Unit)? = null,
     gifImageLoader: ImageLoader,
-    //  [新增] 评论/转发/点赞回调
-    onCommentClick: (dynamicId: String) -> Unit = {},
-    onRepostClick: (dynamicId: String) -> Unit = {},
-    onLikeClick: (dynamicId: String) -> Unit = {},
-    onLikeClickWithState: ((dynamicId: String, isLiked: Boolean) -> Unit)? = null,
-    onWatchLaterClick: ((aid: Long) -> Unit)? = null,
-    onSaveDynamicClick: (() -> Unit)? = null,
-    onShareToMessageClick: (() -> Unit)? = null,
-    onCheckDynamicClick: (() -> Unit)? = null,
-    onReserveClick: ((DynamicReserveAction, (Result<DynamicReserveResult>) -> Unit) -> Unit)? = null,
-    onDeleteClick: ((DynamicDeleteAction) -> Unit)? = null,
-    onManageAction: (DynamicManageAction) -> Unit = {},
-    onLoadReplyInteractionStatus: ((oid: Long, type: Int, onLoaded: (ReplyInteractionData?) -> Unit) -> Unit)? = null,
-    currentUserMid: Long? = TokenManager.midCache,
-    isLiked: Boolean = false,
-    likeOverride: Boolean? = null,
-    forwardCountDelta: Int = 0
+    actions: DynamicCardActions,
+    presentation: DynamicCardPresentation = DynamicCardPresentation(),
 ) {
+    val onVideoClick = actions.navigation.onVideoClick
+    val onBangumiClick = actions.navigation.onBangumiClick
+    val onUserClick = actions.navigation.onUserClick
+    val onTopicClick = actions.navigation.onTopicClick
+    val onTopicKeywordClick = actions.navigation.onTopicKeywordClick
+    val onLiveClick = actions.navigation.onLiveClick
+    val onMusicClick = actions.navigation.onMusicClick
+    val onCollectionClick = actions.navigation.onCollectionClick
+    val onCourseClick = actions.navigation.onCourseClick
+    val onArticleClick = actions.navigation.onArticleClick
+    val onDynamicDetailClick = actions.navigation.onDynamicDetailClick
+    val onUnfoldRelatedClick = actions.navigation.onUnfoldRelatedClick
+    val onPrimaryClickOverride = actions.navigation.onPrimaryClickOverride
+    val onCommentClick = actions.interaction.onCommentClick
+    val onRepostClick = actions.interaction.onRepostClick
+    val onLikeClick = actions.interaction.onLikeClick
+    val onLikeClickWithState = actions.interaction.onLikeClickWithState
+    val onWatchLaterClick = actions.interaction.onWatchLaterClick
+    val onSaveDynamicClick = actions.interaction.onSaveDynamicClick
+    val onShareToMessageClick = actions.interaction.onShareToMessageClick
+    val onCheckDynamicClick = actions.interaction.onCheckDynamicClick
+    val onReserveClick = actions.interaction.onReserveClick
+    val onDeleteClick = actions.interaction.onDeleteClick
+    val onManageAction = actions.interaction.onManageAction
+    val onLoadReplyInteractionStatus = actions.interaction.onLoadReplyInteractionStatus
+    val isDetail = presentation.isDetail
+    val currentUserMid = presentation.currentUserMid
+    val isLiked = presentation.isLiked
+    val likeOverride = presentation.likeOverride
+    val forwardCountDelta = presentation.forwardCountDelta
+
     if (!item.visible) return
     val openDynamicDetail = remember(item, onDynamicDetailClick) {
         onDynamicDetailClick?.let { callback ->

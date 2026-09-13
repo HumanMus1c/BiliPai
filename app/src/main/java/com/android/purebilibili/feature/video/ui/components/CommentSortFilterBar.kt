@@ -181,6 +181,7 @@ fun CommentSortFilterBar(
     onSortModeChange: (CommentSortMode) -> Unit,
     modifier: Modifier = Modifier,
     miuixBackdrop: MiuixBackdrop? = null,
+    liquidGlassEffectsEnabled: Boolean = true,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
     CommentSegmentedControl(
@@ -191,6 +192,7 @@ fun CommentSortFilterBar(
         },
         modifier = modifier,
         miuixBackdrop = miuixBackdrop,
+        liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
     )
 }
 
@@ -204,6 +206,7 @@ fun CommentSegmentedControl(
     onScaleChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     miuixBackdrop: MiuixBackdrop? = null,
+    liquidGlassEffectsEnabled: Boolean = true,
 ) {
     val spec = remember(items.size) {
         resolveCommentSortSegmentedControlSpec(itemCount = items.size)
@@ -218,8 +221,11 @@ fun CommentSegmentedControl(
         labelFontSize = 13.sp,
         modifier = modifier,
         miuixBackdrop = miuixBackdrop,
-        liquidGlassEffectsEnabled = true,
+        liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         dragSelectionEnabled = items.size > 1,
         tapPressRefractionEnabled = true,
+        // The detail header owns a fixed 66dp-per-item width. Keep native Miuix items
+        // evenly divided when its non-glass outer track is transparent.
+        forceEqualWidth = true,
     )
 }

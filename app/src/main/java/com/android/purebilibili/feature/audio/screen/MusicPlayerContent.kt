@@ -264,7 +264,9 @@ internal fun MusicPlayerContent(
     }
     val effectiveReduceMotion = reduceMotion || systemReduceMotion
     val musicBackdropSource = rememberChromeBackdropSource()
-    val musicBackdrop = musicBackdropSource.takeIf { it.isReady }?.backdrop
+    // The source and all liquid overlays are siblings in this draw tree, so the content layer is
+    // recorded before the overlays sample it. Mount the glass chrome on the first composition.
+    val musicBackdrop = musicBackdropSource.backdrop
     val homeSettings by SettingsManager
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())

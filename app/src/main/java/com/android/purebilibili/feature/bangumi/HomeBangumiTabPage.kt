@@ -59,10 +59,12 @@ fun HomeBangumiTabPage(
 
     val layoutDirection = LocalLayoutDirection.current
     val themeConfig = LocalAppThemeConfig.current
-    val chromeSource = if (themeConfig.liquidGlassEnabled && shouldCaptureBangumiHubChrome(state)) {
+    val chromeSource = if (themeConfig.liquidGlassEnabled) {
         rememberChromeBackdropSource()
     } else null
-    val channelBackdrop = chromeSource?.takeIf { it.isReady }?.backdrop
+    val channelBackdrop = chromeSource?.takeIf {
+        shouldCaptureBangumiHubChrome(state) && it.isReady
+    }?.backdrop
     val density = LocalDensity.current
     var channelHeightPx by remember { mutableIntStateOf(0) }
     val channelHeight = with(density) { channelHeightPx.toDp() }

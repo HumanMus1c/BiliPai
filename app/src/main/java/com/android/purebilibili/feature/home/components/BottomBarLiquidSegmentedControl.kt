@@ -440,11 +440,19 @@ fun BottomBarLiquidSegmentedControl(
         val nativeOptions = remember(items) {
             items.mapIndexed { index, label -> AppSegmentOption(index, label) }
         }
+        val nativeModifier = if (itemWidth != null) {
+            modifier.width(
+                itemWidth.coerceAtLeast(AppChromeSizeTokens.MinimumTouchTarget) * items.size +
+                    containerHorizontalPadding.coerceAtLeast(0.dp) * 2
+            )
+        } else {
+            modifier
+        }
         AppNativeTabRow(
             options = nativeOptions,
             selectedValue = selectedIndex.coerceIn(0, items.lastIndex),
             onSelectionChange = onSelected,
-            modifier = modifier,
+            modifier = nativeModifier,
             enabled = enabled,
             scrollable = itemWidth != null,
             forceEqualWidth = forceEqualWidth,

@@ -9,6 +9,18 @@ import kotlin.test.assertTrue
 
 class ProgressiveTopChromePolicyTest {
     @Test
+    fun opaqueBackgroundProtectsChromeWithoutAnActiveBlur() {
+        assertTrue(shouldUseOpaqueTopChromeBackground(false, false))
+        assertFalse(shouldUseOpaqueTopChromeBackground(true, false))
+        assertFalse(shouldUseOpaqueTopChromeBackground(false, true))
+        assertFalse(shouldUseOpaqueTopChromeBackground(true, true))
+
+        val source = loadSource("feature/home/components/ProgressiveTopChrome.kt")
+        assertTrue(source.contains("MaterialTheme.colorScheme.background.copy(alpha = 1f)"))
+        assertTrue(source.contains(".then(modifier)"))
+    }
+
+    @Test
     fun sharedProgressiveBlurUsesTheSoftTopEdgePreset() {
         assertEquals(10f, BILIPAI_PROGRESSIVE_TOP_BLUR_RADIUS_DP)
         assertEquals(0f, BILIPAI_PROGRESSIVE_TOP_BLUR_START_FRACTION)

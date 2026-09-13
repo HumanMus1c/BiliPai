@@ -34,7 +34,7 @@ class MusicPlayerContentStructureTest {
     @Test
     fun `music backdrop records opaque page background before glass samples it`() {
         val source = loadSource()
-        assertTrue(source.contains("musicBackdropSource.takeIf { it.isReady }?.backdrop"))
+        assertTrue(source.contains("val musicBackdrop = musicBackdropSource.backdrop"))
         assertTrue(source.contains(".then(musicBackdropSource.modifier)\n                    .background(pageBackground)"))
     }
 

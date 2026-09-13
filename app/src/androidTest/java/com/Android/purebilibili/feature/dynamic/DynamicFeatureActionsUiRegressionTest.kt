@@ -32,6 +32,10 @@ import com.android.purebilibili.data.model.response.MedialistMajor
 import com.android.purebilibili.data.model.response.MusicMajor
 import com.android.purebilibili.data.model.response.SubscriptionNewMajor
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicCardActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardInteractionActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardNavigationActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardPresentation
 import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
 import com.android.purebilibili.feature.dynamic.components.DynamicReserveResult
 import com.android.purebilibili.feature.dynamic.components.DynamicShareSessionPresentation
@@ -82,13 +86,17 @@ class DynamicFeatureActionsUiRegressionTest {
             MaterialTheme {
                 DynamicCardV2(
                     item = item,
-                    onVideoClick = {},
-                    onUserClick = {},
-                    onMusicClick = { musicId = it },
-                    onCollectionClick = { id, _, _, _ -> collectionId = id },
-                    onCourseClick = { url, _ -> courseUrl = url },
-                    onLiveClick = { roomId, _, _ -> liveRoomId = roomId },
                     gifImageLoader = imageLoader,
+                    actions = DynamicCardActions(
+                        navigation = DynamicCardNavigationActions(
+                            onVideoClick = {},
+                            onUserClick = {},
+                            onMusicClick = { musicId = it },
+                            onCollectionClick = { id, _, _, _ -> collectionId = id },
+                            onCourseClick = { url, _ -> courseUrl = url },
+                            onLiveClick = { roomId, _, _ -> liveRoomId = roomId },
+                        ),
+                    ),
                 )
             }
         }
@@ -127,13 +135,19 @@ class DynamicFeatureActionsUiRegressionTest {
                 MaterialTheme {
                     DynamicCardV2(
                         item = item,
-                        onVideoClick = {},
-                        onUserClick = {},
-                        onSaveDynamicClick = { saveClicks++ },
-                        onShareToMessageClick = { messageShareClicks++ },
-                        onCheckDynamicClick = { checkClicks++ },
-                        currentUserMid = 42L,
                         gifImageLoader = imageLoader,
+                        actions = DynamicCardActions(
+                            navigation = DynamicCardNavigationActions(
+                                onVideoClick = {},
+                                onUserClick = {},
+                            ),
+                            interaction = DynamicCardInteractionActions(
+                                onSaveDynamicClick = { saveClicks++ },
+                                onShareToMessageClick = { messageShareClicks++ },
+                                onCheckDynamicClick = { checkClicks++ },
+                            ),
+                        ),
+                        presentation = DynamicCardPresentation(currentUserMid = 42L),
                     )
                 }
             }
@@ -168,11 +182,17 @@ class DynamicFeatureActionsUiRegressionTest {
                 MaterialTheme {
                     DynamicCardV2(
                         item = item,
-                        onVideoClick = {},
-                        onUserClick = {},
-                        onManageAction = { action = it },
-                        currentUserMid = 42L,
                         gifImageLoader = imageLoader,
+                        actions = DynamicCardActions(
+                            navigation = DynamicCardNavigationActions(
+                                onVideoClick = {},
+                                onUserClick = {},
+                            ),
+                            interaction = DynamicCardInteractionActions(
+                                onManageAction = { action = it },
+                            ),
+                        ),
+                        presentation = DynamicCardPresentation(currentUserMid = 42L),
                     )
                 }
             }
@@ -248,13 +268,19 @@ class DynamicFeatureActionsUiRegressionTest {
                 MaterialTheme {
                     DynamicCardV2(
                         item = item,
-                        onVideoClick = {},
-                        onUserClick = {},
-                        onReserveClick = { _, callback ->
-                            reserveCalls++
-                            callback(Result.success(DynamicReserveResult("已预约", 1L, 1)))
-                        },
                         gifImageLoader = imageLoader,
+                        actions = DynamicCardActions(
+                            navigation = DynamicCardNavigationActions(
+                                onVideoClick = {},
+                                onUserClick = {},
+                            ),
+                            interaction = DynamicCardInteractionActions(
+                                onReserveClick = { _, callback ->
+                                    reserveCalls++
+                                    callback(Result.success(DynamicReserveResult("已预约", 1L, 1)))
+                                },
+                            ),
+                        ),
                     )
                 }
             }

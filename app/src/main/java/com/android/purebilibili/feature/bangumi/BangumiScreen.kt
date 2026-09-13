@@ -110,14 +110,14 @@ fun BangumiScreen(
     ) && !isLowBlurBudgetForced()
     // Keep progressive sampling attached through skeleton → content transitions.
     // Recreating its graphics layers briefly exposes an empty/dark texture.
-    val chromeSource = if (
-        progressiveBlur || (themeConfig.liquidGlassEnabled && shouldCaptureBangumiHubChrome(state))
-    ) {
+    val chromeSource = if (progressiveBlur || themeConfig.liquidGlassEnabled) {
         rememberChromeBackdropSource()
     } else {
         null
     }
-    val chromeBackdrop = chromeSource?.takeIf { it.isReady }?.backdrop
+    val chromeBackdrop = chromeSource?.takeIf {
+        (progressiveBlur || shouldCaptureBangumiHubChrome(state)) && it.isReady
+    }?.backdrop
 
     AppScaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -18,7 +18,42 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
+    fun `collapse only consumes scroll on a settled comment page`() {
+        assertTrue(
+            shouldEnableVideoContentTabBarCollapse(
+                settingEnabled = true,
+                selectedTabIndex = 1,
+                isPagerScrollInProgress = false,
+            ),
+        )
+        assertFalse(
+            shouldEnableVideoContentTabBarCollapse(
+                settingEnabled = true,
+                selectedTabIndex = 0,
+                isPagerScrollInProgress = false,
+            ),
+        )
+        assertFalse(
+            shouldEnableVideoContentTabBarCollapse(
+                settingEnabled = true,
+                selectedTabIndex = 1,
+                isPagerScrollInProgress = true,
+            ),
+        )
+    }
+
+    @Test
     fun `collapse progress follows nested collapse px and snaps full when list leaves top`() {
+        assertEquals(
+            0f,
+            resolveVideoContentTabBarCollapseProgress(
+                collapsePx = 80f,
+                maxCollapsePx = 80f,
+                selectedTabIndex = 1,
+                listAtTop = false,
+                enabled = false,
+            ),
+        )
         assertEquals(
             0f,
             resolveVideoContentTabBarCollapseProgress(
@@ -301,7 +336,7 @@ class VideoContentTabBarPolicyTest {
         assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
         assertTrue(source.contains(".miuixLayerBackdrop(videoContentMiuixBackdrop)"))
         assertTrue(source.contains(".background(MaterialTheme.colorScheme.surface)"))
-        assertTrue(source.contains(".padding(top = tabBarVisibleHeightDp)"))
+        assertTrue(source.contains("top = tabBarVisibleHeightDp"))
         assertFalse(source.contains("Modifier.miuixLayerBackdrop(chromeBackdrop)"))
         assertFalse(source.contains("chromeBackdrop: LayerBackdrop?"))
         assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
@@ -319,15 +354,29 @@ class VideoContentTabBarPolicyTest {
         assertTrue(source.contains("AppThemeAdaptiveTabRow("))
         assertFalse(source.contains("AppPrimaryTabRow("))
         assertTrue(source.contains("indicatorPositionProvider = indicatorPositionProvider"))
-        assertTrue(source.contains("showNativeSortHeader = !homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(source.contains("showNativeSortHeader = !liquidGlassEnabled"))
         assertTrue(source.contains("showSortControlInHeader = true"))
-        assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
-        assertTrue(source.contains("top = tabBarVisibleHeightDp + 6.dp"))
-        assertTrue(source.contains("modifier = Modifier.offset(y = (-commentSortDockLiftDp).dp)"))
-        assertTrue(source.contains("contentAlignment = Alignment.TopEnd"))
-        val pagerBlock = source
-            .substringAfter("HorizontalPager(")
-            .substringBefore(") { page ->")
+        assertTrue(source.contains("pagerState.currentPage == 1 &&"))
+        assertTrue(source.contains("visible = commentListAtTop"))
+        assertTrue(source.contains(".biliPaiProgressiveTopBlur("))
+        assertTrue(source.contains("liquidGlassEffectsEnabled = liquidGlassEnabled"))
+        assertTrue(source.contains("showHeader = !immersiveVideoContentChromeEnabled"))
+        assertTrue(source.contains("floatingHeaderContentPadding = if (immersiveVideoContentChromeEnabled) 46.dp else 0.dp"))
+        val pinnedCommentHeader = source.substringAfter("pagerState.currentPage == 1 &&")
+            .substringBefore("// Inline 弹幕设置")
+        assertFalse(pinnedCommentHeader.contains(".biliPaiProgressiveTopBlur("))
+        assertTrue(pinnedCommentHeader.contains("CommentListHeader("))
+        val primaryTabChrome = source.substringAfter("contentAlignment = Alignment.TopStart,")
+            .substringBefore("pagerState.currentPage == 1 &&")
+        assertTrue(primaryTabChrome.contains(".biliPaiProgressiveTopBlur("))
+        assertTrue(pinnedCommentHeader.contains("visible = commentListAtTop"))
+        assertTrue(pinnedCommentHeader.contains("CommentSortFilterBar("))
+        assertTrue(source.contains("backdrop = videoContentMiuixBackdrop"))
+        assertTrue(source.contains("showCommentBackToTop"))
+        val pagerBlock = source.substringAfter("HorizontalPager(").substringBefore(") { page ->")
+        assertTrue(pagerBlock.contains("if (immersiveVideoContentChromeEnabled)"))
+        assertTrue(pagerBlock.contains("Modifier.padding(top = tabBarVisibleHeightDp)"))
+        assertTrue(source.contains("top = if (immersiveVideoContentChromeEnabled) tabBarVisibleHeightDp else 0.dp"))
         assertFalse(
             pagerBlock.contains("layerBackdrop"),
             "Pager must not capture backdrop; segmented controls inside would self-sample and overflow RenderThread stack on MIUI"

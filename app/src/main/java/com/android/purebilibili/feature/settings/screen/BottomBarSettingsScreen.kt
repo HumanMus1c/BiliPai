@@ -43,8 +43,6 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
 import com.android.purebilibili.core.store.HomeTopRightAction
-import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
-import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.resolveHomeHeaderCollapseModeForTopBarHide
 import com.android.purebilibili.core.theme.BottomBarColors  //  统一底栏颜色配置
@@ -211,10 +209,6 @@ fun BottomBarSettingsContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val bottomBarSearchEnabled by SettingsManager.getBottomBarSearchEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
-    val bottomBarSearchAutoExpandMode by SettingsManager.getBottomBarSearchAutoExpandMode(context)
-        .collectAsStateWithLifecycle(initialValue = BottomBarSearchAutoExpandMode.DISABLED)
-    val bottomBarSearchLayoutMode by SettingsManager.getBottomBarSearchLayoutMode(context)
-        .collectAsStateWithLifecycle(initialValue = BottomBarSearchLayoutMode.FULL_DOCK)
     val isTabletDevice = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context)
         .collectAsStateWithLifecycle(initialValue = isTabletDevice)
@@ -361,41 +355,13 @@ fun BottomBarSettingsContent(
                         AppPreferenceDivider()
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
-                            title = "底栏搜索入口",
-                            subtitle = "在底栏右侧增加可直接打开搜索的按钮",
+                            title = "底栏搜索联动",
+                            subtitle = "显示独立搜索胶囊，并与推荐和视频小横条随滚动自然收拢或展开",
                             checked = bottomBarSearchEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch { SettingsManager.setBottomBarSearchEnabled(context, enabled) }
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                        )
-                        AppPreferenceDivider()
-                        SettingsSingleChoicePreference(
-                            title = "底栏搜索布局",
-                            subtitle = "选择保留全部导航，或精简为首页和搜索",
-                            options = BottomBarSearchLayoutMode.entries.map { mode ->
-                                AppSegmentOption(mode, mode.label)
-                            },
-                            selectedValue = bottomBarSearchLayoutMode,
-                            enabled = bottomBarSearchEnabled,
-                            onSelectionChange = { mode ->
-                                scope.launch { SettingsManager.setBottomBarSearchLayoutMode(context, mode) }
-                            },
-                        )
-                        AppPreferenceDivider()
-                        SettingsSingleChoicePreference(
-                            title = "搜索框自动展开",
-                            subtitle = "设置搜索框在回到首页顶部或浏览内容时如何展开",
-                            options = BottomBarSearchAutoExpandMode.entries.map { mode ->
-                                AppSegmentOption(mode, mode.label)
-                            },
-                            selectedValue = bottomBarSearchAutoExpandMode,
-                            enabled = bottomBarSearchEnabled,
-                            onSelectionChange = { mode ->
-                                scope.launch {
-                                    SettingsManager.setBottomBarSearchAutoExpandMode(context, mode)
-                                }
-                            },
                         )
                     }
                 }

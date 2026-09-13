@@ -133,6 +133,20 @@ class BackgroundPlaybackPolicyTest {
     }
 
     @Test
+    fun audioBarKeepsDetailPlaybackAcrossNavigationExit() {
+        assertTrue(
+            shouldContinueBackgroundAudioByPolicy(
+                backgroundPlaybackEnabled = false,
+                mode = SettingsManager.MiniPlayerMode.OFF,
+                isActive = true,
+                isLeavingByNavigation = true,
+                stopPlaybackOnExit = false,
+                keepForAudioNowPlaying = true,
+            )
+        )
+    }
+
+    @Test
     fun inAppMiniModeCanFallbackToBackgroundAudioWhenAppLeavesForeground() {
         assertTrue(
             shouldContinueBackgroundAudioByPolicy(
@@ -838,7 +852,7 @@ class BackgroundPlaybackPolicyTest {
     }
 
     @Test
-    fun audioNowPlayingKeepsPlaybackWhenLeavingARegularVideo() {
+    fun audioNowPlayingRetentionDoesNotOverrideExplicitStop() {
         assertTrue(
             shouldKeepPlaybackForAudioNowPlayingBar(
                 sessionActive = true,
@@ -851,7 +865,7 @@ class BackgroundPlaybackPolicyTest {
                 barEnabled = true,
             )
         )
-        assertFalse(
+        assertTrue(
             shouldClearPlaybackNotificationOnNavigationExit(
                 mode = SettingsManager.MiniPlayerMode.OFF,
                 stopPlaybackOnExit = true,

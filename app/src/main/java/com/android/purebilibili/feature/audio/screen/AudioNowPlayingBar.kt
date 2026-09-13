@@ -1,8 +1,10 @@
 package com.android.purebilibili.feature.audio.screen
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +27,6 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
-import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import androidx.compose.material3.MaterialTheme
@@ -33,10 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,13 +67,19 @@ internal fun AudioNowPlayingBar(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onDismiss: () -> Unit,
+    expandDestinationLabel: String = "听视频",
     glassEnabled: Boolean = LocalSettingsLiquidGlassEnabled.current,
     miuixBackdrop: MiuixBackdrop? = null,
     liquidGlassTuning: LiquidGlassTuning = LocalLiquidGlassRenderConfig.current.tuning,
     liftAboveBottomBar: Boolean = true,
     consumeNavigationBarsPadding: Boolean = true,
+    dockHosted: Boolean = false,
+    dockMergeProgress: Float = 0f,
+    iconOnly: Boolean = false,
+    surfaceMergeProgress: Float = dockMergeProgress,
     modifier: Modifier = Modifier
 ) {
+    val compact = dockMergeProgress > 0.5f
     val chrome = resolveMusicPlayerChromeSpec(
         uiStyle = LocalAppUiStyle.current,
         glassEnabled = glassEnabled
@@ -88,99 +96,116 @@ internal fun AudioNowPlayingBar(
         contentKey = state.coverUrl,
         playbackSpeed = state.playbackSpeed
     )
-    AppSurface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .then(if (consumeNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier)
             .padding(
-                start = chrome.horizontalPaddingDp.dp,
-                end = chrome.horizontalPaddingDp.dp,
+                start = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
+                end = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
                 bottom = when {
+                    dockHosted -> 0.dp
                     liftAboveBottomBar -> 72.dp
                     !glassActive && chrome.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 -> 16.dp
                     else -> 8.dp
                 }
             )
-            .biliPaiFloatingDockShell(
-                backdrop = miuixBackdrop,
-                containerColor = containerColor,
-                pressProgress = 0f,
-                shape = shape,
-                enabled = glassActive,
-                liquidGlassTuning = liquidGlassTuning,
-            )
+            .clip(shape)
+            .semantics { contentDescription = "当前视频：${state.title}，打开$expandDestinationLabel" }
             .clickable(onClick = onExpand)
             .audioNowPlayingSkipGesture(
                 onSkipNext = onSkipNext,
                 onSkipPrevious = onSkipPrevious
             ),
-        shape = shape,
-        color = if (glassActive) Color.Transparent else containerColor,
-        tonalElevation = if (chrome.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 && !glassActive) {
-            3.dp
-        } else {
-            0.dp
-        }
     ) {
+        Box(
+            Modifier.matchParentSize()
+                .graphicsLayer { alpha = 1f - surfaceMergeProgress.coerceIn(0f, 1f) }
+                .biliPaiFloatingDockShell(
+                    backdrop = miuixBackdrop,
+                    containerColor = containerColor,
+                    pressProgress = 0f,
+                    shape = shape,
+                    enabled = glassActive,
+                    liquidGlassTuning = liquidGlassTuning,
+                )
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(if (dockHosted) 56.dp else 64.dp)
+                .padding(horizontal = if (iconOnly) 0.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (iconOnly) Arrangement.Center else Arrangement.Start,
         ) {
             AsyncImage(
                 model = state.coverUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size((40f - 8f * dockMergeProgress.coerceIn(0f, 1f)).dp)
                     .graphicsLayer { rotationZ = coverRotationDegrees() }
                     .clip(if (chrome.coverShapeIsCircle) CircleShape else AppShapes.container(ContainerLevel.Field)),
                 contentScale = ContentScale.Crop
             )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                AppText(
-                    text = state.title,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (state.artistAvatarUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = state.artistAvatarUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
+            if (!iconOnly) {
+                Spacer(Modifier.width(if (compact) 6.dp else 10.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                    AppText(
+                        text = state.title,
+                        modifier = if (state.isPlaying) {
+                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                        } else {
+                            Modifier
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        softWrap = false,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (!compact) Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (state.artistAvatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = state.artistAvatarUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        AppText(
+                            text = state.artist,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    AppText(
-                        text = state.artist,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                AppIconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
+                    AppIcon(
+                        imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (state.isPlaying) "暂停" else "播放",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-            }
-            AppIconButton(onClick = onPlayPause, modifier = Modifier.size(44.dp)) {
-                AppIcon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (state.isPlaying) "暂停" else "播放"
-                )
-            }
-            AppIconButton(onClick = onExpand, modifier = Modifier.size(44.dp)) {
-                AppIcon(Icons.Outlined.QueueMusic, contentDescription = "正在播放")
-            }
-            AppIconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                AppIcon(Icons.Filled.Close, contentDescription = "关闭听视频条")
+                if (!compact) {
+                    AppIconButton(onClick = onExpand, modifier = Modifier.size(48.dp)) {
+                        AppIcon(
+                            Icons.Outlined.QueueMusic,
+                            contentDescription = "打开$expandDestinationLabel",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    AppIconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                        AppIcon(Icons.Filled.Close, contentDescription = "关闭听视频条", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         }
     }

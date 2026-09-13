@@ -80,6 +80,7 @@ internal fun resolveMiuixPreferredHomeNavigationIconSource(
 /**
  * 首页底栏、侧栏和顶部分区的唯一图标入口。
  */
+@Composable
 internal fun resolveMiuixPreferredHomeNavigationIcon(
     tabId: String,
     selected: Boolean = false,
@@ -89,43 +90,49 @@ internal fun resolveMiuixPreferredHomeNavigationIcon(
 }
 
 /**
- * Miuix navigation chrome keeps its native behavior and colors. Home and history use local
- * outlined/filled vectors because the native Miuix glyphs are solid even at Light weight; all
- * other destinations keep their native Miuix icons.
+ * Miuix Home and Recent remain visually solid even at Light weight. Their idle layer uses the
+ * thin local outline while the selected layer uses a filled glyph, allowing the moving indicator
+ * to crossfade real interior fill without leaving an idle black solid icon behind.
  */
 @Composable
 internal fun resolveMiuixBottomNavigationIcon(
     item: BottomNavItem,
     selected: Boolean,
-): ImageVector {
-    val resourceId = when (item) {
-        BottomNavItem.HOME -> if (selected) R.drawable.ms_home_fill_24 else R.drawable.ms_home_24
-        BottomNavItem.HISTORY -> if (selected) R.drawable.ms_history_fill_24 else R.drawable.ms_history_24
-        else -> return resolveMiuixPreferredHomeNavigationIcon(item.name, selected)
-    }
-    return ImageVector.vectorResource(resourceId)
-}
+): ImageVector = resolveMiuixPreferredHomeNavigationIcon(item.name, selected)
 
+@Composable
 private fun resolveMiuixHomeNavigationIcon(
     role: HomeNavigationIconRole,
     selected: Boolean,
-): ImageVector = when (role) {
-    HomeNavigationIconRole.HOME -> if (selected) MiuixIcons.Medium.Home else MiuixIcons.Light.Home
-    HomeNavigationIconRole.DYNAMIC -> if (selected) MiuixIcons.Medium.Community else MiuixIcons.Light.Community
-    HomeNavigationIconRole.STORY -> if (selected) MiuixIcons.Medium.Play else MiuixIcons.Light.Play
-    HomeNavigationIconRole.HISTORY -> if (selected) MiuixIcons.Medium.Recent else MiuixIcons.Light.Recent
-    HomeNavigationIconRole.LISTEN_VIDEO -> if (selected) MiuixIcons.Medium.Music else MiuixIcons.Light.Music
-    HomeNavigationIconRole.PROFILE -> if (selected) MiuixIcons.Medium.ContactsCircle else MiuixIcons.Light.ContactsCircle
-    HomeNavigationIconRole.FAVORITE -> if (selected) MiuixIcons.Medium.Favorites else MiuixIcons.Light.Favorites
-    HomeNavigationIconRole.LIVE -> if (selected) MiuixIcons.Medium.Recording else MiuixIcons.Light.Recording
-    HomeNavigationIconRole.WATCH_LATER -> if (selected) MiuixIcons.Medium.Stopwatch else MiuixIcons.Light.Stopwatch
-    HomeNavigationIconRole.SETTINGS -> if (selected) MiuixIcons.Medium.Settings else MiuixIcons.Light.Settings
-    HomeNavigationIconRole.PLUGINS -> if (selected) MiuixIcons.Medium.Folder else MiuixIcons.Light.Folder
-    HomeNavigationIconRole.FOLLOW -> if (selected) MiuixIcons.Medium.Contacts else MiuixIcons.Light.Contacts
-    HomeNavigationIconRole.POPULAR -> if (selected) MiuixIcons.Medium.TopDownloads else MiuixIcons.Light.TopDownloads
-    HomeNavigationIconRole.ANIME -> if (selected) MiuixIcons.Medium.Play else MiuixIcons.Light.Play
-    HomeNavigationIconRole.GAME -> if (selected) MiuixIcons.Medium.Store else MiuixIcons.Light.Store
-    HomeNavigationIconRole.PARTITION -> if (selected) MiuixIcons.Medium.GridView else MiuixIcons.Light.GridView
-    HomeNavigationIconRole.KNOWLEDGE -> if (selected) MiuixIcons.Medium.Notes else MiuixIcons.Light.Notes
-    HomeNavigationIconRole.TECH -> if (selected) MiuixIcons.Medium.Theme else MiuixIcons.Light.Theme
+): ImageVector {
+    if (selected) {
+        val filledResource = when (role) {
+            HomeNavigationIconRole.HOME -> R.drawable.ms_home_fill_24
+            HomeNavigationIconRole.HISTORY -> R.drawable.ms_history_fill_24
+            else -> null
+        }
+        if (filledResource != null) return ImageVector.vectorResource(filledResource)
+        // Keep the same Miuix silhouette under the moving tint mask. Unrelated Material
+        // filled glyphs (for example a bell for Community) do not align with the idle icon.
+    }
+    return when (role) {
+        HomeNavigationIconRole.HOME -> ImageVector.vectorResource(R.drawable.bp_nav_home_outline_24)
+        HomeNavigationIconRole.DYNAMIC -> MiuixIcons.Light.Community
+        HomeNavigationIconRole.STORY -> MiuixIcons.Light.Play
+        HomeNavigationIconRole.HISTORY -> ImageVector.vectorResource(R.drawable.bp_nav_history_outline_24)
+        HomeNavigationIconRole.LISTEN_VIDEO -> MiuixIcons.Light.Music
+        HomeNavigationIconRole.PROFILE -> MiuixIcons.Light.ContactsCircle
+        HomeNavigationIconRole.FAVORITE -> MiuixIcons.Light.Favorites
+        HomeNavigationIconRole.LIVE -> MiuixIcons.Light.Recording
+        HomeNavigationIconRole.WATCH_LATER -> MiuixIcons.Light.Stopwatch
+        HomeNavigationIconRole.SETTINGS -> MiuixIcons.Light.Settings
+        HomeNavigationIconRole.PLUGINS -> MiuixIcons.Light.Folder
+        HomeNavigationIconRole.FOLLOW -> MiuixIcons.Light.Contacts
+        HomeNavigationIconRole.POPULAR -> MiuixIcons.Light.TopDownloads
+        HomeNavigationIconRole.ANIME -> MiuixIcons.Light.Play
+        HomeNavigationIconRole.GAME -> MiuixIcons.Light.Store
+        HomeNavigationIconRole.PARTITION -> MiuixIcons.Light.GridView
+        HomeNavigationIconRole.KNOWLEDGE -> MiuixIcons.Light.Notes
+        HomeNavigationIconRole.TECH -> MiuixIcons.Light.Theme
+    }
 }

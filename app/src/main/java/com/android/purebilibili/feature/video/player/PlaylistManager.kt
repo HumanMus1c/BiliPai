@@ -484,6 +484,22 @@ object PlaylistManager {
     /**
      * 获取当前播放项
      */
+    /** Adopt an already playing detail item without starting playback or replacing its queue. */
+    fun adoptCurrentPlayback(item: PlaylistItem) {
+        val index = _playlist.value.indexOfFirst { it.bvid == item.bvid }
+        if (index < 0) {
+            addToPlaylist(item)
+            playAt(_playlist.value.lastIndex)
+        } else {
+            val existing = _playlist.value[index]
+            val updated = item.copy(ownerFace = item.ownerFace.ifBlank { existing.ownerFace })
+            if (existing != updated) {
+                _playlist.value = _playlist.value.toMutableList().also { it[index] = updated }
+            }
+            if (_currentIndex.value != index) playAt(index) else if (existing != updated) persistState()
+        }
+    }
+
     fun getCurrentItem(): PlaylistItem? {
         val index = _currentIndex.value
         val list = _playlist.value

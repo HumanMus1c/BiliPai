@@ -1,9 +1,9 @@
 package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -249,7 +249,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
     },
     inverseScaleYProvider: () -> Float = inverseScaleXProvider,
     contentTopInset: Dp = 0.dp,
-    clipShape: Shape? = null,
+    clipCornerDp: Dp = 0.dp,
 ): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
@@ -273,4 +273,15 @@ internal fun Modifier.videoDetailReturnMediaLayout(
             placeable.place(frame.offsetXPx, frame.offsetYPx)
         }
     }
-}.then(if (clipShape != null) Modifier.clip(clipShape) else Modifier)
+}.then(
+    if (clipCornerDp > 0.dp) Modifier.graphicsLayer {
+        // Read alongside the media layout so the detail endpoint has no residual card clip.
+        val progress = if (landingLayout?.canRender == true) {
+            handoffProgressProvider().coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        clip = progress > 0f
+        shape = RoundedCornerShape(clipCornerDp * progress)
+    } else Modifier,
+)

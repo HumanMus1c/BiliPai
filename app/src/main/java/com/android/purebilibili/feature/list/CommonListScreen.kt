@@ -832,12 +832,14 @@ fun CommonListScreen(
             singleFolderUiState.isLoading && singleFolderUiState.items.isEmpty()
         else -> state.isLoading && state.items.isEmpty()
     }
-    val commonListChromeSource = if ((isProgressiveTopBlurEnabled || liquidGlassEnabled) && !loadingChromeContent) {
+    val commonListChromeSource = if (isProgressiveTopBlurEnabled || liquidGlassEnabled) {
         com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
         null
     }
-    val commonListChromeBackdrop = commonListChromeSource?.takeIf { it.isReady }?.backdrop
+    val commonListChromeBackdrop = commonListChromeSource?.takeIf {
+        !loadingChromeContent && it.isReady
+    }?.backdrop
     val videoCardAppearance = remember(homeSettings, liquidGlassEnabled) {
         resolveCommonListVideoCardAppearance(
             homeSettings = homeSettings,

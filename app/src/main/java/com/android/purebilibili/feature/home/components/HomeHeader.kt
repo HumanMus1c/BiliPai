@@ -2214,6 +2214,21 @@ fun HomeHeader(
             containerWidthDp = maxWidth,
             chromePolicy = topChromePolicy
         )
+        if (shouldUseOpaqueTopChromeBackground(
+                progressiveBlurActive = shouldUseBiliPaiProgressiveTopBlur(
+                    enabled = isProgressiveBlurRequested,
+                    hasBackdrop = miuixBackdrop != null,
+                ) && !forceLowBlurBudget,
+                headerBlurActive = isHeaderBlurEnabled,
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(pinnedChromeContentHeight)
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 1f))
+            )
+        }
         if (effectiveContinuousSlabRenderMode != HomeTopChromeRenderMode.PLAIN) {
             Box(
                 modifier = Modifier

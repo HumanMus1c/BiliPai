@@ -664,12 +664,12 @@ fun WatchLaterScreen(
     )
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     val hazeState = if (appThemeConfig.headerBlurEnabled) rememberRecoverableHazeState() else null
-    val watchLaterChromeSource = if ((appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.liquidGlassEnabled) && !state.isLoading) {
+    val watchLaterChromeSource = if (appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.liquidGlassEnabled) {
         com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
         null
     }
-    val watchLaterChromeBackdrop = watchLaterChromeSource?.takeIf { it.isReady }?.backdrop
+    val watchLaterChromeBackdrop = watchLaterChromeSource?.takeIf { !state.isLoading && it.isReady }?.backdrop
     val progressiveChromeActive = shouldUseBiliPaiProgressiveTopBlur(
         enabled = appThemeConfig.progressiveTopBlurEnabled,
         hasBackdrop = watchLaterChromeBackdrop != null,

@@ -176,7 +176,7 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(false, transform.contains("outgoingClipFraction"))
         assertEquals(true, transform.contains("resolveMiuixVideoCardGestureVisualOrigin("))
         assertEquals(true, transform.contains("cameraDistance = transform.cameraDistance"))
-        assertEquals(true, transform.contains("shadowElevation = transform.shadowElevationDp.dp.toPx()"))
+        assertEquals(true, transform.contains("shadowElevation = MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP.dp.toPx() * poseWeight"))
         assertEquals(true, transform.contains("floatingCornerPx = MIUIX_VIDEO_CARD_FLOATING_CORNER_DP.dp.toPx()"))
         assertEquals(true, source.contains("56.dp.toPx()"))
     }
@@ -382,7 +382,7 @@ class MiuixVideoCardNavTransitionTest {
             0.01f,
         )
         assertEquals(1f - MIUIX_VIDEO_CARD_GESTURE_LIFT_SCALE, centered.liftScale, 0.0001f)
-        assertEquals(MIUIX_VIDEO_CARD_GESTURE_SHADOW_DP, centered.shadowElevationDp, 0.01f)
+        assertEquals(12f, centered.shadowElevationDp, 0.01f)
         assertTrue(centered.cameraDistance < MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP)
         assertTrue(abs(centered.translationX) > 40f)
         assertEquals(0f, resolveMiuixVideoCardGesturePoseWeight(0f), 0.0001f)

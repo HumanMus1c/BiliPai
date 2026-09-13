@@ -27,7 +27,8 @@ internal object VideoHeroMotionTokens {
     // Must stay 0: a flying-layer pulse undershoots the frozen card and the stationary
     // list card then pops in at full size (cover / info scale-jump on land).
     const val LANDING_COMPRESSION = 0f
-    const val OPEN_BLUR_QUANTUM_PX = 1f
+    // Bound effect changes during entry while keeping finer steps than return.
+    const val OPEN_BLUR_QUANTUM_PX = 2f
     const val RETURN_BLUR_QUANTUM_PX = 4f
     const val SPRING_DAMPING = 1f
     // Critical spring reaches the Nav driver's 0.0025 threshold at ~8.3 / omega seconds.

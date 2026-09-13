@@ -164,7 +164,7 @@ fun DynamicTopBarWithTabs(
     Column {
         Spacer(modifier = Modifier.height(statusBarHeight))
 
-        // 顶部不再铺设整块背景；两个悬浮 Dock 独立读取内容 Backdrop 和全局玻璃预设。
+        // Dock 保留各自材质；关闭顶部模糊时由外层容器提供连续的不透明背景。
         Row(
             modifier = Modifier
                 .fillMaxWidth()

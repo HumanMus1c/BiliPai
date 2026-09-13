@@ -157,6 +157,9 @@ fun PlaybackSettingsContent(
         .getAudioModeAutoPipEnabled(context).collectAsStateWithLifecycle(initialValue = false)
     val audioNowPlayingBarEnabled by com.android.purebilibili.core.store.SettingsManager
         .getAudioNowPlayingBarEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val audioNowPlayingBarOpensAudioMode by SettingsManager
+        .getAudioNowPlayingBarOpensAudioMode(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val playerDiagnosticLoggingEnabled by com.android.purebilibili.core.store.SettingsManager
         .getPlayerDiagnosticLoggingEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED)
@@ -625,17 +628,34 @@ fun PlaybackSettingsContent(
                         AppPreferenceDivider()
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYLIST_AUTO_CONTINUE),
-                            title = "听视频小横条",
+                            title = "视频小横条",
                             subtitle = if (audioNowPlayingBarEnabled) {
-                                "已开启：返回首页等页面时显示正在播放条"
+                                "进入视频详情后返回首页等页面时显示，即使未播放也保留当前视频入口"
                             } else {
-                                "关闭后离开听视频页不再显示底部小横条"
+                                "关闭后返回首页等页面时不显示视频小横条"
                             },
                             checked = audioNowPlayingBarEnabled,
                             onCheckedChange = {
                                 scope.launch {
                                     com.android.purebilibili.core.store.SettingsManager
                                         .setAudioNowPlayingBarEnabled(context, it)
+                                }
+                            },
+                            iconTint = iOSOrange
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYLIST_AUTO_CONTINUE),
+                            title = "点击小横条进入听视频",
+                            subtitle = if (audioNowPlayingBarOpensAudioMode) {
+                                "点击视频小横条时跳转到听视频"
+                            } else {
+                                "关闭后点击视频小横条时跳转到视频详情页（默认）"
+                            },
+                            checked = audioNowPlayingBarOpensAudioMode,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setAudioNowPlayingBarOpensAudioMode(context, it)
                                 }
                             },
                             iconTint = iOSOrange
@@ -1576,6 +1596,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
     val portraitPlayerCollapseMode by com.android.purebilibili.core.store.SettingsManager
         .getPortraitPlayerCollapseMode(context)
         .collectAsStateWithLifecycle(initialValue = PortraitPlayerCollapseMode.INTRO_ONLY)
+    val videoDetailChromeScrollHideEnabled by SettingsManager
+        .getVideoDetailChromeScrollHideEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val portraitSwipeToFullscreenEnabled by com.android.purebilibili.core.store.SettingsManager
         .getPortraitSwipeToFullscreenEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val directPortraitStoryEntry by com.android.purebilibili.core.store.SettingsManager
@@ -1829,6 +1852,24 @@ private fun PlaybackFullscreenGestureSettingsSection(
                         .setPortraitPlayerCollapseMode(context, mode)
                 }
             }
+        )
+
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HEADER_COLLAPSE),
+            title = "详情页控件随滚动隐藏",
+            subtitle = if (videoDetailChromeScrollHideEnabled) {
+                "评论页下滑时隐藏顶部标签，最热/最新排序跟随移动，回顶后恢复标题"
+            } else {
+                "关闭后详情页顶部控件与最热/最新保持显示，保留渐进模糊"
+            },
+            checked = videoDetailChromeScrollHideEnabled,
+            onCheckedChange = { enabled ->
+                scope.launch {
+                    SettingsManager.setVideoDetailChromeScrollHideEnabled(context, enabled)
+                }
+            },
+            iconTint = iOSTeal,
         )
 
         val pauseOnPlayerCollapseEnabled by com.android.purebilibili.core.store.SettingsManager

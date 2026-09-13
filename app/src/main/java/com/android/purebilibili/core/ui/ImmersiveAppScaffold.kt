@@ -34,8 +34,11 @@ internal fun ImmersiveAppScaffold(
         enabled = config.progressiveTopBlurEnabled && !config.headerBlurEnabled && topBar != null,
         hasBackdrop = true,
     ) && !isLowBlurBudgetForced()
-    val source = if (progressive && blurContentReady) rememberChromeBackdropSource() else null
-    val backdrop = source?.takeIf { it.isReady }?.backdrop
+    // Keep recording while skeleton/loading content is shown. When the real content becomes
+    // eligible, the already-warm backdrop can be published in the same composition instead of
+    // making chrome briefly fall back while a new source records its first frame.
+    val source = if (progressive) rememberChromeBackdropSource() else null
+    val backdrop = source?.takeIf { blurContentReady && it.isReady }?.backdrop
     val blurActive = progressive && backdrop != null
     AppScaffold(
         modifier = modifier,

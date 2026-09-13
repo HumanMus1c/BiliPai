@@ -64,6 +64,9 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.TopicTopDetails
 import com.android.purebilibili.data.model.response.normalizeSearchImageUrl
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicCardActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardInteractionActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardNavigationActions
 import com.android.purebilibili.feature.dynamic.components.DynamicFeedSkeletonCard
 import com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse
 import com.android.purebilibili.core.ui.AppShapes
@@ -201,19 +204,25 @@ fun TopicDetailScreen(
                         itemsIndexed(state.items, key = { _, item -> item.id_str }) { index, item ->
                             DynamicCardV2(
                                 item = item,
-                                onVideoClick = onVideoClick,
-                                onBangumiClick = onBangumiClick,
-                                onUserClick = onUserClick,
-                                onTopicClick = onTopicClick,
-                                onTopicKeywordClick = onTopicKeywordClick,
-                                onLiveClick = onLiveClick,
-                                onMusicClick = onMusicClick,
-                                onCollectionClick = onCollectionClick,
-                                onCourseClick = onCourseClick,
-                                onArticleClick = onArticleClick,
-                                onDynamicDetailClick = onDynamicDetailClick,
-                                onCommentClick = onDynamicDetailClick,
-                                gifImageLoader = context.imageLoader
+                                gifImageLoader = context.imageLoader,
+                                actions = DynamicCardActions(
+                                    navigation = DynamicCardNavigationActions(
+                                        onVideoClick = onVideoClick,
+                                        onBangumiClick = onBangumiClick,
+                                        onUserClick = onUserClick,
+                                        onTopicClick = onTopicClick,
+                                        onTopicKeywordClick = onTopicKeywordClick,
+                                        onLiveClick = onLiveClick,
+                                        onMusicClick = onMusicClick,
+                                        onCollectionClick = onCollectionClick,
+                                        onCourseClick = onCourseClick,
+                                        onArticleClick = onArticleClick,
+                                        onDynamicDetailClick = onDynamicDetailClick,
+                                    ),
+                                    interaction = DynamicCardInteractionActions(
+                                        onCommentClick = onDynamicDetailClick,
+                                    ),
+                                ),
                             )
                             if (index == state.items.size - 3 && state.hasMore && !state.isLoadingMore) {
                                 LaunchedEffect(state.offset) {

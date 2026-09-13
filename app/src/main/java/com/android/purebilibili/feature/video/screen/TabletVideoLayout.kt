@@ -59,8 +59,8 @@ import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerS
 import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.DanmakuSettingsScope
-import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
@@ -184,15 +184,7 @@ internal fun TabletSecondaryLiquidTabRow(
     isScrollInProgressProvider: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(
-            // The disabled state must be safe before the persisted setting is emitted.
-            initialValue = HomeSettings(
-                androidNativeLiquidGlassEnabled = false,
-            ),
-        )
+    val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
     BottomBarLiquidSegmentedControl(
         items = labels,
         selectedIndex = selectedIndex,
@@ -202,7 +194,7 @@ internal fun TabletSecondaryLiquidTabRow(
         height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
         indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = 15.sp,
-        liquidGlassEffectsEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        liquidGlassEffectsEnabled = liquidGlassEnabled,
         dragSelectionEnabled = true,
         tapPressRefractionEnabled = true,
         indicatorPositionProvider = indicatorPositionProvider,

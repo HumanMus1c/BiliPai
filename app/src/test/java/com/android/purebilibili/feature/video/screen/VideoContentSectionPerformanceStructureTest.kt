@@ -59,10 +59,22 @@ class VideoContentSectionPerformanceStructureTest {
         assertTrue(source.contains("nestedScroll(tabBarCollapseConnection)"))
         assertTrue(source.contains("var tabBarCollapsePx by remember"))
         assertTrue(source.contains("resolveVideoContentTabBarCollapseProgress("))
+        assertTrue(source.contains("enabled = tabBarCollapseEnabled"))
         assertFalse(source.contains("visible = !collapseTabBarForCommentScroll"))
         // Sort filter bar lives in the top chrome beside the comment tab.
-        assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(source.contains("pagerState.currentPage == 1 &&"))
+        assertTrue(source.contains("visible = commentListAtTop"))
         assertTrue(source.contains("CommentSortFilterBar("))
+        val sortControlSource = source
+            .substringAfter("CommentSortFilterBar(")
+            .substringBefore("AppLiquidGlassBackToTopButton(")
+        assertTrue(sortControlSource.contains("liquidGlassEffectsEnabled = liquidGlassEnabled"))
+        assertTrue(sortControlSource.contains(".align(Alignment.TopEnd)"))
+        assertFalse(sortControlSource.contains("visible = commentListAtTop"))
+        assertFalse(source.contains("(!tabBarCollapseEnabled || commentListAtTop)"))
+        assertTrue(source.contains("顶部标签与评论标题/排序共用同一张渐进模糊材质"))
+        assertTrue(source.contains(".height(tabBarVisibleHeightDp + commentChromeHeight)"))
+        assertTrue(source.contains("showHeader = !immersiveVideoContentChromeEnabled"))
         assertTrue(source.contains("shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex)"))
     }
 

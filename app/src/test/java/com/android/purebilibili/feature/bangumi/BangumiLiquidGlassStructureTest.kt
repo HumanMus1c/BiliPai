@@ -40,7 +40,7 @@ class BangumiLiquidGlassStructureTest {
         assertTrue(contentSource.contains("miuixBackdrop = tabBackdrop"))
         assertTrue(screenSource.contains("miuixBackdrop = chromeBackdrop"))
         assertTrue(screenSource.contains(".then(chromeSource?.modifier ?: Modifier)"))
-        assertTrue(screenSource.contains("chromeSource?.takeIf { it.isReady }?.backdrop"))
+        assertTrue(screenSource.contains("(progressiveBlur || shouldCaptureBangumiHubChrome(state)) && it.isReady"))
         assertTrue(screenSource.contains("shouldCaptureBangumiHubChrome(state)"))
         assertTrue(!screenSource.contains("tabBackdrop = chromeBackdrop"))
         assertTrue(homeTabSource.contains("miuixBackdrop = channelBackdrop"))
@@ -72,9 +72,8 @@ class BangumiLiquidGlassStructureTest {
     @Test
     fun `progressive source stays mounted while skeleton loading changes`() {
         val source = sourceOf("BangumiScreen.kt")
-        assertTrue(source.contains(
-            "progressiveBlur || (themeConfig.liquidGlassEnabled && shouldCaptureBangumiHubChrome(state))",
-        ))
+        assertTrue(source.contains("if (progressiveBlur || themeConfig.liquidGlassEnabled)"))
+        assertTrue(source.contains("(progressiveBlur || shouldCaptureBangumiHubChrome(state)) && it.isReady"))
     }
 
     @Test

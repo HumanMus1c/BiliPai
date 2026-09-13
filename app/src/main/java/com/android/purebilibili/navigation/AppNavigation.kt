@@ -1431,12 +1431,24 @@ fun AppNavigation(
         // - 不是故事模式
         // - 且 (模式为始终显示 OR (模式为向下浏览时隐藏 AND 当前状态为可见))
         // - 且 模式不是永久隐藏
+        val audioNowPlayingBarEnabled by SettingsManager
+            .getAudioNowPlayingBarEnabled(context)
+            .collectAsStateWithLifecycle(initialValue = true)
+        val audioNowPlayingBarOpensAudioMode by SettingsManager
+            .getAudioNowPlayingBarOpensAudioMode(context)
+            .collectAsStateWithLifecycle(initialValue = false)
+        val audioNowPlayingActive by AudioNowPlayingSession.active.collectAsStateWithLifecycle()
+        val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
+        val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
+        val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
         val finalBottomBarVisible = showBottomBar &&
             (driveBottomBarByProgress || videoCardSourceChromeVisible) &&
             bottomBarVisibilityMode != SettingsManager.BottomBarVisibilityMode.ALWAYS_HIDDEN &&
             (
                 bottomBarVisibilityMode == SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE ||
-                    isBottomBarVisible
+                    isBottomBarVisible ||
+                    (isBottomBarFloating && audioNowPlayingBarEnabled && audioNowPlayingActive &&
+                        audioNowPlayingItem != null)
             )
         val bottomBarVisibilityState = remember { MutableTransitionState(finalBottomBarVisible) }
         bottomBarVisibilityState.targetState = finalBottomBarVisible
@@ -1737,6 +1749,17 @@ fun AppNavigation(
 
             fun prepareVideoPlaybackForNavigationExit(videoKey: BiliPaiNavKey.VideoDetail) {
                 val manager = miniPlayerManager ?: return
+                if (manager.prepareAudioNowPlayingForNavigationExit(videoKey.bvid)) {
+                    manager.markLeavingByNavigation(
+                        expectedBvid = videoKey.bvid,
+                        deferPlaybackStop = com.android.purebilibili.feature.video.screen
+                            .shouldDeferPlaybackStopForSharedLiveReturn(
+                                cardTransitionEnabled = cardTransitionEnabled,
+                                hasSourceRoute = !videoKey.sourceRoute.isNullOrBlank(),
+                            ),
+                    )
+                    return
+                }
                 if (manager.shouldShowInAppMiniPlayer()) {
                     manager.enterMiniMode()
                 } else if (shouldMarkNavigationLeaveBeforeVideoExit(isMiniMode = manager.isMiniMode)) {
@@ -3902,13 +3925,6 @@ fun AppNavigation(
             } // End of Content Box
             } // End of navigation content row
 
-            val audioNowPlayingBarEnabled by SettingsManager
-                .getAudioNowPlayingBarEnabled(context)
-                .collectAsStateWithLifecycle(initialValue = true)
-            val audioNowPlayingActive by AudioNowPlayingSession.active.collectAsStateWithLifecycle()
-            val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
-            val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
-            val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
             val isLandscapeNowPlaying =
                 androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE
@@ -3963,40 +3979,67 @@ fun AppNavigation(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
-                            val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
-                            AudioNowPlayingBar(
-                                state = AudioNowPlayingBarState(
-                                    title = audioNowPlayingItem.title,
-                                    artist = audioNowPlayingItem.owner,
-                                    artistAvatarUrl = audioNowPlayingItem.ownerFace,
-                                    coverUrl = audioNowPlayingItem.cover,
-                                    isPlaying = playbackManager.isPlaying,
-                                    playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
-                                ),
-                                onExpand = {
-                                    pushNavigation3Route(
-                                        ScreenRoutes.AudioMode.createRoute(
-                                            bvid = audioNowPlayingItem.bvid,
-                                            cid = audioNowPlayingItem.cid
-                                        )
+                        val dockAudioContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? =
+                            if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
+                                { audioModifier, dockMergeProgress, iconOnly, surfaceMergeProgress ->
+                                    val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
+                                    AudioNowPlayingBar(
+                                        state = AudioNowPlayingBarState(
+                                            title = audioNowPlayingItem.title,
+                                            artist = audioNowPlayingItem.owner,
+                                            artistAvatarUrl = audioNowPlayingItem.ownerFace,
+                                            coverUrl = audioNowPlayingItem.cover,
+                                            isPlaying = playbackManager.isPlaying,
+                                            playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
+                                        ),
+                                        onExpand = {
+                                            pushNavigation3Route(
+                                                resolveAudioNowPlayingBarExpandRoute(
+                                                    opensAudioMode = audioNowPlayingBarOpensAudioMode,
+                                                    bvid = audioNowPlayingItem.bvid,
+                                                    cid = audioNowPlayingItem.cid,
+                                                    coverUrl = audioNowPlayingItem.cover,
+                                                )
+                                            )
+                                        },
+                                        onPlayPause = {
+                                            if (!playbackManager.togglePlayPause()) {
+                                                pushNavigation3Route(
+                                                    ScreenRoutes.AudioMode.createRoute(
+                                                        bvid = audioNowPlayingItem.bvid,
+                                                        cid = audioNowPlayingItem.cid
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onSkipNext = { playbackManager.playNext() },
+                                        onSkipPrevious = { playbackManager.playPrevious() },
+                                        onDismiss = {
+                                            if (playbackManager.isPlaying) {
+                                                playbackManager.togglePlayPause()
+                                            }
+                                            AudioNowPlayingSession.dismiss()
+                                        },
+                                        expandDestinationLabel = if (audioNowPlayingBarOpensAudioMode) {
+                                            "听视频"
+                                        } else {
+                                            "视频详情页"
+                                        },
+                                        glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
+                                        miuixBackdrop = bottomBarBackdrop,
+                                        liquidGlassTuning = liquidGlassRenderConfig.tuning,
+                                        liftAboveBottomBar = false,
+                                        consumeNavigationBarsPadding = false,
+                                        dockHosted = isBottomBarFloating,
+                                        dockMergeProgress = dockMergeProgress,
+                                        surfaceMergeProgress = surfaceMergeProgress,
+                                        iconOnly = iconOnly,
+                                        modifier = audioModifier
                                     )
-                                },
-                                onPlayPause = { playbackManager.togglePlayPause() },
-                                onSkipNext = { playbackManager.playNext() },
-                                onSkipPrevious = { playbackManager.playPrevious() },
-                                onDismiss = {
-                                    if (playbackManager.isPlaying) {
-                                        playbackManager.togglePlayPause()
-                                    }
-                                    AudioNowPlayingSession.dismiss()
-                                },
-                                glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
-                                miuixBackdrop = bottomBarBackdrop,
-                                liquidGlassTuning = liquidGlassRenderConfig.tuning,
-                                liftAboveBottomBar = false,
-                                consumeNavigationBarsPadding = false
-                            )
+                                }
+                            } else null
+                        if (!isBottomBarFloating) {
+                            dockAudioContent?.invoke(Modifier, 0f, false, 0f)
                         }
                         if (isBottomBarFloating) {
                             Box(
@@ -4004,6 +4047,7 @@ fun AppNavigation(
                                 contentAlignment = Alignment.Center
                             ) {
                                 FrostedBottomBar(
+                                    nowPlayingContent = dockAudioContent,
                                     currentItem = currentBottomNavItem,
                                     onItemClick = handleNavItemClick,
                                     onHomeDoubleTap = {
@@ -4107,13 +4151,24 @@ fun AppNavigation(
                     ),
                     onExpand = {
                         pushNavigation3Route(
-                            ScreenRoutes.AudioMode.createRoute(
+                            resolveAudioNowPlayingBarExpandRoute(
+                                opensAudioMode = audioNowPlayingBarOpensAudioMode,
                                 bvid = audioNowPlayingItem.bvid,
-                                cid = audioNowPlayingItem.cid
+                                cid = audioNowPlayingItem.cid,
+                                coverUrl = audioNowPlayingItem.cover,
                             )
                         )
                     },
-                    onPlayPause = { playbackManager.togglePlayPause() },
+                    onPlayPause = {
+                        if (!playbackManager.togglePlayPause()) {
+                            pushNavigation3Route(
+                                ScreenRoutes.AudioMode.createRoute(
+                                    bvid = audioNowPlayingItem.bvid,
+                                    cid = audioNowPlayingItem.cid
+                                )
+                            )
+                        }
+                    },
                     onSkipNext = { playbackManager.playNext() },
                     onSkipPrevious = { playbackManager.playPrevious() },
                     onDismiss = {
@@ -4121,6 +4176,11 @@ fun AppNavigation(
                             playbackManager.togglePlayPause()
                         }
                         AudioNowPlayingSession.dismiss()
+                    },
+                    expandDestinationLabel = if (audioNowPlayingBarOpensAudioMode) {
+                        "听视频"
+                    } else {
+                        "视频详情页"
                     },
                     glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
                     miuixBackdrop = bottomBarBackdrop,

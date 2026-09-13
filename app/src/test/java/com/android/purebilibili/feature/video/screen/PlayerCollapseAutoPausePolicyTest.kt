@@ -69,4 +69,24 @@ class PlayerCollapseAutoPausePolicyTest {
             )
         )
     }
+
+    @Test
+    fun portraitFullscreenDoesNotTreatHiddenInlinePlayerAsCollapsed() {
+        assertFalse(
+            shouldAutoPauseOnPlayerCollapse(
+                autoPauseEnabled = true,
+                isPlayerCollapsed = true,
+                isPlaying = true,
+                isPortraitFullscreen = true,
+            )
+        )
+        assertTrue(
+            shouldAutoResumeOnPlayerExpand(
+                autoPauseEnabled = true,
+                isPlayerCollapsed = true,
+                wasAutoPausedByCollapse = true,
+                isPortraitFullscreen = true,
+            )
+        )
+    }
 }

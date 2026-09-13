@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -1596,10 +1597,14 @@ object SettingsManager {
     private val KEY_AUDIO_FOCUS_ENABLED = booleanPreferencesKey("audio_focus_enabled")
     private val KEY_AUDIO_MODE_AUTO_PIP_ENABLED = booleanPreferencesKey("audio_mode_auto_pip_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_ENABLED = booleanPreferencesKey("audio_now_playing_bar_enabled")
+    private val KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE =
+        booleanPreferencesKey("audio_now_playing_bar_opens_audio_mode")
     private val KEY_VIDEO_AI_SUMMARY_ENTRY_ENABLED = booleanPreferencesKey("video_ai_summary_entry_enabled")
     private val KEY_VIDEO_NOTE_ENABLED = booleanPreferencesKey("video_note_enabled")
     private val KEY_VIDEO_NOTE_DEFAULT_COLLAPSED = booleanPreferencesKey("video_note_default_collapsed")
     private val KEY_VIDEO_INFO_DEFAULT_EXPANDED = booleanPreferencesKey("video_info_default_expanded")
+    private val KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED =
+        booleanPreferencesKey("video_detail_chrome_scroll_hide_enabled")
     private const val VIDEO_NOTE_CACHE_PREFS = "video_note_settings"
     private const val CACHE_KEY_VIDEO_NOTE_ENABLED = "video_note_enabled"
     private const val CACHE_KEY_VIDEO_NOTE_DEFAULT_COLLAPSED = "video_note_default_collapsed"
@@ -5998,10 +6003,36 @@ object SettingsManager {
 
     fun getAudioNowPlayingBarEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_AUDIO_NOW_PLAYING_BAR_ENABLED] ?: true }
+        .onEach { value ->
+            context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("audio_now_playing_bar_enabled", value)
+                .apply()
+        }
 
     suspend fun setAudioNowPlayingBarEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_AUDIO_NOW_PLAYING_BAR_ENABLED] = value
+        }
+        context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("audio_now_playing_bar_enabled", value)
+            .apply()
+    }
+
+    fun getAudioNowPlayingBarEnabledSync(context: Context): Boolean {
+        return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .getBoolean("audio_now_playing_bar_enabled", true)
+    }
+
+    fun getAudioNowPlayingBarOpensAudioMode(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE] ?: false
+        }
+
+    suspend fun setAudioNowPlayingBarOpensAudioMode(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE] = value
         }
     }
 
@@ -6062,7 +6093,18 @@ object SettingsManager {
             preferences[KEY_VIDEO_INFO_DEFAULT_EXPANDED] = enabled
         }
     }
-    
+
+    fun getVideoDetailChromeScrollHideEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED] ?: false
+        }
+
+    suspend fun setVideoDetailChromeScrollHideEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED] = enabled
+        }
+    }
+
     // ==========  底栏显示模式 ==========
     
     private val KEY_BOTTOM_BAR_VISIBILITY_MODE = intPreferencesKey("bottom_bar_visibility_mode")
@@ -7401,10 +7443,18 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_STOP_PLAYBACK_ON_EXIT, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_BACKGROUND_PLAYBACK_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUDIO_FOCUS_ENABLED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(
+                KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE,
+                SettingsShareSection.PLAYBACK,
+            ),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_AI_SUMMARY_ENTRY_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_DEFAULT_COLLAPSED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_INFO_DEFAULT_EXPANDED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(
+                KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED,
+                SettingsShareSection.PLAYBACK,
+            ),
             BooleanShareablePreferenceDefinition(KEY_CLICK_TO_PLAY, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_RESUME_PLAYBACK_PROMPT_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(

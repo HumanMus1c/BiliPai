@@ -368,20 +368,24 @@ fun HomeScreen(
                 if (headerSettleAnimationJob === job) {
                     headerSettleAnimationJob = null
                 }
+                // Keep the tab visibility state tied to the settled header position.
+                if (targetValue >= -0.5f) {
+                    topTabsAutoCollapsedByScroll = false
+                }
             }
         }
     }
 
-    suspend fun withHomeHeaderRevealLock(block: suspend () -> Unit) {
+    suspend fun withHomeScrollToTopLock(block: suspend () -> Unit) {
         homeHeaderRevealLock = true
-        topTabsAutoCollapsedByScroll = false
-        globalScrollOffset.floatValue = 0f
-        animateHeaderOffsetTo(0f)
+        headerSettleAnimationJob?.cancel()
+        headerSettleAnimationJob = null
         try {
             block()
         } finally {
-            headerSettleAnimationJob?.join()
-            setHeaderOffsetImmediate(0f)
+            // Reveal chrome only after the list reaches its top. Revealing before scrollToItem /
+            // animateScrollToItem makes the dock and avatar appear one frame before content moves.
+            revealHomeHeaderNow()
             homeHeaderRevealLock = false
         }
     }
@@ -445,7 +449,7 @@ fun HomeScreen(
     val latestHomeTopTabEntries by rememberUpdatedState(topTabEntries)
     LaunchedEffect(scrollChannel) {
         scrollChannel?.receiveAsFlow()?.collectLatest { request ->
-            withHomeHeaderRevealLock {
+            withHomeScrollToTopLock {
                 val entry = resolveHomeTopTabEntryOrNull(
                     latestHomeTopTabEntries,
                     latestHomePagerPage
@@ -990,13 +994,15 @@ fun HomeScreen(
         chromeCategoryState.videos.isEmpty() && chromeCategoryState.liveRooms.isEmpty())
     val shouldCaptureHomeChromeBackdrop = isLiquidGlassEnabled ||
         isHeaderBlurEnabled || isBottomBarBlurEnabled || appThemeConfig.progressiveTopBlurEnabled
-    val homeMiuixBackdropSource = if (shouldCaptureHomeChromeBackdrop && chromeContentReady) {
+    val homeMiuixBackdropSource = if (shouldCaptureHomeChromeBackdrop) {
         rememberChromeBackdropSource()
     } else {
         null
     }
     val homeMiuixBackdrop = homeMiuixBackdropSource?.backdrop
-    val readyHomeMiuixBackdrop = homeMiuixBackdropSource?.takeIf { it.isReady }?.backdrop
+    val readyHomeMiuixBackdrop = homeMiuixBackdropSource?.takeIf {
+        chromeContentReady && it.isReady
+    }?.backdrop
     val isDataSaverActive = homePerformanceConfig.isDataSaverActive
     val preloadAheadCount = homePerformanceConfig.preloadAheadCount
     val configuredHomeWallpaperUri by SettingsManager.getHomeWallpaperUri(context).collectAsStateWithLifecycle(initialValue = ""
@@ -1273,7 +1279,7 @@ fun HomeScreen(
         when (item) {
             BottomNavItem.HOME -> {
                 coroutineScope.launch {
-                    withHomeHeaderRevealLock {
+                    withHomeScrollToTopLock {
                         val gridState = if (currentCategory == HomeCategory.POPULAR) {
                             popularGridStates[popularSubCategory]
                         } else {
@@ -1604,6 +1610,12 @@ fun HomeScreen(
                     BottomBarVisibilityIntent.SHOW -> bottomBarVisibleState(true)
                     BottomBarVisibilityIntent.HIDE -> bottomBarVisibleState(false)
                     null -> Unit
+                }
+
+                if ((activeGridState?.firstVisibleItemIndex ?: 0) == 0 &&
+                    headerOffsetHeightPx >= -0.5f
+                ) {
+                    topTabsAutoCollapsedByScroll = false
                 }
 
                 return Offset.Zero

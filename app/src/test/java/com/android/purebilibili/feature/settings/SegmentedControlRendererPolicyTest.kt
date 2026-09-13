@@ -36,7 +36,7 @@ class SegmentedControlRendererPolicyTest {
         )
         val colors = resolveAppMiuixSegmentedColors(tokens)
 
-        assertEquals(Color.Transparent, colors.backgroundColor)
+        assertEquals(Color(0xFF302322), colors.backgroundColor)
         assertEquals(Color(0xFF7A4828), colors.selectedBackgroundColor)
         assertEquals(Color(0xFFFFE0D1), colors.selectedContentColor)
         assertEquals(Color(0xFFEAD0CD), colors.contentColor)

@@ -22,7 +22,8 @@ class SettingsInformationArchitecturePolicyTest {
         assertTrue(animation.contains("title = \"触感反馈\""))
         assertFalse(animation.contains("setBottomBarFloating"))
         assertTrue(navigation.contains("setBottomBarFloating"))
-        assertTrue(navigation.contains("setBottomBarSearchLayoutMode"))
+        assertTrue(navigation.contains("title = \"底栏搜索联动\""))
+        assertFalse(navigation.contains("setBottomBarSearchLayoutMode"))
     }
 
     @Test

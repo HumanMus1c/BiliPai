@@ -113,11 +113,13 @@ internal fun shouldContinueBackgroundAudioByPolicy(
     isActive: Boolean,
     isLeavingByNavigation: Boolean,
     stopPlaybackOnExit: Boolean,
-    shouldKeepPlaybackForPipTransition: Boolean = false
+    shouldKeepPlaybackForPipTransition: Boolean = false,
+    keepForAudioNowPlaying: Boolean = false,
 ): Boolean {
-    if (!backgroundPlaybackEnabled) return false
     if (stopPlaybackOnExit) return false
     if (!isActive) return false
+    if (keepForAudioNowPlaying) return true
+    if (!backgroundPlaybackEnabled) return false
     if (isLeavingByNavigation) return false
     return when (mode) {
         SettingsManager.MiniPlayerMode.OFF -> true
@@ -148,8 +150,8 @@ internal fun shouldClearPlaybackNotificationOnNavigationExit(
     stopPlaybackOnExit: Boolean,
     keepForAudioNowPlaying: Boolean = false,
 ): Boolean {
-    if (keepForAudioNowPlaying) return false
     if (stopPlaybackOnExit) return true
+    if (keepForAudioNowPlaying) return false
     return mode == SettingsManager.MiniPlayerMode.OFF ||
         mode == SettingsManager.MiniPlayerMode.SYSTEM_PIP
 }
@@ -1518,7 +1520,11 @@ class MiniPlayerManager private constructor(private val context: Context) :
             isActive = isActive,
             isLeavingByNavigation = isLeavingByNavigation,
             stopPlaybackOnExit = stopPlaybackOnExit,
-            shouldKeepPlaybackForPipTransition = shouldKeepPlaybackForPipTransition()
+            shouldKeepPlaybackForPipTransition = shouldKeepPlaybackForPipTransition(),
+            keepForAudioNowPlaying = shouldKeepPlaybackForAudioNowPlayingBar(
+                sessionActive = AudioNowPlayingSession.active.value,
+                barEnabled = SettingsManager.getAudioNowPlayingBarEnabledSync(context),
+            ),
         )
     }
 
@@ -1641,6 +1647,30 @@ class MiniPlayerManager private constructor(private val context: Context) :
         isPlaying = false
     }
 
+    /** Transfer the current detail player before any exit callback can pause or release it. */
+    fun prepareAudioNowPlayingForNavigationExit(expectedBvid: String? = null): Boolean {
+        if (!shouldHandleNavigationLeaveForBvid(expectedBvid, currentBvid)) return false
+        if (!shouldActivateAudioBarOnVideoExit(
+                barEnabled = SettingsManager.getAudioNowPlayingBarEnabledSync(context),
+                hasVideoIdentity = !currentBvid.isNullOrBlank() && currentCid > 0L,
+                isLive = isLiveMode,
+                isMiniOrPip = isMiniMode || isSystemPipActive,
+                isNavigatingToVideo = isNavigatingToVideo,
+            )) return false
+        PlaylistManager.adoptCurrentPlayback(
+            PlaylistItem(
+                bvid = currentBvid.orEmpty(),
+                cid = currentCid,
+                title = currentTitle,
+                cover = currentCover,
+                owner = currentOwner,
+                duration = duration.coerceAtLeast(0L) / 1000L,
+            )
+        )
+        AudioNowPlayingSession.markListening()
+        return true
+    }
+
     fun markLeavingByNavigation(
         expectedBvid: String? = null,
         forceStop: Boolean = false,
@@ -1653,6 +1683,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
             )
             return
         }
+        if (!forceStop) prepareAudioNowPlayingForNavigationExit(expectedBvid)
         isLeavingByNavigation = true
         Logger.d(
             TAG,
@@ -1672,6 +1703,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         val keepForAudioNowPlaying = !forceStop &&
             shouldKeepPlaybackForAudioNowPlayingBar(
                 sessionActive = AudioNowPlayingSession.active.value,
+                barEnabled = SettingsManager.getAudioNowPlayingBarEnabledSync(context),
             )
         if (
             forceStop ||
@@ -2183,6 +2215,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
                         action = Intent.ACTION_VIEW
                         data = Uri.parse("https://www.bilibili.com/video/$currentBvid")
                     }
+                    putExtra(com.android.purebilibili.EXTRA_OPEN_ACTIVE_PLAYBACK, true)
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -2211,8 +2244,10 @@ class MiniPlayerManager private constructor(private val context: Context) :
     /**
      * 暂停/播放切换
      */
-    fun togglePlayPause() {
+    fun togglePlayPause(): Boolean {
+        if (player == null) return false
         performMediaControl(MediaControlType.PLAY_PAUSE)
+        return true
     }
 
     private fun performMediaControl(controlType: MediaControlType) {
@@ -2719,6 +2754,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         val intent = Intent(context, com.android.purebilibili.MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = Uri.parse("https://www.bilibili.com/video/$currentBvid") // 携带 BVID
+            putExtra(com.android.purebilibili.EXTRA_OPEN_ACTIVE_PLAYBACK, true)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val contentIntent = PendingIntent.getActivity(

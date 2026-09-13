@@ -82,6 +82,8 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -422,7 +424,7 @@ internal data class AndroidNativeBottomBarTuning(
     val indicatorLensRadiusDp: Float
 )
 
-private enum class SharedFloatingBottomBarIconStyle {
+internal enum class SharedFloatingBottomBarIconStyle {
     MATERIAL,
     MIUIX
 }
@@ -589,7 +591,11 @@ internal fun resolveBiliPaiBottomBarIndicatorHeight(dockHeight: Dp): Dp {
 }
 
 internal fun resolveBiliPaiBottomBarSearchHeight(searchExpanded: Boolean): Dp {
-    return resolveBiliPaiBottomBarSearchCircleSize()
+    return if (searchExpanded) {
+        AppChromeSizeTokens.MinimumTouchTarget
+    } else {
+        resolveBiliPaiBottomBarSearchCircleSize()
+    }
 }
 
 internal fun resolveBottomBarRefractionCaptureWidth(
@@ -752,12 +758,7 @@ internal fun resolveBottomBarVisibleItemsForSearchMode(
     bottomBarSearchEnabled: Boolean,
     searchLayoutMode: BottomBarSearchLayoutMode = BottomBarSearchLayoutMode.FULL_DOCK
 ): List<BottomNavItem> {
-    if (!bottomBarSearchEnabled) return visibleItems
-    return if (searchLayoutMode == BottomBarSearchLayoutMode.HOME_AND_SEARCH) {
-        listOf(BottomNavItem.HOME)
-    } else {
-        visibleItems
-    }
+    return visibleItems
 }
 
 internal enum class BottomBarSearchExpansionOverride {
@@ -2168,6 +2169,7 @@ fun FrostedBottomBar(
     currentItem: BottomNavItem = BottomNavItem.HOME,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlayingContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? = null,
     hazeState: HazeState? = null,
     isFloating: Boolean = true,
     labelMode: Int = 1,
@@ -2228,6 +2230,7 @@ fun FrostedBottomBar(
             materialContent = { policy ->
                 MaterialBottomBar(
                 currentItem = currentItem,
+                nowPlayingContent = nowPlayingContent,
                 onItemClick = resolvedItemClick,
                 modifier = modifier,
                 visibleItems = visibleItems,
@@ -2256,6 +2259,7 @@ fun FrostedBottomBar(
             platformContent = { policy ->
                 MiuixBottomBar(
                 currentItem = currentItem,
+                nowPlayingContent = nowPlayingContent,
                 onItemClick = resolvedItemClick,
                 modifier = modifier,
                 visibleItems = visibleItems,
@@ -2292,6 +2296,7 @@ private fun MaterialBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlayingContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -2395,6 +2400,7 @@ private fun MaterialBottomBar(
     )
 
     if (
+        !homeSettings.isBottomBarSearchEnabled && nowPlayingContent == null &&
         shouldUseOfficialMd3FloatingToolbar(
             isFloating = isFloating,
             liquidGlassEnabled = glassEnabled,
@@ -2423,6 +2429,7 @@ private fun MaterialBottomBar(
     if (isFloating) {
         BiliPaiFloatingBottomBar(
             currentItem = currentItem,
+            nowPlayingContent = nowPlayingContent,
             onItemClick = onItemClick,
             modifier = modifier,
             visibleItems = bottomBarVisibleItems,
@@ -2732,6 +2739,7 @@ private fun MiuixBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlayingContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -2825,6 +2833,7 @@ private fun MiuixBottomBar(
     if (isFloating) {
         BiliPaiFloatingBottomBar(
             currentItem = currentItem,
+            nowPlayingContent = nowPlayingContent,
             onItemClick = onItemClick,
             modifier = modifier,
             visibleItems = bottomBarVisibleItems,
@@ -3154,6 +3163,152 @@ private fun BiliPaiFloatingBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlayingContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? = null,
+    visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String> = emptyMap(),
+    itemColorIndices: Map<String, Int> = emptyMap(),
+    dynamicUnreadCount: Int = 0,
+    onToggleSidebar: (() -> Unit)?,
+    isTablet: Boolean,
+    showIcon: Boolean,
+    showText: Boolean,
+    labelMode: Int,
+    blurEnabled: Boolean,
+    miuixBackdrop: MiuixBackdrop?,
+    containerColor: Color,
+    tuning: AndroidNativeBottomBarTuning,
+    glassEnabled: Boolean,
+    liquidGlassPreset: BottomBarLiquidGlassPreset,
+    liquidGlassTuning: LiquidGlassTuning,
+    iconStyle: SharedFloatingBottomBarIconStyle = SharedFloatingBottomBarIconStyle.MATERIAL,
+    navigationIconCrossScaleEnabled: Boolean = false,
+    haptic: (HapticType) -> Unit,
+    hazeState: HazeState? = null,
+    motionTier: MotionTier = MotionTier.Normal,
+    isTransitionRunning: Boolean = false,
+    forceLowBlurBudget: Boolean = false,
+    bottomBarSearchEnabled: Boolean = false,
+    bottomBarSearchAutoExpandMode: BottomBarSearchAutoExpandMode =
+        BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
+    bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
+        BottomBarSearchLayoutMode.FULL_DOCK,
+    onSearchClick: () -> Unit = {},
+    onSearchKeywordSubmit: (String) -> Unit = {},
+    searchLaunchKey: Int = 0,
+    onSearchLaunchTransitionFinished: (Int) -> Unit = {},
+    isFeedScrollInProgress: Boolean = false,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isPagerScrollInProgressProvider: () -> Boolean = { false },
+    uiSkinDecoration: BottomBarUiSkinDecoration? = null
+) {
+    if (bottomBarSearchEnabled || nowPlayingContent != null) {
+        LinkedBottomDock(
+            currentItem = currentItem,
+            firstItem = visibleItems.firstOrNull() ?: BottomNavItem.HOME,
+            firstLabel = resolveBottomNavItemLabel(visibleItems.firstOrNull() ?: BottomNavItem.HOME, itemLabels),
+            searchEnabled = bottomBarSearchEnabled,
+            isFeedScrollInProgress = isFeedScrollInProgress,
+            onSearchClick = onSearchClick,
+            onSearchKeywordSubmit = onSearchKeywordSubmit,
+            containerColor = containerColor,
+            backdrop = miuixBackdrop,
+            glassEnabled = glassEnabled && !forceLowBlurBudget,
+            liquidGlassTuning = liquidGlassTuning,
+            iconStyle = iconStyle,
+            nowPlayingContent = nowPlayingContent,
+            modifier = modifier,
+            navigationContent = {
+                BiliPaiFloatingBottomBarChrome(
+                    currentItem = currentItem,
+                    onItemClick = onItemClick,
+                    modifier = Modifier,
+                    visibleItems = visibleItems,
+                    itemLabels = itemLabels,
+                    itemColorIndices = itemColorIndices,
+                    dynamicUnreadCount = dynamicUnreadCount,
+                    onToggleSidebar = onToggleSidebar,
+                    isTablet = isTablet,
+                    showIcon = showIcon,
+                    showText = showText,
+                    labelMode = labelMode,
+                    blurEnabled = blurEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    containerColor = containerColor,
+                    tuning = tuning,
+                    glassEnabled = glassEnabled,
+                    liquidGlassPreset = liquidGlassPreset,
+                    liquidGlassTuning = liquidGlassTuning,
+                    iconStyle = iconStyle,
+                    navigationIconCrossScaleEnabled = navigationIconCrossScaleEnabled,
+                    haptic = haptic,
+                    hazeState = hazeState,
+                    motionTier = motionTier,
+                    isTransitionRunning = isTransitionRunning,
+                    forceLowBlurBudget = forceLowBlurBudget,
+                    bottomBarSearchEnabled = false,
+                    bottomBarSearchAutoExpandMode = bottomBarSearchAutoExpandMode,
+                    bottomBarSearchLayoutMode = bottomBarSearchLayoutMode,
+                    onSearchClick = onSearchClick,
+                    onSearchKeywordSubmit = onSearchKeywordSubmit,
+                    searchLaunchKey = searchLaunchKey,
+                    onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
+                    isFeedScrollInProgress = isFeedScrollInProgress,
+                    indicatorPositionProvider = indicatorPositionProvider,
+                    isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
+                    uiSkinDecoration = uiSkinDecoration,
+                    embeddedDock = true,
+                )
+            },
+        )
+    } else {
+        BiliPaiFloatingBottomBarChrome(
+            currentItem = currentItem,
+            onItemClick = onItemClick,
+            modifier = modifier,
+            visibleItems = visibleItems,
+            itemLabels = itemLabels,
+            itemColorIndices = itemColorIndices,
+            dynamicUnreadCount = dynamicUnreadCount,
+            onToggleSidebar = onToggleSidebar,
+            isTablet = isTablet,
+            showIcon = showIcon,
+            showText = showText,
+            labelMode = labelMode,
+            blurEnabled = blurEnabled,
+            miuixBackdrop = miuixBackdrop,
+            containerColor = containerColor,
+            tuning = tuning,
+            glassEnabled = glassEnabled,
+            liquidGlassPreset = liquidGlassPreset,
+            liquidGlassTuning = liquidGlassTuning,
+            iconStyle = iconStyle,
+            navigationIconCrossScaleEnabled = navigationIconCrossScaleEnabled,
+            haptic = haptic,
+            hazeState = hazeState,
+            motionTier = motionTier,
+            isTransitionRunning = isTransitionRunning,
+            forceLowBlurBudget = forceLowBlurBudget,
+            bottomBarSearchEnabled = bottomBarSearchEnabled,
+            bottomBarSearchAutoExpandMode = bottomBarSearchAutoExpandMode,
+            bottomBarSearchLayoutMode = bottomBarSearchLayoutMode,
+            onSearchClick = onSearchClick,
+            onSearchKeywordSubmit = onSearchKeywordSubmit,
+            searchLaunchKey = searchLaunchKey,
+            onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
+            isFeedScrollInProgress = isFeedScrollInProgress,
+            indicatorPositionProvider = indicatorPositionProvider,
+            isPagerScrollInProgressProvider = isPagerScrollInProgressProvider,
+            uiSkinDecoration = uiSkinDecoration,
+        )
+    }
+}
+
+@Composable
+private fun BiliPaiFloatingBottomBarChrome(
+    currentItem: BottomNavItem,
+    onItemClick: (BottomNavItem) -> Unit,
+    modifier: Modifier = Modifier,
+    embeddedDock: Boolean = false,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String> = emptyMap(),
     itemColorIndices: Map<String, Int> = emptyMap(),
@@ -3382,7 +3537,7 @@ private fun BiliPaiFloatingBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    bottom = AppSpacingTokens.Medium +
+                    bottom = if (embeddedDock) 0.dp else AppSpacingTokens.Medium +
                         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 )
         ) {
@@ -4132,7 +4287,7 @@ private fun BiliPaiBottomBarSearchCapsule(
 }
 
 @Composable
-private fun BiliPaiBottomBarSearchVisualContent(
+internal fun BiliPaiBottomBarSearchVisualContent(
     expanded: Boolean,
     query: String,
     onQueryChange: (String) -> Unit,
@@ -4144,6 +4299,10 @@ private fun BiliPaiBottomBarSearchVisualContent(
     interactive: Boolean,
     iconStyle: SharedFloatingBottomBarIconStyle
 ) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(expanded, interactive) {
+        if (expanded && interactive) focusRequester.requestFocus()
+    }
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -4195,6 +4354,7 @@ private fun BiliPaiBottomBarSearchVisualContent(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
                     modifier = Modifier
+                        .focusRequester(focusRequester)
                         .weight(1f)
                         .alpha(fieldAlpha),
                     decorationBox = { innerTextField ->
@@ -4516,16 +4676,25 @@ private fun BottomBarBlendedMiuixIcon(
             unreadCount = unreadCount,
             floatingCompact = floatingCompactBadge
         ) {
-            AppIcon(
-                imageVector = resolveHomeNavigationBarIcon(item, selected = false),
-                contentDescription = contentDescription,
-                modifier = Modifier.alpha(1f - clampedSelectedAlpha)
-            )
-            AppIcon(
-                imageVector = resolveHomeNavigationBarIcon(item, selected = true),
-                contentDescription = null,
-                modifier = Modifier.alpha(clampedSelectedAlpha)
-            )
+            val idleIcon = resolveHomeNavigationBarIcon(item, selected = false)
+            val activeIcon = resolveHomeNavigationBarIcon(item, selected = true)
+            if (idleIcon == activeIcon) {
+                AppIcon(
+                    imageVector = idleIcon,
+                    contentDescription = contentDescription
+                )
+            } else {
+                AppIcon(
+                    imageVector = idleIcon,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.alpha(1f - clampedSelectedAlpha)
+                )
+                AppIcon(
+                    imageVector = activeIcon,
+                    contentDescription = null,
+                    modifier = Modifier.alpha(clampedSelectedAlpha)
+                )
+            }
         }
     }
 }

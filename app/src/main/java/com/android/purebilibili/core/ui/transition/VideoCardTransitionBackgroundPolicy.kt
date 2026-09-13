@@ -1527,6 +1527,8 @@ private fun quantizeVideoCardTransitionBlurRadius(
     quantumPx: Float = VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX,
 ): Float {
     if (radiusPx <= 0f || maxRadiusPx <= 0f) return 0f
+    // Preserve the full-strength endpoint at fractional display densities.
+    if (radiusPx >= maxRadiusPx) return maxRadiusPx
     val step = quantumPx.coerceAtLeast(0.5f)
     return ((radiusPx / step).roundToInt() * step).coerceIn(0f, maxRadiusPx)
 }

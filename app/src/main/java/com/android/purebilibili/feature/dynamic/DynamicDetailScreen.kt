@@ -71,6 +71,10 @@ import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.feature.dynamic.components.DynamicCardActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardInteractionActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardNavigationActions
+import com.android.purebilibili.feature.dynamic.components.DynamicCardPresentation
 import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
 import com.android.purebilibili.feature.dynamic.components.dispatchDynamicManageAction
 import com.android.purebilibili.feature.dynamic.components.DynamicPublishComposer
@@ -275,91 +279,99 @@ fun DynamicDetailScreen(
                     item {
                         DynamicCardV2(
                             item = state.item,
-                            onVideoClick = onVideoClick,
-                            onBangumiClick = onBangumiClick,
-                            onUserClick = onUserClick,
-                            onTopicClick = onTopicClick,
-                            onTopicKeywordClick = onTopicKeywordClick,
-                            onArticleClick = onArticleClick,
-                            onLiveClick = onLiveClick,
-                            onMusicClick = onMusicClick,
-                            onCollectionClick = onCollectionClick,
-                            onCourseClick = onCourseClick,
-                            onDynamicDetailClick = onDynamicDetailClick,
-                            isDetail = true,
                             gifImageLoader = gifImageLoader,
-                            onCommentClick = {
-                                detailScrollScope.launch {
-                                    if (useSplitLayout) {
-                                        commentListState.animateScrollToItem(0)
-                                    } else {
-                                        detailListState.animateScrollToItem(1)
-                                    }
-                                }
-                            },
-                            onRepostClick = { showRepostDialog = it },
-                            onLikeClickWithState = { targetDynamicId, isLiked ->
-                                interactionViewModel.likeDynamic(
-                                    dynamicId = targetDynamicId,
-                                    knownIsLiked = isLiked,
-                                ) { _, msg ->
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onWatchLaterClick = { aid ->
-                                interactionViewModel.addToWatchLater(aid) { _, msg ->
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onSaveDynamicClick = {
-                                detailScrollScope.launch {
-                                    val saved = saveDynamicImageToGallery(context, state.item)
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        if (saved) "已保存动态图片" else "保存动态失败",
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
-                            },
-                            onShareToMessageClick = {
-                                onShareToMessageClick?.invoke(state.item) ?: run { pendingMessageShare = state.item }
-                            },
-                            onCheckDynamicClick = {
-                                interactionViewModel.checkDynamic(state.item.id_str) { _, msg ->
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onReserveClick = interactionViewModel::toggleDynamicReserve,
-                            onManageAction = { action ->
-                                dispatchDynamicManageAction(
-                                    action = action,
-                                    onReport = { pendingReport = it },
-                                    onEdit = { editingAction = it },
-                                    onNotInterested = {
-                                        interactionViewModel.handleManageAction(it) { success, msg ->
+                            actions = DynamicCardActions(
+                                navigation = DynamicCardNavigationActions(
+                                    onVideoClick = onVideoClick,
+                                    onBangumiClick = onBangumiClick,
+                                    onUserClick = onUserClick,
+                                    onTopicClick = onTopicClick,
+                                    onTopicKeywordClick = onTopicKeywordClick,
+                                    onArticleClick = onArticleClick,
+                                    onLiveClick = onLiveClick,
+                                    onMusicClick = onMusicClick,
+                                    onCollectionClick = onCollectionClick,
+                                    onCourseClick = onCourseClick,
+                                    onDynamicDetailClick = onDynamicDetailClick,
+                                ),
+                                interaction = DynamicCardInteractionActions(
+                                    onCommentClick = {
+                                        detailScrollScope.launch {
+                                            if (useSplitLayout) {
+                                                commentListState.animateScrollToItem(0)
+                                            } else {
+                                                detailListState.animateScrollToItem(1)
+                                            }
+                                        }
+                                    },
+                                    onRepostClick = { showRepostDialog = it },
+                                    onLikeClickWithState = { targetDynamicId, isLiked ->
+                                        interactionViewModel.likeDynamic(
+                                            dynamicId = targetDynamicId,
+                                            knownIsLiked = isLiked,
+                                        ) { _, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onWatchLaterClick = { aid ->
+                                        interactionViewModel.addToWatchLater(aid) { _, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onSaveDynamicClick = {
+                                        detailScrollScope.launch {
+                                            val saved = saveDynamicImageToGallery(context, state.item)
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                if (saved) "已保存动态图片" else "保存动态失败",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    },
+                                    onShareToMessageClick = {
+                                        onShareToMessageClick?.invoke(state.item) ?: run { pendingMessageShare = state.item }
+                                    },
+                                    onCheckDynamicClick = {
+                                        interactionViewModel.checkDynamic(state.item.id_str) { _, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onReserveClick = interactionViewModel::toggleDynamicReserve,
+                                    onManageAction = { action ->
+                                        dispatchDynamicManageAction(
+                                            action = action,
+                                            onReport = { pendingReport = it },
+                                            onEdit = { editingAction = it },
+                                            onNotInterested = {
+                                                interactionViewModel.handleManageAction(it) { success, msg ->
+                                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                                    if (success) onBack()
+                                                }
+                                            },
+                                            onOther = {
+                                                interactionViewModel.handleManageAction(it) { _, msg ->
+                                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                        )
+                                    },
+                                    onLoadReplyInteractionStatus = { oid, type, onLoaded ->
+                                        interactionViewModel.loadReplyInteractionStatus(oid, type, onLoaded)
+                                    },
+                                    onDeleteClick = { action ->
+                                        interactionViewModel.deleteDynamic(action) { success, msg ->
                                             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                             if (success) onBack()
                                         }
                                     },
-                                    onOther = {
-                                        interactionViewModel.handleManageAction(it) { _, msg ->
-                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                )
-                            },
-                            onLoadReplyInteractionStatus = { oid, type, onLoaded ->
-                                interactionViewModel.loadReplyInteractionStatus(oid, type, onLoaded)
-                            },
-                            onDeleteClick = { action ->
-                                interactionViewModel.deleteDynamic(action) { success, msg ->
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                    if (success) onBack()
-                                }
-                            },
-                            isLiked = likedDynamics.contains(state.item.id_str),
-                            likeOverride = likeOverrides[state.item.id_str],
-                            forwardCountDelta = forwardCountDelta
+                                ),
+                            ),
+                            presentation = DynamicCardPresentation(
+                                isDetail = true,
+                                isLiked = likedDynamics.contains(state.item.id_str),
+                                likeOverride = likeOverrides[state.item.id_str],
+                                forwardCountDelta = forwardCountDelta,
+                            ),
                         )
                     }
                 }

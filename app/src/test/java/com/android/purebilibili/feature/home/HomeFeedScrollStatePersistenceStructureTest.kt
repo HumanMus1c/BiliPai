@@ -58,6 +58,18 @@ class HomeFeedScrollStatePersistenceStructureTest {
     }
 
     @Test
+    fun `bottom bar reselect reveals home chrome after scroll reaches top`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
+        val lockSource = source
+            .substringAfter("suspend fun withHomeScrollToTopLock")
+            .substringBefore("// [新增] 监听全局回顶事件")
+
+        assertTrue(lockSource.indexOf("block()") < lockSource.indexOf("revealHomeHeaderNow()"))
+        assertFalse(lockSource.substringBefore("try {").contains("topTabsAutoCollapsedByScroll = false"))
+        assertFalse(lockSource.substringBefore("try {").contains("globalScrollOffset.floatValue = 0f"))
+    }
+
+    @Test
     fun `video navigation freezes feed anchor before shared transition starts`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val clickSource = source
