@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.home.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.clickable
@@ -17,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -29,12 +27,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.motion.iosMorphTween
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import kotlinx.coroutines.flow.collect
 import top.yukonga.miuix.kmp.blur.Backdrop
 
-internal enum class LinkedDockPhase { Expanded, Playback, Search }
+private const val LINKED_DOCK_MERGE_DURATION_MILLIS = 280
+private const val LINKED_DOCK_SEARCH_DURATION_MILLIS = 240
 
 @Composable
 internal fun LinkedBottomDock(
@@ -43,6 +43,7 @@ internal fun LinkedBottomDock(
     firstLabel: String,
     searchEnabled: Boolean,
     isFeedScrollInProgress: Boolean,
+    collapseRequested: Boolean,
     onSearchClick: () -> Unit,
     onSearchKeywordSubmit: (String) -> Unit,
     containerColor: Color,
@@ -50,26 +51,33 @@ internal fun LinkedBottomDock(
     glassEnabled: Boolean,
     liquidGlassTuning: LiquidGlassTuning,
     iconStyle: SharedFloatingBottomBarIconStyle,
-    nowPlayingContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)?,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)?,
     modifier: Modifier = Modifier,
     navigationContent: @Composable () -> Unit,
 ) {
-    var phase by remember(currentItem, searchEnabled, nowPlayingContent != null) {
-        mutableStateOf(LinkedDockPhase.Expanded)
+    val hasAudio = nowPlayingContent != null
+    var phase by remember(currentItem, searchEnabled, hasAudio) {
+        mutableStateOf(
+            if (currentItem == BottomNavItem.HOME) {
+                LinkedDockPhase.Expanded
+            } else {
+                resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
+            }
+        )
     }
     var query by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val scroll = LocalHomeScrollOffset.current
     val scrolling by rememberUpdatedState(isFeedScrollInProgress)
-    val hasAudio = nowPlayingContent != null
     val threshold = with(LocalDensity.current) { 24.dp.toPx() }
     LaunchedEffect(currentItem, hasAudio, scroll, threshold) {
+        if (currentItem != BottomNavItem.HOME) return@LaunchedEffect
         var previous = scroll.floatValue
         var accumulated = 0f
         snapshotFlow { scroll.floatValue to scrolling }.collect { (offset, active) ->
             val delta = offset - previous
             previous = offset
-            if (!active || phase == LinkedDockPhase.Search || currentItem != BottomNavItem.HOME) {
+            if (!active || phase == LinkedDockPhase.Search) {
                 accumulated = 0f
             } else {
                 accumulated = accumulateDockScroll(accumulated, delta)
@@ -83,19 +91,28 @@ internal fun LinkedBottomDock(
             }
         }
     }
+    LaunchedEffect(currentItem, collapseRequested, hasAudio) {
+        if (currentItem != BottomNavItem.HOME && phase != LinkedDockPhase.Search) {
+            phase = resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
+        }
+    }
     fun expand() {
         focusManager.clearFocus()
         phase = LinkedDockPhase.Expanded
     }
     BackHandler(phase != LinkedDockPhase.Expanded) { expand() }
     val reduceMotion = rememberSystemReduceMotion()
-    val transition = updateTransition(phase, label = "linkedBottomDock")
+    val transition = updateTransition(targetState = phase, label = "linkedBottomDock")
     val merge = transition.animateFloat(
-        transitionSpec = { if (reduceMotion) snap() else spring(dampingRatio = 0.66f, stiffness = 420f) },
+        transitionSpec = {
+            if (reduceMotion) snap() else iosMorphTween(LINKED_DOCK_MERGE_DURATION_MILLIS)
+        },
         label = "dockMerge",
     ) { if (it == LinkedDockPhase.Expanded) 0f else 1f }
     val search = transition.animateFloat(
-        transitionSpec = { if (reduceMotion) snap() else spring(dampingRatio = 0.64f, stiffness = 430f) },
+        transitionSpec = {
+            if (reduceMotion) snap() else iosMorphTween(LINKED_DOCK_SEARCH_DURATION_MILLIS)
+        },
         label = "dockSearch",
     ) { if (it == LinkedDockPhase.Search) 1f else 0f }
     val shape = resolveSharedBottomBarCapsuleShape()
@@ -121,11 +138,6 @@ internal fun LinkedBottomDock(
             }
             Box(Modifier.graphicsLayer {
                 alpha = (merge.value * 2f).coerceIn(0f, 1f)
-                val impact = resolveLinkedDockImpact(merge.value, response = 0.78f)
-                transformOrigin = TransformOrigin(0.5f, 1f)
-                translationY = impact.translationYDp.dp.toPx()
-                scaleX = impact.scaleX
-                scaleY = impact.scaleY
             }
                 .then(if (phase != LinkedDockPhase.Expanded) Modifier.clickable(role = Role.Button) { expand() }
                     else Modifier.clearAndSetSemantics {}), contentAlignment = Alignment.Center) {
@@ -141,37 +153,13 @@ internal fun LinkedBottomDock(
                     )
                 }
             }
-            Box(Modifier.graphicsLayer {
-                val impact = resolveLinkedDockImpact(merge.value)
-                transformOrigin = TransformOrigin(0.5f, 1f)
-                translationY = impact.translationYDp.dp.toPx()
-                scaleX = impact.scaleX
-                scaleY = impact.scaleY
-            }) {
+            Box {
                 nowPlayingContent?.invoke(Modifier.fillMaxSize(), merge.value.coerceIn(0f, 1f),
-                    search.value > 0.5f, 0f)
+                    search.value.coerceIn(0f, 1f), 0f)
             }
-            Box(
-                modifier = Modifier.graphicsLayer {
-                    val impact = resolveLinkedDockImpact(merge.value, response = 0.86f)
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                    translationY = impact.translationYDp.dp.toPx()
-                    scaleX = impact.scaleX
-                    scaleY = impact.scaleY
-                },
-                contentAlignment = Alignment.Center,
-            ) {
+            Box(contentAlignment = Alignment.Center) {
                 if (searchEnabled) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val stretch = resolveLinkedDockSearchStretch(search.value)
-                                transformOrigin = TransformOrigin(1f, 0.5f)
-                                scaleX = stretch.scaleX
-                                scaleY = stretch.scaleY
-                            }
-                    ) {
+                    Box(Modifier.fillMaxSize()) {
                         Box(Modifier.fillMaxSize().biliPaiFloatingDockShell(backdrop, containerColor, 0f, shape = shape,
                                 enabled = glassEnabled, liquidGlassTuning = liquidGlassTuning))
                         Box(Modifier.fillMaxSize().then(

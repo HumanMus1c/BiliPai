@@ -1441,6 +1441,9 @@ fun AppNavigation(
         val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
         val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
         val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
+        // Shared scroll position is also used by non-home destinations to drive the
+        // linked playback dock without forcing the bottom bar itself to disappear.
+        val scrollOffsetState = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val finalBottomBarVisible = showBottomBar &&
             (driveBottomBarByProgress || videoCardSourceChromeVisible) &&
             bottomBarVisibilityMode != SettingsManager.BottomBarVisibilityMode.ALWAYS_HIDDEN &&
@@ -1450,6 +1453,11 @@ fun AppNavigation(
                     (isBottomBarFloating && audioNowPlayingBarEnabled && audioNowPlayingActive &&
                         audioNowPlayingItem != null)
             )
+        // This raw signal is intentionally independent from the user's bottom-bar visibility
+        // mode: the linked playback strip still compacts on downward browsing when the bar itself
+        // is configured to remain visible.
+        val collapseLinkedPlaybackDock = !isBottomBarVisible ||
+            (currentBottomNavItem == BottomNavItem.DYNAMIC && scrollOffsetState.floatValue > 50f)
         val bottomBarVisibilityState = remember { MutableTransitionState(finalBottomBarVisible) }
         bottomBarVisibilityState.targetState = finalBottomBarVisible
         val bottomBarCanMount =
@@ -1694,7 +1702,6 @@ fun AppNavigation(
             }
         }
         // [New] Global Scroll Offset State
-        val scrollOffsetState = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val homeFeedScrollInProgressState = remember { androidx.compose.runtime.mutableStateOf(false) }
         LaunchedEffect(currentRoute, currentBottomNavItem) {
             scrollOffsetState.floatValue = 0f
@@ -3979,9 +3986,9 @@ fun AppNavigation(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        val dockAudioContent: (@Composable (Modifier, Float, Boolean, Float) -> Unit)? =
+                        val dockAudioContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? =
                             if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
-                                { audioModifier, dockMergeProgress, iconOnly, surfaceMergeProgress ->
+                                { audioModifier, dockMergeProgress, iconOnlyProgress, surfaceMergeProgress ->
                                     val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
                                     AudioNowPlayingBar(
                                         state = AudioNowPlayingBarState(
@@ -4033,13 +4040,13 @@ fun AppNavigation(
                                         dockHosted = isBottomBarFloating,
                                         dockMergeProgress = dockMergeProgress,
                                         surfaceMergeProgress = surfaceMergeProgress,
-                                        iconOnly = iconOnly,
+                                        iconOnlyProgress = iconOnlyProgress,
                                         modifier = audioModifier
                                     )
                                 }
                             } else null
                         if (!isBottomBarFloating) {
-                            dockAudioContent?.invoke(Modifier, 0f, false, 0f)
+                            dockAudioContent?.invoke(Modifier, 0f, 0f, 0f)
                         }
                         if (isBottomBarFloating) {
                             Box(
@@ -4075,6 +4082,7 @@ fun AppNavigation(
                                     forceLowBlurBudget = false,
                                     isFeedScrollInProgress = currentBottomNavItem == BottomNavItem.HOME &&
                                         homeFeedScrollInProgressState.value,
+                                    collapseLinkedDock = collapseLinkedPlaybackDock,
                                     indicatorPositionProvider =
                                         mainBottomPagerState.indicatorPositionProvider,
                                     isPagerScrollInProgressProvider =
@@ -4119,6 +4127,7 @@ fun AppNavigation(
                                 forceLowBlurBudget = false,
                                 isFeedScrollInProgress = currentBottomNavItem == BottomNavItem.HOME &&
                                     homeFeedScrollInProgressState.value,
+                                collapseLinkedDock = collapseLinkedPlaybackDock,
                                 indicatorPositionProvider =
                                     mainBottomPagerState.indicatorPositionProvider,
                                 isPagerScrollInProgressProvider =
