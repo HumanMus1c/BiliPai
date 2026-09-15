@@ -10,6 +10,7 @@ import com.android.purebilibili.core.store.AppNavigationSettings
 import com.android.purebilibili.core.store.mapAppNavigationSettingsFromPreferences
 import com.android.purebilibili.core.store.resolveListenVideoBottomTabMigration
 import com.android.purebilibili.core.store.settingsDataStore
+import com.android.purebilibili.core.util.isLargeScreenOrFoldableConfiguration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -91,7 +92,7 @@ object NavigationSettingsStore {
 
     fun observe(context: Context): Flow<AppNavigationSettings> {
         val defaultTabletUseSidebar =
-            context.resources.configuration.smallestScreenWidthDp >= 600
+            context.isLargeScreenOrFoldableConfiguration()
         return context.settingsDataStore.data
             .map { preferences ->
                 mapFromPreferences(

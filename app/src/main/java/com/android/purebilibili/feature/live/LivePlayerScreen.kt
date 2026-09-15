@@ -83,6 +83,7 @@ import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.resolveDanmakuSettingsScope
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.data.model.response.LiveQuality
 import com.android.purebilibili.data.repository.LiveRedPocketInfo
@@ -169,6 +170,7 @@ fun LivePlayerScreen(
     val miniPlayerManager = remember { com.android.purebilibili.feature.video.player.MiniPlayerManager.getInstance(context) }
     val configuration = LocalConfiguration.current
     val windowSizeClass = LocalWindowSizeClass.current
+    val displayContext = LocalAppWindowAdaptiveInfo.current.displayContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     
@@ -303,6 +305,9 @@ fun LivePlayerScreen(
         .getDanmakuSettings(context, liveDanmakuSettingsScope)
         .collectAsStateWithLifecycle(initialValue = DanmakuSettings())
     val liveDanmakuDisplayArea = liveDanmakuSettings.displayArea
+    val liveSuperChatFlashEnabled by SettingsManager
+        .getLiveSuperChatFlashEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val portraitOverlayMetrics = remember(configuration.screenHeightDp) {
         resolveLivePortraitOverlayMetrics(configuration.screenHeightDp)
     }
@@ -802,13 +807,30 @@ fun LivePlayerScreen(
         }
     }
 
-    val liveRequestedOrientationMode = remember(windowSizeClass.isTabletDevice, isFullscreen) {
+    val liveRequestedOrientationMode = remember(displayContext, isFullscreen) {
         resolveLiveRequestedOrientationMode(
-            isTabletDevice = windowSizeClass.isTabletDevice,
+            displayContext = displayContext,
             isFullscreen = isFullscreen,
         )
     }
-    LaunchedEffect(liveRequestedOrientationMode) {
+    var previousLiveDisplayRole by remember {
+        mutableStateOf(displayContext.foldableDisplayRole)
+    }
+    LaunchedEffect(activity, displayContext.foldableDisplayRole) {
+        if (
+            com.android.purebilibili.core.util.shouldReleaseOrientationLockOnDisplayRoleChange(
+                previousRole = previousLiveDisplayRole,
+                nextRole = displayContext.foldableDisplayRole,
+            )
+        ) {
+            activity?.applyPlayerRequestedOrientation(
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+                displayContext = displayContext,
+            )
+        }
+        previousLiveDisplayRole = displayContext.foldableDisplayRole
+    }
+    LaunchedEffect(activity, displayContext, liveRequestedOrientationMode) {
         val requestedOrientation = when (liveRequestedOrientationMode) {
             LiveRequestedOrientationMode.Unspecified ->
                 ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -817,7 +839,10 @@ fun LivePlayerScreen(
             LiveRequestedOrientationMode.Portrait ->
                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
-        activity?.applyPlayerRequestedOrientation(requestedOrientation)
+        activity?.applyPlayerRequestedOrientation(
+            requestedOrientation = requestedOrientation,
+            displayContext = displayContext,
+        )
     }
 
     // 布局结构
@@ -1378,7 +1403,13 @@ fun LivePlayerScreen(
     }
 
     // SC 左下角非侵入式悬浮卡片（不遮挡中央视频画面，仅响应实时新 SC，带倒计时与独立关闭）
-    if (portraitPresentation.showMediaOverlays) {
+    // 跟随弹幕开关显示，并可在弹幕设置中独立关闭
+    if (shouldShowLiveSuperChatFlash(
+            showMediaOverlays = portraitPresentation.showMediaOverlays,
+            isDanmakuEnabled = successState?.isDanmakuEnabled == true,
+            flashEnabled = liveSuperChatFlashEnabled
+        )
+    ) {
         LiveSuperChatFlashOverlay(
             flashFlow = viewModel.superChatFlashFlow,
             onUserClick = onUserClick,
@@ -1484,6 +1515,7 @@ fun LivePlayerScreen(
             allowTop = liveDanmakuSettings.allowTop,
             allowBottom = liveDanmakuSettings.allowBottom,
             allowColorful = liveDanmakuSettings.allowColorful,
+            superChatFlashEnabled = liveSuperChatFlashEnabled,
             onToggleDanmaku = { viewModel.toggleDanmaku() },
             onToggleChat = {
                 if (portraitPresentation.usePortraitControls) isPortraitChatVisible = !isPortraitChatVisible
@@ -1542,6 +1574,14 @@ fun LivePlayerScreen(
                         context,
                         !liveDanmakuSettings.allowColorful,
                         liveDanmakuSettingsScope
+                    )
+                }
+            },
+            onToggleSuperChatFlash = {
+                coroutineScope.launch {
+                    SettingsManager.setLiveSuperChatFlashEnabled(
+                        context,
+                        !liveSuperChatFlashEnabled
                     )
                 }
             },
@@ -2215,6 +2255,7 @@ private fun LiveDanmakuSettingsDialog(
     allowTop: Boolean,
     allowBottom: Boolean,
     allowColorful: Boolean,
+    superChatFlashEnabled: Boolean,
     onToggleDanmaku: () -> Unit,
     onToggleChat: () -> Unit,
     onDisplayAreaSelected: (Float) -> Unit,
@@ -2225,6 +2266,7 @@ private fun LiveDanmakuSettingsDialog(
     onToggleAllowTop: () -> Unit,
     onToggleAllowBottom: () -> Unit,
     onToggleAllowColorful: () -> Unit,
+    onToggleSuperChatFlash: () -> Unit,
     onOpenBlock: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2293,6 +2335,11 @@ private fun LiveDanmakuSettingsDialog(
                     title = "彩色弹幕",
                     checked = allowColorful,
                     onCheckedChange = { onToggleAllowColorful() }
+                )
+                LiveSettingSwitchRow(
+                    title = "醒目留言弹窗",
+                    checked = superChatFlashEnabled,
+                    onCheckedChange = { onToggleSuperChatFlash() }
                 )
                 AppSurface(
                     onClick = onOpenBlock,

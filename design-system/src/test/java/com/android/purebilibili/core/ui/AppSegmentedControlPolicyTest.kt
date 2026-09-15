@@ -7,6 +7,9 @@ import com.android.purebilibili.core.ui.components.resolveReadableNativeTabMinWi
 import com.android.purebilibili.core.ui.components.resolveCompactMiuixTabRowWidth
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColor
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
+import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
+import com.android.purebilibili.core.ui.components.shouldEqualizeMiuixNonGlassTabItems
+import com.android.purebilibili.core.ui.components.MiuixNonGlassTabItemWidthMode
 import androidx.compose.ui.graphics.Color
 import java.io.File
 import kotlin.test.Test
@@ -87,6 +90,49 @@ class AppSegmentedControlPolicyTest {
                 labels = listOf("默认排序"),
                 allowLabelOverflow = false,
             ),
+        )
+    }
+
+    @Test
+    fun `Miuix non glass equal tabs follow the longest measured label`() {
+        assertEquals(
+            88.dp,
+            resolveEqualMiuixNonGlassTabItemWidth(
+                longestLabelWidth = 72.dp,
+                minTabWidth = AppChromeSizeTokens.MinimumTouchTarget,
+            ),
+        )
+        assertEquals(
+            64.dp,
+            resolveEqualMiuixNonGlassTabItemWidth(
+                longestLabelWidth = 20.dp,
+                minTabWidth = 64.dp,
+            ),
+        )
+    }
+
+    @Test
+    fun `equal longest label mode is isolated to Miuix non glass tabs`() {
+        assertTrue(
+            shouldEqualizeMiuixNonGlassTabItems(
+                widthMode = MiuixNonGlassTabItemWidthMode.EQUAL_TO_LONGEST_LABEL,
+                isMiuixNonGlass = true,
+                optionCount = 2,
+            )
+        )
+        assertFalse(
+            shouldEqualizeMiuixNonGlassTabItems(
+                widthMode = MiuixNonGlassTabItemWidthMode.EQUAL_TO_LONGEST_LABEL,
+                isMiuixNonGlass = false,
+                optionCount = 2,
+            )
+        )
+        assertFalse(
+            shouldEqualizeMiuixNonGlassTabItems(
+                widthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
+                isMiuixNonGlass = true,
+                optionCount = 2,
+            )
         )
     }
 

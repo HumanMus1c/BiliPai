@@ -28,4 +28,40 @@ class LiveSuperChatExpiryPolicyTest {
         assertEquals("9s", formatLiveSuperChatCountdown(9))
         assertEquals("1:05", formatLiveSuperChatCountdown(65))
     }
+
+    @Test
+    fun flashFollowsDanmakuSwitch() {
+        assertTrue(
+            shouldShowLiveSuperChatFlash(
+                showMediaOverlays = true,
+                isDanmakuEnabled = true,
+                flashEnabled = true
+            )
+        )
+        assertFalse(
+            shouldShowLiveSuperChatFlash(
+                showMediaOverlays = true,
+                isDanmakuEnabled = false,
+                flashEnabled = true
+            )
+        )
+    }
+
+    @Test
+    fun flashRespectsIndependentSettingAndClearScreen() {
+        assertFalse(
+            shouldShowLiveSuperChatFlash(
+                showMediaOverlays = true,
+                isDanmakuEnabled = true,
+                flashEnabled = false
+            )
+        )
+        assertFalse(
+            shouldShowLiveSuperChatFlash(
+                showMediaOverlays = false,
+                isDanmakuEnabled = true,
+                flashEnabled = true
+            )
+        )
+    }
 }

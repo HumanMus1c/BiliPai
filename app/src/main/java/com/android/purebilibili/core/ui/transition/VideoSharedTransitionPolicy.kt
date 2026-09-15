@@ -20,7 +20,10 @@ import kotlin.math.abs
 
 /** Internal tokens only: no preference key or user-selectable curve is introduced. */
 internal object VideoHeroMotionTokens {
-    const val RETURN_RATIO = 0.86f
+    // Programmatic back should settle a little faster than entry. 0.83 closely follows
+    // mature container-transform timing (roughly 300ms return for a 360ms entry) while
+    // keeping the shared bounds, player surface and depth effects on one fixed clock.
+    const val RETURN_RATIO = 0.83f
     const val RETURN_MIN_MS = 220
     const val GEOMETRY_MIN_RATIO = 0.78f
     const val GEOMETRY_MAX_RATIO = 1.22f

@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -58,6 +57,7 @@ import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.feature.settings.ui.settingsScrollContentPadding
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
@@ -167,6 +167,7 @@ fun BottomBarSettingsContent(
     val context = LocalContext.current
     val iconFamily = rememberAppSemanticVisualPolicy().effectiveIconFamily
     val windowSizeClass = LocalWindowSizeClass.current
+    val displayContext = LocalAppWindowAdaptiveInfo.current.displayContext
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val focusRequest by SettingsSearchFocusController.request.collectAsStateWithLifecycle()
@@ -209,9 +210,10 @@ fun BottomBarSettingsContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val bottomBarSearchEnabled by SettingsManager.getBottomBarSearchEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
-    val isTabletDevice = LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val isLargeScreenCapable = windowSizeClass.isTabletDevice ||
+        displayContext.isKnownFoldableDevice
     val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context)
-        .collectAsStateWithLifecycle(initialValue = isTabletDevice)
+        .collectAsStateWithLifecycle(initialValue = isLargeScreenCapable)
     val sidebarAccountSwitcherEnabled by SettingsManager.getSidebarAccountSwitcherEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
     
@@ -625,8 +627,8 @@ fun BottomBarSettingsContent(
                         AppSwitchPreference(
                             icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_view_sidebar_24),
                             title = "侧边导航栏",
-                            subtitle = if (isTabletDevice) {
-                                "平板/大屏建议开启：用侧边栏代替底部导航，充分利用横向空间（可随时关闭）"
+                            subtitle = if (isLargeScreenCapable) {
+                                "平板、大屏或展开后的折叠屏建议开启；仅在当前窗口足够宽时显示侧栏"
                             } else {
                                 "在平板横屏或大屏布局中使用侧边栏代替底部导航"
                             },
@@ -758,7 +760,7 @@ fun BottomBarSettingsContent(
                                 saveTopTabConfig()
                                 scope.launch {
                                     // 重置为设备类型默认：平板开侧栏，手机开底栏
-                                    SettingsManager.setTabletUseSidebar(context, isTabletDevice)
+                                    SettingsManager.setTabletUseSidebar(context, isLargeScreenCapable)
                                     SettingsManager.clearBottomBarItemLabels(context)
                                 }
                             },

@@ -282,12 +282,46 @@ internal fun normalizeSpaceVideoPage(
     return if (order == VideoSortOrder.OLDEST_PUBDATE) videos.asReversed() else videos
 }
 
-/** 与 SpaceScreen 内容区 responsiveContentWidth(maxWidth = 980.dp) 保持一致的内容宽度上限。 */
 internal const val SPACE_CONTENT_MAX_WIDTH_DP = 980
+internal const val SPACE_EXPANDED_CONTENT_MAX_WIDTH_DP = 1280
+internal const val SPACE_LIST_CONTENT_MAX_WIDTH_DP = 720
+private const val SPACE_DYNAMIC_MIN_COLUMN_WIDTH_DP = 360
+private const val SPACE_DYNAMIC_MAX_COLUMNS = 3
+
+internal data class SpaceAdaptiveLayoutSpec(
+    val contentMaxWidthDp: Int,
+    val useExpandedHeader: Boolean,
+    val dynamicColumns: Int,
+    val listContentMaxWidthDp: Int = SPACE_LIST_CONTENT_MAX_WIDTH_DP,
+)
+
+/**
+ * Flat unfolded foldables and tablets deliberately share the same width-class policy.
+ * Geometry is derived from the current window, not from a device/model distinction.
+ */
+internal fun resolveSpaceAdaptiveLayoutSpec(
+    widthDp: Int,
+    widthSizeClass: WindowWidthSizeClass = resolveWindowWidthSizeClass(widthDp.dp),
+): SpaceAdaptiveLayoutSpec {
+    val expanded = widthSizeClass >= WindowWidthSizeClass.Expanded
+    val contentMaxWidthDp = if (expanded) {
+        SPACE_EXPANDED_CONTENT_MAX_WIDTH_DP
+    } else {
+        SPACE_CONTENT_MAX_WIDTH_DP
+    }
+    val boundedContentWidthDp = minOf(widthDp.coerceAtLeast(0), contentMaxWidthDp)
+    val dynamicColumns = (boundedContentWidthDp / SPACE_DYNAMIC_MIN_COLUMN_WIDTH_DP)
+        .coerceIn(1, SPACE_DYNAMIC_MAX_COLUMNS)
+    return SpaceAdaptiveLayoutSpec(
+        contentMaxWidthDp = contentMaxWidthDp,
+        useExpandedHeader = expanded,
+        dynamicColumns = dynamicColumns,
+    )
+}
 
 /**
  * 投稿网格列数：与首页信息流共用同一套策略（用户固定列数优先，其次按卡宽预设自适应），
- * 内容宽度按空间页 980dp 上限截断，保证投稿卡片排版与首页 feed 对齐。
+ * 内容宽度按当前空间页自适应上限截断，保证投稿卡片排版与首页 feed 对齐。
  */
 internal fun resolveSpaceContentGridColumnCount(
     widthDp: Int,

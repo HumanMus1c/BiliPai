@@ -2,6 +2,10 @@ package com.android.purebilibili.core.util
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
@@ -74,6 +78,10 @@ object CardPositionManager {
      * Drawn over the live flying cover so stats-on-cover cards keep their rest chrome.
      */
     internal var lastClickedNativeCoverOverlayLayer: GraphicsLayer? = null
+        private set
+
+    /** Stable click-time pixels used when the source composable leaves composition. */
+    internal var lastClickedNativeCardBitmap: ImageBitmap? by mutableStateOf(null)
         private set
     
     /**
@@ -194,10 +202,20 @@ object CardPositionManager {
         lastClickedNativeCoverOverlayLayer = layer
     }
 
+    internal fun recordNativeCardBitmap(
+        bitmap: ImageBitmap?,
+        expectedSourceKey: String?,
+    ) {
+        if (lastClickedVideoSourceKey == expectedSourceKey) {
+            lastClickedNativeCardBitmap = bitmap
+        }
+    }
+
     /** Release native display lists once their navigation transition has settled. */
     internal fun clearNativeVideoCardLayers() {
         lastClickedNativeCardLayer = null
         lastClickedNativeCoverOverlayLayer = null
+        lastClickedNativeCardBitmap = null
     }
     
     /**

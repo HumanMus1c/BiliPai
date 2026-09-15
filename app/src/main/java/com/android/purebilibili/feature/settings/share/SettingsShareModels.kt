@@ -96,3 +96,9 @@ data class SettingsShareImportSession(
     val preview: SettingsShareImportPreview,
     val rawJson: String
 )
+
+data class SavedSettingsProfile(
+    val name: String,
+    val fileName: String,
+    val exportedAtIso: String,
+)

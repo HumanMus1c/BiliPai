@@ -204,13 +204,19 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
     inverseScaleX: Float = landingLayout?.let { 1f / it.sourceScale } ?: 1f,
     inverseScaleY: Float = inverseScaleX,
     contentTopInsetPx: Int = 0,
+    nativeSnapshotBounds: Rect? = null,
 ): VideoDetailReturnMediaLayoutFrame {
     val safeContainerWidth = containerWidthPx.coerceAtLeast(1)
     val safeContainerHeight = containerHeightPx.coerceAtLeast(1)
     val contentTop = contentTopInsetPx.coerceIn(0, safeContainerHeight - 1)
     val contentHeight = safeContainerHeight - contentTop
     val landing = landingLayout?.takeIf { it.canRender }
-    val progress = if (landing == null) 0f else handoffProgress.coerceIn(0f, 1f)
+    val nativeTarget = nativeSnapshotBounds?.takeIf { it.width > 1f && it.height > 1f }
+    val progress = if (landing == null && nativeTarget == null) {
+        0f
+    } else {
+        handoffProgress.coerceIn(0f, 1f)
+    }
     fun interpolate(start: Float, end: Float): Int =
         (start + (end - start) * progress).roundToInt()
 
@@ -221,16 +227,22 @@ internal fun resolveVideoDetailReturnMediaLayoutFrame(
     } else {
         0f
     }
-    val targetWidth = landing
+    val targetWidth = nativeTarget?.width
+        ?: landing
         ?.let { it.coverWidthPx * safeInverseX }
         ?.takeIf { it > 1f }
         ?: safeContainerWidth.toFloat()
-    val targetHeight = landing
+    val targetHeight = nativeTarget?.height
+        ?: landing
         ?.let { (it.coverHeightPx + landingEdgeOverscanPx) * safeInverseY }
         ?.takeIf { it > 1f }
         ?: safeContainerHeight.toFloat()
-    val targetOffsetX = landing?.let { it.coverOffsetXPx * safeInverseX } ?: 0f
-    val targetOffsetY = landing?.let { it.coverOffsetYPx * safeInverseY } ?: 0f
+    val targetOffsetX = nativeTarget?.left
+        ?: landing?.let { it.coverOffsetXPx * safeInverseX }
+        ?: 0f
+    val targetOffsetY = nativeTarget?.top
+        ?: landing?.let { it.coverOffsetYPx * safeInverseY }
+        ?: 0f
 
     return VideoDetailReturnMediaLayoutFrame(
         offsetXPx = interpolate(0f, targetOffsetX),
@@ -250,6 +262,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
     inverseScaleYProvider: () -> Float = inverseScaleXProvider,
     contentTopInset: Dp = 0.dp,
     clipCornerDp: Dp = 0.dp,
+    nativeSnapshotBoundsProvider: (() -> Rect?)? = null,
 ): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
@@ -265,6 +278,7 @@ internal fun Modifier.videoDetailReturnMediaLayout(
             inverseScaleX = inverseScaleXProvider(),
             inverseScaleY = inverseScaleYProvider(),
             contentTopInsetPx = contentTopInset.roundToPx(),
+            nativeSnapshotBounds = nativeSnapshotBoundsProvider?.invoke(),
         )
         val placeable = measurable.measure(
             Constraints.fixed(width = frame.widthPx, height = frame.heightPx),

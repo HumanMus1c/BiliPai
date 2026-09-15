@@ -70,6 +70,17 @@ class HomeFeedScrollStatePersistenceStructureTest {
     }
 
     @Test
+    fun `home double tap does not restart an active scroll to top`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
+        val scrollCollectorSource = source
+            .substringAfter("LaunchedEffect(scrollChannel)")
+            .substringBefore("TrackJankStateFlag(")
+
+        assertTrue(scrollCollectorSource.contains("receiveAsFlow()?.collect { request ->"))
+        assertFalse(scrollCollectorSource.contains("receiveAsFlow()?.collectLatest { request ->"))
+    }
+
+    @Test
     fun `video navigation freezes feed anchor before shared transition starts`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val clickSource = source

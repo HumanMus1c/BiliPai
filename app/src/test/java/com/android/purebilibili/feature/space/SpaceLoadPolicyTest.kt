@@ -465,6 +465,36 @@ class SpaceLoadPolicyTest {
     }
 
     @Test
+    fun `space adaptive layout follows window width for tablets and unfolded foldables`() {
+        val compact = resolveSpaceAdaptiveLayoutSpec(widthDp = 412)
+        val medium = resolveSpaceAdaptiveLayoutSpec(widthDp = 700)
+        val expanded = resolveSpaceAdaptiveLayoutSpec(widthDp = 1000)
+        val large = resolveSpaceAdaptiveLayoutSpec(widthDp = 1280)
+
+        assertEquals(980, compact.contentMaxWidthDp)
+        assertEquals(1, compact.dynamicColumns)
+        assertFalse(compact.useExpandedHeader)
+        assertEquals(980, medium.contentMaxWidthDp)
+        assertEquals(1, medium.dynamicColumns)
+        assertFalse(medium.useExpandedHeader)
+        assertEquals(1280, expanded.contentMaxWidthDp)
+        assertEquals(2, expanded.dynamicColumns)
+        assertTrue(expanded.useExpandedHeader)
+        assertEquals(1280, large.contentMaxWidthDp)
+        assertEquals(3, large.dynamicColumns)
+        assertTrue(large.useExpandedHeader)
+        assertEquals(720, large.listContentMaxWidthDp)
+        assertEquals(
+            7,
+            resolveSpaceContentGridColumnCount(
+                widthDp = 1280,
+                contentMaxWidthDp = large.contentMaxWidthDp,
+                widthSizeClass = com.android.purebilibili.core.util.WindowWidthSizeClass.Large,
+            ),
+        )
+    }
+
+    @Test
     fun `resolveSpaceContentGridColumnCount honors home feed fixed column and width presets`() {
         assertEquals(
             3,

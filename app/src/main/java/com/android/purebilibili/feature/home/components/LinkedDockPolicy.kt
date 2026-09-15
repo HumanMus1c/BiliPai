@@ -26,6 +26,42 @@ internal data class LinkedDockGeometry(
     val height: Int,
 )
 
+internal fun resolveLinkedDockNavigationX(
+    maximumWidth: Int,
+    navigationWidth: Int,
+    button: Int,
+    gap: Int,
+    searchEnabled: Boolean,
+): Int {
+    val safeMaximumWidth = maximumWidth.coerceAtLeast(0)
+    val searchReservation = if (searchEnabled) button.coerceAtLeast(0) + gap.coerceAtLeast(0) else 0
+    val clusterWidth = (navigationWidth.coerceAtLeast(0) + searchReservation)
+        .coerceAtMost(safeMaximumWidth)
+    return ((safeMaximumWidth - clusterWidth) / 2).coerceAtLeast(0)
+}
+
+internal fun resolveLinkedDockSearchX(
+    maximumWidth: Int,
+    navigationWidth: Int,
+    searchWidth: Int,
+    button: Int,
+    gap: Int,
+    mergeProgress: Float,
+    searchProgress: Float,
+): Int {
+    val startX = resolveLinkedDockNavigationX(
+        maximumWidth = maximumWidth,
+        navigationWidth = navigationWidth,
+        button = button,
+        gap = gap,
+        searchEnabled = true,
+    ) + navigationWidth.coerceAtLeast(0) + gap.coerceAtLeast(0)
+    val endX = (maximumWidth - searchWidth).coerceAtLeast(0)
+    val expansionProgress = maxOf(mergeProgress, searchProgress).coerceIn(0f, 1f)
+    return (startX + (endX - startX) * expansionProgress)
+        .roundToInt()
+}
+
 internal fun resolveLinkedDockGeometry(
     width: Int,
     button: Int,

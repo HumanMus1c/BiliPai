@@ -1,6 +1,7 @@
 // 文件路径: feature/dynamic/DynamicScreen.kt
 package com.android.purebilibili.feature.dynamic
 
+import android.os.Build
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -125,6 +126,7 @@ import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -364,7 +366,9 @@ fun DynamicScreen(
     // 顶部高斯模糊使用独立 Haze 源；液态玻璃的 Backdrop 渐进模糊仍单独由
     // DynamicTopBarWithTabs 根据安卓原生液态玻璃开关控制。
     val dynamicTopBarHazeState = if (
-        appThemeConfig.liquidGlassEnabled || appThemeConfig.headerBlurEnabled
+        (appThemeConfig.liquidGlassEnabled || appThemeConfig.headerBlurEnabled) &&
+            shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
+            !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
     ) {
         rememberRecoverableHazeState(initialBlurEnabled = true)
     } else {

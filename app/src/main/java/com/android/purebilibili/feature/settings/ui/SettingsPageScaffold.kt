@@ -34,6 +34,7 @@ import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
 import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
@@ -164,8 +165,9 @@ internal fun SettingsPageScaffold(
     val hazeState = if (
         headerBlurEnabled && !lowBlurBudget &&
         shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT)
-    ) rememberRecoverableHazeState() else null
-    val topBarBlurActive = progressiveBlurEnabled || hazeState != null
+    ) rememberRecoverableHazeState().takeIf { recoverableBlurEnabled(it) } else null
+    val hazeReady = hazeState != null
+    val topBarBlurActive = progressiveBlurEnabled || hazeReady
     val pageContainerColor = when (LocalAppUiStyle.current) {
         // Miuix presets keep the page base stable when liquid glass is toggled.
         // Glass changes chrome rendering only; Miuix Scaffold uses `surface` as its page tone.
@@ -184,7 +186,11 @@ internal fun SettingsPageScaffold(
         AppScaffold(
             modifier = modifier.appTopBarNestedScroll(collapseBehavior),
             topBar = {
-                BiliPaiImmersiveTopBar(backdrop = backdrop, enabled = progressiveBlurEnabled) {
+                BiliPaiImmersiveTopBar(
+                    backdrop = backdrop,
+                    enabled = progressiveBlurEnabled,
+                    headerBlurActive = hazeReady,
+                ) {
                     AppTopBar(
                         title = title,
                         modifier = if (hazeState != null) Modifier.unifiedBlur(

@@ -177,6 +177,8 @@ class SpaceScreenStructureTest {
         assertTrue(secondaryRow.contains("shouldScrollSpaceSecondarySwitch("))
         assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchAdaptiveItemWidthDp("))
         assertTrue(secondaryRow.contains("itemWidthDp = preferredItemWidthDp"))
+        assertTrue(secondaryRow.contains("val itemWidth = itemWidthDp.dp"))
+        assertFalse(secondaryRow.contains("maxOf(itemWidthDp, preferredItemWidthDp)"))
         assertTrue(secondaryRow.contains(".liquidDockViewport()"))
         assertTrue(secondaryRow.contains(".horizontalScroll(scrollState)"))
         assertTrue(secondaryRow.contains("dragSelectionEnabled = spec.dragSelectionEnabled || useScrollableRail"))
@@ -185,6 +187,8 @@ class SpaceScreenStructureTest {
         assertTrue(secondaryRow.contains("onIndicatorPositionChanged = { position ->"))
         assertFalse(secondaryRow.contains("AppFilterChip("))
         assertTrue(secondaryRow.contains("AppNativeTabRow("))
+        assertTrue(secondaryRow.contains("minTabWidth = itemWidth"))
+        assertTrue(secondaryRow.contains("allowLabelOverflow = false"))
         assertTrue(secondaryRow.contains("homeSettings.androidNativeLiquidGlassEnabled"))
         assertFalse(source.contains("rememberTextMeasurer()"))
     }
@@ -281,6 +285,30 @@ class SpaceScreenStructureTest {
             header.contains("IntOffset(0, -translateYPx)"),
             "header must not translate the name row under the pinned chrome"
         )
+    }
+
+    @Test
+    fun `space wide layout uses container geometry and content specific widths`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val header = source
+            .substringAfter("private fun SpaceHeader(")
+            .substringBefore("private fun SpaceHeaderIdentityInfo(")
+        val dynamicItems = source
+            .substringAfter("items = dynamicCardItems")
+            .substringBefore(") { dynamic ->")
+
+        assertTrue(source.contains("resolveSpaceAdaptiveLayoutSpec("))
+        assertTrue(source.contains("windowSizeClass.widthDp.value.roundToInt()"))
+        assertTrue(source.contains("adaptiveLayoutSpec.contentMaxWidthDp.dp"))
+        assertTrue(source.contains("adaptiveLayoutSpec.dynamicColumns"))
+        assertTrue(source.contains("maxWidth = adaptiveLayoutSpec.listContentMaxWidthDp.dp"))
+        assertTrue(source.contains("useExpandedLayout = adaptiveLayoutSpec.useExpandedHeader"))
+        assertTrue(header.contains("BoxWithConstraints("))
+        assertTrue(header.contains("val renderedBannerWidth = maxWidth + outerPadding"))
+        assertFalse(header.contains("LocalConfiguration.current"))
+        assertTrue(header.contains(".widthIn(max = 480.dp)"))
+        assertTrue(dynamicItems.contains("span = { GridItemSpan(1) }"))
+        assertTrue(source.contains("modifier = boundedListModifier"))
     }
 
     @Test

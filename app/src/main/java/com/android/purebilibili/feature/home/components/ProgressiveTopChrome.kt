@@ -3,7 +3,6 @@ package com.android.purebilibili.feature.home.components
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -142,6 +141,8 @@ internal fun Modifier.biliPaiProgressiveTopBlur(
 internal fun BiliPaiImmersiveTopBar(
     backdrop: Backdrop?,
     enabled: Boolean,
+    /** True only when a real Haze effect is attached and ready to render. */
+    headerBlurActive: Boolean = false,
     modifier: Modifier = Modifier,
     extendBelowBounds: Boolean = true,
     content: @androidx.compose.runtime.Composable () -> Unit,
@@ -150,7 +151,7 @@ internal fun BiliPaiImmersiveTopBar(
         !isLowBlurBudgetForced()
     val opaqueBackground = shouldUseOpaqueTopChromeBackground(
         progressiveBlurActive = active,
-        headerBlurActive = LocalAppThemeConfig.current.headerBlurEnabled,
+        headerBlurActive = headerBlurActive,
     )
     androidx.compose.foundation.layout.Box(
         modifier = Modifier
@@ -186,7 +187,8 @@ internal fun BiliPaiImmersiveTopBar(
             )
         }
         androidx.compose.runtime.CompositionLocalProvider(
-            com.android.purebilibili.core.ui.LocalImmersiveTopChromeActive provides active,
+            com.android.purebilibili.core.ui.LocalImmersiveTopChromeActive provides
+                (active || headerBlurActive),
             content = content,
         )
     }

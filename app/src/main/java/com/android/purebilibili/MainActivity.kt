@@ -865,7 +865,14 @@ open class MainActivity : AppCompatActivity() {
     private val runtimeVisualGuardSession = Any()
     private var android17HandoffEnabled = false
 
-    var windowMetrics: WindowMetrics? by mutableStateOf(null)
+    var currentWindowMetrics: WindowMetrics? by mutableStateOf(null)
+    var maximumWindowMetrics: WindowMetrics? by mutableStateOf(null)
+
+    private fun refreshWindowMetrics() {
+        val calculator = WindowMetricsCalculator.getOrCreate()
+        currentWindowMetrics = calculator.computeCurrentWindowMetrics(this)
+        maximumWindowMetrics = calculator.computeMaximumWindowMetrics(this)
+    }
 
     private fun currentPlaybackHandoffPayload(): PlaybackHandoffPayload? {
         PlaybackHandoffRegistry.currentBangumiPayload()?.let { return it }
@@ -1043,7 +1050,7 @@ open class MainActivity : AppCompatActivity() {
         var isDataReady = false
         val startTime = System.currentTimeMillis()
 
-        windowMetrics = WindowMetricsCalculator.getOrCreate().computeMaximumWindowMetrics(this)
+        refreshWindowMetrics()
 
         splashScreen.setKeepOnScreenCondition {
             if (!keepSystemSplashForPreload) {
@@ -1438,7 +1445,8 @@ open class MainActivity : AppCompatActivity() {
                 androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2()
             val windowSizeClass = calculateWindowSizeClass(
                 densityMultiplier = displayMetricsSnapshot.effectiveDensityMultiplier,
-                metrics = windowMetrics!!,
+                metrics = currentWindowMetrics!!,
+                maximumMetrics = maximumWindowMetrics,
                 adaptiveWindowSizeClass = materialWindowAdaptiveInfo.windowSizeClass,
             )
             val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(
@@ -2210,7 +2218,7 @@ open class MainActivity : AppCompatActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (startupRecoveryRedirected) return
-        windowMetrics = WindowMetricsCalculator.getOrCreate().computeMaximumWindowMetrics(this)
+        refreshWindowMetrics()
         refreshSystemThemeSnapshot(reason = "configuration")
     }
 

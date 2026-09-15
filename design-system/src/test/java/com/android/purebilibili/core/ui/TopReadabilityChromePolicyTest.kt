@@ -9,6 +9,54 @@ import kotlin.test.assertTrue
 class TopReadabilityChromePolicyTest {
 
     @Test
+    fun `top chrome prefers ready header haze`() {
+        assertEquals(
+            TopChromeRenderMode.HAZE,
+            resolveTopChromeRenderMode(
+                headerBlurRequested = true,
+                progressiveBlurRequested = true,
+                hazeAvailable = true,
+                progressiveAvailable = true,
+            )
+        )
+    }
+
+    @Test
+    fun `top chrome falls back to solid when requested effect is unavailable`() {
+        assertEquals(
+            TopChromeRenderMode.SOLID,
+            resolveTopChromeRenderMode(
+                headerBlurRequested = true,
+                progressiveBlurRequested = false,
+                hazeAvailable = false,
+                progressiveAvailable = true,
+            )
+        )
+        assertEquals(
+            TopChromeRenderMode.SOLID,
+            resolveTopChromeRenderMode(
+                headerBlurRequested = false,
+                progressiveBlurRequested = true,
+                hazeAvailable = false,
+                progressiveAvailable = false,
+            )
+        )
+    }
+
+    @Test
+    fun `top chrome uses progressive only when header haze is not requested`() {
+        assertEquals(
+            TopChromeRenderMode.PROGRESSIVE,
+            resolveTopChromeRenderMode(
+                headerBlurRequested = false,
+                progressiveBlurRequested = true,
+                hazeAvailable = false,
+                progressiveAvailable = true,
+            )
+        )
+    }
+
+    @Test
     fun `top readability chrome uses lightweight gradient as the default layer`() {
         val spec = resolveTopReadabilityChromeSpec(
             requestedHeightDp = 96,

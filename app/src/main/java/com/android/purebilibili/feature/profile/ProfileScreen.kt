@@ -18,6 +18,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import android.app.Activity
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.background
@@ -168,6 +169,9 @@ import com.android.purebilibili.feature.settings.AppThemeMode
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.unifiedBlur
@@ -318,9 +322,8 @@ fun ProfileScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val headerBlurEnabled by SettingsManager
-        .getHeaderBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    val headerBlurEnabled =
+        com.android.purebilibili.core.ui.LocalAppThemeConfig.current.headerBlurEnabled
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val activeAccountMid by viewModel.activeAccountMid.collectAsStateWithLifecycle()
     val playbackAccountMid by viewModel.playbackAccountMid.collectAsStateWithLifecycle()
@@ -374,8 +377,16 @@ fun ProfileScreen(
         isDarkTheme = isDarkTheme
     )
     
-    // [Blur] Haze State
-    val hazeState = rememberRecoverableHazeState()
+    // [Blur] Haze State: only expose a source when the platform and runtime guard
+    // can actually render it; otherwise every top bar keeps its solid fallback.
+    val hazeState = if (headerBlurEnabled &&
+        shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
+        !isLowBlurBudgetForced()
+    ) {
+        rememberRecoverableHazeState()
+    } else {
+        null
+    }
     var profileScrollToTopRequestId by remember { mutableIntStateOf(0) }
     LaunchedEffect(scrollToTopChannel) {
         scrollToTopChannel?.receiveAsFlow()?.collect {
@@ -488,6 +499,9 @@ fun ProfileScreen(
     //  未登录状态使用沉浸式全屏布局，已登录使用正常 Scaffold
     val currentUiState = state
     val profileProgressiveChrome = rememberProfileProgressiveTopChrome()
+    val profileHeaderBlurActive = headerBlurEnabled &&
+        hazeState?.let { recoverableBlurEnabled(it) } == true &&
+        !profileProgressiveChrome.enabled
     when (currentUiState) {
         is ProfileUiState.Loading -> {
             ProfileLoadingSkeleton()
@@ -560,6 +574,7 @@ fun ProfileScreen(
                     BiliPaiImmersiveTopBar(
                         backdrop = profileProgressiveChrome.backdrop,
                         enabled = profileProgressiveChrome.enabled,
+                        headerBlurActive = profileHeaderBlurActive,
                     ) {
                     Box {
                         if (!profileProgressiveChrome.enabled) {
@@ -677,6 +692,7 @@ fun ProfileScreen(
                         BiliPaiImmersiveTopBar(
                             backdrop = profileProgressiveChrome.backdrop,
                             enabled = profileProgressiveChrome.enabled,
+                            headerBlurActive = profileHeaderBlurActive,
                         ) {
                         Box(
                             modifier = Modifier
@@ -688,7 +704,7 @@ fun ProfileScreen(
                                 surfaceColor = MaterialTheme.colorScheme.background,
                                 surfaceAlpha = 0.82f,
                                 hazeState = hazeState,
-                                hazeEnabled = headerBlurEnabled
+                                hazeEnabled = profileHeaderBlurActive
                             )
                             }
                             AppTopBar(
@@ -1335,9 +1351,16 @@ private fun ProfileSpaceContent(
             BiliPaiImmersiveTopBar(
                 backdrop = progressiveTopChrome.backdrop,
                 enabled = progressiveTopChrome.enabled,
+                headerBlurActive = hazeState?.let { recoverableBlurEnabled(it) } == true &&
+                    !progressiveTopChrome.enabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopCenter),
+                    .align(Alignment.TopCenter)
+                    .then(
+                        hazeState?.takeIf { recoverableBlurEnabled(it) }
+                            ?.let { Modifier.unifiedBlur(it, surfaceType = BlurSurfaceType.HEADER) }
+                            ?: Modifier
+                    ),
             ) {
             Row(
                 modifier = Modifier
@@ -3373,6 +3396,8 @@ private fun MobileProfileContent(
         BiliPaiImmersiveTopBar(
             backdrop = progressiveTopChrome.backdrop,
             enabled = progressiveTopChrome.enabled,
+            headerBlurActive = hazeState?.let { recoverableBlurEnabled(it) } == true &&
+                !progressiveTopChrome.enabled,
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         ) {
         AppTopBar(
@@ -3391,6 +3416,9 @@ private fun MobileProfileContent(
                     AppIcon(rememberAppSettingsIcon(), contentDescription = "Settings", tint = contentColor)
                 }
             },
+            modifier = hazeState?.takeIf { recoverableBlurEnabled(it) }
+                ?.let { Modifier.unifiedBlur(it, surfaceType = BlurSurfaceType.HEADER) }
+                ?: Modifier,
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
                 scrolledContainerColor = Color.Transparent,
@@ -3712,14 +3740,9 @@ private fun ProfileWallpaperActionCard(
             columnCount = columnCount
         )
     }
-    val headerBlurEnabled by com.android.purebilibili.core.store.SettingsManager
-        .getHeaderBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true
-        )
-    val bottomBarBlurEnabled by com.android.purebilibili.core.store.SettingsManager
-        .getBottomBarBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false
-        )
+    val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
+    val headerBlurEnabled = appThemeConfig.headerBlurEnabled
+    val bottomBarBlurEnabled = appThemeConfig.bottomBarBlurEnabled
     val blurEnabled = remember(headerBlurEnabled, bottomBarBlurEnabled) {
         resolveProfileWallpaperActionBlurEnabled(
             headerBlurEnabled = headerBlurEnabled,

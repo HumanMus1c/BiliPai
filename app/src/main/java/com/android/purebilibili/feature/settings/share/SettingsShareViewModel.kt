@@ -18,6 +18,7 @@ data class SettingsShareUiState(
     val pendingShareUri: Uri? = null,
     /** 导出时附带设备/显示调试信息，默认开启供 UI 问题排查。 */
     val includeDeviceDebug: Boolean = true,
+    val savedProfiles: List<SavedSettingsProfile> = emptyList(),
 )
 
 class SettingsShareViewModel(
@@ -40,6 +41,50 @@ class SettingsShareViewModel(
 
     fun setIncludeDeviceDebug(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(includeDeviceDebug = enabled)
+    }
+
+    fun loadSavedProfiles() {
+        viewModelScope.launch {
+            service.listSavedProfiles().onSuccess { profiles ->
+                _uiState.value = _uiState.value.copy(savedProfiles = profiles)
+            }
+        }
+    }
+
+    fun saveCurrentProfile(name: String) {
+        runAction("正在保存配置...", "保存配置失败，请稍后重试") {
+            service.saveCurrentProfile(name).fold(
+                onSuccess = { profile ->
+                    _uiState.value = _uiState.value.copy(
+                        savedProfiles = listOf(profile) + _uiState.value.savedProfiles
+                            .filterNot { it.fileName == profile.fileName },
+                        statusMessage = "已保存配置：${profile.name}",
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        statusMessage = error.message ?: "保存配置失败，请稍后重试",
+                    )
+                },
+            )
+        }
+    }
+
+    fun restoreSavedProfile(profile: SavedSettingsProfile) {
+        runAction("正在恢复配置...", "恢复配置失败，请稍后重试") {
+            service.restoreSavedProfile(profile).fold(
+                onSuccess = { result ->
+                    _uiState.value = _uiState.value.copy(
+                        statusMessage = "已恢复 ${profile.name}（${result.appliedKeys.size} 项）",
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        statusMessage = error.message ?: "恢复配置失败，请稍后重试",
+                    )
+                },
+            )
+        }
     }
 
     fun exportToUri(uri: Uri) {

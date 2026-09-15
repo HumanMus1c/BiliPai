@@ -53,6 +53,19 @@ internal fun resolveBangumiPortraitPlayerContainerTopPaddingDp(
     return statusBarsInsetDp.takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: 0f
 }
 
+internal fun resolveBangumiFullscreen(
+    isLandscape: Boolean,
+    isTablet: Boolean,
+    usesInWindowFullscreen: Boolean,
+    userRequestedFullscreen: Boolean,
+): Boolean {
+    return if (isTablet || usesInWindowFullscreen) {
+        userRequestedFullscreen
+    } else {
+        isLandscape
+    }
+}
+
 internal data class BangumiEpisodePreviewWindow(
     val startIndex: Int,
     val endExclusive: Int

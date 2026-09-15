@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.bangumi
 
+import android.os.Build
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -37,11 +39,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor
 import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
+import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
+import com.android.purebilibili.core.ui.resolveTopChromeRenderMode
+import com.android.purebilibili.core.ui.TopChromeRenderMode
 import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
 import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
 import androidx.compose.ui.graphics.Color
@@ -104,10 +115,19 @@ fun BangumiScreen(
     LocalNavigationBackHandler(enabled = true, onBackCompleted = handleBack)
 
     val themeConfig = LocalAppThemeConfig.current
+    val lowBlurBudget = isLowBlurBudgetForced()
+    val headerBlurRequested = themeConfig.headerBlurEnabled
+    val hazeState = if (
+        headerBlurRequested &&
+        !lowBlurBudget &&
+        shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)
+    ) rememberRecoverableHazeState() else null
+    val hazeReady = hazeState?.let { recoverableBlurEnabled(it) } == true
+    val progressiveRequested = themeConfig.progressiveTopBlurEnabled && !headerBlurRequested
     val progressiveBlur = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = themeConfig.progressiveTopBlurEnabled,
+        enabled = progressiveRequested,
         hasBackdrop = true,
-    ) && !isLowBlurBudgetForced()
+    ) && !lowBlurBudget
     // Keep progressive sampling attached through skeleton → content transitions.
     // Recreating its graphics layers briefly exposes an empty/dark texture.
     val chromeSource = if (progressiveBlur || themeConfig.liquidGlassEnabled) {
@@ -118,6 +138,15 @@ fun BangumiScreen(
     val chromeBackdrop = chromeSource?.takeIf {
         (progressiveBlur || shouldCaptureBangumiHubChrome(state)) && it.isReady
     }?.backdrop
+    val renderMode = resolveTopChromeRenderMode(
+        headerBlurRequested = headerBlurRequested,
+        progressiveBlurRequested = progressiveRequested,
+        hazeAvailable = hazeReady,
+        progressiveAvailable = chromeBackdrop != null,
+    )
+    val hazeActive = renderMode == TopChromeRenderMode.HAZE
+    val progressiveActive = renderMode == TopChromeRenderMode.PROGRESSIVE
+    val chromeActive = hazeActive || progressiveActive
 
     AppScaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -125,11 +154,20 @@ fun BangumiScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             BiliPaiImmersiveTopBar(
-                backdrop = chromeBackdrop,
-                enabled = progressiveBlur,
+                backdrop = chromeBackdrop.takeIf { progressiveActive },
+                enabled = progressiveActive,
+                headerBlurActive = hazeActive,
                 modifier = Modifier.background(
-                    if (progressiveBlur && chromeBackdrop != null) Color.Transparent
+                    if (chromeActive) Color.Transparent
                     else globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.background)
+                ).then(
+                    if (hazeActive) {
+                        hazeState?.let {
+                            Modifier.unifiedBlur(hazeState = it, surfaceType = BlurSurfaceType.HEADER)
+                        } ?: Modifier
+                    } else {
+                        Modifier
+                    }
                 ),
             ) {
                 Column {
@@ -168,6 +206,10 @@ fun BangumiScreen(
                                     AppIcon(rememberAppSearchIcon(), contentDescription = "搜索")
                                 }
                             },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = if (chromeActive) Color.Transparent else AppSurfaceTokens.groupedListContainer(),
+                                scrolledContainerColor = if (chromeActive) Color.Transparent else AppSurfaceTokens.groupedListContainer(),
+                            ),
                         )
                     }
                     if (state.page != BangumiHubPage.SEARCH) {
@@ -213,6 +255,7 @@ fun BangumiScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(chromeSource?.modifier ?: Modifier)
+                    .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier)
                     .globalWallpaperAwareBackground(MaterialTheme.colorScheme.background),
             ) {
                 Box(modifier = Modifier.fillMaxSize().responsiveContentWidth()) {

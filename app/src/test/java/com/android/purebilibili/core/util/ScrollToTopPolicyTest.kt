@@ -24,6 +24,19 @@ class ScrollToTopPolicyTest {
     }
 
     @Test
+    fun resolveScrollToTopPlan_adaptsAnimatedWindowToViewportCapacity() {
+        assertNull(resolveScrollToTopPlan(firstVisibleItemIndex = 18, visibleItemCount = 6).preJumpIndex)
+        assertEquals(12, resolveScrollToTopPlan(firstVisibleItemIndex = 80, visibleItemCount = 6).preJumpIndex)
+        assertEquals(24, resolveScrollToTopPlan(firstVisibleItemIndex = 80, visibleItemCount = 12).preJumpIndex)
+    }
+
+    @Test
+    fun resolveScrollToTopPlan_boundsAnimatedWindowForExtremeViewportCounts() {
+        assertEquals(8, resolveScrollToTopPlan(firstVisibleItemIndex = 80, visibleItemCount = 1).preJumpIndex)
+        assertEquals(32, resolveScrollToTopPlan(firstVisibleItemIndex = 160, visibleItemCount = 100).preJumpIndex)
+    }
+
+    @Test
     fun shouldShowScrollToTop_usesItemAndOffsetThresholds() {
         assertFalse(shouldShowScrollToTop(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 599))
         assertTrue(shouldShowScrollToTop(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 600))

@@ -61,6 +61,7 @@ import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSSystemGray
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.feature.screenshot.AppScreenshotCaptureMode
@@ -2145,7 +2146,10 @@ private fun PlaybackFullscreenGestureSettingsSection(
             .collectAsStateWithLifecycle(
                 initialValue = com.android.purebilibili.core.store.PlayerProgressPlacement.ABOVE_CONTROLS
             )
-        val isLargeScreenDevice = context.resources.configuration.smallestScreenWidthDp >= 600
+        val windowSizeClass = LocalWindowSizeClass.current
+        val displayContext = LocalAppWindowAdaptiveInfo.current.displayContext
+        val isLargeScreenDevice = windowSizeClass.isTabletDevice ||
+            displayContext.isKnownFoldableDevice
         val horizontalAdaptationEnabled by com.android.purebilibili.core.store.SettingsManager
             .getHorizontalAdaptationEnabled(context)
             .collectAsStateWithLifecycle(initialValue = isLargeScreenDevice)

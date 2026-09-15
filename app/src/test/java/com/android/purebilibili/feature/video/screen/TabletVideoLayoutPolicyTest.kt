@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.screen
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TabletVideoLayoutPolicyTest {
@@ -11,6 +12,19 @@ class TabletVideoLayoutPolicyTest {
     fun secondaryPaneAlwaysDefaultsToComments() {
         assertEquals(0, resolveTabletSecondaryDefaultTab())
         assertTrue(shouldShowTabletSecondaryDanmakuActions())
+    }
+
+    @Test
+    fun tabletSecondaryTabsOptIntoMiuixNonGlassEqualLabelWidths() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/TabletVideoLayout.kt"
+        ).readText()
+        val tabRow = source
+            .substringAfter("internal fun TabletSecondaryLiquidTabRow(")
+            .substringBefore("/**\n * 🖥️ 平板端视频详情页布局")
+
+        assertTrue(tabRow.contains("equalizeMiuixNonGlassItemWidths = true"))
+        assertFalse(tabRow.contains("108.dp"))
     }
 
     @Test

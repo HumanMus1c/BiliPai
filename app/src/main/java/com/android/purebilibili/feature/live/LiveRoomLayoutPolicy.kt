@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.live
 
+import com.android.purebilibili.core.util.AppDisplayContext
+import com.android.purebilibili.core.util.shouldUsePhonePlayerOrientation
 import kotlin.math.roundToInt
 
 enum class LiveRoomLayoutMode {
@@ -46,15 +48,30 @@ enum class LiveRequestedOrientationMode {
 }
 
 /**
- * 直播横竖屏请求必须用稳定设备宽度，不能用当前窗口 `isTablet`。
- * 手机横屏后宽度会跨过 600dp，被当成平板再放开方向，传感器又把竖握的手机扳回竖屏，形成狂切。
+ * 直播方向请求看显示角色和当前显示器最大窗口，不看当前窗口宽度。
+ * 手机横屏后宽度会跨过 600dp；若按当前窗口当成平板并放开方向，传感器会把竖握手机扳回竖屏，形成狂切。
  */
 fun resolveLiveRequestedOrientationMode(
-    isTabletDevice: Boolean,
+    displayContext: AppDisplayContext,
     isFullscreen: Boolean,
 ): LiveRequestedOrientationMode {
     return when {
-        isTabletDevice -> LiveRequestedOrientationMode.Unspecified
+        displayContext.usesInWindowFullscreen -> LiveRequestedOrientationMode.Unspecified
+        !shouldUsePhonePlayerOrientation(displayContext) -> LiveRequestedOrientationMode.Unspecified
+        isFullscreen -> LiveRequestedOrientationMode.SensorLandscape
+        else -> LiveRequestedOrientationMode.Portrait
+    }
+}
+
+fun resolveLiveRequestedOrientationMode(
+    isTabletDevice: Boolean,
+    isFullscreen: Boolean,
+    isFoldableCoverWindow: Boolean = false,
+    usesInWindowFullscreen: Boolean = false,
+): LiveRequestedOrientationMode {
+    return when {
+        usesInWindowFullscreen -> LiveRequestedOrientationMode.Unspecified
+        isTabletDevice && !isFoldableCoverWindow -> LiveRequestedOrientationMode.Unspecified
         isFullscreen -> LiveRequestedOrientationMode.SensorLandscape
         else -> LiveRequestedOrientationMode.Portrait
     }

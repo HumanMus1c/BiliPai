@@ -60,7 +60,7 @@ class ProgressiveTopChromePolicyTest {
         assertTrue(dynamicTopBar.contains("BiliPaiImmersiveTopBar("))
         assertTrue(dynamicTopBar.contains("enabled = isProgressiveBlurActive"))
         assertTrue(commonList.contains("BiliPaiImmersiveTopBar("))
-        assertTrue(commonList.contains("enabled = isProgressiveTopBlurEnabled"))
+        assertTrue(commonList.contains("enabled = isProgressiveTopBlurEnabled && !isHeaderBlurEnabled"))
         val bangumiHub = loadSource("feature/bangumi/BangumiScreen.kt")
         val bangumiDetail = loadSource("feature/bangumi/BangumiDetailScreen.kt")
         val bangumiReview = loadSource("feature/bangumi/BangumiReviewScreen.kt")

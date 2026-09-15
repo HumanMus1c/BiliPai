@@ -3,6 +3,8 @@ package com.android.purebilibili.core.ui.adaptive
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.util.AppFoldingFeatureInfo
+import com.android.purebilibili.core.util.AppHingeFeature
+import com.android.purebilibili.core.util.AppHingeOrientation
 import com.android.purebilibili.core.util.AppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.WindowHeightSizeClass
 import com.android.purebilibili.core.util.WindowSizeClass
@@ -47,5 +49,39 @@ class HingeOcclusionInputShieldPolicyTest {
         )
 
         assertNull(resolveOccludingHingeInputBounds(adaptiveInfo, 1000, 800))
+    }
+
+    @Test
+    fun multipleOccludingHinges_returnEveryClippedExclusionBounds() {
+        val adaptiveInfo = AppWindowAdaptiveInfo(
+            windowSizeClass = windowSizeClass,
+            foldingFeature = AppFoldingFeatureInfo(
+                isOccluding = true,
+                hinges = listOf(
+                    AppHingeFeature(
+                        orientation = AppHingeOrientation.Vertical,
+                        bounds = IntRect(left = 320, top = 0, right = 340, bottom = 800),
+                        isSeparating = true,
+                        isOccluding = true,
+                        isFlat = true,
+                    ),
+                    AppHingeFeature(
+                        orientation = AppHingeOrientation.Vertical,
+                        bounds = IntRect(left = 660, top = 0, right = 680, bottom = 800),
+                        isSeparating = true,
+                        isOccluding = true,
+                        isFlat = true,
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                IntRect(left = 320, top = 0, right = 340, bottom = 800),
+                IntRect(left = 660, top = 0, right = 680, bottom = 800),
+            ),
+            resolveOccludingHingeInputBoundsList(adaptiveInfo, 1000, 800),
+        )
     }
 }

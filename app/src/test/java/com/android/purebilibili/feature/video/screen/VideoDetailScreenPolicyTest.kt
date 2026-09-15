@@ -55,6 +55,38 @@ class VideoDetailScreenPolicyTest {
     }
 
     @Test
+    fun landscapeNaturalCover_backOnlyConsumesUserRequestedFullscreen() {
+        val orientationDrivenFullscreen = false
+        val initialFullscreen = resolveVideoDetailFullscreenMode(
+            isOrientationDrivenFullscreen = orientationDrivenFullscreen,
+            isLandscape = true,
+            userRequestedFullscreen = false,
+            isInMultiWindowMode = false,
+        )
+        val requestedFullscreen = resolveVideoDetailFullscreenMode(
+            isOrientationDrivenFullscreen = orientationDrivenFullscreen,
+            isLandscape = true,
+            userRequestedFullscreen = true,
+            isInMultiWindowMode = false,
+        )
+
+        assertEquals(
+            VideoDetailLocalBackTarget.NAVIGATE_BACK,
+            resolveVideoDetailLocalBackTarget(
+                isLandscapeFullscreen = initialFullscreen,
+                isPortraitFullscreen = false,
+            )
+        )
+        assertEquals(
+            VideoDetailLocalBackTarget.EXIT_LANDSCAPE_FULLSCREEN,
+            resolveVideoDetailLocalBackTarget(
+                isLandscapeFullscreen = requestedFullscreen,
+                isPortraitFullscreen = false,
+            )
+        )
+    }
+
+    @Test
     fun portraitExitPlayerTarget_prefersCurrentInternalBvidOverRouteBvid() {
         val resolved = resolveVideoPlayerSectionTarget(
             routeBvid = "BV_ROUTE",

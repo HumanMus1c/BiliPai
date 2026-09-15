@@ -41,6 +41,7 @@ class VideoSharedTransitionPolicyTest {
                 spec.remainingDuration(.5f, 0f).toFloat(), .5f)
         }
         assertEquals(0, resolveVideoHeroMotionSpec(0).returnDurationMillis)
+        assertEquals(299, resolveVideoHeroMotionSpec(360).returnDurationMillis)
         assertEquals(140, resolveVideoHeroMotionSpec(900, reducedMotion = true).enterDurationMillis)
     }
 

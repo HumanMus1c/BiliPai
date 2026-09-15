@@ -25,6 +25,42 @@ class OfflineVideoPlaybackPolicyTest {
     }
 
     @Test
+    fun landscapeNaturalCover_entersAndExitsOfflineFullscreenWithoutRotation() {
+        assertEquals(
+            OfflineRequestedOrientationMode.Unspecified,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = true,
+                usesInWindowFullscreen = true,
+            )
+        )
+        assertEquals(
+            OfflineRequestedOrientationMode.Unspecified,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = false,
+                usesInWindowFullscreen = true,
+            )
+        )
+    }
+
+    @Test
+    fun ordinaryPhone_keepsOfflineFullscreenRotation() {
+        assertEquals(
+            OfflineRequestedOrientationMode.SensorLandscape,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = true,
+                usesInWindowFullscreen = false,
+            )
+        )
+        assertEquals(
+            OfflineRequestedOrientationMode.Portrait,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = false,
+                usesInWindowFullscreen = false,
+            )
+        )
+    }
+
+    @Test
     fun seekFromEndedState_restartsPlayback() {
         assertTrue(
             shouldResumePlaybackAfterOfflineSeek(

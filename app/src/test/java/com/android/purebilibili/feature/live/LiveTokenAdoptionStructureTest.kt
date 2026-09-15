@@ -49,10 +49,10 @@ class LiveTokenAdoptionStructureTest {
     }
 
     @Test
-    fun live_player_orientation_uses_stable_device_width() {
+    fun live_player_orientation_uses_display_context() {
         val source = File(liveRoot, "LivePlayerScreen.kt").readText()
         assertTrue(source.contains("resolveLiveRequestedOrientationMode("))
-        assertTrue(source.contains("isTabletDevice = windowSizeClass.isTabletDevice"))
+        assertTrue(source.contains("displayContext = displayContext"))
         assertTrue(source.contains("rememberSaveable { mutableStateOf(false) }"))
         assertFalse(source.contains("LaunchedEffect(isTablet, isFullscreen)"))
     }

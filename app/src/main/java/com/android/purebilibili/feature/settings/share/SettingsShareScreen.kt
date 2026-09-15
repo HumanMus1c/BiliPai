@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,6 +73,12 @@ fun SettingsShareScreen(
     val viewSkippedLabel = stringResource(R.string.settings_share_view_skipped)
     val cancelLabel = stringResource(R.string.common_cancel)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showSaveProfileDialog by remember { mutableStateOf(false) }
+    var profileName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadSavedProfiles()
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -220,6 +227,36 @@ fun SettingsShareScreen(
             }
 
             item {
+                AppPreferenceSectionTitle("本机保存配置")
+                AppPreferenceGroup {
+                    AppPreference(
+                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(
+                            com.android.purebilibili.R.drawable.ms_download_fill_24,
+                        ),
+                        title = "保存当前配置",
+                        subtitle = "自定义名称，保存后可一键恢复",
+                        onClick = {
+                            profileName = ""
+                            showSaveProfileDialog = true
+                        },
+                        iconTint = iOSBlue,
+                    )
+                    uiState.savedProfiles.forEach { profile ->
+                        AppPreferenceDivider(startIndent = 66.dp)
+                        AppPreference(
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(
+                                com.android.purebilibili.R.drawable.ms_restore_24,
+                            ),
+                            title = profile.name,
+                            subtitle = "点击立即恢复此配置",
+                            onClick = { viewModel.restoreSavedProfile(profile) },
+                            iconTint = iOSGreen,
+                        )
+                    }
+                }
+            }
+
+            item {
                 AppPreferenceSectionTitle("文件格式")
                 AppPreferenceGroup {
                     AppPreference(
@@ -247,6 +284,34 @@ fun SettingsShareScreen(
     }
 
     val pendingImportSession = uiState.pendingImportSession
+    if (showSaveProfileDialog) {
+        AppAlertDialog(
+            onDismissRequest = { showSaveProfileDialog = false },
+            title = { AppText("保存配置") },
+            text = {
+                AppTextField(
+                    value = profileName,
+                    onValueChange = { profileName = it },
+                    label = "配置名称",
+                    placeholder = "例如：我的清爽布局",
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        viewModel.saveCurrentProfile(profileName)
+                        showSaveProfileDialog = false
+                    },
+                ) { AppText("保存") }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { showSaveProfileDialog = false }) {
+                    AppText(cancelLabel)
+                }
+            },
+        )
+    }
     if (pendingImportSession != null) {
         var showRawKeys by remember(pendingImportSession) { mutableStateOf(false) }
         AppAlertDialog(

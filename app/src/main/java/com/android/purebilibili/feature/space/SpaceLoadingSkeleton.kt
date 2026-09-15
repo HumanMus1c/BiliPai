@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,9 +20,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,7 +34,9 @@ import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
 import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
 import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
+import kotlin.math.roundToInt
 
 /** UP 空间首屏骨架：资料头、主标签和投稿网格均与真实 SpaceContent 同构。 */
 @Composable
@@ -43,23 +46,34 @@ internal fun SpaceLoadingSkeleton(modifier: Modifier = Modifier) {
         .collectAsStateWithLifecycle(
             initialValue = HomeSettings(androidNativeLiquidGlassEnabled = false)
         )
+    val windowSizeClass = LocalWindowSizeClass.current
+    val windowWidthDp = windowSizeClass.widthDp.value.roundToInt().coerceAtLeast(0)
+    val adaptiveLayoutSpec = remember(windowWidthDp, windowSizeClass.widthSizeClass) {
+        resolveSpaceAdaptiveLayoutSpec(
+            widthDp = windowWidthDp,
+            widthSizeClass = windowSizeClass.widthSizeClass,
+        )
+    }
     val columns = resolveSpaceContentGridColumnCount(
-        widthDp = LocalConfiguration.current.screenWidthDp,
+        widthDp = windowWidthDp,
         fixedColumnCount = settings.gridColumnCount,
         cardWidthPreset = settings.homeFeedCardWidthPreset,
-        widthSizeClass = LocalWindowSizeClass.current.widthSizeClass,
+        contentMaxWidthDp = adaptiveLayoutSpec.contentMaxWidthDp,
+        widthSizeClass = windowSizeClass.widthSizeClass,
     )
     val cardLayout = resolveHomeFeedCardLayout(
         style = settings.homeFeedCardStyle,
         gridColumns = columns,
-        widthSizeClass = LocalWindowSizeClass.current.widthSizeClass,
+        widthSizeClass = windowSizeClass.widthSizeClass,
     )
     val pulse = rememberContentSkeletonPulse()
     val blockColor = rememberContentSkeletonBlockColor(pulse)
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .responsiveContentWidth(maxWidth = adaptiveLayoutSpec.contentMaxWidthDp.dp)
+            .fillMaxSize(),
         contentPadding = PaddingValues(
             horizontal = cardLayout.outerPaddingDp.dp,
             vertical = 8.dp,
@@ -72,7 +86,7 @@ internal fun SpaceLoadingSkeleton(modifier: Modifier = Modifier) {
             Column(Modifier.fillMaxWidth()) {
                 ContentSkeletonBlock(
                     blockColor,
-                    Modifier.fillMaxWidth().aspectRatio(3.2f),
+                    Modifier.fillMaxWidth().aspectRatio(1125f / 396f),
                     AppShapes.container(ContainerLevel.Card),
                 )
                 Row(
@@ -86,11 +100,35 @@ internal fun SpaceLoadingSkeleton(modifier: Modifier = Modifier) {
                         ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.62f).height(13.dp))
                         ContentSkeletonBlock(blockColor, Modifier.fillMaxWidth(0.48f).height(13.dp))
                     }
-                    ContentSkeletonBlock(
-                        blockColor,
-                        Modifier.width(88.dp).height(40.dp),
-                        AppShapes.container(ContainerLevel.Pill),
-                    )
+                    if (adaptiveLayoutSpec.useExpandedHeader) {
+                        Spacer(Modifier.width(24.dp))
+                        Column(
+                            modifier = Modifier
+                                .weight(0.8f, fill = false)
+                                .widthIn(max = 480.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp),
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                repeat(3) {
+                                    ContentSkeletonBlock(
+                                        blockColor,
+                                        Modifier.weight(1f).height(24.dp),
+                                    )
+                                }
+                            }
+                            ContentSkeletonBlock(
+                                blockColor,
+                                Modifier.fillMaxWidth().height(40.dp),
+                                AppShapes.container(ContainerLevel.Pill),
+                            )
+                        }
+                    } else {
+                        ContentSkeletonBlock(
+                            blockColor,
+                            Modifier.width(88.dp).height(40.dp),
+                            AppShapes.container(ContainerLevel.Pill),
+                        )
+                    }
                 }
             }
         }

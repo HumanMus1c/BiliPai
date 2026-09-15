@@ -17,9 +17,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -38,7 +40,7 @@ import com.android.purebilibili.core.store.DataStoreAicuConsentStore
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.ui.AppAlertDialog
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.*
@@ -186,6 +188,10 @@ internal fun AicuScreen(
                     AppTextButton(onClick = { showTrending = true; onLoadTrending() }, modifier = Modifier.heightIn(min = 48.dp)) { AppText("Aicu 热搜") }
                     AppTextButton(onClick = { showInformation = true }, modifier = Modifier.heightIn(min = 48.dp)) { AppText("使用说明") }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
             )
         },
     ) { padding ->

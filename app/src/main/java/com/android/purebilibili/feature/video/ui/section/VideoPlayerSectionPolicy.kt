@@ -699,9 +699,9 @@ internal fun shouldEnterPortraitFullscreenFromSwipe(
 ): Boolean = !isFullscreen && isVerticalVideo
 
 internal fun shouldAllowPlaybackStateAutoFullscreen(
-    smallestScreenWidthDp: Int
+    hasValidWindow: Boolean,
 ): Boolean {
-    return smallestScreenWidthDp > 0
+    return hasValidWindow
 }
 
 internal fun shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(

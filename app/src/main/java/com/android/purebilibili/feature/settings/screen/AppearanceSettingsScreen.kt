@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -244,9 +243,9 @@ fun AppearanceSettingsContent(
     // Animation Trigger
     val displayModeTint = rememberAdaptiveSemanticIconTint(iOSBlue)
 
-    val configuration = LocalConfiguration.current
     val displayMetricsSnapshot = LocalDisplayMetricsSnapshot.current
-    val isTablet = configuration.screenWidthDp >= 600 // Material Design 3 中型屏幕断点
+    val windowSizeClass = LocalWindowSizeClass.current
+    val isTablet = windowSizeClass.isTablet
     LaunchedEffect(focusRequest?.token, isTablet) {
         val request = focusRequest ?: return@LaunchedEffect
         val expectedTarget = when (contentMode) {
@@ -262,7 +261,6 @@ fun AppearanceSettingsContent(
         listState.animateScrollToItem(index)
         SettingsSearchFocusController.clear(request.token)
     }
-    val windowSizeClass = LocalWindowSizeClass.current
     val deviceUiProfile = remember(windowSizeClass.widthSizeClass) {
         resolveDeviceUiProfile(
             widthSizeClass = windowSizeClass.widthSizeClass

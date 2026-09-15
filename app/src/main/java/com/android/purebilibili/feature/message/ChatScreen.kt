@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.AppAlertDialog
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
@@ -134,7 +134,11 @@ fun ChatScreen(
                         },
                         onRefresh = viewModel::loadSessionControlInfo,
                     )
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
             )
         },
         bottomBar = {

@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -21,7 +22,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
-import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
@@ -228,7 +229,8 @@ fun CategoryScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                 )
             )
         }

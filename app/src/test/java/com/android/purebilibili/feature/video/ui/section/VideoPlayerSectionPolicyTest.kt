@@ -1126,7 +1126,7 @@ class VideoPlayerSectionPolicyTest {
     fun playbackReadyAutoFullscreen_enabledForPhonesInOrientationDrivenMode() {
         assertTrue(
             shouldAllowPlaybackStateAutoFullscreen(
-                smallestScreenWidthDp = 411
+                hasValidWindow = true
             )
         )
     }
@@ -1135,7 +1135,7 @@ class VideoPlayerSectionPolicyTest {
     fun playbackReadyAutoFullscreen_allowsTabletsBecauseSettingIsExplicit() {
         assertTrue(
             shouldAllowPlaybackStateAutoFullscreen(
-                smallestScreenWidthDp = 600
+                hasValidWindow = true
             )
         )
     }

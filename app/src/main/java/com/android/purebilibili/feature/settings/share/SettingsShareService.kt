@@ -8,7 +8,9 @@ import android.util.DisplayMetrics
 import androidx.core.content.FileProvider
 import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.settingsDataStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -16,6 +18,10 @@ import java.time.Instant
 
 internal const val DEFAULT_SETTINGS_SHARE_PROFILE_NAME = "BiliPai 设置分享"
 internal const val LIQUID_GLASS_SETTINGS_SHARE_PROFILE_NAME = "BiliPai 液态玻璃设置"
+private const val DEFAULT_PROFILE_ASSET = "default_settings_profile.json"
+private const val DEFAULT_PROFILE_PREFS = "settings_profile_defaults"
+private const val DEFAULT_PROFILE_APPLIED_KEY = "bundled_default_applied_v1"
+private val PRIVATE_DEFAULT_PROFILE_KEYS = setOf("home_wallpaper_uri")
 
 interface SettingsShareServiceContract {
     suspend fun exportToUri(
@@ -32,6 +38,14 @@ interface SettingsShareServiceContract {
     suspend fun readImportSession(uri: Uri): Result<SettingsShareImportSession>
 
     suspend fun applyImport(session: SettingsShareImportSession): Result<SettingsShareApplyResult>
+
+    suspend fun listSavedProfiles(): Result<List<SavedSettingsProfile>> = Result.success(emptyList())
+
+    suspend fun saveCurrentProfile(name: String): Result<SavedSettingsProfile> =
+        Result.failure(UnsupportedOperationException("保存配置不可用"))
+
+    suspend fun restoreSavedProfile(profile: SavedSettingsProfile): Result<SettingsShareApplyResult> =
+        Result.failure(UnsupportedOperationException("恢复配置不可用"))
 }
 
 class SettingsShareService(private val context: Context) : SettingsShareServiceContract {
@@ -40,6 +54,32 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
         prettyPrint = true
         encodeDefaults = true
         ignoreUnknownKeys = true
+    }
+
+    private val savedProfilesDirectory: File
+        get() = File(context.filesDir, "settings-profiles")
+
+    /** Applies the bundled profile once, only for a genuinely new settings store. */
+    suspend fun applyBundledDefaultIfNeeded(): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val marker = context.getSharedPreferences(DEFAULT_PROFILE_PREFS, Context.MODE_PRIVATE)
+            if (marker.getBoolean(DEFAULT_PROFILE_APPLIED_KEY, false)) return@runCatching false
+            if (context.settingsDataStore.data.first().asMap().isNotEmpty()) {
+                marker.edit().putBoolean(DEFAULT_PROFILE_APPLIED_KEY, true).apply()
+                return@runCatching false
+            }
+            val profile = context.assets.open(DEFAULT_PROFILE_ASSET).use { input ->
+                decodeProfile(input.bufferedReader(Charsets.UTF_8).readText())
+            }
+            SettingsManager.applyShareableSettingsSnapshot(
+                context = context,
+                settings = flattenSettingsShareSections(profile.sections)
+                    .filterKeys { it !in PRIVATE_DEFAULT_PROFILE_KEYS },
+            )
+            SettingsManager.markHomeVisualDefaultsCurrent(context)
+            marker.edit().putBoolean(DEFAULT_PROFILE_APPLIED_KEY, true).apply()
+            true
+        }
     }
 
     suspend fun createExportArtifact(
@@ -265,7 +305,67 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
             }
         }
 
+    override suspend fun listSavedProfiles(): Result<List<SavedSettingsProfile>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                savedProfilesDirectory.listFiles()
+                    .orEmpty()
+                    .filter { it.isFile && it.extension == "json" }
+                    .mapNotNull { file ->
+                        runCatching {
+                            val profile = decodeProfile(file.readText(Charsets.UTF_8))
+                            SavedSettingsProfile(
+                                name = profile.profileName,
+                                fileName = file.name,
+                                exportedAtIso = profile.exportedAtIso,
+                            )
+                        }.getOrNull()
+                    }
+                    .sortedByDescending { it.exportedAtIso }
+            }
+        }
+
+    override suspend fun saveCurrentProfile(name: String): Result<SavedSettingsProfile> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalizedName = name.trim().take(80).ifBlank { error("配置名不能为空") }
+                val artifact = createExportArtifact(
+                    profileName = normalizedName,
+                    includeDeviceDebug = false,
+                )
+                val fileName = "${sanitizeProfileFileName(normalizedName)}-${System.currentTimeMillis()}.json"
+                savedProfilesDirectory.mkdirs()
+                File(savedProfilesDirectory, fileName).writeText(artifact.json, Charsets.UTF_8)
+                SavedSettingsProfile(
+                    name = normalizedName,
+                    fileName = fileName,
+                    exportedAtIso = artifact.profile.exportedAtIso,
+                )
+            }
+        }
+
+    override suspend fun restoreSavedProfile(
+        profile: SavedSettingsProfile,
+    ): Result<SettingsShareApplyResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val file = File(savedProfilesDirectory, profile.fileName)
+            require(file.parentFile?.canonicalFile == savedProfilesDirectory.canonicalFile) {
+                "无效的配置文件"
+            }
+            val saved = decodeProfile(file.readText(Charsets.UTF_8))
+            SettingsManager.applyShareableSettingsSnapshot(
+                context = context,
+                settings = flattenSettingsShareSections(saved.sections),
+            )
+        }
+    }
+
     private fun decodeProfile(rawJson: String): SettingsShareProfile {
         return json.decodeFromString(SettingsShareProfile.serializer(), rawJson)
     }
+
+    private fun sanitizeProfileFileName(name: String): String = name
+        .replace(Regex("[^\\p{L}\\p{N}_-]+"), "_")
+        .trim('_')
+        .ifBlank { "profile" }
 }

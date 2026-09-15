@@ -33,7 +33,7 @@ class MiuixVideoCardNavTransitionTest {
         val entering = resolveVideoHeroNavMotion(spec, false)
         val returning = resolveVideoHeroNavMotion(spec, true)
         assertEquals(360, (entering.programmatic as NavSettleSpec.Tween).durationMillis)
-        assertEquals(310, (returning.programmatic as NavSettleSpec.Tween).durationMillis)
+        assertEquals(299, (returning.programmatic as NavSettleSpec.Tween).durationMillis)
         assertEquals(spec.commitStiffness, (returning.commit as NavSettleSpec.Spring).stiffness)
         assertEquals(spec.cancelStiffness, (returning.cancel as NavSettleSpec.Spring).stiffness)
         assertEquals(1f, (returning.commit as NavSettleSpec.Spring).dampingRatio)

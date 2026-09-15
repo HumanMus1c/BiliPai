@@ -102,15 +102,64 @@ class SearchChromePolicyTest {
     }
 
     @Test
+    fun `search header blur requires the preference and a usable source`() {
+        assertFalse(
+            shouldUseSearchTopBarHeaderBlur(
+                headerBlurRequested = false,
+                hazeSourceEnabled = true,
+                globalWallpaperVisible = false
+            )
+        )
+        assertFalse(
+            shouldUseSearchTopBarHeaderBlur(
+                headerBlurRequested = true,
+                hazeSourceEnabled = false,
+                globalWallpaperVisible = false
+            )
+        )
+        assertTrue(
+            shouldUseSearchTopBarHeaderBlur(
+                headerBlurRequested = true,
+                hazeSourceEnabled = true,
+                globalWallpaperVisible = false
+            )
+        )
+    }
+
+    @Test
+    fun `disabled top effects select an opaque search chrome independently of liquid glass`() {
+        assertTrue(
+            shouldUseSearchSolidTopChrome(
+                headerBlurRequested = false,
+                progressiveBlurRequested = false,
+            )
+        )
+        assertFalse(
+            shouldUseSearchSolidTopChrome(
+                headerBlurRequested = true,
+                progressiveBlurRequested = false,
+            )
+        )
+        assertFalse(
+            shouldUseSearchSolidTopChrome(
+                headerBlurRequested = false,
+                progressiveBlurRequested = true,
+            )
+        )
+    }
+
+    @Test
     fun `global wallpaper disables search header blur`() {
         assertFalse(
             shouldUseSearchTopBarHeaderBlur(
+                headerBlurRequested = true,
                 hazeSourceEnabled = true,
                 globalWallpaperVisible = true
             )
         )
         assertTrue(
             shouldUseSearchTopBarHeaderBlur(
+                headerBlurRequested = true,
                 hazeSourceEnabled = true,
                 globalWallpaperVisible = false
             )

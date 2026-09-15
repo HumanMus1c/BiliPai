@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.ui
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,9 +12,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
 import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
 import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
+import com.android.purebilibili.core.ui.resolveTopChromeRenderMode
+import com.android.purebilibili.core.ui.TopChromeRenderMode
 
 /** List pages keep their viewport full height and apply scaffold insets as scroll content padding. */
 @Composable
@@ -30,25 +39,56 @@ internal fun ImmersiveAppScaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val config = LocalAppThemeConfig.current
+    val lowBlurBudget = isLowBlurBudgetForced()
+    val headerRequested = config.headerBlurEnabled && topBar != null
+    val progressiveRequested = config.progressiveTopBlurEnabled && !headerRequested && topBar != null
+    val hazeState = if (
+        headerRequested &&
+        !lowBlurBudget &&
+        shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)
+    ) {
+        rememberRecoverableHazeState(initialBlurEnabled = true)
+    } else {
+        null
+    }
+    val hazeReady = hazeState != null && blurContentReady && recoverableBlurEnabled(hazeState)
     val progressive = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = config.progressiveTopBlurEnabled && !config.headerBlurEnabled && topBar != null,
+        enabled = progressiveRequested,
         hasBackdrop = true,
-    ) && !isLowBlurBudgetForced()
+    ) && !lowBlurBudget
     // Keep recording while skeleton/loading content is shown. When the real content becomes
     // eligible, the already-warm backdrop can be published in the same composition instead of
     // making chrome briefly fall back while a new source records its first frame.
     val source = if (progressive) rememberChromeBackdropSource() else null
     val backdrop = source?.takeIf { blurContentReady && it.isReady }?.backdrop
-    val blurActive = progressive && backdrop != null
+    val renderMode = resolveTopChromeRenderMode(
+        headerBlurRequested = headerRequested,
+        progressiveBlurRequested = progressiveRequested,
+        hazeAvailable = hazeReady,
+        progressiveAvailable = backdrop != null,
+    )
+    val hazeActive = renderMode == TopChromeRenderMode.HAZE
+    val progressiveActive = renderMode == TopChromeRenderMode.PROGRESSIVE
+    val blurActive = hazeActive || progressiveActive
     AppScaffold(
         modifier = modifier,
         topBar = {
             if (topBar != null) {
                 BiliPaiImmersiveTopBar(
-                    backdrop = backdrop,
-                    enabled = blurActive,
+                    backdrop = backdrop.takeIf { progressiveActive },
+                    enabled = progressiveActive,
+                    headerBlurActive = hazeActive,
                     modifier = Modifier.background(
                         if (blurActive) Color.Transparent else globalWallpaperAwareChromeColor(containerColor)
+                    ).then(
+                        if (hazeActive && hazeState != null) {
+                            Modifier.unifiedBlur(
+                                hazeState = hazeState,
+                                surfaceType = BlurSurfaceType.HEADER,
+                            )
+                        } else {
+                            Modifier
+                        }
                     ),
                     content = topBar,
                 )
@@ -64,6 +104,7 @@ internal fun ImmersiveAppScaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .then(source?.modifier ?: Modifier)
+                .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier)
                 .globalWallpaperAwareBackground(containerColor),
         ) {
             content(padding)

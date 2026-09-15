@@ -9,6 +9,41 @@ import org.junit.Test
 class BangumiUiPolicyTest {
 
     @Test
+    fun `landscape natural cover only enters fullscreen after user request`() {
+        assertEquals(
+            false,
+            resolveBangumiFullscreen(
+                isLandscape = true,
+                isTablet = false,
+                usesInWindowFullscreen = true,
+                userRequestedFullscreen = false,
+            )
+        )
+        assertEquals(
+            true,
+            resolveBangumiFullscreen(
+                isLandscape = true,
+                isTablet = false,
+                usesInWindowFullscreen = true,
+                userRequestedFullscreen = true,
+            )
+        )
+    }
+
+    @Test
+    fun `portrait natural phone keeps landscape driven fullscreen`() {
+        assertEquals(
+            true,
+            resolveBangumiFullscreen(
+                isLandscape = true,
+                isTablet = false,
+                usesInWindowFullscreen = false,
+                userRequestedFullscreen = false,
+            )
+        )
+    }
+
+    @Test
     fun `cover badge on light gold uses dark label`() {
         val colors = resolveBangumiCoverBadgeColors(
             primary = Color(0xFFE8C9A0),

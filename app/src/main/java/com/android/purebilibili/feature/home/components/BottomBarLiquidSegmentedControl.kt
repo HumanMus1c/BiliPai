@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppNativeTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.MiuixNonGlassTabItemWidthMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -403,6 +404,7 @@ fun BottomBarLiquidSegmentedControl(
     longPressDragSelectionEnabled: Boolean = false,
     preferInlineContentStyle: Boolean = false,
     forceEqualWidth: Boolean = false,
+    equalizeMiuixNonGlassItemWidths: Boolean = false,
     miuixBackdrop: MiuixBackdrop? = null,
     tapPressRefractionEnabled: Boolean = true,
     containerColorOverride: Color? = null,
@@ -461,6 +463,11 @@ fun BottomBarLiquidSegmentedControl(
             minTabWidth = itemWidth ?: AppChromeSizeTokens.MinimumTouchTarget,
             allowLabelOverflow = allowNativeLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
+            miuixNonGlassItemWidthMode = if (equalizeMiuixNonGlassItemWidths) {
+                MiuixNonGlassTabItemWidthMode.EQUAL_TO_LONGEST_LABEL
+            } else {
+                MiuixNonGlassTabItemWidthMode.CONTENT
+            },
         )
         return
     }

@@ -51,6 +51,9 @@ internal fun LinkedBottomDock(
     glassEnabled: Boolean,
     liquidGlassTuning: LiquidGlassTuning,
     iconStyle: SharedFloatingBottomBarIconStyle,
+    navigationItemCount: Int,
+    navigationLabelMode: Int,
+    navigationMinEdgePadding: androidx.compose.ui.unit.Dp,
     nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)?,
     modifier: Modifier = Modifier,
     navigationContent: @Composable () -> Unit,
@@ -188,7 +191,7 @@ internal fun LinkedBottomDock(
             }
         },
     ) { children, constraints ->
-        val width = constraints.maxWidth.coerceAtMost(600.dp.roundToPx())
+        val maximumWidth = constraints.maxWidth.coerceAtMost(600.dp.roundToPx())
         val button = 56.dp.roundToPx()
         val barHeight = 64.dp.roundToPx()
         val controlHeight = 56.dp.roundToPx()
@@ -196,13 +199,40 @@ internal fun LinkedBottomDock(
         val searchHeight = button
         val gap = 8.dp.roundToPx()
         val progress = merge.value.coerceIn(0f, 1f)
+        val preferredNavigationWidth = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = maximumWidth.toDp(),
+            itemCount = navigationItemCount,
+            minEdgePadding = navigationMinEdgePadding,
+            labelMode = navigationLabelMode,
+            cornerRadius = 32.dp,
+        ).roundToPx()
+        val reservedSearchWidth = if (searchEnabled) button + gap else 0
+        val expandedNavigationWidth = preferredNavigationWidth.coerceAtMost(
+            (maximumWidth - reservedSearchWidth).coerceAtLeast(0)
+        )
         val geometry = resolveLinkedDockGeometry(
-            width, button, barHeight, gap, hasAudio, searchEnabled, progress, search.value,
+            maximumWidth, button, barHeight, gap, hasAudio, searchEnabled, progress, search.value,
         )
         val top = geometry.top
         val searchWidth = geometry.searchWidth
         val audioWidth = geometry.audioWidth
-        val navWidth = (width - (if (searchEnabled) button + gap else 0)).coerceAtLeast(0)
+        val navWidth = expandedNavigationWidth.coerceAtMost(maximumWidth)
+        val navigationX = resolveLinkedDockNavigationX(
+            maximumWidth = maximumWidth,
+            navigationWidth = navWidth,
+            button = button,
+            gap = gap,
+            searchEnabled = searchEnabled,
+        )
+        val searchX = resolveLinkedDockSearchX(
+            maximumWidth = maximumWidth,
+            navigationWidth = navWidth,
+            searchWidth = searchWidth,
+            button = button,
+            gap = gap,
+            mergeProgress = progress,
+            searchProgress = search.value,
+        )
         val nav = children[0].measure(Constraints.fixed(navWidth, barHeight))
         val first = children[1].measure(Constraints.fixed(button, controlHeight))
         val audio = children[2].measure(
@@ -210,8 +240,8 @@ internal fun LinkedBottomDock(
         )
         val searchBox = children[3].measure(Constraints.fixed(searchWidth, searchHeight))
         layout(constraints.maxWidth, geometry.height) {
-            val left = (constraints.maxWidth - width) / 2
-            if (progress < 0.999f) nav.placeRelative(left, top)
+            val left = (constraints.maxWidth - maximumWidth) / 2
+            if (progress < 0.999f) nav.placeRelative(left + navigationX, top)
             if (progress > 0.001f) first.placeRelative(left, top + (barHeight - controlHeight) / 2)
             if (hasAudio) {
                 audio.placeRelative(
@@ -220,7 +250,7 @@ internal fun LinkedBottomDock(
                 )
             }
             searchBox.placeRelative(
-                left + width - searchWidth,
+                left + searchX,
                 top + (barHeight - searchHeight) / 2,
             )
         }

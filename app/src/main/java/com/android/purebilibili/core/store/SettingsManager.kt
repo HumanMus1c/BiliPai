@@ -63,6 +63,7 @@ import com.android.purebilibili.feature.video.ui.gesture.applyHorizontalTwoFinge
 import com.android.purebilibili.feature.video.ui.gesture.applyVerticalTwoFingerSpeedToggle
 import com.android.purebilibili.core.util.ENHANCED_DIAGNOSTIC_LOG_PREF_KEY
 import com.android.purebilibili.core.util.ENHANCED_DIAGNOSTIC_LOG_PREFS_NAME
+import com.android.purebilibili.core.util.isLargeScreenOrFoldableConfiguration
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import kotlinx.coroutines.Dispatchers
@@ -1513,6 +1514,9 @@ object SettingsManager {
     // 实时画面转场：SDR 用 TextureView 一镜到底；HDR 仍 SurfaceView（不降画质），morph 走封面
     private val KEY_LIVE_SURFACE_CARD_TRANSITION_ENABLED =
         booleanPreferencesKey("live_surface_card_transition_enabled")
+    // 直播间 SC 醒目留言浮层：默认开启；关闭弹幕时一律隐藏，此处提供独立开关
+    private val KEY_LIVE_SUPER_CHAT_FLASH_ENABLED =
+        booleanPreferencesKey("live_super_chat_flash_enabled")
     private val KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED =
         booleanPreferencesKey("video_transition_realtime_blur_enabled")
     private val KEY_VIDEO_SHARED_TRANSITION_SPEED =
@@ -1712,7 +1716,7 @@ object SettingsManager {
             homeFeedCardStyle = HomeFeedCardStyle.fromValue(
                 preferences[KEY_HOME_FEED_CARD_STYLE] ?: HomeFeedCardStyle.BILIPAI.value
             ),
-            homeHeroCarouselEnabled = preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: true,
+            homeHeroCarouselEnabled = preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: false,
             homeHeroCarouselAutoplayEnabled =
                 preferences[KEY_HOME_HERO_CAROUSEL_AUTOPLAY_ENABLED] ?: false,
             cardAnimationEnabled = preferences[KEY_CARD_ANIMATION_ENABLED] ?: false,
@@ -2983,7 +2987,7 @@ object SettingsManager {
 
     fun getHomeHeroCarouselEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { preferences ->
-            preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: true
+            preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: false
         }
 
     suspend fun setHomeHeroCarouselEnabled(context: Context, value: Boolean) {
@@ -3039,6 +3043,17 @@ object SettingsManager {
     suspend fun setLiveSurfaceCardTransitionEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_LIVE_SURFACE_CARD_TRANSITION_ENABLED] = value
+        }
+    }
+
+    /** 默认开启：SC 浮层跟随弹幕开关显示；关闭后即使弹幕开启也不再弹出 SC 卡片。 */
+    fun getLiveSuperChatFlashEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_LIVE_SUPER_CHAT_FLASH_ENABLED] ?: true }
+
+    suspend fun setLiveSuperChatFlashEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIVE_SUPER_CHAT_FLASH_ENABLED] = value
         }
     }
 
@@ -5173,6 +5188,13 @@ object SettingsManager {
         }
     }
 
+    /** Marks the bundled first-install profile as having supplied the current visual defaults. */
+    suspend fun markHomeVisualDefaultsCurrent(context: Context) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_VISUAL_DEFAULTS_VERSION] = HOME_VISUAL_DEFAULTS_VERSION
+        }
+    }
+
     // ==========  推荐流 API 类型 ==========
     
     private val KEY_FEED_API_TYPE = intPreferencesKey("feed_api_type")
@@ -6561,8 +6583,8 @@ object SettingsManager {
         return FULLSCREEN_SWIPE_SEEK_OPTIONS.minByOrNull { option -> abs(option - seconds) } ?: 15
     }
 
-    private fun isTabletConfiguration(context: Context): Boolean {
-        return context.resources.configuration.smallestScreenWidthDp >= 600
+    private fun isLargeScreenOrFoldableConfiguration(context: Context): Boolean {
+        return context.isLargeScreenOrFoldableConfiguration()
     }
 
     fun getFullscreenGestureReverse(context: Context): Flow<Boolean> = context.settingsDataStore.data
@@ -6923,7 +6945,7 @@ object SettingsManager {
 
     fun getHorizontalAdaptationEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences ->
-            preferences[KEY_HORIZONTAL_ADAPTATION] ?: isTabletConfiguration(context)
+            preferences[KEY_HORIZONTAL_ADAPTATION] ?: isLargeScreenOrFoldableConfiguration(context)
         }
 
     suspend fun setHorizontalAdaptationEnabled(context: Context, enabled: Boolean) {
@@ -6989,7 +7011,7 @@ object SettingsManager {
     fun getTabletUseSidebar(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences ->
             preferences[KEY_TABLET_NAVIGATION_MODE]
-                ?: defaultTabletUseSidebar(isTabletConfiguration(context))
+                ?: defaultTabletUseSidebar(isLargeScreenOrFoldableConfiguration(context))
         }
 
     fun getSidebarAccountSwitcherEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data

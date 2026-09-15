@@ -6,6 +6,44 @@ import kotlin.test.assertTrue
 
 class LinkedDockPolicyTest {
     @Test
+    fun expandedDockKeepsSearchBesideActualNavigationWidth() {
+        assertEquals(
+            196,
+            resolveLinkedDockNavigationX(
+                maximumWidth = 600,
+                navigationWidth = 144,
+                button = 56,
+                gap = 8,
+                searchEnabled = true,
+            ),
+        )
+        assertEquals(
+            348,
+            resolveLinkedDockSearchX(
+                maximumWidth = 600,
+                navigationWidth = 144,
+                searchWidth = 56,
+                button = 56,
+                gap = 8,
+                mergeProgress = 0f,
+                searchProgress = 0f,
+            ),
+        )
+        assertEquals(
+            544,
+            resolveLinkedDockSearchX(
+                maximumWidth = 600,
+                navigationWidth = 144,
+                searchWidth = 56,
+                button = 56,
+                gap = 8,
+                mergeProgress = 1f,
+                searchProgress = 0f,
+            ),
+        )
+    }
+
+    @Test
     fun globalCollapseRequestUsesCompactPlaybackPhaseWhenAudioIsPresent() {
         assertEquals(
             LinkedDockPhase.Playback,

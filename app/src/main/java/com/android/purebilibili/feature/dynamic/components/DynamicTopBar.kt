@@ -63,6 +63,7 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.Backdrop
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
 import dev.chrisbanes.haze.HazeState
 
 //  动态页面布局模式
@@ -141,17 +142,17 @@ fun DynamicTopBarWithTabs(
     }
     val dockColor = AppSurfaceTokens.surfaceContainerHigh()
 
-    val headerBlurEnabled by SettingsManager
-        .getHeaderBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val progressiveTopBlurEnabled by SettingsManager
-        .getProgressiveTopBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val isProgressiveBlurActive = progressiveTopBlurEnabled
+    val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
+    val headerBlurEnabled = appThemeConfig.headerBlurEnabled
+    val progressiveTopBlurEnabled = appThemeConfig.progressiveTopBlurEnabled
+    val isProgressiveBlurActive = progressiveTopBlurEnabled && !headerBlurEnabled
 
     BiliPaiImmersiveTopBar(
         backdrop = dockBackdrop,
         enabled = isProgressiveBlurActive,
+        headerBlurActive = headerBlurEnabled &&
+            hazeState?.let { recoverableBlurEnabled(it) } == true &&
+            !isProgressiveBlurActive,
         // 横条 + 用户列表可见时，不让顶栏的渐进模糊向下越界盖住 UP 头像。
         // 顶栏自身渐进模糊效果保持不变，仅收敛其向下延伸。
         extendBelowBounds = !(displayMode.isHorizontalUserList() && shouldShowHorizontalUserList),

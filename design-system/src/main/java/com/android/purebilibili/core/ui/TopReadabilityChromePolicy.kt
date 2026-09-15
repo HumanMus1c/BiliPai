@@ -11,6 +11,32 @@ data class TopReadabilityChromeSpec(
     val useHaze: Boolean,
 )
 
+/** The renderer that is actually safe to expose for a top chrome surface. */
+enum class TopChromeRenderMode {
+    SOLID,
+    HAZE,
+    PROGRESSIVE,
+}
+
+/**
+ * Resolve the effective top chrome renderer from requested preferences and runtime readiness.
+ *
+ * Header haze has precedence over the progressive renderer because the two settings are persisted
+ * as mutually exclusive choices. A missing/unsupported source always resolves to SOLID so callers
+ * never make a surface transparent merely because an effect was requested.
+ */
+fun resolveTopChromeRenderMode(
+    headerBlurRequested: Boolean,
+    progressiveBlurRequested: Boolean,
+    hazeAvailable: Boolean,
+    progressiveAvailable: Boolean,
+): TopChromeRenderMode = when {
+    headerBlurRequested && hazeAvailable -> TopChromeRenderMode.HAZE
+    !headerBlurRequested && progressiveBlurRequested && progressiveAvailable ->
+        TopChromeRenderMode.PROGRESSIVE
+    else -> TopChromeRenderMode.SOLID
+}
+
 fun resolveTopReadabilityChromeSpec(
     requestedHeightDp: Int,
     surfaceColor: Color,

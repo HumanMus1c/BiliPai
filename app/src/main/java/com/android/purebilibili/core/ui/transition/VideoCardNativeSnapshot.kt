@@ -3,11 +3,13 @@ package com.android.purebilibili.core.ui.transition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import com.android.purebilibili.core.util.CardPositionManager
+import kotlinx.coroutines.launch
 
 internal const val VIDEO_CARD_FLYING_OVERLAY_COVER_DEPTH = 0.001f
 
@@ -69,8 +71,8 @@ internal fun isNativeVideoCardLayerDrawable(widthPx: Int, heightPx: Int): Boolea
  * Records the stationary list card into a graphics layer so a click can freeze native pixels
  * instead of reconstructing title/spacing on the flying detail entry.
  *
- * [GraphicsLayer.toImageBitmap] is suspend and cannot run from a click callback. Keep the
- * recorded layer and draw it with [androidx.compose.ui.graphics.layer.drawLayer].
+ * The recorded layer can be drawn directly for ordinary cards. Sources that leave composition,
+ * such as the now-playing bar, additionally freeze this layer to a stable bitmap at click time.
  * While the flying overlay covers this card, skip drawing at the list coordinates.
  */
 @Composable
@@ -121,6 +123,17 @@ internal fun captureNativeCoverOverlayLayer(
     )
 }
 
+internal suspend fun captureNativeVideoCardBitmap(
+    layer: GraphicsLayer,
+    expectedSourceKey: String?,
+) {
+    if (!isNativeVideoCardLayerDrawable(layer.size.width, layer.size.height)) return
+    CardPositionManager.recordNativeCardBitmap(
+        bitmap = layer.toImageBitmap(),
+        expectedSourceKey = expectedSourceKey,
+    )
+}
+
 @Composable
 internal fun rememberNativeVideoCardLayer() = rememberGraphicsLayer()
 
@@ -128,12 +141,14 @@ internal class NativeVideoCardSnapshotController(
     val modifier: Modifier,
     val coverOverlayModifier: Modifier,
     val capture: () -> Unit,
+    val freezeToBitmap: () -> Unit,
 )
 
 @Composable
 internal fun rememberNativeVideoCardSnapshotController(key: Any): NativeVideoCardSnapshotController {
     val layer = rememberNativeVideoCardLayer()
     val coverOverlayLayer = rememberNativeVideoCardLayer()
+    val captureScope = rememberCoroutineScope()
     val freezeState = remember(key) { mutableStateOf(false) }
     val bvid = (key as? String).orEmpty()
     return NativeVideoCardSnapshotController(
@@ -151,6 +166,15 @@ internal fun rememberNativeVideoCardSnapshotController(key: Any): NativeVideoCar
             freezeState.value = true
             captureNativeVideoCardImage(layer)
             captureNativeCoverOverlayLayer(coverOverlayLayer)
+        },
+        freezeToBitmap = {
+            val expectedSourceKey = CardPositionManager.lastClickedVideoSourceKey
+            captureScope.launch {
+                captureNativeVideoCardBitmap(
+                    layer = layer,
+                    expectedSourceKey = expectedSourceKey,
+                )
+            }
         },
     )
 }

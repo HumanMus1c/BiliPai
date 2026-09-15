@@ -152,6 +152,8 @@ import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisi
 import com.android.purebilibili.core.ui.animation.DissolvableVideoCard  //  粒子消散动画
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve      // 📳 iOS 风格抖动效果
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
@@ -161,9 +163,10 @@ import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackJankStateValue
-import com.android.purebilibili.core.util.resolveScrollToTopPlan
+import com.android.purebilibili.core.util.animateScrollToTop
 import coil3.imageLoader
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged  //  性能优化：防止重复触发
@@ -448,7 +451,10 @@ fun HomeScreen(
     val latestHomePagerPage by rememberUpdatedState(pagerState.currentPage)
     val latestHomeTopTabEntries by rememberUpdatedState(topTabEntries)
     LaunchedEffect(scrollChannel) {
-        scrollChannel?.receiveAsFlow()?.collectLatest { request ->
+        // A double tap first emits the normal Home reselect, then the stronger refresh request.
+        // Process them sequentially so the second event cannot cancel and restart an active
+        // animateScrollToItem, which otherwise produces a visible stepped return-to-top.
+        scrollChannel?.receiveAsFlow()?.collect { request ->
             withHomeScrollToTopLock {
                 val entry = resolveHomeTopTabEntryOrNull(
                     latestHomeTopTabEntries,
@@ -470,14 +476,7 @@ fun HomeScreen(
 
                         if (!isAtTop) {
                             val listState = requireNotNull(gridState)
-                            val currentIndex = listState.firstVisibleItemIndex
-                            val plan = resolveScrollToTopPlan(currentIndex)
-                            plan.preJumpIndex?.let { preJump ->
-                                if (currentIndex > preJump) {
-                                    listState.scrollToItem(preJump)
-                                }
-                            }
-                            listState.animateScrollToItem(plan.animateTargetIndex)
+                            listState.animateScrollToTop()
                         }
                         val shouldRefresh = request == HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH ||
                             (request == HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH && isAtTop)
@@ -976,11 +975,14 @@ fun HomeScreen(
         isHeaderBlurEnabled || isBottomBarBlurEnabled
     // 首页使用独立 HazeState，避免命中外层全局 source 的祖先过滤规则导致无模糊。
     // 实色路径不创建 source；普通模糊或玻璃路径才承担背景采样成本。
-    val hazeState = if (shouldCaptureHomeHaze) {
+    val hazeState = if (shouldCaptureHomeHaze &&
+        shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
+        !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
+    ) {
         rememberRecoverableHazeState(initialBlurEnabled = true)
     } else {
         null
-    }
+    }?.takeIf { recoverableBlurEnabled(it) }
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     val chromeCategoryStateFlow = remember(viewModel, currentCategory, popularSubCategory) {
         if (currentCategory == HomeCategory.POPULAR) {
@@ -1291,14 +1293,7 @@ fun HomeScreen(
                             viewModel.refresh()
                         } else {
                             val listState = requireNotNull(gridState)
-                            val currentIndex = listState.firstVisibleItemIndex
-                            val plan = resolveScrollToTopPlan(currentIndex)
-                            plan.preJumpIndex?.let { preJump ->
-                                if (currentIndex > preJump) {
-                                    listState.scrollToItem(preJump)
-                                }
-                            }
-                            listState.animateScrollToItem(plan.animateTargetIndex)
+                            listState.animateScrollToTop()
                         }
                     }
                 }
@@ -2397,7 +2392,7 @@ fun HomeScreen(
             },
             onStatusBarDoubleTap = {
                 coroutineScope.launch {
-                    activeGridState?.animateScrollToItem(0)
+                    activeGridState?.animateScrollToTop()
                     revealHomeHeaderNow()
                     globalScrollOffset.floatValue = 0f
                 }

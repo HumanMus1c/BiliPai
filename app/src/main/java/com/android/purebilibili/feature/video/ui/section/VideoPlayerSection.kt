@@ -953,9 +953,9 @@ fun VideoPlayerSection(
     val autoEnterFullscreenEnabled = playerInteractionSettings.autoEnterFullscreenEnabled
     val autoExitFullscreenEnabled = playerInteractionSettings.autoExitFullscreenEnabled
     val autoExitFullscreenMode = playerInteractionSettings.autoExitFullscreenMode
-    val allowPlaybackStateAutoFullscreen = remember(configuration.smallestScreenWidthDp) {
+    val allowPlaybackStateAutoFullscreen = remember(configuration.screenWidthDp) {
         shouldAllowPlaybackStateAutoFullscreen(
-            smallestScreenWidthDp = configuration.smallestScreenWidthDp
+            hasValidWindow = configuration.screenWidthDp > 0
         )
     }
     val playbackCompletionBehavior by com.android.purebilibili.core.store.SettingsManager

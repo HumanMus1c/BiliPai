@@ -1,6 +1,7 @@
 // 文件路径: feature/watchlater/WatchLaterScreen.kt
 package com.android.purebilibili.feature.watchlater
 
+import android.os.Build
 import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
 import com.android.purebilibili.core.ui.components.resolveVideoListColumns
 import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
@@ -34,6 +35,8 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -664,7 +667,11 @@ fun WatchLaterScreen(
         context = kotlin.coroutines.EmptyCoroutineContext
     )
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
-    val hazeState = if (appThemeConfig.headerBlurEnabled) rememberRecoverableHazeState() else null
+    val hazeState = if (
+        appThemeConfig.headerBlurEnabled &&
+            shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
+            !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
+    ) rememberRecoverableHazeState() else null
     val watchLaterChromeSource = if (appThemeConfig.progressiveTopBlurEnabled || appThemeConfig.liquidGlassEnabled) {
         com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
@@ -672,9 +679,12 @@ fun WatchLaterScreen(
     }
     val watchLaterChromeBackdrop = watchLaterChromeSource?.takeIf { !state.isLoading && it.isReady }?.backdrop
     val progressiveChromeActive = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = appThemeConfig.progressiveTopBlurEnabled,
+        enabled = appThemeConfig.progressiveTopBlurEnabled && !appThemeConfig.headerBlurEnabled,
         hasBackdrop = watchLaterChromeBackdrop != null,
     ) && !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
+    val headerBlurActive = appThemeConfig.headerBlurEnabled &&
+        hazeState?.let { recoverableBlurEnabled(it) } == true &&
+        !progressiveChromeActive
     val topChromePolicy = rememberAppTopChromePolicy()
     val watchLaterFilterChrome = remember(homeSettings, topChromePolicy) {
         resolveHistoryFilterTabChromeSpec(
@@ -728,12 +738,13 @@ fun WatchLaterScreen(
             BiliPaiImmersiveTopBar(
                 backdrop = watchLaterChromeBackdrop,
                 enabled = progressiveChromeActive,
+                headerBlurActive = headerBlurActive,
                 modifier = Modifier.fillMaxWidth()
                     .background(
-                        if (progressiveChromeActive || hazeState != null) Color.Transparent
+                        if (progressiveChromeActive || headerBlurActive) Color.Transparent
                         else AppSurfaceTokens.groupedListContainer()
                     ).then(
-                    if (appThemeConfig.headerBlurEnabled && hazeState != null) Modifier.unifiedBlur(
+                    if (headerBlurActive && hazeState != null) Modifier.unifiedBlur(
                         hazeState = hazeState,
                         surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
                     ) else Modifier

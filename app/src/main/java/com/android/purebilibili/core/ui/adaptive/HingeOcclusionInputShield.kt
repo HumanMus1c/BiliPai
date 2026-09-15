@@ -16,14 +16,34 @@ internal fun resolveOccludingHingeInputBounds(
     containerWidthPx: Int,
     containerHeightPx: Int,
 ): IntRect? {
-    if (!adaptiveInfo.foldingFeature.isOccluding) return null
-    val hingeBounds = adaptiveInfo.foldingFeature.hingeBounds ?: return null
+    return resolveOccludingHingeInputBoundsList(
+        adaptiveInfo = adaptiveInfo,
+        containerWidthPx = containerWidthPx,
+        containerHeightPx = containerHeightPx,
+    ).firstOrNull()
+}
+
+internal fun resolveOccludingHingeInputBoundsList(
+    adaptiveInfo: AppWindowAdaptiveInfo,
+    containerWidthPx: Int,
+    containerHeightPx: Int,
+): List<IntRect> {
+    val hinges = adaptiveInfo.foldingFeature.hinges
+    if (hinges.isNotEmpty()) {
+        return com.android.purebilibili.core.util.resolveOccludingHingeBounds(
+            hinges = hinges,
+            containerWidthPx = containerWidthPx,
+            containerHeightPx = containerHeightPx,
+        )
+    }
+    if (!adaptiveInfo.foldingFeature.isOccluding) return emptyList()
+    val hingeBounds = adaptiveInfo.foldingFeature.hingeBounds ?: return emptyList()
     val left = hingeBounds.left.coerceIn(0, containerWidthPx)
     val top = hingeBounds.top.coerceIn(0, containerHeightPx)
     val right = hingeBounds.right.coerceIn(0, containerWidthPx)
     val bottom = hingeBounds.bottom.coerceIn(0, containerHeightPx)
-    if (right <= left || bottom <= top) return null
-    return IntRect(left = left, top = top, right = right, bottom = bottom)
+    if (right <= left || bottom <= top) return emptyList()
+    return listOf(IntRect(left = left, top = top, right = right, bottom = bottom))
 }
 
 /**
@@ -38,41 +58,45 @@ internal fun HingeOcclusionInputShield(
     modifier: Modifier = Modifier,
     adaptiveInfo: AppWindowAdaptiveInfo = LocalAppWindowAdaptiveInfo.current,
 ) {
-    if (!adaptiveInfo.foldingFeature.isOccluding || adaptiveInfo.foldingFeature.hingeBounds == null) {
+    val occludingHingeCount = adaptiveInfo.foldingFeature.hinges.count { hinge -> hinge.isOccluding }
+        .coerceAtLeast(if (adaptiveInfo.foldingFeature.isOccluding) 1 else 0)
+    if (occludingHingeCount <= 0) {
         return
     }
 
     Layout(
         modifier = modifier,
         content = {
-            Box(
-                modifier = Modifier.pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { change ->
-                                change.consume()
+            repeat(occludingHingeCount) {
+                Box(
+                    modifier = Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { change ->
+                                    change.consume()
+                                }
                             }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            }
         },
     ) { measurables, constraints ->
         val containerWidth = constraints.maxWidth
         val containerHeight = constraints.maxHeight
-        val exclusionBounds = resolveOccludingHingeInputBounds(
+        val exclusionBounds = resolveOccludingHingeInputBoundsList(
             adaptiveInfo = adaptiveInfo,
             containerWidthPx = containerWidth,
             containerHeightPx = containerHeight,
         )
-        val shieldWidth = exclusionBounds?.width ?: 0
-        val shieldHeight = exclusionBounds?.height ?: 0
-        val shield = measurables.single().measure(
-            Constraints.fixed(width = shieldWidth, height = shieldHeight),
-        )
+        val shields = measurables.zip(exclusionBounds) { measurable, bounds ->
+            measurable.measure(
+                Constraints.fixed(width = bounds.width, height = bounds.height),
+            ) to bounds
+        }
 
         layout(containerWidth, containerHeight) {
-            exclusionBounds?.let { bounds ->
+            shields.forEach { (shield, bounds) ->
                 shield.place(x = bounds.left, y = bounds.top)
             }
         }

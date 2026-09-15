@@ -164,6 +164,11 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
 
         //  [关键] 必须在 super.onCreate() 之前设置！
         // 这样系统在初始化时就能读取到正确的夜间模式配置
+        // 新用户默认设置必须先于主题读取应用，避免首屏短暂显示旧默认值。
+        runBlocking(Dispatchers.IO) {
+            com.android.purebilibili.feature.settings.share.SettingsShareService(this@PureApplication)
+                .applyBundledDefaultIfNeeded()
+        }
         applyThemePreference()
         
         super.onCreate()
@@ -197,7 +202,6 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
                 SettingsManager.ensureHomeVisualDefaults(this@PureApplication)
             }
         }
-
         startupOrchestrator.runImmediate(::runStartupTask)
         startupOrchestrator.scheduleDeferred(::runStartupTask)
     }

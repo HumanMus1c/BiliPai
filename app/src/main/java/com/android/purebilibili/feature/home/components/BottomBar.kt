@@ -3224,6 +3224,9 @@ private fun BiliPaiFloatingBottomBar(
             glassEnabled = glassEnabled && !forceLowBlurBudget,
             liquidGlassTuning = liquidGlassTuning,
             iconStyle = iconStyle,
+            navigationItemCount = visibleItems.size + if (isTablet && onToggleSidebar != null) 1 else 0,
+            navigationLabelMode = labelMode,
+            navigationMinEdgePadding = tuning.outerHorizontalPaddingDp.dp,
             nowPlayingContent = nowPlayingContent,
             modifier = modifier,
             navigationContent = {

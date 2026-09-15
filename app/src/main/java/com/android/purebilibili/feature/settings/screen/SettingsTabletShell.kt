@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.settings.screen
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarDefaults
 import com.android.purebilibili.core.ui.components.AppNavigationDrawerItem
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
@@ -40,6 +42,12 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
+import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
 import com.android.purebilibili.feature.home.components.shouldUseBiliPaiProgressiveTopBlur
@@ -130,12 +138,30 @@ fun SettingsTabletShell(
                     hasBackdrop = true,
                 ) && !isLowBlurBudgetForced()
                 val tabletChromeBackdrop = if (progressive) rememberLayerBackdrop() else null
+                val tabletHazeState = if (
+                    config.headerBlurEnabled && !progressive &&
+                        shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)
+                ) rememberRecoverableHazeState() else null
+                val tabletHazeReady = tabletHazeState?.let { recoverableBlurEnabled(it) } == true
                 BiliPaiImmersiveTopBar(
                     backdrop = tabletChromeBackdrop,
                     enabled = progressive,
+                    headerBlurActive = tabletHazeReady,
                 ) {
                     AppTopBar(
                         title = stringResource(R.string.settings_title),
+                        modifier = if (tabletHazeReady) Modifier.unifiedBlur(
+                            hazeState = requireNotNull(tabletHazeState),
+                            surfaceType = BlurSurfaceType.HEADER,
+                        ) else Modifier,
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = if (progressive || tabletHazeReady) {
+                                androidx.compose.ui.graphics.Color.Transparent
+                            } else {
+                                AppSurfaceTokens.groupedListContainer()
+                            },
+                            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        ),
                         navigationIcon = {
                             AppIconButton(onClick = onBack) {
                                 AppIcon(
@@ -148,14 +174,15 @@ fun SettingsTabletShell(
                 }
                 Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .then(
+                    .weight(1f)
+                    .then(
                             if (tabletChromeBackdrop != null) {
                                 Modifier.layerBackdrop(tabletChromeBackdrop)
                             } else {
                                 Modifier
                             }
                         )
+                        .then(if (tabletHazeReady) Modifier.hazeSourceCompat(requireNotNull(tabletHazeState)) else Modifier)
                         .padding(
                             horizontal = layoutPolicy.masterPanePaddingDp.dp,
                             vertical = 8.dp,

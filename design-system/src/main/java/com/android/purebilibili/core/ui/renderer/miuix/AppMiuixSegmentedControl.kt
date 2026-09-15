@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,6 +33,7 @@ import com.android.purebilibili.core.ui.components.resolveAppMiuixSegmentedColor
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionIndex
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColor
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
+import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
 import com.android.purebilibili.core.ui.resolveRoundedControlVisualGeometry
 import com.android.purebilibili.core.ui.resolveMiuixNonGlassControlGeometry
 import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
@@ -163,6 +165,7 @@ internal fun <T> AppMiuixTabRow(
     height: Dp? = null,
     modifier: Modifier,
     indicatorPositionProvider: (() -> Float)? = null,
+    equalizeScrollableItemWidths: Boolean = false,
     onSelectionChange: (T) -> Unit,
 ) {
     if (isMiuixNonGlassEnabled()) {
@@ -176,6 +179,7 @@ internal fun <T> AppMiuixTabRow(
             colors = colors,
             height = height,
             modifier = modifier,
+            equalizeScrollableItemWidths = equalizeScrollableItemWidths,
             onSelectionChange = onSelectionChange,
         )
         return
@@ -227,6 +231,7 @@ private fun <T> AppMiuixNonGlassTabs(
     colors: AppSegmentedControlColors,
     height: Dp? = null,
     modifier: Modifier,
+    equalizeScrollableItemWidths: Boolean = false,
     onSelectionChange: (T) -> Unit,
 ) {
     val labels = options.map { it.label }
@@ -255,6 +260,12 @@ private fun <T> AppMiuixNonGlassTabs(
     } else {
         if (scrollable) maxOf(AppChromeSizeTokens.MinimumTouchTarget, minTabWidth) else 0.dp
     }
+    val equalItemWidth = resolveEqualMiuixNonGlassTabItemWidth(
+        longestLabelWidth = with(density) {
+            (labelSizes.maxOfOrNull { it.width } ?: 0).toDp()
+        },
+        minTabWidth = readableWidth,
+    )
     val scrollState = rememberLazyListState()
     LaunchedEffect(selectedIndex, scrollable, scrollState) {
         if (scrollable) scrollState.animateScrollToItem(selectedIndex)
@@ -288,7 +299,11 @@ private fun <T> AppMiuixNonGlassTabs(
                         } else {
                             inactiveContentColor
                         },
-                        modifier = Modifier.widthIn(min = readableWidth),
+                        modifier = if (equalizeScrollableItemWidths) {
+                            Modifier.width(equalItemWidth)
+                        } else {
+                            Modifier.widthIn(min = readableWidth)
+                        },
                         onClick = { onSelectionChange(option.value) },
                     )
                 }

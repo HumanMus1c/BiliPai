@@ -141,6 +141,8 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppBookmarkIcon
 import com.android.purebilibili.core.ui.rememberAppFolderIcon
@@ -301,7 +303,8 @@ fun CommonListScreen(
     var showHistoryBatchDeleteConfirm by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     var showHistoryClearConfirm by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     var pendingHistorySingleDeleteKey by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    val supportsCollapsibleCommonListHeader = historyViewModel != null || favoriteViewModel != null
+    // 收藏页保持完整的导航、搜索和筛选栏；折叠后会在首个收藏夹上方留下大块空洞。
+    val supportsCollapsibleCommonListHeader = historyViewModel != null
     val visibleHistoryItems = remember(state.items, historyContentFilter, historyViewModel) {
         if (historyViewModel == null) {
             state.items
@@ -814,11 +817,13 @@ fun CommonListScreen(
             homeSettings = homeSettings,
         )
     }
-    val isProgressiveTopBlurEnabled by SettingsManager
-        .getProgressiveTopBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    val isProgressiveTopBlurEnabled =
+        com.android.purebilibili.core.ui.LocalAppThemeConfig.current.progressiveTopBlurEnabled
     // 实色列表不创建背景采样；玻璃和普通顶栏模糊分别按需保留各自 source。
-    val localHazeState = if (isHeaderBlurEnabled && !isProgressiveTopBlurEnabled) {
+    val localHazeState = if (isHeaderBlurEnabled &&
+        shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT) &&
+        !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
+    ) {
         com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
     } else {
         null
@@ -874,7 +879,7 @@ fun CommonListScreen(
         globalWallpaperVisible = globalWallpaperVisible
     )
     val headerBackgroundColor = resolveGlobalWallpaperChromeColor(
-        requestedColor = AppSurfaceTokens.surface().copy(
+        requestedColor = AppSurfaceTokens.groupedListContainer().copy(
             alpha = if (isHeaderBlurEnabled) headerBackgroundAlpha else 1f
         ),
         defaultBackgroundColor = AppSurfaceTokens.background(),
@@ -884,10 +889,13 @@ fun CommonListScreen(
 
     // 决定顶栏背景 (使用私有的 localHazeState)
     val progressiveHeaderRequested = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = isProgressiveTopBlurEnabled,
+        enabled = isProgressiveTopBlurEnabled && !isHeaderBlurEnabled,
         hasBackdrop = true,
     ) && !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
     val useProgressiveHeaderBlur = progressiveHeaderRequested && commonListChromeBackdrop != null
+    val headerBlurActive = shouldUseHeaderLocalBlur &&
+        localHazeState?.let { recoverableBlurEnabled(it) } == true &&
+        !useProgressiveHeaderBlur
     val commonListScrollUnderHeader = shouldScrollCommonListUnderHeader(
         isHistoryPage = historyViewModel != null,
         headerCollapseEnabled = commonListHeaderCollapseEnabled,
@@ -898,11 +906,11 @@ fun CommonListScreen(
     } else if (historyUsesFloatingLiquidDocks) {
         // 悬浮 Dock 必须直接采样下方列表；整块顶栏背景会把动态折射退化成纯色壳。
         Modifier.fillMaxWidth()
-    } else if (shouldUseHeaderLocalBlur && localHazeState != null) {
+    } else if (headerBlurActive) {
         Modifier
             .fillMaxWidth()
             .unifiedBlur(
-                hazeState = localHazeState,
+                hazeState = requireNotNull(localHazeState),
                 surfaceType = BlurSurfaceType.HEADER
             )
             .background(headerBackgroundColor)
@@ -1325,6 +1333,7 @@ fun CommonListScreen(
             BiliPaiImmersiveTopBar(
                 backdrop = commonListChromeBackdrop,
                 enabled = useProgressiveHeaderBlur,
+                headerBlurActive = headerBlurActive,
                 modifier = Modifier
                     .zIndex(1f)
                     .align(Alignment.TopCenter)

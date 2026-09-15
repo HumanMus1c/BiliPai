@@ -118,8 +118,8 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 359
-        versionName = "0.2.3-beta.35"
+        versionCode = 362
+        versionName = "0.2.3-beta.36"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -541,6 +541,7 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.window:window-testing:1.5.1")
 }
 
 tasks.register("assembleFast") {

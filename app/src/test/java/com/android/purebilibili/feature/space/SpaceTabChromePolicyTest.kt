@@ -158,7 +158,7 @@ class SpaceTabChromePolicyTest {
     }
 
     @Test
-    fun `secondary switch caps long titles and scrolls only when content overflows`() {
+    fun `secondary switch caps longest title to three visible slots`() {
         val items = listOf(
             SpaceSecondarySwitchItem("video", "视频", SpaceMainTab.CONTRIBUTION),
             SpaceSecondarySwitchItem(
@@ -174,6 +174,8 @@ class SpaceTabChromePolicyTest {
         assertEquals(48, spec.heightDp)
         assertEquals(30, spec.indicatorHeightDp)
         assertEquals(315, spec.itemWidthDp)
+        // A single outlier title must not propagate its estimated width to every
+        // item in the rail. The viewport cap keeps three compact slots visible.
         assertEquals(
             122,
             resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
