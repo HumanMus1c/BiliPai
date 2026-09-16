@@ -6,6 +6,8 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.resolveAppInboxIcon
 import com.android.purebilibili.core.ui.resolveAppSearchIcon
@@ -2197,7 +2199,8 @@ fun HomeHeader(
                 forceLowBlurBudget = forceLowBlurBudget,
                 isViewportSyncEnabled = isTopTabViewportSyncEnabled,
                 maxDockWidthDp = maxDockWidth.value,
-                forceMaterialUnderline = useLegacyHomeTopTabs
+                forceMaterialUnderline = useLegacyHomeTopTabs &&
+                    LocalAppUiStyle.current == AppUiStyle.MATERIAL3
             )
         }
     }

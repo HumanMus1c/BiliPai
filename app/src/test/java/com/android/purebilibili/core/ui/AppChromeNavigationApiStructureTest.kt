@@ -53,6 +53,11 @@ class AppChromeNavigationApiStructureTest {
         assertTrue(miuixBranches.contains("titlePadding = 0.dp"))
         assertTrue(miuixBranches.contains("navigationIconPadding = 0.dp"))
         assertTrue(miuixBranches.contains("actionIconPadding = 0.dp"))
+        val smallBar = miuixBranches.substringAfter("AdaptiveTopAppBarStyle.SMALL")
+            .substringBefore("AdaptiveTopAppBarStyle.CENTERED")
+        assertTrue(smallBar.contains("isMiuixNonGlassEnabled()"))
+        assertTrue(smallBar.contains("MiuixSmallTopAppBar("))
+        assertTrue(smallBar.contains("TopAppBar("))
     }
 
     private fun loadSource(path: String): String {

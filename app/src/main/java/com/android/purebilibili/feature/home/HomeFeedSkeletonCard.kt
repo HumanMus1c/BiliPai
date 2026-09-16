@@ -213,8 +213,7 @@ private fun HomeFeedSkeletonBlock(
 
 /**
  * 首页横幅（Hero Carousel）骨架占位。
- * 与真实横幅 [HomeHeroCarousel] 对齐：垂直 padding、铺满信息流宽度、
- * 平板最大宽度 760dp、宽屏最大宽度 980dp，并按容器宽度选择 16:9 / 2:1 / 21:9 比例、卡片圆角。
+ * 与真实横幅 [HomeHeroCarousel] 对齐：垂直 padding、当前窗口限宽限高、卡片圆角。
  */
 @Composable
 internal fun HomeFeedHeroCarouselSkeleton(
@@ -227,17 +226,27 @@ internal fun HomeFeedHeroCarouselSkeleton(
         pulse = pulse,
         isDarkTheme = isDarkCardTheme
     )
+    val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = AppSpacingTokens.ExtraSmall)
     ) {
-        val carouselWidth = resolveHomeHeroCarouselWidthDp(maxWidth.value)
-        val aspectRatio = resolveHomeHeroCarouselAspectRatio(carouselWidth)
+        val layout = remember(
+            maxWidth,
+            windowSizeClass.widthDp,
+            windowSizeClass.heightDp,
+        ) {
+            resolveHomeHeroCarouselLayout(
+                containerWidthDp = maxWidth.value,
+                windowWidthDp = windowSizeClass.widthDp.value,
+                windowHeightDp = windowSizeClass.heightDp.value,
+            )
+        }
         Box(
             modifier = Modifier
-                .width(carouselWidth.dp)
-                .aspectRatio(aspectRatio)
+                .width(layout.widthDp.dp)
+                .aspectRatio(layout.aspectRatio)
                 .clip(cardShape)
                 .background(blockColor)
                 .align(Alignment.Center)

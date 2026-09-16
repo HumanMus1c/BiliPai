@@ -57,7 +57,7 @@ class SettingsPageBlurPreferenceStructureTest {
             "src/main/java/com/android/purebilibili/feature/settings/ui/SettingsPageScaffold.kt"
         ).readText()
 
-        assertTrue(scaffold.contains("AppUiStyle.MIUIX -> AppSurfaceTokens.surface()"))
+        assertTrue(scaffold.contains("AppUiStyle.MIUIX -> AppSurfaceTokens.chromeBackground()"))
         assertTrue(scaffold.contains("containerColor = if (!topBarBlurActive)"))
         assertTrue(scaffold.contains("Color.Transparent"))
     }

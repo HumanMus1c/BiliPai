@@ -18,8 +18,10 @@ class VideoSettingsPanelActionPolicyTest {
         assertEquals(12.dp, miuixNonGlass.rowVerticalPadding)
         assertEquals(20.dp, miuixNonGlass.iconSize)
         assertEquals(12.dp, miuixNonGlass.iconGap)
+        assertEquals(36.dp, miuixNonGlass.chipHeight)
+        assertEquals(10.dp, miuixNonGlass.chipCornerRadius)
         assertEquals(12.dp, miuixNonGlass.chipHorizontalPadding)
-        assertEquals(8.dp, miuixNonGlass.chipSpacing)
+        assertEquals(9.dp, miuixNonGlass.chipSpacing)
 
         val legacyTonal = resolveVideoSettingsPanelVisualSpec(
             usesTonalContainerTreatment = true,

@@ -94,12 +94,12 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.home.HomeHeroCarouselCardTransform
-import com.android.purebilibili.feature.home.resolveHomeHeroCarouselAspectRatio
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.feature.home.resolveHomeHeroCarouselCardTransform
 import com.android.purebilibili.feature.home.resolveHomeHeroCarouselItemKey
 import com.android.purebilibili.feature.home.resolveHomeHeroCarouselItemOrNull
+import com.android.purebilibili.feature.home.resolveHomeHeroCarouselLayout
 import com.android.purebilibili.feature.home.resolveHomeHeroCarouselPreviewAlpha
-import com.android.purebilibili.feature.home.resolveHomeHeroCarouselWidthDp
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -138,8 +138,20 @@ internal fun HomeHeroCarousel(
             }
             .padding(vertical = AppSpacingTokens.ExtraSmall)
     ) {
-        val carouselWidth = resolveHomeHeroCarouselWidthDp(maxWidth.value).dp
-        val aspectRatio = resolveHomeHeroCarouselAspectRatio(carouselWidth.value)
+        val windowSizeClass = LocalWindowSizeClass.current
+        val carouselLayout = remember(
+            maxWidth,
+            windowSizeClass.widthDp,
+            windowSizeClass.heightDp,
+        ) {
+            resolveHomeHeroCarouselLayout(
+                containerWidthDp = maxWidth.value,
+                windowWidthDp = windowSizeClass.widthDp.value,
+                windowHeightDp = windowSizeClass.heightDp.value,
+            )
+        }
+        val carouselWidth = carouselLayout.widthDp.dp
+        val aspectRatio = carouselLayout.aspectRatio
         HorizontalPager(
             state = pagerState,
             key = { page ->
@@ -149,6 +161,7 @@ internal fun HomeHeroCarousel(
             beyondViewportPageCount = 1,
             modifier = Modifier
                 .width(carouselWidth)
+                .aspectRatio(aspectRatio)
                 .align(Alignment.Center)
                 .verticalPriorityHorizontalPagerSwipe(
                     state = pagerState,

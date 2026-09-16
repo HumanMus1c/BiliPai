@@ -23,6 +23,15 @@ class AppDialogComponentsPolicyTest {
                 uiStyle = AppUiStyle.MIUIX
             )
         )
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/core/ui/AdaptiveDialogComponents.kt"
+        ).takeIf { it.exists() } ?: java.io.File(
+            "design-system/src/main/java/com/android/purebilibili/core/ui/AdaptiveDialogComponents.kt"
+        )
+        val dialogSource = source.readText()
+        assertTrue(dialogSource.contains("isMiuixNonGlassEnabled()"))
+        assertTrue(dialogSource.contains("WindowDialog("))
+        assertTrue(dialogSource.contains("Dialog("))
     }
 
     @Test

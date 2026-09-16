@@ -56,7 +56,7 @@ class ContentLoadingSkeletonStructureTest {
         assertTrue(spaceSkeleton.contains("resolveSpaceAdaptiveLayoutSpec("))
         assertTrue(spaceSkeleton.contains("adaptiveLayoutSpec.contentMaxWidthDp.dp"))
         assertTrue(spaceSkeleton.contains("adaptiveLayoutSpec.useExpandedHeader"))
-        assertTrue(spaceSkeleton.contains("aspectRatio(1125f / 396f)"))
+        assertTrue(spaceSkeleton.contains("resolveSpaceBannerMetrics("))
         assertTrue(spaceSkeleton.contains("GridItemSpan(maxLineSpan)"))
         assertTrue(article.contains("ArticleDetailSkeleton("))
         assertTrue(bangumiDetail.contains("PosterDetailSkeleton("))

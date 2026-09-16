@@ -4,8 +4,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.android.purebilibili.core.theme.AppUiStyle
-import com.android.purebilibili.core.theme.LocalAppUiStyle
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.TiltFeedback
@@ -14,8 +12,8 @@ import top.yukonga.miuix.kmp.utils.pressable
 /**
  * 依据当前系统主题自适应应用 Miuix 官方触控按压反馈。
  *
- * 当处于 [AppUiStyle.MIUIX] 模式时，按压控件会触发 0.94x 下沉微缩与 Folme 物理弹簧回弹；
- * 在 Material 3 模式下保持 No-op，遵循该风格的标准交互指引。
+ * 仅在 Miuix 且液态玻璃关闭时应用 0.94x 下沉微缩与 Folme 回弹。
+ * Material 3 与开玻璃路径保持 No-op。
  *
  * @param enabled 是否开启按压反馈
  * @param feedbackType 反馈效果类型，默认 [PressFeedbackType.Sink]
@@ -28,8 +26,7 @@ fun Modifier.adaptiveMiuixPressFeedback(
     interactionSource: MutableInteractionSource? = null,
 ): Modifier {
     if (!enabled || feedbackType == PressFeedbackType.None) return this
-    val uiStyle = LocalAppUiStyle.current
-    if (uiStyle != AppUiStyle.MIUIX) return this
+    if (!com.android.purebilibili.core.ui.isMiuixNonGlassEnabled()) return this
 
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val feedback = remember(feedbackType) {

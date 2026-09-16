@@ -184,16 +184,24 @@ fun CommentSortFilterBar(
     liquidGlassEffectsEnabled: Boolean = true,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
-    CommentSegmentedControl(
-        items = sortModes.map { it.label },
-        selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-        onScaleChange = { index ->
-            sortModes.getOrNull(index)?.let(onSortModeChange)
-        },
-        modifier = modifier,
-        miuixBackdrop = miuixBackdrop,
-        liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-    )
+    val spec = remember(sortModes.size) {
+        resolveCommentSortSegmentedControlSpec(itemCount = sortModes.size)
+    }
+    Box(
+        modifier = modifier.requiredWidth((spec.itemWidthDp * sortModes.size).dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        CommentSegmentedControl(
+            items = sortModes.map { it.label },
+            selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
+            onScaleChange = { index ->
+                sortModes.getOrNull(index)?.let(onSortModeChange)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            miuixBackdrop = miuixBackdrop,
+            liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
+        )
+    }
 }
 
 /**

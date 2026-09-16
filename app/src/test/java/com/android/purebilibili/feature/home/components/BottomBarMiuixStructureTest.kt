@@ -389,6 +389,7 @@ class BottomBarMiuixStructureTest {
             .substringAfter("private fun MiuixBottomBar(")
             .substringBefore("@Composable\nprivate fun RowScope.MiuixDockedBottomBarItem(")
 
+        assertTrue(miuixRendererSource.contains("showDivider = !sharedLiquidGlassEnabled"))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBar("))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBarItem("))
         assertTrue(miuixRendererSource.contains("colors = MiuixNavigationBarDefaults.navigationBarItemColors("))

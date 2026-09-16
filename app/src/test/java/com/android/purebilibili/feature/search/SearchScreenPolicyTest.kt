@@ -445,6 +445,10 @@ class SearchScreenPolicyTest {
         assertTrue(searchSource.contains("miuixBackdrop = searchChromeBackdrop"))
         assertTrue(searchSource.contains(".layerBackdrop(searchChromeBackdrop)"))
         assertTrue(searchSource.contains("externalPagerMotionEffectsEnabled = true"))
+        val filterBar = searchSource.substringAfter("fun SearchFilterBar(")
+        assertTrue(filterBar.contains("isMiuixNonGlassEnabled()"))
+        assertTrue(filterBar.contains("9.dp"))
+        assertTrue(filterBar.contains("AppSpacingTokens.Large"))
         assertTrue(searchSource.contains("indicatorPositionProvider = {"))
         assertTrue(searchSource.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
         val typeTabRowBody = searchSource

@@ -28,6 +28,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 enum class AppAlertDialogRenderer {
     MATERIAL_ALERT,
@@ -85,26 +86,52 @@ internal fun AdaptiveAlertDialog(
     )) {
         AppAlertDialogRenderer.LOCAL_DIALOG -> {
             val contentLayout = resolveAppCompactContentDialogLayoutPolicy()
-            Dialog(
-                onDismissRequest = onDismissRequest,
-                properties = resolveAppContentDialogProperties(
-                    base = properties,
-                    usePlatformDefaultWidth = contentLayout.usePlatformDefaultWidth,
-                ),
-            ) {
-                Surface(
-                    modifier = modifier.appContentDialogWidth(policy = contentLayout),
-                    shape = shape ?: AppShapes.resolveContainerShape(ContainerLevel.Dialog, uiStyle),
-                    color = containerColor ?: AppSurfaceTokens.cardContainer(),
-                    tonalElevation = tonalElevation ?: 6.dp,
+            val dialogShape = shape ?: AppShapes.resolveContainerShape(
+                level = ContainerLevel.Dialog,
+                uiStyle = uiStyle,
+                liquidGlassEnabled = !isMiuixNonGlassEnabled(),
+            )
+            val dialogColor = containerColor ?: AppSurfaceTokens.cardContainer()
+            val dialogBody: @Composable () -> Unit = {
+                MiuixAlertDialogBody(
+                    icon = icon,
+                    title = title,
+                    text = text,
+                    confirmButton = confirmButton,
+                    dismissButton = dismissButton,
+                )
+            }
+            if (isMiuixNonGlassEnabled()) {
+                WindowDialog(
+                    show = true,
+                    onDismissRequest = onDismissRequest,
+                    maxWidth = contentLayout.maxWidthDp.dp,
                 ) {
-                    MiuixAlertDialogBody(
-                        icon = icon,
-                        title = title,
-                        text = text,
-                        confirmButton = confirmButton,
-                        dismissButton = dismissButton,
-                    )
+                    Surface(
+                        modifier = modifier.fillMaxWidth(),
+                        shape = dialogShape,
+                        color = dialogColor,
+                        tonalElevation = tonalElevation ?: 0.dp,
+                    ) {
+                        dialogBody()
+                    }
+                }
+            } else {
+                Dialog(
+                    onDismissRequest = onDismissRequest,
+                    properties = resolveAppContentDialogProperties(
+                        base = properties,
+                        usePlatformDefaultWidth = contentLayout.usePlatformDefaultWidth,
+                    ),
+                ) {
+                    Surface(
+                        modifier = modifier.appContentDialogWidth(policy = contentLayout),
+                        shape = dialogShape,
+                        color = dialogColor,
+                        tonalElevation = tonalElevation ?: 6.dp,
+                    ) {
+                        dialogBody()
+                    }
                 }
             }
             return

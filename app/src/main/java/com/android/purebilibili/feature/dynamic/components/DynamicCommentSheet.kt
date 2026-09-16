@@ -658,17 +658,23 @@ private fun DynamicCommentSortControl(
     val spec = remember(items.size) {
         resolveDynamicCommentSortControlSpec(itemCount = items.size)
     }
-    DynamicAdaptiveSegmentedControl(
-        items = items,
-        selectedIndex = selectedIndex,
-        onSelected = onSelected,
-        itemWidth = spec.itemWidthDp.dp,
-        height = spec.heightDp.dp,
-        indicatorHeight = spec.indicatorHeightDp.dp,
-        labelFontSize = 13.sp,
-        modifier = modifier.width((spec.itemWidthDp * items.size).dp),
-        backdrop = miuixBackdrop,
-    )
+    Box(
+        modifier = modifier.requiredWidth((spec.itemWidthDp * items.size).dp),
+    ) {
+        DynamicAdaptiveSegmentedControl(
+            items = items,
+            selectedIndex = selectedIndex,
+            onSelected = onSelected,
+            itemWidth = spec.itemWidthDp.dp,
+            height = spec.heightDp.dp,
+            indicatorHeight = spec.indicatorHeightDp.dp,
+            labelFontSize = 13.sp,
+            // Keep the renderer's fillMaxWidth() inside the fixed-width outer box so
+            // the whole latest/hottest control remains aligned to the header's end.
+            modifier = Modifier.fillMaxWidth(),
+            backdrop = miuixBackdrop,
+        )
+    }
 }
 
 internal data class DynamicCommentSortControlSpec(
@@ -678,6 +684,7 @@ internal data class DynamicCommentSortControlSpec(
 )
 
 internal fun resolveDynamicCommentSortControlSpec(itemCount: Int) = DynamicCommentSortControlSpec(
+    // Keep the beta.36 dynamic comment layout: two-option sorting tabs are 66dp each.
     itemWidthDp = if (itemCount >= 4) 56 else 66,
     heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
     indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
@@ -715,18 +722,25 @@ fun DynamicInlineCommentHeader(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        Spacer(modifier = Modifier.weight(1f))
-        DynamicCommentSortControl(
-            items = sortModeLabels,
-            selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-            onSelected = { index ->
-                sortModes.getOrNull(index)?.let(onSortModeChange)
-            },
-            // Null deliberately selects the shared control's mounted local source. Do not
-            // manufacture an unrecorded Backdrop here or sample the LazyColumn containing
-            // this header, which would be invalid/recursive on Xiaomi's native renderer.
-            miuixBackdrop = miuixBackdrop,
-        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            DynamicCommentSortControl(
+                items = sortModeLabels,
+                selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
+                onSelected = { index ->
+                    sortModes.getOrNull(index)?.let(onSortModeChange)
+                },
+                modifier = Modifier.align(Alignment.CenterEnd),
+                // Null deliberately selects the shared control's mounted local source. Do not
+                // manufacture an unrecorded Backdrop here or sample the LazyColumn containing
+                // this header, which would be invalid/recursive on Xiaomi's native renderer.
+                miuixBackdrop = miuixBackdrop,
+            )
+        }
     }
     AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }

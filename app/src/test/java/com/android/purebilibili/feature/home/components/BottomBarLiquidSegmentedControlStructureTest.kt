@@ -11,14 +11,14 @@ import kotlin.test.assertTrue
 
 class BottomBarLiquidSegmentedControlStructureTest {
     @Test
-    fun `popular subcategories force four equal-width tabs`() {
+    fun `popular subcategories use content-sized native tabs`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt"
         )
         val popularControl = source.substringAfter("private fun PopularSubCategorySegmentedControl(")
             .substringBefore("private fun TodayWatchModeSegmentedControl(")
 
-        assertTrue(popularControl.contains("forceEqualWidth = true"))
+        assertTrue(popularControl.contains("contentSizedMiuixNonGlassItems = true"))
         assertTrue(popularControl.contains("contentAlignment = Alignment.Center"))
         assertTrue(popularControl.contains(".widthIn(max = 400.dp)"))
     }
@@ -442,6 +442,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("!homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("AppNativeTabRow("))
         assertTrue(source.contains("allowLabelOverflow = allowNativeLabelOverflow"))
+        assertTrue(source.contains("drawMiuixNonGlassTrack = drawMiuixNonGlassTrack"))
         assertTrue(source.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(source.contains("BottomBarFloatingSegmentedControl("))
         assertTrue(floating.contains("FloatingBottomBar("))
@@ -498,6 +499,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
         )
 
         assertTrue(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(dynamicTopBar.contains("contentAlignment = Alignment.Center"))
+        assertTrue(dynamicTopBar.contains("itemWidth = resolveDynamicTopBarTabItemWidthDp().dp"))
+        assertFalse(dynamicTopBar.contains("fillMaxHeight()"))
         assertFalse(dynamicTopBar.contains("AppNativeTabRow("))
         assertFalse(dynamicTopBar.contains("forceLiquidChrome"))
         assertTrue(dynamicTopBar.contains("allowNativeLabelOverflow = true"))

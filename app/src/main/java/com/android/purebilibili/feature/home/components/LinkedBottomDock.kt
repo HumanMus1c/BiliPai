@@ -211,7 +211,15 @@ internal fun LinkedBottomDock(
             (maximumWidth - reservedSearchWidth).coerceAtLeast(0)
         )
         val geometry = resolveLinkedDockGeometry(
-            maximumWidth, button, barHeight, gap, hasAudio, searchEnabled, progress, search.value,
+            width = maximumWidth,
+            button = button,
+            barHeight = barHeight,
+            gap = gap,
+            hasAudio = hasAudio,
+            searchEnabled = searchEnabled,
+            mergeProgress = progress,
+            searchProgress = search.value,
+            verticalGap = 4.dp.roundToPx(),
         )
         val top = geometry.top
         val searchWidth = geometry.searchWidth

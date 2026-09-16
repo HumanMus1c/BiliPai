@@ -27,7 +27,7 @@ class VideoDetailScreenMethodSizeStructureTest {
             "VideoDetailPlayerTransitionHost.kt",
             "VideoDetailPhoneContent.kt",
             "TabletVideoLayout.kt",
-            "TabletCinemaLayout.kt"
+            "LargeScreenVideoLayout.kt"
         ).forEach { name ->
             val source = loadSource(name)
             assertFalse(source.contains("ViewModel"), "$name must remain ViewModel-free")
@@ -41,7 +41,7 @@ class VideoDetailScreenMethodSizeStructureTest {
         val renderers = listOf(
             "VideoDetailPhoneContent.kt",
             "TabletVideoLayout.kt",
-            "TabletCinemaLayout.kt",
+            "LargeScreenVideoLayout.kt",
             "VideoDetailScreenStateHolder.kt",
         ).joinToString(separator = "\n") { loadSource(it) }
 

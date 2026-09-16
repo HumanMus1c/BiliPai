@@ -71,10 +71,11 @@ internal fun resolveLinkedDockGeometry(
     searchEnabled: Boolean,
     mergeProgress: Float,
     searchProgress: Float,
+    verticalGap: Int = gap,
 ): LinkedDockGeometry {
     val merge = mergeProgress.coerceIn(0f, 1f)
     val search = searchProgress.coerceIn(0f, 1f)
-    val top = ((if (hasAudio) barHeight + gap else 0) * (1f - merge)).roundToInt()
+    val top = ((if (hasAudio) barHeight + verticalGap else 0) * (1f - merge)).roundToInt()
     val searchWidth = if (!searchEnabled) 0 else (
         button + (width - button * (if (hasAudio) 3 else 2) - gap * (if (hasAudio) 2 else 1)) * search
     ).roundToInt().coerceAtLeast(button).coerceAtMost((width - button).coerceAtLeast(0))

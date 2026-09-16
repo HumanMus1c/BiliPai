@@ -169,6 +169,14 @@ internal fun shouldScrollSpaceSecondarySwitch(
     return contentWidthDp > viewportWidthDp
 }
 
+internal fun resolveSpaceSecondarySwitchNonGlassMinTabWidthDp(): Int {
+    return AppChromeSizeTokens.MinimumTouchTarget.value.toInt()
+}
+
+internal fun shouldScrollSpaceSecondarySwitchForNonGlass(itemCount: Int): Boolean {
+    return itemCount > 1
+}
+
 internal fun resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
     preferredItemWidthDp: Int,
     itemCount: Int,

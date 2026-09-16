@@ -105,6 +105,59 @@ internal fun resolveHomeHeroCarouselWidthDp(containerWidthDp: Float): Float {
     }
 }
 
+internal data class HomeHeroCarouselLayout(
+    val widthDp: Float,
+    val heightDp: Float,
+    val aspectRatio: Float,
+)
+
+/**
+ * Desktop/landscape windows keep a cinematic strip instead of a 16:9 poster.
+ * Height is taken from the current window, not the device type, so split-screen
+ * and foldable covers shrink the banner with the available viewport.
+ */
+internal fun resolveHomeHeroCarouselMaxHeightDp(
+    windowWidthDp: Float,
+    windowHeightDp: Float,
+): Float? {
+    if (windowHeightDp <= 0f) return null
+    val landscape = windowWidthDp > windowHeightDp
+    return when {
+        windowHeightDp < 480f -> (windowHeightDp * 0.40f).coerceIn(132f, 188f)
+        landscape -> (windowHeightDp * 0.32f).coerceIn(168f, 248f)
+        else -> null
+    }
+}
+
+internal fun resolveHomeHeroCarouselLayout(
+    containerWidthDp: Float,
+    windowWidthDp: Float,
+    windowHeightDp: Float,
+): HomeHeroCarouselLayout {
+    val widthCap = resolveHomeHeroCarouselWidthDp(containerWidthDp)
+    val aspectRatio = resolveHomeHeroCarouselAspectRatio(widthCap)
+    val unconstrainedHeight = if (aspectRatio > 0f) widthCap / aspectRatio else 0f
+    val maxHeight = resolveHomeHeroCarouselMaxHeightDp(
+        windowWidthDp = windowWidthDp,
+        windowHeightDp = windowHeightDp,
+    )
+    return if (maxHeight != null && unconstrainedHeight > maxHeight) {
+        val height = maxHeight
+        val width = (height * aspectRatio).coerceAtMost(widthCap)
+        HomeHeroCarouselLayout(
+            widthDp = width,
+            heightDp = height,
+            aspectRatio = aspectRatio,
+        )
+    } else {
+        HomeHeroCarouselLayout(
+            widthDp = widthCap,
+            heightDp = unconstrainedHeight,
+            aspectRatio = aspectRatio,
+        )
+    }
+}
+
 internal fun resolveHomeHeroCarouselCardTransform(
     pageOffset: Float
 ): HomeHeroCarouselCardTransform {

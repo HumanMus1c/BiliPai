@@ -24,7 +24,7 @@ data class AppThemeConfig(
     val runtimeVisualGuardEnabled: Boolean = true,
     val nativeMiuixPopupsEnabled: Boolean = true,
     // Matches the persisted default; each application host supplies the observed preference.
-    val liquidGlassEnabled: Boolean = true,
+    val liquidGlassEnabled: Boolean = false,
 )
 
 fun isMiuixNonGlassEnabled(uiStyle: AppUiStyle, liquidGlassEnabled: Boolean): Boolean =

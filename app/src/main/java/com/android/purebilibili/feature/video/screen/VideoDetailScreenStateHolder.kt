@@ -1213,12 +1213,14 @@ internal fun VideoDetailScreenStateHolder(
                 .getHideVideoPageStatusBarSync(context),
             lifecycle = lifecycleOwner.lifecycle
         )
-    val useTabletLayout = (
-        shouldUseTabletVideoLayout(
-            isExpandedScreen = windowSizeClass.isExpandedScreen,
-            isTabletDevice = windowSizeClass.isTablet,
-        ) && windowSizeClass.shouldUseSplitLayout || appWindowAdaptiveInfo.shouldAvoidHinge
-        ) && horizontalAdaptationEnabled
+    val useTabletLayout = horizontalAdaptationEnabled && (
+        appWindowAdaptiveInfo.shouldAvoidHinge ||
+            shouldUseLargeScreenVideoLayout(
+                windowWidthDp = configuration.screenWidthDp.toFloat(),
+                windowHeightDp = configuration.screenHeightDp.toFloat(),
+                horizontalAdaptationEnabled = true,
+            )
+        )
 
     // 🔧 [修复] 追踪用户是否主动请求全屏（点击全屏按钮）
     // 使用 rememberSaveable 确保状态在横竖屏切换时保持
@@ -3719,30 +3721,24 @@ internal fun VideoDetailScreenStateHolder(
                                 forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
                                 predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                                 liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                                paneControlsEnabled = isTransitionFinished,
                             )
                         } else {
-                            // 🖥️ 平板：左右分栏布局（视频+信息 | 评论/推荐）
-                            TabletCinemaLayout(
+                            LargeScreenVideoLayout(
                             playerState = playerState,
                             uiState = uiState,
                             commentState = commentState,
                             engagementState = engagementState,
                             subReplyState = subReplyState,
                             downloadProgress = downloadProgress,
-                            tabletCommentPanelWidthPreset = tabletCommentPanelWidthPreset,
                             commentMemberDecorationsEnabled = commentMemberDecorationsEnabled,
-                            videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
-                            videoNoteEnabled = videoNoteEnabled,
-                            videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                             playbackActions = playbackActions,
                             engagementActions = engagementActions,
                             commentActions = commentActions,
                             configuration = configuration,
                             isVerticalVideo = isVerticalVideo,
                             sleepTimerMinutes = sleepTimerMinutes,
-
                             viewPoints = viewPoints,
-                            pbpProgressData = visiblePbpProgressData,
                             bvid = bvid,
                             coverUrl = coverUrl,
                             onBack = {
@@ -3776,9 +3772,7 @@ internal fun VideoDetailScreenStateHolder(
                                 handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
                             },
 
-                            transitionEnabled = detailChildTransitionEnabled,  //  传递过渡动画开关
-                            danmakuHostActive = !hasCommittedRelatedVideoNavigation,
-                            // [New] Codec & Audio
+                            transitionEnabled = detailChildTransitionEnabled,
                             currentCodec = codecPreference,
                             onCodecChange = { viewModel.setVideoCodec(it) },
                             currentSecondCodec = secondCodecPreference,
@@ -3794,7 +3788,8 @@ internal fun VideoDetailScreenStateHolder(
                             onPlayModeClick = { com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode() },
                             forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
                             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-                            sponsorContributionState = sponsorContributionState,
+                            liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                            paneControlsEnabled = isTransitionFinished,
                             )
                         }
                     } else {
@@ -4822,7 +4817,7 @@ internal fun VideoDetailScreenStateHolder(
                                             }
                                         } else {
                                             VideoDetailSkeleton(
-                                                animated = isTransitionFinished,
+                                                animated = true,
                                             )
                                         }
                                     }

@@ -1168,10 +1168,13 @@ private fun LightweightHomeTopTabs(
                 ).dp
             )
     ) {
-        val wrapDock = wrapDockWidth ?: shouldWrapTopTabDockWidth(
+        val wrapDock = (wrapDockWidth ?: shouldWrapTopTabDockWidth(
             isFloatingStyle = isFloatingStyle,
             hasOuterChromeSurface = hasOuterChromeSurface,
             edgeToEdge = edgeToEdge
+        )) || shouldUseOfficialMiuixHomeTopTabs(
+            uiStyle = LocalAppUiStyle.current,
+            liquidGlassEnabled = isLiquidGlassEnabled,
         )
         // 分栏 dock 最大宽度 = 顶部三控件合计宽度，与外壳共享同一上限。
         val effectiveMaxDockWidth = minOf(maxWidth.value, maxDockWidthDp)

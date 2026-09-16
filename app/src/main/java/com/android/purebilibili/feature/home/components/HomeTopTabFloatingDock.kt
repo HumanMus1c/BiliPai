@@ -65,6 +65,11 @@ internal fun shouldUseOfficialMd3HomeTopToolbar(
     liquidGlassEnabled: Boolean,
 ): Boolean = uiStyle == AppUiStyle.MATERIAL3 && !liquidGlassEnabled
 
+internal fun shouldUseOfficialMiuixHomeTopTabs(
+    uiStyle: AppUiStyle,
+    liquidGlassEnabled: Boolean,
+): Boolean = uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled
+
 /** Uses the exact home bottom-bar width contract, including its screen-edge inset. */
 internal fun resolveHomeTopTabFloatingDockWidth(
     containerWidth: Dp,

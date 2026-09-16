@@ -139,6 +139,7 @@ import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppNativeTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.MiuixNonGlassTabItemWidthMode
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.store.HomeSettings
@@ -157,6 +158,7 @@ import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmented
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.videoCardTitleMaxLines
 import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.feedContentTypography
@@ -174,6 +176,8 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.FavFolder
+import com.android.purebilibili.data.model.response.SeasonArchiveItem
+import com.android.purebilibili.data.model.response.SeriesArchiveItem
 import com.android.purebilibili.data.model.response.DynamicDesc
 import kotlin.math.roundToInt
 import com.android.purebilibili.data.model.response.FollowBangumiItem
@@ -282,12 +286,21 @@ fun SpaceScreen(
 
     val currentSuccessState = uiState as? SpaceUiState.Success
     var contributionVideoLayoutMode by rememberSaveable(mid) {
-        mutableStateOf(SpaceContributionVideoLayoutMode.SINGLE_COLUMN)
+        mutableStateOf(defaultSpaceContributionVideoLayoutMode())
     }
     val nextContributionVideoLayoutMode = toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
     val showContributionVideoMenuActions = currentSuccessState?.let { state ->
         state.tabShellState.selectedTab == SpaceMainTab.CONTRIBUTION &&
             state.selectedSubTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
+    } == true
+    val showContributionLayoutToggle = currentSuccessState?.let { state ->
+        state.tabShellState.selectedTab == SpaceMainTab.CONTRIBUTION &&
+            state.selectedSubTab in setOf(
+                SpaceSubTab.VIDEO,
+                SpaceSubTab.CHARGING_VIDEO,
+                SpaceSubTab.SEASON_VIDEO,
+                SpaceSubTab.SERIES,
+            )
     } == true
     val playAllSpaceVideos: () -> Unit = playAll@{
         val state = currentSuccessState ?: return@playAll
@@ -437,22 +450,9 @@ fun SpaceScreen(
                                                 icon = Icons.Outlined.PlayCircleOutline,
                                                 onClick = playAllSpaceVideos,
                                             ),
-                                            AppWindowAction(
-                                                label = if (
-                                                    contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
-                                                ) {
-                                                    "切换为双列"
-                                                } else {
-                                                    "切换为单列"
-                                                },
-                                                icon = if (
-                                                    contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
-                                                ) {
-                                                    Icons.Outlined.GridView
-                                                } else {
-                                                    Icons.Outlined.ViewAgenda
-                                                },
-                                                onClick = {
+                                            contributionLayoutToggleAction(
+                                                layoutMode = contributionVideoLayoutMode,
+                                                onToggle = {
                                                     contributionVideoLayoutMode =
                                                         nextContributionVideoLayoutMode
                                                 },
@@ -466,6 +466,18 @@ fun SpaceScreen(
                                                         selected = currentSuccessState?.sortOrder == order,
                                                         onClick = { viewModel.selectSortOrder(order) },
                                                     )
+                                                },
+                                            ),
+                                        )
+                                    )
+                                } else if (showContributionLayoutToggle) {
+                                    add(
+                                        listOf(
+                                            contributionLayoutToggleAction(
+                                                layoutMode = contributionVideoLayoutMode,
+                                                onToggle = {
+                                                    contributionVideoLayoutMode =
+                                                        nextContributionVideoLayoutMode
                                                 },
                                             ),
                                         )
@@ -1960,20 +1972,24 @@ private fun SpaceContent(
                         items(
                             items = archives,
                             key = { "season_video_${it.aid}_${it.bvid}" },
-                            span = { GridItemSpan(maxLineSpan) }
+                            span = {
+                                GridItemSpan(
+                                    resolveSpaceContributionVideoGridSpan(
+                                        layoutMode = contributionVideoLayoutMode,
+                                        maxLineSpan = maxLineSpan,
+                                    )
+                                )
+                            }
                         ) { archive ->
-                            SpaceArchiveListItemRow(
-                                title = archive.title,
-                                cover = archive.pic,
-                                duration = FormatUtils.formatDuration(archive.duration),
-                                publishTime = FormatUtils.formatPublishTime(archive.pubdate),
-                                play = archive.stat.view,
-                                secondaryCount = archive.stat.danmaku,
-                                modifier = boundedListModifier,
+                            SpaceContributionArchiveVideoItem(
+                                video = archive.toSpaceVideoItem(),
+                                layoutMode = contributionVideoLayoutMode,
+                                coverAspectRatio = spaceFeedCoverAspectRatio,
+                                boundedListModifier = boundedListModifier,
                                 onClick = { playVideoFromSpace(archive.bvid) },
                                 sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(archive.bvid),
                                 sharedTransitionScope = lazyGridSharedTransitionScope,
-                                animatedVisibilityScope = lazyGridAnimatedVisibilityScope
+                                animatedVisibilityScope = lazyGridAnimatedVisibilityScope,
                             )
                         }
                     }
@@ -2010,20 +2026,24 @@ private fun SpaceContent(
                         items(
                             items = archives,
                             key = { "series_video_${it.aid}_${it.bvid}" },
-                            span = { GridItemSpan(maxLineSpan) }
+                            span = {
+                                GridItemSpan(
+                                    resolveSpaceContributionVideoGridSpan(
+                                        layoutMode = contributionVideoLayoutMode,
+                                        maxLineSpan = maxLineSpan,
+                                    )
+                                )
+                            }
                         ) { archive ->
-                            SpaceArchiveListItemRow(
-                                title = archive.title,
-                                cover = archive.pic,
-                                duration = FormatUtils.formatDuration(archive.duration),
-                                publishTime = FormatUtils.formatPublishTime(archive.pubdate),
-                                play = archive.stat.view,
-                                secondaryCount = archive.stat.danmaku,
-                                modifier = boundedListModifier,
+                            SpaceContributionArchiveVideoItem(
+                                video = archive.toSpaceVideoItem(),
+                                layoutMode = contributionVideoLayoutMode,
+                                coverAspectRatio = spaceFeedCoverAspectRatio,
+                                boundedListModifier = boundedListModifier,
                                 onClick = { playVideoFromSpace(archive.bvid) },
                                 sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(archive.bvid),
                                 sharedTransitionScope = lazyGridSharedTransitionScope,
-                                animatedVisibilityScope = lazyGridAnimatedVisibilityScope
+                                animatedVisibilityScope = lazyGridAnimatedVisibilityScope,
                             )
                         }
                     }
@@ -2329,21 +2349,32 @@ private fun SpaceHeader(
     )
 
     // PiliPlus 风格头部结构：
-    // - hero 背景全宽沉浸延伸至状态栏，按标准 1125:396 (约 2.84:1) 比例完整展示，横向不裁切
+    // - 窄屏 hero 按 1125:396 全宽展示；桌面/横屏窗口把高度钳到约 135dp，与 PiliPlus kHeaderHeight 对齐
     // - 头像 80dp（顶部 24dp 压在背景图上，底部 56dp 伸出背景，带 2dp 边框与认证标）
     // - 头像右侧独立区域：上层 3 项数据统计（粉丝/关注/获赞），下层私信与关注操作按钮
     // - 窄屏信息区位于头像下方；宽屏放入头像与操作区之间
-    val bannerAspectRatio = 1125f / 396f
     val avatarSize = 80.dp
     val avatarBannerOverlap = 24.dp
     val actionsTopMargin = 8.dp
+    val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // The hero is rendered beyond the grid's content padding. Use that exact rendered
         // width for both the banner height and avatar anchor so a wide window cannot create
         // phantom vertical space between them.
         val renderedBannerWidth = maxWidth + outerPadding.coerceAtLeast(0.dp) * 2
-        val bannerTotalHeightDp = renderedBannerWidth / bannerAspectRatio
+        val bannerMetrics = remember(
+            renderedBannerWidth,
+            windowSizeClass.widthDp,
+            windowSizeClass.heightDp,
+        ) {
+            resolveSpaceBannerMetrics(
+                renderedBannerWidthDp = renderedBannerWidth.value,
+                windowWidthDp = windowSizeClass.widthDp.value,
+                windowHeightDp = windowSizeClass.heightDp.value,
+            )
+        }
+        val bannerTotalHeightDp = bannerMetrics.heightDp.dp
         val heroHeight = (bannerTotalHeightDp - chromeTopInset.coerceAtLeast(0.dp))
             .coerceAtLeast(0.dp)
         val avatarTopPadding = (heroHeight - avatarBannerOverlap).coerceAtLeast(0.dp)
@@ -2364,7 +2395,7 @@ private fun SpaceHeader(
                         val horizontalInsetPx = outerPadding.coerceAtLeast(0.dp).roundToPx()
                         val topInsetPx = chromeTopInset.coerceAtLeast(0.dp).roundToPx()
                         val targetWidth = constraints.maxWidth + horizontalInsetPx * 2
-                        val bannerTotalHeightPx = (targetWidth / bannerAspectRatio).roundToInt()
+                        val bannerTotalHeightPx = bannerTotalHeightDp.roundToPx()
                         val visibleHeightPx = (bannerTotalHeightPx - topInsetPx).coerceAtLeast(0)
                         val placeable = measurable.measure(
                             constraints.copy(
@@ -2391,7 +2422,11 @@ private fun SpaceHeader(
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
+                        contentScale = if (bannerMetrics.cropToFill) {
+                            ContentScale.Crop
+                        } else {
+                            ContentScale.FillWidth
+                        },
                         alignment = Alignment.TopCenter,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -2897,10 +2932,14 @@ private fun SpaceSecondarySwitchRow(
                 selectedValue = selectedId,
                 onSelectionChange = onSelect,
                 modifier = Modifier.fillMaxWidth(),
-                scrollable = useScrollableRail,
-                minTabWidth = itemWidth,
+                scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
+                minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
                 compactMiuixWhenTwoOptions = false,
-                allowLabelOverflow = false,
+                // Let the shared renderer derive a readable minimum from the longest
+                // category title; only titles that exceed that estimate are ellipsized.
+                allowLabelOverflow = true,
+                miuixNonGlassItemWidthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
+                contentSizedMiuixNonGlassItems = true,
             )
         }
     }
@@ -3628,6 +3667,88 @@ private fun SpaceNoticeCard(notice: String) {
         )
     }
 }
+
+private fun contributionLayoutToggleAction(
+    layoutMode: SpaceContributionVideoLayoutMode,
+    onToggle: () -> Unit,
+): AppWindowAction {
+    val isSingleColumn = layoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
+    return AppWindowAction(
+        label = if (isSingleColumn) "切换为双列" else "切换为单列",
+        icon = if (isSingleColumn) Icons.Outlined.GridView else Icons.Outlined.ViewAgenda,
+        onClick = onToggle,
+    )
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SpaceContributionArchiveVideoItem(
+    video: SpaceVideoItem,
+    layoutMode: SpaceContributionVideoLayoutMode,
+    coverAspectRatio: Float,
+    boundedListModifier: Modifier,
+    onClick: () -> Unit,
+    sharedTransitionKey: String?,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+) {
+    when (layoutMode) {
+        SpaceContributionVideoLayoutMode.GRID -> {
+            SpaceHomeVideoCard(
+                video = video,
+                progressState = resolveSpaceVideoProgressState(
+                    video = video,
+                    localPositionMs = 0L,
+                    syncedProgress = null,
+                ),
+                coverAspectRatio = coverAspectRatio,
+                onClick = onClick,
+                sharedTransitionKey = sharedTransitionKey,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+        SpaceContributionVideoLayoutMode.SINGLE_COLUMN -> {
+            SpaceArchiveListItemRow(
+                title = video.title,
+                cover = video.pic,
+                duration = video.length,
+                publishTime = FormatUtils.formatPublishTime(video.created),
+                play = video.play.toLong(),
+                secondaryCount = video.comment.toLong(),
+                modifier = boundedListModifier,
+                onClick = onClick,
+                sharedTransitionKey = sharedTransitionKey,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    }
+}
+
+private fun SeasonArchiveItem.toSpaceVideoItem(): SpaceVideoItem = SpaceVideoItem(
+    aid = aid,
+    bvid = bvid,
+    title = title,
+    pic = pic,
+    play = stat.view.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+    comment = stat.reply.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+    length = FormatUtils.formatDuration(duration),
+    created = pubdate,
+    author = author,
+)
+
+private fun SeriesArchiveItem.toSpaceVideoItem(): SpaceVideoItem = SpaceVideoItem(
+    aid = aid,
+    bvid = bvid,
+    title = title,
+    pic = pic,
+    play = stat.view.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+    comment = stat.reply.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+    length = FormatUtils.formatDuration(duration),
+    created = pubdate,
+    author = author,
+)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -4445,10 +4566,15 @@ private fun SpaceHeaderMetricDivider() {
 
 @Composable
 private fun SpaceLoadingFooter() {
+    val footerVertical = if (isMiuixNonGlassEnabled()) {
+        AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall
+    } else {
+        18.dp
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 18.dp),
+            .padding(vertical = footerVertical),
         contentAlignment = Alignment.Center
     ) {
         AdaptiveLoadingIndicator(size = 24.dp)
@@ -4460,10 +4586,17 @@ private fun SpaceSectionEmptyState(
     title: String,
     subtitle: String
 ) {
+    val horizontal = if (isMiuixNonGlassEnabled()) AppSpacingTokens.ExtraLarge else 24.dp
+    val vertical = if (isMiuixNonGlassEnabled()) {
+        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Large
+    } else {
+        42.dp
+    }
+    val titleGap = if (isMiuixNonGlassEnabled()) AppSpacingTokens.Small else 8.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 42.dp),
+            .padding(horizontal = horizontal, vertical = vertical),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppText(
@@ -4472,7 +4605,7 @@ private fun SpaceSectionEmptyState(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(titleGap))
         AppText(
             text = subtitle,
             fontSize = 13.sp,
@@ -4488,10 +4621,17 @@ private fun SpaceErrorSection(
     message: String,
     onRetry: () -> Unit
 ) {
+    val horizontal = if (isMiuixNonGlassEnabled()) AppSpacingTokens.ExtraLarge else 24.dp
+    val vertical = if (isMiuixNonGlassEnabled()) {
+        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Large
+    } else {
+        42.dp
+    }
+    val actionGap = if (isMiuixNonGlassEnabled()) AppSpacingTokens.Medium else 12.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 42.dp),
+            .padding(horizontal = horizontal, vertical = vertical),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppText(
@@ -4499,7 +4639,7 @@ private fun SpaceErrorSection(
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(actionGap))
         AppButton(onClick = onRetry) {
             AppText("重试")
         }

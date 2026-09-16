@@ -39,6 +39,24 @@ class TopTabStylePolicyTest {
                 liquidGlassEnabled = false,
             )
         )
+        assertTrue(
+            shouldUseOfficialMiuixHomeTopTabs(
+                uiStyle = AppUiStyle.MIUIX,
+                liquidGlassEnabled = false,
+            )
+        )
+        assertFalse(
+            shouldUseOfficialMiuixHomeTopTabs(
+                uiStyle = AppUiStyle.MIUIX,
+                liquidGlassEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldUseOfficialMiuixHomeTopTabs(
+                uiStyle = AppUiStyle.MATERIAL3,
+                liquidGlassEnabled = false,
+            )
+        )
 
         val topDock = sourceText(
             "app/src/main/java/com/android/purebilibili/feature/home/components/" +
@@ -47,6 +65,12 @@ class TopTabStylePolicyTest {
         assertTrue(topDock.contains("HorizontalFloatingToolbar("))
         assertTrue(topDock.contains("FilledTonalButton("))
         assertTrue(topDock.contains("FilledTonalIconButton("))
+        val topBar = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+        assertTrue(topBar.contains("shouldUseOfficialMiuixHomeTopTabs("))
+        assertFalse(topBar.contains("AppNativeTabRow("))
+        assertTrue(topBar.contains("showIcon = showIcon"))
+        assertTrue(topBar.contains("showText = showText"))
+        assertTrue(topBar.contains(".align(Alignment.Center)"))
     }
 
     @Test

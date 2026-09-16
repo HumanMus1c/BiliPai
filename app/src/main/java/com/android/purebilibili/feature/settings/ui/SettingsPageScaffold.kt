@@ -169,9 +169,9 @@ internal fun SettingsPageScaffold(
     val hazeReady = hazeState != null
     val topBarBlurActive = progressiveBlurEnabled || hazeReady
     val pageContainerColor = when (LocalAppUiStyle.current) {
-        // Miuix presets keep the page base stable when liquid glass is toggled.
-        // Glass changes chrome rendering only; Miuix Scaffold uses `surface` as its page tone.
-        AppUiStyle.MIUIX -> AppSurfaceTokens.surface()
+        // Miuix page canvas is `background` / chromeBackground so the top bar, split
+        // pane, and list share one tone. Cards stay on surfaceContainer.
+        AppUiStyle.MIUIX -> AppSurfaceTokens.chromeBackground()
         AppUiStyle.MATERIAL3 -> AppSurfaceTokens.groupedListContainer()
     }
 
@@ -207,7 +207,7 @@ internal fun SettingsPageScaffold(
                         },
                         actions = actions,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = if (!topBarBlurActive) {
+                            containerColor = if (!topBarBlurActive || nonGlassMiuix) {
                                 pageContainerColor
                             } else {
                                 Color.Transparent

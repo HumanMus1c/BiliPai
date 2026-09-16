@@ -134,6 +134,7 @@ fun AppSplitLayout(
     secondaryContent: @Composable () -> Unit,
     tertiaryContent: (@Composable () -> Unit)? = null,
     primaryRatio: Float = 0.65f,
+    secondaryPaneVisible: Boolean = true,
     state: AppSplitLayoutState = rememberAppSplitLayoutState(),
     modifier: Modifier = Modifier,
 ) {
@@ -183,6 +184,12 @@ fun AppSplitLayout(
         {
             paneStateHolder.SaveableStateProvider(AppSplitPane.Tertiary.name, content)
         }
+    }
+    if (!secondaryPaneVisible) {
+        androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
+            savedPrimaryContent()
+        }
+        return
     }
     val sceneLayout = resolveAppAdaptiveSceneLayout(adaptiveInfo)
     val useSplitLayout = windowSizeClass.shouldUseSplitLayout || adaptiveInfo.shouldAvoidHinge

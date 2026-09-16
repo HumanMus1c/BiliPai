@@ -28,7 +28,7 @@ class DynamicTopBarThemePolicyTest {
     }
 
     @Test
-    fun `dynamic tab dock uses solid theme surface when liquid glass is disabled`() {
+    fun `miuix non glass dynamic tabs can omit the inner track`() {
         val source = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         ).readText()
@@ -37,6 +37,8 @@ class DynamicTopBarThemePolicyTest {
         assertTrue(source.contains(".clip(RectangleShape)"))
         assertTrue(source.contains(".clip(dockShape)"))
         assertTrue(source.contains(".background(dockColor)"))
+        assertTrue(source.contains("drawMiuixNonGlassTrack = liquidGlassEnabled"))
+        assertTrue(source.contains("LocalAppUiStyle.current != AppUiStyle.MIUIX"))
     }
 
     @Test

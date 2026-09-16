@@ -8,7 +8,10 @@ import com.android.purebilibili.core.ui.components.resolveCompactMiuixTabRowWidt
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColor
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
 import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
+import com.android.purebilibili.core.ui.components.resolveMiuixNonGlassContentTabItemWidths
 import com.android.purebilibili.core.ui.components.shouldEqualizeMiuixNonGlassTabItems
+import com.android.purebilibili.core.ui.components.shouldStretchMiuixNonGlassTabRowToTrack
+import com.android.purebilibili.core.ui.components.MIUIX_NON_GLASS_TAB_ITEM_SPACING_DP
 import com.android.purebilibili.core.ui.components.MiuixNonGlassTabItemWidthMode
 import androidx.compose.ui.graphics.Color
 import java.io.File
@@ -34,7 +37,8 @@ class AppSegmentedControlPolicyTest {
             "src/main/java/com/android/purebilibili/core/ui/renderer/miuix/" +
                 "AppMiuixSegmentedControl.kt"
         )
-        assertTrue(source.contains("nonGlassMiuix -> tabColors.backgroundColor"))
+        assertTrue(source.contains("else -> tabColors.backgroundColor"))
+        assertFalse(source.contains("adaptiveSquircleBackground(\n                color = trackColor"))
         assertTrue(source.contains("AppMiuixNonGlassTabItem("))
         assertTrue(source.contains("Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)"))
     }
@@ -112,6 +116,17 @@ class AppSegmentedControlPolicyTest {
     }
 
     @Test
+    fun `Miuix non glass content tabs size each item from its own label`() {
+        assertEquals(
+            listOf(48.dp, 75.dp, 320.dp),
+            resolveMiuixNonGlassContentTabItemWidths(
+                labelWidths = listOf(20.dp, 51.dp, 400.dp),
+                minTabWidth = 48.dp,
+            ),
+        )
+    }
+
+    @Test
     fun `equal longest label mode is isolated to Miuix non glass tabs`() {
         assertTrue(
             shouldEqualizeMiuixNonGlassTabItems(
@@ -134,6 +149,41 @@ class AppSegmentedControlPolicyTest {
                 optionCount = 2,
             )
         )
+    }
+
+    @Test
+    fun `non glass Miuix page tabs stay content sized except compact two option tracks`() {
+        assertTrue(
+            shouldStretchMiuixNonGlassTabRowToTrack(
+                compact = true,
+                scrollable = false,
+                optionCount = 2,
+            )
+        )
+        assertFalse(
+            shouldStretchMiuixNonGlassTabRowToTrack(
+                compact = false,
+                scrollable = false,
+                optionCount = 3,
+            )
+        )
+        assertFalse(
+            shouldStretchMiuixNonGlassTabRowToTrack(
+                compact = false,
+                scrollable = true,
+                optionCount = 6,
+            )
+        )
+        assertEquals(9, MIUIX_NON_GLASS_TAB_ITEM_SPACING_DP)
+        val miuixSource = loadSource(
+            "src/main/java/com/android/purebilibili/core/ui/renderer/miuix/" +
+                "AppMiuixSegmentedControl.kt"
+        )
+        val nonGlassTabs = miuixSource.substringAfter("private fun <T> AppMiuixNonGlassTabs(")
+        assertTrue(nonGlassTabs.contains("shouldStretchMiuixNonGlassTabRowToTrack("))
+        assertTrue(nonGlassTabs.contains("MIUIX_NON_GLASS_TAB_ITEM_SPACING_DP.dp"))
+        assertTrue(nonGlassTabs.contains("wrapContentWidth(Alignment.CenterHorizontally)"))
+        assertTrue(nonGlassTabs.contains("Modifier.weight(1f)"))
     }
 
     @Test
@@ -208,9 +258,10 @@ class AppSegmentedControlPolicyTest {
 
         assertFalse(materialSource.contains("heightIn(min = 48.dp)"))
         assertTrue(miuixSource.contains("resolveRoundedControlVisualGeometry("))
-        assertTrue(miuixSource.contains("AppMiuixNonGlassTabItem("))
-        assertTrue(miuixSource.contains(".height(visualHeight)"))
-        assertTrue(miuixSource.contains(".heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)"))
+        assertTrue(miuixSource.contains("TabRow("))
+        assertTrue(miuixSource.contains("TabRowDefaults.TabRowMinWidth"))
+        assertTrue(miuixSource.contains("TabRowDefaults.TabRowMaxWidth"))
+        assertFalse(miuixSource.contains("AppMiuixNonGlassTabItem("))
     }
 
     @Test

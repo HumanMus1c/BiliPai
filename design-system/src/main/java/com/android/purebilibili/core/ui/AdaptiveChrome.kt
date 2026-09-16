@@ -320,15 +320,28 @@ fun AdaptiveTopAppBar(
             }
 
             AdaptiveTopAppBarStyle.SMALL -> {
-                TopAppBar(
-                    modifier = modifier,
-                    title = { Text(displayTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = navigationContent,
-                    actions = actionsContent,
-                    colors = topAppBarColors,
-                    scrollBehavior = scrollBehavior,
-                    windowInsets = WindowInsets.statusBars
-                )
+                if (isMiuixNonGlassEnabled()) {
+                    MiuixSmallTopAppBar(
+                        title = displayTitle,
+                        modifier = modifier,
+                        color = topAppBarColors.containerColor,
+                        navigationIcon = navigationContent,
+                        actions = actionsContent,
+                        titlePadding = 0.dp,
+                        navigationIconPadding = 0.dp,
+                        actionIconPadding = 0.dp,
+                    )
+                } else {
+                    TopAppBar(
+                        modifier = modifier,
+                        title = { Text(displayTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        navigationIcon = navigationContent,
+                        actions = actionsContent,
+                        colors = topAppBarColors,
+                        scrollBehavior = scrollBehavior,
+                        windowInsets = WindowInsets.statusBars
+                    )
+                }
             }
 
             AdaptiveTopAppBarStyle.CENTERED -> {

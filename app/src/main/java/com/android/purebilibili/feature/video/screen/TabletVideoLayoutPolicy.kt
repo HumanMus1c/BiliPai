@@ -38,6 +38,14 @@ internal enum class TabletSecondaryPaneMode {
     COLLAPSED
 }
 
+internal fun shouldHideTabletSecondaryPane(
+    paneMode: TabletSecondaryPaneMode,
+    useThreePaneLayout: Boolean,
+    useTabletopLayout: Boolean,
+): Boolean = paneMode == TabletSecondaryPaneMode.COLLAPSED &&
+    !useThreePaneLayout &&
+    !useTabletopLayout
+
 internal fun nextTabletSecondaryPaneMode(
     current: TabletSecondaryPaneMode
 ): TabletSecondaryPaneMode {

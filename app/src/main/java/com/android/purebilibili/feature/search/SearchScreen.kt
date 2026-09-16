@@ -111,6 +111,7 @@ import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
@@ -3054,14 +3055,21 @@ fun SearchFilterBar(
     }
     if (filterControls.isEmpty()) return
     
+    val miuixNonGlass = isMiuixNonGlassEnabled()
+    val filterRowPadding = if (miuixNonGlass) {
+        Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small)
+    } else {
+        Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+    }
+    val chipSpacing = if (miuixNonGlass) 9.dp else 10.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .then(filterRowPadding)
     ) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(chipSpacing),
+                verticalArrangement = Arrangement.spacedBy(if (miuixNonGlass) AppSpacingTokens.Small else 8.dp)
             ) {
                 if (SearchFilterControl.VIDEO_ORDER in filterControls) {
                 Box {

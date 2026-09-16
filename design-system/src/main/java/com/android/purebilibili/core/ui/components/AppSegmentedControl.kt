@@ -131,6 +131,15 @@ internal fun shouldEqualizeMiuixNonGlassTabItems(
     isMiuixNonGlass &&
     optionCount > 1
 
+/** Upstream Miuix TabRow itemSpacing. */
+internal const val MIUIX_NON_GLASS_TAB_ITEM_SPACING_DP = 9
+
+internal fun shouldStretchMiuixNonGlassTabRowToTrack(
+    compact: Boolean,
+    scrollable: Boolean,
+    optionCount: Int,
+): Boolean = compact && !scrollable && optionCount in 1..2
+
 internal fun resolveEqualMiuixNonGlassTabItemWidth(
     longestLabelWidth: Dp,
     minTabWidth: Dp,
@@ -140,6 +149,15 @@ internal fun resolveEqualMiuixNonGlassTabItemWidth(
     minTabWidth,
     longestLabelWidth + horizontalContentPadding * 2,
 )
+
+fun resolveMiuixNonGlassContentTabItemWidths(
+    labelWidths: List<Dp>,
+    minTabWidth: Dp,
+    maxTabWidth: Dp = 320.dp,
+    horizontalContentPadding: Dp = 24.dp,
+): List<Dp> = labelWidths.map { labelWidth ->
+    (labelWidth + horizontalContentPadding).coerceIn(minTabWidth, maxTabWidth)
+}
 
 fun resolveAppLiquidSegmentedControlSpec(
     itemCount: Int,
@@ -288,6 +306,11 @@ fun <T> AppNativeTabRow(
     indicatorPositionProvider: (() -> Float)? = null,
     miuixNonGlassItemWidthMode: MiuixNonGlassTabItemWidthMode =
         MiuixNonGlassTabItemWidthMode.CONTENT,
+    contentSizedMiuixNonGlassItems: Boolean = false,
+    // Miuix non-glass tabs keep their individual item surfaces, without adding
+    // an extra full-width dock behind the items. Callers that intentionally own
+    // a track (for example a liquid-glass rail) can still opt in explicitly.
+    drawMiuixNonGlassTrack: Boolean = false,
     onSelectionChange: (T) -> Unit,
 ) {
     if (options.isEmpty()) return
@@ -304,6 +327,10 @@ fun <T> AppNativeTabRow(
     val effectiveScrollable = !forceEqualWidth &&
         (equalizeMiuixNonGlassItems || scrollable || options.size > 3 ||
             (readableMinTabWidth > minTabWidth && (!compactMiuixWhenTwoOptions || options.size > 2)))
+    val useContentSizedMiuixItems = contentSizedMiuixNonGlassItems &&
+        miuixNonGlassItemWidthMode == MiuixNonGlassTabItemWidthMode.CONTENT &&
+        com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() &&
+        effectiveScrollable
     val viewportBoundedModifier = modifier.widthIn(
         max = LocalConfiguration.current.screenWidthDp.dp,
     )
@@ -324,7 +351,11 @@ fun <T> AppNativeTabRow(
         miuixSurfaceContainerHigh = trackColor,
         miuixOnSurfaceVariantSummary = inactiveTextColor,
     )
-    val targetTabWidth = if (effectiveScrollable) readableMinTabWidth else minTabWidth
+    val targetTabWidth = if (effectiveScrollable && !useContentSizedMiuixItems) {
+        readableMinTabWidth
+    } else {
+        minTabWidth
+    }
     when (if (forceMaterial3) AppSegmentedRenderer.MATERIAL3 else resolveAppSegmentedRenderer(policy.usesNativeTabRow)) {
         AppSegmentedRenderer.MATERIAL3 -> AppMaterial3TabRow(
             options = options,
@@ -354,6 +385,8 @@ fun <T> AppNativeTabRow(
             },
             indicatorPositionProvider = indicatorPositionProvider,
             equalizeScrollableItemWidths = equalizeMiuixNonGlassItems,
+            contentSizedNonGlassItems = useContentSizedMiuixItems,
+            drawNonGlassTrack = drawMiuixNonGlassTrack,
             onSelectionChange = onSelectionChange,
         )
     }

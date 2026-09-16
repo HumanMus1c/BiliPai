@@ -665,7 +665,7 @@ private fun PopularSubCategorySegmentedControl(
             tapPressRefractionEnabled = true,
             dragSelectionEnabled = labels.size > 1,
             preferInlineContentStyle = true,
-            forceEqualWidth = true,
+            contentSizedMiuixNonGlassItems = true,
         )
     }
 }

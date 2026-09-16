@@ -141,10 +141,10 @@ internal fun resolveVideoSettingsPanelVisualSpec(
             iconGap = AppSpacingTokens.Medium,
             dividerHorizontalPadding = AppSpacingTokens.Large,
             dividerAlpha = 0.18f,
-            chipHeight = 34.dp,
-            chipCornerRadius = 17.dp,
+            chipHeight = 36.dp,
+            chipCornerRadius = 10.dp,
             chipHorizontalPadding = AppSpacingTokens.Medium,
-            chipSpacing = AppSpacingTokens.Small,
+            chipSpacing = 9.dp,
         )
     } else if (usesTonalContainerTreatment) {
         VideoSettingsPanelVisualSpec(

@@ -146,6 +146,42 @@ class HomeHeroCarouselPolicyTest {
     }
 
     @Test
+    fun `landscape tablet shrinks the hero instead of filling half the window`() {
+        val layout = resolveHomeHeroCarouselLayout(
+            containerWidthDp = 1280f,
+            windowWidthDp = 1280f,
+            windowHeightDp = 800f,
+        )
+        assertTrue(layout.heightDp <= 248f)
+        assertTrue(layout.widthDp < 980f)
+        assertEquals(21f / 9f, layout.aspectRatio, 0.001f)
+        assertEquals(layout.widthDp / layout.aspectRatio, layout.heightDp, 0.2f)
+    }
+
+    @Test
+    fun `portrait phone hero keeps 16 by 9 full width`() {
+        val layout = resolveHomeHeroCarouselLayout(
+            containerWidthDp = 393f,
+            windowWidthDp = 393f,
+            windowHeightDp = 851f,
+        )
+        assertEquals(393f, layout.widthDp, 0.001f)
+        assertEquals(16f / 9f, layout.aspectRatio, 0.001f)
+        assertEquals(393f / (16f / 9f), layout.heightDp, 0.2f)
+    }
+
+    @Test
+    fun `compact height windows cap the hero to a short strip`() {
+        val layout = resolveHomeHeroCarouselLayout(
+            containerWidthDp = 851f,
+            windowWidthDp = 851f,
+            windowHeightDp = 393f,
+        )
+        assertTrue(layout.heightDp <= 188f)
+        assertTrue(layout.heightDp >= 132f)
+    }
+
+    @Test
     fun `carousel transform avoids 3d fold artifacts while swiping`() {
         val centered = resolveHomeHeroCarouselCardTransform(0f)
         assertTrue(abs(centered.rotationY) < 0.001f)

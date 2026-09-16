@@ -345,6 +345,11 @@ internal fun resolveNativeMiuixColors(
         onPrimaryContainer = scheme.onPrimary,
     )
     val accent = resolveMiuixColorsFromMaterialBridge(createMiuixMaterialBridge(accentScheme), darkTheme)
+    val pageCanvas = resolveNativeMiuixPageCanvas(
+        darkTheme = darkTheme,
+        amoledDarkTheme = amoledDarkTheme,
+        upstreamBackground = base.background,
+    )
     return base.copy(
         primary = accent.primary,
         onPrimary = accent.onPrimary,
@@ -357,9 +362,16 @@ internal fun resolveNativeMiuixColors(
         onBackgroundVariant = scheme.primary,
         sliderKeyPoint = scheme.primary.copy(alpha = base.sliderKeyPoint.alpha),
         sliderKeyPointForeground = scheme.primary,
-        background = if (darkTheme && amoledDarkTheme) Color.Black else base.background,
+        background = pageCanvas,
+        surface = pageCanvas,
     )
 }
+
+internal fun resolveNativeMiuixPageCanvas(
+    darkTheme: Boolean,
+    amoledDarkTheme: Boolean,
+    upstreamBackground: Color,
+): Color = if (darkTheme && amoledDarkTheme) Color.Black else upstreamBackground
 
 /** Material-backed content consumes the same semantic palette as native Miuix components. */
 internal fun alignMaterialSurfacesWithMiuix(

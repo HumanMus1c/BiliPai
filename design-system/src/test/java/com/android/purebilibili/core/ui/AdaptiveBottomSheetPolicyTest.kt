@@ -58,6 +58,29 @@ class AdaptiveBottomSheetPolicyTest {
     }
 
     @Test
+    fun `non glass Miuix wide windows keep a compact centered sheet`() {
+        val phone = resolveAppModalLayoutSpec(windowWidthDp = 412, miuixNonGlass = true)
+        val tablet = resolveAppModalLayoutSpec(windowWidthDp = 840, miuixNonGlass = true)
+        val glassTablet = resolveAppModalLayoutSpec(windowWidthDp = 840, miuixNonGlass = false)
+
+        assertEquals(AppModalPresentation.BottomSheet, phone.presentation)
+        assertEquals(AppModalPresentation.CenteredDialog, tablet.presentation)
+        assertEquals(420, tablet.maxWidthDp)
+        assertEquals(640, glassTablet.maxWidthDp)
+
+        val nonGlassVisual = resolveAdaptiveBottomSheetVisualSpec(
+            uiStyle = AppUiStyle.MIUIX,
+            miuixNonGlass = true,
+        )
+        val glassVisual = resolveAdaptiveBottomSheetVisualSpec(
+            uiStyle = AppUiStyle.MIUIX,
+            miuixNonGlass = false,
+        )
+        assertEquals(23, nonGlassVisual.cornerRadiusDp)
+        assertEquals(22, glassVisual.cornerRadiusDp)
+    }
+
+    @Test
     fun `host contract resolves miuix to overlay host and material3 to material host`() {
         assertEquals(BottomSheetHost.MIUIX_OVERLAY, resolveBottomSheetHost(AppUiStyle.MIUIX))
         assertEquals(BottomSheetHost.MATERIAL3, resolveBottomSheetHost(AppUiStyle.MATERIAL3))
@@ -75,6 +98,8 @@ class AdaptiveBottomSheetPolicyTest {
         // 模式挂载），AppModalBottomSheet 调用点无法保证处于该宿主之下 —— 宿主契约
         // 由 resolveBottomSheetHost 独立承担，facade 本身禁止机械替换。
         assertTrue(source.contains("ModalBottomSheet("))
+        assertTrue(source.contains("isMiuixNonGlassEnabled()"))
+        assertTrue(source.contains("blurActive = !miuixNonGlass"))
         assertFalse(source.contains("OverlayBottomSheet("))
         assertFalse(source.contains("import top.yukonga.miuix.kmp.overlay"))
         assertTrue(source.contains("fun resolveBottomSheetHost("))

@@ -83,10 +83,21 @@ internal fun SpaceLoadingSkeleton(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(cardLayout.verticalItemSpacingDp.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
+            val bannerMetrics = remember(
+                windowWidthDp,
+                windowSizeClass.widthDp,
+                windowSizeClass.heightDp,
+            ) {
+                resolveSpaceBannerMetrics(
+                    renderedBannerWidthDp = windowWidthDp.toFloat(),
+                    windowWidthDp = windowSizeClass.widthDp.value,
+                    windowHeightDp = windowSizeClass.heightDp.value,
+                )
+            }
             Column(Modifier.fillMaxWidth()) {
                 ContentSkeletonBlock(
                     blockColor,
-                    Modifier.fillMaxWidth().aspectRatio(1125f / 396f),
+                    Modifier.fillMaxWidth().height(bannerMetrics.heightDp.dp),
                     AppShapes.container(ContainerLevel.Card),
                 )
                 Row(

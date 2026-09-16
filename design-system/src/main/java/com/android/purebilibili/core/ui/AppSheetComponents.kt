@@ -61,11 +61,19 @@ data class AppModalLayoutSpec(
     val maxHeightFraction: Float,
 )
 
-fun resolveAppModalLayoutSpec(windowWidthDp: Int): AppModalLayoutSpec = when {
+fun resolveAppModalLayoutSpec(
+    windowWidthDp: Int,
+    miuixNonGlass: Boolean = false,
+): AppModalLayoutSpec = when {
     windowWidthDp < 600 -> AppModalLayoutSpec(
         presentation = AppModalPresentation.BottomSheet,
         maxWidthDp = windowWidthDp,
         maxHeightFraction = 1f,
+    )
+    miuixNonGlass -> AppModalLayoutSpec(
+        presentation = AppModalPresentation.CenteredDialog,
+        maxWidthDp = 420,
+        maxHeightFraction = 0.86f,
     )
     windowWidthDp < 1200 -> AppModalLayoutSpec(
         presentation = AppModalPresentation.CenteredDialog,
@@ -88,10 +96,13 @@ internal data class AdaptiveBottomSheetMotionSpec(
 
 fun resolveAdaptiveBottomSheetVisualSpec(
     uiStyle: AppUiStyle,
+    miuixNonGlass: Boolean = false,
 ): AdaptiveBottomSheetVisualSpec {
+    val level = if (miuixNonGlass) ContainerLevel.Sheet else ContainerLevel.Pill
     val cornerRadiusDp = AppShapes.resolveContainerCornerDp(
-        level = ContainerLevel.Pill,
+        level = level,
         uiStyle = uiStyle,
+        liquidGlassEnabled = !miuixNonGlass,
     ).value.toInt()
     return AdaptiveBottomSheetVisualSpec(
         cornerRadiusDp = cornerRadiusDp,
@@ -198,12 +209,19 @@ fun AppModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
+    val miuixNonGlass = isMiuixNonGlassEnabled()
     val configuration = LocalConfiguration.current
-    val layoutSpec = remember(configuration.screenWidthDp) {
-        resolveAppModalLayoutSpec(configuration.screenWidthDp)
+    val layoutSpec = remember(configuration.screenWidthDp, miuixNonGlass) {
+        resolveAppModalLayoutSpec(
+            windowWidthDp = configuration.screenWidthDp,
+            miuixNonGlass = miuixNonGlass,
+        )
     }
-    val visualSpec = remember(uiStyle) {
-        resolveAdaptiveBottomSheetVisualSpec(uiStyle)
+    val visualSpec = remember(uiStyle, miuixNonGlass) {
+        resolveAdaptiveBottomSheetVisualSpec(
+            uiStyle = uiStyle,
+            miuixNonGlass = miuixNonGlass,
+        )
     }
     val adaptiveSheetShape = remember(visualSpec) {
         RoundedCornerShape(
@@ -216,7 +234,7 @@ fun AppModalBottomSheet(
     val progressVisual = resolveInteractiveOverlayProgressVisual(
         presentationProgress = presentationProgress,
         surfaceType = InteractiveOverlaySurfaceType.BOTTOM_SHEET,
-        blurActive = true,
+        blurActive = !miuixNonGlass,
         maxScrimAlpha = scrimColor.alpha
     )
     val resolvedContainerColor = when (uiStyle) {

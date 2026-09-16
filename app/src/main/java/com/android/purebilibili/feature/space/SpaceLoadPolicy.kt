@@ -295,6 +295,16 @@ internal data class SpaceAdaptiveLayoutSpec(
     val listContentMaxWidthDp: Int = SPACE_LIST_CONTENT_MAX_WIDTH_DP,
 )
 
+internal const val SPACE_BANNER_ASPECT_RATIO = 1125f / 396f
+/** Matches PiliPlus desktop/landscape `kHeaderHeight` instead of scaling 1125:396 to the full window. */
+internal const val SPACE_WIDE_BANNER_MAX_HEIGHT_DP = 135f
+internal const val SPACE_WIDE_BANNER_MIN_HEIGHT_DP = 120f
+
+internal data class SpaceBannerMetrics(
+    val heightDp: Float,
+    val cropToFill: Boolean,
+)
+
 /**
  * Flat unfolded foldables and tablets deliberately share the same width-class policy.
  * Geometry is derived from the current window, not from a device/model distinction.
@@ -304,6 +314,7 @@ internal fun resolveSpaceAdaptiveLayoutSpec(
     widthSizeClass: WindowWidthSizeClass = resolveWindowWidthSizeClass(widthDp.dp),
 ): SpaceAdaptiveLayoutSpec {
     val expanded = widthSizeClass >= WindowWidthSizeClass.Expanded
+    val useExpandedHeader = widthSizeClass != WindowWidthSizeClass.Compact
     val contentMaxWidthDp = if (expanded) {
         SPACE_EXPANDED_CONTENT_MAX_WIDTH_DP
     } else {
@@ -314,8 +325,35 @@ internal fun resolveSpaceAdaptiveLayoutSpec(
         .coerceIn(1, SPACE_DYNAMIC_MAX_COLUMNS)
     return SpaceAdaptiveLayoutSpec(
         contentMaxWidthDp = contentMaxWidthDp,
-        useExpandedHeader = expanded,
+        useExpandedHeader = useExpandedHeader,
         dynamicColumns = dynamicColumns,
+    )
+}
+
+internal fun resolveSpaceBannerMetrics(
+    renderedBannerWidthDp: Float,
+    windowWidthDp: Float,
+    windowHeightDp: Float,
+): SpaceBannerMetrics {
+    val naturalHeight = renderedBannerWidthDp.coerceAtLeast(0f) / SPACE_BANNER_ASPECT_RATIO
+    val landscape = windowHeightDp > 0f && windowWidthDp > windowHeightDp
+    val useDesktopHeader = windowWidthDp >= 600f || landscape
+    val maxHeight = if (useDesktopHeader) {
+        if (windowHeightDp > 0f) {
+            (windowHeightDp * 0.22f).coerceIn(
+                SPACE_WIDE_BANNER_MIN_HEIGHT_DP,
+                SPACE_WIDE_BANNER_MAX_HEIGHT_DP,
+            )
+        } else {
+            SPACE_WIDE_BANNER_MAX_HEIGHT_DP
+        }
+    } else {
+        naturalHeight
+    }
+    val height = naturalHeight.coerceAtMost(maxHeight)
+    return SpaceBannerMetrics(
+        heightDp = height,
+        cropToFill = height + 0.5f < naturalHeight,
     )
 }
 

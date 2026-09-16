@@ -11,6 +11,8 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.isSpecified
 import com.android.purebilibili.core.ui.components.appDesktopInteractionVisuals
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
+import com.android.purebilibili.core.ui.motion.adaptiveMiuixPressFeedback
 import top.yukonga.miuix.kmp.basic.DividerDefaults
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
@@ -54,9 +56,17 @@ internal fun AppMiuixSurface(
 ) {
     val resolvedColor = color.takeOrElse { MiuixTheme.colorScheme.surface }
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val pressModifier = if (isMiuixNonGlassEnabled()) {
+        modifier.adaptiveMiuixPressFeedback(
+            enabled = enabled,
+            interactionSource = resolvedInteractionSource,
+        )
+    } else {
+        modifier
+    }
     Surface(
         onClick = onClick,
-        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        modifier = pressModifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
         enabled = enabled,
         shape = shape,
         color = resolvedColor,

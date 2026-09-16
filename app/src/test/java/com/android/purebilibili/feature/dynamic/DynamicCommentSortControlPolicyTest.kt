@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class DynamicCommentSortControlPolicyTest {
 
     @Test
-    fun `sort segmented control matches bottom-bar compact dock geometry`() {
+    fun `sort segmented control matches beta36 dynamic comment geometry`() {
         val spec = resolveDynamicCommentSortControlSpec(itemCount = 2)
 
         assertEquals(66, spec.itemWidthDp)
@@ -35,6 +35,8 @@ class DynamicCommentSortControlPolicyTest {
         assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(!source.contains("forceLiquidChrome"))
         assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
+        assertTrue(source.contains("requiredWidth((spec.itemWidthDp * items.size).dp)"))
+        assertTrue(source.contains("contentAlignment = Alignment.CenterEnd"))
         assertTrue(source.contains("listOf(CommentSortMode.HOT, CommentSortMode.NEWEST)"))
         assertTrue(!source.contains("CommentSegmentedControl("))
     }

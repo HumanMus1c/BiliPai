@@ -36,6 +36,8 @@ class MiuixV2MigrationStructureTest {
         assertTrue(source.contains("AppUiStyle.MIUIX ->"))
         assertTrue(source.contains("AppAlertDialogRenderer.LOCAL_DIALOG"))
         assertTrue(source.contains("Dialog("))
+        assertTrue(source.contains("WindowDialog("))
+        assertTrue(source.contains("isMiuixNonGlassEnabled()"))
     }
 
     @Test

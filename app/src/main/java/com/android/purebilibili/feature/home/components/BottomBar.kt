@@ -2912,7 +2912,7 @@ private fun MiuixBottomBar(
                     }
                 ),
             color = Color.Transparent,
-            showDivider = false,
+            showDivider = !sharedLiquidGlassEnabled,
             defaultWindowInsetsPadding = true,
             mode = displayMode
         ) {

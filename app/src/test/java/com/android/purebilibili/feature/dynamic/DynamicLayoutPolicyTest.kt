@@ -71,6 +71,7 @@ class DynamicLayoutPolicyTest {
         assertEquals(50, spec.heightDp)
         assertEquals(42, spec.indicatorHeightDp)
         assertEquals(13, spec.labelFontSizeSp)
+        assertEquals(72, resolveDynamicTopBarTabItemWidthDp())
     }
 
     @Test
