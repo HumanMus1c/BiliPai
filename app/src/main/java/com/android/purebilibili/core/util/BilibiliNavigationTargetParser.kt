@@ -134,6 +134,12 @@ object BilibiliNavigationTargetParser {
                 resolveArticleTarget(pathSegments, queryMap, allowBareReadPath = true)?.let { return it }
             }
 
+            host == "article" -> {
+                pathSegments.firstOrNull()?.takeIf(::isNumericId)?.toLongOrNull()?.let {
+                    return BilibiliNavigationTarget.Article(it)
+                }
+            }
+
             host == "music" -> {
                 queryMap["music_id"]?.takeIf { it.isNotBlank() }?.let {
                     return BilibiliNavigationTarget.Music(it)

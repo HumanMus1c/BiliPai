@@ -54,4 +54,9 @@ class AppSurfaceTokensTest {
         assertEquals(miuix, AppSurfaceTokens.resolveMiuixSemanticColor(true, miuix, material))
         assertEquals(material, AppSurfaceTokens.resolveMiuixSemanticColor(false, miuix, material))
     }
+
+    @Test
+    fun frostedScrimAlpha_isPointSixFive() {
+        assertEquals(0.65f, AppSurfaceTokens.FrostedScrimAlpha)
+    }
 }

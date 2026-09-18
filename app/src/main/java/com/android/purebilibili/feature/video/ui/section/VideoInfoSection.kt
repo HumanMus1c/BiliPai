@@ -899,7 +899,7 @@ fun UpInfoSection(
             }
 
             if (playerControlVisibility.showFollowButton) {
-                var followActionModifier = Modifier.height(32.dp)
+                var followActionModifier = Modifier.heightIn(min = 32.dp)
                 if (metadataSharedEnabled) {
                     with(requireNotNull(sharedTransitionScope)) {
                         followActionModifier = followActionModifier.sharedBounds(

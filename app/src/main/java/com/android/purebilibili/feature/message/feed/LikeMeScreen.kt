@@ -241,7 +241,8 @@ fun LikeMeScreen(
                                                 subjectId = content.subjectId,
                                                 rootId = content.rootId,
                                                 sourceId = content.sourceId,
-                                                targetId = content.targetId
+                                                targetId = content.targetId,
+                                                business = content.business
                                             )?.let(onOpenLink)
                                         }
                                     },
@@ -269,7 +270,8 @@ fun LikeMeScreen(
                                                 subjectId = content.subjectId,
                                                 rootId = content.rootId,
                                                 sourceId = content.sourceId,
-                                                targetId = content.targetId
+                                                targetId = content.targetId,
+                                                business = content.business
                                             )?.let(onOpenLink)
                                         }
                                     },

@@ -389,6 +389,7 @@ fun SpaceScreen(
                 backdrop = spaceChromeBackdrop,
                 enabled = spaceProgressiveBlur,
                 headerBlurActive = spaceHeaderBlurActive,
+                opaqueBackgroundFallback = false,
                 modifier = Modifier.background(
                     if (spaceProgressiveBlur || spaceHeaderBlurActive) Color.Transparent
                     else com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface)
@@ -403,12 +404,17 @@ fun SpaceScreen(
                             Modifier
                         } else {
                             hazeState?.let {
-                                Modifier.unifiedBlur(
-                                    hazeState = it,
-                                    surfaceType = BlurSurfaceType.HEADER,
-                                    isScrolling = isSpaceScrolling,
-                                    enabled = pinnedTopChromeScrim > 0f
-                                )
+                                Modifier
+                                    .unifiedBlur(
+                                        hazeState = it,
+                                        surfaceType = BlurSurfaceType.HEADER,
+                                        isScrolling = isSpaceScrolling,
+                                        enabled = pinnedTopChromeScrim > 0f
+                                    )
+                                    .background(
+                                        com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface)
+                                            .copy(alpha = AppSurfaceTokens.FrostedScrimAlpha * pinnedTopChromeScrim)
+                                    )
                             } ?: Modifier
                         }
                     )
@@ -424,12 +430,8 @@ fun SpaceScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(
-                            alpha = pinnedTopChromeScrim
-                        ),
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(
-                            alpha = pinnedTopChromeScrim
-                        )
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
                     ),
                     actions = {
                         if (canSearch) {
@@ -4473,8 +4475,8 @@ private fun SpaceHeaderRelationActions(
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
             ),
             modifier = Modifier
-                .height(36.dp)
-                .width(46.dp)
+                .heightIn(min = 36.dp)
+                .widthIn(min = 46.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -4501,7 +4503,7 @@ private fun SpaceHeaderRelationActions(
             } else null,
             modifier = Modifier
                 .weight(1f)
-                .height(36.dp)
+                .heightIn(min = 36.dp)
         ) {
             Row(
                 modifier = Modifier

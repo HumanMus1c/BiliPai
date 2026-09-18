@@ -126,7 +126,7 @@ fun CommentInputBar(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp)
+                    .heightIn(min = 36.dp)
                     .background(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                         shape = AppShapes.container(ContainerLevel.Card)

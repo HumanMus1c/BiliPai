@@ -739,15 +739,23 @@ fun WatchLaterScreen(
                 backdrop = watchLaterChromeBackdrop,
                 enabled = progressiveChromeActive,
                 headerBlurActive = headerBlurActive,
-                modifier = Modifier.fillMaxWidth()
-                    .background(
-                        if (progressiveChromeActive || headerBlurActive) Color.Transparent
-                        else AppSurfaceTokens.groupedListContainer()
-                    ).then(
-                    if (headerBlurActive && hazeState != null) Modifier.unifiedBlur(
-                        hazeState = hazeState,
-                        surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
-                    ) else Modifier
+                extendBelowBounds = false,
+                modifier = Modifier.fillMaxWidth().then(
+                    if (progressiveChromeActive) {
+                        Modifier.background(Color.Transparent)
+                    } else if (headerBlurActive && hazeState != null) {
+                        Modifier
+                            .unifiedBlur(
+                                hazeState = hazeState,
+                                surfaceType = com.android.purebilibili.core.ui.blur.BlurSurfaceType.HEADER,
+                            )
+                            .background(
+                                AppSurfaceTokens.cardContainer()
+                                    .copy(alpha = AppSurfaceTokens.FrostedScrimAlpha)
+                            )
+                    } else {
+                        Modifier.background(AppSurfaceTokens.groupedListContainer())
+                    }
                 ),
             ) {
                 Column {

@@ -10,7 +10,13 @@ internal enum class HomePagerSettledAction {
     OPEN_BANGUMI,
 }
 
-internal fun shouldEnableHomeTopPagerUserScroll(isTopLevelActive: Boolean): Boolean {
+/**
+ * 即使开启隐藏顶部标签，依然允许用户在屏幕中央左右滑动切换页面。
+ */
+internal fun shouldEnableHomeTopPagerUserScroll(
+    isTopLevelActive: Boolean,
+    hideTopTabs: Boolean = false
+): Boolean {
     return isTopLevelActive
 }
 

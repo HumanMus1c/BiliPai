@@ -72,6 +72,14 @@ import com.android.purebilibili.feature.dynamic.shouldShowDynamicUserLiveBadge
 import com.android.purebilibili.feature.dynamic.SidebarUser
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.runtime.derivedStateOf
+import com.android.purebilibili.feature.dynamic.resolveDynamicSidebarAvatarPrefetchUrls
+import com.android.purebilibili.feature.dynamic.resolveDynamicSidebarFlingDampingFactor
+import com.android.purebilibili.feature.dynamic.resolveDynamicSidebarUserAvatarUrl
+import com.android.purebilibili.feature.dynamic.shouldAnimateSidebarItemCascade
 
 internal fun performDynamicSidebarUserAvatarClick(
     haptic: (HapticType) -> Unit,
@@ -109,6 +117,29 @@ internal fun resolveDynamicSidebarReturnHeaderColor(
         darkAlpha = 0.80f
     )
     return rawColor.copy(alpha = maxOf(rawColor.alpha, protectiveColor.alpha))
+}
+
+@Composable
+internal fun rememberDynamicSidebarFlingBehavior(
+    velocityMultiplier: Float = resolveDynamicSidebarFlingDampingFactor()
+): FlingBehavior {
+    val defaultFling = ScrollableDefaults.flingBehavior()
+    return remember(defaultFling, velocityMultiplier) {
+        DynamicSidebarDampedFlingBehavior(defaultFling, velocityMultiplier)
+    }
+}
+
+internal class DynamicSidebarDampedFlingBehavior(
+    private val baseFling: FlingBehavior,
+    private val velocityMultiplier: Float
+) : FlingBehavior {
+    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+        val dampedVelocity = initialVelocity * velocityMultiplier
+        val leftoverDamped = with(baseFling) {
+            performFling(dampedVelocity)
+        }
+        return if (velocityMultiplier > 0f) leftoverDamped / velocityMultiplier else 0f
+    }
 }
 
 /**
@@ -173,6 +204,54 @@ fun DynamicSidebar(
         }
     }
     
+    var initialEntranceActive by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(400)
+        initialEntranceActive = false
+    }
+    val hasScrolled by remember {
+        derivedStateOf {
+            userListState.firstVisibleItemIndex > 0 || userListState.firstVisibleItemScrollOffset > 0
+        }
+    }
+    val flingBehavior = rememberDynamicSidebarFlingBehavior()
+
+    val context = LocalContext.current
+    // 初始加载时提前加载数倍视口高度的 UP 主头像
+    LaunchedEffect(visibleUsers) {
+        val initialUrls = resolveDynamicSidebarAvatarPrefetchUrls(visibleUsers)
+        if (initialUrls.isNotEmpty()) {
+            val imageLoader = coil3.SingletonImageLoader.get(context)
+            initialUrls.forEach { url ->
+                imageLoader.enqueue(
+                    coil3.request.ImageRequest.Builder(context)
+                        .data(url)
+                        .build()
+                )
+            }
+        }
+    }
+
+    // 随滑动位置动态预加载接下来数倍高度的 UP 主头像，避免快速滑动时空白
+    val firstVisibleIndex = userListState.firstVisibleItemIndex
+    LaunchedEffect(firstVisibleIndex, visibleUsers) {
+        val scrollUrls = resolveDynamicSidebarAvatarPrefetchUrls(
+            users = visibleUsers,
+            startIndex = firstVisibleIndex,
+            limit = 20
+        )
+        if (scrollUrls.isNotEmpty()) {
+            val imageLoader = coil3.SingletonImageLoader.get(context)
+            scrollUrls.forEach { url ->
+                imageLoader.enqueue(
+                    coil3.request.ImageRequest.Builder(context)
+                        .data(url)
+                        .build()
+                )
+            }
+        }
+    }
+
     // 侧边栏容器 - Glassmorphism 升级版
     Box(
         modifier = modifier
@@ -188,6 +267,7 @@ fun DynamicSidebar(
             // 可滚动内容 - 作为模糊源
             LazyColumn(
                 state = userListState,
+                flingBehavior = flingBehavior,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 contentPadding = PaddingValues(
                     top = topPadding + returnHeaderHeight, // 与右侧动态顶栏同高，保证视觉中线一致
@@ -269,8 +349,14 @@ fun DynamicSidebar(
                     }
                 }
                 itemsIndexed(visibleUsers, key = { _, u -> "sidebar_${u.uid}" }) { index, user ->
+                    val shouldAnimate = shouldAnimateSidebarItemCascade(
+                        index = index,
+                        hasScrolled = hasScrolled,
+                        initialEntranceActive = initialEntranceActive
+                    )
                     CascadeSidebarItem(
                         index = index,
+                        enabled = shouldAnimate,
                         content = {
                             val isShortcut = isDynamicUpPanelShortcut(user.uid, selfUid)
                             SidebarUserItem(
@@ -329,13 +415,19 @@ fun DynamicSidebar(
 
 /**
  *  [新增] 瀑布入场动画包装器
- * 每个项目有递增的延迟，形成瀑布展开效果
+ * 仅在首次入场且未滑动时对前几个项目使用递增延迟，形成瀑布展开效果
  */
 @Composable
 private fun CascadeSidebarItem(
     index: Int,
+    enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    if (!enabled) {
+        content()
+        return
+    }
+
     var visible by remember { mutableStateOf(false) }
     val delay = 30 * index  // 每个项目延迟 30ms
     
@@ -462,14 +554,7 @@ fun SidebarUserItem(
             Box {
                 // 头像
                 val faceUrl = remember(user.face) {
-                    val raw = user.face.trim()
-                    when {
-                        raw.isEmpty() -> ""
-                        raw.startsWith("https://") -> raw
-                        raw.startsWith("http://") -> raw.replace("http://", "https://")
-                        raw.startsWith("//") -> "https:$raw"
-                        else -> "https://$raw"
-                    }
+                    resolveDynamicSidebarUserAvatarUrl(user.face)
                 }
 
                 Box(

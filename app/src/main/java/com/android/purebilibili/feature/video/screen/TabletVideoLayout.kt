@@ -53,13 +53,25 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextConte
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.components.*
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.data.model.response.AiSummaryData
+import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
+import com.android.purebilibili.feature.video.note.VideoNoteUiState
+import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
+import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import com.android.purebilibili.feature.video.ui.section.ActionButtonsRow
+import com.android.purebilibili.feature.video.ui.section.AiSummaryCard
+import com.android.purebilibili.feature.video.ui.section.AiSummaryPromptCard
+import com.android.purebilibili.feature.video.ui.section.VideoNoteCard
+import com.android.purebilibili.feature.video.ui.section.VideoNoteDeleteConfirmDialog
+import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.ui.section.resolveDisplayBgmList
+import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.ui.section.UpInfoSection
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.VideoTitleWithDesc
 import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
 import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
+import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.SettingsManager
@@ -91,10 +103,6 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionS
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.feature.space.SpaceUiState
-import com.android.purebilibili.feature.space.SpaceViewModel
 
 internal enum class TabletSecondaryTab(val label: String) {
     COMMENTS("评论"),
@@ -104,42 +112,6 @@ internal enum class TabletSecondaryTab(val label: String) {
     OWNER_UPLOADS("UP 投稿")
 }
 
-internal data class TabletDanmakuChromeState(
-    val enabled: Boolean,
-    val onToggle: () -> Unit,
-)
-
-@Composable
-internal fun rememberTabletDanmakuChromeState(bvid: String): TabletDanmakuChromeState {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val danmakuManager = rememberDanmakuManager(bvid)
-    val danmakuSettings by SettingsManager
-        .getDanmakuSettings(context, DanmakuSettingsScope.PORTRAIT)
-        .collectAsStateWithLifecycle(initialValue = DanmakuSettings())
-    val latestEnabled = rememberUpdatedState(danmakuSettings.enabled)
-    val onToggle = remember(danmakuManager, context, scope) {
-        {
-            val newValue = !latestEnabled.value
-            danmakuManager.isEnabled = newValue
-            if (!newValue) {
-                danmakuManager.clear()
-            }
-            scope.launch {
-                SettingsManager.setDanmakuEnabled(
-                    context,
-                    newValue,
-                    DanmakuSettingsScope.PORTRAIT,
-                )
-            }
-            Unit
-        }
-    }
-    return TabletDanmakuChromeState(
-        enabled = danmakuSettings.enabled,
-        onToggle = onToggle,
-    )
-}
 
 @Composable
 internal fun TabletSecondaryDanmakuActions(
@@ -179,31 +151,6 @@ internal fun TabletSecondaryDanmakuActions(
     }
 }
 
-@Composable
-internal fun TabletSecondaryPaneToggleButton(
-    isSecondaryPaneVisible: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    contentDescription: String? = null,
-) {
-    AppIconButton(
-        onClick = onClick,
-        modifier = modifier.size(40.dp),
-    ) {
-        AppIcon(
-            imageVector = if (isSecondaryPaneVisible) {
-                Icons.Outlined.KeyboardArrowLeft
-            } else {
-                Icons.Outlined.KeyboardArrowRight
-            },
-            contentDescription = contentDescription ?: if (isSecondaryPaneVisible) {
-                "收起右侧内容"
-            } else {
-                "展开右侧内容"
-            },
-        )
-    }
-}
 
 @Composable
 internal fun TabletSecondaryLiquidTabRow(
@@ -226,6 +173,8 @@ internal fun TabletSecondaryLiquidTabRow(
         liquidGlassEffectsEnabled = liquidGlassEnabled,
         equalizeMiuixNonGlassItemWidths = false,
         allowNativeLabelOverflow = true,
+        forceEqualWidth = true,
+        compactMiuixWhenTwoOptions = false,
         dragSelectionEnabled = true,
         tapPressRefractionEnabled = true,
         indicatorPositionProvider = indicatorPositionProvider,
@@ -290,6 +239,9 @@ internal fun TabletVideoLayout(
     predictiveBackCancelRecoveryGeneration: Int = 0,
     liveSurfaceCardTransitionEnabled: Boolean = true,
     paneControlsEnabled: Boolean = true,
+    videoAiSummaryEntryEnabled: Boolean = true,
+    videoNoteEnabled: Boolean = true,
+    videoNoteDefaultCollapsed: Boolean = false,
 ) {
     val adaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
     val foldHalfOpened = adaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book ||
@@ -465,6 +417,10 @@ internal fun TabletVideoLayout(
                             requestedSecondaryTabName = TabletSecondaryTab.OWNER_UPLOADS.name
                             secondaryPaneModeName = TabletSecondaryPaneMode.EXPANDED.name
                         },
+                        videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+                        videoNoteEnabled = videoNoteEnabled,
+                        videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
+                        showRelatedVideos = false,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
@@ -472,20 +428,9 @@ internal fun TabletVideoLayout(
                             .align(Alignment.CenterHorizontally),
                     )
                 }
-                }
-                if (paneControlsEnabled && secondaryPaneHidden) {
-                    TabletSecondaryPaneToggleButton(
-                        isSecondaryPaneVisible = false,
-                        onClick = {
-                            secondaryPaneModeName = TabletSecondaryPaneMode.EXPANDED.name
-                        },
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 0.dp),
-                    )
-                }
             }
-        },
+        }
+    },
         secondaryContent = {
             // 📝 右侧：评论 / 相关推荐
             if (uiState is VideoPlaybackUiState.Success) {
@@ -511,6 +456,7 @@ internal fun TabletVideoLayout(
                         requestedTabName = requestedSecondaryTabName,
                         onRequestedTabConsumed = { requestedSecondaryTabName = null },
                         fixedTab = if (useThreePaneLayout) TabletSecondaryTab.COMMENTS else null,
+                        relatedTabFirst = true,
                         introContent = if (layoutPolicy.useTabletopLayout) {
                             {
                                 TabletVideoInfoPane(
@@ -528,22 +474,14 @@ internal fun TabletVideoLayout(
                                     onOwnerUploadsClick = {
                                         requestedSecondaryTabName = TabletSecondaryTab.OWNER_UPLOADS.name
                                     },
+                                    videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+                                    videoNoteEnabled = videoNoteEnabled,
+                                    videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
                         } else null,
                     )
-                    if (paneControlsEnabled && !secondaryPaneHidden) {
-                        TabletSecondaryPaneToggleButton(
-                            isSecondaryPaneVisible = true,
-                            onClick = {
-                                secondaryPaneModeName = TabletSecondaryPaneMode.COLLAPSED.name
-                            },
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset(x = (-20).dp),
-                        )
-                    }
                 }
             }
         },
@@ -593,9 +531,27 @@ internal fun TabletVideoInfoPane(
     onDanmakuSendClick: () -> Unit,
     onDanmakuToggle: () -> Unit,
     onOwnerUploadsClick: () -> Unit,
+    videoAiSummaryEntryEnabled: Boolean = true,
+    videoNoteEnabled: Boolean = true,
+    videoNoteDefaultCollapsed: Boolean = false,
     modifier: Modifier = Modifier,
     showRelatedVideos: Boolean = true,
 ) {
+    val context = LocalContext.current
+    var confirmDeleteNote by rememberSaveable(success.info.bvid) { mutableStateOf(false) }
+    val onShareVideoNote: (VideoNoteEditorDocument, Boolean) -> Unit = { document, isDraft ->
+        ShareUtils.shareText(
+            context = context,
+            subject = document.title.ifBlank { success.info.title },
+            text = buildVideoNoteShareText(
+                videoTitle = success.info.title,
+                bvid = success.info.bvid,
+                document = document,
+                isDraft = isDraft
+            ),
+            chooserTitle = "分享视频笔记"
+        )
+    }
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val currentPageIndex = success.info.pages
         .indexOfFirst { it.cid == success.info.cid }
@@ -628,6 +584,23 @@ internal fun TabletVideoInfoPane(
         onWatchLaterClick = engagementActions.toggleWatchLater,
         onRelatedVideoClick = onRelatedVideoClick,
         onOpenBilibiliLink = onOpenBilibiliLink,
+        aiSummary = success.aiSummary,
+        aiSummaryPrompt = success.aiSummaryPrompt,
+        videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+        onRetryAiSummary = playbackActions.retryAiSummary,
+        onCreateNoteDraftFromAiSummary = playbackActions.createVideoNoteDraftFromAiSummary,
+        onTimestampClick = { timestamp -> playbackActions.seekTo(timestamp) },
+        videoNoteState = success.videoNoteState,
+        isLoggedIn = success.isLoggedIn,
+        videoNoteEnabled = videoNoteEnabled,
+        videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
+        onOpenVideoNoteEditor = playbackActions.openVideoNoteEditor,
+        onRetryVideoNote = playbackActions.retryVideoNote,
+        onDeleteVideoNoteClick = { confirmDeleteNote = true },
+        onShareVideoNote = { document -> onShareVideoNote(document, false) },
+        onPublicVideoNoteClick = { cvid, _ ->
+            onOpenBilibiliLink?.invoke("https://www.bilibili.com/read/cv$cvid")
+        },
         ownerTrailingContent = {
             TabletSecondaryDanmakuActions(
                 danmakuEnabled = danmakuEnabled,
@@ -636,6 +609,26 @@ internal fun TabletVideoInfoPane(
             )
         },
         modifier = modifier,
+    )
+
+    VideoNoteEditorSheet(
+        noteState = success.videoNoteState,
+        onDismiss = playbackActions.closeVideoNoteEditor,
+        onDocumentChange = playbackActions.updateVideoNoteEditorDocument,
+        onInsertTimestamp = playbackActions.insertCurrentPlaybackTimestampIntoNote,
+        onTimestampClick = { timestamp -> playbackActions.seekTo(timestamp) },
+        onShare = { document -> onShareVideoNote(document, success.videoNoteState.editorFromAiSummary) },
+        onSave = playbackActions.saveVideoNote
+    )
+
+    VideoNoteDeleteConfirmDialog(
+        visible = confirmDeleteNote,
+        deleting = success.videoNoteState.deleting,
+        onConfirm = {
+            confirmDeleteNote = false
+            playbackActions.deleteVideoNote()
+        },
+        onDismiss = { confirmDeleteNote = false }
     )
 }
 
@@ -1039,19 +1032,21 @@ internal fun TabletSecondaryContent(
                                     style = MaterialTheme.typography.titleMedium,
                                     color = commentAppearance.secondaryTextColor
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                AppText(
-                                    text = "先看看相关推荐",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = commentAppearance.secondaryTextColor
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                AppTextButton(onClick = {
-                                    scope.launch {
-                                        animatePagerSelection(pagerState, relatedTabIndex)
+                                if (includeRelatedTab) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    AppText(
+                                        text = "先看看相关推荐",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = commentAppearance.secondaryTextColor
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    AppTextButton(onClick = {
+                                        scope.launch {
+                                            animatePagerSelection(pagerState, relatedTabIndex)
+                                        }
+                                    }) {
+                                        AppText("切换到相关推荐")
                                     }
-                                }) {
-                                    AppText("切换到相关推荐")
                                 }
                             }
                         }
@@ -1219,68 +1214,6 @@ private fun TabletCollectionPane(
     }
 }
 
-@Composable
-private fun TabletOwnerUploadsPane(
-    mid: Long,
-    onVideoClick: (String, android.os.Bundle?) -> Unit,
-    spaceViewModel: SpaceViewModel = viewModel(key = "tablet_owner_uploads_$mid")
-) {
-    val state by spaceViewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(mid) {
-        if (mid > 0L) spaceViewModel.loadSpaceInfo(mid)
-    }
-
-    when (val current = state) {
-        SpaceUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            AdaptiveLoadingIndicator()
-        }
-        is SpaceUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            AppText(current.message, color = MaterialTheme.colorScheme.error)
-        }
-        is SpaceUiState.Success -> LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(current.videos, key = { it.bvid.ifBlank { it.aid.toString() } }) { video ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(AppShapes.container(ContainerLevel.Card))
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .clickable { onVideoClick(video.bvid, null) }
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    coil3.compose.AsyncImage(
-                        model = com.android.purebilibili.core.util.FormatUtils.fixImageUrl(video.pic),
-                        contentDescription = video.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .width(112.dp)
-                            .aspectRatio(16f / 9f)
-                            .clip(AppShapes.container(ContainerLevel.Chip))
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        AppText(
-                            text = video.title,
-                            maxLines = 2,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        AppText(
-                            text = "${com.android.purebilibili.core.util.FormatUtils.formatStat(video.play.toLong())}播放 · ${video.comment}评论",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 /**
  * 📊 平板视频信息区域（可滚动版）
@@ -1314,6 +1247,21 @@ private fun ScrollableVideoInfoSection(
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     onSearchKeywordClick: (String) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)?,
+    aiSummary: AiSummaryData? = null,
+    aiSummaryPrompt: AiSummaryPromptState? = null,
+    videoAiSummaryEntryEnabled: Boolean = true,
+    onRetryAiSummary: () -> Unit = {},
+    onCreateNoteDraftFromAiSummary: () -> Unit = {},
+    onTimestampClick: (Long) -> Unit = {},
+    videoNoteState: VideoNoteUiState = VideoNoteUiState(),
+    isLoggedIn: Boolean = false,
+    videoNoteEnabled: Boolean = true,
+    videoNoteDefaultCollapsed: Boolean = false,
+    onOpenVideoNoteEditor: () -> Unit = {},
+    onRetryVideoNote: () -> Unit = {},
+    onDeleteVideoNoteClick: () -> Unit = {},
+    onShareVideoNote: (VideoNoteEditorDocument) -> Unit = {},
+    onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
     relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
     showRelatedVideos: Boolean = true,
     modifier: Modifier = Modifier,
@@ -1421,7 +1369,66 @@ private fun ScrollableVideoInfoSection(
             }
         }
 
-        // 4. 分P选择器（合集已移到右侧内容栏）
+        // 4. AI 视频总结
+        if (shouldShowAiSummaryEntry(
+                aiSummary = aiSummary,
+                isAiSummaryEntryEnabled = videoAiSummaryEntryEnabled
+            )
+        ) {
+            item {
+                TabletVideoInfoStaggeredItem(
+                    visible = entranceVisible,
+                    index = 3,
+                    spec = entranceSpec,
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AiSummaryCard(
+                        aiSummary = aiSummary,
+                        onTimestampClick = onTimestampClick,
+                        onCreateNoteDraftClick = onCreateNoteDraftFromAiSummary,
+                    )
+                }
+            }
+        } else if (videoAiSummaryEntryEnabled && aiSummaryPrompt != null) {
+            item {
+                TabletVideoInfoStaggeredItem(
+                    visible = entranceVisible,
+                    index = 3,
+                    spec = entranceSpec,
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AiSummaryPromptCard(
+                        promptState = aiSummaryPrompt,
+                        onActionClick = onRetryAiSummary,
+                    )
+                }
+            }
+        }
+
+        // 5. 视频笔记
+        if (shouldShowVideoNoteCard(videoNoteEnabled)) {
+            item {
+                TabletVideoInfoStaggeredItem(
+                    visible = entranceVisible,
+                    index = 4,
+                    spec = entranceSpec,
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    VideoNoteCard(
+                        noteState = videoNoteState,
+                        isLoggedIn = isLoggedIn,
+                        onCreateOrEditClick = onOpenVideoNoteEditor,
+                        onRetryClick = onRetryVideoNote,
+                        onDeleteClick = onDeleteVideoNoteClick,
+                        onShareClick = onShareVideoNote,
+                        onPublicNoteClick = onPublicVideoNoteClick,
+                        defaultCollapsed = videoNoteDefaultCollapsed,
+                    )
+                }
+            }
+        }
+
+        // 6. 分P选择器（合集已移到右侧内容栏）
         item {
             if (info.pages.size > 1) {
                 Spacer(modifier = Modifier.height(12.dp))

@@ -140,4 +140,130 @@ class DynamicLayoutPolicyTest {
             resolveDynamicActionButtonText(label = "评论", count = 1200, slotWidthDp = 140)
         )
     }
+
+    @Test
+    fun `dynamic sidebar beyond bounds adapts to scroll state`() {
+        assertEquals(
+            6,
+            resolveDynamicSidebarBeyondBoundsItemCount(isScrollInProgress = false)
+        )
+        assertEquals(
+            15,
+            resolveDynamicSidebarBeyondBoundsItemCount(isScrollInProgress = true)
+        )
+    }
+
+    @Test
+    fun `dynamic sidebar fling damping uses stable reduction factor`() {
+        assertEquals(
+            0.70f,
+            resolveDynamicSidebarFlingDampingFactor(),
+            0.001f
+        )
+    }
+
+    @Test
+    fun `dynamic sidebar cascade animation only animates initial visible items before scroll`() {
+        // Initial entrance on first visible items
+        assertTrue(
+            shouldAnimateSidebarItemCascade(
+                index = 0,
+                hasScrolled = false,
+                initialEntranceActive = true
+            )
+        )
+        assertTrue(
+            shouldAnimateSidebarItemCascade(
+                index = 7,
+                hasScrolled = false,
+                initialEntranceActive = true
+            )
+        )
+
+        // Beyond max cascade items - should not delay or animate
+        assertFalse(
+            shouldAnimateSidebarItemCascade(
+                index = 8,
+                hasScrolled = false,
+                initialEntranceActive = true
+            )
+        )
+        assertFalse(
+            shouldAnimateSidebarItemCascade(
+                index = 25,
+                hasScrolled = false,
+                initialEntranceActive = true
+            )
+        )
+
+        // After user scrolled - should never delay or animate
+        assertFalse(
+            shouldAnimateSidebarItemCascade(
+                index = 0,
+                hasScrolled = true,
+                initialEntranceActive = true
+            )
+        )
+        assertFalse(
+            shouldAnimateSidebarItemCascade(
+                index = 3,
+                hasScrolled = true,
+                initialEntranceActive = true
+            )
+        )
+
+        // After initial entrance window elapsed
+        assertFalse(
+            shouldAnimateSidebarItemCascade(
+                index = 0,
+                hasScrolled = false,
+                initialEntranceActive = false
+            )
+        )
+    }
+
+    @Test
+    fun `dynamic sidebar avatar url formats correctly for various schemes`() {
+        assertEquals(
+            "https://i0.hdslb.com/bfs/face/test.jpg",
+            resolveDynamicSidebarUserAvatarUrl("https://i0.hdslb.com/bfs/face/test.jpg")
+        )
+        assertEquals(
+            "https://i0.hdslb.com/bfs/face/test.jpg",
+            resolveDynamicSidebarUserAvatarUrl("http://i0.hdslb.com/bfs/face/test.jpg")
+        )
+        assertEquals(
+            "https://i0.hdslb.com/bfs/face/test.jpg",
+            resolveDynamicSidebarUserAvatarUrl("//i0.hdslb.com/bfs/face/test.jpg")
+        )
+        assertEquals(
+            "https://i0.hdslb.com/bfs/face/test.jpg",
+            resolveDynamicSidebarUserAvatarUrl("i0.hdslb.com/bfs/face/test.jpg")
+        )
+        assertEquals(
+            "",
+            resolveDynamicSidebarUserAvatarUrl("   ")
+        )
+    }
+
+    @Test
+    fun `dynamic sidebar avatar prefetch extracts candidate urls within limits`() {
+        val users = listOf(
+            SidebarUser(uid = 1L, name = "A", face = "https://a.jpg"),
+            SidebarUser(uid = 2L, name = "B", face = ""),
+            SidebarUser(uid = 3L, name = "C", face = "//c.jpg"),
+            SidebarUser(uid = 4L, name = "D", face = "http://d.jpg")
+        )
+        val prefetchUrls = resolveDynamicSidebarAvatarPrefetchUrls(users, startIndex = 0, limit = 3)
+        assertEquals(
+            listOf("https://a.jpg", "https://c.jpg"),
+            prefetchUrls
+        )
+
+        val scrolledUrls = resolveDynamicSidebarAvatarPrefetchUrls(users, startIndex = 2, limit = 2)
+        assertEquals(
+            listOf("https://c.jpg", "https://d.jpg"),
+            scrolledUrls
+        )
+    }
 }

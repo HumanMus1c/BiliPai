@@ -1,9 +1,12 @@
 package com.android.purebilibili.core.store
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class HomeTopTabSettingsMappingPolicyTest {
 
@@ -22,6 +25,20 @@ class HomeTopTabSettingsMappingPolicyTest {
             setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME"),
             result.visibleIds
         )
+        assertFalse(result.hideTopTabs)
+    }
+
+    @Test
+    fun populatedPreferences_mapHideTopTabs() {
+        val prefsTrue = mutablePreferencesOf(
+            booleanPreferencesKey("hide_top_tabs") to true
+        )
+        val prefsFalse = mutablePreferencesOf(
+            booleanPreferencesKey("hide_top_tabs") to false
+        )
+
+        assertTrue(mapHomeTopTabSettingsFromPreferences(prefsTrue).hideTopTabs)
+        assertFalse(mapHomeTopTabSettingsFromPreferences(prefsFalse).hideTopTabs)
     }
 
     @Test

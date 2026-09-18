@@ -223,7 +223,9 @@ fun PlainMiuixFloatingBottomBar(
         Box(
             modifier = indicatorPositionModifier
                 .width(itemWidth)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .clip(shape)
+                .background(colors.indicatorColor.copy(alpha = 0.14f), shape),
         )
         CompositionLocalProvider(
             LocalFloatingBottomBarContentColor provides colors.contentColor,

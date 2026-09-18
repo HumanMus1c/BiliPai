@@ -157,13 +157,16 @@ fun BangumiScreen(
                 backdrop = chromeBackdrop.takeIf { progressiveActive },
                 enabled = progressiveActive,
                 headerBlurActive = hazeActive,
+                extendBelowBounds = false,
                 modifier = Modifier.background(
                     if (chromeActive) Color.Transparent
                     else globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.background)
                 ).then(
                     if (hazeActive) {
                         hazeState?.let {
-                            Modifier.unifiedBlur(hazeState = it, surfaceType = BlurSurfaceType.HEADER)
+                            Modifier
+                                .unifiedBlur(hazeState = it, surfaceType = BlurSurfaceType.HEADER)
+                                .background(AppSurfaceTokens.cardContainer().copy(alpha = AppSurfaceTokens.FrostedScrimAlpha))
                         } ?: Modifier
                     } else {
                         Modifier

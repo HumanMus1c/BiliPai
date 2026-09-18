@@ -404,6 +404,7 @@ fun BottomBarLiquidSegmentedControl(
     longPressDragSelectionEnabled: Boolean = false,
     preferInlineContentStyle: Boolean = false,
     forceEqualWidth: Boolean = false,
+    compactMiuixWhenTwoOptions: Boolean = true,
     equalizeMiuixNonGlassItemWidths: Boolean = false,
     contentSizedMiuixNonGlassItems: Boolean = false,
     // Keep non-glass Miuix tabs as two independent items instead of adding a
@@ -465,6 +466,7 @@ fun BottomBarLiquidSegmentedControl(
             // Short native tabs size from their label while retaining a real 48dp minimum
             // hit width. The former 72dp liquid-dock default overflowed compact sibling rows.
             minTabWidth = itemWidth ?: AppChromeSizeTokens.MinimumTouchTarget,
+            compactMiuixWhenTwoOptions = compactMiuixWhenTwoOptions,
             allowLabelOverflow = allowNativeLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
             miuixNonGlassItemWidthMode = if (equalizeMiuixNonGlassItemWidths) {

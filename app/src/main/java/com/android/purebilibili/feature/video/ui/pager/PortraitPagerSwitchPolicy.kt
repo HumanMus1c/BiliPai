@@ -84,10 +84,7 @@ internal fun shouldShowPortraitCover(
     hasRenderedFirstFrame: Boolean
 ): Boolean {
     if (!isCurrentPage) return true
-    if (!isPlayerReadyForThisVideo) return true
-    // Once the target page owns the player, keep the Surface visible while it prepares.
-    // PlayerView supplies a black shutter/buffering UI; putting the cover back on top causes
-    // the immersive feed to flash a poster after every swipe.
+    // 当前播放页一律不显示静态封面，保持黑屏底色平滑过渡起播，避免进入时闪烁封面
     return false
 }
 

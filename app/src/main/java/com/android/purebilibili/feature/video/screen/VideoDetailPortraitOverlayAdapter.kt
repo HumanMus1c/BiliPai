@@ -186,5 +186,6 @@ internal fun shouldShowPortraitEntryCoverPlaceholder(
     hasPlayableSuccess: Boolean,
     entryCoverUrl: String,
 ): Boolean {
-    return showPortraitFullscreen && !hasPlayableSuccess && entryCoverUrl.isNotBlank()
+    // 竖屏进入时压制封面占位，由黑色播放器直接起播，避免点击进入时看见封面闪烁
+    return false
 }

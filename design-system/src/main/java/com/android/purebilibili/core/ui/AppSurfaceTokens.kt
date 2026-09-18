@@ -23,6 +23,9 @@ object AppSurfaceTokens {
     /** Standard outline width for bordered cards, fields, and dialogs. */
     val OutlineWidth = 1.dp
 
+    /** Standard frosted glass surface scrim opacity to prevent scrolling content bleed-through. */
+    const val FrostedScrimAlpha = 0.65f
+
     fun resolveCardContainer(colorScheme: ColorScheme): Color = colorScheme.surfaceContainer
 
     fun resolveGroupedListContainer(colorScheme: ColorScheme): Color = colorScheme.background

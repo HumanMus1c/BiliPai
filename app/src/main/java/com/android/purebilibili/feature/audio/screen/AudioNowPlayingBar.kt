@@ -27,10 +27,18 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
+import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.util.CardPositionManager
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +46,11 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -48,10 +61,12 @@ import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.LocalLiquidGlassRenderConfig
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
 internal data class AudioNowPlayingBarState(
+    val bvid: String = "",
     val title: String,
     val artist: String,
     val artistAvatarUrl: String = "",
@@ -69,6 +84,9 @@ internal fun AudioNowPlayingBar(
     onSkipPrevious: () -> Unit,
     onDismiss: () -> Unit,
     expandDestinationLabel: String = "听视频",
+    sourceRoute: String? = null,
+    isReturningFromDetail: Boolean = false,
+    returningDetailBvid: String? = null,
     glassEnabled: Boolean = LocalSettingsLiquidGlassEnabled.current,
     miuixBackdrop: MiuixBackdrop? = null,
     liquidGlassTuning: LiquidGlassTuning = LocalLiquidGlassRenderConfig.current.tuning,
@@ -80,6 +98,72 @@ internal fun AudioNowPlayingBar(
     surfaceMergeProgress: Float = dockMergeProgress,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenWidthPx = remember(configuration.screenWidthDp, density) {
+        with(density) { configuration.screenWidthDp.dp.toPx() }
+    }
+    val screenHeightPx = remember(configuration.screenHeightDp, density) {
+        with(density) { configuration.screenHeightDp.dp.toPx() }
+    }
+
+    val barCoordsRef = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val coverCoordsRef = remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    val handleExpand = {
+        barCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
+            val sourceCoverBounds = coverCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()
+            if (state.bvid.isNotBlank()) {
+                CardPositionManager.recordVideoCardPosition(
+                    bvid = state.bvid,
+                    sourceRoute = sourceRoute,
+                    bounds = bounds,
+                    screenWidth = screenWidthPx,
+                    screenHeight = screenHeightPx,
+                    density = density.density,
+                    sourceCornerDp = 28,
+                    coverBounds = sourceCoverBounds,
+                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                        title = state.title,
+                        ownerName = state.artist,
+                        ownerFaceUrl = state.artistAvatarUrl,
+                        viewText = "",
+                        danmakuText = "",
+                        durationText = "",
+                        followed = false,
+                    )
+                )
+            }
+        }
+        onExpand()
+    }
+
+    val landingProgress = remember { Animatable(1f) }
+    val reduceMotion = rememberSystemReduceMotion()
+    val landingMotionEnabled = resolveAudioNowPlayingBarLandingMotionEnabled(reduceMotion)
+    val shouldTriggerLanding = resolveAudioNowPlayingBarShouldTriggerLanding(
+        isReturningFromDetail = isReturningFromDetail,
+        targetBvid = returningDetailBvid,
+        currentBvid = state.bvid
+    )
+
+    LaunchedEffect(shouldTriggerLanding, landingMotionEnabled) {
+        if (shouldTriggerLanding && landingMotionEnabled) {
+            delay(AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS)
+            landingProgress.snapTo(0f)
+            landingProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS,
+                    easing = AudioNowPlayingBarLandingEasing
+                )
+            )
+        } else if (!shouldTriggerLanding) {
+            landingProgress.snapTo(1f)
+        }
+    }
+
     val mergeProgress = dockMergeProgress.coerceIn(0f, 1f)
     val searchProgress = iconOnlyProgress.coerceIn(0f, 1f)
     val primaryContentProgress = 1f - searchProgress
@@ -91,7 +175,6 @@ internal fun AudioNowPlayingBar(
     val shape = resolveSharedBottomBarCapsuleShape()
     val containerColor = AppSurfaceTokens.surfaceContainer()
     val glassActive = glassEnabled && miuixBackdrop != null
-    val reduceMotion = rememberSystemReduceMotion()
     val coverRotationDegrees = rememberMusicArtworkRotationDegrees(
         active = shouldRotateMusicArtwork(
             isPlaying = state.isPlaying,
@@ -114,9 +197,22 @@ internal fun AudioNowPlayingBar(
                     else -> 8.dp
                 }
             )
+            .onGloballyPositioned { coordinates ->
+                barCoordsRef.value = coordinates
+            }
+            .graphicsLayer {
+                val progress = landingProgress.value
+                val (scaleXVal, scaleYVal) = resolveAudioNowPlayingBarLandingScale(progress)
+                val offsetY = resolveAudioNowPlayingBarLandingOffsetY(progress)
+                val alphaVal = resolveAudioNowPlayingBarLandingAlpha(progress)
+                scaleX = scaleXVal
+                scaleY = scaleYVal
+                translationY = offsetY * density.density
+                alpha = alphaVal
+            }
             .clip(shape)
             .semantics { contentDescription = "当前视频：${state.title}，打开$expandDestinationLabel" }
-            .clickable(onClick = onExpand)
+            .clickable(onClick = handleExpand)
             .audioNowPlayingSkipGesture(
                 onSkipNext = onSkipNext,
                 onSkipPrevious = onSkipPrevious
@@ -147,6 +243,9 @@ internal fun AudioNowPlayingBar(
                 contentDescription = null,
                 modifier = Modifier
                     .size((40f - 8f * mergeProgress).dp)
+                    .onGloballyPositioned { coordinates ->
+                        coverCoordsRef.value = coordinates
+                    }
                     .graphicsLayer { rotationZ = coverRotationDegrees() }
                     .clip(if (chrome.coverShapeIsCircle) CircleShape else AppShapes.container(ContainerLevel.Field)),
                 contentScale = ContentScale.Crop
@@ -238,7 +337,7 @@ internal fun AudioNowPlayingBar(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        AppIconButton(onClick = onExpand, modifier = Modifier.size(48.dp)) {
+                        AppIconButton(onClick = handleExpand, modifier = Modifier.size(48.dp)) {
                             AppIcon(
                                 Icons.Outlined.QueueMusic,
                                 contentDescription = "打开$expandDestinationLabel",

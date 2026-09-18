@@ -150,10 +150,17 @@ fun SettingsTabletShell(
                 ) {
                     AppTopBar(
                         title = stringResource(R.string.settings_title),
-                        modifier = if (tabletHazeReady) Modifier.unifiedBlur(
-                            hazeState = requireNotNull(tabletHazeState),
-                            surfaceType = BlurSurfaceType.HEADER,
-                        ) else Modifier,
+                        modifier = if (tabletHazeReady) {
+                            Modifier
+                                .unifiedBlur(
+                                    hazeState = requireNotNull(tabletHazeState),
+                                    surfaceType = BlurSurfaceType.HEADER,
+                                )
+                                .background(
+                                    AppSurfaceTokens.groupedListContainer()
+                                        .copy(alpha = AppSurfaceTokens.FrostedScrimAlpha)
+                                )
+                        } else Modifier,
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = if (progressive || tabletHazeReady) {
                                 androidx.compose.ui.graphics.Color.Transparent

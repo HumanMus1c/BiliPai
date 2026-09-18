@@ -16,6 +16,22 @@ class HomePagerSyncPolicyTest {
     }
 
     @Test
+    fun topPagerEnablesUserScrollEvenWhenHideTopTabsIsTrue() {
+        assertTrue(
+            shouldEnableHomeTopPagerUserScroll(
+                isTopLevelActive = true,
+                hideTopTabs = true
+            )
+        )
+        assertFalse(
+            shouldEnableHomeTopPagerUserScroll(
+                isTopLevelActive = false,
+                hideTopTabs = true
+            )
+        )
+    }
+
+    @Test
     fun pagerToCategorySync_waitsUntilScrollingStops() {
         val shouldSwitch = shouldSwitchHomeCategoryFromPager(
             isTopLevelActive = true,

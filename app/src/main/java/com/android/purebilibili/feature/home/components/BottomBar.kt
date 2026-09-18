@@ -1065,10 +1065,12 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
         null
     }
     val effectiveShellLensIntensity = shellLensIntensity.coerceIn(0f, 1f)
+    val hasBackdrop = backdrop != null && (renderGlassEffects || blurEnabled)
+    val hasHazeBlur = !hasBackdrop && useHazeBlur && hazeState != null
 
     this
         .then(
-            if (useHazeBlur && hazeState != null) {
+            if (hasHazeBlur) {
                 Modifier.unifiedBlur(
                     hazeState = hazeState,
                     shape = shape,
@@ -1083,11 +1085,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
             }
         )
         .run {
-            if (
-                backdrop != null &&
-                !useHazeBlur &&
-                (renderGlassEffects || blurEnabled)
-            ) {
+            if (hasBackdrop) {
                 this
                     .dropShadow(
                         shape = shape,
@@ -1140,8 +1138,9 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                                         chromaticAberration = materialSpec.shellChromaticAberration
                                     )
                                 }
-                            } else if (blurEnabled && !useHazeBlur) {
-                                val radiusPx = blurRadius.toPx()
+                            } else if (blurEnabled) {
+                                val resolvedBlurRadius = maxOf(blurRadius, 25.dp)
+                                val radiusPx = resolvedBlurRadius.toPx()
                                 miuixBlur(radiusPx, radiusPx)
                             }
                         },
@@ -1164,16 +1163,20 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                             }
                         } else null,
                         onDrawSurface = {
-                            drawRect(containerColor)
-                            if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
-                                drawRect(
-                                    (if (isDarkTheme) Color.Black else Color.White).copy(
-                                        alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                            if (renderGlassEffects) {
+                                drawRect(containerColor)
+                                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
+                                    drawRect(
+                                        (if (isDarkTheme) Color.Black else Color.White).copy(
+                                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                                        )
                                     )
-                                )
-                            }
-                            if (materialSpec.foregroundTint.alpha > 0f) {
-                                drawRect(materialSpec.foregroundTint)
+                                }
+                                if (materialSpec.foregroundTint.alpha > 0f) {
+                                    drawRect(materialSpec.foregroundTint)
+                                }
+                            } else {
+                                drawRect(containerColor.copy(alpha = 0.65f))
                             }
                         }
                     )
@@ -1195,8 +1198,29 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                             this
                         }
                     }
+            } else if (hasHazeBlur) {
+                this
+                    .dropShadow(
+                        shape = shape,
+                        shadow = ComposeShadow(
+                            radius = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                            color = OpticalContrastPalette.Shadow,
+                            alpha = (if (isDarkTheme) 0.2f else 0.1f) *
+                                materialSpec.shadowAlphaScale
+                        )
+                    )
+                    .background(containerColor.copy(alpha = 0.65f), shape)
             } else {
-                background(containerColor, shape)
+                this
+                    .dropShadow(
+                        shape = shape,
+                        shadow = ComposeShadow(
+                            radius = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                            color = OpticalContrastPalette.Shadow,
+                            alpha = if (isDarkTheme) 0.2f else 0.12f
+                        )
+                    )
+                    .background(containerColor.copy(alpha = 1f), shape)
             }
         }
         .clip(shape)
@@ -3858,7 +3882,11 @@ private fun BiliPaiFloatingBottomBarChrome(
                     },
                     shape = resolveSharedBottomBarCapsuleShape(),
                     miuixBackdrop = miuixBackdrop,
-                    containerColor = biliPaiContainerColor,
+                    containerColor = if (usePlainMiuixFloatingBar) {
+                        floatingContainerColor
+                    } else {
+                        biliPaiContainerColor
+                    },
                     blurEnabled = blurEnabled,
                     glassEnabled = effectiveGlassEnabled,
                     blurRadius = tuning.shellBlurRadiusDp.dp,

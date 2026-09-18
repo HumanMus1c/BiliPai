@@ -1070,7 +1070,15 @@ object CommentRepository {
     /**
      * [新增] 点踩评论
      */
-    suspend fun hateComment(aid: Long, rpid: Long, hate: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun hateComment(aid: Long, rpid: Long, hate: Boolean): Result<Unit> =
+        hateCommentForSubject(oid = aid, type = 1, rpid = rpid, hate = hate)
+
+    suspend fun hateCommentForSubject(
+        oid: Long,
+        type: Int,
+        rpid: Long,
+        hate: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
             if (csrf.isNullOrEmpty()) {
@@ -1078,8 +1086,8 @@ object CommentRepository {
             }
             
             val response = api.hateReply(
-                oid = aid,
-                type = 1,
+                oid = oid,
+                type = type,
                 rpid = rpid,
                 action = if (hate) 1 else 0,
                 csrf = csrf

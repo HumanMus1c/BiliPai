@@ -193,10 +193,17 @@ internal fun SettingsPageScaffold(
                 ) {
                     AppTopBar(
                         title = title,
-                        modifier = if (hazeState != null) Modifier.unifiedBlur(
-                            hazeState = hazeState,
-                            surfaceType = BlurSurfaceType.HEADER,
-                        ) else Modifier,
+                        modifier = if (hazeState != null) {
+                            Modifier
+                                .unifiedBlur(
+                                    hazeState = hazeState,
+                                    surfaceType = BlurSurfaceType.HEADER,
+                                )
+                                .background(
+                                    pageContainerColor
+                                        .copy(alpha = AppSurfaceTokens.FrostedScrimAlpha)
+                                )
+                        } else Modifier,
                         navigationIcon = {
                             AppIconButton(onClick = onBack) {
                                 AppIcon(

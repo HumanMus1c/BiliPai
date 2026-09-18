@@ -205,7 +205,8 @@ fun ReplyMeScreen(
                                             subjectId = content.subjectId,
                                             rootId = content.rootId,
                                             sourceId = content.sourceId,
-                                            targetId = content.targetId
+                                            targetId = content.targetId,
+                                            business = content.business
                                         )?.let(onOpenLink)
                                     }
                                 },

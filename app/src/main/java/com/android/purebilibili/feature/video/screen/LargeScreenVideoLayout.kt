@@ -3,32 +3,24 @@ package com.android.purebilibili.feature.video.screen
 import android.content.res.Configuration
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope.OverlayClip
-import androidx.compose.animation.core.animateDp
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,35 +42,6 @@ import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
-
-private enum class LargeScreenPaneVisibility {
-    BOTH,
-    PRIMARY_COLLAPSED,
-    SECONDARY_COLLAPSED,
-}
-
-@Composable
-private fun LargeScreenPaneToggleRail(
-    onCollapsePrimary: () -> Unit,
-    onCollapseSecondary: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        TabletSecondaryPaneToggleButton(
-            isSecondaryPaneVisible = false,
-            onClick = onCollapsePrimary,
-            contentDescription = "收起左侧内容",
-        )
-        TabletSecondaryPaneToggleButton(
-            isSecondaryPaneVisible = true,
-            onClick = onCollapseSecondary,
-            contentDescription = "收起右侧内容",
-        )
-    }
-}
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -128,6 +91,9 @@ internal fun LargeScreenVideoLayout(
     predictiveBackCancelRecoveryGeneration: Int = 0,
     liveSurfaceCardTransitionEnabled: Boolean = true,
     paneControlsEnabled: Boolean = true,
+    videoAiSummaryEntryEnabled: Boolean = true,
+    videoNoteEnabled: Boolean = true,
+    videoNoteDefaultCollapsed: Boolean = false,
 ) {
     val pageColor = AppSurfaceTokens.chromeBackground()
     val danmakuChrome = rememberTabletDanmakuChromeState(bvid)
@@ -143,65 +109,15 @@ internal fun LargeScreenVideoLayout(
                 windowWidthDp = windowWidthDp,
                 windowHeightDp = windowHeightDp,
                 isVerticalVideo = isVerticalVideo,
+                enableVerticalExpand = true,
             )
         }
         val applySideStatusBarPadding =
             metrics.mode != LargeScreenVideoLayoutMode.AlmostSquare
-        val showRelatedInIntro = false
-        val relatedTabFirst = false
-        val includeRelatedTab = true
+        val showRelatedInIntro = resolveShowRelatedInIntro(metrics.mode)
+        val relatedTabFirst = resolveRelatedTabFirstInSecondary(metrics.mode)
+        val includeRelatedTab = resolveIncludeRelatedTabInSecondary(metrics.mode)
         val success = uiState as? VideoPlaybackUiState.Success
-        var sidePaneCollapsedRequested by rememberSaveable(bvid) { mutableStateOf(false) }
-        var primaryPaneCollapsedRequested by rememberSaveable(bvid) { mutableStateOf(false) }
-        val canCollapseSidePane = metrics.mode == LargeScreenVideoLayoutMode.Split ||
-            metrics.mode == LargeScreenVideoLayoutMode.Landscape ||
-            metrics.mode == LargeScreenVideoLayoutMode.AlmostSquare
-        val paneVisibility = when {
-            canCollapseSidePane && primaryPaneCollapsedRequested ->
-                LargeScreenPaneVisibility.PRIMARY_COLLAPSED
-            canCollapseSidePane && sidePaneCollapsedRequested ->
-                LargeScreenPaneVisibility.SECONDARY_COLLAPSED
-            else -> LargeScreenPaneVisibility.BOTH
-        }
-        val paneTransition = updateTransition(
-            targetState = paneVisibility,
-            label = "large-screen-secondary-pane",
-        )
-        val animatedPrimaryPaneWidth by paneTransition.animateDp(
-            transitionSpec = { tween(durationMillis = 320) },
-            label = "primary-pane-width",
-        ) { visibility ->
-            when (visibility) {
-                LargeScreenPaneVisibility.PRIMARY_COLLAPSED -> 0.dp
-                LargeScreenPaneVisibility.BOTH -> if (
-                    metrics.mode == LargeScreenVideoLayoutMode.AlmostSquare
-                ) {
-                    maxWidth / 2f
-                } else {
-                    metrics.playerWidthDp.dp
-                }
-                LargeScreenPaneVisibility.SECONDARY_COLLAPSED -> maxWidth
-            }
-        }
-        val animatedSidePaneWidth by paneTransition.animateDp(
-            transitionSpec = { tween(durationMillis = 320) },
-            label = "secondary-pane-width",
-        ) { visibility ->
-            when (visibility) {
-                LargeScreenPaneVisibility.PRIMARY_COLLAPSED -> maxWidth
-                LargeScreenPaneVisibility.BOTH -> if (
-                    metrics.mode == LargeScreenVideoLayoutMode.AlmostSquare
-                ) {
-                    maxWidth / 2f
-                } else {
-                    metrics.sidePaneWidthDp.dp
-                }
-                LargeScreenPaneVisibility.SECONDARY_COLLAPSED -> 0.dp
-            }
-        }
-        val sidePaneCollapsed = paneVisibility == LargeScreenPaneVisibility.SECONDARY_COLLAPSED
-        val primaryPaneCollapsed = paneVisibility == LargeScreenPaneVisibility.PRIMARY_COLLAPSED
-        val paneControlsVisible = paneControlsEnabled && success != null
         val player: @Composable (Modifier) -> Unit = { modifier ->
             LargeScreenPlayerHost(
                 modifier = modifier,
@@ -253,6 +169,9 @@ internal fun LargeScreenVideoLayout(
                     onOwnerUploadsClick = {
                         success.info.owner.mid.takeIf { it > 0L }?.let(onUpClick)
                     },
+                    videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+                    videoNoteEnabled = videoNoteEnabled,
+                    videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                     modifier = modifier,
                     showRelatedVideos = showRelatedInIntro,
                 )
@@ -302,11 +221,21 @@ internal fun LargeScreenVideoLayout(
                     ) {
                         intro(Modifier.fillMaxSize())
                     }
+                    VerticalDivider(
+                        modifier = Modifier.fillMaxHeight(),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 1.dp,
+                    )
                     player(
                         Modifier
                             .width(metrics.playerWidthDp.dp)
                             .height(metrics.playerHeightDp.dp)
                             .background(Color.Black),
+                    )
+                    VerticalDivider(
+                        modifier = Modifier.fillMaxHeight(),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 1.dp,
                     )
                     Column(
                         modifier = Modifier
@@ -318,211 +247,102 @@ internal fun LargeScreenVideoLayout(
                 }
             }
             LargeScreenVideoLayoutMode.Split -> {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .width(animatedPrimaryPaneWidth)
-                                .fillMaxHeight(),
-                        ) {
-                            player(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(metrics.playerHeightDp.dp)
-                                    .background(Color.Black),
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .width(animatedSidePaneWidth)
-                                .fillMaxHeight(),
-                        ) {
-                            side(true)
-                        }
-                    }
-                    if (paneControlsVisible && paneVisibility == LargeScreenPaneVisibility.BOTH) {
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            Box(
-                                modifier = Modifier
-                                    .width(animatedPrimaryPaneWidth)
-                                    .fillMaxHeight(),
-                            ) {
-                                LargeScreenPaneToggleRail(
-                                    onCollapsePrimary = {
-                                        primaryPaneCollapsedRequested = true
-                                        sidePaneCollapsedRequested = false
-                                    },
-                                    onCollapseSecondary = {
-                                        sidePaneCollapsedRequested = true
-                                        primaryPaneCollapsedRequested = false
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .offset(x = 20.dp),
-                                )
-                            }
-                        }
-                    }
-                    if (paneControlsVisible && primaryPaneCollapsed) {
-                        TabletSecondaryPaneToggleButton(
-                            isSecondaryPaneVisible = true,
-                            onClick = { primaryPaneCollapsedRequested = false },
-                            contentDescription = "展开左侧内容",
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 4.dp),
-                        )
-                    } else if (paneControlsVisible && sidePaneCollapsed) {
-                        TabletSecondaryPaneToggleButton(
-                            isSecondaryPaneVisible = false,
-                            onClick = { sidePaneCollapsedRequested = false },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 0.dp),
-                        )
-                    }
-                }
-            }
-            LargeScreenVideoLayoutMode.AlmostSquare -> {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .width(metrics.playerWidthDp.dp)
+                            .fillMaxHeight(),
+                    ) {
                         player(
                             Modifier
                                 .fillMaxWidth()
                                 .height(metrics.playerHeightDp.dp)
                                 .background(Color.Black),
                         )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(animatedPrimaryPaneWidth)
-                                    .fillMaxHeight(),
-                            ) {
-                                intro(Modifier.fillMaxSize())
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(animatedSidePaneWidth)
-                                    .fillMaxHeight(),
-                            ) {
-                                side(false)
-                            }
-                        }
                     }
-                    if (paneControlsVisible) {
+                    VerticalDivider(
+                        modifier = Modifier.fillMaxHeight(),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 1.dp,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(metrics.sidePaneWidthDp.dp)
+                            .fillMaxHeight(),
+                    ) {
+                        side(true)
+                    }
+                }
+            }
+            LargeScreenVideoLayoutMode.AlmostSquare -> {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    player(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(metrics.playerHeightDp.dp)
+                            .background(Color.Black),
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = metrics.playerHeightDp.dp),
+                                .weight(1f)
+                                .fillMaxHeight(),
                         ) {
-                            if (paneVisibility == LargeScreenPaneVisibility.BOTH) {
-                                LargeScreenPaneToggleRail(
-                                    onCollapsePrimary = {
-                                        primaryPaneCollapsedRequested = true
-                                        sidePaneCollapsedRequested = false
-                                    },
-                                    onCollapseSecondary = {
-                                        sidePaneCollapsedRequested = true
-                                        primaryPaneCollapsedRequested = false
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .offset(x = 20.dp),
-                                )
-                            } else if (primaryPaneCollapsed) {
-                                TabletSecondaryPaneToggleButton(
-                                    isSecondaryPaneVisible = true,
-                                    onClick = { primaryPaneCollapsedRequested = false },
-                                    contentDescription = "展开左侧内容",
-                                    modifier = Modifier.align(Alignment.CenterStart),
-                                )
-                            } else if (sidePaneCollapsed) {
-                                TabletSecondaryPaneToggleButton(
-                                    isSecondaryPaneVisible = false,
-                                    onClick = { sidePaneCollapsedRequested = false },
-                                    modifier = Modifier.align(Alignment.CenterEnd),
-                                )
-                            }
+                            intro(Modifier.fillMaxSize())
+                        }
+                        VerticalDivider(
+                            modifier = Modifier.fillMaxHeight(),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                            thickness = 1.dp,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        ) {
+                            side(false)
                         }
                     }
                 }
             }
             LargeScreenVideoLayoutMode.Landscape -> {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .width(animatedPrimaryPaneWidth)
-                                .fillMaxHeight(),
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                player(
+                Row(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .width(metrics.playerWidthDp.dp)
+                            .fillMaxHeight(),
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            player(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(LARGE_SCREEN_VIDEO_ASPECT_16_9)
+                                    .background(Color.Black),
+                            )
+                            if (metrics.introBelowPlayer) {
+                                intro(
                                     Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(LARGE_SCREEN_VIDEO_ASPECT_16_9)
-                                        .background(Color.Black),
-                                )
-                                if (metrics.introBelowPlayer) {
-                                    intro(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    )
-                                }
-                            }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .width(animatedSidePaneWidth)
-                                .fillMaxHeight(),
-                        ) {
-                            side(!metrics.introBelowPlayer)
-                        }
-                    }
-                    if (paneControlsVisible && paneVisibility == LargeScreenPaneVisibility.BOTH) {
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            Box(
-                                modifier = Modifier
-                                    .width(animatedPrimaryPaneWidth)
-                                    .fillMaxHeight(),
-                            ) {
-                                LargeScreenPaneToggleRail(
-                                    onCollapsePrimary = {
-                                        primaryPaneCollapsedRequested = true
-                                        sidePaneCollapsedRequested = false
-                                    },
-                                    onCollapseSecondary = {
-                                        sidePaneCollapsedRequested = true
-                                        primaryPaneCollapsedRequested = false
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .offset(x = 20.dp),
+                                        .weight(1f),
                                 )
                             }
                         }
                     }
-                    if (paneControlsVisible && primaryPaneCollapsed) {
-                        TabletSecondaryPaneToggleButton(
-                            isSecondaryPaneVisible = true,
-                            onClick = { primaryPaneCollapsedRequested = false },
-                            contentDescription = "展开左侧内容",
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 4.dp),
-                        )
-                    } else if (paneControlsVisible && sidePaneCollapsed) {
-                        TabletSecondaryPaneToggleButton(
-                            isSecondaryPaneVisible = false,
-                            onClick = { sidePaneCollapsedRequested = false },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 0.dp),
-                        )
+                    VerticalDivider(
+                        modifier = Modifier.fillMaxHeight(),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 1.dp,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(metrics.sidePaneWidthDp.dp)
+                            .fillMaxHeight(),
+                    ) {
+                        side(!metrics.introBelowPlayer)
                     }
                 }
             }

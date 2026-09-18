@@ -318,7 +318,7 @@ fun HomeScreen(
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
-    val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
+    val headerSettleMotionSpec = AppMotionTokens.emphasizedSpec<Float>()
     val globalScrollOffset = LocalHomeScrollOffset.current
     val globalFeedScrollInProgress = LocalHomeFeedScrollInProgress.current
     // [Header] 首页重选/双击回顶时需要强制恢复顶部，避免自动收缩后残留空白区域。
@@ -382,12 +382,26 @@ fun HomeScreen(
     suspend fun withHomeScrollToTopLock(block: suspend () -> Unit) {
         homeHeaderRevealLock = true
         headerSettleAnimationJob?.cancel()
-        headerSettleAnimationJob = null
+        topTabsAutoCollapsedByScroll = false
+        globalScrollOffset.floatValue = 0f
+        val headerAnimJob = coroutineScope.launch {
+            if (headerOffsetHeightPx < -0.5f) {
+                animate(
+                    initialValue = headerOffsetHeightPx,
+                    targetValue = 0f,
+                    animationSpec = headerSettleMotionSpec
+                ) { value, _ ->
+                    headerOffsetHeightPx = value
+                }
+            } else {
+                headerOffsetHeightPx = 0f
+            }
+        }
+        headerSettleAnimationJob = headerAnimJob
         try {
             block()
         } finally {
-            // Reveal chrome only after the list reaches its top. Revealing before scrollToItem /
-            // animateScrollToItem makes the dock and avatar appear one frame before content moves.
+            headerAnimJob.join()
             revealHomeHeaderNow()
             homeHeaderRevealLock = false
         }
@@ -476,7 +490,7 @@ fun HomeScreen(
 
                         if (!isAtTop) {
                             val listState = requireNotNull(gridState)
-                            listState.animateScrollToTop()
+                            listState.animateScrollToTop(fast = true)
                         }
                         val shouldRefresh = request == HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH ||
                             (request == HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH && isAtTop)
@@ -1293,7 +1307,7 @@ fun HomeScreen(
                             viewModel.refresh()
                         } else {
                             val listState = requireNotNull(gridState)
-                            listState.animateScrollToTop()
+                            listState.animateScrollToTop(fast = true)
                         }
                     }
                 }
@@ -1468,22 +1482,30 @@ fun HomeScreen(
         resolveHomeTopPresetStyle(topChromePolicy, homeSettings.topTabLabelMode)
     }
     val searchBarHeightDp = homeTopPresetStyle.searchBarHeight
-    val tabRowHeightDp = if (topTabStyle.floating) {
-        homeTopPresetStyle.tabRowHeightFloating
-    } else {
-        homeTopPresetStyle.tabRowHeightDocked
-    }
+    val tabRowHeightDp = resolveEffectiveHomeTabRowHeight(
+        hideTopTabs = effectiveHomeSettings.hideTopTabs,
+        defaultTabRowHeight = if (topTabStyle.floating) {
+            homeTopPresetStyle.tabRowHeightFloating
+        } else {
+            homeTopPresetStyle.tabRowHeightDocked
+        }
+    )
     val searchCollapseDistanceDp = searchBarHeightDp +
-        homeTopPresetStyle.searchToTabsSpacing +
+        (if (effectiveHomeSettings.hideTopTabs) AppSpacingTokens.None else homeTopPresetStyle.searchToTabsSpacing) +
         homeTopPresetStyle.searchCollapseExtraSpacing
-    val floatingDockLift = resolveHomeTopTabYOffsetDp(topTabStyle.floating).dp
-    val chromeHeight = if (homeTopPresetStyle.useUnifiedPanel) {
-        searchBarHeightDp + tabRowHeightDp +
-            (homeTopPresetStyle.unifiedPanelInnerPadding * 2) +
-            homeTopPresetStyle.searchToTabsSpacing
+    val floatingDockLift = if (effectiveHomeSettings.hideTopTabs) {
+        AppSpacingTokens.None
     } else {
-        searchBarHeightDp + homeTopPresetStyle.searchToTabsSpacing + tabRowHeightDp
+        resolveHomeTopTabYOffsetDp(topTabStyle.floating).dp
     }
+    val chromeHeight = resolveEffectiveHomeTopChromeHeight(
+        hideTopTabs = effectiveHomeSettings.hideTopTabs,
+        useUnifiedPanel = homeTopPresetStyle.useUnifiedPanel,
+        searchBarHeight = searchBarHeightDp,
+        tabRowHeight = tabRowHeightDp,
+        unifiedPanelInnerPadding = homeTopPresetStyle.unifiedPanelInnerPadding,
+        searchToTabsSpacing = homeTopPresetStyle.searchToTabsSpacing
+    )
     // Android 12 (and older) may extend the legacy blur/glass fallback below its
     // measured bounds by a few pixels. Reserve a small safety gap so the first
     // content row cannot slide underneath the top dock on those devices.
@@ -1493,7 +1515,7 @@ fun HomeScreen(
         AppSpacingTokens.None
     }
     val listTopPadding = statusBarHeight + chromeHeight +
-        homeTopPresetStyle.tabsToContentSpacing + floatingDockLift +
+        (if (effectiveHomeSettings.hideTopTabs) AppSpacingTokens.Small else (homeTopPresetStyle.tabsToContentSpacing + floatingDockLift)) +
         legacyTopChromeSafetyGap
     
     // Pixels
@@ -1512,7 +1534,7 @@ fun HomeScreen(
     }
     val collapsedEmbeddedTabInset by animateDpAsState(
         targetValue = if (topTabsAutoCollapsedByScroll) tabRowHeightDp else AppSpacingTokens.None,
-        animationSpec = AppMotionTokens.standardSpec(),
+        animationSpec = AppMotionTokens.emphasizedSpec(),
         label = "homeEmbeddedTabInset",
     )
     val embeddedPageTopPadding by remember(
@@ -1776,7 +1798,10 @@ fun HomeScreen(
                     )
                     // [Fix] Re-enabled default overscroll for better feedback
                         val homeTopPagerSwipeEnabled =
-                            shouldEnableHomeTopPagerUserScroll(isTopLevelActive)
+                            shouldEnableHomeTopPagerUserScroll(
+                                isTopLevelActive = isTopLevelActive,
+                                hideTopTabs = effectiveHomeSettings.hideTopTabs
+                            )
                         HorizontalPager(
                             state = pagerState,
                             beyondViewportPageCount = 0,
@@ -2392,9 +2417,9 @@ fun HomeScreen(
             },
             onStatusBarDoubleTap = {
                 coroutineScope.launch {
-                    activeGridState?.animateScrollToTop()
-                    revealHomeHeaderNow()
-                    globalScrollOffset.floatValue = 0f
+                    withHomeScrollToTopLock {
+                        activeGridState?.animateScrollToTop(fast = true)
+                    }
                 }
             },
             isRefreshing = isRefreshing,
@@ -2406,7 +2431,8 @@ fun HomeScreen(
                 isDelayedForCardSettle = delayTopTabsUntilCardSettled,
                 isForwardNavigatingToDetail = hideTopTabsForForwardDetailNav,
                 isReturningFromDetail = isReturningFromVideoDetail,
-                topTabsCollapsed = topTabsCollapsedForHeader
+                topTabsCollapsed = topTabsCollapsedForHeader,
+                hideTopTabs = effectiveHomeSettings.hideTopTabs
             ),
             topTabsCollapsed = topTabsCollapsedForHeader,
             onTopTabsCollapsedChange = {},

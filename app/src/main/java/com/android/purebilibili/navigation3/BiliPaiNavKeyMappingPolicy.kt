@@ -61,6 +61,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         BiliPaiNavKey.AnimationSettings -> ScreenRoutes.AnimationSettings.route
         BiliPaiNavKey.PlaybackSettings -> ScreenRoutes.PlaybackSettings.route
         BiliPaiNavKey.PermissionSettings -> ScreenRoutes.PermissionSettings.route
+        BiliPaiNavKey.MessageNotificationSettings -> ScreenRoutes.MessageNotificationSettings.route
         is BiliPaiNavKey.PluginsSettings -> ScreenRoutes.PluginsSettings.createRoute(importUrl)
         is BiliPaiNavKey.JsPluginContent -> ScreenRoutes.JsPluginContent.createRoute(pluginId)
         is BiliPaiNavKey.ExternalMedia -> ScreenRoutes.ExternalMedia.createRoute(launchId)
@@ -133,6 +134,8 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
             commentRootRpid = commentRootRpid,
             commentTargetRpid = commentTargetRpid
         )
+        is BiliPaiNavKey.CommentDetail ->
+            "comment_detail/$oid/$rootId?targetId=$targetId&type=$type&enterUri=${encodeRouteValue(enterUri)}"
         is BiliPaiNavKey.Space -> ScreenRoutes.Space.createRoute(mid, targetBvid)
         is BiliPaiNavKey.Category -> ScreenRoutes.Category.createRoute(tid, name)
         is BiliPaiNavKey.Live -> ScreenRoutes.Live.createRoute(roomId, title, uname, siteId)
@@ -180,6 +183,7 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         normalized == ScreenRoutes.AnimationSettings.route -> BiliPaiNavKey.AnimationSettings
         normalized == ScreenRoutes.PlaybackSettings.route -> BiliPaiNavKey.PlaybackSettings
         normalized == ScreenRoutes.PermissionSettings.route -> BiliPaiNavKey.PermissionSettings
+        normalized == ScreenRoutes.MessageNotificationSettings.route -> BiliPaiNavKey.MessageNotificationSettings
         routeBase == "plugins_settings" -> BiliPaiNavKey.PluginsSettings(importUrl = query["importUrl"])
         segments.firstOrNull() == "js_plugin" && segments.size >= 2 -> {
             BiliPaiNavKey.JsPluginContent(pluginId = decodeRouteValue(segments[1]))
@@ -299,6 +303,18 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
                 sourceRoute = null
             )
         }
+        // 动态通知沿用历史 video_player 路由（ScreenRoutes.VideoPlayer）：桥接到真实的视频详情目的地，
+        // 否则点击通知只能落到 Unknown。
+        segments.firstOrNull() == "video_player" && segments.size >= 2 -> {
+            BiliPaiNavKey.VideoDetail(
+                bvid = decodeRouteValue(segments[1]),
+                cid = query["cid"]?.toLongOrNull() ?: 0L,
+                coverUrl = query["cover"].orEmpty(),
+                commentRootRpid = query["commentRootRpid"]?.toLongOrNull() ?: 0L,
+                commentTargetRpid = query["commentTargetRpid"]?.toLongOrNull() ?: 0L,
+                sourceRoute = null
+            )
+        }
         segments.firstOrNull() == "article" && segments.size >= 2 -> {
             BiliPaiNavKey.ArticleDetail(
                 articleId = segments[1].toLongOrNull() ?: 0L,
@@ -310,6 +326,15 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
                 dynamicId = decodeRouteValue(segments[1]),
                 commentRootRpid = query["commentRootRpid"]?.toLongOrNull() ?: 0L,
                 commentTargetRpid = query["commentTargetRpid"]?.toLongOrNull() ?: 0L
+            )
+        }
+        segments.firstOrNull() == "comment_detail" && segments.size >= 3 -> {
+            BiliPaiNavKey.CommentDetail(
+                oid = segments[1].toLongOrNull() ?: 0L,
+                rootId = segments[2].toLongOrNull() ?: 0L,
+                targetId = query["targetId"]?.toLongOrNull() ?: 0L,
+                type = query["type"]?.toIntOrNull() ?: 1,
+                enterUri = decodeRouteValue(query["enterUri"].orEmpty())
             )
         }
         segments.firstOrNull() == "space" && segments.size >= 2 -> {

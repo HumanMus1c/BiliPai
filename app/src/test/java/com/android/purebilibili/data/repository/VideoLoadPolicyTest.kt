@@ -24,6 +24,13 @@ class VideoLoadPolicyTest {
     }
 
     @Test
+    fun `resolveVideoInfoLookup parses bare numeric id when aid missing`() {
+        val input = resolveVideoInfoLookupInput(rawBvid = "1129813966", aid = 0L)
+
+        assertEquals(VideoInfoLookupInput(bvid = "", aid = 1129813966L), input)
+    }
+
+    @Test
     fun `resolveVideoInfoLookup falls back to explicit aid`() {
         val input = resolveVideoInfoLookupInput(rawBvid = "", aid = 1756441068L)
 

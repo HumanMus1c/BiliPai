@@ -155,12 +155,14 @@ fun DynamicTopBarWithTabs(
         headerBlurActive = headerBlurEnabled &&
             hazeState?.let { recoverableBlurEnabled(it) } == true &&
             !isProgressiveBlurActive,
-        // 横条 + 用户列表可见时，不让顶栏的渐进模糊向下越界盖住 UP 头像。
+        // 不让顶栏的渐进模糊向下越界盖住 UP 头像或动态卡片。
         // 顶栏自身渐进模糊效果保持不变，仅收敛其向下延伸。
-        extendBelowBounds = !(displayMode.isHorizontalUserList() && shouldShowHorizontalUserList),
+        extendBelowBounds = false,
         modifier = modifier.then(
             if (!isProgressiveBlurActive && headerBlurEnabled && hazeState != null) {
-                Modifier.unifiedBlur(hazeState = hazeState, surfaceType = BlurSurfaceType.HEADER)
+                Modifier
+                    .unifiedBlur(hazeState = hazeState, surfaceType = BlurSurfaceType.HEADER)
+                    .background(AppSurfaceTokens.cardContainer().copy(alpha = AppSurfaceTokens.FrostedScrimAlpha))
             } else Modifier
         ),
     ) {
@@ -214,7 +216,9 @@ fun DynamicTopBarWithTabs(
                     containerColorOverride = dockColor,
                     liquidGlassTuningOverride = liquidGlassTuning,
                     drawMiuixNonGlassTrack = liquidGlassEnabled ||
-                        LocalAppUiStyle.current != AppUiStyle.MIUIX,
+                        LocalAppUiStyle.current != AppUiStyle.MIUIX ||
+                        isProgressiveBlurActive ||
+                        headerBlurEnabled,
                 )
             }
 

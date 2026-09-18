@@ -274,7 +274,7 @@ class PortraitPagerSwitchPolicyTest {
             )
         )
 
-        assertTrue(
+        assertFalse(
             shouldShowPortraitCover(
                 isLoading = false,
                 isCurrentPage = true,

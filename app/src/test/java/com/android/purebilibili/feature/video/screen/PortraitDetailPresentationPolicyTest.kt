@@ -603,8 +603,8 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun portraitEntryCoverPlaceholder_showsWhilePagerWaitingForSuccess() {
-        assertTrue(
+    fun portraitEntryCoverPlaceholder_isSuppressedOnEntry() {
+        assertFalse(
             shouldShowPortraitEntryCoverPlaceholder(
                 showPortraitFullscreen = true,
                 hasPlayableSuccess = false,

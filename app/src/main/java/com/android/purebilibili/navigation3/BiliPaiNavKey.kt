@@ -106,6 +106,10 @@ internal sealed interface BiliPaiNavKey : NavKey {
     data object PermissionSettings : BiliPaiNavKey {
         override val routeBase: String = "permission_settings"
     }
+    @Serializable
+    data object MessageNotificationSettings : BiliPaiNavKey {
+        override val routeBase: String = "message_notification_settings"
+    }
 
     @Serializable
     data class PluginsSettings(
@@ -402,6 +406,17 @@ internal sealed interface BiliPaiNavKey : NavKey {
         val commentTargetRpid: Long = 0L
     ) : BiliPaiNavKey {
         override val routeBase: String = "dynamic_detail"
+    }
+
+    @Serializable
+    data class CommentDetail(
+        val oid: Long,
+        val rootId: Long,
+        val targetId: Long = 0L,
+        val type: Int = 1,
+        val enterUri: String = ""
+    ) : BiliPaiNavKey {
+        override val routeBase: String = "comment_detail"
     }
 
     @Serializable

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -114,6 +115,7 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppTopBarStyle
 import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
@@ -261,6 +263,19 @@ internal fun resolveProfileTopBarScrimAlpha(
     collapsedFraction: Float
 ): Float {
     return 0f
+}
+
+internal const val PROFILE_PINNED_TOP_CHROME_FADE_RANGE_PX = 120
+
+/** 0 at rest over the banner, 1 after the header has scrolled under the pinned chrome. */
+internal fun resolveProfilePinnedTopChromeScrim(
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    fadeRangePx: Int = PROFILE_PINNED_TOP_CHROME_FADE_RANGE_PX,
+): Float {
+    if (firstVisibleItemIndex > 0) return 1f
+    if (fadeRangePx <= 0) return 0f
+    return (firstVisibleItemScrollOffset.toFloat() / fadeRangePx).coerceIn(0f, 1f)
 }
 
 internal fun resolveProfileLightStatusBars(
@@ -499,9 +514,7 @@ fun ProfileScreen(
     //  未登录状态使用沉浸式全屏布局，已登录使用正常 Scaffold
     val currentUiState = state
     val profileProgressiveChrome = rememberProfileProgressiveTopChrome()
-    val profileHeaderBlurActive = headerBlurEnabled &&
-        hazeState?.let { recoverableBlurEnabled(it) } == true &&
-        !profileProgressiveChrome.enabled
+    val profileHeaderBlurActive = false
     when (currentUiState) {
         is ProfileUiState.Loading -> {
             ProfileLoadingSkeleton()
@@ -692,7 +705,7 @@ fun ProfileScreen(
                         BiliPaiImmersiveTopBar(
                             backdrop = profileProgressiveChrome.backdrop,
                             enabled = profileProgressiveChrome.enabled,
-                            headerBlurActive = profileHeaderBlurActive,
+                            headerBlurActive = false,
                         ) {
                         Box(
                             modifier = Modifier
@@ -703,8 +716,8 @@ fun ProfileScreen(
                                 height = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 104.dp,
                                 surfaceColor = MaterialTheme.colorScheme.background,
                                 surfaceAlpha = 0.82f,
-                                hazeState = hazeState,
-                                hazeEnabled = profileHeaderBlurActive
+                                hazeState = null,
+                                hazeEnabled = false
                             )
                             }
                             AppTopBar(
@@ -1191,10 +1204,25 @@ private fun ProfileSpaceContent(
             onSurfaceVariantColor = colorScheme.onSurfaceVariant
         )
     }
-    val topBarIconColor = heroChrome.textColor
     val tabletRailScrollState = rememberScrollState()
     val tabletFeedListState = rememberLazyListState()
     val mobileListState = rememberLazyListState()
+    val isMobileScrolling by remember {
+        derivedStateOf { mobileListState.isScrollInProgress }
+    }
+    val mobileTopChromeScrim by remember {
+        derivedStateOf {
+            resolveProfilePinnedTopChromeScrim(
+                firstVisibleItemIndex = mobileListState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = mobileListState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
+    val topBarIconColor = androidx.compose.ui.graphics.lerp(
+        heroChrome.textColor,
+        contentChrome.onSurfaceColor,
+        mobileTopChromeScrim
+    )
     ObserveProfileScrollToTop(
         requestId = scrollToTopRequestId,
         listState = if (isTablet) tabletFeedListState else mobileListState,
@@ -1270,6 +1298,7 @@ private fun ProfileSpaceContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .profileProgressiveBackdrop(progressiveTopChrome.backdrop)
+                    .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier)
                     .globalWallpaperAwareBackground(colorScheme.surface),
             ) {
                 Box(
@@ -1349,17 +1378,15 @@ private fun ProfileSpaceContent(
                 }
             }
             BiliPaiImmersiveTopBar(
-                backdrop = progressiveTopChrome.backdrop,
-                enabled = progressiveTopChrome.enabled,
-                headerBlurActive = hazeState?.let { recoverableBlurEnabled(it) } == true &&
-                    !progressiveTopChrome.enabled,
+                backdrop = null,
+                enabled = false,
+                headerBlurActive = false,
+                opaqueBackgroundFallback = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .then(
-                        hazeState?.takeIf { recoverableBlurEnabled(it) }
-                            ?.let { Modifier.unifiedBlur(it, surfaceType = BlurSurfaceType.HEADER) }
-                            ?: Modifier
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = mobileTopChromeScrim)
                     ),
             ) {
             Row(
@@ -2996,15 +3023,9 @@ private data class ProfileProgressiveTopChrome(
 
 @Composable
 private fun rememberProfileProgressiveTopChrome(): ProfileProgressiveTopChrome {
-    val config = LocalAppThemeConfig.current
-    val enabled = shouldUseBiliPaiProgressiveTopBlur(
-        enabled = config.progressiveTopBlurEnabled && !config.headerBlurEnabled,
-        hasBackdrop = true,
-    ) && !isLowBlurBudgetForced()
-    val backdrop = rememberLayerBackdrop()
     return ProfileProgressiveTopChrome(
-        backdrop = if (enabled) backdrop else null,
-        enabled = enabled,
+        backdrop = null,
+        enabled = false,
     )
 }
 
@@ -3304,6 +3325,17 @@ private fun MobileProfileContent(
         // YES, remove background here.
         
     val guestListState = rememberLazyListState()
+    val isGuestScrolling by remember {
+        derivedStateOf { guestListState.isScrollInProgress }
+    }
+    val guestTopChromeScrim by remember {
+        derivedStateOf {
+            resolveProfilePinnedTopChromeScrim(
+                firstVisibleItemIndex = guestListState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = guestListState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
     ObserveProfileScrollToTop(
         requestId = scrollToTopRequestId,
         listState = guestListState
@@ -3394,14 +3426,14 @@ private fun MobileProfileContent(
             }
 
         BiliPaiImmersiveTopBar(
-            backdrop = progressiveTopChrome.backdrop,
-            enabled = progressiveTopChrome.enabled,
-            headerBlurActive = hazeState?.let { recoverableBlurEnabled(it) } == true &&
-                !progressiveTopChrome.enabled,
+            backdrop = null,
+            enabled = false,
+            headerBlurActive = false,
+            opaqueBackgroundFallback = false,
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         ) {
         AppTopBar(
-            title = "我的",
+            title = if (guestTopChromeScrim > 0.4f) "我的" else "",
             style = AppTopBarStyle.CENTERED,
             navigationIcon = {
                 AppIconButton(onClick = onBack) {
@@ -3416,9 +3448,9 @@ private fun MobileProfileContent(
                     AppIcon(rememberAppSettingsIcon(), contentDescription = "Settings", tint = contentColor)
                 }
             },
-            modifier = hazeState?.takeIf { recoverableBlurEnabled(it) }
-                ?.let { Modifier.unifiedBlur(it, surfaceType = BlurSurfaceType.HEADER) }
-                ?: Modifier,
+            modifier = Modifier.background(
+                MaterialTheme.colorScheme.surface.copy(alpha = guestTopChromeScrim)
+            ),
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
                 scrolledContainerColor = Color.Transparent,

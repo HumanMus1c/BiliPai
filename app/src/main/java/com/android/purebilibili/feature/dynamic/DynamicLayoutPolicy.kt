@@ -115,3 +115,55 @@ private fun formatDynamicActionCount(count: Int): String {
         else -> count.toString()
     }
 }
+
+internal const val DYNAMIC_SIDEBAR_MAX_CASCADE_ITEMS = 8
+internal const val DYNAMIC_SIDEBAR_INITIAL_AVATAR_PREFETCH_COUNT = 30
+internal const val DYNAMIC_SIDEBAR_SCROLL_AVATAR_PREFETCH_COUNT = 20
+internal const val DYNAMIC_SIDEBAR_PREFETCH_IDLE_COUNT = 6
+internal const val DYNAMIC_SIDEBAR_PREFETCH_SCROLLING_COUNT = 15
+internal const val DYNAMIC_SIDEBAR_FLING_VELOCITY_MULTIPLIER = 0.70f
+
+internal fun shouldAnimateSidebarItemCascade(
+    index: Int,
+    hasScrolled: Boolean,
+    initialEntranceActive: Boolean
+): Boolean {
+    return initialEntranceActive && !hasScrolled && index < DYNAMIC_SIDEBAR_MAX_CASCADE_ITEMS
+}
+
+internal fun resolveDynamicSidebarBeyondBoundsItemCount(
+    isScrollInProgress: Boolean
+): Int {
+    return if (isScrollInProgress) {
+        DYNAMIC_SIDEBAR_PREFETCH_SCROLLING_COUNT
+    } else {
+        DYNAMIC_SIDEBAR_PREFETCH_IDLE_COUNT
+    }
+}
+
+internal fun resolveDynamicSidebarFlingDampingFactor(): Float {
+    return DYNAMIC_SIDEBAR_FLING_VELOCITY_MULTIPLIER
+}
+
+internal fun resolveDynamicSidebarUserAvatarUrl(face: String): String {
+    val raw = face.trim()
+    return when {
+        raw.isEmpty() -> ""
+        raw.startsWith("https://") -> raw
+        raw.startsWith("http://") -> raw.replace("http://", "https://")
+        raw.startsWith("//") -> "https:$raw"
+        else -> "https://$raw"
+    }
+}
+
+internal fun resolveDynamicSidebarAvatarPrefetchUrls(
+    users: List<SidebarUser>,
+    startIndex: Int = 0,
+    limit: Int = DYNAMIC_SIDEBAR_INITIAL_AVATAR_PREFETCH_COUNT
+): List<String> {
+    if (startIndex < 0 || startIndex >= users.size || limit <= 0) return emptyList()
+    val endIndex = minOf(startIndex + limit, users.size)
+    return users.subList(startIndex, endIndex).mapNotNull { user ->
+        resolveDynamicSidebarUserAvatarUrl(user.face).ifEmpty { null }
+    }
+}

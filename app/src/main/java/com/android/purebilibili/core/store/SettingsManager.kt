@@ -621,6 +621,7 @@ data class HomeSettings(
     val navigationIconCrossScaleEnabled: Boolean = true,
     val bottomBarLabelMode: Int = 0,       // (0=图标+文字, 1=仅图标, 2=仅文字)
     val topTabLabelMode: Int = 2,          // (0=图标+文字, 1=仅图标, 2=仅文字)
+    val hideTopTabs: Boolean = false,
     val homeTopRightAction: HomeTopRightAction = HomeTopRightAction.SETTINGS,
     val homeTopLayoutOrder: HomeTopLayoutOrder = HomeTopLayoutOrder.SEARCH_THEN_TABS,
     val isHeaderBlurEnabled: Boolean = true,
@@ -1025,7 +1026,8 @@ internal fun resolveListenVideoBottomTabMigration(
 
 data class HomeTopTabSettings(
     val orderIds: List<String> = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME"),
-    val visibleIds: Set<String> = setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME")
+    val visibleIds: Set<String> = setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME"),
+    val hideTopTabs: Boolean = false
 )
 
 /**
@@ -1408,6 +1410,7 @@ object SettingsManager {
     private val KEY_BOTTOM_BAR_LABEL_MODE = intPreferencesKey("bottom_bar_label_mode")
     //  [新增] 顶部标签显示模式 (0=图标+文字, 1=仅图标, 2=仅文字)
     private val KEY_TOP_TAB_LABEL_MODE = intPreferencesKey("top_tab_label_mode")
+    private val KEY_HIDE_TOP_TABS = booleanPreferencesKey("hide_top_tabs")
     private val KEY_HOME_TOP_RIGHT_ACTION = intPreferencesKey("home_top_right_action")
     //  [新增] 顶部标签自定义 - 顺序和可见性
     private val KEY_TOP_TAB_ORDER = stringPreferencesKey("top_tab_order")
@@ -1667,6 +1670,7 @@ object SettingsManager {
                 preferences[KEY_NAVIGATION_ICON_CROSS_SCALE_ENABLED] ?: true,
             bottomBarLabelMode = preferences[KEY_BOTTOM_BAR_LABEL_MODE] ?: BottomBarLabelMode.ICON_AND_TEXT,
             topTabLabelMode = preferences[KEY_TOP_TAB_LABEL_MODE] ?: TopTabLabelMode.TEXT_ONLY,
+            hideTopTabs = preferences[KEY_HIDE_TOP_TABS] ?: false,
             homeTopRightAction = HomeTopRightAction.fromValue(
                 preferences[KEY_HOME_TOP_RIGHT_ACTION] ?: HomeTopRightAction.SETTINGS.value
             ),
@@ -1782,9 +1786,11 @@ object SettingsManager {
         } else {
             orderIds.filter { it in visibleIds }.take(MAX_TOP_TABS).toSet()
         }
+        val hideTopTabs = preferences[KEY_HIDE_TOP_TABS] ?: false
         return HomeTopTabSettings(
             orderIds = orderIds,
-            visibleIds = cappedVisibleIds
+            visibleIds = cappedVisibleIds,
+            hideTopTabs = hideTopTabs
         )
     }
 
@@ -3543,6 +3549,14 @@ object SettingsManager {
         context.settingsDataStore.edit { preferences -> preferences[KEY_TOP_TAB_LABEL_MODE] = value }
     }
 
+    fun getHideTopTabs(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_HIDE_TOP_TABS] ?: false }
+        .distinctUntilChanged()
+
+    suspend fun setHideTopTabs(context: Context, hide: Boolean) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_HIDE_TOP_TABS] = hide }
+    }
+
     fun getHomeTopRightAction(context: Context): Flow<HomeTopRightAction> = context.settingsDataStore.data
         .map { preferences ->
             HomeTopRightAction.fromValue(
@@ -3745,10 +3759,9 @@ object SettingsManager {
         }
 
     suspend fun setHomeHeaderCollapseMode(context: Context, mode: HomeHeaderCollapseMode) {
-        val normalized = resolveHomeHeaderCollapseModeForTopBarHide(mode.hideTopBar)
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_HEADER_COLLAPSE_MODE] = normalized.value
-            preferences[KEY_HEADER_COLLAPSE_ENABLED] = normalized.hideTopBar
+            preferences[KEY_HOME_HEADER_COLLAPSE_MODE] = mode.value
+            preferences[KEY_HEADER_COLLAPSE_ENABLED] = mode.hasAnyCollapse
         }
     }
 
@@ -7340,6 +7353,7 @@ object SettingsManager {
             ),
             IntShareablePreferenceDefinition(KEY_BOTTOM_BAR_LABEL_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_TOP_TAB_LABEL_MODE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_HIDE_TOP_TABS, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_TOP_RIGHT_ACTION, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_TOP_TAB_ORDER, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_TOP_TAB_VISIBLE_TABS, SettingsShareSection.APPEARANCE),

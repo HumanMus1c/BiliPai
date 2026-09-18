@@ -47,6 +47,10 @@ internal fun resolveVideoInfoLookupInput(rawBvid: String, aid: Long): VideoInfoL
         }
     }
 
+    normalizedBvid.toLongOrNull()?.takeIf { it > 0L }?.let { parsedAid ->
+        return VideoInfoLookupInput(bvid = "", aid = parsedAid)
+    }
+
     return null
 }
 

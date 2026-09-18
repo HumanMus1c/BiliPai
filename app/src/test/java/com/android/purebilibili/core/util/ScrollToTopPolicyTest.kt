@@ -37,6 +37,16 @@ class ScrollToTopPolicyTest {
     }
 
     @Test
+    fun resolveFastScrollToTopPlan_limitsAnimatedWindowToSmallBatch() {
+        assertNull(resolveFastScrollToTopPlan(firstVisibleItemIndex = 2).preJumpIndex)
+        assertNull(resolveFastScrollToTopPlan(firstVisibleItemIndex = 4).preJumpIndex)
+        assertEquals(4, resolveFastScrollToTopPlan(firstVisibleItemIndex = 5).preJumpIndex)
+        assertEquals(4, resolveFastScrollToTopPlan(firstVisibleItemIndex = 50).preJumpIndex)
+        assertEquals(4, resolveFastScrollToTopPlan(firstVisibleItemIndex = 100, visibleItemCount = 8).preJumpIndex)
+        assertEquals(2, resolveFastScrollToTopPlan(firstVisibleItemIndex = 100, visibleItemCount = 1).preJumpIndex)
+    }
+
+    @Test
     fun shouldShowScrollToTop_usesItemAndOffsetThresholds() {
         assertFalse(shouldShowScrollToTop(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 599))
         assertTrue(shouldShowScrollToTop(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 600))

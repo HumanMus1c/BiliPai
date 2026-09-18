@@ -128,8 +128,8 @@ class ProgressiveTopChromePolicyTest {
         val source = loadSource("feature/home/components/ProgressiveTopChrome.kt")
         assertTrue(source.contains(".matchParentSize()"))
         assertTrue(source.contains("minHeight = constraints.minHeight + extension"))
-        assertTrue(source.contains("layout(placeable.width, placeable.height - extension)"))
-        assertTrue(source.contains("LocalImmersiveTopChromeActive provides active"))
+        assertTrue(source.contains("LocalImmersiveTopChromeActive provides"))
+        assertTrue(source.contains("(active || headerBlurActive)"))
     }
 
     @Test

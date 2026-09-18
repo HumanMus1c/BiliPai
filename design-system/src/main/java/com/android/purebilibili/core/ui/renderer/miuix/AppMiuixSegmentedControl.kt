@@ -294,6 +294,7 @@ private fun <T> AppMiuixNonGlassTabs(
             if (enabled) options.getOrNull(index)?.let { onSelectionChange(it.value) }
         },
         modifier = modifier
+            .squircleClip(geometry.cornerRadius)
             .then(if (!enabled) Modifier.semantics { disabled() } else Modifier),
         colors = TabRowDefaults.tabRowColors(
             backgroundColor = if (drawTrack) tabColors.backgroundColor else Color.Transparent,
@@ -333,6 +334,7 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .squircleClip(8.dp)
             .background(if (drawTrack) tabColors.backgroundColor else Color.Transparent)
             .then(if (!enabled) Modifier.semantics { disabled() } else Modifier),
     ) {
@@ -348,6 +350,10 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
                     modifier = Modifier
                         .width(itemWidths.getOrElse(index) { 48.dp })
                         .height(height)
+                        .adaptiveSquircleBackground(
+                            color = if (selected) tabColors.selectedBackgroundColor else Color.Transparent,
+                            cornerRadius = 8.dp,
+                        )
                         .squircleBorder(
                             width = { if (selected) 0.dp else 1.dp },
                             color = { outlineColor },

@@ -1836,11 +1836,16 @@ fun HomeHeader(
     val searchBarHeightDp = resolveHomeTopSearchBarHeight(topChromePolicy)
     val topTabLabelMode = homeSettings?.topTabLabelMode
         ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
-    val tabRowHeightDp = resolveHomeTopTabRowHeight(
-        isTabFloating = isTabFloating,
-        chromePolicy = topChromePolicy,
-        labelMode = topTabLabelMode
-    )
+    val hideTopTabs = homeSettings?.hideTopTabs == true
+    val tabRowHeightDp = if (hideTopTabs) {
+        AppSpacingTokens.None
+    } else {
+        resolveHomeTopTabRowHeight(
+            isTabFloating = isTabFloating,
+            chromePolicy = topChromePolicy,
+            labelMode = topTabLabelMode
+        )
+    }
     val searchCollapseDistanceDp = resolveHomeTopSearchCollapseDistance(
         searchBarHeight = searchBarHeightDp,
         chromePolicy = topChromePolicy,
@@ -1873,15 +1878,19 @@ fun HomeHeader(
     val searchAlpha = scrollLayout.searchAlpha
     val expandedTabHeight = with(density) { scrollLayout.tabRowHeightPx.toDp() }
     val currentTabHeight by animateDpAsState(
-        targetValue = resolveHomeTopTabPresentationHeight(
-            expandedHeight = expandedTabHeight,
-            isCollapsed = topTabsVisible && topTabsCollapsed,
-            collapsedHandleHeight = if (isHeaderCollapseEnabled || isTopTabsAutoCollapseEnabled) {
-                AppSpacingTokens.None
-            } else {
-                resolveHomeTopCollapsedHandleHeight()
-            }
-        ),
+        targetValue = if (hideTopTabs) {
+            AppSpacingTokens.None
+        } else {
+            resolveHomeTopTabPresentationHeight(
+                expandedHeight = expandedTabHeight,
+                isCollapsed = topTabsVisible && topTabsCollapsed,
+                collapsedHandleHeight = if (isHeaderCollapseEnabled || isTopTabsAutoCollapseEnabled) {
+                    AppSpacingTokens.None
+                } else {
+                    resolveHomeTopCollapsedHandleHeight()
+                }
+            )
+        },
         animationSpec = AppMotionTokens.standardSpec(),
         label = "currentTabHeight"
     )
@@ -2041,7 +2050,8 @@ fun HomeHeader(
     val drawUnifiedTopPanelChrome =
         renderUnifiedTopPanelChrome && effectiveTopPanelChromeRenderMode != HomeTopChromeRenderMode.PLAIN
     val drawTopSearchDivider =
-        useUnifiedTopPanel &&
+        !hideTopTabs &&
+            useUnifiedTopPanel &&
             shouldShowUnifiedHomeTopPanelDivider(topChromePolicy) &&
             drawUnifiedTopPanelChrome &&
             currentSearchHeight > AppSpacingTokens.None &&
@@ -2061,10 +2071,14 @@ fun HomeHeader(
         hasOuterChromeSurface = wrapTopTabDockHasOuterChrome,
         edgeToEdge = integratedCollapsedTopBar
     )
-    val currentTabToSearchSpacing = currentSearchToTabsSpacing + if (drawTopSearchDivider) {
-        AppSpacingTokens.Micro / 2 + currentUnifiedDividerBottomSpacing
-    } else {
+    val currentTabToSearchSpacing = if (hideTopTabs) {
         AppSpacingTokens.None
+    } else {
+        currentSearchToTabsSpacing + if (drawTopSearchDivider) {
+            AppSpacingTokens.Micro / 2 + currentUnifiedDividerBottomSpacing
+        } else {
+            AppSpacingTokens.None
+        }
     }
     val pinnedChromeLayout = resolveHomeTopPinnedChromeLayout(
         statusBarHeight = statusBarHeight,
@@ -2404,7 +2418,7 @@ fun HomeHeader(
                             }
                         )
                 ) {
-                    if (topLayoutOrder == HomeTopLayoutOrder.TABS_THEN_SEARCH) {
+                    if (!hideTopTabs && topLayoutOrder == HomeTopLayoutOrder.TABS_THEN_SEARCH) {
                         topTabsContent(
                             if (topTabInnerOwnsFloatingDockShell || useLegacyHomeTopTabs) {
                                 fullTopDockWidth
@@ -2930,7 +2944,7 @@ fun HomeHeader(
                         }
                     }
 
-                    if (topLayoutOrder == HomeTopLayoutOrder.SEARCH_THEN_TABS) {
+                    if (!hideTopTabs && topLayoutOrder == HomeTopLayoutOrder.SEARCH_THEN_TABS) {
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
                             AppHorizontalDivider(

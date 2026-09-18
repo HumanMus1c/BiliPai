@@ -309,4 +309,23 @@ class TopTabIndicatorGeometryTest {
             0.01f
         )
     }
+
+    @Test
+    fun `md3 top tab underline centers directly below label content`() {
+        assertEquals(
+            14f,
+            resolveMd3TopTabUnderlineCenterOffsetDp(showIcon = false, showText = true),
+            0.01f
+        )
+        assertEquals(
+            26f,
+            resolveMd3TopTabUnderlineCenterOffsetDp(showIcon = true, showText = true),
+            0.01f
+        )
+        assertEquals(
+            13f,
+            resolveMd3TopTabUnderlineCenterOffsetDp(showIcon = true, showText = false),
+            0.01f
+        )
+    }
 }

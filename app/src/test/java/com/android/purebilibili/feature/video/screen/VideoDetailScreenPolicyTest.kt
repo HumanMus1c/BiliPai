@@ -52,6 +52,14 @@ class VideoDetailScreenPolicyTest {
                 isPortraitFullscreen = false,
             )
         )
+        assertEquals(
+            VideoDetailLocalBackTarget.NAVIGATE_BACK,
+            resolveVideoDetailLocalBackTarget(
+                isLandscapeFullscreen = false,
+                isPortraitFullscreen = true,
+                directPortraitEntry = true,
+            )
+        )
     }
 
     @Test

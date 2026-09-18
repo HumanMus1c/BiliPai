@@ -1009,7 +1009,8 @@ fun AppNavigation(
         ) {
             val parsedKey = legacyRouteToBiliPaiNavKey(route)
             val videoKey = parsedKey as? BiliPaiNavKey.VideoDetail
-            if (!skipPortraitStoryResolution) {
+            val hasCommentJump = (videoKey?.commentRootRpid ?: 0L) > 0L || (videoKey?.commentTargetRpid ?: 0L) > 0L
+            if (!skipPortraitStoryResolution && !hasCommentJump) {
                 resolvePortraitStoryNavigationSeed(
                     directPortraitStoryEntry = playerInteractionSettings.directPortraitStoryEntry,
                     isVerticalVideo = videoKey?.initialVertical == true,
@@ -1617,6 +1618,17 @@ fun AppNavigation(
                 is MessageLinkNavigationAction.Video -> {
                     navigateToVideoInNavigation3(action.videoId, 0L, "")
                 }
+                is MessageLinkNavigationAction.CommentDetail -> {
+                    pushNavigation3Key(
+                        BiliPaiNavKey.CommentDetail(
+                            oid = action.oid,
+                            rootId = action.rootReplyId,
+                            targetId = action.targetReplyId,
+                            type = action.businessId,
+                            enterUri = action.enterUri
+                        )
+                    )
+                }
                 is MessageLinkNavigationAction.VideoComment -> {
                     navigateToVideoRouteInNavigation3(
                         route = VideoRoute.createRoute(
@@ -1667,7 +1679,10 @@ fun AppNavigation(
                     pushNavigation3Key(BiliPaiNavKey.ArticleDetail(action.articleId))
                 }
                 is MessageLinkNavigationAction.Web -> {
-                    pushNavigation3Key(BiliPaiNavKey.Web(action.url))
+                    val url = action.url.trim()
+                    if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
+                        pushNavigation3Key(BiliPaiNavKey.Web(url))
+                    }
                 }
             }
         }
@@ -2887,6 +2902,7 @@ fun AppNavigation(
                                     onAnimationClick = { pushNavigation3Key(BiliPaiNavKey.AnimationSettings) },
                                     onPlaybackClick = { pushNavigation3Key(BiliPaiNavKey.PlaybackSettings) },
                                     onPermissionClick = { pushNavigation3Key(BiliPaiNavKey.PermissionSettings) },
+                                    onMessageNotificationClick = { pushNavigation3Key(BiliPaiNavKey.MessageNotificationSettings) },
                                     onPluginsClick = { pushNavigation3Key(BiliPaiNavKey.PluginsSettings()) },
                                     onSettingsShareClick = { pushNavigation3Key(BiliPaiNavKey.SettingsShare) },
                                     onWebDavBackupClick = { pushNavigation3Key(BiliPaiNavKey.WebDavBackup) },
@@ -2915,6 +2931,7 @@ fun AppNavigation(
                                     onAnimationClick = { pushNavigation3Key(BiliPaiNavKey.AnimationSettings) },
                                     onPlaybackClick = { pushNavigation3Key(BiliPaiNavKey.PlaybackSettings) },
                                     onPermissionClick = { pushNavigation3Key(BiliPaiNavKey.PermissionSettings) },
+                                    onMessageNotificationClick = { pushNavigation3Key(BiliPaiNavKey.MessageNotificationSettings) },
                                     onPluginsClick = { pushNavigation3Key(BiliPaiNavKey.PluginsSettings()) },
                                     onSettingsShareClick = { pushNavigation3Key(BiliPaiNavKey.SettingsShare) },
                                     onWebDavBackupClick = { pushNavigation3Key(BiliPaiNavKey.WebDavBackup) },
@@ -2991,6 +3008,12 @@ fun AppNavigation(
                         BiliPaiNavEntryContentRole.PERMISSION_SETTINGS ->
                             SettingsTabletEntry {
                                 com.android.purebilibili.feature.settings.PermissionSettingsScreen(
+                                    onBack = { performSystemBackAction() }
+                                )
+                            }
+                        BiliPaiNavEntryContentRole.MESSAGE_NOTIFICATION_SETTINGS ->
+                            SettingsTabletEntry {
+                                com.android.purebilibili.feature.settings.MessageNotificationSettingsScreen(
                                     onBack = { performSystemBackAction() }
                                 )
                             }
@@ -3718,6 +3741,19 @@ fun AppNavigation(
                                     }
                                 )
                             }
+                        BiliPaiNavEntryContentRole.COMMENT_DETAIL -> {
+                            val commentKey = key as BiliPaiNavKey.CommentDetail
+                            com.android.purebilibili.feature.comment.CommentDetailScreen(
+                                oid = commentKey.oid,
+                                rootId = commentKey.rootId,
+                                targetId = commentKey.targetId,
+                                type = commentKey.type,
+                                enterUri = commentKey.enterUri,
+                                onBack = { performSystemBackAction() },
+                                onOpenLink = ::openMessageLinkInNavigation3,
+                                onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) }
+                            )
+                        }
                         BiliPaiNavEntryContentRole.DYNAMIC_DETAIL -> {
                                 val dynamicKey = key as BiliPaiNavKey.DynamicDetail
                                 CompositionLocalProvider(
@@ -3992,6 +4028,7 @@ fun AppNavigation(
                                     val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
                                     AudioNowPlayingBar(
                                         state = AudioNowPlayingBarState(
+                                            bvid = audioNowPlayingItem.bvid,
                                             title = audioNowPlayingItem.title,
                                             artist = audioNowPlayingItem.owner,
                                             artistAvatarUrl = audioNowPlayingItem.ownerFace,
@@ -3999,15 +4036,24 @@ fun AppNavigation(
                                             isPlaying = playbackManager.isPlaying,
                                             playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
                                         ),
+                                        sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
+                                        isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
+                                        returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
                                         onExpand = {
-                                            pushNavigation3Route(
-                                                resolveAudioNowPlayingBarExpandRoute(
-                                                    opensAudioMode = audioNowPlayingBarOpensAudioMode,
-                                                    bvid = audioNowPlayingItem.bvid,
-                                                    cid = audioNowPlayingItem.cid,
-                                                    coverUrl = audioNowPlayingItem.cover,
-                                                )
+                                            val expandRoute = resolveAudioNowPlayingBarExpandRoute(
+                                                opensAudioMode = audioNowPlayingBarOpensAudioMode,
+                                                bvid = audioNowPlayingItem.bvid,
+                                                cid = audioNowPlayingItem.cid,
+                                                coverUrl = audioNowPlayingItem.cover,
                                             )
+                                            if (audioNowPlayingBarOpensAudioMode) {
+                                                pushNavigation3Route(expandRoute)
+                                            } else {
+                                                navigateToVideoRouteInNavigation3(
+                                                    route = expandRoute,
+                                                    sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
+                                                )
+                                            }
                                         },
                                         onPlayPause = {
                                             if (!playbackManager.togglePlayPause()) {
@@ -4151,6 +4197,7 @@ fun AppNavigation(
                 val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
                 AudioNowPlayingBar(
                     state = AudioNowPlayingBarState(
+                        bvid = audioNowPlayingItem.bvid,
                         title = audioNowPlayingItem.title,
                         artist = audioNowPlayingItem.owner,
                         artistAvatarUrl = audioNowPlayingItem.ownerFace,
@@ -4158,15 +4205,24 @@ fun AppNavigation(
                         isPlaying = playbackManager.isPlaying,
                         playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
                     ),
+                    sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
+                    isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
+                    returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
                     onExpand = {
-                        pushNavigation3Route(
-                            resolveAudioNowPlayingBarExpandRoute(
-                                opensAudioMode = audioNowPlayingBarOpensAudioMode,
-                                bvid = audioNowPlayingItem.bvid,
-                                cid = audioNowPlayingItem.cid,
-                                coverUrl = audioNowPlayingItem.cover,
-                            )
+                        val expandRoute = resolveAudioNowPlayingBarExpandRoute(
+                            opensAudioMode = audioNowPlayingBarOpensAudioMode,
+                            bvid = audioNowPlayingItem.bvid,
+                            cid = audioNowPlayingItem.cid,
+                            coverUrl = audioNowPlayingItem.cover,
                         )
+                        if (audioNowPlayingBarOpensAudioMode) {
+                            pushNavigation3Route(expandRoute)
+                        } else {
+                            navigateToVideoRouteInNavigation3(
+                                route = expandRoute,
+                                sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
+                            )
+                        }
                     },
                     onPlayPause = {
                         if (!playbackManager.togglePlayPause()) {

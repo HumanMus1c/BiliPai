@@ -88,4 +88,13 @@ class ProfileTopBarSystemUiPolicyTest {
             )
         )
     }
+
+    @Test
+    fun mobileProfile_pinnedTopChromeScrim_fadesInSmoothlyDuringScroll() {
+        assertEquals(0f, resolveProfilePinnedTopChromeScrim(0, 0))
+        assertEquals(0.5f, resolveProfilePinnedTopChromeScrim(0, 60))
+        assertEquals(1f, resolveProfilePinnedTopChromeScrim(0, 120))
+        assertEquals(1f, resolveProfilePinnedTopChromeScrim(0, 200))
+        assertEquals(1f, resolveProfilePinnedTopChromeScrim(1, 0))
+    }
 }
