@@ -50,19 +50,9 @@ fun resolveBlurBudget(
         MotionTier.Enhanced -> Unit
     }
 
-    if (isScrolling) {
-        if (surfaceType != BlurSurfaceType.HEADER) {
-            maxBlurLevel = minOf(maxBlurLevel, 0)
-            backgroundAlphaMultiplier *= 0.92f
-        }
-        allowRealtime = false
-    }
-
-    if (isTransitionRunning) {
-        if (surfaceType != BlurSurfaceType.HEADER) {
-            maxBlurLevel = minOf(maxBlurLevel, 0)
-            backgroundAlphaMultiplier *= 0.92f
-        }
+    if (isScrolling || isTransitionRunning) {
+        // 保持视觉稳定：各表面在滑动与转场期间保持模糊材质等级与透明度恒定，
+        // 杜绝以往强切 0 级模糊导致的明暗跳跃与视觉割裂（Pulsing / Popping）。
         allowRealtime = false
     }
 

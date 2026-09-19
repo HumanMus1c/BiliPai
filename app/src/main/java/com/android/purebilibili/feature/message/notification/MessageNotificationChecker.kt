@@ -111,57 +111,55 @@ internal class MessageNotificationPoller(
             return mergeNotificationSeen(seen, ids.filter { it > 0 }, 100)
         }
 
-        if (settings.notifyMessageCenter) {
-            category("dm") {
-                val sessions = fetch { source.sessions() }
-                val fresh = if ("dm" in state.initialized) filterNewPrivateSessions(sessions, selfMid, state.sessionMsgKeys) else emptyList()
-                for (session in fresh.take(5)) {
-                    val message = checkNotNull(session.last_msg)
-                    val name = session.account_info?.name?.takeIf { it.isNotBlank() } ?: "私信"
-                    val prefix = if (session.unread_count > 1) "[${session.unread_count} 条新消息] " else ""
-                    val key = sessionNotificationKey(session)
-                    notifications += PendingMessageNotification(
-                        "dm:$key", 6000 + ("${session.talker_id}:${session.session_type}".hashCode() and 0xFFFF),
-                        ScreenRoutes.Chat.createRoute(session.talker_id, session.session_type, name), name,
-                        prefix + MessagePreviewParser.parseSessionPreview(message.content, message.msg_type), "dm",
-                    )
-                }
-                if (fresh.size > 5) notifications += PendingMessageNotification(
-                    "dm:summary", 5106, ScreenRoutes.Inbox.route, "新私信", "有 ${fresh.size} 个会话发来新消息", "dm",
-                    isGroupSummary = true,
+        if (settings.notifyPrivateMessages) category("dm") {
+            val sessions = fetch { source.sessions() }
+            val fresh = if ("dm" in state.initialized) filterNewPrivateSessions(sessions, selfMid, state.sessionMsgKeys) else emptyList()
+            for (session in fresh.take(5)) {
+                val message = checkNotNull(session.last_msg)
+                val name = session.account_info?.name?.takeIf { it.isNotBlank() } ?: "私信"
+                val prefix = if (session.unread_count > 1) "[${session.unread_count} 条新消息] " else ""
+                val key = sessionNotificationKey(session)
+                notifications += PendingMessageNotification(
+                    "dm:$key", 6000 + ("${session.talker_id}:${session.session_type}".hashCode() and 0xFFFF),
+                    ScreenRoutes.Chat.createRoute(session.talker_id, session.session_type, name), name,
+                    prefix + MessagePreviewParser.parseSessionPreview(message.content, message.msg_type), "dm",
                 )
-                val keys = LinkedHashMap(state.sessionMsgKeys)
-                for (session in sessions.asReversed()) {
-                    val message = session.last_msg ?: continue
-                    if (session.talker_id <= 0 || message.msg_key <= 0) continue
-                    val key = sessionNotificationKey(session)
-                    keys.remove(key)
-                    keys[key] = message.msg_key
-                    if (keys.size > 100) keys.entries.iterator().apply { next(); remove() }
-                }
-                state = state.copy(sessionMsgKeys = keys)
             }
-            category("reply") {
-                state = state.copy(seenReplyIds = feed("reply", fetch { source.replyIds() }, state.seenReplyIds,
-                    5101, ScreenRoutes.ReplyMe.route, "回复我的") { "你有 $it 条新回复" })
+            if (fresh.size > 5) notifications += PendingMessageNotification(
+                "dm:summary", 5106, ScreenRoutes.Inbox.route, "新私信", "有 ${fresh.size} 个会话发来新消息", "dm",
+                isGroupSummary = true,
+            )
+            val keys = LinkedHashMap(state.sessionMsgKeys)
+            for (session in sessions.asReversed()) {
+                val message = session.last_msg ?: continue
+                if (session.talker_id <= 0 || message.msg_key <= 0) continue
+                val key = sessionNotificationKey(session)
+                keys.remove(key)
+                keys[key] = message.msg_key
+                if (keys.size > 100) keys.entries.iterator().apply { next(); remove() }
             }
-            category("at") {
-                state = state.copy(seenAtIds = feed("at", fetch { source.atIds() }, state.seenAtIds,
-                    5102, ScreenRoutes.AtMe.route, "@我") { "有 $it 条新消息提到你" })
-            }
-            category("like") {
-                state = state.copy(seenLikeIds = feed("like", fetch { source.likeIds() }, state.seenLikeIds,
-                    5103, ScreenRoutes.LikeMe.route, "收到的赞") { "你的内容收到 $it 个新赞" })
-            }
-            category("sysmsg") {
-                val items = fetch { source.systemNotices() }
-                val known = state.seenSystemCursors.toHashSet()
-                val latest = items.firstOrNull { it.cursor !in known }
-                if ("sysmsg" in state.initialized && latest != null) notifications += PendingMessageNotification(
-                    "sysmsg", 5104, ScreenRoutes.SystemNotice.route, "系统通知", latest.title.ifBlank { latest.content }, "interactions",
-                )
-                state = state.copy(seenSystemCursors = mergeNotificationSeen(state.seenSystemCursors, items.map { it.cursor }, 100))
-            }
+            state = state.copy(sessionMsgKeys = keys)
+        }
+        if (settings.notifyReplies) category("reply") {
+            state = state.copy(seenReplyIds = feed("reply", fetch { source.replyIds() }, state.seenReplyIds,
+                5101, ScreenRoutes.ReplyMe.route, "回复我的") { "你有 $it 条新回复" })
+        }
+        if (settings.notifyAtMe) category("at") {
+            state = state.copy(seenAtIds = feed("at", fetch { source.atIds() }, state.seenAtIds,
+                5102, ScreenRoutes.AtMe.route, "@我") { "有 $it 条新消息提到你" })
+        }
+        if (settings.notifyLikes) category("like") {
+            state = state.copy(seenLikeIds = feed("like", fetch { source.likeIds() }, state.seenLikeIds,
+                5103, ScreenRoutes.LikeMe.route, "收到的赞") { "你的内容收到 $it 个新赞" })
+        }
+        if (settings.notifySystemNotices) category("sysmsg") {
+            val items = fetch { source.systemNotices() }
+            val known = state.seenSystemCursors.toHashSet()
+            val latest = items.firstOrNull { it.cursor !in known }
+            if ("sysmsg" in state.initialized && latest != null) notifications += PendingMessageNotification(
+                "sysmsg", 5104, ScreenRoutes.SystemNotice.route, "系统通知", latest.title.ifBlank { latest.content }, "interactions",
+            )
+            state = state.copy(seenSystemCursors = mergeNotificationSeen(state.seenSystemCursors, items.map { it.cursor }, 100))
         }
         if (settings.notifyDynamicUpdates) category("dynamic") {
             val baseline = state.dynamicBaseline

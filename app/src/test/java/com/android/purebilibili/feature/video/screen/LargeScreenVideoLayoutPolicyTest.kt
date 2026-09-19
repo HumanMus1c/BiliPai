@@ -123,4 +123,37 @@ class LargeScreenVideoLayoutPolicyTest {
         val side = 1280f - width
         assertTrue(side in 280f..425f)
     }
+
+    @Test
+    fun foldableCoverLandscape_staysOnPhoneLayout() {
+        assertFalse(
+            shouldUseLargeScreenVideoLayout(
+                windowWidthDp = 672f,
+                windowHeightDp = 460f,
+                horizontalAdaptationEnabled = true,
+                isFoldableCoverWindow = true,
+            )
+        )
+    }
+
+    @Test
+    fun puraXMaxInnerPortrait_entersAlmostSquareLayout() {
+        // Pura X Max inner display: 1828 x 2584 px, aspect ratio ~ 0.7074
+        // With density ~ 2.75, width ~ 665dp, height ~ 940dp
+        assertTrue(
+            shouldUseLargeScreenVideoLayout(
+                windowWidthDp = 665f,
+                windowHeightDp = 940f,
+                horizontalAdaptationEnabled = true,
+                isFoldableCoverWindow = false,
+            )
+        )
+        val metrics = resolveLargeScreenVideoMetrics(
+            windowWidthDp = 665f,
+            windowHeightDp = 940f,
+            isVerticalVideo = false,
+        )
+        assertEquals(LargeScreenVideoLayoutMode.AlmostSquare, metrics.mode)
+        assertEquals(940f * 0.4f, metrics.playerHeightDp, 1f)
+    }
 }

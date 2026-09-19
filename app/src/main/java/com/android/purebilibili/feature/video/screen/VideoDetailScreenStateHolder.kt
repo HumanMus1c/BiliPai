@@ -1219,6 +1219,7 @@ internal fun VideoDetailScreenStateHolder(
                 windowWidthDp = configuration.screenWidthDp.toFloat(),
                 windowHeightDp = configuration.screenHeightDp.toFloat(),
                 horizontalAdaptationEnabled = true,
+                isFoldableCoverWindow = displayContext.isFoldableCoverWindow,
             )
         )
 
@@ -2018,6 +2019,13 @@ internal fun VideoDetailScreenStateHolder(
         entryPlaybackIntent = videoSharedPlaybackIntent,
         hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
     )
+    val currentLandingState =
+        com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState.current
+    val effectiveSourceLayout = if (currentLandingState.enabled) {
+        currentLandingState.sourceLayout
+    } else {
+        CardPositionManager.lastClickedVideoSourceLayout
+    }
     val candidateReturnCoverOwnership = resolveVideoDetailReturnCoverOwnership(
         transitionEnabled = transitionEnabled,
         sharedBoundsActive = sharedBoundsActive,
@@ -2027,6 +2035,7 @@ internal fun VideoDetailScreenStateHolder(
         hasResidentCover = hasResidentReturnCover,
         hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
         liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+        sourceLayout = effectiveSourceLayout,
     )
     // 返回会话 ownership：可升 LIVE（保实时画面），禁止 LIVE 降级（防闪）。
     var lockedReturnCoverOwnership by remember(bvid) {
@@ -2456,6 +2465,7 @@ internal fun VideoDetailScreenStateHolder(
         )
     }
     var lastPhoneAutoRotateLandscapeAppliedAtMs by remember { mutableStateOf<Long?>(null) }
+    var lastPhoneAutoRotatePortraitAppliedAtMs by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(
         autoRotateEnabled,
@@ -2499,15 +2509,20 @@ internal fun VideoDetailScreenStateHolder(
         val targetToApply = resolvePhoneAutoRotateTargetToApply(
             candidateOrientation = requestedOrientation,
             lastLandscapeAppliedAtMs = lastPhoneAutoRotateLandscapeAppliedAtMs,
-            nowMs = nowMs
+            nowMs = nowMs,
+            lastPortraitAppliedAtMs = lastPhoneAutoRotatePortraitAppliedAtMs,
         ) ?: return@LaunchedEffect
 
         activity?.applyPlayerRequestedOrientation(
             requestedOrientation = targetToApply,
             displayContext = displayContext,
         )
-        if (isLandscapeRequestedOrientation(targetToApply)) {
+        if (targetToApply == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            lastPhoneAutoRotatePortraitAppliedAtMs = nowMs
+            lastPhoneAutoRotateLandscapeAppliedAtMs = null
+        } else if (isLandscapeRequestedOrientation(targetToApply)) {
             lastPhoneAutoRotateLandscapeAppliedAtMs = nowMs
+            lastPhoneAutoRotatePortraitAppliedAtMs = null
         }
         com.android.purebilibili.core.util.Logger.d(
             "VideoDetailScreen",
@@ -2530,6 +2545,7 @@ internal fun VideoDetailScreenStateHolder(
     ) {
         if (isFullscreenPlayerLocked) {
             lastPhoneAutoRotateLandscapeAppliedAtMs = null
+            lastPhoneAutoRotatePortraitAppliedAtMs = null
             return@LaunchedEffect
         }
         if (!shouldObservePhoneAutoRotate(
@@ -2546,6 +2562,7 @@ internal fun VideoDetailScreenStateHolder(
             )
         ) {
             lastPhoneAutoRotateLandscapeAppliedAtMs = null
+            lastPhoneAutoRotatePortraitAppliedAtMs = null
         }
     }
 
@@ -2608,14 +2625,21 @@ internal fun VideoDetailScreenStateHolder(
                 val targetToApply = resolvePhoneAutoRotateTargetToApply(
                     candidateOrientation = targetOrientation,
                     lastLandscapeAppliedAtMs = lastPhoneAutoRotateLandscapeAppliedAtMs,
-                    nowMs = nowMs
+                    nowMs = nowMs,
+                    lastPortraitAppliedAtMs = lastPhoneAutoRotatePortraitAppliedAtMs,
                 ) ?: return
                 hostActivity.applyPlayerRequestedOrientation(
                     requestedOrientation = targetToApply,
                     displayContext = displayContext,
                 )
-                lastPhoneAutoRotateLandscapeAppliedAtMs =
-                    if (isLandscapeRequestedOrientation(targetToApply)) nowMs else null
+                if (targetToApply == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                    userRequestedFullscreen = false
+                    lastPhoneAutoRotatePortraitAppliedAtMs = nowMs
+                    lastPhoneAutoRotateLandscapeAppliedAtMs = null
+                } else if (isLandscapeRequestedOrientation(targetToApply)) {
+                    lastPhoneAutoRotateLandscapeAppliedAtMs = nowMs
+                    lastPhoneAutoRotatePortraitAppliedAtMs = null
+                }
             }
         }
 

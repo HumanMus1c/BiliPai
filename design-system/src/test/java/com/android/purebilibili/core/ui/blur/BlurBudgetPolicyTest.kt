@@ -36,7 +36,7 @@ class BlurBudgetPolicyTest {
     }
 
     @Test
-    fun bottomBar_duringTransition_shouldLowerBudgetAndDisableRealtime() {
+    fun bottomBar_duringTransition_shouldKeepVisualBudgetStableAndDisableRealtime() {
         val budget = resolveBlurBudget(
             surfaceType = BlurSurfaceType.BOTTOM_BAR,
             motionTier = MotionTier.Normal,
@@ -44,7 +44,8 @@ class BlurBudgetPolicyTest {
             isTransitionRunning = true
         )
 
-        assertEquals(0, budget.maxBlurLevel)
+        assertEquals(1, budget.maxBlurLevel)
+        assertEquals(0.95f, budget.backgroundAlphaMultiplier)
         assertFalse(budget.allowRealtime)
     }
 

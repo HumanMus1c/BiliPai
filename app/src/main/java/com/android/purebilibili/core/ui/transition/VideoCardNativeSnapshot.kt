@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import com.android.purebilibili.core.util.CardPositionManager
 import kotlinx.coroutines.launch
@@ -71,8 +72,9 @@ internal fun isNativeVideoCardLayerDrawable(widthPx: Int, heightPx: Int): Boolea
  * Records the stationary list card into a graphics layer so a click can freeze native pixels
  * instead of reconstructing title/spacing on the flying detail entry.
  *
- * The recorded layer can be drawn directly for ordinary cards. Sources that leave composition,
- * such as the now-playing bar, additionally freeze this layer to a stable bitmap at click time.
+ * The recorded layer can be drawn directly for ordinary cards via hardware-accelerated drawLayer.
+ * Sources that leave composition, such as the now-playing bar, additionally freeze this layer
+ * to a stable bitmap at click time.
  * While the flying overlay covers this card, skip drawing at the list coordinates.
  */
 @Composable
@@ -80,7 +82,9 @@ internal fun Modifier.recordNativeVideoCardLayer(
     layer: GraphicsLayer,
     freezeProvider: () -> Boolean,
     bvid: String = "",
+    enabled: Boolean = true,
 ): Modifier {
+    if (!enabled) return this
     val bgState = LocalVideoCardTransitionBackgroundState.current
     return drawWithContent {
         // Read the latch in draw. Waiting for recomposition after a click can otherwise
@@ -98,7 +102,11 @@ internal fun Modifier.recordNativeVideoCardLayer(
                 bgState.isGestureRestoreInProgressProvider(),
         )
         if (!hide) {
-            drawContent()
+            if (freezeProvider() && isNativeVideoCardLayerDrawable(layer.size.width, layer.size.height)) {
+                drawLayer(layer)
+            } else {
+                drawContent()
+            }
         }
     }
 }
@@ -145,7 +153,10 @@ internal class NativeVideoCardSnapshotController(
 )
 
 @Composable
-internal fun rememberNativeVideoCardSnapshotController(key: Any): NativeVideoCardSnapshotController {
+internal fun rememberNativeVideoCardSnapshotController(
+    key: Any,
+    enabled: Boolean = true,
+): NativeVideoCardSnapshotController {
     val layer = rememberNativeVideoCardLayer()
     val coverOverlayLayer = rememberNativeVideoCardLayer()
     val captureScope = rememberCoroutineScope()
@@ -156,11 +167,13 @@ internal fun rememberNativeVideoCardSnapshotController(key: Any): NativeVideoCar
             layer = layer,
             freezeProvider = { freezeState.value },
             bvid = bvid,
+            enabled = enabled,
         ),
         coverOverlayModifier = Modifier.recordNativeVideoCardLayer(
             layer = coverOverlayLayer,
             freezeProvider = { freezeState.value },
             bvid = bvid,
+            enabled = enabled,
         ),
         capture = {
             freezeState.value = true

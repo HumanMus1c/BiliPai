@@ -186,9 +186,33 @@ internal fun resolveDynamicOpusLinkCardAction(card: OpusLinkCard): DynamicOpusLi
     }
 }
 
+/**
+ * 解析卡片头部作者点击跳转的目标 UID。
+ * 对于合集/系列/番剧等非独立 UP 主发布的动态，避免将虚拟 ID / 赛季 ID 误当作个人 UID 打开个人空间导致“获取用户信息失败”报错。
+ */
+internal fun resolveDynamicAuthorClickMid(item: DynamicItem): Long? {
+    val target = item.orig ?: item
+    val type = target.type.trim()
+    val major = target.modules.module_dynamic?.major
+
+    // 合集/剧集：检查是否有真实的 UP 主 mid
+    if (type == "DYNAMIC_TYPE_UGC_SEASON" || major?.ugc_season != null) {
+        val seasonMid = major?.ugc_season?.mid?.takeIf { it > 0L }
+        return seasonMid
+    }
+
+    // 番剧/影视：不具备个人空间主页
+    if (type in setOf("DYNAMIC_TYPE_PGC", "DYNAMIC_TYPE_PGC_UNION") || major?.pgc != null) {
+        return null
+    }
+
+    // 普通用户动态
+    return target.modules.module_author?.mid?.takeIf { it > 0L }
+}
+
 internal fun resolveDynamicCardPrimaryAction(item: DynamicItem): DynamicCardPrimaryAction {
     val target = item.orig ?: item
-    val authorMid = target.modules.module_author?.mid ?: 0L
+    val authorMid = resolveDynamicAuthorClickMid(target) ?: 0L
     val major = target.modules.module_dynamic?.major
     major?.pgc?.let(::resolveArchiveBangumiTarget)?.let { return it }
     val bvid = major?.archive?.let(::resolveArchivePlayableBvid)
@@ -365,3 +389,16 @@ private fun resolveLivePrimaryAction(
         uname = uname
     )
 }
+
+/**
+ * Resolves headline title for Opus or Article dynamic items.
+ * Guaranteed to be rendered at the very top of dynamic content (above body text and media).
+ */
+internal fun resolveDynamicHeadlineTitle(
+    opus: OpusMajor?,
+    article: ArticleMajor?
+): String? {
+    return opus?.title?.trim()?.takeIf { it.isNotEmpty() }
+        ?: article?.title?.trim()?.takeIf { it.isNotEmpty() }
+}
+

@@ -5,6 +5,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackground
 import androidx.compose.animation.core.Easing
 import com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.isVideoCardLiveReturnMorphOwnership
 import com.android.purebilibili.core.ui.transition.normalizeSharedElementSourceRoute
@@ -219,6 +220,7 @@ internal fun resolveVideoDetailReturnCoverOwnership(
     hasResidentCover: Boolean,
     hasRenderableLiveFrame: Boolean = true,
     liveSurfaceCardTransitionEnabled: Boolean = false,
+    sourceLayout: VideoCardSourceLayout? = null,
 ) = resolveVideoCardReturnCoverOwnership(
     transitionEnabled = transitionEnabled,
     sharedBoundsActive = sharedBoundsActive,
@@ -228,6 +230,7 @@ internal fun resolveVideoDetailReturnCoverOwnership(
     hasResidentCover = hasResidentCover,
     hasRenderableLiveFrame = hasRenderableLiveFrame,
     liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+    sourceLayout = sourceLayout,
 )
 
 internal fun isLiveReturnMorphFromOwnership(

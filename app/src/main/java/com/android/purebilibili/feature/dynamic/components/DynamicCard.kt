@@ -17,6 +17,7 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.transition.LocalDynamicImagePreviewTextVisible
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -200,8 +201,7 @@ fun DynamicCardV2(
     )
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val dynamicPreviewTextVisible by SettingsManager.getDynamicImagePreviewTextVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    val dynamicPreviewTextVisible = LocalDynamicImagePreviewTextVisible.current
     val authorTimeText = remember(author?.pub_time, author?.pub_ts) {
         author?.let {
             resolveDynamicAuthorTimeText(
@@ -426,6 +426,24 @@ fun DynamicCardV2(
         
         //  用户头部（头像 + 名称 + 时间 + 更多）
         if (author != null) {
+            val authorClickMid = remember(item) { resolveDynamicAuthorClickMid(item) }
+            val ugcSeason = item.modules.module_dynamic?.major?.ugc_season
+            val onAuthorHeaderClick = {
+                if (authorClickMid != null) {
+                    dispatchDynamicCardPrimaryAction(
+                        action = DynamicCardPrimaryAction.OpenUser(authorClickMid),
+                        onVideoClick = onVideoClick,
+                        onBangumiClick = onBangumiClick,
+                        onArticleClick = onArticleClick,
+                        onDynamicDetailClick = openDynamicDetail,
+                        onUserClick = onUserClick,
+                        onLiveClick = onLiveClick
+                    )
+                } else if (ugcSeason != null && ugcSeason.id > 0L && onCollectionClick != null) {
+                    onCollectionClick(ugcSeason.id, ugcSeason.mid, ugcSeason.title, ugcSeason.jump_url)
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -436,16 +454,8 @@ fun DynamicCardV2(
                         .size(AppChromeSizeTokens.MinimumTouchTarget)
                         .clip(CircleShape)
                         .semantics { contentDescription = "查看${author.name}的个人主页" }
-                        .clickable(enabled = author.mid > 0) {
-                            dispatchDynamicCardPrimaryAction(
-                                action = DynamicCardPrimaryAction.OpenUser(author.mid),
-                                onVideoClick = onVideoClick,
-                                onBangumiClick = onBangumiClick,
-                                onArticleClick = onArticleClick,
-                                onDynamicDetailClick = openDynamicDetail,
-                                onUserClick = onUserClick,
-                                onLiveClick = onLiveClick
-                            )
+                        .clickable(enabled = authorClickMid != null || (ugcSeason != null && ugcSeason.id > 0L && onCollectionClick != null)) {
+                            onAuthorHeaderClick()
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -469,7 +479,10 @@ fun DynamicCardV2(
                         author.name,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
-                        color = if (author.vip?.status == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        color = if (author.vip?.status == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable(enabled = authorClickMid != null || (ugcSeason != null && ugcSeason.id > 0L && onCollectionClick != null)) {
+                            onAuthorHeaderClick()
+                        }
                     )
                     AppText(
                         authorTimeText,
@@ -823,6 +836,53 @@ fun DynamicCardV2(
                 modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
             )
         }
+
+        // 动态标题 (Opus / 专栏 / 带标题图文，统一定位在正文与媒体卡片最上方，对齐 PiliPlus)
+        val dynamicCardTitle = remember(opus?.title, content?.major?.article?.title) {
+            resolveDynamicHeadlineTitle(
+                opus = opus,
+                article = content?.major?.article
+            )
+        }
+        if (dynamicCardTitle != null) {
+            AppText(
+                text = dynamicCardTitle,
+                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = if (isDetail) Int.MAX_VALUE else 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = AppSpacingTokens.Small)
+            )
+        }
+
+        // 失效/删除动态占位提示（对齐 PiliPlus 的 noneWidget 处理）
+        val isNoneMajor = content?.major?.type == "MAJOR_TYPE_NONE" || item.type == "DYNAMIC_TYPE_NONE"
+        if (isNoneMajor) {
+            val tips = content?.major?.none?.tips?.trim()?.takeIf { it.isNotEmpty() } ?: "该动态已失效或被删除"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = AppSpacingTokens.Small)
+                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppIcon(
+                    rememberAppWarningIcon(),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                AppText(
+                    text = tips,
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         
         //  动态内容文字（支持@高亮 / 表情）；优先可渲染表情的 desc 或 opus summary
         val visibleOpusSummaryDescForBody = remember(content?.major?.opus?.summary, content?.major?.opus?.pics) {
@@ -978,20 +1038,7 @@ fun DynamicCardV2(
                 )
             }
             
-            // 显示标题 (如果有)
-            opus.title?.let { title ->
-                if (title.isNotEmpty()) {
-                    AppText(
-                        title,
-                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = AppSpacingTokens.Small)
-                    )
-                }
-            }
-            
-            // 正文已在上方 preferredBodyDesc 渲染；此处不再重复摘要
+            // 正文与标题已在上方统一渲染；此处按需渲染正文内容块与图片列表
             
             // 显示图片 (转换为 DrawItem 格式复用现有组件)
             if (hasFullOpusDetailContent) {
@@ -2241,6 +2288,8 @@ fun DynamicCardCompact(
         ?: content?.major?.archive?.title 
         ?: "动态"
     
+    val authorClickMid = remember(item) { resolveDynamicAuthorClickMid(item) }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2249,7 +2298,7 @@ fun DynamicCardCompact(
                 content?.major?.archive
                     ?.let(::resolveArchivePlayableBvid)
                     ?.let(onVideoClick)
-                    ?: author?.let { onUserClick(it.mid) }
+                    ?: authorClickMid?.let(onUserClick)
             }
             .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),  //  优化间距
         verticalAlignment = Alignment.CenterVertically
@@ -2261,7 +2310,9 @@ fun DynamicCardCompact(
                     .size(AppChromeSizeTokens.MinimumTouchTarget)
                     .clip(CircleShape)
                     .semantics { contentDescription = "查看${author.name}的个人主页" }
-                    .clickable(enabled = author.mid > 0) { onUserClick(author.mid) },
+                    .clickable(enabled = authorClickMid != null) { 
+                        authorClickMid?.let(onUserClick) 
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(

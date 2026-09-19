@@ -241,6 +241,36 @@ internal fun shouldShowPortraitSwitchButtonInControlBar(
     isFullscreen: Boolean
 ): Boolean = isFullscreen
 
+internal fun shouldShowPortraitSwitchButtonInline(
+    isFullscreen: Boolean,
+    isVerticalVideo: Boolean,
+    widthDp: Int
+): Boolean {
+    if (isFullscreen) return false
+    // On tablets and large screens (widthDp >= 600), only show the portrait fullscreen button
+    // if the video is actually vertical. Standard horizontal 16:9 videos should never
+    // show "竖屏", which crowds out the regular fullscreen button.
+    // On compact phones (widthDp < 600), preserve existing behavior.
+    return if (widthDp >= 600) {
+        isVerticalVideo
+    } else {
+        true
+    }
+}
+
+internal fun shouldShowAudioQualityButtonInline(
+    isFullscreen: Boolean,
+    widthDp: Int,
+    isSpecialAudio: Boolean
+): Boolean {
+    if (isFullscreen) return false
+    // Special audio formats (Hi-Res / Dolby) always display their badge inline
+    if (isSpecialAudio) return true
+    // In inline non-fullscreen mode, standard audio (AAC) can be collapsed when space
+    // is constrained (< 680dp on tablet split panes) to prioritize primary controls
+    return widthDp >= 680 || widthDp < 480
+}
+
 internal fun shouldShowNextEpisodeButtonInControlBar(
     isFullscreen: Boolean,
     hasNextEpisode: Boolean
@@ -608,6 +638,21 @@ fun BottomControlBar(
             isFullscreen = isFullscreen
         )
     }
+    val isSpecialAudioSelected = isHiResAudioSelected || isDolbyAudioSelected
+    val showAudioQualityButtonInline = remember(isFullscreen, uiLayoutWidthDp, isSpecialAudioSelected) {
+        shouldShowAudioQualityButtonInline(
+            isFullscreen = isFullscreen,
+            widthDp = uiLayoutWidthDp,
+            isSpecialAudio = isSpecialAudioSelected
+        )
+    }
+    val showPortraitSwitchButtonInline = remember(isFullscreen, isVerticalVideo, uiLayoutWidthDp) {
+        shouldShowPortraitSwitchButtonInline(
+            isFullscreen = isFullscreen,
+            isVerticalVideo = isVerticalVideo,
+            widthDp = uiLayoutWidthDp
+        )
+    }
     val showMoreActionsButton = remember(
         isFullscreen,
         showEpisodeInMoreActions,
@@ -849,10 +894,12 @@ fun BottomControlBar(
                             text = currentRatio.displayName,
                             color = Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
-                } else {
+                } else if (showAudioQualityButtonInline) {
                     Row(
                         modifier = Modifier
                             .heightIn(min = 48.dp)
@@ -864,7 +911,9 @@ fun BottomControlBar(
                             text = currentAudioQualityLabel.ifBlank { "音质" },
                             color = Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         if (isHiResAudioSelected) {
                             HiResBadge()
@@ -882,6 +931,9 @@ fun BottomControlBar(
                         color = Color.White,
                         fontSize = layoutPolicy.actionTextFontSp.sp,
                         fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable(onClick = onQualityClick)
                     )
                 }
@@ -892,6 +944,8 @@ fun BottomControlBar(
                         color = Color.White,
                         fontSize = layoutPolicy.actionTextFontSp.sp,
                         fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.clickable(onClick = onEpisodeClick)
                     )
                 }
@@ -902,6 +956,8 @@ fun BottomControlBar(
                     color = if (currentSpeed == 1.0f) Color.White else MaterialTheme.colorScheme.primary,
                     fontSize = layoutPolicy.actionTextFontSp.sp,
                     fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier.clickable(onClick = onSpeedClick)
                 )
 
@@ -931,6 +987,8 @@ fun BottomControlBar(
                             color = if (subtitleEnabled) MaterialTheme.colorScheme.primary else Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier.padding(
                                 horizontal = layoutPolicy.actionChipHorizontalPaddingDp.dp,
                                 vertical = layoutPolicy.actionChipVerticalPaddingDp.dp
@@ -1017,13 +1075,15 @@ fun BottomControlBar(
                     )
                 }
 
-                // 📱 [修复] 竖屏全屏按钮 - 仅在非全屏模式下显示
-                if (!isFullscreen) {
+                // 📱 [修复] 竖屏全屏按钮 - 仅在非全屏且有需要时显示，避免挤压平板控制栏
+                if (showPortraitSwitchButtonInline) {
                     AppText(
                         text = "竖屏",
                         color = Color.White,
                         fontSize = layoutPolicy.actionTextFontSp.sp,
                         fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.clickable(onClick = onPortraitFullscreen)
                     )
                 }

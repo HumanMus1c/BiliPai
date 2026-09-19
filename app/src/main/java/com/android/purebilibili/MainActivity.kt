@@ -124,6 +124,7 @@ import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.calculateWindowSizeClass
 import com.android.purebilibili.core.util.rememberAppWindowAdaptiveInfo
+import com.android.purebilibili.core.util.resolveSafeAndroidPipRational
 import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.cast.LocalProxyServer
 import com.android.purebilibili.feature.onboarding.USER_AGREEMENT_ACK_KEY
@@ -1337,6 +1338,8 @@ open class MainActivity : AppCompatActivity() {
                 .collectAsStateWithLifecycle(initialValue = false)
             val progressiveTopBlurEnabled by SettingsManager.getProgressiveTopBlurEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = true)
+            val progressiveTopFadeEnabled by SettingsManager.getProgressiveTopFadeEnabled(context)
+                .collectAsStateWithLifecycle(initialValue = true)
             val hapticFeedbackEnabled by SettingsManager.getHapticFeedbackEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = true)
             val globalTextTapCopyEnabled by SettingsManager
@@ -1359,6 +1362,7 @@ open class MainActivity : AppCompatActivity() {
                 headerBlurEnabled,
                 bottomBarBlurEnabled,
                 progressiveTopBlurEnabled,
+                progressiveTopFadeEnabled,
                 hapticFeedbackEnabled,
                 globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
@@ -1371,6 +1375,7 @@ open class MainActivity : AppCompatActivity() {
                     headerBlurEnabled = headerBlurEnabled,
                     bottomBarBlurEnabled = bottomBarBlurEnabled,
                     progressiveTopBlurEnabled = progressiveTopBlurEnabled,
+                    progressiveTopFadeEnabled = progressiveTopFadeEnabled,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
                     globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
@@ -1572,10 +1577,15 @@ open class MainActivity : AppCompatActivity() {
                         Box(
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            LaunchedEffect(isInPipMode, miniPlayerManager.isPlaying) {
+                            LaunchedEffect(isInPipMode, miniPlayerManager.isPlaying, miniPlayerManager.videoAspectRatio) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPipMode) {
                                     val pipParams = PictureInPictureParams.Builder()
-                                        .setAspectRatio(Rational(16, 9))
+                                        .setAspectRatio(
+                                            resolveSafeAndroidPipRational(
+                                                videoWidth = miniPlayerManager.videoWidth,
+                                                videoHeight = miniPlayerManager.videoHeight
+                                            )
+                                        )
                                         .setActions(
                                             buildPipPlaybackRemoteActions(
                                                 context = this@MainActivity,
@@ -2340,7 +2350,12 @@ open class MainActivity : AppCompatActivity() {
                 Logger.d(TAG, " 尝试进入 PiP 模式...")
                 
                 val pipParams = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
+                    .setAspectRatio(
+                        resolveSafeAndroidPipRational(
+                            videoWidth = miniPlayerManager.videoWidth,
+                            videoHeight = miniPlayerManager.videoHeight
+                        )
+                    )
                     .setActions(
                         buildPipPlaybackRemoteActions(
                             context = this,
@@ -2371,7 +2386,12 @@ open class MainActivity : AppCompatActivity() {
         miniPlayerManager.updatePlaybackRoutePipRequest(true)
         try {
             val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
+                .setAspectRatio(
+                    resolveSafeAndroidPipRational(
+                        videoWidth = miniPlayerManager.videoWidth,
+                        videoHeight = miniPlayerManager.videoHeight
+                    )
+                )
                 .setActions(
                     buildPipPlaybackRemoteActions(
                         context = this,

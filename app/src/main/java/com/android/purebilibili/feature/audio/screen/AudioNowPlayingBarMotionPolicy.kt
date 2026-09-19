@@ -4,34 +4,53 @@ import androidx.compose.animation.core.CubicBezierEasing
 
 /**
  * 底部小横条落位回弹贝塞尔曲线：
- * 控制点 P1(0.34, 1.45) 使动画在到达终点附近时产生轻微超调，
- * 呈现自然物理特性的落地挤压与缓冲回弹效果。
+ * 控制点 P1(0.30, 1.35) 与 P2(0.50, 1.0) 形成拟合 Miuix Folme / iOS 物理弹簧阻尼的超调落位曲线，
+ * 在 58% 进度处产生约 4% 的精细超调缓冲，并迅速收敛回弹，呈现自然通透的物理落地触感。
  */
-internal val AudioNowPlayingBarLandingEasing = CubicBezierEasing(0.34f, 1.45f, 0.64f, 1.0f)
+internal val AudioNowPlayingBarLandingEasing = CubicBezierEasing(0.30f, 1.35f, 0.50f, 1.0f)
 
-internal const val AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS = 240L
-internal const val AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS = 420
+internal const val AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS = 220L
+internal const val AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS = 320
 
 internal fun resolveAudioNowPlayingBarLandingOffsetY(
     progress: Float,
-    maxDropDp: Float = 14f
+    maxDropDp: Float = 8f
 ): Float {
     if (progress == 1f) return 0f
     return (1f - progress) * -maxDropDp
+}
+
+internal fun resolveAudioNowPlayingBarLandingScaleX(
+    progress: Float
+): Float {
+    if (progress == 1f) return 1f
+    return if (progress > 1f) {
+        val overshoot = progress - 1f
+        // 落地挤压（Squash）：横向微扩，随后回弹恢复
+        1f + overshoot * 0.25f
+    } else {
+        (0.95f + 0.05f * progress).coerceIn(0.95f, 1f)
+    }
+}
+
+internal fun resolveAudioNowPlayingBarLandingScaleY(
+    progress: Float
+): Float {
+    if (progress == 1f) return 1f
+    return if (progress > 1f) {
+        val overshoot = progress - 1f
+        // 落地挤压（Squash）：纵向微压，随后回弹恢复
+        1f - overshoot * 0.25f
+    } else {
+        (0.95f + 0.05f * progress).coerceIn(0.95f, 1f)
+    }
 }
 
 internal fun resolveAudioNowPlayingBarLandingScale(
     progress: Float
 ): Pair<Float, Float> {
     if (progress == 1f) return 1f to 1f
-    return if (progress > 1f) {
-        val overshoot = progress - 1f
-        // 落地挤压（Squash）：横向微扩，纵向微压，随后回弹恢复
-        (1f + overshoot * 0.25f) to (1f - overshoot * 0.25f)
-    } else {
-        val enterScale = (0.95f + 0.05f * progress).coerceIn(0.95f, 1f)
-        enterScale to enterScale
-    }
+    return resolveAudioNowPlayingBarLandingScaleX(progress) to resolveAudioNowPlayingBarLandingScaleY(progress)
 }
 
 internal fun resolveAudioNowPlayingBarLandingAlpha(
@@ -44,9 +63,10 @@ internal fun resolveAudioNowPlayingBarLandingAlpha(
 internal fun resolveAudioNowPlayingBarShouldTriggerLanding(
     isReturningFromDetail: Boolean,
     targetBvid: String?,
-    currentBvid: String
+    currentBvid: String,
+    isSharedTransitionActive: Boolean = false,
 ): Boolean {
-    if (!isReturningFromDetail || currentBvid.isBlank()) return false
+    if (!isReturningFromDetail || currentBvid.isBlank() || isSharedTransitionActive) return false
     return targetBvid.isNullOrBlank() || targetBvid == currentBvid
 }
 

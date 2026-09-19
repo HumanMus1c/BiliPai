@@ -14,7 +14,9 @@ import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceAggregateData
 import com.android.purebilibili.data.model.response.SpaceAggregateFavoriteItem
 import com.android.purebilibili.data.model.response.SpaceAggregateImages
+import com.android.purebilibili.data.model.response.SpaceAggregateRelation
 import com.android.purebilibili.data.model.response.SpaceAudioItem
+import com.android.purebilibili.data.model.response.SpaceTagItem
 import com.android.purebilibili.data.model.response.SpaceUserInfo
 import com.android.purebilibili.data.model.response.SpaceVideoItem
 import com.android.purebilibili.data.model.response.Stat
@@ -296,13 +298,21 @@ internal data class SpaceAdaptiveLayoutSpec(
 )
 
 internal const val SPACE_BANNER_ASPECT_RATIO = 1125f / 396f
-/** Matches PiliPlus desktop/landscape `kHeaderHeight` instead of scaling 1125:396 to the full window. */
+/** Matches PiliPlus `kHeaderHeight = 135.0`. */
+internal const val SPACE_HEADER_HEIGHT_DP = 135f
 internal const val SPACE_WIDE_BANNER_MAX_HEIGHT_DP = 135f
 internal const val SPACE_WIDE_BANNER_MIN_HEIGHT_DP = 120f
 
 internal data class SpaceBannerMetrics(
     val heightDp: Float,
     val cropToFill: Boolean,
+    val heroHeightDp: Float = heightDp,
+)
+
+internal data class SpaceUserCardVisuals(
+    val largePhoto: String = "",
+    val smallPhoto: String = "",
+    val ipLocation: String? = null,
 )
 
 /**
@@ -334,11 +344,12 @@ internal fun resolveSpaceBannerMetrics(
     renderedBannerWidthDp: Float,
     windowWidthDp: Float,
     windowHeightDp: Float,
+    topInsetDp: Float = 0f,
 ): SpaceBannerMetrics {
-    val naturalHeight = renderedBannerWidthDp.coerceAtLeast(0f) / SPACE_BANNER_ASPECT_RATIO
     val landscape = windowHeightDp > 0f && windowWidthDp > windowHeightDp
     val useDesktopHeader = windowWidthDp >= 600f || landscape
-    val maxHeight = if (useDesktopHeader) {
+    val naturalHeroHeight = renderedBannerWidthDp.coerceAtLeast(0f) / SPACE_BANNER_ASPECT_RATIO
+    val heroHeight = if (useDesktopHeader) {
         if (windowHeightDp > 0f) {
             (windowHeightDp * 0.22f).coerceIn(
                 SPACE_WIDE_BANNER_MIN_HEIGHT_DP,
@@ -348,12 +359,13 @@ internal fun resolveSpaceBannerMetrics(
             SPACE_WIDE_BANNER_MAX_HEIGHT_DP
         }
     } else {
-        naturalHeight
+        naturalHeroHeight
     }
-    val height = naturalHeight.coerceAtMost(maxHeight)
+    val totalHeight = heroHeight + topInsetDp
     return SpaceBannerMetrics(
-        heightDp = height,
-        cropToFill = height + 0.5f < naturalHeight,
+        heightDp = totalHeight,
+        cropToFill = useDesktopHeader,
+        heroHeightDp = heroHeight,
     )
 }
 
@@ -443,7 +455,10 @@ internal data class SpaceInitialSeed(
     val defaultContributionTabId: String
 )
 
-internal fun resolveSpaceAggregateTopPhoto(images: SpaceAggregateImages?): String {
+internal fun resolveSpaceAggregateTopPhoto(
+    images: SpaceAggregateImages?,
+    isDarkTheme: Boolean = false,
+): String {
     if (images == null) return ""
     val collectionTopItem = images.collectionTopSimple?.top?.result?.firstOrNull()
     val collectionPhoto = collectionTopItem?.item?.image?.defaultImage?.takeIf { it.isNotBlank() }
@@ -451,13 +466,76 @@ internal fun resolveSpaceAggregateTopPhoto(images: SpaceAggregateImages?): Strin
     if (!collectionPhoto.isNullOrBlank()) {
         return collectionPhoto
     }
-    return images.imgUrl.ifBlank { images.nightImgUrl }
+    return if (isDarkTheme && images.nightImgUrl.isNotBlank()) {
+        images.nightImgUrl
+    } else {
+        images.imgUrl.ifBlank { images.nightImgUrl }
+    }
+}
+
+internal fun parseTopImageDy(location: String, height: Double): Float {
+    if (location.isBlank() || height <= 0.0) return 0f
+    return try {
+        val parts = location.split('-').drop(1).take(2).mapNotNull { it.toFloatOrNull() }
+        if (parts.size == 2) {
+            val start = parts[0]
+            val end = parts[1]
+            ((start + end) / height.toFloat() - 1f).coerceIn(-1f, 1f)
+        } else {
+            0f
+        }
+    } catch (_: Exception) {
+        0f
+    }
+}
+
+internal fun resolveSpaceTopImageItems(images: SpaceAggregateImages?): List<com.android.purebilibili.data.model.response.SpaceTopImageItem> {
+    if (images == null) return emptyList()
+    val collectionItems = images.collectionTopSimple?.top?.result.orEmpty()
+    if (collectionItems.isNotEmpty()) {
+        return collectionItems.mapNotNull { item ->
+            val detail = item.item
+            val img = detail?.image ?: detail?.animation
+            val defaultImg = img?.defaultImage?.takeIf { it.isNotBlank() }
+            val fullCover = item.cover.takeIf { it.isNotBlank() } ?: defaultImg ?: return@mapNotNull null
+            val header = defaultImg ?: fullCover
+            val dy = parseTopImageDy(img?.location.orEmpty(), img?.height ?: 0.0)
+            com.android.purebilibili.data.model.response.SpaceTopImageItem(
+                header = header,
+                fullCover = fullCover,
+                dy = dy,
+                title = item.title
+            )
+        }
+    }
+    return emptyList()
+}
+
+internal fun resolveSpaceRelationState(
+    aggregateRelation: Int? = null,
+    relSpecial: Int? = null,
+    cardRelation: SpaceAggregateRelation? = null
+): Pair<Boolean, Int> {
+    if (aggregateRelation == -1) {
+        return Pair(false, 128)
+    }
+    val relation = cardRelation ?: SpaceAggregateRelation()
+    if (relation.isFollow == 1) {
+        val status = if (relSpecial == 1) {
+            -10
+        } else {
+            relation.status.takeIf { it != 0 } ?: 2
+        }
+        return Pair(true, status)
+    }
+    return Pair(false, 0)
 }
 
 internal fun resolveSpaceInitialSeedFromAggregate(
     data: SpaceAggregateData,
     cardLargePhoto: String = "",
-    cardSmallPhoto: String = ""
+    cardSmallPhoto: String = "",
+    cardIpLocation: String? = null,
 ): SpaceInitialSeed? {
     val card = data.card ?: return null
     val userMid = card.mid.toLongOrNull()?.takeIf { it > 0L } ?: return null
@@ -468,8 +546,12 @@ internal fun resolveSpaceInitialSeedFromAggregate(
         cardLargePhoto = cardLargePhoto,
         cardSmallPhoto = cardSmallPhoto
     )
-    val relation = card.relation
-    val isFollowed = relation.isFollow == 1 || relation.status in setOf(2, 6)
+    val topImageItems = resolveSpaceTopImageItems(data.images)
+    val (isFollowed, relationStatus) = resolveSpaceRelationState(
+        aggregateRelation = data.relation,
+        relSpecial = data.relSpecial,
+        cardRelation = card.relation
+    )
     val mainTabs = resolveSpaceMainTabs(data.tab2)
     val contributionTabs = ensureSpaceContributionTabsForAvailableContent(
         tabs = resolveSpaceContributionTabs(data.tab2),
@@ -479,6 +561,19 @@ internal fun resolveSpaceInitialSeedFromAggregate(
         defaultTab = data.defaultTab,
         contributionTabs = contributionTabs
     )
+    val ipFromTag = card.spaceTag.firstOrNull {
+        it.type == "location" || it.title.startsWith("IP属地") || it.title.contains("IP")
+    }?.title
+    val resolvedIpLocation = ipFromTag
+        ?: data.card?.ipLocation?.takeIf { it.isNotBlank() }
+        ?: cardIpLocation?.takeIf { it.isNotBlank() }
+    val filteredTags = card.spaceTag.filter { it.type in setOf("location", "real_name") || it.title.contains("IP") }
+    val resolvedSpaceTags = if (filteredTags.none { it.type == "location" || it.title.contains("IP") } && !resolvedIpLocation.isNullOrBlank()) {
+        val locationTitle = if (resolvedIpLocation.startsWith("IP属地")) resolvedIpLocation else "IP属地：$resolvedIpLocation"
+        filteredTags + SpaceTagItem(type = "location", title = locationTitle)
+    } else {
+        filteredTags
+    }
 
     return SpaceInitialSeed(
         userInfo = SpaceUserInfo(
@@ -488,11 +583,18 @@ internal fun resolveSpaceInitialSeedFromAggregate(
             face = card.face,
             sign = card.sign,
             level = card.levelInfo.currentLevel,
+            silence = card.silence,
             official = card.officialVerify,
             vip = card.vip,
             isFollowed = isFollowed,
+            relationStatus = relationStatus,
             topPhoto = topPhoto,
-            liveRoom = data.live
+            nightTopPhoto = data.images?.nightImgUrl.orEmpty(),
+            topImages = topImageItems,
+            followingsFollowed = card.followingsFollowedUpper,
+            spaceTags = resolvedSpaceTags,
+            liveRoom = data.live,
+            ipLocation = resolvedIpLocation,
         ),
         relationStat = RelationStatData(
             mid = userMid,

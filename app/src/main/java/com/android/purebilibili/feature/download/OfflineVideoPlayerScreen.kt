@@ -311,7 +311,7 @@ fun OfflineVideoPlayerScreen(
         val requestedOrientation = when (
             resolveOfflineRequestedOrientationMode(
                 isFullscreen = fullscreen,
-                usesInWindowFullscreen = displayContext.usesInWindowFullscreen,
+                displayContext = displayContext,
             )
         ) {
             OfflineRequestedOrientationMode.Unspecified ->

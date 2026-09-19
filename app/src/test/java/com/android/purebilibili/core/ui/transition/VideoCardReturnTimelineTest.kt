@@ -806,4 +806,32 @@ class VideoCardReturnTimelineTest {
             resolveVideoCardSharedMorphRemainingDurationMs(0.5f, motion.durationMillis) > 0,
         )
     }
+
+    @Test
+    fun `cover-only source layout disables live morph and forces resident cover ownership`() {
+        val ownership = resolveVideoCardReturnCoverOwnership(
+            transitionEnabled = true,
+            sharedBoundsActive = true,
+            keepLoadedContentForBackPreview = false,
+            playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+            detailContentReady = true,
+            hasResidentCover = true,
+            hasRenderableLiveFrame = true,
+            liveSurfaceCardTransitionEnabled = true,
+            sourceLayout = VideoCardSourceLayout.COVER_ONLY,
+        )
+        assertEquals(VideoCardReturnCoverOwnership.RESIDENT_COVER, ownership)
+        assertFalse(
+            shouldUseVideoCardLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+                hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = true,
+                sourceLayout = VideoCardSourceLayout.COVER_ONLY,
+            )
+        )
+    }
 }

@@ -59,32 +59,32 @@ object LiquidGlassBackgroundShader {
 
         half4 main(in float2 fragCoord) {
             half2 uv = fragCoord;
+            half2 minUV = half2(0.0);
+            half2 maxUV = half2(resolution.x - 1.0, resolution.y - 1.0);
+
+            if (refract_intensity <= 0.001) {
+                half4 s = img.eval(uv);
+                return s * (1.0 - background_color.a) + background_color;
+            }
 
             // Create vertical wave distortion based on scroll
-            // Enhanced: stronger ripple effect when scrolling
-            float scrollProgress = scroll_offset * 0.008;  // More responsive to scroll
+            float scrollProgress = scroll_offset * 0.008;
             float waveX = sin(fragCoord.x * 0.025 + scrollProgress) * 0.6;
             float waveY = cos(fragCoord.y * 0.015 + scrollProgress * 0.5) * 0.8;
             float wave = waveX * waveY + sin(scrollProgress * 0.3) * 0.4;
 
-            // Increased multiplier for more visible distortion
-            float2 offset = float2(wave * 0.4, wave * 1.2) * refract_intensity * 50.0;
-
-            half2 minUV = half2(0.0);
-            half2 maxUV = half2(resolution.x - 1.0, resolution.y - 1.0);
+            float2 offset = float2(wave * 0.4, wave * 1.2) * (refract_intensity * 50.0);
             uv = clamp(uv + offset, minUV, maxUV);
 
-            // Enhanced chromatic aberration for glass feel
             float aberration = refract_intensity * 0.35;
-            half r = img.eval(clamp(uv + float2(aberration * 4.0, aberration * 1.5), minUV, maxUV)).r;
-            half g = img.eval(uv).g;
-            half b = img.eval(clamp(uv - float2(aberration * 4.0, aberration * 1.5), minUV, maxUV)).b;
-            half4 sampled = half4(r, g, b, 1.0);
+            float2 aberrOffset = float2(aberration * 4.0, aberration * 1.5);
+            half r = img.eval(clamp(uv + aberrOffset, minUV, maxUV)).r;
+            half4 centerSample = img.eval(uv);
+            half b = img.eval(clamp(uv - aberrOffset, minUV, maxUV)).b;
+            half4 sampled = half4(r, centerSample.g, b, centerSample.a);
 
             // Blend with semi-transparent background for legibility
-            half4 result = sampled * (1.0 - background_color.a) + background_color;
-
-            return result;
+            return sampled * (1.0 - background_color.a) + background_color;
         }
     """
 }

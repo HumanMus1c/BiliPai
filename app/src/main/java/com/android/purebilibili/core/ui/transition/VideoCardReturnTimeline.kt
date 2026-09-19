@@ -645,7 +645,12 @@ internal fun shouldUseVideoCardLiveReturnMorph(
      * 默认 true 与设置项默认一致。
      */
     liveSurfaceCardTransitionEnabled: Boolean = false,
+    sourceLayout: VideoCardSourceLayout? = null,
 ): Boolean {
+    // 纯封面卡（如首页横幅 Banner、音频横条等）在源列表无视频图层，返回时必须使用静止封面接管
+    if (sourceLayout == VideoCardSourceLayout.COVER_ONLY) {
+        return false
+    }
     return transitionEnabled &&
         liveSurfaceCardTransitionEnabled &&
         sharedBoundsActive &&
@@ -659,7 +664,7 @@ internal fun shouldUseVideoCardLiveReturnMorph(
  * 解析详情返回时的封面路径类型（与「当前是否正在离开」无关）。
  *
  * - LIVE_SURFACE：满足 live morph 门闩（含可绘帧）→ 离开时 player 主导
- * - RESIDENT_COVER：有 shared，但不走 live（Loading/CoverFirst/无首帧 等）→ 离开时封面主导
+ * - RESIDENT_COVER：有 shared，但不走 live（Loading/CoverFirst/无首帧/COVER_ONLY源卡 等）→ 离开时封面主导
  * - FALLBACK_NO_SHARED：无配对 → 不得假设 shell morph
  *
  * 「现在是否把视觉交给封面」还要乘 [useReturningVisualState]，见
@@ -675,6 +680,7 @@ internal fun resolveVideoCardReturnCoverOwnership(
     hasResidentCover: Boolean,
     hasRenderableLiveFrame: Boolean = true,
     liveSurfaceCardTransitionEnabled: Boolean = false,
+    sourceLayout: VideoCardSourceLayout? = null,
 ): VideoCardReturnCoverOwnership {
     if (!transitionEnabled || !sharedBoundsActive) {
         return VideoCardReturnCoverOwnership.FALLBACK_NO_SHARED
@@ -687,6 +693,7 @@ internal fun resolveVideoCardReturnCoverOwnership(
         detailContentReady = detailContentReady,
         hasRenderableLiveFrame = hasRenderableLiveFrame,
         liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+        sourceLayout = sourceLayout,
     )
     if (live) {
         return VideoCardReturnCoverOwnership.LIVE_SURFACE

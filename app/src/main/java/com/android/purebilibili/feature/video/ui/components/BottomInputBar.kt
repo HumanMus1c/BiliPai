@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -119,6 +120,13 @@ internal fun resolveBottomInputBarContentBottomPadding(
     return if (floatingLiquidGlass) 112.dp else 96.dp
 }
 
+internal const val BOTTOM_INPUT_BAR_ACTIONS_MIN_WIDTH_DP = 380
+
+internal fun shouldShowBottomInputBarActionButtons(
+    showActionButtons: Boolean,
+    availableWidthDp: Int
+): Boolean = showActionButtons && availableWidthDp >= BOTTOM_INPUT_BAR_ACTIONS_MIN_WIDTH_DP
+
 @Composable
 fun BottomInputBar(
     modifier: Modifier = Modifier,
@@ -134,6 +142,7 @@ fun BottomInputBar(
     hazeState: HazeState? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
     scrollPositionProvider: () -> Pair<Int, Int>? = { null },
+    showActionButtons: Boolean = true,
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager
@@ -179,40 +188,50 @@ fun BottomInputBar(
         hasHazeState = hazeState != null
     )
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-        modifier = modifier,
-    ) {
-        if (floatingLiquidGlass) {
-            FloatingLiquidBottomInputBar(
-                modifier = Modifier,
-                backdrop = backdrop,
-                isLiked = isLiked,
-                isFavorited = isFavorited,
-                isCoined = isCoined,
-                onLikeClick = onLikeClick,
-                onFavoriteClick = onFavoriteClick,
-                onCoinClick = onCoinClick,
-                onShareClick = onShareClick,
-                onCommentClick = onCommentClick,
-                isScrollInProgressProvider = isScrollInProgressProvider
-            )
-        } else {
-            DockedSolidBottomInputBar(
-                modifier = Modifier,
-                hazeState = hazeState,
-                frostedBottomBar = frostedBottomBar,
-                isLiked = isLiked,
-                isFavorited = isFavorited,
-                isCoined = isCoined,
-                onLikeClick = onLikeClick,
-                onFavoriteClick = onFavoriteClick,
-                onCoinClick = onCoinClick,
-                onShareClick = onShareClick,
-                onCommentClick = onCommentClick
-            )
+    BoxWithConstraints(modifier = modifier) {
+        val availableWidthDp = maxWidth.value.toInt()
+        val effectiveShowActionButtons = shouldShowBottomInputBarActionButtons(
+            showActionButtons = showActionButtons,
+            availableWidthDp = availableWidthDp,
+        )
+
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier,
+        ) {
+            if (floatingLiquidGlass) {
+                FloatingLiquidBottomInputBar(
+                    modifier = Modifier,
+                    backdrop = backdrop,
+                    isLiked = isLiked,
+                    isFavorited = isFavorited,
+                    isCoined = isCoined,
+                    onLikeClick = onLikeClick,
+                    onFavoriteClick = onFavoriteClick,
+                    onCoinClick = onCoinClick,
+                    onShareClick = onShareClick,
+                    onCommentClick = onCommentClick,
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                    showActionButtons = effectiveShowActionButtons,
+                )
+            } else {
+                DockedSolidBottomInputBar(
+                    modifier = Modifier,
+                    hazeState = hazeState,
+                    frostedBottomBar = frostedBottomBar,
+                    isLiked = isLiked,
+                    isFavorited = isFavorited,
+                    isCoined = isCoined,
+                    onLikeClick = onLikeClick,
+                    onFavoriteClick = onFavoriteClick,
+                    onCoinClick = onCoinClick,
+                    onShareClick = onShareClick,
+                    onCommentClick = onCommentClick,
+                    showActionButtons = effectiveShowActionButtons,
+                )
+            }
         }
     }
 }
@@ -230,6 +249,7 @@ private fun DockedSolidBottomInputBar(
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
+    showActionButtons: Boolean = true,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val bottomBarColor = resolveBottomBarSurfaceColor(
@@ -274,7 +294,8 @@ private fun DockedSolidBottomInputBar(
             onFavoriteClick = onFavoriteClick,
             onCoinClick = onCoinClick,
             onShareClick = onShareClick,
-            onCommentClick = onCommentClick
+            onCommentClick = onCommentClick,
+            showActionButtons = showActionButtons,
         )
     }
 }
@@ -292,6 +313,7 @@ private fun FloatingLiquidBottomInputBar(
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
     isScrollInProgressProvider: () -> Boolean,
+    showActionButtons: Boolean = true,
 ) {
     val shellShape = resolveSharedBottomBarCapsuleShape()
     val inputTextColor = resolveBottomInputBarPlaceholderTextColor(
@@ -314,9 +336,9 @@ private fun FloatingLiquidBottomInputBar(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .padding(bottom = bottomInset)
-                .widthIn(max = 360.dp)
+                .widthIn(max = if (showActionButtons) 360.dp else 420.dp)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = if (showActionButtons) Arrangement.spacedBy(8.dp) else Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // 黑虾线防回归：左右是两个视觉上独立的胶囊，必须分别渲染，不能合成长壳；
@@ -324,9 +346,15 @@ private fun FloatingLiquidBottomInputBar(
             // 使用满强度 64dp 几何则会让上下 refraction 在短胶囊中线相撞。
             BottomBarMatchedReusableLiquidDock(
                 shape = shellShape,
-                modifier = Modifier
-                    .weight(0.9f)
-                    .height(44.dp),
+                modifier = if (showActionButtons) {
+                    Modifier
+                        .weight(0.9f)
+                        .height(44.dp)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                },
                 backdrop = backdrop,
                 reuseEnabled = true,
                 drawShellLens = true,
@@ -337,9 +365,9 @@ private fun FloatingLiquidBottomInputBar(
                     modifier = Modifier
                         .fillMaxSize()
                         .clickable(role = Role.Button) { onCommentClick() }
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = if (showActionButtons) 12.dp else 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     AppIcon(
                         imageVector = Icons.Outlined.Edit,
@@ -348,7 +376,7 @@ private fun FloatingLiquidBottomInputBar(
                         modifier = Modifier.size(20.dp),
                     )
                     AppText(
-                        text = "写评论",
+                        text = if (showActionButtons) "写评论" else "发一条友善的评论…",
                         color = inputTextColor,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -357,37 +385,39 @@ private fun FloatingLiquidBottomInputBar(
                 }
             }
 
-            BottomBarMatchedReusableLiquidDock(
-                shape = shellShape,
-                modifier = Modifier
-                    .weight(1.1f)
-                    .height(44.dp),
-                backdrop = backdrop,
-                reuseEnabled = true,
-                drawShellLens = true,
-                shellLensIntensity = resolveFloatingDockGeometryScale(44f),
-                isScrollInProgressProvider = isScrollInProgressProvider,
-            ) {
-                BottomInputBarActionButtons(
+            if (showActionButtons) {
+                BottomBarMatchedReusableLiquidDock(
+                    shape = shellShape,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 2.dp, vertical = 6.dp),
-                    itemSize = 32.dp,
-                    iconSize = 19.dp,
-                    spreadItems = true,
-                    favoriteIcon = rememberAppBookmarkIcon(),
-                    coinIcon = rememberAppCoinIcon(),
-                    likeIcon = rememberAppLikeIcon(),
-                    likeFilledIcon = rememberAppLikeFilledIcon(),
-                    shareIcon = rememberAppShareIcon(),
-                    isLiked = isLiked,
-                    isFavorited = isFavorited,
-                    isCoined = isCoined,
-                    onLikeClick = onLikeClick,
-                    onFavoriteClick = onFavoriteClick,
-                    onCoinClick = onCoinClick,
-                    onShareClick = onShareClick,
-                )
+                        .weight(1.1f)
+                        .height(44.dp),
+                    backdrop = backdrop,
+                    reuseEnabled = true,
+                    drawShellLens = true,
+                    shellLensIntensity = resolveFloatingDockGeometryScale(44f),
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                ) {
+                    BottomInputBarActionButtons(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp, vertical = 6.dp),
+                        itemSize = 32.dp,
+                        iconSize = 19.dp,
+                        spreadItems = true,
+                        favoriteIcon = rememberAppBookmarkIcon(),
+                        coinIcon = rememberAppCoinIcon(),
+                        likeIcon = rememberAppLikeIcon(),
+                        likeFilledIcon = rememberAppLikeFilledIcon(),
+                        shareIcon = rememberAppShareIcon(),
+                        isLiked = isLiked,
+                        isFavorited = isFavorited,
+                        isCoined = isCoined,
+                        onLikeClick = onLikeClick,
+                        onFavoriteClick = onFavoriteClick,
+                        onCoinClick = onCoinClick,
+                        onShareClick = onShareClick,
+                    )
+                }
             }
         }
     }
@@ -406,6 +436,7 @@ private fun BottomInputBarContentRow(
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
+    showActionButtons: Boolean = true,
 ) {
     val favoriteIcon = rememberAppBookmarkIcon()
     val coinIcon = rememberAppCoinIcon()
@@ -424,34 +455,47 @@ private fun BottomInputBarContentRow(
                 .clip(AppShapes.container(ContainerLevel.Card))
                 .background(inputContainerColor)
                 .clickable(role = Role.Button) { onCommentClick() }
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            AppText(
-                text = "发一条友善的评论…",
-                color = inputTextColor,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = null,
+                    tint = inputTextColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                AppText(
+                    text = "发一条友善的评论…",
+                    color = inputTextColor,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        if (showActionButtons) {
+            Spacer(modifier = Modifier.width(8.dp))
 
-        BottomInputBarActionButtons(
-            favoriteIcon = favoriteIcon,
-            coinIcon = coinIcon,
-            likeIcon = likeIcon,
-            likeFilledIcon = likeFilledIcon,
-            shareIcon = shareIcon,
-            isLiked = isLiked,
-            isFavorited = isFavorited,
-            isCoined = isCoined,
-            onLikeClick = onLikeClick,
-            onFavoriteClick = onFavoriteClick,
-            onCoinClick = onCoinClick,
-            onShareClick = onShareClick
-        )
+            BottomInputBarActionButtons(
+                favoriteIcon = favoriteIcon,
+                coinIcon = coinIcon,
+                likeIcon = likeIcon,
+                likeFilledIcon = likeFilledIcon,
+                shareIcon = shareIcon,
+                isLiked = isLiked,
+                isFavorited = isFavorited,
+                isCoined = isCoined,
+                onLikeClick = onLikeClick,
+                onFavoriteClick = onFavoriteClick,
+                onCoinClick = onCoinClick,
+                onShareClick = onShareClick
+            )
+        }
     }
 }
 

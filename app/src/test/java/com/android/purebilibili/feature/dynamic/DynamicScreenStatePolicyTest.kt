@@ -850,6 +850,139 @@ class DynamicScreenStatePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `isDynamicItemRealUser rejects UGC season and PGC dynamics`() {
+        val ugcSeasonItem = DynamicItem(
+            type = "DYNAMIC_TYPE_UGC_SEASON",
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 1001L, name = "合集作者", following = true)
+            )
+        )
+        val pgcItem = DynamicItem(
+            type = "DYNAMIC_TYPE_PGC",
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 1002L, name = "番剧", following = true)
+            )
+        )
+        val regularItem = DynamicItem(
+            type = "DYNAMIC_TYPE_AV",
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 1003L, name = "普通UP", following = true)
+            )
+        )
+
+        assertFalse(isDynamicItemRealUser(ugcSeasonItem))
+        assertFalse(isDynamicItemRealUser(pgcItem))
+        assertTrue(isDynamicItemRealUser(regularItem))
+    }
+
+    @Test
+    fun `isDynamicItemRealUser rejects authors with following set to false`() {
+        val unfollowedItem = DynamicItem(
+            type = "DYNAMIC_TYPE_AV",
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 2001L, name = "未关注UP", following = false)
+            )
+        )
+        val followedItem = DynamicItem(
+            type = "DYNAMIC_TYPE_AV",
+            modules = DynamicModules(
+                module_author = DynamicAuthorModule(mid = 2001L, name = "已关注UP", following = true)
+            )
+        )
+
+        assertFalse(isDynamicItemRealUser(unfollowedItem))
+        assertTrue(isDynamicItemRealUser(followedItem))
+    }
+
+    @Test
+    fun `extractUsersFromDynamicItems ignores UGC season and deduplicates identical name and face`() {
+        val items = listOf(
+            DynamicItem(
+                type = "DYNAMIC_TYPE_UGC_SEASON",
+                modules = DynamicModules(
+                    module_author = DynamicAuthorModule(mid = 9001L, name = "装机猿PC问答3", face = "face1")
+                )
+            ),
+            DynamicItem(
+                type = "DYNAMIC_TYPE_UGC_SEASON",
+                modules = DynamicModules(
+                    module_author = DynamicAuthorModule(mid = 9002L, name = "装机猿PC问答3", face = "face1")
+                )
+            ),
+            DynamicItem(
+                type = "DYNAMIC_TYPE_AV",
+                modules = DynamicModules(
+                    module_author = DynamicAuthorModule(mid = 260882L, name = "远古时代装机猿", face = "face2", pub_ts = 1000L, following = true)
+                )
+            ),
+            DynamicItem(
+                type = "DYNAMIC_TYPE_AV",
+                modules = DynamicModules(
+                    module_author = DynamicAuthorModule(mid = 260882L, name = "远古时代装机猿", face = "face2", pub_ts = 2000L, following = true)
+                )
+            )
+        )
+
+        val users = extractUsersFromDynamicItems(items)
+
+        assertEquals(1, users.size)
+        assertEquals(260882L, users[0].uid)
+        assertEquals("远古时代装机猿", users[0].name)
+        assertEquals(2000L, users[0].lastActiveTs)
+    }
+
+    @Test
+    fun `resolveMergedFollowedUsers preserves followed whitelist and does not add unfollowed authors from dynamics`() {
+        val followingUsers = listOf(
+            SidebarUser(uid = 101L, name = "关注UP 1", face = "face1"),
+            SidebarUser(uid = 102L, name = "关注UP 2", face = "face2")
+        )
+        val dynamicUsers = listOf(
+            SidebarUser(uid = 101L, name = "关注UP 1", face = "face1", lastActiveTs = 5000L),
+            SidebarUser(uid = 999L, name = "装机猿PC问答3", face = "face_fake", lastActiveTs = 9999L)
+        )
+        val liveUsers = listOf(
+            SidebarUser(uid = 102L, name = "关注UP 2", face = "face2", isLive = true, lastActiveTs = 6000L)
+        )
+
+        val merged = resolveMergedFollowedUsers(
+            followingUsers = followingUsers,
+            liveUsers = liveUsers,
+            dynamicUsers = dynamicUsers
+        )
+
+        val uids = merged.map { it.uid }.toSet()
+        assertEquals(setOf(101L, 102L), uids)
+        assertFalse(uids.contains(999L), "未关注的陌生人或合集虚拟号绝不能进入关注列表")
+
+        val user101 = merged.first { it.uid == 101L }
+        assertEquals(5000L, user101.lastActiveTs)
+
+        val user102 = merged.first { it.uid == 102L }
+        assertTrue(user102.isLive)
+        assertEquals(6000L, user102.lastActiveTs)
+    }
+
+    @Test
+    fun `resolveMergedFollowedUsers fallback deduplicates identical name and face when followingUsers is empty`() {
+        val dynamicUsers = listOf(
+            SidebarUser(uid = 8001L, name = "相同UP", face = "same_face", lastActiveTs = 100L),
+            SidebarUser(uid = 8002L, name = "相同UP", face = "same_face", lastActiveTs = 200L),
+            SidebarUser(uid = 8003L, name = "另一个UP", face = "other_face", lastActiveTs = 300L)
+        )
+
+        val merged = resolveMergedFollowedUsers(
+            followingUsers = emptyList(),
+            liveUsers = emptyList(),
+            dynamicUsers = dynamicUsers
+        )
+
+        assertEquals(2, merged.size)
+        val names = merged.map { it.name }
+        assertEquals(listOf("相同UP", "另一个UP"), names)
+    }
 }
 
 private fun buildDynamicItem(

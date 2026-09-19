@@ -22,12 +22,14 @@ import com.android.purebilibili.core.util.Logger
 import android.view.ViewGroup
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.VideoSize
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -1179,6 +1181,14 @@ class MiniPlayerManager private constructor(private val context: Context) :
     var currentLiveUname by mutableStateOf("")
         private set
 
+    // 📐 [新增] 视频原始流分辨率与高宽比，用于小窗和系统画中画自适应
+    var videoWidth by mutableIntStateOf(0)
+        private set
+    var videoHeight by mutableIntStateOf(0)
+        private set
+    var videoAspectRatio by mutableFloatStateOf(16f / 9f)
+        private set
+
     // [新增] 保存当前通知实例，供 PlaybackService 使用
     var currentNotification: android.app.Notification? = null
         private set
@@ -2045,6 +2055,9 @@ class MiniPlayerManager private constructor(private val context: Context) :
         isLiveMode = false  // 📺 清除直播模式
         currentRoomId = 0L
         currentLiveUname = ""
+        videoWidth = 0
+        videoHeight = 0
+        videoAspectRatio = 16f / 9f
         
         releaseMediaSession()
         clearPlaybackNotificationArtifacts()
@@ -2129,6 +2142,12 @@ class MiniPlayerManager private constructor(private val context: Context) :
             cachedIsPlaying = isPlaying
         )
         duration = externalPlayer.duration.coerceAtLeast(0L)
+        val vs = externalPlayer.videoSize
+        if (vs.width > 0 && vs.height > 0) {
+            videoWidth = vs.width
+            videoHeight = vs.height
+            videoAspectRatio = vs.width.toFloat() / vs.height.toFloat()
+        }
     }
     
     /**
@@ -2180,6 +2199,12 @@ class MiniPlayerManager private constructor(private val context: Context) :
             cachedIsPlaying = isPlaying
         )
         duration = 0L  // 直播没有固定时长
+        val vs = externalPlayer.videoSize
+        if (vs.width > 0 && vs.height > 0) {
+            videoWidth = vs.width
+            videoHeight = vs.height
+            videoAspectRatio = vs.width.toFloat() / vs.height.toFloat()
+        }
 
         // 📺 直播也需要推送媒体元数据与前台通知，避免后台被系统快速回收。
         updateMediaMetadata(
@@ -2605,6 +2630,15 @@ class MiniPlayerManager private constructor(private val context: Context) :
                     playbackServiceRequested = false
                     clearPlaybackNotificationArtifacts()
                 }
+            }
+        }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                videoWidth = videoSize.width
+                videoHeight = videoSize.height
+                videoAspectRatio = videoSize.width.toFloat() / videoSize.height.toFloat()
+                Logger.d(TAG, "📐 onVideoSizeChanged: ${videoSize.width}x${videoSize.height}, aspect=$videoAspectRatio")
             }
         }
     }

@@ -259,6 +259,7 @@ fun <T> AppNativeSegmentedControl(
     selectedValue: T,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
     if (options.isEmpty()) return
@@ -300,6 +301,7 @@ fun <T> AppNativeSegmentedControl(
             colors = colors,
             preferredCornerRadius = policy.preferredCornerRadius,
             modifier = modifier,
+            indicatorPositionProvider = indicatorPositionProvider,
             onSelectionChange = onSelectionChange,
         )
     }
@@ -348,7 +350,7 @@ fun <T> AppNativeTabRow(
     )
     val effectiveScrollable = !forceEqualWidth &&
         (equalizeMiuixNonGlassItems || scrollable || options.size > 3 ||
-            (readableMinTabWidth > minTabWidth && (!compactMiuixWhenTwoOptions || options.size > 2)))
+            (readableMinTabWidth > minTabWidth && options.size > 2))
     val useContentSizedMiuixItems = contentSizedMiuixNonGlassItems &&
         miuixNonGlassItemWidthMode == MiuixNonGlassTabItemWidthMode.CONTENT &&
         com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() &&

@@ -56,6 +56,9 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedLabelFontSizeSp
 import com.android.purebilibili.core.ui.components.resolveMiuixNonGlassContentTabItemWidths
 
+import kotlin.math.absoluteValue
+import androidx.compose.ui.graphics.lerp
+
 @Composable
 internal fun <T> AppMiuixSegmentedControl(
     options: List<AppSegmentOption<T>>,
@@ -65,6 +68,7 @@ internal fun <T> AppMiuixSegmentedControl(
     preferredCornerRadius: Dp,
     height: Dp? = null,
     modifier: Modifier,
+    indicatorPositionProvider: (() -> Float)? = null,
     onSelectionChange: (T) -> Unit,
 ) {
     val isDark = isSystemInDarkTheme()
@@ -78,25 +82,14 @@ internal fun <T> AppMiuixSegmentedControl(
     val cornerRadius = 8.dp
     val tabColors = resolveAppMiuixSegmentedColors(colors)
     val nonGlassMiuix = isMiuixNonGlassEnabled()
-    if (nonGlassMiuix) {
-        AppMiuixNonGlassTabs(
-            options = options,
-            selectedValue = selectedValue,
-            enabled = enabled,
-            compact = true,
-            minTabWidth = 0.dp,
-            colors = colors,
-            height = height,
-            modifier = modifier,
-            onSelectionChange = onSelectionChange,
-        )
-        return
-    }
     val inactiveContentColor = resolveAppMiuixTabContentColor(
         nonGlassMiuix = nonGlassMiuix,
         inactiveContentColor = tabColors.contentColor,
         readableContentColor = tabColors.selectedContentColor,
     )
+    val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
+    val currentPosition = indicatorPositionProvider?.invoke()
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -104,27 +97,54 @@ internal fun <T> AppMiuixSegmentedControl(
         horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        options.forEach { option ->
-            val selected = option.value == selectedValue
-            val itemBackground = when {
-                selected -> tabColors.selectedBackgroundColor
-                else -> tabColors.backgroundColor
-            }
-            val contentColor = if (selected) {
-                tabColors.selectedContentColor
+        options.forEachIndexed { index, option ->
+            val fraction = if (currentPosition != null) {
+                (currentPosition - index).absoluteValue.coerceIn(0f, 1f)
             } else {
-                inactiveContentColor
+                if (index == selectedIndex) 0f else 1f
             }
+            val isSelected = fraction < 0.5f
+
+            val itemBackground = if (currentPosition != null) {
+                lerp(
+                    tabColors.selectedBackgroundColor,
+                    tabColors.backgroundColor,
+                    fraction
+                )
+            } else {
+                when {
+                    isSelected -> tabColors.selectedBackgroundColor
+                    else -> tabColors.backgroundColor
+                }
+            }
+
+            val contentColor = if (currentPosition != null) {
+                lerp(
+                    tabColors.selectedContentColor,
+                    inactiveContentColor,
+                    fraction
+                )
+            } else {
+                if (isSelected) {
+                    tabColors.selectedContentColor
+                } else {
+                    inactiveContentColor
+                }
+            }
+
+            val shadowAlpha = if (!isDark) {
+                ((1f - fraction) * 0.08f).coerceAtLeast(0f)
+            } else 0f
 
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = targetHeight.coerceAtLeast(28.dp))
                     .then(
-                        if (selected && !isDark) {
+                        if (shadowAlpha > 0.005f) {
                             Modifier.dropShadow(
                                 shape = RoundedCornerShape(cornerRadius),
-                                shadow = Shadow(radius = 3.dp, color = Color.Black, alpha = 0.08f)
+                                shadow = Shadow(radius = 3.dp, color = Color.Black, alpha = shadowAlpha)
                             )
                         } else Modifier
                     )
@@ -146,7 +166,7 @@ internal fun <T> AppMiuixSegmentedControl(
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     fontSize = labelFontSize,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     color = contentColor,
                 )
             }
@@ -172,6 +192,20 @@ internal fun <T> AppMiuixTabRow(
     onSelectionChange: (T) -> Unit,
 ) {
     if (isMiuixNonGlassEnabled()) {
+        if (options.size <= 2 && !scrollable) {
+            AppMiuixSegmentedControl(
+                options = options,
+                selectedValue = selectedValue,
+                enabled = enabled,
+                colors = colors,
+                preferredCornerRadius = preferredCornerRadius,
+                height = height,
+                modifier = modifier,
+                indicatorPositionProvider = indicatorPositionProvider,
+                onSelectionChange = onSelectionChange,
+            )
+            return
+        }
         AppMiuixNonGlassTabs(
             options = options,
             selectedValue = selectedValue,

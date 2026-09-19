@@ -9,6 +9,8 @@ import com.android.purebilibili.core.util.Logger
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -30,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -144,11 +147,17 @@ fun MiniPlayerOverlay(
             resizeBounds.maxWidthDp
         )
     }
-    val miniPlayerAspectRatio = remember(layoutPolicy) {
-        layoutPolicy.miniPlayerWidthDp.toFloat() / layoutPolicy.miniPlayerHeightDp.coerceAtLeast(1)
+    val adaptiveDimensions = remember(miniPlayerManager.videoAspectRatio, miniPlayerWidthDp, layoutPolicy) {
+        resolveAdaptiveMiniPlayerDimensions(
+            videoAspectRatio = miniPlayerManager.videoAspectRatio,
+            currentWidthDp = miniPlayerWidthDp,
+            defaultHeightDp = layoutPolicy.miniPlayerHeightDp.toFloat()
+        )
     }
-    val miniPlayerHeightDp = miniPlayerWidthDp / miniPlayerAspectRatio
-    val miniPlayerWidth = miniPlayerWidthDp.dp
+    val miniPlayerAspectRatio = adaptiveDimensions.aspectRatio
+    val miniPlayerWidthDpEffective = adaptiveDimensions.widthDp
+    val miniPlayerHeightDp = adaptiveDimensions.heightDp
+    val miniPlayerWidth = miniPlayerWidthDpEffective.dp
     val miniPlayerHeight = miniPlayerHeightDp.dp
 
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
@@ -442,7 +451,37 @@ fun MiniPlayerOverlay(
                         } else {
                             Modifier
                         },
-                    ),
+                    )
+                    .pointerInput(resizeBounds) {
+                        awaitEachGesture {
+                            var isPinching = false
+                            do {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val activePointers = event.changes.filter { it.pressed }
+                                if (activePointers.size >= 2) {
+                                    val zoom = event.calculateZoom()
+                                    if (zoom != 1f) {
+                                        miniPlayerWidthDp = (miniPlayerWidthDp * zoom).coerceIn(
+                                            resizeBounds.minWidthDp,
+                                            resizeBounds.maxWidthDp
+                                        )
+                                    }
+                                    isPinching = true
+                                    isResizing = true
+                                    showControls = true
+                                    activePointers.forEach { it.consume() }
+                                } else if (isPinching) {
+                                    activePointers.forEach { it.consume() }
+                                }
+                            } while (event.changes.any { it.pressed })
+
+                            if (isPinching) {
+                                isResizing = false
+                                clampCurrentOffset()
+                                lastInteractionTime = System.currentTimeMillis()
+                            }
+                        }
+                    },
                 shape = AppCardShape.Uniform(miniPlayerCornerRadius),
                 colors = AppCardDefaults.colors(containerColor = Color.Black),
             ) {
@@ -608,21 +647,23 @@ fun MiniPlayerOverlay(
                                 )
                         )
 
-                        // 标题
-                        AppText(
-                            text = miniPlayerManager.currentTitle,
-                            color = Color.White,
-                            fontSize = layoutPolicy.titleFontSp.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(
-                                    start = layoutPolicy.titleStartPaddingDp.dp,
-                                    end = layoutPolicy.titleEndPaddingDp.dp
-                                )
-                        )
+                        // 标题 - 仅在宽度充裕时显示，避免竖屏窄卡片被顶满/遮挡
+                        if (miniPlayerWidthDpEffective >= 180f) {
+                            AppText(
+                                text = miniPlayerManager.currentTitle,
+                                color = Color.White,
+                                fontSize = layoutPolicy.titleFontSp.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(
+                                        start = layoutPolicy.titleStartPaddingDp.dp,
+                                        end = layoutPolicy.titleEndPaddingDp.dp
+                                    )
+                            )
+                        }
 
                         //  右上角按钮组
                         Row(
@@ -658,8 +699,8 @@ fun MiniPlayerOverlay(
                                 )
                             }
 
-                            // 展开按钮
-                            if (onPictureInPictureClick != null) {
+                            // 展开按钮（画中画）- 在极窄竖屏时收起以保证基础控制按键间距
+                            if (onPictureInPictureClick != null && miniPlayerWidthDpEffective >= 140f) {
                                 AppSurface(
                                     onClick = onPictureInPictureClick,
                                     modifier = Modifier.size(layoutPolicy.headerButtonSizeDp.dp),

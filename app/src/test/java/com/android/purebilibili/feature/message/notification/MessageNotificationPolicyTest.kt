@@ -24,8 +24,14 @@ import kotlin.test.assertTrue
 
 class MessageNotificationPolicyTest {
     private val enabled = MessageNotificationSettings(enabled = true)
-    private val dynamicOnly = enabled.copy(notifyMessageCenter = false, notifyLiveAlerts = false)
-    private val liveOnly = enabled.copy(notifyMessageCenter = false, notifyDynamicUpdates = false)
+    private val dynamicOnly = enabled.copy(
+        notifyPrivateMessages = false, notifyReplies = false, notifyAtMe = false,
+        notifyLikes = false, notifySystemNotices = false, notifyLiveAlerts = false,
+    )
+    private val liveOnly = enabled.copy(
+        notifyPrivateMessages = false, notifyReplies = false, notifyAtMe = false,
+        notifyLikes = false, notifySystemNotices = false, notifyDynamicUpdates = false,
+    )
 
     @Test
     fun timelyModeShortensBothSchedulesWithoutBatteryConstraint() {
@@ -208,6 +214,56 @@ class MessageNotificationPolicyTest {
             if (++checks == 2) throw CancellationException("account changed during request")
         }
         assertFailsWith<CancellationException> { changed.check(enabled, AccountNotificationState(), 1) }
+    }
+    @Test
+    fun eachMessageCenterSubcategorySwitchGatesOnlyItsOwnCategory() = runTest {
+        // Seed seen state so this is a steady-state scan: every category is already
+        // initialized and has seen the current items. New items therefore arrive only
+        // via diffNewIds / cursor equality, isolating the effect of each switch.
+        val source = Source().apply {
+            sessions = listOf(SessionItem(talker_id = 90, unread_count = 1, last_msg = SessionMessage(sender_uid = 90, msg_key = 1)))
+            replies = listOf(91L)
+            ats = listOf(92L)
+            likes = listOf(93L)
+            notices = listOf(SystemNoticeItem(cursor = 99, title = "alert"))
+        }
+        val baseline = AccountNotificationState(
+            initialized = setOf("dm", "reply", "at", "like", "sysmsg", "dynamic", "live"),
+            sessionMsgKeys = mapOf("90_1" to 999L),
+            seenReplyIds = listOf(1L), seenAtIds = listOf(1L), seenLikeIds = listOf(1L),
+            seenSystemCursors = listOf(1L), seenDynamicIds = listOf("d0"), dynamicBaseline = "b0",
+        )
+        // Master enabled, all five subcategories on: every category reports one new item.
+        val allOn = MessageNotificationPoller(source).check(enabled.copy(notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertEquals(setOf("dm:90_1", "reply", "at", "like", "sysmsg"), allOn.notifications.map { it.key }.toSet())
+
+        // Turning off exactly one subcategory switch removes only that category's notice.
+        val dmOff = MessageNotificationPoller(source).check(enabled.copy(notifyPrivateMessages = false, notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertFalse("dm:90_1" in dmOff.notifications.map { it.key })
+        assertTrue(listOf("reply", "at", "like", "sysmsg").all { it in dmOff.notifications.map { n -> n.key } })
+
+        val replyOff = MessageNotificationPoller(source).check(enabled.copy(notifyReplies = false, notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertFalse("reply" in replyOff.notifications.map { it.key })
+        assertTrue(listOf("dm:90_1", "at", "like", "sysmsg").all { it in replyOff.notifications.map { n -> n.key } })
+
+        val atOff = MessageNotificationPoller(source).check(enabled.copy(notifyAtMe = false, notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertFalse("at" in atOff.notifications.map { it.key })
+        assertTrue(listOf("dm:90_1", "reply", "like", "sysmsg").all { it in atOff.notifications.map { n -> n.key } })
+
+        val likeOff = MessageNotificationPoller(source).check(enabled.copy(notifyLikes = false, notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertFalse("like" in likeOff.notifications.map { it.key })
+        assertTrue(listOf("dm:90_1", "reply", "at", "sysmsg").all { it in likeOff.notifications.map { n -> n.key } })
+
+        val sysmsgOff = MessageNotificationPoller(source).check(enabled.copy(notifySystemNotices = false, notifyDynamicUpdates = false, notifyLiveAlerts = false), baseline, 1)
+        assertFalse("sysmsg" in sysmsgOff.notifications.map { it.key })
+        assertTrue(listOf("dm:90_1", "reply", "at", "like").all { it in sysmsgOff.notifications.map { n -> n.key } })
+
+        // All five off: no message-center notice at all.
+        val allOff = MessageNotificationPoller(source).check(
+            enabled.copy(notifyPrivateMessages = false, notifyReplies = false, notifyAtMe = false, notifyLikes = false, notifySystemNotices = false, notifyDynamicUpdates = false, notifyLiveAlerts = false),
+            baseline, 1,
+        )
+        assertEquals(emptyList(), allOff.notifications)
     }
 
     private fun dynamic(id: String) = DynamicItem(

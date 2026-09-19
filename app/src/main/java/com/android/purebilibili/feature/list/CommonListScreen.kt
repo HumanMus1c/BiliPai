@@ -825,6 +825,8 @@ fun CommonListScreen(
     }
     val isProgressiveTopBlurEnabled =
         com.android.purebilibili.core.ui.LocalAppThemeConfig.current.progressiveTopBlurEnabled
+    val isProgressiveTopFadeEnabled =
+        com.android.purebilibili.core.ui.LocalAppThemeConfig.current.progressiveTopFadeEnabled
     // 实色列表不创建背景采样；玻璃和普通顶栏模糊分别按需保留各自 source。
     val localHazeState = if (isHeaderBlurEnabled &&
         shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT) &&
@@ -907,7 +909,7 @@ fun CommonListScreen(
         headerCollapseEnabled = commonListHeaderCollapseEnabled,
         captureScrollableContent = progressiveHeaderRequested,
     )
-    val topBarBackgroundModifier = if (useProgressiveHeaderBlur) {
+    val topBarBackgroundModifier = if (useProgressiveHeaderBlur || (isProgressiveTopFadeEnabled && !isHeaderBlurEnabled)) {
         Modifier.fillMaxWidth()
     } else if (historyUsesFloatingLiquidDocks) {
         // 悬浮 Dock 必须直接采样下方列表；整块顶栏背景会把动态折射退化成纯色壳。
@@ -1340,6 +1342,8 @@ fun CommonListScreen(
                 backdrop = commonListChromeBackdrop,
                 enabled = useProgressiveHeaderBlur,
                 headerBlurActive = headerBlurActive,
+                surfaceColor = headerBackgroundColor,
+                fadeEnabled = isProgressiveTopFadeEnabled && !isHeaderBlurEnabled,
                 extendBelowBounds = false,
                 modifier = Modifier
                     .zIndex(1f)

@@ -35,9 +35,11 @@ internal fun shouldShowCompactDanmakuSendAction(
     widthDp: Int
 ): Boolean {
     // Narrow fullscreen keeps a compact send chip; tablet inline cinema
-    // (≥600dp) has no phone tab-bar 发弹幕, so expose it next to the overlay toggle.
+    // only exposes it when there is plenty of room (≥720dp).
+    // Tablet split-screen (typically 500-650dp) already has a "发弹幕" button
+    // in the UP info section below the player, so keep the player control bar clean.
     return (isFullscreen && widthDp < DANMAKU_CONTROL_BAR_COMPACT_SEND_MAX_WIDTH_DP) ||
-        (!isFullscreen && widthDp >= 600)
+        (!isFullscreen && widthDp >= 720)
 }
 
 internal fun shouldShowDanmakuSendInMoreActions(

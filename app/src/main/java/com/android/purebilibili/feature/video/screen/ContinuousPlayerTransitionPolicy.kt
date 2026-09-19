@@ -52,8 +52,8 @@ internal fun reduceContinuousPlayerTransition(
             )
 
             ContinuousPlayerTransitionPhase.AwaitingPortrait -> ContinuousPlayerTransitionDecision(
-                phase = ContinuousPlayerTransitionPhase.AwaitingLandscape,
-                orientationRequest = ContinuousPlayerOrientationRequest.Landscape,
+                phase = ContinuousPlayerTransitionPhase.AwaitingPortrait,
+                orientationRequest = ContinuousPlayerOrientationRequest.Portrait,
             )
         }
 

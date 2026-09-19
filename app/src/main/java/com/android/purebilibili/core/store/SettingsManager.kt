@@ -652,6 +652,7 @@ data class HomeSettings(
     val isHeaderCollapseEnabled: Boolean = true,
     val showPgcTimeline: Boolean = true,
     val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)
+    val pinchToChangeGridColumnsEnabled: Boolean = true, // [新增] 双指缩放切换网格列数
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
     val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
     val homeHeroCarouselEnabled: Boolean = true,
@@ -679,6 +680,7 @@ data class HomeSettings(
     val showHomeUpBadges: Boolean = false, // 首页和相关推荐 UP 主标识显示(默认关闭,设置后全局生效)
     val showHomeUpAvatars: Boolean = false, // 首页视频卡片 UP 主头像显示(默认关闭,设置后全局生效)
     val showFullVideoCardContent: Boolean = false, // 视频卡片标题完整展示(默认关闭,设置后全局生效)
+    val videoCardLongPressActionEnabled: Boolean = false, // 长按视频卡片快捷操作与预览（默认关闭）
     val homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     val easterEggEnabled: Boolean = false, // 下拉刷新趣味提示开关
     //  [修复] 默认值改为 true，避免在 Flow 加载实际值之前错误触发弹窗
@@ -1501,6 +1503,8 @@ object SettingsManager {
     private val KEY_DISPLAY_MODE = intPreferencesKey("display_mode")
     //  [新增] 网格列数 (0=Auto)
     private val KEY_GRID_COLUMN_COUNT = intPreferencesKey("grid_column_count")
+    private val KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED =
+        booleanPreferencesKey("pinch_to_change_grid_columns_enabled")
     private val KEY_HOME_FEED_CARD_WIDTH_PRESET =
         intPreferencesKey("home_feed_card_width_preset")
     private val KEY_HOME_FEED_CARD_STYLE = intPreferencesKey("home_feed_card_style")
@@ -1549,6 +1553,8 @@ object SettingsManager {
     private val KEY_HOME_UP_AVATARS_VISIBLE = booleanPreferencesKey("home_up_avatars_visible")
     private val KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE =
         booleanPreferencesKey("full_video_card_content_visible")
+    private val KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED =
+        booleanPreferencesKey("video_card_long_press_action_enabled")
     private val KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE =
         booleanPreferencesKey("home_video_duration_badges_visible")
     private val KEY_HOME_DURATION_STYLE = intPreferencesKey("home_duration_style")
@@ -1577,6 +1583,8 @@ object SettingsManager {
         floatPreferencesKey("liquid_glass_content_distortion")
     private val KEY_PROGRESSIVE_TOP_BLUR_ENABLED =
         booleanPreferencesKey("progressive_top_blur_enabled")
+    private val KEY_PROGRESSIVE_TOP_FADE_ENABLED =
+        booleanPreferencesKey("progressive_top_fade_enabled")
     //  [新增] 底栏自定义 - 顺序和可见性
     private val KEY_BOTTOM_BAR_ORDER = stringPreferencesKey("bottom_bar_order")  // 逗号分隔的项目顺序
     private val KEY_BOTTOM_BAR_VISIBLE_TABS = stringPreferencesKey("bottom_bar_visible_tabs")  // 逗号分隔的可见项目
@@ -1714,6 +1722,8 @@ object SettingsManager {
             isHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse,
             showPgcTimeline = preferences[KEY_SHOW_PGC_TIMELINE] ?: true,
             gridColumnCount = preferences[KEY_GRID_COLUMN_COUNT] ?: 0,
+            pinchToChangeGridColumnsEnabled =
+                preferences[KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED] ?: true,
             homeFeedCardWidthPreset = HomeFeedCardWidthPreset.fromValue(
                 preferences[KEY_HOME_FEED_CARD_WIDTH_PRESET] ?: HomeFeedCardWidthPreset.AUTO.value
             ),
@@ -1754,6 +1764,7 @@ object SettingsManager {
             showHomeUpBadges = preferences[KEY_HOME_UP_BADGES_VISIBLE] ?: false,
             showHomeUpAvatars = preferences[KEY_HOME_UP_AVATARS_VISIBLE] ?: false,
             showFullVideoCardContent = preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false,
+            videoCardLongPressActionEnabled = preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] ?: false,
             homeDurationStyle = preferences[KEY_HOME_DURATION_STYLE]
                 ?.let(HomeDurationStyle::fromValue)
                 ?: if (preferences[KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE] ?: true) {
@@ -2946,6 +2957,15 @@ object SettingsManager {
         }
     }
 
+    fun getPinchToChangeGridColumnsEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED] ?: true }
+
+    suspend fun setPinchToChangeGridColumnsEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED] = enabled
+        }
+    }
+
     fun getHomeFeedCardWidthPreset(context: Context): Flow<HomeFeedCardWidthPreset> =
         context.settingsDataStore.data
             .map { preferences ->
@@ -3288,6 +3308,15 @@ object SettingsManager {
     suspend fun setFullVideoCardContentVisible(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] = value
+        }
+    }
+
+    fun getVideoCardLongPressActionEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] ?: false }
+
+    suspend fun setVideoCardLongPressActionEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] = value
         }
     }
 
@@ -3717,6 +3746,17 @@ object SettingsManager {
         }
     }
 
+    fun getProgressiveTopFadeEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[KEY_PROGRESSIVE_TOP_FADE_ENABLED] ?: true
+        }
+
+    suspend fun setProgressiveTopFadeEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_PROGRESSIVE_TOP_FADE_ENABLED] = value
+        }
+    }
+
     suspend fun setTopBarVisualEffects(
         context: Context,
         headerBlurEnabled: Boolean,
@@ -3930,6 +3970,11 @@ object SettingsManager {
     suspend fun setAndroidNativeLiquidGlassEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED] = value
+            if (value) {
+                preferences[KEY_BOTTOM_BAR_BLUR_ENABLED] = false
+                preferences[KEY_HEADER_BLUR_ENABLED] = false
+                preferences[KEY_HOME_HEADER_BLUR_MODE] = HomeHeaderBlurMode.ALWAYS_OFF.value
+            }
         }
     }
     
@@ -7420,6 +7465,10 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_BLUR_INTENSITY, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_DISPLAY_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED,
+                SettingsShareSection.APPEARANCE
+            ),
             IntShareablePreferenceDefinition(
                 KEY_HOME_FEED_CARD_WIDTH_PRESET,
                 SettingsShareSection.APPEARANCE
@@ -7461,6 +7510,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_AVATARS_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_DURATION_STYLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_SHOW_PROFILE_EDIT_BUTTON, SettingsShareSection.APPEARANCE),

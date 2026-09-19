@@ -64,6 +64,75 @@ class LinkedDockPolicyTest {
     }
 
     @Test
+    fun audioChangeFallsBackFromPlaybackToExpandedWhenAudioStops() {
+        assertEquals(
+            LinkedDockPhase.Expanded,
+            resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Playback, hasAudio = false),
+        )
+        assertEquals(
+            LinkedDockPhase.Playback,
+            resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Playback, hasAudio = true),
+        )
+        assertEquals(
+            LinkedDockPhase.Search,
+            resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Search, hasAudio = false),
+        )
+        assertEquals(
+            LinkedDockPhase.Expanded,
+            resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Expanded, hasAudio = false),
+        )
+    }
+
+    @Test
+    fun initialPhasePreservesSavedPhaseAcrossMounts() {
+        assertEquals(
+            LinkedDockPhase.Playback,
+            resolveLinkedDockInitialPhase(
+                currentItem = BottomNavItem.HOME,
+                collapseRequested = false,
+                hasAudio = true,
+                savedPhase = LinkedDockPhase.Playback,
+            ),
+        )
+        assertEquals(
+            LinkedDockPhase.Search,
+            resolveLinkedDockInitialPhase(
+                currentItem = BottomNavItem.HOME,
+                collapseRequested = false,
+                hasAudio = true,
+                savedPhase = LinkedDockPhase.Search,
+            ),
+        )
+        assertEquals(
+            LinkedDockPhase.Expanded,
+            resolveLinkedDockInitialPhase(
+                currentItem = BottomNavItem.HOME,
+                collapseRequested = false,
+                hasAudio = false,
+                savedPhase = LinkedDockPhase.Playback,
+            ),
+        )
+        assertEquals(
+            LinkedDockPhase.Expanded,
+            resolveLinkedDockInitialPhase(
+                currentItem = BottomNavItem.HOME,
+                collapseRequested = false,
+                hasAudio = true,
+                savedPhase = null,
+            ),
+        )
+        assertEquals(
+            LinkedDockPhase.Playback,
+            resolveLinkedDockInitialPhase(
+                currentItem = BottomNavItem.DYNAMIC,
+                collapseRequested = true,
+                hasAudio = true,
+                savedPhase = null,
+            ),
+        )
+    }
+
+    @Test
     fun expandedAudioOccupiesItsOwnRow() {
         val geometry = geometry(merge = 0f, search = 0f)
         assertEquals(336, geometry.audioWidth)
@@ -130,6 +199,22 @@ class LinkedDockPolicyTest {
         assertEquals(16f, accumulateDockScroll(10f, 6f))
         assertEquals(-3f, accumulateDockScroll(16f, -3f))
         assertEquals(-13f, accumulateDockScroll(-3f, -10f))
+    }
+
+    @Test
+    fun backHandlerOnlyEnabledForSearchAtTopLevel() {
+        assertTrue(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Search, isTopLevelDestination = true))
+        kotlin.test.assertFalse(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Search, isTopLevelDestination = false))
+        kotlin.test.assertFalse(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Playback, isTopLevelDestination = true))
+        kotlin.test.assertFalse(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Playback, isTopLevelDestination = false))
+        kotlin.test.assertFalse(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Expanded, isTopLevelDestination = true))
+        kotlin.test.assertFalse(shouldEnableLinkedDockBackHandler(LinkedDockPhase.Expanded, isTopLevelDestination = false))
+    }
+
+    @Test
+    fun searchDismissRestoresPlaybackIfAudioActiveElseExpanded() {
+        assertEquals(LinkedDockPhase.Playback, resolveLinkedDockPhaseOnSearchDismiss(hasAudio = true))
+        assertEquals(LinkedDockPhase.Expanded, resolveLinkedDockPhaseOnSearchDismiss(hasAudio = false))
     }
 
     private fun geometry(merge: Float, search: Float) =

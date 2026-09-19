@@ -9,9 +9,15 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
 import android.net.Uri
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -76,6 +82,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
@@ -86,6 +93,8 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
@@ -207,16 +216,32 @@ internal fun HomeHeroCarousel(
             ) {
                 repeat(videos.size) { index ->
                     val selected = index == pagerState.currentPage
+                    val targetWidth = if (selected) AppSpacingTokens.Medium else AppSpacingTokens.ExtraSmall
+                    val width by animateDpAsState(
+                        targetValue = targetWidth,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                        label = "hero_dot_width_$index",
+                    )
+                    val targetAlpha = if (selected) 0.92f else 0.38f
+                    val alpha by animateFloatAsState(
+                        targetValue = targetAlpha,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                        label = "hero_dot_alpha_$index",
+                    )
                     Box(
                         modifier = Modifier
                             .height(AppSpacingTokens.ExtraSmall)
-                            .width(
-                                if (selected) AppSpacingTokens.Medium else AppSpacingTokens.ExtraSmall
-                            )
+                            .width(width)
                             .clip(CircleShape)
                             .background(
                                 MediaContrastPalette.Foreground.copy(
-                                    alpha = if (selected) 0.92f else 0.38f
+                                    alpha = alpha
                                 )
                             )
                     )
@@ -301,6 +326,7 @@ private fun HomeHeroCarouselCard(
 
     val cardShape = AppShapes.container(ContainerLevel.Card)
     val cardCornerDp = AppShapes.containerCornerDp(ContainerLevel.Card)
+    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(video.bvid)
     val normalizedCoverUrl = remember(video.pic) { FormatUtils.fixImageUrl(video.pic) }
     val stationaryCoverRequest = remember(normalizedCoverUrl) {
         ImageRequest.Builder(context)
@@ -322,6 +348,8 @@ private fun HomeHeroCarouselCard(
                 screenHeight = screenHeightPx,
                 density = densityValue,
                 sourceCornerDp = cardCornerDp.value.roundToInt(),
+                isSingleColumn = true,
+                sourceLayout = VideoCardSourceLayout.COVER_ONLY,
                 coverBounds = bounds,
                 sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                     title = video.title,
@@ -340,9 +368,21 @@ private fun HomeHeroCarouselCard(
                 ),
                 sourceInstanceId = sharedSourceInstanceId,
             )
+            nativeCardSnapshot.capture()
         }
         onVideoClick()
     }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressProgress by animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "hero_card_press",
+    )
 
     AppSurface(
         shape = cardShape,
@@ -352,6 +392,7 @@ private fun HomeHeroCarouselCard(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
+            .adaptiveCardHoverEffect(shape = cardShape)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -362,18 +403,24 @@ private fun HomeHeroCarouselCard(
                 clipShape = cardShape
             )
             .zIndex(transform.zIndex)
+            .then(nativeCardSnapshot.modifier)
             .graphicsLayer {
                 transformOrigin = TransformOrigin(transform.pivotFractionX, 0.5f)
                 translationX = transform.translationXFraction * size.width
-                scaleX = transform.scale
-                scaleY = transform.scale
+                val pressMultiplier = 1f - pressProgress * 0.02f
+                scaleX = transform.scale * pressMultiplier
+                scaleY = transform.scale * pressMultiplier
                 alpha = transform.alpha
             }
             .clip(cardShape)
             .onGloballyPositioned { coordinates ->
                 cardCoordsRef.value = coordinates
             }
-            .clickable(onClick = clickAction)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = clickAction,
+            )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Box(

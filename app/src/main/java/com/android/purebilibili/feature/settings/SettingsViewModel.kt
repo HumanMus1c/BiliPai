@@ -88,6 +88,7 @@ data class SettingsUiState(
     val bottomBarLabelMode: Int = 1,  // 0=图标+文字, 1=仅图标, 2=仅文字
     val headerBlurEnabled: Boolean = true,
     val progressiveTopBlurEnabled: Boolean = true,
+    val progressiveTopFadeEnabled: Boolean = true,
     val bottomBarBlurEnabled: Boolean = true,
     val blurIntensity: BlurIntensity = BlurIntensity.THIN,  //  模糊强度
     val displayMode: Int = 0,
@@ -167,6 +168,7 @@ data class ExtraSettings(
     val bottomBarLabelMode: Int,
     val headerBlurEnabled: Boolean,
     val progressiveTopBlurEnabled: Boolean,
+    val progressiveTopFadeEnabled: Boolean,
     val bottomBarBlurEnabled: Boolean,
     val blurIntensity: BlurIntensity,  //  添加模糊强度
     val displayMode: Int,
@@ -198,6 +200,7 @@ data class ExtraSettings(
 private data class BlurSettings(
     val headerBlur: Boolean,
     val progressiveTopBlur: Boolean,
+    val progressiveTopFade: Boolean,
     val bottomBarBlur: Boolean,
     val blurIntensity: BlurIntensity
 )
@@ -240,6 +243,7 @@ private data class BaseSettings(
     val bottomBarLabelMode: Int,
     val headerBlurEnabled: Boolean,
     val progressiveTopBlurEnabled: Boolean,
+    val progressiveTopFadeEnabled: Boolean,
     val bottomBarBlurEnabled: Boolean,
     val blurIntensity: BlurIntensity,  //  模糊强度
     val displayMode: Int, //  新增
@@ -523,19 +527,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             homeFeedCardWidthPreset = ui2.hfcwp,
             headerBlurEnabled = false, // 暂存，将在下一步合并
             progressiveTopBlurEnabled = true, // 暂存
+            progressiveTopFadeEnabled = true, // 暂存
             bottomBarBlurEnabled = false, // 暂存
             blurIntensity = BlurIntensity.THIN // 暂存
         )
     }
     
-    // 第 3 步：合并模糊设置 (4个)
+    // 第 3 步：合并模糊设置 (5个)
     private val blurSettingsFlow = combine(
         SettingsManager.getHeaderBlurEnabled(context),
         SettingsManager.getProgressiveTopBlurEnabled(context),
+        SettingsManager.getProgressiveTopFadeEnabled(context),
         SettingsManager.getBottomBarBlurEnabled(context),
         SettingsManager.getBlurIntensity(context)  //  添加模糊强度
-    ) { headerBlur, progressiveTopBlur, bottomBarBlur, blurIntensity ->
-        BlurSettings(headerBlur, progressiveTopBlur, bottomBarBlur, blurIntensity)
+    ) { headerBlur, progressiveTopBlur, progressiveTopFade, bottomBarBlur, blurIntensity ->
+        BlurSettings(headerBlur, progressiveTopBlur, progressiveTopFade, bottomBarBlur, blurIntensity)
     }
     
     // 第 4 步：合并 UI 和 模糊设置
@@ -543,6 +549,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         uiSettings.copy(
             headerBlurEnabled = blur.headerBlur,
             progressiveTopBlurEnabled = blur.progressiveTopBlur,
+            progressiveTopFadeEnabled = blur.progressiveTopFade,
             bottomBarBlurEnabled = blur.bottomBarBlur,
             blurIntensity = blur.blurIntensity
         )
@@ -595,6 +602,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             bottomBarLabelMode = extra.bottomBarLabelMode,
             headerBlurEnabled = extra.headerBlurEnabled,
             progressiveTopBlurEnabled = extra.progressiveTopBlurEnabled,
+            progressiveTopFadeEnabled = extra.progressiveTopFadeEnabled,
             bottomBarBlurEnabled = extra.bottomBarBlurEnabled,
             blurIntensity = extra.blurIntensity,  //  模糊强度
             displayMode = extra.displayMode,
@@ -661,6 +669,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             bottomBarLabelMode = settings.bottomBarLabelMode,
             headerBlurEnabled = settings.headerBlurEnabled,
             progressiveTopBlurEnabled = settings.progressiveTopBlurEnabled,
+            progressiveTopFadeEnabled = settings.progressiveTopFadeEnabled,
             bottomBarBlurEnabled = settings.bottomBarBlurEnabled,
             blurIntensity = settings.blurIntensity,  //  模糊强度
             displayMode = settings.displayMode,
@@ -979,6 +988,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             )
         }
     }
+    fun toggleProgressiveTopFade(value: Boolean) {
+        viewModelScope.launch {
+            SettingsManager.setProgressiveTopFadeEnabled(context, value)
+        }
+    }
     fun toggleHeaderCollapse(value: Boolean) { viewModelScope.launch { SettingsManager.setHeaderCollapseEnabled(context, value) } }
     fun toggleBottomBarBlur(value: Boolean) {
         viewModelScope.launch {
@@ -1097,6 +1111,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             SettingsManager.setAndroidNativeLiquidGlassEnabled(context, enabled)
             if (enabled) {
                 SettingsManager.setBottomBarBlurEnabled(context, false)
+                SettingsManager.setHeaderBlurEnabled(context, false)
             }
         }
     }

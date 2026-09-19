@@ -69,7 +69,8 @@ internal fun ImmersiveAppScaffold(
     )
     val hazeActive = renderMode == TopChromeRenderMode.HAZE
     val progressiveActive = renderMode == TopChromeRenderMode.PROGRESSIVE
-    val blurActive = hazeActive || progressiveActive
+    val fadeActive = config.progressiveTopFadeEnabled && !hazeActive
+    val blurActive = hazeActive || progressiveActive || fadeActive
     AppScaffold(
         modifier = modifier,
         topBar = {
@@ -78,9 +79,11 @@ internal fun ImmersiveAppScaffold(
                     backdrop = backdrop.takeIf { progressiveActive },
                     enabled = progressiveActive,
                     headerBlurActive = hazeActive,
+                    surfaceColor = globalWallpaperAwareChromeColor(containerColor),
+                    fadeEnabled = fadeActive,
                     extendBelowBounds = false,
                     modifier = Modifier.then(
-                        if (progressiveActive) {
+                        if (progressiveActive || fadeActive) {
                             Modifier.background(Color.Transparent)
                         } else if (hazeActive && hazeState != null) {
                             Modifier

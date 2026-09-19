@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.graphics.shadow.Shadow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -63,6 +65,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.VideoStatRow
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.videoCardTitleMaxLines
+import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -371,6 +374,11 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
 
     when (layout.layout) {
         VideoCardSourceLayout.SIDE_BY_SIDE -> {
+            val isCapsuleDock = (CardPositionManager.lastClickedVideoSourceCornerDp ?: 0) >= 24 ||
+                (layout.cardHeightPx <= with(density) { 72.dp.toPx() } && (CardPositionManager.lastClickedVideoSourceCornerDp ?: 0) >= 20)
+            val capsuleShape = resolveSharedBottomBarCapsuleShape()
+            val capsuleContainer = AppSurfaceTokens.surfaceContainer().copy(alpha = 0.72f)
+
             Box(
                 modifier = modifier
                     .zIndex(-1f)
@@ -379,7 +387,33 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     .width(cardWidth)
                     .height(cardHeight)
                     .landingLayer()
-                    .background(baseContainer),
+                    .then(
+                        if (isCapsuleDock) {
+                            Modifier
+                                .dropShadow(
+                                    shape = capsuleShape,
+                                    shadow = Shadow(
+                                        radius = 10.dp,
+                                        color = Color.Black,
+                                        alpha = if (isDarkTheme) 0.25f else 0.12f,
+                                    ),
+                                )
+                                .clip(capsuleShape)
+                                .background(capsuleContainer, capsuleShape)
+                                .border(
+                                    width = 0.8.dp,
+                                    brush = Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = if (isDarkTheme) 0.22f else 0.40f),
+                                            Color.White.copy(alpha = if (isDarkTheme) 0.04f else 0.12f),
+                                        ),
+                                    ),
+                                    shape = capsuleShape,
+                                )
+                        } else {
+                            Modifier.background(baseContainer)
+                        },
+                    ),
             )
             Box(
                 modifier = modifier
@@ -389,20 +423,21 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     .width(infoWidth)
                     .height(cardHeight)
                     .landingLayer()
-                    // This surface joins the cover on its start edge. Keeping start corners
-                    // square prevents the two independently clipped rounded shapes from
-                    // exposing the shell/background at the seam during the morph.
-                    .infoSurface(
-                        AppShapes.endRounded(
-                            AppShapes.containerCornerDp(ContainerLevel.Field),
-                        ),
-                        // Horizontal source cards have one outer shell; an independent
-                        // tinted border here becomes a dark line at the landing bottom edge.
-                        drawBorder = false,
+                    .then(
+                        if (isCapsuleDock) {
+                            Modifier
+                        } else {
+                            Modifier.infoSurface(
+                                AppShapes.endRounded(
+                                    AppShapes.containerCornerDp(ContainerLevel.Field),
+                                ),
+                                drawBorder = false,
+                            )
+                        },
                     )
                     .padding(
-                        start = AppSpacingTokens.Medium,
-                        end = AppSpacingTokens.Small,
+                        start = if (isCapsuleDock) AppSpacingTokens.Small else AppSpacingTokens.Medium,
+                        end = if (isCapsuleDock) AppSpacingTokens.Large else AppSpacingTokens.Small,
                         top = AppSpacingTokens.Small,
                         // The measured source height already contains the horizontal card's
                         // outer inset. Reserving another bottom inset here shortens the flying

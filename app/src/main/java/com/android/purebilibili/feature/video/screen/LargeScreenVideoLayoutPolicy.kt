@@ -9,6 +9,7 @@ internal const val LARGE_SCREEN_VIDEO_ASPECT_16_9 = 16f / 9f
 internal const val LARGE_SCREEN_VIDEO_MIN_SIDE_PANE_DP = 280f
 internal const val LARGE_SCREEN_VIDEO_MAX_SIDE_PANE_DP = 425f
 internal const val LARGE_SCREEN_VIDEO_SIDE_PANE_BREAKPOINT_DP = 560f
+internal const val LARGE_SCREEN_VIDEO_SQUARE_MIN_HEIGHT_FRACTION = 0.39f
 internal const val LARGE_SCREEN_VIDEO_SQUARE_PLAYER_HEIGHT_FRACTION = 0.4f
 
 internal enum class LargeScreenVideoLayoutMode {
@@ -31,12 +32,14 @@ internal fun shouldUseLargeScreenVideoLayout(
     windowWidthDp: Float,
     windowHeightDp: Float,
     horizontalAdaptationEnabled: Boolean,
+    isFoldableCoverWindow: Boolean = false,
 ): Boolean {
     if (!horizontalAdaptationEnabled) return false
+    if (isFoldableCoverWindow) return false
     if (windowWidthDp <= 0f || windowHeightDp <= 0f) return false
     if (windowWidthDp / windowHeightDp >= LARGE_SCREEN_VIDEO_LANDSCAPE_RATIO) return true
     val fullWidthPlayerHeight = windowWidthDp / LARGE_SCREEN_VIDEO_ASPECT_16_9
-    return fullWidthPlayerHeight >= 0.4f * windowHeightDp
+    return fullWidthPlayerHeight >= LARGE_SCREEN_VIDEO_SQUARE_MIN_HEIGHT_FRACTION * windowHeightDp
 }
 
 internal fun shouldUseDedicatedCollectionColumn(
@@ -113,7 +116,7 @@ internal fun resolveLargeScreenVideoMetrics(
         )
     }
     val fullWidthPlayerHeight = windowWidthDp / LARGE_SCREEN_VIDEO_ASPECT_16_9
-    if (fullWidthPlayerHeight < 0.4f * windowHeightDp) {
+    if (fullWidthPlayerHeight < LARGE_SCREEN_VIDEO_SQUARE_MIN_HEIGHT_FRACTION * windowHeightDp) {
         return LargeScreenVideoMetrics(
             mode = LargeScreenVideoLayoutMode.Phone,
             playerWidthDp = windowWidthDp,

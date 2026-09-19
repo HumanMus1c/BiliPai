@@ -331,6 +331,16 @@ class SpaceScreenStructureTest {
         assertFalse(source.contains("var playedVideoLocatePromptHandled by rememberSaveable"))
     }
 
+    @Test
+    fun `space screen includes liquid glass back to top button`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("AppLiquidGlassBackToTopButton("))
+        assertTrue(source.contains("rememberBackToTopButtonEnabled()"))
+        assertTrue(source.contains("gridState.animateScrollToTop()"))
+        assertTrue(source.contains("shouldShowScrollToTop("))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

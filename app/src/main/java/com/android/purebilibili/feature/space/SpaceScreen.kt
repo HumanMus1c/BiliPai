@@ -11,16 +11,32 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import com.android.purebilibili.feature.home.homeFeedPinchZoom
+import com.android.purebilibili.feature.home.resolveHomeFeedPinchColumnBounds
+import com.android.purebilibili.feature.home.GridPinchColumnHudPill
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
+import com.android.purebilibili.core.util.animateScrollToTop
+import com.android.purebilibili.core.util.shouldShowScrollToTop
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.components.liquidDockViewport
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -40,9 +56,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Email
@@ -279,6 +297,14 @@ fun SpaceScreen(
             )
         }
     }
+    val shouldShowBackToTop by remember(gridState) {
+        derivedStateOf {
+            shouldShowScrollToTop(
+                firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
 
     LaunchedEffect(mid) {
         viewModel.loadSpaceInfo(mid)
@@ -372,6 +398,7 @@ fun SpaceScreen(
         enabled = spaceThemeConfig.progressiveTopBlurEnabled && !spaceThemeConfig.headerBlurEnabled,
         hasBackdrop = true,
     ) && !isLowBlurBudgetForced()
+    val spaceFadeActive = spaceThemeConfig.progressiveTopFadeEnabled && !spaceThemeConfig.headerBlurEnabled
     val spaceChromeSource = if (spaceProgressiveBlur) {
         com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource()
     } else {
@@ -389,9 +416,11 @@ fun SpaceScreen(
                 backdrop = spaceChromeBackdrop,
                 enabled = spaceProgressiveBlur,
                 headerBlurActive = spaceHeaderBlurActive,
+                surfaceColor = com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface),
+                fadeEnabled = spaceFadeActive,
                 opaqueBackgroundFallback = false,
                 modifier = Modifier.background(
-                    if (spaceProgressiveBlur || spaceHeaderBlurActive) Color.Transparent
+                    if (spaceProgressiveBlur || spaceHeaderBlurActive || spaceFadeActive) Color.Transparent
                     else com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.surface)
                         .copy(alpha = pinnedTopChromeScrim)
                 ),
@@ -729,6 +758,29 @@ fun SpaceScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 16.dp, bottom = 16.dp)
+            )
+
+            val animatedBackToTopBottomPadding by animateDpAsState(
+                targetValue = if (shouldPromptToLocatePlayedVideo) 76.dp else 24.dp,
+                label = "space_back_to_top_bottom_padding",
+            )
+
+            AppLiquidGlassBackToTopButton(
+                visible = rememberBackToTopButtonEnabled() &&
+                    uiState is SpaceUiState.Success &&
+                    shouldShowBackToTop,
+                onClick = {
+                    coroutineScope.launch {
+                        gridState.animateScrollToTop()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 24.dp,
+                        bottom = animatedBackToTopBottomPadding,
+                    ),
+                backdrop = spaceChromeBackdrop,
             )
         }
     }
@@ -1241,10 +1293,25 @@ private fun SpaceContent(
             contentMaxWidthDp = adaptiveLayoutSpec.contentMaxWidthDp,
             widthSizeClass = windowSizeClass.widthSizeClass,
         )
+        var interactiveColumns by remember { mutableStateOf<Int?>(null) }
+        var isPinchPillVisible by remember { mutableStateOf(false) }
+        var pinchPillDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+        val haptic = LocalHapticFeedback.current
+        val coroutineScope = rememberCoroutineScope()
+        val effectivePreferredColumns = interactiveColumns ?: preferredGridColumns
         val gridColumns = if (selectedMainTab == SpaceMainTab.DYNAMIC) {
             adaptiveLayoutSpec.dynamicColumns
         } else {
-            preferredGridColumns
+            effectivePreferredColumns
+        }
+        val pinchColumnBounds = remember(windowSizeClass.widthSizeClass, windowWidthDp) {
+            resolveHomeFeedPinchColumnBounds(
+                widthSizeClass = windowSizeClass.widthSizeClass,
+                contentWidthDp = windowWidthDp,
+            )
+        }
+        LaunchedEffect(homeSettings.gridColumnCount) {
+            interactiveColumns = null
         }
         val spaceFeedCardLayout = resolveHomeFeedCardLayout(
             style = homeSettings.homeFeedCardStyle,
@@ -1256,7 +1323,29 @@ private fun SpaceContent(
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridColumns),
             state = gridState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .homeFeedPinchZoom(
+                    enabled = selectedMainTab != SpaceMainTab.DYNAMIC && homeSettings.pinchToChangeGridColumnsEnabled,
+                    currentColumns = gridColumns,
+                    bounds = pinchColumnBounds,
+                    onColumnsChange = { newColumns ->
+                        interactiveColumns = newColumns
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        isPinchPillVisible = true
+                        pinchPillDismissJob?.cancel()
+                    },
+                    onGestureEnd = { finalColumns ->
+                        coroutineScope.launch {
+                            SettingsManager.setGridColumnCount(context, finalColumns)
+                        }
+                        pinchPillDismissJob?.cancel()
+                        pinchPillDismissJob = coroutineScope.launch {
+                            kotlinx.coroutines.delay(1000)
+                            isPinchPillVisible = false
+                        }
+                    }
+                ),
             contentPadding = PaddingValues(
                 start = outerPaddingDp,
                 end = outerPaddingDp,
@@ -2301,7 +2390,16 @@ private fun SpaceContent(
                 }
             }
         }
-        }
+    }
+
+        // [新增] 双指缩放切换网格列数 HUD 胶囊 (自适应 MD3 / MIUIX)
+        GridPinchColumnHudPill(
+            visible = isPinchPillVisible,
+            columns = gridColumns,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = chromeTopInset + 16.dp)
+        )
     }
 }
 
@@ -2326,11 +2424,21 @@ private fun SpaceHeader(
     useExpandedLayout: Boolean = false,
 ) {
     val context = LocalContext.current
-    val topPhotoUrl = normalizeSpaceTopPhotoUrl(userInfo.topPhoto)
+    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val resolvedPhoto = if (isDarkTheme && userInfo.nightTopPhoto.isNotBlank()) {
+        userInfo.nightTopPhoto
+    } else {
+        userInfo.topPhoto
+    }
+    val topPhotoUrl = normalizeSpaceTopPhotoUrl(resolvedPhoto)
     val avatarPreviewEnabled = userInfo.face.isNotBlank()
-    val followLabel = if (userInfo.isFollowed) "已关注" else "关注"
     val isOwner = userInfo.mid > 0L &&
         userInfo.mid == com.android.purebilibili.core.store.TokenManager.midCache
+    val followLabel = resolveSpaceFollowActionLabel(
+        isOwner = isOwner,
+        relationStatus = userInfo.relationStatus,
+        isFollowed = userInfo.isFollowed,
+    )
     val officialBadge = remember(userInfo.official) {
         resolveOfficialVerifyBadge(
             type = userInfo.official.type,
@@ -2347,7 +2455,8 @@ private fun SpaceHeader(
     val colorScheme = MaterialTheme.colorScheme
     val followButtonColors = resolveSpaceFollowButtonColors(
         isFollowed = userInfo.isFollowed,
-        colorScheme = colorScheme
+        colorScheme = colorScheme,
+        isOwner = isOwner
     )
 
     // PiliPlus 风格头部结构：
@@ -2356,8 +2465,8 @@ private fun SpaceHeader(
     // - 头像右侧独立区域：上层 3 项数据统计（粉丝/关注/获赞），下层私信与关注操作按钮
     // - 窄屏信息区位于头像下方；宽屏放入头像与操作区之间
     val avatarSize = 80.dp
-    val avatarBannerOverlap = 24.dp
-    val actionsTopMargin = 8.dp
+    val avatarBannerOverlap = 20.dp
+    val actionsTopMargin = 5.dp
     val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -2369,16 +2478,17 @@ private fun SpaceHeader(
             renderedBannerWidth,
             windowSizeClass.widthDp,
             windowSizeClass.heightDp,
+            chromeTopInset,
         ) {
             resolveSpaceBannerMetrics(
                 renderedBannerWidthDp = renderedBannerWidth.value,
                 windowWidthDp = windowSizeClass.widthDp.value,
                 windowHeightDp = windowSizeClass.heightDp.value,
+                topInsetDp = chromeTopInset.value,
             )
         }
         val bannerTotalHeightDp = bannerMetrics.heightDp.dp
-        val heroHeight = (bannerTotalHeightDp - chromeTopInset.coerceAtLeast(0.dp))
-            .coerceAtLeast(0.dp)
+        val heroHeight = bannerMetrics.heroHeightDp.dp
         val avatarTopPadding = (heroHeight - avatarBannerOverlap).coerceAtLeast(0.dp)
 
         Column(
@@ -2398,7 +2508,7 @@ private fun SpaceHeader(
                         val topInsetPx = chromeTopInset.coerceAtLeast(0.dp).roundToPx()
                         val targetWidth = constraints.maxWidth + horizontalInsetPx * 2
                         val bannerTotalHeightPx = bannerTotalHeightDp.roundToPx()
-                        val visibleHeightPx = (bannerTotalHeightPx - topInsetPx).coerceAtLeast(0)
+                        val visibleHeightPx = heroHeight.roundToPx()
                         val placeable = measurable.measure(
                             constraints.copy(
                                 minWidth = targetWidth,
@@ -2413,40 +2523,16 @@ private fun SpaceHeader(
                     }
                     .align(Alignment.TopCenter)
                     .clickable(
-                        enabled = shouldEnableSpaceTopPhotoPreview(topPhotoUrl),
+                        enabled = shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty(),
                         onClick = onTopPhotoClick
                     )
             ) {
-                if (topPhotoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(topPhotoUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = if (bannerMetrics.cropToFill) {
-                            ContentScale.Crop
-                        } else {
-                            ContentScale.FillWidth
-                        },
-                        alignment = Alignment.TopCenter,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        colorScheme.surfaceVariant.copy(alpha = 0.86f),
-                                        colorScheme.secondaryContainer.copy(alpha = 0.56f),
-                                        colorScheme.surface
-                                    )
-                                )
-                            )
-                    )
-                }
+                SpaceHeaderBanner(
+                    topImages = userInfo.topImages,
+                    fallbackTopPhotoUrl = topPhotoUrl,
+                    isDarkTheme = isDarkTheme,
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 Box(
                     modifier = Modifier
@@ -2558,7 +2644,7 @@ private fun SpaceHeader(
                         .weight(if (useExpandedLayout) 0.8f else 1f, fill = !useExpandedLayout)
                         .widthIn(max = 480.dp)
                         .padding(top = (avatarBannerOverlap + actionsTopMargin).coerceAtLeast(0.dp)),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2581,16 +2667,25 @@ private fun SpaceHeader(
                         }
                     }
 
-                    if (!isOwner) {
-                        SpaceHeaderRelationActions(
-                            followLabel = followLabel,
-                            isFollowed = userInfo.isFollowed,
-                            followButtonColors = followButtonColors,
-                            onMessageClick = onMessageClick,
-                            onFollowClick = onFollowClick,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    SpaceHeaderRelationActions(
+                        followLabel = followLabel,
+                        isFollowed = userInfo.isFollowed,
+                        followButtonColors = followButtonColors,
+                        onMessageClick = onMessageClick,
+                        onFollowClick = {
+                            if (isOwner) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "可在「我的」页面编辑个人资料",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                onFollowClick()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isOwner = isOwner,
+                    )
                 }
             }
         }
@@ -2700,12 +2795,15 @@ private fun SpaceHeaderIdentityInfo(
                 )
             }
 
-            val ipLocation = userInfo.ipLocation?.takeIf { it.isNotBlank() }
-            if (userInfo.mid > 0L || ipLocation != null) {
+            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+            val displayTags = remember(userInfo.spaceTags, userInfo.ipLocation) {
+                resolveSpaceDisplayTags(userInfo.spaceTags, userInfo.ipLocation)
+            }
+            if (userInfo.mid > 0L || displayTags.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (userInfo.mid > 0L) {
                         AppText(
@@ -2715,14 +2813,41 @@ private fun SpaceHeaderIdentityInfo(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    ipLocation?.let { location ->
+                    displayTags.forEach { tag ->
+                        val hasUri = tag.uri.isNotBlank()
+                        val tagModifier = if (hasUri) {
+                            Modifier
+                                .clickable {
+                                    runCatching { uriHandler.openUri(tag.uri) }
+                                }
+                                .copyOnLongPress(tag.title, tag.title)
+                        } else {
+                            Modifier.copyOnLongPress(tag.title, tag.title)
+                        }
                         AppText(
-                            text = "IP 属地 · $location",
+                            text = tag.title,
+                            modifier = tagModifier,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                            color = if (hasUri) {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                            }
                         )
                     }
                 }
+            }
+
+            userInfo.followingsFollowed?.let { followedUp ->
+                if (followedUp.items.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SpaceFollowedUpSection(followedUp = followedUp)
+                }
+            }
+
+            if (userInfo.silence == 1) {
+                Spacer(modifier = Modifier.height(8.dp))
+                SpaceBanBanner()
             }
     }
 }
@@ -4459,35 +4584,38 @@ private fun SpaceHeaderRelationActions(
     followButtonColors: SpaceSelectionChipColors,
     onMessageClick: () -> Unit,
     onFollowClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isOwner: Boolean = false,
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        AppSurface(
-            onClick = onMessageClick,
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            ),
-            modifier = Modifier
-                .heightIn(min = 36.dp)
-                .widthIn(min = 46.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        if (!isOwner) {
+            AppSurface(
+                onClick = onMessageClick,
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                ),
+                modifier = Modifier
+                    .width(46.dp)
+                    .height(36.dp)
             ) {
-                AppIcon(
-                    imageVector = Icons.Outlined.Email,
-                    contentDescription = "私信",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.Email,
+                        contentDescription = "私信",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
@@ -4495,7 +4623,7 @@ private fun SpaceHeaderRelationActions(
             onClick = onFollowClick,
             shape = RoundedCornerShape(18.dp),
             color = followButtonColors.backgroundColor,
-            border = if (isFollowed) {
+            border = if (isFollowed && !isOwner) {
                 BorderStroke(
                     1.dp,
                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
@@ -4503,7 +4631,7 @@ private fun SpaceHeaderRelationActions(
             } else null,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 36.dp)
+                .height(36.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -4512,6 +4640,15 @@ private fun SpaceHeaderRelationActions(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
+                if (isFollowed && !isOwner) {
+                    AppIcon(
+                        imageVector = Icons.AutoMirrored.Outlined.Sort,
+                        contentDescription = null,
+                        tint = followButtonColors.textColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
                 AppText(
                     text = followLabel,
                     fontSize = 14.sp,
@@ -4525,6 +4662,7 @@ private fun SpaceHeaderRelationActions(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SpaceHeaderStat(
     label: String,
@@ -4532,14 +4670,24 @@ private fun SpaceHeaderStat(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .combinedClickable(
+                onClick = { onClick?.invoke() },
+                onLongClick = {
+                    android.widget.Toast.makeText(
+                        context,
+                        "$label: $value",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppText(
             text = FormatUtils.formatStat(value),
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -4549,7 +4697,7 @@ private fun SpaceHeaderStat(
         AppText(
             text = label,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.outline,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -4561,9 +4709,259 @@ private fun SpaceHeaderMetricDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(16.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            .height(15.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
     )
+}
+
+@Composable
+private fun SpaceHeaderBanner(
+    topImages: List<com.android.purebilibili.data.model.response.SpaceTopImageItem>,
+    fallbackTopPhotoUrl: String,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    if (topImages.size > 1) {
+        val pagerState = rememberPagerState { topImages.size }
+        Box(modifier = modifier) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val item = topImages[page]
+                val alignment = resolveSpaceBannerAlignment(item.dy)
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(item.header)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = alignment,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            val currentTitle = topImages.getOrNull(pagerState.currentPage)?.title
+            if (currentTitle != null && currentTitle.title.isNotBlank()) {
+                SpaceHeaderTitleBadge(
+                    title = currentTitle,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 4.dp)
+                )
+            }
+
+            AppLinearProgressIndicator(
+                progress = { (pagerState.currentPage + 1f) / topImages.size },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.5.dp)
+                    .align(Alignment.BottomCenter),
+                color = Color.White,
+                trackColor = Color(0x669E9E9E)
+            )
+        }
+    } else if (topImages.size == 1) {
+        val item = topImages[0]
+        val alignment = resolveSpaceBannerAlignment(item.dy)
+        Box(modifier = modifier) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(item.header)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = alignment,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (item.title != null && item.title.title.isNotBlank()) {
+                SpaceHeaderTitleBadge(
+                    title = item.title,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 4.dp)
+                )
+            }
+        }
+    } else if (fallbackTopPhotoUrl.isNotBlank()) {
+        val colorFilter = resolveSpaceBannerColorFilter(
+            isLight = !isDarkTheme,
+            hasFilter = true
+        )
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(fallbackTopPhotoUrl)
+                .crossfade(true)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
+            colorFilter = colorFilter,
+            modifier = modifier
+        )
+    } else {
+        Box(
+            modifier = modifier.background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.86f),
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.56f),
+                        MaterialTheme.colorScheme.surface
+                    )
+                )
+            )
+        )
+    }
+}
+
+@Composable
+private fun SpaceHeaderTitleBadge(
+    title: com.android.purebilibili.data.model.response.SpaceCollectionTopTitle,
+    modifier: Modifier = Modifier,
+) {
+    val subTitleColor = remember(title.subTitleColorFormat) {
+        val colorHex = title.subTitleColorFormat?.colors?.lastOrNull()
+        if (!colorHex.isNullOrBlank()) {
+            try {
+                val hex = colorHex.removePrefix("#")
+                if (hex.length == 6) {
+                    Color(hex.toLong(16) or 0xFF000000)
+                } else if (hex.length == 8) {
+                    Color(hex.toLong(16))
+                } else Color.White
+            } catch (_: Exception) {
+                Color.White
+            }
+        } else {
+            Color.White
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .widthIn(max = 140.dp)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.12f),
+                        Color.Black.copy(alpha = 0.38f),
+                        Color.Black.copy(alpha = 0.45f),
+                    )
+                )
+            )
+            .padding(start = 16.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            AppText(
+                text = title.title,
+                fontSize = 12.sp,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (title.subTitle.isNotBlank()) {
+                AppText(
+                    text = title.subTitle,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = subTitleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceFollowedUpSection(
+    followedUp: com.android.purebilibili.data.model.response.SpaceFollowingsFollowedUpper,
+    modifier: Modifier = Modifier,
+) {
+    val items = followedUp.items
+    if (items.isEmpty()) return
+    val displayUsers = items.take(3)
+    val moreCount = items.size
+    val namesText = displayUsers.joinToString("、") { it.name }
+    val suffixText = if (items.size > 3) "等${moreCount}人也关注了TA" else "也关注了TA"
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy((-6).dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            displayUsers.forEach { user ->
+                AsyncImage(
+                    model = FormatUtils.buildSizedImageUrl(user.face, 64, 64),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        AppText(
+            text = namesText,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        AppText(
+            text = suffixText,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.outline,
+            maxLines = 1
+        )
+        AppIcon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun SpaceBanBanner(
+    modifier: Modifier = Modifier
+) {
+    AppSurface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.errorContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            AppIcon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(16.dp)
+            )
+            AppText(
+                text = "该账号封禁中",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
 }
 
 @Composable

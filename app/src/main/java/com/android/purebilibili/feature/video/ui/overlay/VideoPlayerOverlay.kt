@@ -396,6 +396,17 @@ internal fun resolvePageSelectorSheetOuterBottomPaddingDp(
     return if (isFullscreen) 0 else 8
 }
 
+internal fun resolvePageSelectorSheetMaxWidthDp(
+    windowWidthDp: Int,
+    isFullscreen: Boolean
+): Int? {
+    return if (isFullscreen || windowWidthDp >= 600) {
+        640
+    } else {
+        null
+    }
+}
+
 internal fun shouldShowPersistentBottomProgressBar(
     controlsVisible: Boolean,
     isFullscreen: Boolean,
@@ -2202,11 +2213,23 @@ fun VideoPlayerOverlay(
                     },
                 contentAlignment = Alignment.BottomCenter
             ) {
+                val pageSelectorMaxWidthDp = remember(configuration.screenWidthDp, isFullscreen) {
+                    resolvePageSelectorSheetMaxWidthDp(
+                        windowWidthDp = configuration.screenWidthDp,
+                        isFullscreen = isFullscreen
+                    )
+                }
                 AppSurface(
                     shape = AppShapes.container(ContainerLevel.Sheet),
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .then(
+                            if (pageSelectorMaxWidthDp != null) {
+                                Modifier.widthIn(max = pageSelectorMaxWidthDp.dp)
+                            } else {
+                                Modifier.fillMaxWidth()
+                            }
+                        )
                         .padding(
                             start = 8.dp,
                             top = 8.dp,

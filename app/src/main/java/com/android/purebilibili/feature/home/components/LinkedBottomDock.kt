@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -31,6 +32,7 @@ import com.android.purebilibili.core.ui.motion.iosMorphTween
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import kotlinx.coroutines.flow.collect
+import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.blur.Backdrop
 
 private const val LINKED_DOCK_MERGE_DURATION_MILLIS = 280
@@ -55,18 +57,37 @@ internal fun LinkedBottomDock(
     navigationLabelMode: Int,
     navigationMinEdgePadding: androidx.compose.ui.unit.Dp,
     nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)?,
+    dockPhase: LinkedDockPhase? = null,
+    onDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
+    isTopLevelDestination: Boolean = true,
     modifier: Modifier = Modifier,
+    blurEnabled: Boolean = false,
+    hazeState: HazeState? = null,
     navigationContent: @Composable () -> Unit,
 ) {
     val hasAudio = nowPlayingContent != null
-    var phase by remember(currentItem, searchEnabled, hasAudio) {
+    var internalPhase by remember(currentItem, searchEnabled, hasAudio) {
         mutableStateOf(
-            if (currentItem == BottomNavItem.HOME) {
-                LinkedDockPhase.Expanded
-            } else {
-                resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
-            }
+            resolveLinkedDockInitialPhase(
+                currentItem = currentItem,
+                collapseRequested = collapseRequested,
+                hasAudio = hasAudio,
+                savedPhase = dockPhase,
+            )
         )
+    }
+    val phase = dockPhase ?: internalPhase
+    val updatePhase: (LinkedDockPhase) -> Unit = { newPhase ->
+        if (dockPhase != null && onDockPhaseChange != null) {
+            onDockPhaseChange(newPhase)
+        } else {
+            internalPhase = newPhase
+        }
+    }
+    LaunchedEffect(hasAudio, dockPhase) {
+        if (dockPhase == null && !hasAudio && internalPhase == LinkedDockPhase.Playback) {
+            internalPhase = LinkedDockPhase.Expanded
+        }
     }
     var query by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -84,11 +105,11 @@ internal fun LinkedBottomDock(
                 accumulated = 0f
             } else {
                 accumulated = accumulateDockScroll(accumulated, delta)
-                if (offset <= 0f || accumulated <= -threshold) {
-                    phase = LinkedDockPhase.Expanded
+                if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
+                    updatePhase(LinkedDockPhase.Expanded)
                     accumulated = 0f
                 } else if (hasAudio && accumulated >= threshold) {
-                    phase = LinkedDockPhase.Playback
+                    updatePhase(LinkedDockPhase.Playback)
                     accumulated = 0f
                 }
             }
@@ -96,14 +117,21 @@ internal fun LinkedBottomDock(
     }
     LaunchedEffect(currentItem, collapseRequested, hasAudio) {
         if (currentItem != BottomNavItem.HOME && phase != LinkedDockPhase.Search) {
-            phase = resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
+            updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
         }
     }
     fun expand() {
         focusManager.clearFocus()
-        phase = LinkedDockPhase.Expanded
+        updatePhase(LinkedDockPhase.Expanded)
     }
-    BackHandler(phase != LinkedDockPhase.Expanded) { expand() }
+    val backEnabled = shouldEnableLinkedDockBackHandler(
+        phase = phase,
+        isTopLevelDestination = isTopLevelDestination,
+    )
+    BackHandler(enabled = backEnabled) {
+        focusManager.clearFocus()
+        updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio))
+    }
     val reduceMotion = rememberSystemReduceMotion()
     val transition = updateTransition(targetState = phase, label = "linkedBottomDock")
     val merge = transition.animateFloat(
@@ -144,8 +172,20 @@ internal fun LinkedBottomDock(
             }
                 .then(if (phase != LinkedDockPhase.Expanded) Modifier.clickable(role = Role.Button) { expand() }
                     else Modifier.clearAndSetSemantics {}), contentAlignment = Alignment.Center) {
-                Box(Modifier.fillMaxSize().biliPaiFloatingDockShell(backdrop, containerColor, 0f, shape = shape,
-                    enabled = glassEnabled, liquidGlassTuning = liquidGlassTuning))
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .biliPaiFloatingDockShell(
+                            backdrop = backdrop,
+                            containerColor = containerColor,
+                            pressProgress = 0f,
+                            shape = shape,
+                            enabled = glassEnabled,
+                            blurEnabled = blurEnabled,
+                            hazeState = hazeState,
+                            liquidGlassTuning = liquidGlassTuning,
+                        )
+                )
                 if (merge.value > 0.001f) {
                     AppIcon(
                         imageVector = if (iconStyle == SharedFloatingBottomBarIconStyle.MIUIX) {
@@ -163,13 +203,30 @@ internal fun LinkedBottomDock(
             Box(contentAlignment = Alignment.Center) {
                 if (searchEnabled) {
                     Box(Modifier.fillMaxSize()) {
-                        Box(Modifier.fillMaxSize().biliPaiFloatingDockShell(backdrop, containerColor, 0f, shape = shape,
-                                enabled = glassEnabled, liquidGlassTuning = liquidGlassTuning))
-                        Box(Modifier.fillMaxSize().then(
-                            if (phase != LinkedDockPhase.Search) Modifier.clickable(role = Role.Button) {
-                                phase = LinkedDockPhase.Search
-                            } else Modifier
-                        )) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .biliPaiFloatingDockShell(
+                                    backdrop = backdrop,
+                                    containerColor = containerColor,
+                                    pressProgress = 0f,
+                                    shape = shape,
+                                    enabled = glassEnabled,
+                                    blurEnabled = blurEnabled,
+                                    hazeState = hazeState,
+                                    liquidGlassTuning = liquidGlassTuning,
+                                )
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .clip(shape)
+                                .then(
+                                    if (phase != LinkedDockPhase.Search) Modifier.clickable(role = Role.Button) {
+                                        updatePhase(LinkedDockPhase.Search)
+                                    } else Modifier
+                                )
+                        ) {
                             BiliPaiBottomBarSearchVisualContent(
                                 expanded = phase == LinkedDockPhase.Search,
                                 query = query,

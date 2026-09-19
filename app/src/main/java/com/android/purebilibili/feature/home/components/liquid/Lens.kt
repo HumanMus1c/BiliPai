@@ -128,7 +128,8 @@ uniform float depthEffect;
 $ROUNDED_RECT_SDF
 
 float circleMap(float x) {
-    return 1.0 - sqrt(1.0 - x * x);
+    float clampedX = clamp(x, 0.0, 1.0);
+    return 1.0 - sqrt(max(1.0 - clampedX * clampedX, 0.0));
 }
 
 half4 main(float2 coord) {
@@ -165,7 +166,8 @@ uniform float chromaticAberration;
 $ROUNDED_RECT_SDF
 
 float circleMap(float x) {
-    return 1.0 - sqrt(1.0 - x * x);
+    float clampedX = clamp(x, 0.0, 1.0);
+    return 1.0 - sqrt(max(1.0 - clampedX * clampedX, 0.0));
 }
 
 half4 main(float2 coord) {
@@ -187,40 +189,12 @@ half4 main(float2 coord) {
     float dispersionIntensity = chromaticAberration * ((centeredCoord.x * centeredCoord.y) / (halfSize.x * halfSize.y));
     float2 dispersedCoord = d * grad * dispersionIntensity;
 
-    half4 color = half4(0.0);
+    // 物理光学三通道（RGB）波长色散：采样数从 7 次降低至 3 次（减少 57% GPU 纹理采样），
+    // 消除冗余多次采样的混色浑浊感，色散边缘更清澈通透，大幅降低显存带宽与 TMU 压力。
+    half r = content.eval(refractedCoord + dispersedCoord).r;
+    half4 gSample = content.eval(refractedCoord);
+    half b = content.eval(refractedCoord - dispersedCoord).b;
 
-    half4 red = content.eval(refractedCoord + dispersedCoord);
-    color.r += red.r / 3.5;
-    color.a += red.a / 7.0;
-
-    half4 orange = content.eval(refractedCoord + dispersedCoord * (2.0 / 3.0));
-    color.r += orange.r / 3.5;
-    color.g += orange.g / 7.0;
-    color.a += orange.a / 7.0;
-
-    half4 yellow = content.eval(refractedCoord + dispersedCoord * (1.0 / 3.0));
-    color.r += yellow.r / 3.5;
-    color.g += yellow.g / 3.5;
-    color.a += yellow.a / 7.0;
-
-    half4 green = content.eval(refractedCoord);
-    color.g += green.g / 3.5;
-    color.a += green.a / 7.0;
-
-    half4 cyan = content.eval(refractedCoord - dispersedCoord * (1.0 / 3.0));
-    color.g += cyan.g / 3.5;
-    color.b += cyan.b / 3.0;
-    color.a += cyan.a / 7.0;
-
-    half4 blue = content.eval(refractedCoord - dispersedCoord * (2.0 / 3.0));
-    color.b += blue.b / 3.0;
-    color.a += blue.a / 7.0;
-
-    half4 purple = content.eval(refractedCoord - dispersedCoord);
-    color.r += purple.r / 7.0;
-    color.b += purple.b / 3.0;
-    color.a += purple.a / 7.0;
-
-    return color;
+    return half4(r, gSample.g, b, gSample.a);
 }
 """

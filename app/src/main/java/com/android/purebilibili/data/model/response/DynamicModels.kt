@@ -1348,7 +1348,9 @@ data class UgcSeasonMajor(
     val sign_state: Int = 0,
     val type: Int = 0, // 1=合集
     val stat: UgcSeasonStat = UgcSeasonStat(),
-    val archive: ArchiveMajor? = null // 播放第一集或最新一集
+    val archive: ArchiveMajor? = null, // 播放第一集或最新一集
+    @Serializable(with = FlexibleLongSerializer::class)
+    val mid: Long = 0 // [新增] UP主真实mid
 )
 
 @Serializable

@@ -113,13 +113,11 @@ fun ActionButton(
     }
     val countFadeAnimationSpec = AppMotionTokens.standardSpec<Float>()
     val countSlideAnimationSpec = AppMotionTokens.standardSpec<IntOffset>()
-    BoxWithConstraints(modifier = modifier) {
-        val slotWidthDp = maxWidth.value.toInt()
-        val actionText = remember(label, count, slotWidthDp) {
+    Box(modifier = modifier) {
+        val actionText = remember(label, count) {
             resolveDynamicActionButtonText(
                 label = label,
-                count = count,
-                slotWidthDp = slotWidthDp
+                count = count
             )
         }
 
@@ -148,7 +146,7 @@ fun ActionButton(
                     spacing = AppSpacingTokens.ExtraSmall
                 )
             }
-            return@BoxWithConstraints
+            return@Box
         }
 
         // Material 3 主题同样使用原生 Button，避免主题切换后退回自绘点击 Row。
@@ -185,7 +183,7 @@ fun ActionButton(
                     spacing = AppSpacingTokens.ExtraSmall,
                 )
             }
-            return@BoxWithConstraints
+            return@Box
         }
 
         val useFilledShell = !isComment && LocalAppUiStyle.current != AppUiStyle.MATERIAL3

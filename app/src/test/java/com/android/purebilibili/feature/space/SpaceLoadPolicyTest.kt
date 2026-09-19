@@ -13,6 +13,7 @@ import com.android.purebilibili.data.model.response.SeriesMeta
 import com.android.purebilibili.data.model.response.SpaceAggregateCard
 import com.android.purebilibili.data.model.response.SpaceAggregateData
 import com.android.purebilibili.data.model.response.SpaceAggregateImages
+import com.android.purebilibili.data.model.response.SpaceAggregateRelation
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceTopArcData
 import com.android.purebilibili.data.model.response.SpaceUserInfo
@@ -491,6 +492,16 @@ class SpaceLoadPolicyTest {
         )
         assertFalse(phoneBanner.cropToFill)
         assertEquals(393f / SPACE_BANNER_ASPECT_RATIO, phoneBanner.heightDp, 0.01f)
+        assertEquals(393f / SPACE_BANNER_ASPECT_RATIO, phoneBanner.heroHeightDp, 0.01f)
+        val phoneBannerWithInset = resolveSpaceBannerMetrics(
+            renderedBannerWidthDp = 393f,
+            windowWidthDp = 393f,
+            windowHeightDp = 851f,
+            topInsetDp = 104f,
+        )
+        assertFalse(phoneBannerWithInset.cropToFill)
+        assertEquals(393f / SPACE_BANNER_ASPECT_RATIO + 104f, phoneBannerWithInset.heightDp, 0.01f)
+        assertEquals(393f / SPACE_BANNER_ASPECT_RATIO, phoneBannerWithInset.heroHeightDp, 0.01f)
         val landscapeTabletBanner = resolveSpaceBannerMetrics(
             renderedBannerWidthDp = 1280f,
             windowWidthDp = 1280f,
@@ -504,6 +515,7 @@ class SpaceLoadPolicyTest {
             windowHeightDp = 616f,
         )
         assertFalse(compactCover.cropToFill)
+        assertEquals(421f / SPACE_BANNER_ASPECT_RATIO, compactCover.heightDp, 0.01f)
         assertEquals(
             7,
             resolveSpaceContentGridColumnCount(
@@ -870,6 +882,65 @@ class SpaceLoadPolicyTest {
                 pageSize = 30,
                 total = 91,
             ),
+        )
+    }
+
+    @Test
+    fun `parseTopImageDy calculates vertical bias matching PiliPlus dy formula`() {
+        assertEquals(0f, parseTopImageDy("0-0-396", 396.0), 0.001f)
+        assertEquals(-0.5f, parseTopImageDy("0-0-198", 396.0), 0.001f)
+        assertEquals(0.5f, parseTopImageDy("0-198-396", 396.0), 0.001f)
+        assertEquals(0f, parseTopImageDy("", 396.0))
+        assertEquals(0f, parseTopImageDy("invalid", 396.0))
+    }
+
+    @Test
+    fun `resolveSpaceRelationState aligns with PiliPlus relation determination`() {
+        // Blacklisted
+        assertEquals(
+            Pair(false, 128),
+            resolveSpaceRelationState(aggregateRelation = -1)
+        )
+        // Followed with special relation
+        assertEquals(
+            Pair(true, -10),
+            resolveSpaceRelationState(
+                aggregateRelation = 0,
+                relSpecial = 1,
+                cardRelation = SpaceAggregateRelation(status = 2, isFollow = 1)
+            )
+        )
+        // Followed mutual
+        assertEquals(
+            Pair(true, 6),
+            resolveSpaceRelationState(
+                aggregateRelation = 0,
+                relSpecial = 0,
+                cardRelation = SpaceAggregateRelation(status = 6, isFollow = 1)
+            )
+        )
+        // Followed standard
+        assertEquals(
+            Pair(true, 2),
+            resolveSpaceRelationState(
+                aggregateRelation = 0,
+                relSpecial = 0,
+                cardRelation = SpaceAggregateRelation(status = 2, isFollow = 1)
+            )
+        )
+        // Not followed even if status has residual value 2
+        assertEquals(
+            Pair(false, 0),
+            resolveSpaceRelationState(
+                aggregateRelation = 0,
+                relSpecial = 0,
+                cardRelation = SpaceAggregateRelation(status = 2, isFollow = 0)
+            )
+        )
+        // Null card relation
+        assertEquals(
+            Pair(false, 0),
+            resolveSpaceRelationState()
         )
     }
 }

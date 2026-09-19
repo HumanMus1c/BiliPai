@@ -55,10 +55,15 @@ import androidx.compose.material.icons.outlined.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
+import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
+import com.android.purebilibili.feature.video.ui.components.shouldShowVideoCommentBackToTop
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -1400,6 +1405,7 @@ private fun CinemaCommentsPane(
                 scrollPositionProvider = {
                     listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
                 },
+                showActionButtons = false,
             )
 
             }
@@ -1419,60 +1425,87 @@ private fun CinemaRelatedPane(
         filterRelatedVideosByHiddenBvids(success.related, hiddenRelatedBvids)
     }
     val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp)
-    ) {
-        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
-        itemsIndexed(
-            items = relatedRows,
-            key = { rowIndex, row ->
-                val first = row.firstOrNull()
-                resolveIndexedVideoLazyKey(
-                    namespace = "cinema_related_row",
-                    index = rowIndex,
-                    bvid = first?.bvid.orEmpty(),
-                    aid = first?.aid ?: 0L,
-                    cid = first?.cid ?: 0L
-                )
-            }
-        ) { _, row ->
-            CompositionLocalProvider(
-                LocalVideoCardSharedElementSourceRoute provides "video/${success.info.bvid}"
-            ) {
-                RelatedVideoGridRow(
-                    videos = row,
-                    cardLayout = relatedVideoCardLayout,
-                    followingMids = success.followingMids,
-                    showUpBadge = showUpBadge,
-                    onVideoClick = { video ->
-                        val navOptions = buildVideoNavigationOptions(
-                            targetCid = video.cid,
-                            coverUrl = video.pic,
-                        ) ?: android.os.Bundle.EMPTY
-                        onRelatedVideoClick(video.bvid, navOptions)
-                    },
-                    onVideoHidden = { video ->
-                        hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
-                    }
-                )
-            }
+    val listState = rememberLazyListState()
+    val showBackToTop by remember(listState) {
+        derivedStateOf {
+            shouldShowVideoCommentBackToTop(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+            )
         }
-        if (visibleRelatedVideos.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
+    }
+    val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
+    val scope = rememberCoroutineScope()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
+            itemsIndexed(
+                items = relatedRows,
+                key = { rowIndex, row ->
+                    val first = row.firstOrNull()
+                    resolveIndexedVideoLazyKey(
+                        namespace = "cinema_related_row",
+                        index = rowIndex,
+                        bvid = first?.bvid.orEmpty(),
+                        aid = first?.aid ?: 0L,
+                        cid = first?.cid ?: 0L
+                    )
+                }
+            ) { _, row ->
+                CompositionLocalProvider(
+                    LocalVideoCardSharedElementSourceRoute provides "video/${success.info.bvid}"
                 ) {
-                    AppText(
-                        text = "暂时没有推荐视频",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    RelatedVideoGridRow(
+                        videos = row,
+                        cardLayout = relatedVideoCardLayout,
+                        followingMids = success.followingMids,
+                        showUpBadge = showUpBadge,
+                        onVideoClick = { video ->
+                            val navOptions = buildVideoNavigationOptions(
+                                targetCid = video.cid,
+                                coverUrl = video.pic,
+                            ) ?: android.os.Bundle.EMPTY
+                            onRelatedVideoClick(video.bvid, navOptions)
+                        },
+                        onVideoHidden = { video ->
+                            hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
+                        }
                     )
                 }
             }
+            if (visibleRelatedVideos.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppText(
+                            text = "暂时没有推荐视频",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
+
+        AppLiquidGlassBackToTopButton(
+            visible = backToTopButtonEnabled && showBackToTop,
+            onClick = {
+                scope.launch {
+                    listState.animateScrollToItem(0)
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+        )
     }
 }

@@ -172,6 +172,25 @@ class SpaceViewModel(
     private val collectionPreviewLimit = 3
     private var currentKeyword: String = ""
     
+    init {
+        viewModelScope.launch {
+            ActionRepository.followStateChanges.collect { change ->
+                val currentState = _uiState.value as? SpaceUiState.Success ?: return@collect
+                if (currentState.userInfo.mid == change.mid && currentState.userInfo.isFollowed != change.isFollowing) {
+                    val nextStatus = if (change.isFollowing) 2 else 0
+                    val newUserInfo = currentState.userInfo.copy(
+                        isFollowed = change.isFollowing,
+                        relationStatus = nextStatus
+                    )
+                    _uiState.value = currentState.copy(
+                        userInfo = newUserInfo,
+                        headerState = currentState.headerState.copy(userInfo = newUserInfo)
+                    )
+                }
+            }
+        }
+    }
+
     fun loadSpaceInfo(mid: Long) {
         if (mid <= 0) return
 
@@ -202,7 +221,7 @@ class SpaceViewModel(
                 val cardTopPhotoDeferred = async { fetchUserCardSpaceTopPhoto(mid) }
                 val aggregateDeferred = async { fetchSpaceAggregate(mid) }
                 val keysDeferred = async { fetchWbiKeys() }
-                val userCardTopPhoto = cardTopPhotoDeferred.await()
+                val userCardVisuals = cardTopPhotoDeferred.await()
                 if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
                     return@launch
                 }
@@ -210,8 +229,9 @@ class SpaceViewModel(
                 val aggregateSeed = aggregateDeferred.await()?.let { aggregate ->
                     resolveSpaceInitialSeedFromAggregate(
                         data = aggregate,
-                        cardLargePhoto = userCardTopPhoto.first,
-                        cardSmallPhoto = userCardTopPhoto.second
+                        cardLargePhoto = userCardVisuals.largePhoto,
+                        cardSmallPhoto = userCardVisuals.smallPhoto,
+                        cardIpLocation = userCardVisuals.ipLocation,
                     )
                 }
 
@@ -243,7 +263,7 @@ class SpaceViewModel(
                         loadSpaceLegacyProfileVisuals(
                             mid = mid,
                             requestGeneration = requestGeneration,
-                            userCardTopPhoto = userCardTopPhoto
+                            userCardVisuals = userCardVisuals
                         )
                         hydrateInitialContributionVideos(mid = mid, requestGeneration = requestGeneration)
                         ensureSelectedContributionContentLoaded()
@@ -265,7 +285,7 @@ class SpaceViewModel(
                 cachedImgKey = keys.first
                 cachedSubKey = keys.second
 
-                if (!loadSpaceInfoLegacy(mid, requestGeneration, userCardTopPhoto)) {
+                if (!loadSpaceInfoLegacy(mid, requestGeneration, userCardVisuals)) {
                     if (shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
                         _uiState.value = SpaceUiState.Error("获取用户信息失败")
                     }
@@ -286,7 +306,7 @@ class SpaceViewModel(
     private suspend fun loadSpaceInfoLegacy(
         mid: Long,
         requestGeneration: Long,
-        userCardTopPhoto: Pair<String, String>
+        userCardVisuals: SpaceUserCardVisuals
     ): Boolean = coroutineScope {
         val infoDeferred = async { fetchSpaceInfo(mid, cachedImgKey, cachedSubKey) }
         // The space info endpoint is not consistent about including `is_followed`.
@@ -316,12 +336,23 @@ class SpaceViewModel(
 
         val resolvedTopPhoto = resolveSpaceTopPhoto(
             topPhoto = userInfoRaw.topPhoto,
-            cardLargePhoto = userCardTopPhoto.first,
-            cardSmallPhoto = userCardTopPhoto.second
+            cardLargePhoto = userCardVisuals.largePhoto,
+            cardSmallPhoto = userCardVisuals.smallPhoto
         )
+        val resolvedIpLocation = userInfoRaw.ipLocation?.takeIf { it.isNotBlank() }
+            ?: userCardVisuals.ipLocation?.takeIf { it.isNotBlank() }
+        val resolvedSpaceTags = if (!resolvedIpLocation.isNullOrBlank()) {
+            val locationTitle = if (resolvedIpLocation.startsWith("IP属地")) resolvedIpLocation else "IP属地：$resolvedIpLocation"
+            listOf(SpaceTagItem(type = "location", title = locationTitle))
+        } else {
+            emptyList()
+        }
         val userInfo = userInfoRaw.copy(
             topPhoto = resolvedTopPhoto,
             isFollowed = followStatus,
+            relationStatus = if (followStatus) 2 else 0,
+            ipLocation = resolvedIpLocation,
+            spaceTags = resolvedSpaceTags
         )
         currentPage = videosResult?.resolvedPage ?: 1
         val videoData = videosResult?.data
@@ -390,12 +421,29 @@ class SpaceViewModel(
 
     private fun loadSpaceFollowStatus(mid: Long, requestGeneration: Long) {
         viewModelScope.launch {
-            val isFollowed = ActionRepository.checkFollowStatus(mid)
+            val relationData = ActionRepository.getRelationDetail(mid)
             if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
                 return@launch
             }
             val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
-            val userInfo = currentState.userInfo.copy(isFollowed = isFollowed)
+            val (isFollowed, relationStatus) = if (relationData != null) {
+                val following = relationData.isFollowing
+                val status = if (!following) {
+                    if (relationData.attribute == 128) 128 else 0
+                } else if (relationData.special == 1) {
+                    -10
+                } else {
+                    relationData.attribute.takeIf { it != 0 } ?: 2
+                }
+                Pair(following, status)
+            } else {
+                val following = ActionRepository.checkFollowStatus(mid)
+                Pair(following, if (following) 2 else 0)
+            }
+            val userInfo = currentState.userInfo.copy(
+                isFollowed = isFollowed,
+                relationStatus = relationStatus
+            )
             _uiState.value = currentState.copy(
                 userInfo = userInfo,
                 headerState = currentState.headerState.copy(userInfo = userInfo),
@@ -433,7 +481,7 @@ class SpaceViewModel(
     private fun loadSpaceLegacyProfileVisuals(
         mid: Long,
         requestGeneration: Long,
-        userCardTopPhoto: Pair<String, String>
+        userCardVisuals: SpaceUserCardVisuals
     ) {
         viewModelScope.launch {
             try {
@@ -446,9 +494,18 @@ class SpaceViewModel(
                 val resolvedTopPhoto = currentState.userInfo.topPhoto.ifBlank {
                     resolveSpaceTopPhoto(
                         topPhoto = info.topPhoto,
-                        cardLargePhoto = userCardTopPhoto.first,
-                        cardSmallPhoto = userCardTopPhoto.second
+                        cardLargePhoto = userCardVisuals.largePhoto,
+                        cardSmallPhoto = userCardVisuals.smallPhoto
                     )
+                }
+                val resolvedIpLocation = info.ipLocation?.takeIf { it.isNotBlank() }
+                    ?: userCardVisuals.ipLocation?.takeIf { it.isNotBlank() }
+                    ?: currentState.userInfo.ipLocation
+                val updatedTags = if (currentState.userInfo.spaceTags.none { it.type == "location" || it.title.contains("IP") } && !resolvedIpLocation.isNullOrBlank()) {
+                    val locationTitle = if (resolvedIpLocation.startsWith("IP属地")) resolvedIpLocation else "IP属地：$resolvedIpLocation"
+                    currentState.userInfo.spaceTags + SpaceTagItem(type = "location", title = locationTitle)
+                } else {
+                    currentState.userInfo.spaceTags
                 }
                 val mergedUserInfo = currentState.userInfo.copy(
                     name = info.name.ifBlank { currentState.userInfo.name },
@@ -465,7 +522,8 @@ class SpaceViewModel(
                     topPhoto = resolvedTopPhoto,
                     liveRoom = info.liveRoom ?: currentState.userInfo.liveRoom,
                     livePlace = info.livePlace ?: currentState.userInfo.livePlace,
-                    ipLocation = info.ipLocation ?: currentState.userInfo.ipLocation
+                    ipLocation = resolvedIpLocation,
+                    spaceTags = updatedTags
                 )
 
                 _uiState.value = currentState.copy(
@@ -585,7 +643,7 @@ class SpaceViewModel(
                 }
 
                 val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
-                _uiState.value = applySpaceSupplementalData(
+                val updatedSupplementalState = applySpaceSupplementalData(
                     state = currentState,
                     seasons = seasons,
                     series = series,
@@ -594,6 +652,29 @@ class SpaceViewModel(
                     seasonArchives = seasonArchives,
                     seriesArchives = seriesArchives
                 )
+                val currentInfo = updatedSupplementalState.userInfo
+                if (currentInfo.spaceTags.none { it.type == "location" || it.title.contains("IP") } && currentInfo.ipLocation.isNullOrBlank()) {
+                    val dynamicResp = runCatching { spaceApi.getSpaceDynamic(hostMid = mid) }.getOrNull()
+                    val dynamicIp = dynamicResp?.data?.items?.firstNotNullOfOrNull { item ->
+                        item.modules.module_author?.pub_location_text?.takeIf { it.isNotBlank() }
+                    }
+                    if (!dynamicIp.isNullOrBlank() && shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
+                        val locationTitle = if (dynamicIp.startsWith("IP属地")) dynamicIp else "IP属地：$dynamicIp"
+                        val updatedTags = currentInfo.spaceTags + SpaceTagItem(type = "location", title = locationTitle)
+                        val updatedUserInfo = currentInfo.copy(
+                            ipLocation = dynamicIp,
+                            spaceTags = updatedTags
+                        )
+                        _uiState.value = updatedSupplementalState.copy(
+                            userInfo = updatedUserInfo,
+                            headerState = updatedSupplementalState.headerState.copy(userInfo = updatedUserInfo)
+                        )
+                    } else {
+                        _uiState.value = updatedSupplementalState
+                    }
+                } else {
+                    _uiState.value = updatedSupplementalState
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -780,17 +861,23 @@ class SpaceViewModel(
         }
     }
 
-    private suspend fun fetchUserCardSpaceTopPhoto(mid: Long): Pair<String, String> {
+    private suspend fun fetchUserCardSpaceTopPhoto(mid: Long): SpaceUserCardVisuals {
         return try {
             val response = NetworkModule.api.getUserCard(mid = mid, photo = true)
             if (response.code == 0) {
                 val space = response.data?.space
-                Pair(space?.l_img.orEmpty(), space?.s_img.orEmpty())
+                val rawIpLocation = response.data?.card?.ipLocation?.takeIf { it.isNotBlank() }
+                    ?: response.data?.ipLocation?.takeIf { it.isNotBlank() }
+                SpaceUserCardVisuals(
+                    largePhoto = space?.l_img.orEmpty(),
+                    smallPhoto = space?.s_img.orEmpty(),
+                    ipLocation = rawIpLocation
+                )
             } else {
-                Pair("", "")
+                SpaceUserCardVisuals()
             }
         } catch (_: Exception) {
-            Pair("", "")
+            SpaceUserCardVisuals()
         }
     }
     
@@ -1285,7 +1372,33 @@ class SpaceViewModel(
                     }
                 }
 
+                val fallbackLocation = if (currentState.headerState.userInfo?.ipLocation.isNullOrBlank()) {
+                    accumulated.firstNotNullOfOrNull { item ->
+                        item.modules.module_author?.pub_location_text?.takeIf { it.isNotBlank() }
+                    }
+                } else {
+                    null
+                }
+                val currentUserInfo = currentState.headerState.userInfo ?: currentState.userInfo
+                val (nextUserInfo, nextHeaderState) = if (!fallbackLocation.isNullOrBlank()) {
+                    val locationTitle = if (fallbackLocation.startsWith("IP属地")) fallbackLocation else "IP属地：$fallbackLocation"
+                    val updatedTags = if (currentUserInfo.spaceTags.none { it.type == "location" || it.title.contains("IP") }) {
+                        currentUserInfo.spaceTags + SpaceTagItem(type = "location", title = locationTitle)
+                    } else {
+                        currentUserInfo.spaceTags
+                    }
+                    val updatedUserInfo = currentUserInfo.copy(
+                        ipLocation = fallbackLocation,
+                        spaceTags = updatedTags
+                    )
+                    Pair(updatedUserInfo, currentState.headerState.copy(userInfo = updatedUserInfo))
+                } else {
+                    Pair(currentState.userInfo, currentState.headerState)
+                }
+
                 _uiState.value = currentState.copy(
+                    userInfo = nextUserInfo,
+                    headerState = nextHeaderState,
                     dynamics = accumulated,
                     dynamicOffset = offset,
                     hasMoreDynamics = hasMore,
@@ -1911,7 +2024,12 @@ class SpaceViewModel(
         followToggleInFlight = true
         viewModelScope.launch {
             // 1. 乐观更新 UI
-            val newUserInfo = current.userInfo.copy(isFollowed = !isFollowing)
+            val nextFollowed = !isFollowing
+            val nextRelationStatus = if (nextFollowed) 2 else 0
+            val newUserInfo = current.userInfo.copy(
+                isFollowed = nextFollowed,
+                relationStatus = nextRelationStatus
+            )
             _uiState.value = current.copy(
                 userInfo = newUserInfo,
                 headerState = current.headerState.copy(userInfo = newUserInfo)
@@ -1919,9 +2037,12 @@ class SpaceViewModel(
             
             try {
                 // 2. 调用统一仓库逻辑
-                val result = ActionRepository.followUser(mid = mid, follow = !isFollowing)
+                val result = ActionRepository.followUser(mid = mid, follow = nextFollowed)
                 if (result.isFailure) {
-                    _uiState.value = current.copy(userInfo = current.userInfo)
+                    _uiState.value = current.copy(
+                        userInfo = current.userInfo,
+                        headerState = current.headerState.copy(userInfo = current.userInfo)
+                    )
                     com.android.purebilibili.core.util.Logger.e(
                         "SpaceVM",
                         "toggleFollow failed: ${result.exceptionOrNull()?.message}"
@@ -1930,14 +2051,20 @@ class SpaceViewModel(
                     val latestState = _uiState.value as? SpaceUiState.Success
                     if (latestState != null) {
                         _uiState.value = latestState.copy(
-                            userInfo = latestState.userInfo.copy(isFollowed = !isFollowing),
+                            userInfo = latestState.userInfo.copy(
+                                isFollowed = nextFollowed,
+                                relationStatus = nextRelationStatus
+                            ),
                             headerState = latestState.headerState.copy(
-                                userInfo = latestState.userInfo.copy(isFollowed = !isFollowing)
+                                userInfo = latestState.userInfo.copy(
+                                    isFollowed = nextFollowed,
+                                    relationStatus = nextRelationStatus
+                                )
                             )
                         )
                     }
 
-                    if (!isFollowing) {
+                    if (nextFollowed) {
                         showFollowGroupDialogForUser(mid)
                     }
 

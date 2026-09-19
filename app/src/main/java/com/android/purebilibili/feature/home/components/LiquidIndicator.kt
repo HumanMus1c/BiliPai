@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -150,12 +151,14 @@ internal fun LiquidIndicator(
 
     // 指示器形状
     val shape = RoundedCornerShape(indicatorHeight / 2)
-    
-    BoxWithConstraints(
-        modifier = modifier.fillMaxSize(),
+    var containerWidthPx by remember { mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onSizeChanged { containerWidthPx = it.width.toFloat() },
         contentAlignment = Alignment.CenterStart
     ) {
-        val containerWidthPx = with(density) { maxWidth.toPx() }
          Box(
             modifier = Modifier
                 .graphicsLayer {
@@ -303,18 +306,15 @@ fun SimpleLiquidIndicator(
         alpha = (indicatorColor.alpha * indicatorAlphaScale).coerceIn(0f, 1f)
     )
     
-    // [修复] 使用 BoxWithConstraints 获取父容器高度来计算垂直居中
-    BoxWithConstraints(
-        modifier = modifier.fillMaxHeight()
+    // 居中放置指示器，避免使用 BoxWithConstraints 产生子组合 (SubcomposeLayout) 开销
+    Box(
+        modifier = modifier.fillMaxHeight(),
+        contentAlignment = Alignment.CenterStart
     ) {
-        val parentHeightPx = with(density) { maxHeight.toPx() }
-        val verticalCenterOffsetPx = (parentHeightPx - indicatorHeightPx) / 2f
-        
         Box(
             modifier = Modifier
                 .graphicsLayer {
                     translationX = position * itemWidthPx + centerOffsetPx
-                    translationY = verticalCenterOffsetPx
                     
                     this.scaleX = scale
                     this.scaleY = 1f - lensProfile.motionFraction * (0.08f * styleTuning.deformationMultiplier)

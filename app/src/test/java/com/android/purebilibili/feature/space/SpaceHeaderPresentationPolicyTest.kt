@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.space
 
 import com.android.purebilibili.data.model.response.RelationStatData
+import com.android.purebilibili.data.model.response.SpaceTagItem
 import com.android.purebilibili.data.model.response.UpStatData
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -57,5 +58,81 @@ class SpaceHeaderPresentationPolicyTest {
                 firstVisibleItemScrollOffset = 0,
             )
         )
+    }
+
+    @Test
+    fun `resolveSpaceFollowActionLabel maps relations and owner aligned with PiliPlus`() {
+        assertEquals("编辑资料", resolveSpaceFollowActionLabel(isOwner = true))
+        assertEquals("关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 0, isFollowed = false))
+        assertEquals("关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 2, isFollowed = false))
+        assertEquals("移除黑名单", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 128, isFollowed = false))
+        assertEquals("已关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 0, isFollowed = true))
+        assertEquals("悄悄关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 1, isFollowed = true))
+        assertEquals("已关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 2, isFollowed = true))
+        assertEquals("已互关", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 4, isFollowed = true))
+        assertEquals("已互关", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = 6, isFollowed = true))
+        assertEquals("特别关注", resolveSpaceFollowActionLabel(isOwner = false, relationStatus = -10, isFollowed = true))
+    }
+
+    @Test
+    fun `resolveSpaceBannerAlignment creates BiasAlignment with clamped dy`() {
+        val center = resolveSpaceBannerAlignment(0f) as androidx.compose.ui.BiasAlignment
+        assertEquals(0f, center.horizontalBias)
+        assertEquals(0f, center.verticalBias)
+
+        val top = resolveSpaceBannerAlignment(-0.8f) as androidx.compose.ui.BiasAlignment
+        assertEquals(-0.8f, top.verticalBias, 0.001f)
+
+        val clamped = resolveSpaceBannerAlignment(2.5f) as androidx.compose.ui.BiasAlignment
+        assertEquals(1f, clamped.verticalBias, 0.001f)
+    }
+
+    @Test
+    fun `resolveSpaceBannerColorFilter returns null when hasFilter is false`() {
+        kotlin.test.assertNull(resolveSpaceBannerColorFilter(isLight = true, hasFilter = false))
+        kotlin.test.assertNotNull(resolveSpaceBannerColorFilter(isLight = true, hasFilter = true))
+        kotlin.test.assertNotNull(resolveSpaceBannerColorFilter(isLight = false, hasFilter = true))
+    }
+
+    @Test
+    fun `resolveSpaceIpLocationDisplay normalizes prefixes and filters blanks`() {
+        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP属地：广东"))
+        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP 属地：广东"))
+        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP属地: 广东"))
+        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("广东"))
+        assertEquals("IP 属地 · 日本", resolveSpaceIpLocationDisplay("IP属地：日本"))
+        kotlin.test.assertNull(resolveSpaceIpLocationDisplay(null))
+        kotlin.test.assertNull(resolveSpaceIpLocationDisplay(""))
+        kotlin.test.assertNull(resolveSpaceIpLocationDisplay("   "))
+        kotlin.test.assertNull(resolveSpaceIpLocationDisplay("IP属地："))
+    }
+
+    @Test
+    fun `resolveSpaceDisplayTags extracts location and preserves real_name tags`() {
+        val tags = listOf(
+            SpaceTagItem(type = "location", title = "IP属地：广东"),
+            SpaceTagItem(type = "real_name", title = "已实名认证", uri = "https://www.bilibili.com/verify")
+        )
+        val result = resolveSpaceDisplayTags(tags)
+
+        assertEquals(2, result.size)
+        assertEquals("IP 属地 · 广东", result[0].title)
+        assertEquals("location", result[0].type)
+        assertEquals("已实名认证", result[1].title)
+        assertEquals("real_name", result[1].type)
+        assertEquals("https://www.bilibili.com/verify", result[1].uri)
+    }
+
+    @Test
+    fun `resolveSpaceDisplayTags falls back to ipLocation when spaceTag has no location`() {
+        val tags = listOf(
+            SpaceTagItem(type = "real_name", title = "已实名认证")
+        )
+        val result = resolveSpaceDisplayTags(tags, ipLocation = "北京")
+
+        assertEquals(2, result.size)
+        assertEquals("IP 属地 · 北京", result[0].title)
+        assertEquals("location", result[0].type)
+        assertEquals("已实名认证", result[1].title)
     }
 }

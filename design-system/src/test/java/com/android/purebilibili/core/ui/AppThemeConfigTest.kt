@@ -21,6 +21,7 @@ class AppThemeConfigTest {
         assertTrue(config.uiEntranceAnimationEnabled)
         assertTrue(config.runtimeVisualGuardEnabled)
         assertTrue(config.liquidGlassEnabled)
+        assertTrue(config.progressiveTopFadeEnabled)
     }
 
     @Test

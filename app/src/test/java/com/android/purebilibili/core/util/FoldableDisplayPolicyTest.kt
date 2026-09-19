@@ -95,6 +95,27 @@ class FoldableDisplayPolicyTest {
     }
 
     @Test
+    fun `portrait-held Pura cover with wide displayMode resolves as portrait-natural`() {
+        val context = resolveAppDisplayContext(
+            AppDisplayContextInput(
+                currentWindowWidthDp = 460,
+                currentWindowHeightDp = 672,
+                maximumWindowWidthDp = 940,
+                maximumWindowHeightDp = 665,
+                configurationOrientation = Configuration.ORIENTATION_PORTRAIT,
+                displayRotation = Surface.ROTATION_0,
+                displayModeWidthPx = 1848,
+                displayModeHeightPx = 1264,
+                hasHingeAngleSensor = true,
+            )
+        )
+
+        assertEquals(AppFoldableDisplayRole.Cover, context.foldableDisplayRole)
+        assertEquals(AppDisplayNaturalOrientation.Portrait, context.naturalOrientation)
+        assertFalse(context.usesInWindowFullscreen)
+    }
+
+    @Test
     fun `multi-window foldable does not infer a physical display from resized bounds`() {
         val context = resolveAppDisplayContext(
             AppDisplayContextInput(

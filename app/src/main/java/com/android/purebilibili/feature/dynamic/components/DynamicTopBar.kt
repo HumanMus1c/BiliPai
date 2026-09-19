@@ -7,6 +7,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 
@@ -155,6 +156,7 @@ fun DynamicTopBarWithTabs(
         headerBlurActive = headerBlurEnabled &&
             hazeState?.let { recoverableBlurEnabled(it) } == true &&
             !isProgressiveBlurActive,
+        surfaceColor = globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.background),
         // 不让顶栏的渐进模糊向下越界盖住 UP 头像或动态卡片。
         // 顶栏自身渐进模糊效果保持不变，仅收敛其向下延伸。
         extendBelowBounds = false,

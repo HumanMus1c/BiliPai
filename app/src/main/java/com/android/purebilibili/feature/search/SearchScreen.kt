@@ -42,6 +42,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import com.android.purebilibili.feature.home.homeFeedPinchZoom
+import com.android.purebilibili.feature.home.resolveHomeFeedPinchColumnBounds
+import com.android.purebilibili.feature.home.GridPinchColumnHudPill
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1146,6 +1153,7 @@ fun SearchScreen(
                 enabled = progressiveTopBlurEnabled && !headerBlurEnabled,
                 hasBackdrop = searchChromeBackdrop != null,
             ) && !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced()
+            val searchFadeActive = appThemeConfig.progressiveTopFadeEnabled && !headerBlurEnabled
             // --- 列表内容层 ---
             if (state.showResults) {
                 AppScaffold(
@@ -1164,9 +1172,11 @@ fun SearchScreen(
                             backdrop = searchChromeBackdrop,
                             enabled = immersiveSearchChrome,
                             headerBlurActive = shouldUseSearchTopBarBlur && !immersiveSearchChrome,
+                            surfaceColor = searchChromeSurface,
+                            fadeEnabled = searchFadeActive,
                             extendBelowBounds = false,
                             modifier = Modifier.then(
-                                if (immersiveSearchChrome) {
+                                if (immersiveSearchChrome || searchFadeActive) {
                                     Modifier.background(Color.Transparent)
                                 } else if (shouldUseSearchTopBarBlur) {
                                     Modifier
@@ -1570,16 +1580,41 @@ fun SearchScreen(
                                         cardWidthPreset = homeSettings.homeFeedCardWidthPreset,
                                         widthSizeClass = windowSizeClass.widthSizeClass
                                     )
+                                    var interactiveColumns by remember { mutableStateOf<Int?>(null) }
+                                    var isPinchPillVisible by remember { mutableStateOf(false) }
+                                    var pinchPillDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+                                    val haptic = LocalHapticFeedback.current
+                                    val effectiveSearchGridColumns = interactiveColumns ?: actualGridColumns
+                                    val pinchColumnBounds = remember(windowSizeClass.widthSizeClass, maxWidth) {
+                                        resolveHomeFeedPinchColumnBounds(
+                                            widthSizeClass = windowSizeClass.widthSizeClass,
+                                            contentWidthDp = maxWidth.value.toInt(),
+                                        )
+                                    }
+                                    LaunchedEffect(homeSettings.gridColumnCount) {
+                                        interactiveColumns = null
+                                    }
+                                    val searchGridCardLayout = remember(
+                                        homeFeedCardStyle,
+                                        effectiveSearchGridColumns,
+                                        windowSizeClass.widthSizeClass,
+                                    ) {
+                                        resolveHomeFeedCardLayout(
+                                            style = homeFeedCardStyle,
+                                            gridColumns = effectiveSearchGridColumns,
+                                            widthSizeClass = windowSizeClass.widthSizeClass,
+                                        )
+                                    }
                                     val searchCoverRequestSpec = remember(
-                                        maxWidth, density.density, cardLayout, searchLayoutPolicy, actualGridColumns
+                                        maxWidth, density.density, searchGridCardLayout, searchLayoutPolicy, effectiveSearchGridColumns
                                     ) {
                                         resolveHomeCoverRequestSpec(
                                             cardWidthDp = resolveSearchGridCardWidthDp(
                                                 availableWidthDp = maxWidth.value,
                                                 minItemWidthDp = searchLayoutPolicy.resultGridMinItemWidthDp.toFloat(),
-                                                horizontalPaddingDp = cardLayout.outerPaddingDp.toFloat(),
-                                                spacingDp = cardLayout.itemSpacingDp.toFloat(),
-                                                fixedColumnCount = actualGridColumns,
+                                                horizontalPaddingDp = searchGridCardLayout.outerPaddingDp.toFloat(),
+                                                spacingDp = searchGridCardLayout.itemSpacingDp.toFloat(),
+                                                fixedColumnCount = effectiveSearchGridColumns,
                                             ),
                                             density = density.density,
                                             useLowQualityCover = false,
@@ -1587,25 +1622,46 @@ fun SearchScreen(
                                     }
                                     val videoGridModifier = Modifier
                                         .then(
-                                            if (actualGridColumns == 1) {
+                                            if (effectiveSearchGridColumns == 1) {
                                                 Modifier.responsiveContentWidth(maxWidth = resolveSearchSingleColumnResultMaxWidth())
                                             } else {
                                                 Modifier
                                             }
                                         )
                                         .fillMaxSize()
+                                        .homeFeedPinchZoom(
+                                            enabled = !listLayout.singleColumn && homeSettings.pinchToChangeGridColumnsEnabled,
+                                            currentColumns = effectiveSearchGridColumns,
+                                            bounds = pinchColumnBounds,
+                                            onColumnsChange = { newColumns ->
+                                                interactiveColumns = newColumns
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                isPinchPillVisible = true
+                                                pinchPillDismissJob?.cancel()
+                                            },
+                                            onGestureEnd = { finalColumns ->
+                                                scope.launch {
+                                                    SettingsManager.setGridColumnCount(context, finalColumns)
+                                                }
+                                                pinchPillDismissJob?.cancel()
+                                                pinchPillDismissJob = scope.launch {
+                                                    kotlinx.coroutines.delay(1000)
+                                                    isPinchPillVisible = false
+                                                }
+                                            }
+                                        )
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
                                 LazyVerticalGrid(
-                                    columns = GridCells.Fixed(actualGridColumns),
+                                    columns = GridCells.Fixed(effectiveSearchGridColumns),
                                     state = activePageGridState,
                                     contentPadding = PaddingValues(
                                         top = resultTopPadding,
                                         bottom = resultBottomPadding,
-                                        start = cardLayout.outerPaddingDp.dp,
-                                        end = cardLayout.outerPaddingDp.dp
+                                        start = searchGridCardLayout.outerPaddingDp.dp,
+                                        end = searchGridCardLayout.outerPaddingDp.dp
                                     ),
-                                    horizontalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp),
-                                    verticalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(searchGridCardLayout.itemSpacingDp.dp),
+                                    verticalArrangement = Arrangement.spacedBy(searchGridCardLayout.itemSpacingDp.dp),
                                     modifier = videoGridModifier
                         ) {
                                 itemsIndexed(
@@ -1623,7 +1679,7 @@ fun SearchScreen(
                                             val highlightedTitle = rememberSearchHighlightedTitle(video)
                                             ElegantVideoCard(
                                                 video = video,
-                                                singleColumn = actualGridColumns == 1,
+                                                singleColumn = effectiveSearchGridColumns == 1,
                                                 index = index,
                                                 animationEnabled = false, // The stable item wrapper owns column-switch motion.
                                                 motionTier = cardMotionTier,
@@ -1636,8 +1692,8 @@ fun SearchScreen(
                                                 blurEnabled = videoCardAppearance.blurEnabled,
                                                 showCoverGlassBadges = videoCardAppearance.showCoverGlassBadges,
                                                 showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
-                                                coverAspectRatio = cardLayout.coverAspectRatio,
-                                                compactMetadata = cardLayout.compactMetadata,
+                                                coverAspectRatio = searchGridCardLayout.coverAspectRatio,
+                                                compactMetadata = searchGridCardLayout.compactMetadata,
                                                 compactStatsOnCover = compactVideoStatsOnCover,
                                                 titleMinLines = 1,
                                                 homeDurationStyle = homeDurationStyle,
@@ -1734,6 +1790,15 @@ fun SearchScreen(
                                         }
                                     }
                                 }
+
+                                    // [新增] 双指缩放切换网格列数 HUD 胶囊 (自适应 MD3 / MIUIX)
+                                    GridPinchColumnHudPill(
+                                        visible = isPinchPillVisible,
+                                        columns = effectiveSearchGridColumns,
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .padding(top = resultTopPadding + 16.dp)
+                                    )
                                 }
                             }
                             com.android.purebilibili.data.model.response.SearchType.UP -> {

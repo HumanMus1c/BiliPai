@@ -61,6 +61,26 @@ class OfflineVideoPlaybackPolicyTest {
     }
 
     @Test
+    fun tabletOrUnfoldedInner_entersAndExitsOfflineFullscreenWithoutRotation() {
+        assertEquals(
+            OfflineRequestedOrientationMode.Unspecified,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = true,
+                usesInWindowFullscreen = false,
+                isPhonePlayerOrientation = false,
+            )
+        )
+        assertEquals(
+            OfflineRequestedOrientationMode.Unspecified,
+            resolveOfflineRequestedOrientationMode(
+                isFullscreen = false,
+                usesInWindowFullscreen = false,
+                isPhonePlayerOrientation = false,
+            )
+        )
+    }
+
+    @Test
     fun seekFromEndedState_restartsPlayback() {
         assertTrue(
             shouldResumePlaybackAfterOfflineSeek(

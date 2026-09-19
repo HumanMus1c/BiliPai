@@ -106,6 +106,7 @@ import com.android.purebilibili.core.ui.transition.captureNativeCoverOverlayLaye
 import com.android.purebilibili.core.ui.transition.captureNativeVideoCardImage
 import com.android.purebilibili.core.ui.transition.recordNativeVideoCardLayer
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardLayer
+import com.android.purebilibili.core.ui.transition.LocalClickToPlayEnabled
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionVisualSpec
@@ -529,9 +530,11 @@ internal fun ElegantVideoCard(
     onLongClick: ((VideoItem) -> Unit)? = null, // [Feature] Long Press Preview
     onUpClick: ((Long) -> Unit)? = null,
     singleColumn: Boolean = false,
+    cardWidthDp: Float? = null,
     modifier: Modifier = Modifier,
     onClick: (String, Long) -> Unit
 ) {
+    val isLongPressEnabled = com.android.purebilibili.core.ui.LocalVideoCardLongPressEnabled.current
     if (singleColumn) {
         val actions = buildList {
             onUpClick?.let { visit ->
@@ -560,7 +563,7 @@ internal fun ElegantVideoCard(
             modifier = modifier,
             highlightedTitle = highlightedTitle,
             onClick = { onClick(video.bvid, video.cid) },
-            onLongClick = onLongClick?.let { callback -> { callback(video) } },
+            onLongClick = if (isLongPressEnabled) onLongClick?.let { callback -> { callback(video) } } else null,
             trailingContent = if (actions.isEmpty()) null else ({
                 com.android.purebilibili.core.ui.components.AppWindowActionMenu(groups = listOf(actions)) {
                     AppIcon(Icons.Outlined.MoreVert, contentDescription = "更多操作")
@@ -771,6 +774,12 @@ internal fun ElegantVideoCard(
             density = density.density
         )
     }
+    val resolvedCardWidthDp = remember(cardWidthDp, screenMetrics.widthPx, screenMetrics.density) {
+        cardWidthDp ?: ((screenMetrics.widthPx / screenMetrics.density - (AppSpacingTokens.Medium.value * 2f)) / 2f)
+    }
+    val compactStatsAvailableWidthDp = remember(resolvedCardWidthDp) {
+        (resolvedCardWidthDp - (AppSpacingTokens.Small.value * 2f)).coerceAtLeast(0f)
+    }
     
     //  记录卡片位置（非 Compose State，避免滚动时触发高频重组）
     //  [性能优化] 存储 LayoutCoordinates 引用而非 Rect，boundsInRoot() 仅在交互时惰性计算，
@@ -930,9 +939,9 @@ internal fun ElegantVideoCard(
         val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
         val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
             .LocalVideoTransitionAdaptiveInfo.current
-        val effectiveTransitionEnabled = transitionEnabled && LocalSharedTransitionEnabled.current
+        val effectiveTransitionEnabled = transitionEnabled
         val coverSharedEnabled = shouldEnableVideoCoverSharedTransition(
-            transitionEnabled = effectiveTransitionEnabled,
+            transitionEnabled = effectiveTransitionEnabled && LocalSharedTransitionEnabled.current,
             hasSharedTransitionScope = sharedTransitionScope != null,
             hasAnimatedVisibilityScope = animatedVisibilityScope != null
         )
@@ -942,9 +951,7 @@ internal fun ElegantVideoCard(
             coverSharedEnabled = coverSharedEnabled,
             isQuickReturnLimited = isQuickReturnLimited
         )
-        val autoPlayOnOpenEnabled by SettingsManager
-            .getClickToPlay(context)
-            .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
+        val autoPlayOnOpenEnabled = LocalClickToPlayEnabled.current
         val videoSharedPlaybackIntent = remember(autoPlayOnOpenEnabled) {
             resolveVideoSharedTransitionPlaybackIntent(
                 clickToPlayEnabled = autoPlayOnOpenEnabled
@@ -996,7 +1003,7 @@ internal fun ElegantVideoCard(
         val miuixCardPixelOwnership =
             LocalMiuixVideoCardTransitionState.current.enabled && isCoverSharedReturnTarget
         val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
-            isScrollInProgress = scrollLiteModeEnabled,
+            isScrollInProgress = false,
             isReturningFromDetail = isReturningFromVideoDetail,
             useCoverSharedBounds = useCardShellSharedBounds || miuixCardPixelOwnership,
             isSharedReturnTarget = isCoverSharedReturnTarget
@@ -1023,6 +1030,7 @@ internal fun ElegantVideoCard(
                     layer = nativeCardLayer,
                     freezeProvider = { freezeNativeCardLayer.value },
                     bvid = video.bvid,
+                    enabled = effectiveTransitionEnabled,
                 ),
         ) {
             Box(
@@ -1104,23 +1112,25 @@ internal fun ElegantVideoCard(
                 }
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 //  [交互优化] 封面区域：点击跳转
-                .pointerInput(onLongClick, onDismiss, onWatchLater, onUnfavorite) {
-                    val hasPreviewAction = onLongClick != null
-                    val hasLongPressMenu = onDismiss != null || onWatchLater != null || onUnfavorite != null
+                .pointerInput(isLongPressEnabled, onLongClick, onDismiss, onWatchLater, onUnfavorite) {
+                    val hasPreviewAction = isLongPressEnabled && onLongClick != null
+                    val hasLongPressMenu = isLongPressEnabled && (onDismiss != null || onWatchLater != null || onUnfavorite != null)
                     detectTapGestures(
-                        onLongPress = { pressOffset ->
-                            if (hasPreviewAction) {
-                                haptic(HapticType.HEAVY)
-                                onLongClick(video)
-                            } else if (shouldOpenLongPressMenu(hasPreviewAction, hasLongPressMenu)) {
-                                haptic(HapticType.HEAVY)
-                                if (onUnfavorite != null && onDismiss == null && onWatchLater == null) {
-                                    showUnfavoriteDialog = true
-                                } else {
-                                    openDismissMenu(coverCoordsRef.value, pressOffset)
+                        onLongPress = if (isLongPressEnabled && (hasPreviewAction || hasLongPressMenu)) {
+                            { pressOffset ->
+                                if (hasPreviewAction) {
+                                    haptic(HapticType.HEAVY)
+                                    onLongClick(video)
+                                } else if (shouldOpenLongPressMenu(hasPreviewAction, hasLongPressMenu)) {
+                                    haptic(HapticType.HEAVY)
+                                    if (onUnfavorite != null && onDismiss == null && onWatchLater == null) {
+                                        showUnfavoriteDialog = true
+                                    } else {
+                                        openDismissMenu(coverCoordsRef.value, pressOffset)
+                                    }
                                 }
                             }
-                        },
+                        } else null,
                         onTap = {
                             triggerCardClick()
                         }
@@ -1162,6 +1172,7 @@ internal fun ElegantVideoCard(
                         layer = nativeCoverOverlayLayer,
                         freezeProvider = { freezeNativeCardLayer.value },
                         bvid = video.bvid,
+                        enabled = effectiveTransitionEnabled,
                     ),
             ) {
             if (premiumBadgeLabel != null) {
@@ -1225,7 +1236,34 @@ internal fun ElegantVideoCard(
             }
 
             if (scrollLitePolicy.showCompactStatsOnCover) {
-                BoxWithConstraints(
+                val compactStatsLayout = remember(
+                    compactStatsAvailableWidthDp,
+                    primaryStatText,
+                    secondaryStatText,
+                    onlineCount,
+                    showDurationOnCover,
+                    showDurationOutside,
+                    durationBadgeMinWidth,
+                    durationStatMinWidthDp
+                ) {
+                    resolveVideoCardCompactCoverStatsLayout(
+                        availableWidthDp = compactStatsAvailableWidthDp,
+                        primaryStatText = primaryStatText,
+                        secondaryStatText = secondaryStatText,
+                        hasOnlineCount = onlineCount.isNotEmpty(),
+                        durationBadgeMinWidthDp = if (showDurationOnCover) {
+                            durationBadgeMinWidth.value
+                        } else {
+                            0f
+                        },
+                        durationStatMinWidthDp = if (showDurationOutside) {
+                            durationStatMinWidthDp
+                        } else {
+                            0f
+                        }
+                    )
+                }
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -1236,33 +1274,6 @@ internal fun ElegantVideoCard(
                             bottom = coverOverlayBottomLayout.compactStatsBottomPaddingDp.dp
                         )
                 ) {
-                    val compactStatsLayout = remember(
-                        maxWidth,
-                        primaryStatText,
-                        secondaryStatText,
-                        onlineCount,
-                        showDurationOnCover,
-                        showDurationOutside,
-                        durationBadgeMinWidth,
-                        durationStatMinWidthDp
-                    ) {
-                        resolveVideoCardCompactCoverStatsLayout(
-                            availableWidthDp = maxWidth.value,
-                            primaryStatText = primaryStatText,
-                            secondaryStatText = secondaryStatText,
-                            hasOnlineCount = onlineCount.isNotEmpty(),
-                            durationBadgeMinWidthDp = if (showDurationOnCover) {
-                                durationBadgeMinWidth.value
-                            } else {
-                                0f
-                            },
-                            durationStatMinWidthDp = if (showDurationOutside) {
-                                durationStatMinWidthDp
-                            } else {
-                                0f
-                            }
-                        )
-                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1527,23 +1538,25 @@ internal fun ElegantVideoCard(
                     titleCoordsRef.value = coordinates
                 }
                 //  [交互优化] 标题区域：长按弹出菜单，点击跳转
-                .pointerInput(onDismiss, onWatchLater, onUnfavorite) {
-                    val hasPreviewAction = onLongClick != null
-                    val hasLongPressMenu = onDismiss != null || onWatchLater != null || onUnfavorite != null
+                .pointerInput(isLongPressEnabled, onLongClick, onDismiss, onWatchLater, onUnfavorite) {
+                    val hasPreviewAction = isLongPressEnabled && onLongClick != null
+                    val hasLongPressMenu = isLongPressEnabled && (onDismiss != null || onWatchLater != null || onUnfavorite != null)
                     detectTapGestures(
-                        onLongPress = { pressOffset ->
-                            if (hasPreviewAction) {
-                              haptic(HapticType.HEAVY)
-                              onLongClick(video)
-                            } else if (shouldOpenLongPressMenu(hasPreviewAction, hasLongPressMenu)) {
-                                haptic(HapticType.HEAVY)
-                                if (onUnfavorite != null && onDismiss == null && onWatchLater == null) {
-                                    showUnfavoriteDialog = true
-                                } else {
-                                    openDismissMenu(titleCoordsRef.value, pressOffset)
+                        onLongPress = if (isLongPressEnabled && (hasPreviewAction || hasLongPressMenu)) {
+                            { pressOffset ->
+                                if (hasPreviewAction) {
+                                    haptic(HapticType.HEAVY)
+                                    onLongClick(video)
+                                } else if (shouldOpenLongPressMenu(hasPreviewAction, hasLongPressMenu)) {
+                                    haptic(HapticType.HEAVY)
+                                    if (onUnfavorite != null && onDismiss == null && onWatchLater == null) {
+                                        showUnfavoriteDialog = true
+                                    } else {
+                                        openDismissMenu(titleCoordsRef.value, pressOffset)
+                                    }
                                 }
                             }
-                        },
+                        } else null,
                         onTap = {
                             triggerCardClick()
                         }

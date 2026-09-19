@@ -99,6 +99,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val isLongPressEnabled = com.android.purebilibili.core.ui.LocalVideoCardLongPressEnabled.current
     val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -231,7 +232,10 @@ internal fun HomeStyleSingleColumnVideoCard(
             .clip(cardShape)
             .then(nativeCardSnapshot.modifier)
             .background(AppSurfaceTokens.cardContainer())
-            .combinedClickable(onClick = triggerClick, onLongClick = onLongClick),
+            .combinedClickable(
+                onClick = triggerClick,
+                onLongClick = if (isLongPressEnabled) onLongClick else null,
+            ),
         coverModifier = Modifier.onGloballyPositioned { coordinates ->
             coverBounds.value = coordinates.boundsInRoot()
         },

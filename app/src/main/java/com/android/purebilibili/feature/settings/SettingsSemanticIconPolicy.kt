@@ -183,7 +183,14 @@ internal enum class SettingsIconRole {
     PLAYER_COLLAPSE_PAUSE,
     BOTTOM_BAR_SEARCH,
     DATA_SAVER_COVER_QUALITY,
-    SEGMENT_LOADING_COMPATIBILITY
+    SEGMENT_LOADING_COMPATIBILITY,
+    NOTIFICATION_SCOPE_MESSAGE,
+    NOTIFICATION_SCOPE_REPLY,
+    NOTIFICATION_SCOPE_AT_ME,
+    NOTIFICATION_SCOPE_LIKE,
+    NOTIFICATION_SCOPE_SYSTEM,
+    NOTIFICATION_SCOPE_DYNAMIC_UP,
+    NOTIFICATION_SCOPE_LIVE,
 }
 
 @Composable
@@ -375,6 +382,13 @@ internal fun resolveSettingsMaterialSymbolResource(role: SettingsIconRole): Int 
     SettingsIconRole.BOTTOM_BAR_SEARCH -> R.drawable.ms_search_fill_24
     SettingsIconRole.DATA_SAVER_COVER_QUALITY -> R.drawable.ms_wifi_24
     SettingsIconRole.SEGMENT_LOADING_COMPATIBILITY -> R.drawable.ms_cloud_download_24
+    SettingsIconRole.NOTIFICATION_SCOPE_MESSAGE -> R.drawable.ms_mail_24
+    SettingsIconRole.NOTIFICATION_SCOPE_REPLY -> R.drawable.ms_reply_24
+    SettingsIconRole.NOTIFICATION_SCOPE_AT_ME -> R.drawable.ms_alternate_email_24
+    SettingsIconRole.NOTIFICATION_SCOPE_LIKE -> R.drawable.ms_thumb_up_fill_24
+    SettingsIconRole.NOTIFICATION_SCOPE_SYSTEM -> R.drawable.ms_campaign_24
+    SettingsIconRole.NOTIFICATION_SCOPE_DYNAMIC_UP -> R.drawable.ms_person_24
+    SettingsIconRole.NOTIFICATION_SCOPE_LIVE -> R.drawable.ms_live_tv_24
 }
 
 @Composable
@@ -637,4 +651,11 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.BOTTOM_BAR_SEARCH -> MiuixIcons.Search
     SettingsIconRole.DATA_SAVER_COVER_QUALITY -> MiuixIcons.Download
     SettingsIconRole.SEGMENT_LOADING_COMPATIBILITY -> MiuixIcons.Merge
+    SettingsIconRole.NOTIFICATION_SCOPE_MESSAGE -> MiuixIcons.Messages
+    SettingsIconRole.NOTIFICATION_SCOPE_REPLY -> MiuixIcons.Answer
+    SettingsIconRole.NOTIFICATION_SCOPE_AT_ME -> MiuixIcons.Rename
+    SettingsIconRole.NOTIFICATION_SCOPE_LIKE -> MiuixIcons.FavoritesFill
+    SettingsIconRole.NOTIFICATION_SCOPE_SYSTEM -> MiuixIcons.Promotions
+    SettingsIconRole.NOTIFICATION_SCOPE_DYNAMIC_UP -> MiuixIcons.Contacts
+    SettingsIconRole.NOTIFICATION_SCOPE_LIVE -> MiuixIcons.ScreenMirroring
 }

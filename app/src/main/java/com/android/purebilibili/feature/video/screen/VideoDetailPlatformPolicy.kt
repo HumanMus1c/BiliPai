@@ -389,21 +389,29 @@ internal fun toggleVideoDetailFullscreen(
     if (!isOrientationDrivenFullscreen) {
         val nextRequestedFullscreen = !isFullscreenMode
         onUserRequestedFullscreenChange(nextRequestedFullscreen)
-        if (!nextRequestedFullscreen &&
-            isCompactDevice &&
-            fullscreenMode == com.android.purebilibili.core.store.FullscreenMode.VERTICAL
-        ) {
-            activity.applyPlayerRequestedOrientation(
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
-                displayContext = displayContext,
-            )
+        if (!nextRequestedFullscreen) {
+            if (isCompactDevice && fullscreenMode == com.android.purebilibili.core.store.FullscreenMode.VERTICAL) {
+                activity.applyPlayerRequestedOrientation(
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                    displayContext = displayContext,
+                )
+            } else if (isLandscapeRequestedOrientation(activity.requestedOrientation)) {
+                activity.applyPlayerRequestedOrientation(
+                    requestedOrientation = if (isCompactDevice) {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    },
+                    displayContext = displayContext,
+                )
+            }
         }
         return
     }
 
-    if (isLandscape) {
+    if (isFullscreenMode) {
         onUserRequestedFullscreenChange(false)
-        onManualPortraitHoldActiveChange(true)
+        onManualPortraitHoldActiveChange(isLandscape)
         activity.applyPlayerRequestedOrientation(
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
             displayContext = displayContext,
@@ -806,7 +814,9 @@ internal fun resolvePhoneAutoRotateTargetToApply(
     candidateOrientation: Int?,
     lastLandscapeAppliedAtMs: Long?,
     nowMs: Long,
-    landscapeSettleMs: Long = PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS
+    landscapeSettleMs: Long = PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS,
+    lastPortraitAppliedAtMs: Long? = null,
+    portraitSettleMs: Long = PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS,
 ): Int? {
     if (candidateOrientation == null) return null
     // 系统配置切到横屏有延迟；按最近一次横屏写入时间保护，避免刚进横屏又被残留竖屏角度拉回。
@@ -814,6 +824,14 @@ internal fun resolvePhoneAutoRotateTargetToApply(
         candidateOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT &&
         lastLandscapeAppliedAtMs != null &&
         nowMs - lastLandscapeAppliedAtMs < landscapeSettleMs
+    ) {
+        return null
+    }
+    // 反向保护：刚切到竖屏时，避免立即被残余角度或状态拉回横屏导致死循环。
+    if (
+        isLandscapeRequestedOrientation(candidateOrientation) &&
+        lastPortraitAppliedAtMs != null &&
+        nowMs - lastPortraitAppliedAtMs < portraitSettleMs
     ) {
         return null
     }

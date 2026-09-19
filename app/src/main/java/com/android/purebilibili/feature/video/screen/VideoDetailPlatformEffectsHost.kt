@@ -20,6 +20,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.Player
+import com.android.purebilibili.core.util.resolveSafeAndroidPipRational
 import com.android.purebilibili.feature.video.player.buildPipPlaybackRemoteActions
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
 
@@ -101,8 +102,10 @@ internal fun VideoDetailPipParamsEffect(
         lastPipBounds = playerBounds?.let(::Rect)
         lastPipModeEnabled = pipModeEnabled
         lastPipUpdateElapsedMs = now
+        val videoWidth = latestPlayer?.videoSize?.width ?: 0
+        val videoHeight = latestPlayer?.videoSize?.height ?: 0
         val params = android.app.PictureInPictureParams.Builder()
-            .setAspectRatio(android.util.Rational(16, 9))
+            .setAspectRatio(resolveSafeAndroidPipRational(videoWidth, videoHeight))
             .setActions(buildPipPlaybackRemoteActions(context, latestPlayer))
             .apply {
                 playerBounds?.let(::setSourceRectHint)

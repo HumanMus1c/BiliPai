@@ -393,6 +393,7 @@ internal fun TabletVideoLayout(
                             // 🔁 [新增] 播放模式
                             currentPlayMode = currentPlayMode,
                             onPlayModeClick = onPlayModeClick,
+                            viewportWidthDpOverride = playerWidth.value.toInt(),
                             onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
                             onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
                         )
@@ -1068,6 +1069,7 @@ internal fun TabletSecondaryContent(
                             scrollPositionProvider = {
                                 listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
                             },
+                            showActionButtons = false,
                         )
 
                            }

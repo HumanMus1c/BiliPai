@@ -92,6 +92,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import com.android.purebilibili.feature.home.components.miuix.DampedDragTrackingMode
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
@@ -657,6 +659,7 @@ private fun PartitionSideRail(
             visibilityThreshold = 0.001f,
             initialScale = 1f,
             pressedScale = indicatorGeometry.pressedScale,
+            trackingMode = DampedDragTrackingMode.DIRECT,
             canDrag = { offset ->
                 val animation = holder.instance ?: return@DampedDragAnimation true
                 if (holder.itemSlotHeightPx <= 0f) return@DampedDragAnimation false
@@ -676,7 +679,8 @@ private fun PartitionSideRail(
                 selectionCameFromDrag = targetIndex != currentIndex
                 currentIndex = targetIndex
                 animateToValue(targetIndex.toFloat(), animatePress = false)
-                animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                holder.offsetJob?.cancel()
+                holder.offsetJob = animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
             },
@@ -686,7 +690,8 @@ private fun PartitionSideRail(
                         (targetValue + dragAmount.y / holder.itemSlotHeightPx)
                             .fastCoerceIn(0f, maxTabIndex.toFloat())
                     )
-                    animationScope.launch {
+                    holder.offsetJob?.cancel()
+                    holder.offsetJob = animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
                         offsetAnimation.snapTo(offsetAnimation.value + dragAmount.y)
                     }
                 }
@@ -1138,6 +1143,7 @@ private class PartitionSideRailDragHolder {
     var contentTopPaddingPx: Float = 0f
     var firstVisibleItemIndex: Int = 0
     var firstVisibleItemScrollOffsetPx: Int = 0
+    var offsetJob: Job? = null
 }
 
 @Composable

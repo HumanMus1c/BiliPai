@@ -171,7 +171,7 @@ fun GlassVideoCard(
     val effectiveSharedElementSourceRoute = remember(sharedElementSourceRoute, localSharedElementSourceRoute) {
         sharedElementSourceRoute ?: localSharedElementSourceRoute
     }
-    val effectiveTransitionEnabled = transitionEnabled && LocalSharedTransitionEnabled.current
+    val effectiveTransitionEnabled = transitionEnabled
     val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
     val transitionAdaptiveInfo = com.android.purebilibili.core.ui.transition
         .LocalVideoTransitionAdaptiveInfo.current

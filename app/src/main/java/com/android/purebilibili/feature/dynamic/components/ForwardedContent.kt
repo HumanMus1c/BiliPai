@@ -1,6 +1,12 @@
 // 文件路径: feature/dynamic/components/ForwardedContent.kt
 package com.android.purebilibili.feature.dynamic.components
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.rememberAppWarningIcon
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -137,14 +143,15 @@ fun ForwardedContent(
                     pubTs = author.pub_ts
                 )
             }
+            val origAuthorClickMid = remember(orig) { resolveDynamicAuthorClickMid(orig) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppText(
                     "@${author.name}",
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary, // 主题自适应颜色
-                    modifier = Modifier.clickable(enabled = author.mid > 0L) {
-                        onUserClick(author.mid)
+                    modifier = Modifier.clickable(enabled = origAuthorClickMid != null) {
+                        origAuthorClickMid?.let(onUserClick)
                     }
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
@@ -178,6 +185,53 @@ fun ForwardedContent(
                 },
                 modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall),
             )
+        }
+
+        // 原动态标题 (Opus / 专栏，位于正文上方，对齐 PiliPlus)
+        val forwardedTitle = remember(content?.major?.opus?.title, content?.major?.article?.title) {
+            resolveDynamicHeadlineTitle(
+                opus = content?.major?.opus,
+                article = content?.major?.article
+            )
+        }
+        if (forwardedTitle != null) {
+            AppText(
+                text = forwardedTitle,
+                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = AppSpacingTokens.ExtraSmall)
+            )
+        }
+
+        // 原动态失效/删除占位提示（对齐 PiliPlus）
+        val isOrigNoneMajor = content?.major?.type == "MAJOR_TYPE_NONE" || orig.type == "DYNAMIC_TYPE_NONE"
+        if (isOrigNoneMajor) {
+            val tips = content?.major?.none?.tips?.trim()?.takeIf { it.isNotEmpty() } ?: "源动态已被作者删除或已失效"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = AppSpacingTokens.ExtraSmall)
+                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppIcon(
+                    rememberAppWarningIcon(),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                AppText(
+                    text = tips,
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         
         // 原文字内容 - 使用 RichTextContent 支持表情；点空白文字打开原动态

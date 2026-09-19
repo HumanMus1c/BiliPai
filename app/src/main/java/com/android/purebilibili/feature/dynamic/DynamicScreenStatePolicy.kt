@@ -4,6 +4,7 @@ import com.android.purebilibili.core.util.appendDistinctByKey
 import com.android.purebilibili.core.util.prependDistinctByKey
 import com.android.purebilibili.data.model.response.DynamicItem
 import kotlinx.collections.immutable.toImmutableList
+import kotlin.math.max
 
 internal const val DynamicTopBarReservedHeightDp = 60
 // 头像、名称基线及字体下行（如英文 y）都需要落在裁切边界内。
@@ -345,6 +346,136 @@ internal fun resolveFollowedUsersAfterAuthorUnfollow(
 ): List<SidebarUser> {
     if (authorMid <= 0L) return users
     return users.filterNot { it.uid == authorMid }
+}
+
+/**
+ * 判断动态条目是否代表真实独立的 UP 主账号（排除合集/剧集/番剧等虚拟发布主体及明确未关注账号）
+ */
+internal fun isDynamicItemRealUser(item: DynamicItem): Boolean {
+    val author = item.modules.module_author ?: return false
+    if (author.mid <= 0L || author.name.isBlank()) return false
+    // 若 B 站接口明确标记未关注，绝不作为已关注候选
+    if (author.following == false) return false
+
+    val type = item.type.trim()
+    if (type in setOf(
+            "DYNAMIC_TYPE_UGC_SEASON",
+            "DYNAMIC_TYPE_PGC",
+            "DYNAMIC_TYPE_PGC_UNION",
+            "DYNAMIC_TYPE_COURSES_SEASON"
+        )
+    ) {
+        return false
+    }
+
+    val major = item.modules.module_dynamic?.major
+    if (major?.ugc_season != null || major?.pgc != null) {
+        return false
+    }
+
+    return true
+}
+
+/**
+ * 从动态流中提取活跃用户（过滤掉非真实UP主体及明确未关注账号，并基于 uid 与 name+face 严格去重）
+ */
+internal fun extractUsersFromDynamicItems(items: List<DynamicItem>): List<SidebarUser> {
+    val latestByUser = mutableMapOf<Long, SidebarUser>()
+    // 用于防止不同 synthetic mid 伪装成相同名字+头像的重复账号刷屏
+    val seenIdentities = mutableMapOf<String, Long>()
+
+    items.forEach { item ->
+        if (!isDynamicItemRealUser(item)) return@forEach
+        val author = item.modules.module_author ?: return@forEach
+        val identityKey = "${author.name.trim()}|${author.face.trim()}"
+        val existingOwnerMid = seenIdentities[identityKey]
+        if (existingOwnerMid != null && existingOwnerMid != author.mid) {
+            // 已有相同名称与头像的真实账号，忽略不同 mid 的重复条目
+            return@forEach
+        }
+        seenIdentities[identityKey] = author.mid
+
+        val lastActive = author.pub_ts.takeIf { it > 0L } ?: 0L
+        val existing = latestByUser[author.mid]
+        if (existing == null || lastActive > existing.lastActiveTs) {
+            latestByUser[author.mid] = SidebarUser(
+                uid = author.mid,
+                name = author.name,
+                face = author.face,
+                isLive = false,
+                lastActiveTs = lastActive
+            )
+        }
+    }
+    return latestByUser.values.toList()
+}
+
+/**
+ * 合并关注用户列表、直播中用户及动态活跃用户：
+ * 1. 当 followingUsers（真实关注列表）已加载非空时：
+ *    以 followingUsers 为权威白名单主体，仅允许真正的关注 UP 主存在于侧边栏；
+ *    liveUsers（来自关注的直播间）更新直播中状态与最近活跃时间；
+ *    dynamicUsers 仅用来更新已关注 UP 主的最新活跃时间及头像/名称，绝不随意把未关注陌生人塞进侧边栏！
+ * 2. 当 followingUsers 为空时（如初始加载或离线缓存阶段）：
+ *    仅以严格过滤后的 liveUsers 与 dynamicUsers 兜底，绝不包含合集或未关注账号。
+ */
+internal fun resolveMergedFollowedUsers(
+    followingUsers: List<SidebarUser>,
+    liveUsers: List<SidebarUser>,
+    dynamicUsers: List<SidebarUser> = emptyList()
+): List<SidebarUser> {
+    if (followingUsers.isNotEmpty()) {
+        val merged = followingUsers.associateBy { it.uid }.toMutableMap()
+        // 关注的直播中 UP
+        liveUsers.forEach { liveUser ->
+            val existing = merged[liveUser.uid]
+            if (existing != null) {
+                merged[liveUser.uid] = existing.copy(
+                    isLive = true,
+                    lastActiveTs = max(existing.lastActiveTs, liveUser.lastActiveTs)
+                )
+            } else {
+                // 来自 getFollowedLive 的用户本身即为已关注且正在直播，可加入
+                merged[liveUser.uid] = liveUser
+            }
+        }
+        // 动态活跃信息：仅对白名单中的关注用户进行活跃时间与信息丰富，绝不新增未关注用户
+        dynamicUsers.forEach { dynamicUser ->
+            val existing = merged[dynamicUser.uid]
+            if (existing != null) {
+                merged[dynamicUser.uid] = existing.copy(
+                    name = if (dynamicUser.name.isNotBlank()) dynamicUser.name else existing.name,
+                    face = if (dynamicUser.face.isNotBlank()) dynamicUser.face else existing.face,
+                    lastActiveTs = max(existing.lastActiveTs, dynamicUser.lastActiveTs)
+                )
+            }
+        }
+        return merged.values.toList()
+    } else {
+        // 未完成全量关注加载时的兜底策略
+        val merged = mutableMapOf<Long, SidebarUser>()
+        val seenIdentities = mutableSetOf<String>()
+        (liveUsers + dynamicUsers).forEach { user ->
+            val identityKey = "${user.name.trim()}|${user.face.trim()}"
+            if (identityKey.isNotBlank() && seenIdentities.contains(identityKey) && !merged.containsKey(user.uid)) {
+                // 忽略相同姓名头像但不同 uid 的重复项
+                return@forEach
+            }
+            val existing = merged[user.uid]
+            if (existing == null) {
+                merged[user.uid] = user
+                if (identityKey.isNotBlank()) seenIdentities.add(identityKey)
+            } else {
+                merged[user.uid] = existing.copy(
+                    name = if (user.name.isNotBlank()) user.name else existing.name,
+                    face = if (user.face.isNotBlank()) user.face else existing.face,
+                    isLive = existing.isLive || user.isLive,
+                    lastActiveTs = max(existing.lastActiveTs, user.lastActiveTs)
+                )
+            }
+        }
+        return merged.values.toList()
+    }
 }
 
 internal fun shouldResetFollowedUserListToTopOnRefresh(

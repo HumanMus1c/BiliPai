@@ -9,7 +9,10 @@ internal fun shouldUseSidebarNavigationForLayout(
     tabletUseSidebar: Boolean,
     foldPosture: AppFoldPosture = AppFoldPosture.None
 ): Boolean {
-    if (foldPosture == AppFoldPosture.Book || foldPosture == AppFoldPosture.Tabletop) {
+    // Tabletop posture (horizontal hinge across the vertical rail) disables the side rail.
+    // Book posture has a vertical hinge in the screen center; the side rail stays safely
+    // on the far-left edge in the natural thumb zone away from the crease.
+    if (foldPosture == AppFoldPosture.Tabletop) {
         return false
     }
     return tabletUseSidebar && windowSizeClass.shouldUseSideNavigation

@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.transition.LocalDynamicImagePreviewTextVisible
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
@@ -2780,8 +2781,7 @@ private fun ProfileDynamicMajorContent(item: SpaceDynamicItem, onVideoClick: (St
     var selectedImageIndex by remember(item.id_str, imageUrls) { mutableIntStateOf(-1) }
     var sourceRect by remember(item.id_str, imageUrls) { mutableStateOf<Rect?>(null) }
     val context = LocalContext.current
-    val dynamicPreviewTextVisible by SettingsManager.getDynamicImagePreviewTextVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    val dynamicPreviewTextVisible = LocalDynamicImagePreviewTextVisible.current
     val previewText = remember(item, title) {
         ImagePreviewTextContent(
             headline = resolveProfileDynamicAuthorName(item),

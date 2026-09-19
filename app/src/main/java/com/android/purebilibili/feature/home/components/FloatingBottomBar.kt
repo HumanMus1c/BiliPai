@@ -91,6 +91,7 @@ import kotlin.math.abs
 import kotlin.math.sign
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.blur
@@ -593,6 +594,7 @@ fun FloatingBottomBar(
     }
 
     val offsetAnimation = remember { Animatable(0f) }
+    val offsetJobHolder = remember { object { var job: Job? = null } }
     val rubberBandPx = with(density) { 4.dp.toPx() }
     val panelOffset by remember(rubberBandPx) {
         derivedStateOf {
@@ -674,7 +676,8 @@ fun FloatingBottomBar(
                 if (targetIndex != selected) {
                     onSelectedLatest.value(targetIndex)
                 }
-                animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                offsetJobHolder.job?.cancel()
+                offsetJobHolder.job = animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
             },
@@ -684,7 +687,8 @@ fun FloatingBottomBar(
                         (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
                             .fastCoerceIn(0f, maxTabIndex.toFloat())
                     updateValue(nextPosition)
-                    animationScope.launch {
+                    offsetJobHolder.job?.cancel()
+                    offsetJobHolder.job = animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
                         offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                     }
                 }

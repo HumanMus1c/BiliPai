@@ -277,6 +277,10 @@ object CardPositionManager {
     val isCardFullyVisible: Boolean
         get() {
             val bounds = lastClickedCardBounds ?: return true
+            if (isSingleColumnCard) {
+                val minVisibleHeightPx = 80 * lastScreenDensity
+                return bounds.bottom > minVisibleHeightPx && (bounds.bottom - bounds.top) > minVisibleHeightPx
+            }
             val headerHeightPx = 156 * lastScreenDensity  // 156dp header height
             return bounds.top >= headerHeightPx
         }

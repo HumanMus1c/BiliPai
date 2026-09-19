@@ -80,6 +80,8 @@ internal data class MiuixVideoCardGestureTransform(
     val liftScale: Float = 1f,
     val cameraDistance: Float = 8f,
     val shadowElevationDp: Float = 0f,
+    val rotationX: Float = 0f,
+    val rotationY: Float = 0f,
 )
 
 internal const val MIUIX_VIDEO_CARD_GESTURE_HORIZONTAL_TRAVEL_FRACTION = 0.08f
@@ -157,6 +159,14 @@ internal fun resolveMiuixVideoCardClickTransform(
     } else {
         0f
     }
+    val screenCenterY = heightPx.coerceAtLeast(1f) / 2f
+    val cardCenterY = (sourceBounds.top + sourceBounds.bottom) / 2f
+    // 归一化纵向相对偏角：屏幕正中为 0，最上为 -1.0，最下为 +1.0
+    val verticalOffset = if (screenCenterY > 1f) {
+        ((cardCenterY - screenCenterY) / screenCenterY).coerceIn(-1f, 1f)
+    } else {
+        0f
+    }
 
     return MiuixVideoCardGestureTransform(
         translationX = 0f,
@@ -164,9 +174,12 @@ internal fun resolveMiuixVideoCardClickTransform(
         // 向屏幕内侧微倾：右侧卡片为负角（逆时针向内微倾），左侧卡片为正角（顺时针向内微倾）
         // 手机双列偏角约为 ±0.5，对应优雅自然的 ±1.6° 倾角；中列卡片偏角为 0，平正如初
         rotationZ = -horizontalOffset * 3.2f * poseWeight,
+        // 三维拟物微透视：卡片飞起时根据受力点象限产生微小俯仰与侧倾（±1°~1.5°），落地全屏时平滑归零
+        rotationX = -verticalOffset * 1.6f * poseWeight,
+        rotationY = horizontalOffset * 1.4f * poseWeight,
         transformOrigin = TransformOrigin(
             pivotFractionX = (0.5f - 0.2f * horizontalOffset).coerceIn(0.2f, 0.8f),
-            pivotFractionY = 0.5f,
+            pivotFractionY = (0.5f - 0.2f * verticalOffset).coerceIn(0.2f, 0.8f),
         ),
         liftScale = 1f - 0.025f * poseWeight,
         cameraDistance = MIUIX_VIDEO_CARD_GESTURE_CAMERA_DISTANCE_DP - 2.5f * poseWeight,
@@ -291,24 +304,56 @@ internal fun resolveMiuixVideoCardClipRadii(
     )
 }
 
-private data class MiuixVideoCardClipShape(
-    val radiusX: Float,
-    val radiusY: Float,
+internal class MiuixVideoCardClipShape(
+    var radiusX: Float = 0f,
+    var radiusY: Float = 0f,
 ) : Shape {
+    private var lastWidth = -1f
+    private var lastHeight = -1f
+    private var lastRadiusX = -1f
+    private var lastRadiusY = -1f
+    private var cachedOutline: Outline? = null
+
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density,
     ): Outline {
-        return Outline.Rounded(
+        val rx = radiusX.coerceIn(0f, size.width / 2f)
+        val ry = radiusY.coerceIn(0f, size.height / 2f)
+        val current = cachedOutline
+        if (current != null && lastWidth == size.width && lastHeight == size.height &&
+            lastRadiusX == rx && lastRadiusY == ry
+        ) {
+            return current
+        }
+        lastWidth = size.width
+        lastHeight = size.height
+        lastRadiusX = rx
+        lastRadiusY = ry
+        val outline = Outline.Rounded(
             RoundRect(
                 rect = Rect(0f, 0f, size.width, size.height),
                 cornerRadius = CornerRadius(
-                    x = radiusX.coerceIn(0f, size.width / 2f),
-                    y = radiusY.coerceIn(0f, size.height / 2f),
+                    x = rx,
+                    y = ry,
                 ),
             ),
         )
+        cachedOutline = outline
+        return outline
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MiuixVideoCardClipShape) return false
+        return radiusX == other.radiusX && radiusY == other.radiusY
+    }
+
+    override fun hashCode(): Int {
+        var result = radiusX.hashCode()
+        result = 31 * result + radiusY.hashCode()
+        return result
     }
 }
 
@@ -461,6 +506,9 @@ internal fun miuixVideoCardNavTransition(
     val enterMotion = resolveVideoHeroNavMotion(heroMotionSpec, returning = false)
     val returnMotion = resolveVideoHeroNavMotion(heroMotionSpec, returning = true)
     val corner = sourceCornerDp?.coerceAtLeast(0) ?: 16
+    val clipShapeA = MiuixVideoCardClipShape()
+    val clipShapeB = MiuixVideoCardClipShape()
+    var useShapeA = true
 
     return object : NavTransition {
         override val opaqueDepth: Float = fallback.opaqueDepth
@@ -514,6 +562,8 @@ internal fun miuixVideoCardNavTransition(
                         translationX = transform.translationX
                         translationY = transform.translationY
                         rotationZ = transform.rotationZ
+                        rotationX = transform.rotationX
+                        rotationY = transform.rotationY
                         scaleX = transform.liftScale
                         scaleY = transform.liftScale
                         cameraDistance = transform.cameraDistance
@@ -542,27 +592,41 @@ internal fun miuixVideoCardNavTransition(
                         scaleX = outerScaleX
                         scaleY = outerScaleY
                         transformOrigin = TransformOrigin(0f, 0f)
-                        translationX = bounds.left.coerceIn(-width, width) * (1f - morph)
-                        translationY = bounds.top.coerceIn(-height, height) * (1f - morph)
+                        val remaining = 1f - morph
+                        // 微弧线轨迹（Arc Motion）：卡片左右飞向全屏时，横向轨迹微向屏幕中心弯曲，
+                        // 赋予纸片或卡片飞入时的自然物理力矩感，且在 morph=0 与 morph=1 时严格归零。
+                        val arcWeight = sin(PI.toFloat() * morph) * remaining
+                        val cardCenterX = (bounds.left + bounds.right) / 2f
+                        val screenCenterX = width / 2f
+                        val arcSign = if (cardCenterX < screenCenterX) 1f else -1f
+                        val arcOffsetPx = arcSign * with(scope.density) { 10.dp.toPx() } * arcWeight
+                        translationX = bounds.left.coerceIn(-width, width) * remaining + arcOffsetPx
+                        translationY = bounds.top.coerceIn(-height, height) * remaining
                         // Keep the complete flying entry opaque. The source card and the detail entry
                         // already share the same geometry driver; an entry-level alpha handoff would
                         // expose the player's black Surface frame at landing.
                         alpha = 1f
                         val poseWeight = resolveMiuixVideoCardGesturePoseWeight(morph)
                         clip = morph < 0.999f || poseWeight > 0.001f || (gestureFollowEnabled && scope.gesture != null)
-                        val clipRadii = resolveMiuixVideoCardClipRadii(
+                        val physicalRadius = resolveMiuixVideoCardGestureCornerPx(
                             sourceCornerPx = corner.dp.toPx(),
-                            outerScaleX = outerScaleX,
-                            outerScaleY = outerScaleY,
                             morphProgress = morph,
                             floatingCornerPx = floatingCornerPx,
                             // Fullscreen content must reach square host bounds, including on tablets.
                             fullscreenCornerPx = 0f,
                         )
-                        shape = MiuixVideoCardClipShape(
-                            radiusX = clipRadii.radiusX,
-                            radiusY = clipRadii.radiusY,
-                        )
+                        val radX = physicalRadius / outerScaleX.coerceAtLeast(0.01f)
+                        val radY = physicalRadius / outerScaleY.coerceAtLeast(0.01f)
+                        val activeShape = if (useShapeA) clipShapeA else clipShapeB
+                        if (kotlin.math.abs(activeShape.radiusX - radX) > 0.05f || kotlin.math.abs(activeShape.radiusY - radY) > 0.05f) {
+                            useShapeA = !useShapeA
+                            val nextShape = if (useShapeA) clipShapeA else clipShapeB
+                            nextShape.radiusX = radX
+                            nextShape.radiusY = radY
+                            shape = nextShape
+                        } else {
+                            shape = activeShape
+                        }
                         if (gestureFollowEnabled) {
                             // Click and back poses share this envelope. Reuse it instead of
                             // allocating and resolving the full gesture transform a second time.
@@ -583,14 +647,18 @@ internal fun miuixVideoCardNavTransition(
                         )
                         val outerScaleX = resolveMiuixVideoCardOuterScale(bounds.width / width, morph, landingScale)
                         val outerScaleY = resolveMiuixVideoCardOuterScale(bounds.height / height, morph, landingScale)
-                        val compensation = resolveMiuixVideoCardContentCompensation(
-                            outerScaleX = outerScaleX,
-                            outerScaleY = outerScaleY,
-                            contentScale = contentScale,
-                        )
-                        scaleX = compensation.scaleX
-                        scaleY = compensation.scaleY
-                        transformOrigin = compensation.transformOrigin
+                        val safeOuterScaleX = outerScaleX.coerceAtLeast(0.01f)
+                        val safeOuterScaleY = outerScaleY.coerceAtLeast(0.01f)
+                        val uniformScale = when (contentScale) {
+                            MiuixVideoCardContentScale.FillWidthTop -> safeOuterScaleX
+                            MiuixVideoCardContentScale.CropCenter -> maxOf(safeOuterScaleX, safeOuterScaleY)
+                        }
+                        scaleX = uniformScale / safeOuterScaleX
+                        scaleY = uniformScale / safeOuterScaleY
+                        transformOrigin = when (contentScale) {
+                            MiuixVideoCardContentScale.FillWidthTop -> TransformOrigin(0.5f, 0f)
+                            MiuixVideoCardContentScale.CropCenter -> TransformOrigin.Center
+                        }
                     }
                 }.zIndex(1f)
         }

@@ -68,6 +68,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
+import com.android.purebilibili.core.ui.transition.LocalClickToPlayEnabled
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
@@ -187,9 +188,7 @@ fun VideoCardLarge(
             adaptiveInfo = transitionAdaptiveInfo,
         )
     }
-    val autoPlayOnOpenEnabled by SettingsManager
-        .getClickToPlay(context)
-        .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
+    val autoPlayOnOpenEnabled = LocalClickToPlayEnabled.current
     val videoSharedPlaybackIntent = remember(autoPlayOnOpenEnabled) {
         resolveVideoSharedTransitionPlaybackIntent(
             clickToPlayEnabled = autoPlayOnOpenEnabled

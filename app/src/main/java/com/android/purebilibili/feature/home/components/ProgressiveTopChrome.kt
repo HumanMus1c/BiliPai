@@ -51,7 +51,8 @@ internal fun shouldUseBiliPaiProgressiveTopBlur(
 internal fun shouldUseOpaqueTopChromeBackground(
     progressiveBlurActive: Boolean,
     headerBlurActive: Boolean,
-): Boolean = !progressiveBlurActive && !headerBlurActive
+    liquidGlassActive: Boolean = false,
+): Boolean = !progressiveBlurActive && !headerBlurActive && !liquidGlassActive
 
 internal fun resolveProgressiveTopBlurBottomExtension(
     enabled: Boolean,
@@ -142,16 +143,22 @@ internal fun BiliPaiImmersiveTopBar(
     enabled: Boolean,
     /** True only when a real Haze effect is attached and ready to render. */
     headerBlurActive: Boolean = false,
+    liquidGlassActive: Boolean = false,
     modifier: Modifier = Modifier,
+    surfaceColor: Color = MaterialTheme.colorScheme.background,
+    fadeEnabled: Boolean? = null,
     extendBelowBounds: Boolean = false,
     opaqueBackgroundFallback: Boolean = true,
     content: @androidx.compose.runtime.Composable () -> Unit,
 ) {
+    val themeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     val active = shouldUseBiliPaiProgressiveTopBlur(enabled, backdrop != null) &&
         !isLowBlurBudgetForced()
+    val solidFadeActive = (fadeEnabled ?: themeConfig.progressiveTopFadeEnabled) && !headerBlurActive
     val opaqueBackground = opaqueBackgroundFallback && shouldUseOpaqueTopChromeBackground(
-        progressiveBlurActive = active,
+        progressiveBlurActive = (active || solidFadeActive),
         headerBlurActive = headerBlurActive,
+        liquidGlassActive = liquidGlassActive,
     )
     androidx.compose.foundation.layout.Box(
         modifier = Modifier
@@ -186,9 +193,34 @@ internal fun BiliPaiImmersiveTopBar(
                     ),
             )
         }
+        if (solidFadeActive) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .layout { measurable, constraints ->
+                        val extension = resolveProgressiveTopBlurBottomExtension(
+                            enabled = extendBelowBounds,
+                            endFraction = BILIPAI_PROGRESSIVE_TOP_BLUR_DEFAULT_GRADIENT.endFraction,
+                        ).roundToPx()
+                        val extended = constraints.copy(
+                            minHeight = constraints.minHeight + extension,
+                            maxHeight = constraints.maxHeight + extension,
+                        )
+                        val placeable = measurable.measure(extended)
+                        layout(placeable.width, placeable.height - extension) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    }
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colorStops = com.android.purebilibili.core.ui.blur.ProgressiveFadeDefaults.createStops(surfaceColor).toTypedArray(),
+                        )
+                    ),
+            )
+        }
         androidx.compose.runtime.CompositionLocalProvider(
             com.android.purebilibili.core.ui.LocalImmersiveTopChromeActive provides
-                (active || headerBlurActive),
+                ((active || headerBlurActive) || solidFadeActive),
             content = content,
         )
     }

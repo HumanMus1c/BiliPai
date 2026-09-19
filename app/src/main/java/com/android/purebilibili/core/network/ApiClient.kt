@@ -1943,6 +1943,13 @@ interface DynamicApi {
 
 //  [新增] UP主空间 API
 interface SpaceApi {
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "bili-http-engine: cronet",
+        "env: prod",
+        "app-key: android64",
+        "x-bili-aurora-zone: sh001"
+    )
     @GET("https://app.bilibili.com/x/v2/space")
     suspend fun getSpaceAggregate(
         @QueryMap params: Map<String, String>
@@ -2908,17 +2915,21 @@ object NetworkModule {
                 val isHdFeedRequest = url.encodedPath == "/x/v2/feed/index" &&
                     url.queryParameter("mobi_app") == "android_hd"
                 val isAndroidHdLoginEndpoint = androidHdLoginAppKeyHeader != null || isHdFeedRequest
+                val isSpaceAppRequest = url.host == "app.bilibili.com" && url.encodedPath == "/x/v2/space"
+                val isAppBiliEndpoint = url.host == "app.bilibili.com" || isAndroidHdLoginEndpoint
                 val explicitReferer = original.header("Referer")
+                val explicitUserAgent = original.header("User-Agent")
                 val builder = original.newBuilder()
                     .header(
                         "User-Agent",
-                        if (isAndroidHdLoginEndpoint) {
-                            "Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2"
-                        } else {
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                        when {
+                            !explicitUserAgent.isNullOrBlank() -> explicitUserAgent
+                            isAndroidHdLoginEndpoint -> "Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2"
+                            url.host == "app.bilibili.com" -> "Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2"
+                            else -> "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                         }
                     )
-                if (!isAndroidHdLoginEndpoint && explicitReferer.isNullOrBlank()) {
+                if (!isAppBiliEndpoint && explicitReferer.isNullOrBlank()) {
                     builder.header("Origin", origin) //  动态 Origin 头
                 }
                 if (androidHdLoginAppKeyHeader != null || isHdFeedRequest) {
@@ -2929,6 +2940,17 @@ object NetworkModule {
                         .header("bili-http-engine", "cronet")
                         .header("env", "prod")
                         .header("x-bili-trace-id", "11111111111111111111111111111111:1111111111111111:0:0")
+                } else if (isSpaceAppRequest) {
+                    val appBuvid = loginBuvid ?: TokenManager.buvid3Cache.orEmpty()
+                    if (appBuvid.isNotBlank()) {
+                        builder.header("buvid", appBuvid)
+                    }
+                    builder
+                        .removeHeader("X-BiliPai-Login-Buvid")
+                        .header("bili-http-engine", "cronet")
+                        .header("env", "prod")
+                        .header("app-key", "android64")
+                        .header("x-bili-aurora-zone", "sh001")
                 }
                 if (androidHdLoginAppKeyHeader != null) {
                     // Match PiliPlus LoginHttp.headers exactly for Passport App requests.
@@ -2942,7 +2964,7 @@ object NetworkModule {
                 // 参考：https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md
                 val isWbiEndpoint = url.encodedPath.contains("/wbi/")
                 if (explicitReferer.isNullOrBlank() &&
-                    !isWbiEndpoint && !isAndroidHdLoginEndpoint
+                    !isWbiEndpoint && !isAppBiliEndpoint
                 ) {
                     builder.header("Referer", referer)
                 }

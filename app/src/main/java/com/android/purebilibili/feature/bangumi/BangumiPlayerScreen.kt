@@ -419,22 +419,21 @@ fun BangumiPlayerScreen(
     
     // 辅助函数：切换屏幕方向
     fun toggleOrientation() {
-        if (isTablet || usesInWindowFullscreen) {
+        val target = resolveBangumiToggleOrientationTarget(
+            isFullscreen = isFullscreen,
+            isTablet = isTablet,
+            usesInWindowFullscreen = usesInWindowFullscreen,
+        )
+        if (target == null) {
             userRequestedFullscreen = !isFullscreen
             return
         }
         val activity = context.findActivity() ?: return
-        if (isLandscape) {
-            activity.applyPlayerRequestedOrientation(
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
-                displayContext = displayContext,
-            )
-        } else {
-            activity.applyPlayerRequestedOrientation(
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
-                displayContext = displayContext,
-            )
-        }
+        userRequestedFullscreen = !isFullscreen
+        activity.applyPlayerRequestedOrientation(
+            requestedOrientation = target,
+            displayContext = displayContext,
+        )
     }
 
     var previousDisplayRole by remember {
@@ -507,6 +506,7 @@ fun BangumiPlayerScreen(
     ) {
         if (isPlayerScreenLocked) return@DisposableEffect onDispose {}
         val activity = context.findActivity()
+        var lastPortraitAppliedAtMs = 0L
         val orientationEventListener = object : android.view.OrientationEventListener(context) {
             private var lastOrientation = -1
             
@@ -527,11 +527,16 @@ fun BangumiPlayerScreen(
                     val isUprightPortrait = newOrientation == 0
                     
                     activity?.let { act ->
+                        val now = android.os.SystemClock.elapsedRealtime()
                         if (latestIsLandscape && isUprightPortrait) {
-                            act.applyPlayerRequestedOrientation(
-                                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
-                                displayContext = displayContext,
-                            )
+                            if (now - lastPortraitAppliedAtMs >= 700L) {
+                                lastPortraitAppliedAtMs = now
+                                userRequestedFullscreen = false
+                                act.applyPlayerRequestedOrientation(
+                                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                                    displayContext = displayContext,
+                                )
+                            }
                         } else if (!latestIsLandscape && isDeviceLandscape) {
                             act.applyPlayerRequestedOrientation(
                                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
@@ -554,6 +559,12 @@ fun BangumiPlayerScreen(
         
         onDispose {
             orientationEventListener.disable()
+        }
+    }
+
+    LaunchedEffect(isLandscape) {
+        if (!isLandscape && !isTablet && !usesInWindowFullscreen) {
+            userRequestedFullscreen = false
         }
     }
     

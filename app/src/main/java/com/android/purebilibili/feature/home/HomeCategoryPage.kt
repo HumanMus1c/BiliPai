@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.store.HomeDurationStyle
@@ -44,6 +45,7 @@ import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.util.responsiveContentWidth
+import kotlinx.collections.immutable.ImmutableSet
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.HomeHeroCarousel
@@ -142,8 +144,8 @@ internal fun HomeCategoryPageContent(
     gridState: LazyStaggeredGridState,
     gridColumns: Int,
     contentPadding: PaddingValues,
-    dissolvingVideos: Set<String>,
-    followingMids: Set<Long>,
+    dissolvingVideos: ImmutableSet<String>,
+    followingMids: ImmutableSet<Long>,
     showOnlineCount: Boolean,
     coverRequestSpec: HomeCoverRequestSpec,
     onVideoClick: (HomeVideoClickRequest) -> Unit,
@@ -155,7 +157,7 @@ internal fun HomeCategoryPageContent(
     onDismissVideo: (VideoItem) -> Unit,
     onWatchLater: (String, Long) -> Unit,
     onDissolveComplete: (String) -> Unit,
-    longPressCallback: (VideoItem) -> Unit, // [Feature] Long Press
+    longPressCallback: ((VideoItem) -> Unit)? = null, // [Feature] Long Press
     displayMode: Int,
     cardAnimationEnabled: Boolean,
     cardMotionTier: MotionTier = MotionTier.Normal,
@@ -241,9 +243,12 @@ internal fun HomeCategoryPageContent(
         scrollableState = gridState,
         stateName = "home:feed:${category.name.lowercase()}"
     )
-    // This is a coarse-grained state (only changes at scroll start/end), so reading it here
-    // updates visible cards without sampling the per-frame scroll offset in composition.
-    val isScrollInProgress = gridState.isScrollInProgress
+    val configuration = LocalConfiguration.current
+    val estimatedCardWidthDp = remember(gridColumns, cardLayout.itemSpacingDp, configuration.screenWidthDp) {
+        val totalSpacing = cardLayout.itemSpacingDp * (gridColumns - 1)
+        val contentPaddingTotal = 16f
+        ((configuration.screenWidthDp - contentPaddingTotal - totalSpacing) / gridColumns).coerceAtLeast(100f)
+    }
 
     // Check for load more
     val shouldLoadMore by remember {
@@ -322,7 +327,7 @@ internal fun HomeCategoryPageContent(
                     transitionEnabled = cardTransitionEnabled,
                     isReturningFromVideoDetail = isReturningFromVideoDetail,
                     isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                    scrollLiteModeEnabled = isScrollInProgress,
+                    scrollLiteModeEnabled = false,
                     isDataSaverActive = isDataSaverActive,
                     preferLowQualityCover = preferLowQualityCover,
                     coverRequestSpec = coverRequestSpec,
@@ -340,7 +345,7 @@ internal fun HomeCategoryPageContent(
                     onUpClick = onUpClick,
                     showPublishTime = true,
                     onDismiss = { onDismissVideo(video) },
-                    onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
+                    onLongClick = if (isDynamicDetailCard) null else longPressCallback?.let { cb -> { cb(video) } },
                     onClick = { bvid, cid ->
                         onVideoClick(
                             HomeVideoClickRequest(
@@ -365,7 +370,8 @@ internal fun HomeCategoryPageContent(
                     transitionEnabled = cardTransitionEnabled,
                     isReturningFromVideoDetail = isReturningFromVideoDetail,
                     isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                    scrollLiteModeEnabled = isScrollInProgress,
+                    scrollLiteModeEnabled = false,
+                    cardWidthDp = estimatedCardWidthDp,
                     showPublishTime = true,
                     isDataSaverActive = isDataSaverActive,
                     preferLowQualityCover = preferLowQualityCover,
@@ -390,7 +396,7 @@ internal fun HomeCategoryPageContent(
                     onWatchLater = if (isDynamicDetailCard) null else ({
                         onWatchLater(video.bvid, resolveWatchLaterAid(video))
                     }),
-                    onLongClick = if (isDynamicDetailCard) null else ({ longPressCallback(video) }),
+                    onLongClick = if (isDynamicDetailCard) null else longPressCallback?.let { cb -> { cb(video) } },
                     onClick = { bvid, cid ->
                         onVideoClick(
                             HomeVideoClickRequest(

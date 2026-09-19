@@ -32,9 +32,10 @@ internal fun resolveSpaceSelectionChipColors(
 
 internal fun resolveSpaceFollowButtonColors(
     isFollowed: Boolean,
-    colorScheme: ColorScheme
+    colorScheme: ColorScheme,
+    isOwner: Boolean = false,
 ): SpaceSelectionChipColors {
-    return if (isFollowed) {
+    return if (isOwner || isFollowed) {
         SpaceSelectionChipColors(
             backgroundColor = colorScheme.surfaceVariant,
             textColor = colorScheme.onSurfaceVariant

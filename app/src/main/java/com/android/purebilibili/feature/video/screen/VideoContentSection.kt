@@ -764,6 +764,14 @@ internal fun VideoContentSection(
             )
         }
     }
+    val showIntroBackToTop by remember(introListState) {
+        derivedStateOf {
+            shouldShowVideoCommentBackToTop(
+                firstVisibleItemIndex = introListState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = introListState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
     val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
     val tabBarScrollHideEnabled by SettingsManager
         .getVideoDetailChromeScrollHideEnabled(context)
@@ -1109,11 +1117,20 @@ internal fun VideoContentSection(
             }
         }
 
+        val isBackToTopVisible = backToTopButtonEnabled && when (pagerState.currentPage) {
+            0 -> showIntroBackToTop
+            1 -> showCommentBackToTop
+            else -> false
+        }
         AppLiquidGlassBackToTopButton(
-            visible = pagerState.currentPage == 1 && backToTopButtonEnabled && showCommentBackToTop,
+            visible = isBackToTopVisible,
             onClick = {
                 scope.launch {
-                    commentListState.animateScrollToItem(0)
+                    if (pagerState.currentPage == 0) {
+                        introListState.animateScrollToItem(0)
+                    } else {
+                        commentListState.animateScrollToItem(0)
+                    }
                     tabBarCollapsePx = 0f
                 }
             },
@@ -1963,6 +1980,7 @@ private fun VideoContentTabBar(
                     selectedValue = selectedTabIndex,
                     onSelectionChange = onTabSelected,
                     modifier = Modifier.fillMaxWidth(),
+                    compactMiuixWhenTwoOptions = false,
                     height = liquidChromeSpec.segmentedControlHeightDp.dp,
                     indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                     labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,

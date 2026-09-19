@@ -63,6 +63,8 @@ class AudioNowPlayingBarMotionPolicyTest {
         assertFalse(resolveAudioNowPlayingBarShouldTriggerLanding(true, "BV999", "BV123"))
         // Blank current: do not trigger
         assertFalse(resolveAudioNowPlayingBarShouldTriggerLanding(true, "BV123", ""))
+        // Shared transition active: suppress duplicate landing bounce
+        assertFalse(resolveAudioNowPlayingBarShouldTriggerLanding(true, "BV123", "BV123", isSharedTransitionActive = true))
     }
 
     @Test

@@ -59,6 +59,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(0.56f, result.liquidGlassAdvancedSettings.chromaticAberration)
         assertEquals(0.45f, result.liquidGlassAdvancedSettings.contentDistortion)
         assertEquals(0, result.gridColumnCount)
+        assertTrue(result.pinchToChangeGridColumnsEnabled)
         assertEquals(HomeFeedCardWidthPreset.AUTO, result.homeFeedCardWidthPreset)
         assertFalse(result.cardAnimationEnabled)
         assertTrue(result.cardTransitionEnabled)

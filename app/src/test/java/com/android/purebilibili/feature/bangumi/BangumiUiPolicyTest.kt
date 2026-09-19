@@ -154,4 +154,44 @@ class BangumiUiPolicyTest {
         assertEquals(listOf(3, 2, 1), orderBangumiEpisodes(source, descending = true))
         assertEquals(listOf(1, 2, 3), source)
     }
+
+    @Test
+    fun `toggle orientation on ordinary phone exits to portrait when fullscreen`() {
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolveBangumiToggleOrientationTarget(
+                isFullscreen = true,
+                isTablet = false,
+                usesInWindowFullscreen = false,
+            )
+        )
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            resolveBangumiToggleOrientationTarget(
+                isFullscreen = false,
+                isTablet = false,
+                usesInWindowFullscreen = false,
+            )
+        )
+    }
+
+    @Test
+    fun `toggle orientation on tablet or in-window returns null`() {
+        assertEquals(
+            null,
+            resolveBangumiToggleOrientationTarget(
+                isFullscreen = true,
+                isTablet = true,
+                usesInWindowFullscreen = false,
+            )
+        )
+        assertEquals(
+            null,
+            resolveBangumiToggleOrientationTarget(
+                isFullscreen = false,
+                isTablet = false,
+                usesInWindowFullscreen = true,
+            )
+        )
+    }
 }

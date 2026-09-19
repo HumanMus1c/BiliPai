@@ -103,7 +103,7 @@ fun FrostedSideBar(
     onAccountSwitchClick: (() -> Unit)? = null,
 ) {
     val foldPosture = LocalAppWindowAdaptiveInfo.current.posture
-    if (foldPosture == AppFoldPosture.Book || foldPosture == AppFoldPosture.Tabletop) {
+    if (foldPosture == AppFoldPosture.Tabletop) {
         return
     }
     ProvideBottomBarSkinMotion(uiSkinDecoration) {

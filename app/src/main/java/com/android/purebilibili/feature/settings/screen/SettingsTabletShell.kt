@@ -137,6 +137,7 @@ fun SettingsTabletShell(
                     enabled = config.progressiveTopBlurEnabled && !config.headerBlurEnabled,
                     hasBackdrop = true,
                 ) && !isLowBlurBudgetForced()
+                val fadeActive = config.progressiveTopFadeEnabled && !config.headerBlurEnabled
                 val tabletChromeBackdrop = if (progressive) rememberLayerBackdrop() else null
                 val tabletHazeState = if (
                     config.headerBlurEnabled && !progressive &&
@@ -147,6 +148,8 @@ fun SettingsTabletShell(
                     backdrop = tabletChromeBackdrop,
                     enabled = progressive,
                     headerBlurActive = tabletHazeReady,
+                    surfaceColor = AppSurfaceTokens.groupedListContainer(),
+                    fadeEnabled = fadeActive,
                 ) {
                     AppTopBar(
                         title = stringResource(R.string.settings_title),
@@ -162,7 +165,7 @@ fun SettingsTabletShell(
                                 )
                         } else Modifier,
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = if (progressive || tabletHazeReady) {
+                            containerColor = if (progressive || fadeActive || tabletHazeReady) {
                                 androidx.compose.ui.graphics.Color.Transparent
                             } else {
                                 AppSurfaceTokens.groupedListContainer()

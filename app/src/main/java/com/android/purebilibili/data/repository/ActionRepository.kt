@@ -418,6 +418,25 @@ object ActionRepository {
     }
     
     /**
+     * 获取与 UP 主的详细关注关系数据
+     */
+    suspend fun getRelationDetail(mid: Long): com.android.purebilibili.data.model.response.RelationData? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = api.getRelation(mid)
+                if (response.code == 0) {
+                    response.data
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ActionRepository", "getRelationDetail failed", e)
+                null
+            }
+        }
+    }
+
+    /**
      *  检查是否已关注 UP 主
      */
     suspend fun checkFollowStatus(mid: Long): Boolean {

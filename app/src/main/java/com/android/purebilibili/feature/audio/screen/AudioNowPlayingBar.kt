@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.QueueMusic
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.LocalSettingsLiquidGlassEnabled
+import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -37,8 +38,13 @@ import com.android.purebilibili.core.util.CardPositionManager
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,7 +93,10 @@ internal fun AudioNowPlayingBar(
     sourceRoute: String? = null,
     isReturningFromDetail: Boolean = false,
     returningDetailBvid: String? = null,
+    isSharedTransitionActive: Boolean = false,
     glassEnabled: Boolean = LocalSettingsLiquidGlassEnabled.current,
+    blurEnabled: Boolean = false,
+    hazeState: HazeState? = null,
     miuixBackdrop: MiuixBackdrop? = null,
     liquidGlassTuning: LiquidGlassTuning = LocalLiquidGlassRenderConfig.current.tuning,
     liftAboveBottomBar: Boolean = true,
@@ -107,12 +116,17 @@ internal fun AudioNowPlayingBar(
         with(density) { configuration.screenHeightDp.dp.toPx() }
     }
 
-    val barCoordsRef = remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val coverCoordsRef = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val barCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
 
     val handleExpand = {
-        barCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
-            val sourceCoverBounds = coverCoordsRef.value?.takeIf { it.isAttached }?.boundsInRoot()
+        barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
+            val sourceCoverBounds = coverCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()
+            val effectiveSourceLayout = if (iconOnlyProgress >= 0.99f) {
+                VideoCardSourceLayout.COVER_ONLY
+            } else {
+                VideoCardSourceLayout.SIDE_BY_SIDE
+            }
             if (state.bvid.isNotBlank()) {
                 CardPositionManager.recordVideoCardPosition(
                     bvid = state.bvid,
@@ -123,7 +137,7 @@ internal fun AudioNowPlayingBar(
                     density = density.density,
                     sourceCornerDp = 28,
                     coverBounds = sourceCoverBounds,
-                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceLayout = effectiveSourceLayout,
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = state.title,
                         ownerName = state.artist,
@@ -140,27 +154,35 @@ internal fun AudioNowPlayingBar(
     }
 
     val landingProgress = remember { Animatable(1f) }
+    var hasTriggeredForSession by remember { mutableStateOf(false) }
     val reduceMotion = rememberSystemReduceMotion()
     val landingMotionEnabled = resolveAudioNowPlayingBarLandingMotionEnabled(reduceMotion)
     val shouldTriggerLanding = resolveAudioNowPlayingBarShouldTriggerLanding(
         isReturningFromDetail = isReturningFromDetail,
         targetBvid = returningDetailBvid,
-        currentBvid = state.bvid
+        currentBvid = state.bvid,
+        isSharedTransitionActive = isSharedTransitionActive,
     )
 
     LaunchedEffect(shouldTriggerLanding, landingMotionEnabled) {
         if (shouldTriggerLanding && landingMotionEnabled) {
-            delay(AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS)
-            landingProgress.snapTo(0f)
-            landingProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS,
-                    easing = AudioNowPlayingBarLandingEasing
+            if (!hasTriggeredForSession) {
+                hasTriggeredForSession = true
+                delay(AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS)
+                landingProgress.snapTo(0f)
+                landingProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS,
+                        easing = AudioNowPlayingBarLandingEasing
+                    )
                 )
-            )
+            }
         } else if (!shouldTriggerLanding) {
-            landingProgress.snapTo(1f)
+            hasTriggeredForSession = false
+            if (!landingProgress.isRunning && landingProgress.value != 1f) {
+                landingProgress.snapTo(1f)
+            }
         }
     }
 
@@ -198,17 +220,29 @@ internal fun AudioNowPlayingBar(
                 }
             )
             .onGloballyPositioned { coordinates ->
-                barCoordsRef.value = coordinates
+                barCoordsRef[0] = coordinates
             }
             .graphicsLayer {
-                val progress = landingProgress.value
-                val (scaleXVal, scaleYVal) = resolveAudioNowPlayingBarLandingScale(progress)
-                val offsetY = resolveAudioNowPlayingBarLandingOffsetY(progress)
-                val alphaVal = resolveAudioNowPlayingBarLandingAlpha(progress)
-                scaleX = scaleXVal
-                scaleY = scaleYVal
-                translationY = offsetY * density.density
-                alpha = alphaVal
+                val isSourceInActiveReturn = isSharedTransitionActive &&
+                    isReturningFromDetail &&
+                    (returningDetailBvid == null || returningDetailBvid == state.bvid)
+                if (isSourceInActiveReturn) {
+                    alpha = 0f
+                } else {
+                    val progress = landingProgress.value
+                    if (progress == 1f) {
+                        scaleX = 1f
+                        scaleY = 1f
+                        translationY = 0f
+                        alpha = 1f
+                    } else {
+                        // 无额外内存分配的高刷标量求值（resolveAudioNowPlayingBarLandingScale）：
+                        scaleX = resolveAudioNowPlayingBarLandingScaleX(progress)
+                        scaleY = resolveAudioNowPlayingBarLandingScaleY(progress)
+                        translationY = resolveAudioNowPlayingBarLandingOffsetY(progress) * density.density
+                        alpha = resolveAudioNowPlayingBarLandingAlpha(progress)
+                    }
+                }
             }
             .clip(shape)
             .semantics { contentDescription = "当前视频：${state.title}，打开$expandDestinationLabel" }
@@ -227,6 +261,8 @@ internal fun AudioNowPlayingBar(
                     pressProgress = 0f,
                     shape = shape,
                     enabled = glassActive,
+                    blurEnabled = blurEnabled,
+                    hazeState = hazeState,
                     liquidGlassTuning = liquidGlassTuning,
                 )
         )
@@ -244,7 +280,7 @@ internal fun AudioNowPlayingBar(
                 modifier = Modifier
                     .size((40f - 8f * mergeProgress).dp)
                     .onGloballyPositioned { coordinates ->
-                        coverCoordsRef.value = coordinates
+                        coverCoordsRef[0] = coordinates
                     }
                     .graphicsLayer { rotationZ = coverRotationDegrees() }
                     .clip(if (chrome.coverShapeIsCircle) CircleShape else AppShapes.container(ContainerLevel.Field)),

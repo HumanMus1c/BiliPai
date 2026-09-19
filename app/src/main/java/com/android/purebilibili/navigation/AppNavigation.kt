@@ -48,6 +48,8 @@ import com.android.purebilibili.feature.audio.screen.AudioNowPlayingBarState
 import com.android.purebilibili.feature.audio.screen.ListenVideoRoute
 import com.android.purebilibili.feature.audio.screen.isAudioNowPlayingPlayerDestination
 import com.android.purebilibili.feature.audio.screen.resolveAudioNowPlayingVisible
+import com.android.purebilibili.feature.home.components.LinkedDockPhase
+import com.android.purebilibili.feature.home.components.resolveLinkedDockPhaseOnAudioChange
 import com.android.purebilibili.feature.home.HomeVideoClickRequest
 import com.android.purebilibili.feature.home.HomeVideoClickSource
 import com.android.purebilibili.feature.home.HomeScreen
@@ -1442,6 +1444,14 @@ fun AppNavigation(
         val audioPlaylist by PlaylistManager.playlist.collectAsStateWithLifecycle()
         val audioPlaylistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
         val audioNowPlayingItem = audioPlaylist.getOrNull(audioPlaylistIndex)
+        var linkedDockPhase by rememberSaveable { mutableStateOf(LinkedDockPhase.Expanded) }
+        val hasActiveAudioPlayback = audioNowPlayingActive && audioNowPlayingItem != null && audioNowPlayingBarEnabled
+        LaunchedEffect(hasActiveAudioPlayback) {
+            val reconciled = resolveLinkedDockPhaseOnAudioChange(linkedDockPhase, hasActiveAudioPlayback)
+            if (reconciled != linkedDockPhase) {
+                linkedDockPhase = reconciled
+            }
+        }
         // Shared scroll position is also used by non-home destinations to drive the
         // linked playback dock without forcing the bottom bar itself to disappear.
         val scrollOffsetState = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
@@ -1752,6 +1762,8 @@ fun AppNavigation(
                 ),
             com.android.purebilibili.core.ui.LocalFullVideoCardContentVisible provides
                 homeSettings.showFullVideoCardContent,
+            com.android.purebilibili.core.ui.LocalVideoCardLongPressEnabled provides
+                homeSettings.videoCardLongPressActionEnabled,
             com.android.purebilibili.core.ui.LocalMainHazeState provides mainHazeState,
             // 卡片标签 / 信息区实时玻璃效果已下线，不再为首页建立额外 Haze 录制树。
             com.android.purebilibili.core.ui.LocalWallpaperHazeState provides null,
@@ -2064,7 +2076,8 @@ fun AppNavigation(
                                                 realtimeBlurEnabledProvider = {
                                                     shouldUseRealtimeVideoCardTransitionBackgroundBlur(
                                                         source = backgroundSource,
-                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled ||
+                                                            appNavigationSettings.miuixTransitionBlurEnabled,
                                                     )
                                                 },
                                                 scaleReductionProvider = {
@@ -2084,7 +2097,8 @@ fun AppNavigation(
                                                 realtimeBlurEnabledProvider = {
                                                     shouldUseRealtimeVideoCardTransitionBackgroundBlur(
                                                         source = backgroundSource,
-                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled ||
+                                                            appNavigationSettings.miuixTransitionBlurEnabled,
                                                     )
                                                 },
                                                 scaleReductionProvider = {
@@ -3971,7 +3985,8 @@ fun AppNavigation(
             val isLandscapeNowPlaying =
                 androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            val isPlayerNowPlayingDestination = isAudioNowPlayingPlayerDestination(currentRoute)
+            val effectiveAudioDockRoute = bottomBarMountRoute ?: currentRoute
+            val isPlayerNowPlayingDestination = isAudioNowPlayingPlayerDestination(effectiveAudioDockRoute)
             val showAudioNowPlayingInDock = resolveAudioNowPlayingVisible(
                 sessionActive = audioNowPlayingActive,
                 isOnAudioModeScreen = currentNavigation3Key is BiliPaiNavKey.AudioMode,
@@ -3981,6 +3996,9 @@ fun AppNavigation(
                 isLandscape = isLandscapeNowPlaying,
                 isPlayerDestination = isPlayerNowPlayingDestination
             )
+            val isReturningSameAudioVideo = navigation3ReturnSession.isReturningFromDetail &&
+                navigation3ReturnSession.transitionSession?.bvid == audioNowPlayingItem?.bvid
+            val isPlayerIndependentDestination = isAudioNowPlayingPlayerDestination(currentRoute) || isReturningSameAudioVideo
             val showAudioNowPlayingIndependent = resolveAudioNowPlayingVisible(
                 sessionActive = audioNowPlayingActive,
                 isOnAudioModeScreen = currentNavigation3Key is BiliPaiNavKey.AudioMode,
@@ -3989,7 +4007,7 @@ fun AppNavigation(
                 barEnabled = audioNowPlayingBarEnabled,
                 isVideoDetailDestination = isVideoDetailDestination,
                 isLandscape = isLandscapeNowPlaying,
-                isPlayerDestination = isPlayerNowPlayingDestination
+                isPlayerDestination = isPlayerIndependentDestination
             )
 
             if (bottomBarCanMount) {
@@ -4039,6 +4057,7 @@ fun AppNavigation(
                                         sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
                                         isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                                         returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
+                                        isSharedTransitionActive = sharedVideoCardTransitionEnabled,
                                         onExpand = {
                                             val expandRoute = resolveAudioNowPlayingBarExpandRoute(
                                                 opensAudioMode = audioNowPlayingBarOpensAudioMode,
@@ -4079,6 +4098,8 @@ fun AppNavigation(
                                             "视频详情页"
                                         },
                                         glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
+                                        blurEnabled = isBottomBarBlurEnabled,
+                                        hazeState = if (isBottomBarBlurEnabled) mainHazeState else null,
                                         miuixBackdrop = bottomBarBackdrop,
                                         liquidGlassTuning = liquidGlassRenderConfig.tuning,
                                         liftAboveBottomBar = false,
@@ -4095,9 +4116,18 @@ fun AppNavigation(
                             dockAudioContent?.invoke(Modifier, 0f, 0f, 0f)
                         }
                         if (isBottomBarFloating) {
+                            val isBookPosture = appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book
                             Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (isBookPosture) {
+                                            Modifier.padding(start = 24.dp)
+                                        } else {
+                                            Modifier
+                                        }
+                                    ),
+                                contentAlignment = if (isBookPosture) Alignment.CenterStart else Alignment.Center
                             ) {
                                 FrostedBottomBar(
                                     nowPlayingContent = dockAudioContent,
@@ -4134,6 +4164,9 @@ fun AppNavigation(
                                     isPagerScrollInProgressProvider =
                                         mainBottomPagerState.scrollInProgressProvider,
                                     uiSkinDecoration = bottomBarUiSkinDecoration,
+                                    linkedDockPhase = linkedDockPhase,
+                                    onLinkedDockPhaseChange = { linkedDockPhase = it },
+                                    isTopLevelDestination = currentNavigation3Key == BiliPaiNavKey.MainHost,
                                     onToggleSidebar = if (tabletUseSidebar) {
                                         {
                                             coroutineScope.launch {
@@ -4179,6 +4212,9 @@ fun AppNavigation(
                                 isPagerScrollInProgressProvider =
                                     mainBottomPagerState.scrollInProgressProvider,
                                 uiSkinDecoration = bottomBarUiSkinDecoration,
+                                linkedDockPhase = linkedDockPhase,
+                                onLinkedDockPhaseChange = { linkedDockPhase = it },
+                                isTopLevelDestination = currentNavigation3Key == BiliPaiNavKey.MainHost,
                                 onToggleSidebar = if (tabletUseSidebar) {
                                     {
                                         coroutineScope.launch {
@@ -4208,6 +4244,7 @@ fun AppNavigation(
                     sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
                     isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                     returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
+                    isSharedTransitionActive = sharedVideoCardTransitionEnabled,
                     onExpand = {
                         val expandRoute = resolveAudioNowPlayingBarExpandRoute(
                             opensAudioMode = audioNowPlayingBarOpensAudioMode,
@@ -4248,6 +4285,8 @@ fun AppNavigation(
                         "视频详情页"
                     },
                     glassEnabled = effectiveHomeSettings.androidNativeLiquidGlassEnabled,
+                    blurEnabled = isBottomBarBlurEnabled,
+                    hazeState = if (isBottomBarBlurEnabled) mainHazeState else null,
                     miuixBackdrop = bottomBarBackdrop,
                     liquidGlassTuning = liquidGlassRenderConfig.tuning,
                     liftAboveBottomBar = false,

@@ -454,25 +454,10 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 从动态列表提取用户
+     * 从动态列表提取用户（委托给纯策略，过滤合集/未关注/重复虚拟账号）
      */
     private fun extractUsersFromDynamics(items: List<DynamicItem>): List<SidebarUser> {
-        val latestByUser = mutableMapOf<Long, SidebarUser>()
-        items.mapNotNull { it.modules.module_author }.forEach { author ->
-            if (author.mid <= 0 || author.name.isBlank()) return@forEach
-            val lastActive = author.pub_ts.takeIf { it > 0 } ?: 0L
-            val existing = latestByUser[author.mid]
-            if (existing == null || lastActive > existing.lastActiveTs) {
-                latestByUser[author.mid] = SidebarUser(
-                    uid = author.mid,
-                    name = author.name,
-                    face = author.face,
-                    isLive = false,
-                    lastActiveTs = lastActive
-                )
-            }
-        }
-        return latestByUser.values.toList()
+        return extractUsersFromDynamicItems(items)
     }
 
     /**
@@ -492,10 +477,10 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun rebuildFollowedUsers() {
-        val mergedUsers = mergeUsers(
-            extractUsersFromDynamics(_uiState.value.timelinePage("all").items),
-            extractUsersFromLive(cachedLiveRooms),
-            extractUsersFromFollowings(cachedFollowings)  //  [新增]
+        val mergedUsers = resolveMergedFollowedUsers(
+            followingUsers = extractUsersFromFollowings(cachedFollowings),
+            liveUsers = extractUsersFromLive(cachedLiveRooms),
+            dynamicUsers = extractUsersFromDynamics(_uiState.value.timelinePage("all").items)
         )
         _followedUsers.value = applyUserPreferences(mergedUsers)
     }
@@ -532,29 +517,6 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 lastActiveTs = 0  // 关注列表没有活跃时间，排序优先级最低
             )
         }
-    }
-
-    private fun mergeUsers(
-        dynamicUsers: List<SidebarUser>,
-        liveUsers: List<SidebarUser>,
-        followingUsers: List<SidebarUser> = emptyList()  //  [新增]
-    ): List<SidebarUser> {
-        val merged = mutableMapOf<Long, SidebarUser>()
-        //  先添加关注列表（基础优先级），再添加动态和直播用户覆盖
-        (followingUsers + dynamicUsers + liveUsers).forEach { user ->
-            val existing = merged[user.uid]
-            if (existing == null) {
-                merged[user.uid] = user
-            } else {
-                merged[user.uid] = existing.copy(
-                    name = if (user.name.isNotBlank()) user.name else existing.name,
-                    face = if (user.face.isNotBlank()) user.face else existing.face,
-                    isLive = existing.isLive || user.isLive,
-                    lastActiveTs = max(existing.lastActiveTs, user.lastActiveTs)
-                )
-            }
-        }
-        return merged.values.toList()
     }
 
     private fun applyUserPreferences(users: List<SidebarUser>): List<SidebarUser> {

@@ -37,6 +37,9 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.transition.LocalClickToPlayEnabled
+import com.android.purebilibili.core.ui.transition.LocalDynamicImagePreviewTextVisible
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
@@ -366,6 +369,7 @@ internal fun BiliPaiNavDisplayHost(
 
     val videoCardSnapshotHandle = rememberVideoCardTransitionSnapshotHandle()
     val transitionMotionTier = if (reduceMotion) MotionTier.Reduced else MotionTier.Normal
+    val effectiveRealtimeBlurEnabled = videoTransitionRealtimeBlurEnabled || miuixTransitionBlurEnabled
     val videoCardProgressProvider = remember(
         cardMorphAvailable,
         videoCardClock,
@@ -459,7 +463,7 @@ internal fun BiliPaiNavDisplayHost(
         videoCardSnapshotHandle,
         transitionMotionTier,
         isLightBackground,
-        videoTransitionRealtimeBlurEnabled,
+        effectiveRealtimeBlurEnabled,
     ) {
         VideoCardTransitionBackgroundState(
             progressProvider = videoCardProgressProvider,
@@ -475,7 +479,7 @@ internal fun BiliPaiNavDisplayHost(
             preferWholeCardReturnProvider = { latestPreferWholeCardReturn },
             motionTierProvider = { transitionMotionTier },
             isLightBackgroundProvider = { isLightBackground },
-            realtimeBlurEnabledProvider = { videoTransitionRealtimeBlurEnabled },
+            realtimeBlurEnabledProvider = { effectiveRealtimeBlurEnabled },
         )
     }
     val videoCardLayoutWidthProvider = remember(videoCardTransitionProgress) {
@@ -526,16 +530,11 @@ internal fun BiliPaiNavDisplayHost(
         currentBackTarget,
         transitionMotionTier,
         isLightBackground,
-        videoTransitionRealtimeBlurEnabled,
-        miuixTransitionBlurEnabled,
+        effectiveRealtimeBlurEnabled,
     ) {
         PredictiveBackBackgroundState(
             progressProvider = {
-                val blurEnabled = if (cardMorphAvailable) {
-                    videoTransitionRealtimeBlurEnabled
-                } else {
-                    miuixTransitionBlurEnabled
-                }
+                val blurEnabled = effectiveRealtimeBlurEnabled
                 if (!blurEnabled || !isCardMorphDestinationNavKey(currentKey)) {
                     0f
                 } else {
@@ -608,6 +607,14 @@ internal fun BiliPaiNavDisplayHost(
     val interceptPredictiveBack =
         style == BiliPaiPredictiveBackAnimationStyle.NONE && backStack.size > 1
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
+    val clickToPlayEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getClickToPlay(LocalContext.current)
+        .collectAsStateWithLifecycle(
+            initialValue = com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(LocalContext.current)
+        )
+    val dynamicImagePreviewTextVisible by com.android.purebilibili.core.store.SettingsManager
+        .getDynamicImagePreviewTextVisible(LocalContext.current)
+        .collectAsStateWithLifecycle(initialValue = true)
 
     Box(
         modifier = Modifier
@@ -622,7 +629,7 @@ internal fun BiliPaiNavDisplayHost(
     ) {
         VideoCardTransitionHostDepthLayer(
             enabled = cardMorphAvailable &&
-                videoTransitionRealtimeBlurEnabled &&
+                effectiveRealtimeBlurEnabled &&
                 shouldUseHostOwnedVideoCardTransitionSnapshot(sourceMetadata.sourceRoute),
             snapshotHandle = videoCardSnapshotHandle,
             progressProvider = videoCardProgressProvider,
@@ -631,7 +638,7 @@ internal fun BiliPaiNavDisplayHost(
             isGestureRestoreInProgressProvider = { videoCardClock.gestureRestoreInProgress },
             motionTierProvider = { transitionMotionTier },
             isLightBackgroundProvider = { isLightBackground },
-            realtimeBlurEnabledProvider = { videoTransitionRealtimeBlurEnabled },
+            realtimeBlurEnabledProvider = { effectiveRealtimeBlurEnabled },
             sourceBoundsProvider = { sourceMetadata.sourceBounds },
         )
         VideoCardTransitionNavBackdrop(
@@ -669,6 +676,9 @@ internal fun BiliPaiNavDisplayHost(
                         LocalVideoCardTransitionBackgroundState provides transitionBackgroundState,
                         LocalMiuixVideoCardTransitionState provides miuixCardTransitionState,
                         LocalPredictiveBackBackgroundState provides predictiveBackBackgroundState,
+                        LocalClickToPlayEnabled provides clickToPlayEnabled,
+                        LocalDynamicImagePreviewTextVisible provides dynamicImagePreviewTextVisible,
+                        LocalSharedTransitionEnabled provides cardTransitionEnabled,
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize().then(

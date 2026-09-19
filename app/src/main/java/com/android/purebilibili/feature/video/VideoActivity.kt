@@ -47,7 +47,9 @@ import com.android.purebilibili.core.util.calculateWindowSizeClass
 import com.android.purebilibili.core.util.rememberAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.core.util.resolveAppDisplayContext
+import com.android.purebilibili.core.util.resolveSafeAndroidPipRational
 import com.android.purebilibili.core.util.LARGE_SCREEN_SMALLEST_WIDTH_DP
+import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import androidx.window.layout.WindowMetricsCalculator
 // Imports for moved classes
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
@@ -347,8 +349,9 @@ class VideoActivity : ComponentActivity() {
 
     //  构建 PiP 参数 (带播放控制按钮)
     private fun buildPipParams(isPlaying: Boolean = true): PictureInPictureParams {
+        val mini = MiniPlayerManager.getInstance(this)
         val builder = PictureInPictureParams.Builder()
-            .setAspectRatio(Rational(16, 9))
+            .setAspectRatio(resolveSafeAndroidPipRational(mini.videoWidth, mini.videoHeight))
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val actions = mutableListOf<RemoteAction>()

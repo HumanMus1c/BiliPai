@@ -2,7 +2,7 @@ package com.android.purebilibili.feature.home.components
 
 import kotlin.math.roundToInt
 
-internal enum class LinkedDockPhase { Expanded, Playback, Search }
+enum class LinkedDockPhase { Expanded, Playback, Search }
 
 /** Accumulate one direction before changing chrome; tiny reversals must not cause flicker. */
 internal fun accumulateDockScroll(previous: Float, delta: Float): Float =
@@ -12,6 +12,44 @@ internal fun resolveLinkedDockRestingPhase(
     collapseRequested: Boolean,
     hasAudio: Boolean,
 ): LinkedDockPhase = if (collapseRequested && hasAudio) {
+    LinkedDockPhase.Playback
+} else {
+    LinkedDockPhase.Expanded
+}
+
+fun resolveLinkedDockPhaseOnAudioChange(
+    currentPhase: LinkedDockPhase,
+    hasAudio: Boolean,
+): LinkedDockPhase = if (!hasAudio && currentPhase == LinkedDockPhase.Playback) {
+    LinkedDockPhase.Expanded
+} else {
+    currentPhase
+}
+
+fun resolveLinkedDockInitialPhase(
+    currentItem: BottomNavItem,
+    collapseRequested: Boolean,
+    hasAudio: Boolean,
+    savedPhase: LinkedDockPhase? = null,
+): LinkedDockPhase {
+    if (savedPhase != null) {
+        return resolveLinkedDockPhaseOnAudioChange(savedPhase, hasAudio)
+    }
+    return if (currentItem == BottomNavItem.HOME) {
+        LinkedDockPhase.Expanded
+    } else {
+        resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
+    }
+}
+
+fun shouldEnableLinkedDockBackHandler(
+    phase: LinkedDockPhase,
+    isTopLevelDestination: Boolean,
+): Boolean = isTopLevelDestination && phase == LinkedDockPhase.Search
+
+fun resolveLinkedDockPhaseOnSearchDismiss(
+    hasAudio: Boolean,
+): LinkedDockPhase = if (hasAudio) {
     LinkedDockPhase.Playback
 } else {
     LinkedDockPhase.Expanded

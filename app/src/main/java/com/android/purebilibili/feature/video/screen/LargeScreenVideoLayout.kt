@@ -150,6 +150,7 @@ internal fun LargeScreenVideoLayout(
                 onSecondCodecChange = onSecondCodecChange,
                 onAudioQualityChange = onAudioQualityChange,
                 onPlayModeClick = onPlayModeClick,
+                viewportWidthDpOverride = metrics.playerWidthDp.toInt(),
             )
         }
         val intro: @Composable (Modifier) -> Unit = { modifier ->
@@ -413,6 +414,7 @@ private fun LargeScreenPlayerHost(
     onSecondCodecChange: (String) -> Unit,
     onAudioQualityChange: (Int) -> Unit,
     onPlayModeClick: () -> Unit,
+    viewportWidthDpOverride: Int? = null,
 ) {
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
@@ -492,6 +494,7 @@ private fun LargeScreenPlayerHost(
             onDownloadAudio = playbackActions.downloadAudio,
             currentPlayMode = currentPlayMode,
             onPlayModeClick = onPlayModeClick,
+            viewportWidthDpOverride = viewportWidthDpOverride,
             onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
             onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
         )

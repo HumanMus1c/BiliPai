@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.bangumi
 
+import android.content.pm.ActivityInfo
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.theme.ACCESSIBLE_TEXT_MIN_CONTRAST
 import com.android.purebilibili.core.theme.AccessibleContainerColors
@@ -63,6 +64,19 @@ internal fun resolveBangumiFullscreen(
         userRequestedFullscreen
     } else {
         isLandscape
+    }
+}
+
+internal fun resolveBangumiToggleOrientationTarget(
+    isFullscreen: Boolean,
+    isTablet: Boolean,
+    usesInWindowFullscreen: Boolean,
+): Int? {
+    if (isTablet || usesInWindowFullscreen) return null
+    return if (isFullscreen) {
+        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    } else {
+        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 }
 

@@ -70,6 +70,7 @@ import com.android.purebilibili.feature.video.ui.gesture.resolveTwoFingerSpeedGe
 import com.android.purebilibili.feature.video.playback.policy.resolveDisplayedQualityId
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -3466,6 +3467,10 @@ fun VideoPlayerSection(
                     )
                 }
 
+                val transitionBackgroundState = LocalVideoCardTransitionBackgroundState.current
+                val isTransitionActive = transitionBackgroundState.phaseProvider() == VideoCardTransitionBackgroundPhase.OPENING ||
+                    transitionBackgroundState.phaseProvider() == VideoCardTransitionBackgroundPhase.RETURNING
+
                 AndroidView(
                     factory = { ctx ->
                         val basePlayerView = if (useTextureSurface) {
@@ -3489,9 +3494,9 @@ fun VideoPlayerSection(
                             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                             useController = false
                             keepScreenOn = keepVideoPlaybackAwake
-                            // 非 opaque TextureView：sharedBounds overlay 里短暂无帧时不涂死黑，
-                            // 底下的封面垫层/壳背景仍可透出，避免预测返回大黑块。
-                            (videoSurfaceView as? TextureView)?.isOpaque = false
+                            // 仅在 sharedBounds 动画活动期（OPENING / RETURNING）将 TextureView 设为半透明，
+                            // 允许底下的封面垫层透出防黑；动画落位后恢复为 opaque 提升正常播放性能与显存带宽。
+                            (videoSurfaceView as? TextureView)?.isOpaque = !isTransitionActive
                             applyPlayerViewResizeMode(
                                 playerView = this,
                                 resizeMode = targetResizeMode,
@@ -3518,7 +3523,7 @@ fun VideoPlayerSection(
                                 forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
                             )
                         )
-                        (playerView.videoSurfaceView as? TextureView)?.isOpaque = false
+                        (playerView.videoSurfaceView as? TextureView)?.isOpaque = !isTransitionActive
                         applyPlayerViewResizeMode(
                             playerView = playerView,
                             resizeMode = targetResizeMode,

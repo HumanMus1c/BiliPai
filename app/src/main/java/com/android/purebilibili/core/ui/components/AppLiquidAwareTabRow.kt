@@ -125,6 +125,7 @@ fun <T> AppLiquidAwareTabRow(
                 onSelectionChange = onSelectionChange,
                 modifier = modifier,
                 enabled = enabled,
+                indicatorPositionProvider = indicatorPositionProvider,
             )
         } else {
             AppNativeTabRow(

@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -161,13 +166,14 @@ internal fun SettingsPageScaffold(
         enabled = appThemeConfig.progressiveTopBlurEnabled && !headerBlurEnabled,
         hasBackdrop = true,
     ) && !lowBlurBudget
+    val fadeActive = appThemeConfig.progressiveTopFadeEnabled && !headerBlurEnabled
     val backdrop = if (progressiveBlurEnabled) rememberLayerBackdrop() else null
     val hazeState = if (
         headerBlurEnabled && !lowBlurBudget &&
         shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT)
     ) rememberRecoverableHazeState().takeIf { recoverableBlurEnabled(it) } else null
     val hazeReady = hazeState != null
-    val topBarBlurActive = progressiveBlurEnabled || hazeReady
+    val topBarBlurActive = progressiveBlurEnabled || hazeReady || fadeActive
     val pageContainerColor = when (LocalAppUiStyle.current) {
         // Miuix page canvas is `background` / chromeBackground so the top bar, split
         // pane, and list share one tone. Cards stay on surfaceContainer.
@@ -190,6 +196,8 @@ internal fun SettingsPageScaffold(
                     backdrop = backdrop,
                     enabled = progressiveBlurEnabled,
                     headerBlurActive = hazeReady,
+                    surfaceColor = pageContainerColor,
+                    fadeEnabled = fadeActive,
                 ) {
                     AppTopBar(
                         title = title,
@@ -237,26 +245,42 @@ internal fun SettingsPageScaffold(
                 .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier)
                 .background(pageContainerColor)
 
+            val windowSizeClass = LocalWindowSizeClass.current
+            val isExpandedScreen = windowSizeClass.isExpandedScreen
+
             when (scrollHost) {
                 SettingsPageScrollHost.LazyColumn -> {
-                    LazyColumn(
-                        state = listState,
+                    Box(
                         modifier = scrollModifier,
-                        contentPadding = PaddingValues(
-                            top = padding.calculateTopPadding(),
-                            bottom = maxOf(resolvedBottomContentPadding, padding.calculateBottomPadding()),
-                        ),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        if (header != null) {
-                            item {
-                                header()
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .then(
+                                    if (isExpandedScreen) {
+                                        Modifier.widthIn(max = 760.dp).fillMaxWidth()
+                                    } else {
+                                        Modifier.fillMaxWidth()
+                                    }
+                                ),
+                            contentPadding = PaddingValues(
+                                top = padding.calculateTopPadding(),
+                                bottom = maxOf(resolvedBottomContentPadding, padding.calculateBottomPadding()),
+                            ),
+                        ) {
+                            if (header != null) {
+                                item {
+                                    header()
+                                }
                             }
-                        }
-                        if (lazyListContent != null) {
-                            lazyListContent()
-                        } else {
-                            item {
-                                content()
+                            if (lazyListContent != null) {
+                                lazyListContent()
+                            } else {
+                                item {
+                                    content()
+                                }
                             }
                         }
                     }
@@ -271,18 +295,33 @@ internal fun SettingsPageScaffold(
                             chromeTop
                         },
                     ) {
-                        Column(modifier = scrollModifier) {
-                            if (header != null) {
-                                Box(modifier = Modifier.padding(top = chromeTop)) {
-                                    header()
-                                }
-                            }
-                            Box(
+                        Box(
+                            modifier = scrollModifier,
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Column(
                                 modifier = Modifier
-                                    .weight(1f, fill = true)
-                                    .fillMaxSize(),
+                                    .fillMaxHeight()
+                                    .then(
+                                        if (isExpandedScreen) {
+                                            Modifier.widthIn(max = 760.dp).fillMaxWidth()
+                                        } else {
+                                            Modifier.fillMaxWidth()
+                                        }
+                                    )
                             ) {
-                                content()
+                                if (header != null) {
+                                    Box(modifier = Modifier.padding(top = chromeTop)) {
+                                        header()
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f, fill = true)
+                                        .fillMaxSize(),
+                                ) {
+                                    content()
+                                }
                             }
                         }
                     }

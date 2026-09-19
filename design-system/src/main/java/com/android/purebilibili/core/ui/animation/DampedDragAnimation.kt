@@ -135,6 +135,7 @@ class DampedDragAnimationState internal constructor(
     private var valueJob: Job? = null
     private var velocityJob: Job? = null
     private var releaseJob: Job? = null
+    private var pressJob: Job? = null
     private var offsetJob: Job? = null
 
     /** 9.0.0 风格的拖拽期望位置（允许超滚，不受边界限制） */
@@ -174,7 +175,8 @@ class DampedDragAnimationState internal constructor(
     fun press() {
         deformationVelocityTracker.resetTracking()
         releaseJob?.cancel()
-        releaseJob = scope.launch {
+        pressJob?.cancel()
+        pressJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -182,8 +184,10 @@ class DampedDragAnimationState internal constructor(
     }
 
     fun release(onSettled: (() -> Unit)? = null) {
+        pressJob?.cancel()
         releaseJob?.cancel()
-        releaseJob = scope.launch {
+        velocityJob?.cancel()
+        releaseJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             awaitFrame()
             if (value != targetValue) {
                 val threshold = ((itemCount - 1).toFloat() * 0.025f).coerceAtLeast(0.001f)
@@ -207,7 +211,8 @@ class DampedDragAnimationState internal constructor(
             Offset(value, 0f)
         )
         val targetVelocity = deformationVelocityTracker.calculateVelocity().x / valueRange
-        velocityJob = scope.launch {
+        velocityJob?.cancel()
+        velocityJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec)
         }
     }
@@ -217,7 +222,7 @@ class DampedDragAnimationState internal constructor(
         valueJob?.cancel()
         desiredValue = targetValue
         targetIndex = targetValue.roundToInt().coerceIn(0, itemCount - 1)
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             if (generation != motionGeneration) return@launch
             valueAnimation.stop()
             valueAnimation.snapTo(targetValue)
@@ -230,7 +235,7 @@ class DampedDragAnimationState internal constructor(
         onSettled: (() -> Unit)? = null,
         animatePress: Boolean = true,
     ) {
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             mutatorMutex.mutate {
                 if (animatePress) press()
                 val nextTarget = value.fastCoerceIn(0f, (itemCount - 1).toFloat())
@@ -267,7 +272,7 @@ class DampedDragAnimationState internal constructor(
             desiredValue = valueAnimation.value
             velocityPxPerSecond = 0f
             velocityJob?.cancel()
-            velocityJob = scope.launch { velocityAnimation.snapTo(0f) }
+            velocityJob = scope.launch(start = CoroutineStart.UNDISPATCHED) { velocityAnimation.snapTo(0f) }
             press()
         }
         velocityPxPerSecond = gestureVelocityPxPerSecond
@@ -279,10 +284,13 @@ class DampedDragAnimationState internal constructor(
                 desiredValue = (desiredValue + dragAmountPx / itemWidthPx)
                     .fastCoerceIn(0f, (itemCount - 1).toFloat())
                 valueJob?.cancel()
-                valueJob = scope.launch {
-                    valueAnimation.animateTo(desiredValue, valueAnimationSpec) {
-                        updateDeformationVelocity(desiredValue)
+                valueJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    if (isDragging) {
+                        valueAnimation.snapTo(desiredValue)
+                    } else {
+                        valueAnimation.animateTo(desiredValue, valueAnimationSpec)
                     }
+                    updateDeformationVelocity(desiredValue)
                 }
             }
 
@@ -300,7 +308,7 @@ class DampedDragAnimationState internal constructor(
                 )
                 val clampedValue = desiredValue.fastCoerceIn(0f, (itemCount - 1).toFloat())
                 valueJob?.cancel()
-                valueJob = scope.launch {
+                valueJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     valueAnimation.snapTo(clampedValue)
                     updateDeformationVelocity(clampedValue)
                 }
@@ -309,7 +317,7 @@ class DampedDragAnimationState internal constructor(
 
         // 面板偏移累计
         offsetJob?.cancel()
-        offsetJob = scope.launch {
+        offsetJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             offsetAnimation.snapTo(offsetAnimation.value + dragAmountPx)
         }
     }

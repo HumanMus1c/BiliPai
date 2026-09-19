@@ -439,6 +439,42 @@ class BottomBarMiuixStructureTest {
         assertFalse(miuixDockedItemSource.contains("height(64.dp)"))
     }
 
+    @Test
+    fun `official md3 floating bar handles nowPlayingContent via LinkedBottomDock without falling back to miuix`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val materialBarSource = source
+            .substringAfter("private fun MaterialBottomBar(")
+            .substringBefore("private fun MiuixBottomBar(")
+
+        // Must not drop to BiliPaiFloatingBottomBar when nowPlayingContent is present
+        assertFalse(
+            materialBarSource.contains("nowPlayingContent == null"),
+            "MaterialBottomBar should not bypass official MD3 toolbar when nowPlayingContent is active"
+        )
+        // Must use LinkedBottomDock with OfficialMd3FloatingToolbarContent
+        assertTrue(
+            materialBarSource.contains("OfficialMd3FloatingToolbarContent("),
+            "MaterialBottomBar must pass OfficialMd3FloatingToolbarContent to LinkedBottomDock"
+        )
+        assertTrue(
+            materialBarSource.contains("iconStyle = SharedFloatingBottomBarIconStyle.MATERIAL"),
+            "MaterialBottomBar must configure LinkedBottomDock with MATERIAL icon style"
+        )
+        assertTrue(
+            materialBarSource.contains("nowPlayingContent = nowPlayingContent"),
+            "MaterialBottomBar must pass nowPlayingContent to LinkedBottomDock"
+        )
+
+        val officialToolbarSource = source
+            .substringAfter("private fun OfficialMd3FloatingToolbarContent(")
+            .substringBefore("private fun OfficialMd3FloatingBottomBar(")
+
+        assertTrue(
+            officialToolbarSource.contains("HorizontalFloatingToolbar("),
+            "OfficialMd3FloatingToolbarContent must render HorizontalFloatingToolbar"
+        )
+    }
+
     private fun biliPaiFloatingBody(source: String): String {
         val after = source.substringAfter("private fun BiliPaiFloatingBottomBar(")
         // End at next major private composable after the floating host + tab visual.

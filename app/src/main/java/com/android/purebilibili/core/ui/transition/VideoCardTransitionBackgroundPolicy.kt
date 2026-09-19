@@ -47,7 +47,8 @@ private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
 private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = VideoHeroMotionTokens.OPEN_BLUR_QUANTUM_PX
 /** 返回消糊段更粗量化，降低 BlurEffect 每帧更新次数。 */
 internal const val VIDEO_CARD_TRANSITION_RETURN_BLUR_QUANTUM_PX = VideoHeroMotionTokens.RETURN_BLUR_QUANTUM_PX
-// 背景始终铺满视口；只有前景视频卡片缩放，背景用模糊和遮罩区分层次。
+// 保持全屏背景几何稳定（0% 缩放），杜绝状态栏脱节、四周边框黑边与底栏悬空；
+// 空间纵深由动态高斯模糊、柔和暗化与飞卡自身物理升降投影承担。
 internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0f
 private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION =
     VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION
@@ -171,6 +172,8 @@ internal data class VideoCardTransitionBackgroundFrame(
     val useLightScrimTint: Boolean = false,
     /** 退后页面（冻结层）的圆角半径，随景深线性建立。 */
     val cornerRadiusPx: Float = 0f,
+    /** 随景深建立的外围漫反射阴影高度（px），使缩放空隙呈现下沉实体落阴。 */
+    val shadowElevationPx: Float = 0f,
 )
 
 internal data class VideoCardTransitionBackgroundState(
@@ -258,7 +261,7 @@ internal fun resolveVideoCardTransitionBackgroundScalePivot(
     sourceBounds: Rect?,
     canvasWidth: Float,
     canvasHeight: Float,
-): Offset = Offset(0.5f, 0.5f)
+): Offset = Offset(0.5f, 0f)
 
 internal fun resolveVideoCardTransitionOverlayDepthPivot(
     sourceBounds: Rect?,
@@ -399,6 +402,25 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
         motionTier = motionTier,
         phase = phase,
     )
+    val cornerRadiusPx = if (
+        scaleReduction > 0.001f &&
+        phase != VideoCardTransitionBackgroundPhase.IDLE &&
+        motionTier != MotionTier.Reduced
+    ) {
+        resolveVideoCardTransitionBackgroundCornerRadiusPx(
+            depthProgress = depthProgress,
+            motionTier = motionTier,
+            density = density,
+            deviceCornerRadiusPx = deviceCornerRadiusPx,
+        )
+    } else {
+        0f
+    }
+    val shadowElevationPx = if (cornerRadiusPx > 0.01f) {
+        (16f * density * depthProgress).coerceIn(0f, 24f * density)
+    } else {
+        0f
+    }
     return VideoCardTransitionBackgroundFrame(
         blurRadiusPx = quantizeVideoCardTransitionBlurRadius(
             radiusPx = rawBlurRadiusPx,
@@ -424,8 +446,8 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
             scaleReduction = scaleReduction,
         ),
         useLightScrimTint = isLightBackground,
-        // Full-viewport background must not expose rounded gaps at the screen edges.
-        cornerRadiusPx = 0f,
+        cornerRadiusPx = cornerRadiusPx,
+        shadowElevationPx = shadowElevationPx,
     )
 }
 
@@ -739,6 +761,9 @@ internal fun Modifier.videoCardTransitionLiveBackgroundEffect(
                 shape = RoundedCornerShape(
                     (frame.cornerRadiusPx / screenDensity.coerceAtLeast(0.01f)).dp
                 )
+                shadowElevation = frame.shadowElevationPx
+            } else {
+                shadowElevation = 0f
             }
             renderEffect = if (
                 realtimeBlurEnabledProvider() && frame.blurRadiusPx > 0.01f
@@ -1018,7 +1043,9 @@ internal class VideoCardTransitionSnapshotHandle(
 ) {
     fun clearRenderEffect() {
         contentLayer.renderEffect = null
+        contentLayer.shadowElevation = 0f
         state.lastBlurRadiusPx = Float.NaN
+        state.lastCornerRadiusPx = Float.NaN
     }
 
     fun releaseSession() {
@@ -1054,10 +1081,14 @@ internal fun applyVideoCardTransitionSnapshotFrame(
         if (frame.cornerRadiusPx > 0.01f) {
             contentLayer.setRoundRectOutline(cornerRadius = frame.cornerRadiusPx)
             contentLayer.clip = true
+            contentLayer.shadowElevation = frame.shadowElevationPx
         } else {
             contentLayer.setRectOutline()
             contentLayer.clip = false
+            contentLayer.shadowElevation = 0f
         }
+    } else if (frame.cornerRadiusPx > 0.01f) {
+        contentLayer.shadowElevation = frame.shadowElevationPx
     }
     if (frame.blurRadiusPx != snapshotState.lastBlurRadiusPx) {
         snapshotState.lastBlurRadiusPx = frame.blurRadiusPx

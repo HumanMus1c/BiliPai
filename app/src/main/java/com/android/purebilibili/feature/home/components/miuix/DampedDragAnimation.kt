@@ -83,11 +83,10 @@ class DampedDragAnimation(
     private val mutatorMutex = MutatorMutex()
 
     private val velocityTracker = VelocityTracker()
-    // Pager progress can request a new position every frame. Keep exactly one value mutation
-    // alive so an older coroutine can never run after a newer request and restore stale UI.
     private var valueTrackingJob: Job? = null
     private var pressJob: Job? = null
     private var releaseJob: Job? = null
+    private var velocityJob: Job? = null
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = requestedValue
@@ -193,6 +192,7 @@ class DampedDragAnimation(
 
     fun release() {
         releaseJob?.cancel()
+        velocityJob?.cancel()
         releaseJob = animationScope.launch {
             withFrameNanos { }
             if (value != targetValue) {
@@ -223,7 +223,7 @@ class DampedDragAnimation(
     fun updateValue(value: Float) {
         val targetValue = value.coerceIn(valueRange)
         requestedValue = targetValue
-        if (trackingMode == DampedDragTrackingMode.DIRECT) {
+        if (trackingMode == DampedDragTrackingMode.DIRECT || isDragging) {
             launchValueTracking {
                 valueAnimation.snapTo(targetValue)
                 updateVelocity()
@@ -246,7 +246,8 @@ class DampedDragAnimation(
                 if (animatePress) press()
                 launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) }
                 if (velocity != 0f) {
-                    launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+                    velocityJob?.cancel()
+                    velocityJob = launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
                 }
                 if (animatePress) release()
             }
@@ -276,6 +277,11 @@ class DampedDragAnimation(
             slotVelocity = velocityTracker.calculateVelocity().x,
             valueRange = valueRange,
         )
-        animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }
+        velocityJob?.cancel()
+        velocityJob = animationScope.launch(
+            start = CoroutineStart.UNDISPATCHED,
+        ) {
+            velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec)
+        }
     }
 }

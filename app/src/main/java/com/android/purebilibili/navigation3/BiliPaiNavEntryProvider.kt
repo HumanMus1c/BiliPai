@@ -116,6 +116,7 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     )
     entry<BiliPaiNavKey.ArticleDetail>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.DynamicDetail>(swipeDismiss = NavSwipeDirection.None, content = content)
+    entry<BiliPaiNavKey.CommentDetail>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Space>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Category>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.Live>(

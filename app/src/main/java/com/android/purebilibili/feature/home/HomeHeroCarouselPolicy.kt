@@ -159,24 +159,43 @@ internal fun resolveHomeHeroCarouselLayout(
 }
 
 internal fun resolveHomeHeroCarouselCardTransform(
-    pageOffset: Float
+    pageOffset: Float,
+    pressedProgress: Float = 0f,
 ): HomeHeroCarouselCardTransform {
     val clampedOffset = pageOffset.coerceIn(-1f, 1f)
     val distance = kotlin.math.abs(clampedOffset)
+    val baseScale = 1f - distance * 0.04f
+    val pressMultiplier = 1f - pressedProgress.coerceIn(0f, 1f) * 0.02f
+    val scale = baseScale * pressMultiplier
+    val alpha = 1f - distance * 0.08f
+
+    // Parallax: inner content shifts opposite to gesture by 8% of card width for tactile depth.
+    // Content scale: expands content by 16% at max offset so bounds never expose behind parallax shift.
+    val contentParallaxFraction = -clampedOffset * 0.08f
+    val contentScale = 1f + distance * 0.16f
+
+    // Edge shading: soft scrim shadow between adjacent cards during swipe
+    val edgeShadeAlpha = (distance * 0.25f).coerceIn(0f, 0.25f)
+    val edgeShadeStartFromLeft = clampedOffset < 0f
+
+    // Dynamic elevation: prominent when centered, subtle dip when pressed or swiped away
+    val shadowElevationFraction = ((1f - distance * 0.6f).coerceIn(0f, 1f) *
+        (1f - pressedProgress.coerceIn(0f, 1f) * 0.3f)) * 0.35f
+
     return HomeHeroCarouselCardTransform(
         rotationY = 0f,
         rotationZ = 0f,
-        scale = 1f - distance * 0.04f,
-        alpha = 1f - distance * 0.08f,
+        scale = scale,
+        alpha = alpha,
         cameraDistanceMultiplier = 8f,
         translationXFraction = 0f,
         pivotFractionX = 0.5f,
         zIndex = 1f - distance * 0.01f,
-        contentParallaxFraction = 0f,
-        contentScale = 1f,
-        edgeShadeAlpha = 0f,
-        edgeShadeStartFromLeft = false,
-        shadowElevationFraction = 0f
+        contentParallaxFraction = contentParallaxFraction,
+        contentScale = contentScale,
+        edgeShadeAlpha = edgeShadeAlpha,
+        edgeShadeStartFromLeft = edgeShadeStartFromLeft,
+        shadowElevationFraction = shadowElevationFraction,
     )
 }
 

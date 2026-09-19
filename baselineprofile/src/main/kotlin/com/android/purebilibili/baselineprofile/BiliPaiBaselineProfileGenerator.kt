@@ -51,6 +51,8 @@ class BiliPaiBaselineProfileGenerator {
             exerciseSpaceFeed()
             exerciseWebSession()
 
+            exerciseHomeCardSharedTransition()
+
             startVideoDetailActivity()
             scrollVideoDetailContent()
             swipeVideoPlayerSeek()
@@ -179,6 +181,20 @@ class BiliPaiBaselineProfileGenerator {
         val toX = (device.displayWidth * 76) / 100
         device.swipe(fromX, y, toX, y, 24)
         device.waitForIdle()
+    }
+
+    private fun MacrobenchmarkScope.exerciseHomeCardSharedTransition() {
+        clickBottomTab("首页")
+        device.waitForIdle()
+        val videoCard = device.wait(Until.findObject(By.descContains("播放")), 3_000)
+            ?: device.wait(Until.findObject(By.clazz("android.widget.ImageView")), 3_000)
+        if (videoCard != null) {
+            videoCard.click()
+            device.waitForIdle()
+            SystemClock.sleep(NETWORK_CONTENT_SETTLE_MS)
+            device.pressBack()
+            device.waitForIdle()
+        }
     }
 
     private fun resolveBenchmarkBvid(): String {

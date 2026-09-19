@@ -136,21 +136,7 @@ internal fun resolveDisplayNaturalOrientation(
     displayModeWidthPx: Int? = null,
     displayModeHeightPx: Int? = null,
 ): AppDisplayNaturalOrientation {
-    if (
-        displayModeWidthPx != null &&
-        displayModeHeightPx != null &&
-        displayModeWidthPx > 0 &&
-        displayModeHeightPx > 0 &&
-        displayModeWidthPx != displayModeHeightPx
-    ) {
-        return if (displayModeWidthPx > displayModeHeightPx) {
-            AppDisplayNaturalOrientation.Landscape
-        } else {
-            AppDisplayNaturalOrientation.Portrait
-        }
-    }
-
-    return when (displayRotation) {
+    val fromRotation = when (displayRotation) {
         Surface.ROTATION_0,
         Surface.ROTATION_180 -> when (configurationOrientation) {
             Configuration.ORIENTATION_LANDSCAPE -> AppDisplayNaturalOrientation.Landscape
@@ -167,6 +153,26 @@ internal fun resolveDisplayNaturalOrientation(
 
         else -> AppDisplayNaturalOrientation.Unknown
     }
+
+    if (fromRotation != AppDisplayNaturalOrientation.Unknown) {
+        return fromRotation
+    }
+
+    if (
+        displayModeWidthPx != null &&
+        displayModeHeightPx != null &&
+        displayModeWidthPx > 0 &&
+        displayModeHeightPx > 0 &&
+        displayModeWidthPx != displayModeHeightPx
+    ) {
+        return if (displayModeWidthPx > displayModeHeightPx) {
+            AppDisplayNaturalOrientation.Landscape
+        } else {
+            AppDisplayNaturalOrientation.Portrait
+        }
+    }
+
+    return AppDisplayNaturalOrientation.Unknown
 }
 
 internal fun isLandscapeNaturalDisplay(
