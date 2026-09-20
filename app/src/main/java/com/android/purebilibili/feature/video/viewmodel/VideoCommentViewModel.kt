@@ -257,10 +257,11 @@ class VideoCommentViewModel : ViewModel() {
         aid: Long,
         upMid: Long = 0,
         preferredSortMode: CommentSortMode = CommentSortMode.HOT,
-        expectedReplyCount: Int = 0
+        expectedReplyCount: Int = 0,
+        commentType: Int = VIDEO_COMMENT_TYPE
     ) {
-        android.util.Log.d("CommentVM", " init called with aid=$aid, upMid=$upMid, currentAid=$currentAid")
-        if (currentAid == aid && _commentState.value.upMid == upMid) {
+        android.util.Log.d("CommentVM", " init called with aid=$aid, upMid=$upMid, currentAid=$currentAid, type=$commentType")
+        if (currentAid == aid && _commentState.value.upMid == upMid && currentSubject.type == commentType) {
             // [修复] 即使视频相同，也刷新 currentMid（防止登录状态变化后不更新）
             refreshCurrentMid()
             if (expectedReplyCount > _commentState.value.replyCount) {
@@ -269,7 +270,7 @@ class VideoCommentViewModel : ViewModel() {
             return
         }
         currentAid = aid
-        currentSubject = CommentSubjectKey(oid = aid)
+        currentSubject = CommentSubjectKey(oid = aid, type = commentType)
         allReplies = emptyList()
         // 获取当前登录用户 mid
         val myMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L

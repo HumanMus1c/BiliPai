@@ -20,9 +20,10 @@ class AppDisplayPolicyTest {
 
     @Test
     fun `ui scale preset resolves expected density multiplier`() {
-        assertEquals(1.08f, AppUiScalePreset.COMPACT.densityMultiplier)
+        assertEquals(0.92f, AppUiScalePreset.COMPACT.densityMultiplier)
         assertEquals(1.00f, AppUiScalePreset.STANDARD.densityMultiplier)
-        assertEquals(0.92f, AppUiScalePreset.LARGE.densityMultiplier)
+        assertEquals(1.04f, AppUiScalePreset.COMFORTABLE.densityMultiplier)
+        assertEquals(1.08f, AppUiScalePreset.LARGE.densityMultiplier)
     }
 
     @Test
@@ -41,7 +42,7 @@ class AppDisplayPolicyTest {
         val snapshot = buildDisplayMetricsSnapshot(
             systemDensityDpi = 560,
             smallestScreenWidthDp = 347,
-            uiScalePreset = AppUiScalePreset.COMPACT,
+            uiScalePreset = AppUiScalePreset.LARGE,
             fontSizePreset = AppFontSizePreset.DEFAULT,
             dpiOverridePercent = null
         )

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +47,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.appendInlineContent
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
@@ -93,6 +95,8 @@ import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.material.icons.outlined.Delete
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1052,6 +1056,13 @@ private fun SubReplyDetailItem(
     var showFreeCopyDialog by remember(item.rpid) { mutableStateOf(false) }
     var showReportDialog by remember(item.rpid) { mutableStateOf(false) }
     var pendingSaveReply by remember(item.rpid) { mutableStateOf<ReplyItem?>(null) }
+    // [新增] 评论翻译状态
+    val canTranslate = item.replyControl?.translationSwitch == 2
+    var translatedMessage by remember(item.rpid) { mutableStateOf<String?>(null) }
+    var isTranslating by remember(item.rpid) { mutableStateOf(false) }
+    val displayMessage = remember(translatedMessage, item.content.message) {
+        translatedMessage ?: item.content.message
+    }
     val copyText = remember(item.content.message) { item.content.message.trim() }
     val replyMemberMid = remember(item.member.mid, item.mid) { resolveReplyMemberMid(item) }
     fun launchSaveReplyCommentImage(reply: ReplyItem) {
@@ -1241,7 +1252,7 @@ private fun SubReplyDetailItem(
 
                 Spacer(modifier = Modifier.height(10.dp))
                 ReplyMessageText(
-                    text = item.content.message,
+                    text = displayMessage,
                     fontSize = if (isRootItem) 16.sp else 15.sp,
                     color = appearance.primaryTextColor,
                     emoteMap = localEmoteMap,
@@ -1290,6 +1301,60 @@ private fun SubReplyDetailItem(
                         appearance = appearance,
                         onClick = onReplyClick
                     )
+
+                    // [新增] 翻译按钮 (胶囊样式)
+                    if (canTranslate) {
+                        val isTranslated = translatedMessage != null
+                        val translateLabel = if (isTranslating) "翻译中" else if (isTranslated) "原文" else "翻译"
+                        AppSurface(
+                            shape = AppShapes.container(ContainerLevel.Pill),
+                            color = if (isTranslated) appearance.accentColor.copy(alpha = 0.14f) else appearance.actionTint.copy(alpha = 0.10f),
+                            modifier = Modifier
+                                .clickable(enabled = !isTranslating) {
+                                    if (isTranslated) {
+                                        translatedMessage = null
+                                    } else {
+                                        scope.launch {
+                                            isTranslating = true
+                                            val result = com.android.purebilibili.data.repository.CommentGrpcRepository.translateReply(
+                                                type = item.replyType.toLong(),
+                                                oid = item.oid,
+                                                rpid = item.rpid
+                                            )
+                                            result.onSuccess { translated ->
+                                                if (!translated.isNullOrBlank()) {
+                                                    translatedMessage = translated
+                                                } else {
+                                                    Toast.makeText(context, "翻译结果为空", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }.onFailure { e ->
+                                                Toast.makeText(context, "翻译失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                            isTranslating = false
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                AppIcon(
+                                    imageVector = Icons.Outlined.Translate,
+                                    contentDescription = null,
+                                    tint = if (isTranslated) appearance.accentColor else appearance.actionTint,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                AppText(
+                                    text = translateLabel,
+                                    fontSize = 13.sp,
+                                    color = if (isTranslated) appearance.accentColor else appearance.actionTint
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
 
                     if (!specialLabelText.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.width(10.dp))

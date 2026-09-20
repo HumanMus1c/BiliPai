@@ -160,4 +160,48 @@ class BangumiPlayUrlResponseParsingTest {
         assertEquals("大会员专享", payload.message)
         assertEquals(null, payload.videoInfo)
     }
+
+    @Test
+    fun `decodeBangumiPlayUrlPayload supports pugv data envelope`() {
+        val payload = decodeBangumiPlayUrlPayload(
+            """
+            {
+              "code": 0,
+              "message": "0",
+              "data": {
+                "quality": 80,
+                "format": "flv720",
+                "timelength": 584000,
+                "accept_quality": [80, 64, 32],
+                "dash": {
+                  "duration": 584,
+                  "video": [
+                    {
+                      "id": 80,
+                      "base_url": "https://video.cdn/pugv-80.m4s",
+                      "backup_url": []
+                    }
+                  ],
+                  "audio": [
+                    {
+                      "id": 30280,
+                      "base_url": "https://video.cdn/pugv-audio.m4s",
+                      "backup_url": []
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+            json
+        )
+
+        assertEquals(0, payload.code)
+        val videoInfo = assertNotNull(payload.videoInfo)
+        assertEquals(80, videoInfo.quality)
+        assertEquals(584000L, videoInfo.timelength)
+        assertEquals("https://video.cdn/pugv-80.m4s", videoInfo.dash?.video?.firstOrNull()?.baseUrl)
+        assertEquals("https://video.cdn/pugv-audio.m4s", videoInfo.dash?.audio?.firstOrNull()?.baseUrl)
+    }
 }
+

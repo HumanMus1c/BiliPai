@@ -31,6 +31,7 @@ internal object CommentGrpcRepository {
     private const val PATH_MAIN_LIST = "/bilibili.main.community.reply.v1.Reply/MainList"
     private const val PATH_DETAIL_LIST = "/bilibili.main.community.reply.v1.Reply/DetailList"
     private const val PATH_DIALOG_LIST = "/bilibili.main.community.reply.v1.Reply/DialogList"
+    private const val PATH_TRANSLATE_REPLY = "/bilibili.main.community.reply.v1.Reply/TranslateReply"
     internal const val MODE_TIME = 2
     internal const val MODE_HOT = 3
 
@@ -180,6 +181,66 @@ internal object CommentGrpcRepository {
             )
             parseDialogListReply(response)
         }
+    }
+
+    /**
+     * 翻译评论 (gRPC TranslateReply)。
+     * 返回翻译后的消息文本，失败返回 null。
+     */
+    fun translateReply(
+        type: Long,
+        oid: Long,
+        rpid: Long
+    ): Result<String?> {
+        return runCatching {
+            val request = ProtoWire.message(
+                ProtoWire.int64(1, oid),
+                ProtoWire.int64(2, type),
+                ProtoWire.int64(3, rpid)
+            )
+            val response = BiliGrpcClient.request(
+                path = PATH_TRANSLATE_REPLY,
+                message = request
+            )
+            parseTranslateReplyResp(response, rpid)
+        }
+    }
+
+    /**
+     * 解析 TranslateReplyResp，提取指定 rpid 的翻译文本。
+     * Resp 字段 1 是 map<int64, ReplyInfo>；
+     * map entry: 字段 1 = key(rpid), 字段 2 = value(ReplyInfo)；
+     * ReplyInfo 字段 17 = translatedContent (Content)，Content 字段 1 = message。
+     */
+    private fun parseTranslateReplyResp(bytes: ByteArray, targetRpid: Long): String? {
+        ProtoWire.parseFields(bytes).forEach { field ->
+            if (field.number == 1) {
+                var key = 0L
+                var translatedMessage: String? = null
+                ProtoWire.parseFields(field.bytes).forEach { entryField ->
+                    when (entryField.number) {
+                        1 -> key = entryField.varint
+                        2 -> {
+                            // ReplyInfo: 只需字段 17 (translatedContent)
+                            ProtoWire.parseFields(entryField.bytes).forEach { replyInfoField ->
+                                if (replyInfoField.number == 17) {
+                                    // Content: 字段 1 = message
+                                    ProtoWire.parseFields(replyInfoField.bytes).forEach { contentField ->
+                                        if (contentField.number == 1) {
+                                            translatedMessage = HtmlEntityUtils.unescape(
+                                                ProtoWire.stringValue(contentField)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (key == targetRpid) return translatedMessage
+            }
+        }
+        return null
     }
 
     internal fun parseMainListReply(bytes: ByteArray): ReplyData {
@@ -382,7 +443,8 @@ internal object CommentGrpcRepository {
             cardLabels = control.cardLabels,
             replyControl = control.replyControl,
             parent = parent,
-            dialog = dialog
+            dialog = dialog,
+            replyType = if (type != 0L) type.toInt() else 1
         )
     }
 
@@ -601,6 +663,7 @@ internal object CommentGrpcRepository {
         var upReply = false
         var isUpTop = false
         var location = ""
+        var translationSwitch = 0
         val labels = mutableListOf<ReplyCardLabel>()
         ProtoWire.parseFields(bytes).forEach { field ->
             when (field.number) {
@@ -609,6 +672,7 @@ internal object CommentGrpcRepository {
                 12 -> isUpTop = field.varint != 0L
                 19 -> labels += parseCardLabel(field.bytes)
                 25 -> location = ProtoWire.stringValue(field)
+                37 -> translationSwitch = field.varint.toInt()
             }
         }
         return GrpcReplyControl(
@@ -616,7 +680,8 @@ internal object CommentGrpcRepository {
             replyControl = ReplyControl(
                 location = location,
                 isUpTop = isUpTop,
-                upReply = upReply
+                upReply = upReply,
+                translationSwitch = translationSwitch
             ),
             cardLabels = labels.takeIf { it.isNotEmpty() }
         )

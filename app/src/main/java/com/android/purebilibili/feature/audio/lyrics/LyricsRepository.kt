@@ -73,28 +73,37 @@ internal class LyricsRepository(
             if (search.completedProviderCount == 0 && providers.isNotEmpty()) {
                 return@withTimeoutOrNull LyricsLoadResult.Failed
             }
-            val candidate = searchQueries.mapNotNull { searchQuery ->
-                selectBestLyricCandidate(searchQuery, search.candidates)?.let { candidate ->
-                    candidate to scoreLyricCandidate(searchQuery, candidate)
+            val rankedCandidates = rankedCandidates(searchQueries, search.candidates)
+                .filter { (_, score) -> score >= LYRIC_MATCH_MINIMUM_SCORE }
+            if (rankedCandidates.isEmpty()) {
+                return@withTimeoutOrNull LyricsLoadResult.NotFound
+            }
+
+            var fetchFailed = false
+            for ((candidate, _) in rankedCandidates.take(5)) {
+                val provider = providers.firstOrNull { it.source == candidate.source } ?: continue
+                val fetched = runCatching {
+                    withTimeout(providerTimeoutMs) { provider.fetch(candidate) }
                 }
-            }.maxByOrNull { (_, score) -> score }?.first
-                ?: return@withTimeoutOrNull LyricsLoadResult.NotFound
-            val provider = providers.firstOrNull { it.source == candidate.source }
-                ?: return@withTimeoutOrNull LyricsLoadResult.NotFound
-            val raw = runCatching {
-                withTimeout(providerTimeoutMs) { provider.fetch(candidate) }
-            }.getOrNull() ?: return@withTimeoutOrNull LyricsLoadResult.Failed
-            val document = parseSplLyrics(
-                primary = raw.primary,
-                translation = raw.translation,
-                romanization = raw.romanization,
-                source = candidate.source
-            ).takeIf { it.lines.isNotEmpty() }
-                ?.copy(
-                    remoteId = candidate.remoteId,
-                    fetchedAtMs = nowMs()
-                )
-            document?.let(LyricsLoadResult::Found) ?: LyricsLoadResult.NotFound
+                if (fetched.isFailure) {
+                    fetchFailed = true
+                }
+                val raw = fetched.getOrNull() ?: continue
+                val document = parseSplLyrics(
+                    primary = raw.primary,
+                    translation = raw.translation,
+                    romanization = raw.romanization,
+                    source = candidate.source
+                ).takeIf { it.lines.isNotEmpty() }
+                    ?.copy(
+                        remoteId = candidate.remoteId,
+                        fetchedAtMs = nowMs()
+                    )
+                if (document != null) {
+                    return@withTimeoutOrNull LyricsLoadResult.Found(document)
+                }
+            }
+            if (fetchFailed) LyricsLoadResult.Failed else LyricsLoadResult.NotFound
         }
 
         if (attempt is LyricsLoadResult.Found) {
@@ -104,7 +113,11 @@ internal class LyricsRepository(
     }
 
     suspend fun search(query: LyricQuery): List<LyricCandidate> {
-        return withTimeoutOrNull(totalTimeoutMs) { searchAllProviders(listOf(query)).candidates }.orEmpty()
+        return withTimeoutOrNull(totalTimeoutMs) {
+            val queries = automaticSearchQueries(query)
+            val search = searchAllProviders(queries)
+            rankedCandidates(queries, search.candidates).map { it.first }
+        }.orEmpty()
     }
 
     suspend fun save(cacheKey: String, document: LyricDocument) {
@@ -152,11 +165,68 @@ internal class LyricsRepository(
             )
         }
     }
+
+    private fun rankedCandidates(
+        queries: List<LyricQuery>,
+        candidates: List<LyricCandidate>
+    ): List<Pair<LyricCandidate, Double>> {
+        val bestScores = linkedMapOf<String, Pair<LyricCandidate, Double>>()
+        queries.forEach { query ->
+            rankLyricCandidates(query, candidates).forEach { candidate ->
+                val score = scoreLyricCandidate(query, candidate)
+                val key = lyricCandidateIdentity(candidate)
+                val previous = bestScores[key]
+                if (previous == null || score > previous.second) {
+                    bestScores[key] = candidate to score
+                }
+            }
+        }
+        return bestScores.values.sortedByDescending { it.second }
+    }
 }
 
 private fun automaticSearchQueries(query: LyricQuery): List<LyricQuery> {
-    val swapped = query.copy(title = query.artist, artist = query.title)
-    return listOf(query, swapped)
+    val quotedTitle = Regex("[《「『]([^》」』]+)[》」』]")
+        .find(query.title)
+        ?.groupValues
+        ?.getOrNull(1)
+    val extractedArtist = Regex("([\\p{L}\\p{N}·][\\p{L}\\p{N}· _-]{1,24})\\s*[《「『]")
+        .find(query.title)
+        ?.groupValues
+        ?.getOrNull(1)
+    val withoutPrefix = query.title.replace(Regex("^(?:【[^】]*】|\\[[^]]*])+"), "").trim()
+    val withoutVideoNoise = withoutPrefix.replace(
+        Regex(
+            "(?i)(?:4k|8k|\\d{3,4}p|hdr|official|music video|video|audio|lyrics?|lyric video|mv|live|cover|remix|官方|现场版|完整版|高音质|歌词版|片段|舞台版)"
+        ),
+        " "
+    ).trim()
+    val titleVariants = listOf(query.title, quotedTitle, withoutPrefix, withoutVideoNoise)
+        .filterNotNull()
+        .filter(String::isNotBlank)
+        .distinct()
+    val artistVariants = listOf(query.artist, extractedArtist)
+        .filterNotNull()
+        .filter(String::isNotBlank)
+        .distinct()
+    val generated = buildList {
+        titleVariants.forEach { title ->
+            artistVariants.forEach { artist -> add(query.copy(title = title, artist = artist)) }
+        }
+        add(query.copy(title = query.artist, artist = query.title))
+        quotedTitle?.let { add(query.copy(title = query.artist, artist = it)) }
+    }
+    return generated
         .filter { it.title.isNotBlank() }
         .distinctBy { "${it.title.trim().lowercase()}\u0000${it.artist.trim().lowercase()}" }
+        .take(8)
+}
+
+private fun lyricCandidateIdentity(candidate: LyricCandidate): String {
+    val remoteId = candidate.remoteId.trim()
+    return if (remoteId.isNotEmpty()) {
+        "${candidate.source}:$remoteId"
+    } else {
+        "${candidate.source}:${candidate.title.trim().lowercase()}\u0000${candidate.artist.trim().lowercase()}\u0000${candidate.durationMs}"
+    }
 }

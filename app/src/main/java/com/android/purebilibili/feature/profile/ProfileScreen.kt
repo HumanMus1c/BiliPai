@@ -168,6 +168,7 @@ import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceDynamicItem
 import com.android.purebilibili.data.model.response.SpaceVideoItem
 import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
+import com.android.purebilibili.feature.space.resolveSpaceAggregateVideoId
 import com.android.purebilibili.feature.settings.AppThemeMode
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
@@ -461,7 +462,6 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.refreshSavedAccounts()
         //  [埋点] 页面浏览追踪
         com.android.purebilibili.core.util.AnalyticsHelper.logScreenView("ProfileScreen")
     }
@@ -1180,6 +1180,10 @@ private fun ProfileSpaceContent(
     }
 
     val hasWallpaper = user.topPhoto.isNotEmpty()
+    val tabletWallpaperRevealHeight = resolveProfileTabletWallpaperRevealHeightDp(
+        useSplitLayout = isTablet,
+        hasWallpaper = hasWallpaper
+    ).dp
     val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val colorScheme = MaterialTheme.colorScheme
     val isDarkTheme = colorScheme.surface.luminance() < 0.5f
@@ -1255,7 +1259,8 @@ private fun ProfileSpaceContent(
                         showEditProfileButton = showProfileEditButton,
                         onEditClick = { showEditDialog = true },
                         onWallpaperActionClick = { showWallpaperActionSheet = true },
-                        onFollowingClick = onFollowingClick
+                        onFollowingClick = onFollowingClick,
+                        modifier = Modifier.heightIn(min = tabletWallpaperRevealHeight)
                     )
                     ProfileQuickAccessDashboard(
                         favoriteFolderShortcuts = favoriteFolderShortcuts,
@@ -1290,7 +1295,10 @@ private fun ProfileSpaceContent(
                     onDynamicDeleteClick = onDynamicDeleteClick,
                     contentChrome = contentChrome,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 48.dp),
+                    contentPadding = PaddingValues(
+                        top = tabletWallpaperRevealHeight,
+                        bottom = 48.dp
+                    ),
                     listState = tabletFeedListState,
                 )
             }
@@ -2256,7 +2264,9 @@ private fun ProfileAggregateVideoStrip(
                 subtitle = video.length,
                 imageUrl = video.cover,
                 contentChrome = contentChrome,
-                onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+                onClick = {
+                    resolveSpaceAggregateVideoId(video)?.let(onVideoClick)
+                }
             )
         }
     }

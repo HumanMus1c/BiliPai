@@ -149,6 +149,7 @@ class BottomBarLayoutPolicyTest {
         assertEquals(56.dp, layout.searchWidth)
         assertEquals(8.dp, layout.gap)
         assertEquals(0.dp, layout.minimumIndicatorWidth)
+        assertEquals(76.dp, layout.indicatorReferenceWidth)
     }
 
     @Test
@@ -163,6 +164,7 @@ class BottomBarLayoutPolicyTest {
 
         assertEquals(329.dp, layout.dockWidth)
         assertEquals(0.dp, layout.minimumIndicatorWidth)
+        assertEquals(69.dp, layout.indicatorReferenceWidth)
         assertTrue(
             resolveBiliPaiBottomBarItemSlotWidth(
                 dockWidth = layout.dockWidth,

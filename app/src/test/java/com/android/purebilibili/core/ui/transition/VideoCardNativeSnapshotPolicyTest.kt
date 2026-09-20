@@ -11,11 +11,33 @@ class VideoCardNativeSnapshotPolicyTest {
         val relatedKey = "video:BVrelated"
         val parentKey = "home:BVparent"
         // Clicking again writes the related key while the restored parent is still HELD.
-        assertFalse(isRecordedNativeCardSource("BVrelated", parentKey, relatedKey))
-        assertFalse(isRecordedNativeCardSource("BVrelated", null, relatedKey))
-        assertTrue(isRecordedNativeCardSource("BVrelated", relatedKey, relatedKey))
-        assertFalse(isRecordedNativeCardSource("BVother", relatedKey, relatedKey))
-        assertFalse(isRecordedNativeCardSource("BVrelated", relatedKey, parentKey))
+        assertFalse(isRecordedNativeCardSource("BVrelated", "video", parentKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVrelated", "video", null, relatedKey))
+        assertTrue(isRecordedNativeCardSource("BVrelated", "video", relatedKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVother", "video", relatedKey, relatedKey))
+        assertFalse(isRecordedNativeCardSource("BVrelated", "video", relatedKey, parentKey))
+    }
+
+    @Test
+    fun sameVideoOnAnotherRouteDoesNotBorrowTheHeldSourceCard() {
+        val heldHomeSource = "home:BVsame"
+
+        assertFalse(
+            isRecordedNativeCardSource(
+                bvid = "BVsame",
+                sourceRoute = "space/123",
+                activeSourceKey = heldHomeSource,
+                recordedSourceKey = heldHomeSource,
+            )
+        )
+        assertTrue(
+            isRecordedNativeCardSource(
+                bvid = "BVsame",
+                sourceRoute = "home",
+                activeSourceKey = heldHomeSource,
+                recordedSourceKey = heldHomeSource,
+            )
+        )
     }
 
     @Test
@@ -122,9 +144,10 @@ class VideoCardNativeSnapshotPolicyTest {
         assertTrue(snapshotSource.contains("freezeProvider: () -> Boolean"))
         assertTrue(snapshotSource.contains("if (!freezeProvider())"))
         assertFalse(snapshotSource.contains("if (!freeze)"))
+        assertTrue(snapshotSource.contains("isNativeVideoCardLayerCurrentOwner("))
         assertTrue(homeCardSource.contains("freezeNativeCardLayer.value = true"))
         assertTrue(
-            homeCardSource.contains("freezeProvider = { freezeNativeCardLayer.value }"),
+            homeCardSource.contains("freezeNativeCardLayer.value &&"),
         )
     }
 

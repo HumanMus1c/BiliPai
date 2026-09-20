@@ -196,7 +196,12 @@ data class ReplyItem(
     val dialog: Long = 0,
     @Serializable(with = FlexibleStringSerializer::class)
     @SerialName("note_cvid_str")
-    val noteCvidStr: String = ""
+    val noteCvidStr: String = "",
+
+    // [新增] 评论类型 (1=视频, 11=动态, 17=专栏...)，用于翻译接口
+    @Serializable(with = FlexibleIntSerializer::class)
+    @SerialName("type")
+    val replyType: Int = 1
 )
 
 //  UP主操作信息
@@ -684,5 +689,9 @@ data class ReplyControl(
     val upReply: Boolean = false,
     @Serializable(with = FlexibleBooleanSerializer::class)
     @SerialName("support_share")
-    val supportShare: Boolean = true
+    val supportShare: Boolean = true,
+    // [新增] 翻译开关 (0=未指定, 1=不支持, 2=显示翻译, 3=显示原文)
+    @Serializable(with = FlexibleIntSerializer::class)
+    @SerialName("translation_switch")
+    val translationSwitch: Int = 0
 )

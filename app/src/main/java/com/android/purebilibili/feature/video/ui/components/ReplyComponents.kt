@@ -1247,6 +1247,13 @@ fun ReplyItemView(
     var showFreeCopyDialog by remember(item.rpid) { mutableStateOf(false) }
     var showReportDialog by remember(item.rpid) { mutableStateOf(false) }
     var pendingSaveReply by remember(item.rpid) { mutableStateOf<ReplyItem?>(null) }
+    // [新增] 评论翻译状态
+    val canTranslate = item.replyControl?.translationSwitch == 2
+    var translatedMessage by remember(item.rpid) { mutableStateOf<String?>(null) }
+    var isTranslating by remember(item.rpid) { mutableStateOf(false) }
+    val displayMessage = remember(translatedMessage, item.content.message) {
+        translatedMessage ?: item.content.message
+    }
     val copyText = remember(item.content.message) { item.content.message.trim() }
     val replyMemberMid = remember(item.member.mid, item.mid) { resolveReplyMemberMid(item) }
     fun launchSaveReplyCommentImage(reply: ReplyItem) {
@@ -1475,7 +1482,7 @@ fun ReplyItemView(
                         .padding(start = startPadding)
                 ) {
                     ReplyMessageText(
-                        text = item.content.message,
+                        text = displayMessage,
                         fontSize = VideoCommentTypographyTokens.body,
                         color = appearance.primaryTextColor,
                         emoteMap = localEmoteMap,
@@ -1523,6 +1530,60 @@ fun ReplyItemView(
                         appearance = appearance,
                         onClick = { onReplyClick?.invoke() ?: onSubClick(item, 0L) }
                     )
+
+                    // [新增] 翻译按钮 (胶囊样式)
+                    if (canTranslate) {
+                        val isTranslated = translatedMessage != null
+                        val translateLabel = if (isTranslating) "翻译中" else if (isTranslated) "原文" else "翻译"
+                        AppSurface(
+                            shape = AppShapes.container(ContainerLevel.Pill),
+                            color = if (isTranslated) appearance.accentColor.copy(alpha = 0.14f) else appearance.actionTint.copy(alpha = 0.10f),
+                            modifier = Modifier
+                                .clickable(enabled = !isTranslating) {
+                                    if (isTranslated) {
+                                        translatedMessage = null
+                                    } else {
+                                        scope.launch {
+                                            isTranslating = true
+                                            val result = com.android.purebilibili.data.repository.CommentGrpcRepository.translateReply(
+                                                type = item.replyType.toLong(),
+                                                oid = item.oid,
+                                                rpid = item.rpid
+                                            )
+                                            result.onSuccess { translated ->
+                                                if (!translated.isNullOrBlank()) {
+                                                    translatedMessage = translated
+                                                } else {
+                                                    Toast.makeText(context, "翻译结果为空", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }.onFailure { e ->
+                                                Toast.makeText(context, "翻译失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                            isTranslating = false
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                AppIcon(
+                                    imageVector = Icons.Outlined.Translate,
+                                    contentDescription = null,
+                                    tint = if (isTranslated) appearance.accentColor else appearance.actionTint,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                AppText(
+                                    text = translateLabel,
+                                    fontSize = VideoCommentTypographyTokens.action,
+                                    color = if (isTranslated) appearance.accentColor else appearance.actionTint
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
 
                     if (!specialLabelText.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.width(10.dp))

@@ -174,7 +174,9 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
             .substringBefore("BiliPaiNavEntryContentRole.ARTICLE_DETAIL ->")
 
-        assertTrue(videoDetailBranch.contains("isVisible = shouldActivateVideoDetailPlaybackSession("))
+        assertTrue(videoDetailBranch.contains("val videoDetailPlaybackSessionActive ="))
+        assertTrue(videoDetailBranch.contains("isVisible = videoDetailPlaybackSessionActive &&"))
+        assertTrue(videoDetailBranch.contains("isPlaybackSessionActive = videoDetailPlaybackSessionActive"))
         assertTrue(videoDetailBranch.contains("bindLivePlayerForBackPreview = bindVideoBackPreviewPlayer"))
         assertTrue(videoDetailBranch.contains("activateBackPreviewPlayback ="))
         assertTrue(videoDetailBranch.contains("activateVideoBackPreviewPlayback"))

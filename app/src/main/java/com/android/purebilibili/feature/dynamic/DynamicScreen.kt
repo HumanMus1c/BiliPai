@@ -129,6 +129,8 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 val LocalDynamicScrollChannel = compositionLocalOf<Channel<Unit>?> { null }
@@ -212,9 +214,16 @@ fun DynamicScreen(
     val followedUsers by viewModel.followedUsers.collectAsStateWithLifecycle()
     val selectedUserId by viewModel.selectedUserId.collectAsStateWithLifecycle()
     val selfUid = TokenManager.midCache ?: 0L
-    val selfFace = remember(context, selfUid) {
-        AccountSessionStore.getAccounts(context).firstOrNull { it.mid == selfUid }?.face.orEmpty()
+    val accountSnapshot by produceState(
+        initialValue = com.android.purebilibili.core.store.AccountSessionSnapshot(),
+        key1 = context,
+        key2 = selfUid,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            AccountSessionStore.readSnapshot(context)
+        }
     }
+    val selfFace = accountSnapshot.accounts.firstOrNull { it.mid == selfUid }?.face.orEmpty()
     val displayUsers = remember(followedUsers, selfUid, selfFace) {
         resolveDynamicUpPanelUsers(
             users = followedUsers,

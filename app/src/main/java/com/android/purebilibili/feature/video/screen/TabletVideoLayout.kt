@@ -242,6 +242,7 @@ internal fun TabletVideoLayout(
     videoAiSummaryEntryEnabled: Boolean = true,
     videoNoteEnabled: Boolean = true,
     videoNoteDefaultCollapsed: Boolean = false,
+    playerContent: (@Composable (Modifier) -> Unit)? = null,
 ) {
     val adaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
     val foldHalfOpened = adaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book ||
@@ -323,7 +324,11 @@ internal fun TabletVideoLayout(
                 }
 
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val playerWidth = minOf(maxWidth, layoutPolicy.playerMaxWidthDp.dp)
+                    val playerWidth = if (layoutPolicy.useTabletopLayout) {
+                        minOf(maxWidth, maxHeight * 16f / 9f, layoutPolicy.playerMaxWidthDp.dp)
+                    } else {
+                        minOf(maxWidth, layoutPolicy.playerMaxWidthDp.dp)
+                    }
                     val videoHeight = if (forceCoverOnlyOnReturn) {
                         playerWidth / VIDEO_SHARED_COVER_ASPECT_RATIO
                     } else {
@@ -334,69 +339,73 @@ internal fun TabletVideoLayout(
                             .width(playerWidth)
                             .height(videoHeight)
                             .align(Alignment.Center)
-                            .background(Color.Black)
+                            .background(MaterialTheme.colorScheme.scrim)
                     ) {
-                        VideoPlayerSection(
-                            playerState = playerState,
-                            uiState = uiState,
-                            isFullscreen = false,
-                            isInPipMode = isInPipMode,
-                            useTextureSurfaceForNavigation = resolveNavigationLiveSurfaceTextureEnabled(
-                                cardTransitionEnabled = transitionEnabled && !foldHalfOpened,
-                                liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
-                            ),
-                            allowLivePlayerSharedElement = !foldHalfOpened &&
-                                resolveAllowLivePlayerSharedElementForMorph(
-                                    cardTransitionEnabled = transitionEnabled,
+                        if (playerContent != null) {
+                            playerContent(Modifier.fillMaxSize())
+                        } else {
+                            VideoPlayerSection(
+                                playerState = playerState,
+                                uiState = uiState,
+                                isFullscreen = false,
+                                isInPipMode = isInPipMode,
+                                useTextureSurfaceForNavigation = resolveNavigationLiveSurfaceTextureEnabled(
+                                    cardTransitionEnabled = transitionEnabled && !foldHalfOpened,
                                     liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
                                 ),
-                            predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-                            onToggleFullscreen = onToggleFullscreen,
-                            onQualityChange = playbackActions.changeQuality,
-                            onBack = onBack,
-                            onHomeClick = onHomeClick,
-                            bvid = bvid,
-                            coverUrl = coverUrl,
-                            onDoubleTapLike = engagementActions.toggleLike,
-                            onReloadVideo = playbackActions.reloadVideo,
-                            cdnCount = (uiState as? VideoPlaybackUiState.Success)?.cdnCount ?: 1,
-                            cdnLineDiagnostics = (uiState as? VideoPlaybackUiState.Success)?.cdnLineDiagnostics.orEmpty(),
-                            isCdnProbing = (uiState as? VideoPlaybackUiState.Success)?.isCdnProbing ?: false,
-                            onSwitchCdn = playbackActions.switchCdn,
-                            onSwitchCdnTo = playbackActions.switchCdnTo,
-                            onProbeCdnCandidates = playbackActions.probeCdnCandidates,
-                            isAudioOnly = false,
-                            onAudioOnlyToggle = {
-                                playbackActions.setAudioMode(true)
-                                onNavigateToAudioMode()
-                            },
-                            sleepTimerMinutes = sleepTimerMinutes,
-                            onSleepTimerChange = playbackActions.setSleepTimer,
-                            videoshotData = (uiState as? VideoPlaybackUiState.Success)?.videoshotData,
-                            viewPoints = viewPoints,
-                            isVerticalVideo = isVerticalVideo,
-                            onPortraitFullscreen = onPortraitFullscreen,
-                            isPortraitFullscreen = isPortraitFullscreen,
+                                allowLivePlayerSharedElement = !foldHalfOpened &&
+                                    resolveAllowLivePlayerSharedElementForMorph(
+                                        cardTransitionEnabled = transitionEnabled,
+                                        liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                                    ),
+                                predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
+                                onToggleFullscreen = onToggleFullscreen,
+                                onQualityChange = playbackActions.changeQuality,
+                                onBack = onBack,
+                                onHomeClick = onHomeClick,
+                                bvid = bvid,
+                                coverUrl = coverUrl,
+                                onDoubleTapLike = engagementActions.toggleLike,
+                                onReloadVideo = playbackActions.reloadVideo,
+                                cdnCount = (uiState as? VideoPlaybackUiState.Success)?.cdnCount ?: 1,
+                                cdnLineDiagnostics = (uiState as? VideoPlaybackUiState.Success)?.cdnLineDiagnostics.orEmpty(),
+                                isCdnProbing = (uiState as? VideoPlaybackUiState.Success)?.isCdnProbing ?: false,
+                                onSwitchCdn = playbackActions.switchCdn,
+                                onSwitchCdnTo = playbackActions.switchCdnTo,
+                                onProbeCdnCandidates = playbackActions.probeCdnCandidates,
+                                isAudioOnly = false,
+                                onAudioOnlyToggle = {
+                                    playbackActions.setAudioMode(true)
+                                    onNavigateToAudioMode()
+                                },
+                                sleepTimerMinutes = sleepTimerMinutes,
+                                onSleepTimerChange = playbackActions.setSleepTimer,
+                                videoshotData = (uiState as? VideoPlaybackUiState.Success)?.videoshotData,
+                                viewPoints = viewPoints,
+                                isVerticalVideo = isVerticalVideo,
+                                onPortraitFullscreen = onPortraitFullscreen,
+                                isPortraitFullscreen = isPortraitFullscreen,
 
-                            onPipClick = onPipClick,
-                            // [New] Codec & Audio
-                            currentCodec = currentCodec,
-                            onCodecChange = onCodecChange,
-                            currentSecondCodec = currentSecondCodec,
-                            onSecondCodecChange = onSecondCodecChange,
-                            currentAudioQuality = currentAudioQuality,
-                            onAudioQualityChange = onAudioQualityChange,
-                            onPlaybackSpeedChange = playbackActions.applyPlaybackSpeed,
-                            // [New Actions]
-                            onSaveCover = playbackActions.saveCover,
-                            onDownloadAudio = playbackActions.downloadAudio,
-                            // 🔁 [新增] 播放模式
-                            currentPlayMode = currentPlayMode,
-                            onPlayModeClick = onPlayModeClick,
-                            viewportWidthDpOverride = playerWidth.value.toInt(),
-                            onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
-                            onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
-                        )
+                                onPipClick = onPipClick,
+                                // [New] Codec & Audio
+                                currentCodec = currentCodec,
+                                onCodecChange = onCodecChange,
+                                currentSecondCodec = currentSecondCodec,
+                                onSecondCodecChange = onSecondCodecChange,
+                                currentAudioQuality = currentAudioQuality,
+                                onAudioQualityChange = onAudioQualityChange,
+                                onPlaybackSpeedChange = playbackActions.applyPlaybackSpeed,
+                                // [New Actions]
+                                onSaveCover = playbackActions.saveCover,
+                                onDownloadAudio = playbackActions.downloadAudio,
+                                // 🔁 [新增] 播放模式
+                                currentPlayMode = currentPlayMode,
+                                onPlayModeClick = onPlayModeClick,
+                                viewportWidthDpOverride = playerWidth.value.toInt(),
+                                onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
+                                onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
+                            )
+                        }
                     }
                 }
                 

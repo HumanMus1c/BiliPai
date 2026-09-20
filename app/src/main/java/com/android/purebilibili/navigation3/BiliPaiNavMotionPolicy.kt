@@ -129,6 +129,10 @@ internal fun shouldActivateVideoDetailPlaybackSession(
 ): Boolean {
     return currentKey == detailKey ||
         (
+            currentKey is BiliPaiNavKey.AudioMode &&
+                currentKey.sourceBvid == detailKey.bvid
+        ) ||
+        (
             isImmediateBackPreview &&
                 currentKey is BiliPaiNavKey.VideoDetail &&
                 activateBackPreviewPlayback

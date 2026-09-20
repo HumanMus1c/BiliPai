@@ -5,6 +5,7 @@ import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiKeyManager
 import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.store.TokenManager
+import com.android.purebilibili.core.util.IdUtils
 import com.android.purebilibili.data.model.response.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,9 +18,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 internal data class BangumiPlayUrlPayload(
-    val code: Int,
-    val message: String,
-    val videoInfo: BangumiVideoInfo?
+    val code: Int = -1,
+    val message: String = "",
+    val videoInfo: BangumiVideoInfo? = null
 )
 
 internal fun shouldFallbackToLegacyBangumiPlayUrl(payload: BangumiPlayUrlPayload): Boolean {
@@ -42,6 +43,7 @@ internal fun buildBangumiPlayUrlParams(
     qn: Int,
     bvid: String? = null,
     seasonId: Long? = null,
+    aid: Long = 0L,
     tryLook: Boolean = true
 ): Map<String, String> {
     val params = linkedMapOf(
@@ -63,8 +65,21 @@ internal fun buildBangumiPlayUrlParams(
     if (tryLook) {
         params["try_look"] = "1"
     }
-    if (!bvid.isNullOrBlank()) {
-        params["bvid"] = bvid
+    val resolvedAid = when {
+        aid > 0L -> aid
+        !bvid.isNullOrBlank() -> IdUtils.bv2av(bvid)
+        else -> 0L
+    }
+    if (resolvedAid > 0L) {
+        params["avid"] = resolvedAid.toString()
+    }
+    val resolvedBvid = when {
+        !bvid.isNullOrBlank() -> bvid
+        resolvedAid > 0L -> IdUtils.av2bv(resolvedAid)
+        else -> ""
+    }
+    if (resolvedBvid.isNotBlank()) {
+        params["bvid"] = resolvedBvid
     }
     return params
 }
@@ -89,9 +104,10 @@ internal fun decodeBangumiPlayUrlPayload(
     val code = root["code"]?.jsonPrimitive?.intOrNull ?: -1
     val message = root["message"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val resultObject = root["result"] as? JsonObject
-    val videoInfoElement = resultObject?.get("video_info") ?: resultObject
+    val dataObject = root["data"] as? JsonObject
+    val videoInfoElement = resultObject?.get("video_info") ?: resultObject ?: (dataObject?.get("video_info") ?: dataObject)
     val videoInfo = videoInfoElement?.let {
-        json.decodeFromString<BangumiVideoInfo>(it.toString())
+        runCatching { json.decodeFromString<BangumiVideoInfo>(it.toString()) }.getOrNull()
     }
     return BangumiPlayUrlPayload(
         code = code,
@@ -293,6 +309,11 @@ object BangumiRepository {
                 """.trimIndent())
                 Result.success(resolvedDetail)
             } else {
+                // 如果 PGC 接口返回错误（例如 -404 啥都木有），尝试 PUGV 课堂/课程接口
+                val pugvResult = getPugvSeasonDetail(seasonId = seasonId, epId = epId)
+                if (pugvResult.isSuccess) {
+                    return@withContext pugvResult
+                }
                 Result.failure(Exception("获取番剧详情失败: ${response.message}"))
             }
         } catch (e: OutOfMemoryError) {
@@ -302,6 +323,43 @@ object BangumiRepository {
             Result.failure(Exception("加载失败：番剧数据过大，请稍后重试"))
         } catch (e: Exception) {
             android.util.Log.e("BangumiRepo", "getSeasonDetail error: ${e.message}")
+            val pugvResult = getPugvSeasonDetail(seasonId = seasonId, epId = epId)
+            if (pugvResult.isSuccess) {
+                return@withContext pugvResult
+            }
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 获取课堂/课程详情 (PUGV)
+     */
+    suspend fun getPugvSeasonDetail(seasonId: Long = 0, epId: Long = 0): Result<BangumiDetail> = withContext(Dispatchers.IO) {
+        try {
+            val responseBody = if (epId > 0) {
+                api.getPugvSeasonDetail(epId = epId)
+            } else if (seasonId > 0) {
+                api.getPugvSeasonDetail(seasonId = seasonId)
+            } else {
+                return@withContext Result.failure(Exception("参数错误: seasonId 和 epId 不能同时为空"))
+            }
+
+            val jsonString = responseBody.string()
+            val json = Json {
+                ignoreUnknownKeys = true
+                coerceInputValues = true
+            }
+
+            val response = json.decodeFromString<com.android.purebilibili.data.model.response.PugvSeasonResponse>(jsonString)
+            if (response.code == 0 && response.data != null) {
+                val detail = response.data.toBangumiDetail()
+                android.util.Log.w("BangumiRepo", "getPugvSeasonDetail 成功: seasonId=${detail.seasonId}, title=${detail.title}, episodes=${detail.episodes?.size}")
+                Result.success(detail)
+            } else {
+                Result.failure(Exception(response.message.ifBlank { "获取课程详情失败" }))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BangumiRepo", "getPugvSeasonDetail error: ${e.message}")
             Result.failure(e)
         }
     }
@@ -353,16 +411,19 @@ object BangumiRepository {
         qn: Int = 80,
         cid: Long = 0L,
         bvid: String? = null,
-        seasonId: Long? = null
+        seasonId: Long? = null,
+        aid: Long = 0L,
+        isCourse: Boolean = false
     ): Result<BangumiVideoInfo> = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.d("BangumiRepo", "📡 getBangumiPlayUrl: epId=$epId, cid=$cid, seasonId=$seasonId, qn=$qn")
+            android.util.Log.d("BangumiRepo", "📡 getBangumiPlayUrl: epId=$epId, cid=$cid, seasonId=$seasonId, aid=$aid, isCourse=$isCourse, qn=$qn")
             val baseParams = buildBangumiPlayUrlParams(
                 epId = epId,
                 cid = cid,
                 qn = qn,
                 bvid = bvid,
-                seasonId = seasonId
+                seasonId = seasonId,
+                aid = aid
             )
             val wbiKeys = WbiKeyManager.getWbiKeys().getOrNull()
                 ?: WbiKeyManager.refreshKeys().getOrNull()
@@ -375,31 +436,61 @@ object BangumiRepository {
                 "📡 getBangumiPlayUrl request params: wbiSigned=${signedParams.containsKey("w_rid")}, keys=${signedParams.keys.sorted()}"
             )
             val playbackApi = NetworkModule.playbackBangumiApi()
-            val primaryResponse = decodeBangumiPlayUrlPayload(
-                rawJson = playbackApi.getBangumiPlayUrl(
-                    signedParams
-                ).string()
-            )
-            val response = if (shouldFallbackToLegacyBangumiPlayUrl(primaryResponse)) {
-                android.util.Log.w(
-                    "BangumiRepo",
-                    "📡 getBangumiPlayUrl fallback legacy: code=${primaryResponse.code}, msg=${primaryResponse.message}"
-                )
-                decodeBangumiPlayUrlPayload(
-                    rawJson = playbackApi.getBangumiPlayUrlLegacy(
-                        signedParams
-                    ).string()
-                )
+
+            val finalResponse = if (isCourse) {
+                // 课程优先使用 PUGV playurl
+                val pugvResponse = runCatching {
+                    val pugvRawJson = playbackApi.getPugvPlayUrl(signedParams).string()
+                    decodeBangumiPlayUrlPayload(pugvRawJson)
+                }.getOrNull()
+                if (pugvResponse != null && pugvResponse.code == 0 && pugvResponse.videoInfo != null) {
+                    pugvResponse
+                } else {
+                    val primary = runCatching {
+                        decodeBangumiPlayUrlPayload(playbackApi.getBangumiPlayUrl(signedParams).string())
+                    }.getOrNull()
+                    primary?.takeIf { it.code == 0 && it.videoInfo != null }
+                        ?: pugvResponse
+                        ?: BangumiPlayUrlPayload(code = -1, message = "获取播放地址失败", videoInfo = null)
+                }
             } else {
-                primaryResponse
+                val primaryResponse = runCatching {
+                    decodeBangumiPlayUrlPayload(
+                        rawJson = playbackApi.getBangumiPlayUrl(
+                            signedParams
+                        ).string()
+                    )
+                }.getOrNull()
+                val response = if (primaryResponse != null && !shouldFallbackToLegacyBangumiPlayUrl(primaryResponse)) {
+                    primaryResponse
+                } else {
+                    runCatching {
+                        decodeBangumiPlayUrlPayload(
+                            rawJson = playbackApi.getBangumiPlayUrlLegacy(
+                                signedParams
+                            ).string()
+                        )
+                    }.getOrNull() ?: primaryResponse
+                }
+                // 如果常规 PGC playurl 失败（例如 -404 啥都木有，或异常），尝试 PUGV 课堂/课程 playurl
+                if (response != null && response.code == 0 && response.videoInfo != null) {
+                    response
+                } else {
+                    runCatching {
+                        val pugvRawJson = playbackApi.getPugvPlayUrl(signedParams).string()
+                        decodeBangumiPlayUrlPayload(pugvRawJson)
+                    }.getOrNull()?.takeIf { it.code == 0 && it.videoInfo != null }
+                        ?: response
+                        ?: BangumiPlayUrlPayload(code = -1, message = "获取播放地址失败", videoInfo = null)
+                }
             }
             android.util.Log.d(
                 "BangumiRepo",
-                "📡 getBangumiPlayUrl response: code=${response.code}, msg=${response.message}, hasResult=${response.videoInfo != null}"
+                "📡 getBangumiPlayUrl response: code=${finalResponse.code}, msg=${finalResponse.message}, hasResult=${finalResponse.videoInfo != null}"
             )
             
-            if (response.code == 0 && response.videoInfo != null) {
-                val result = response.videoInfo
+            if (finalResponse.code == 0 && finalResponse.videoInfo != null) {
+                val result = finalResponse.videoInfo
                 android.util.Log.d(
                     "BangumiRepo",
                     "📹 PlayUrl: quality=${result.quality}, hasDash=${result.dash != null}, " +
@@ -408,13 +499,13 @@ object BangumiRepository {
                 )
                 validateBangumiPlayableVideoInfo(result)
             } else {
-                val errorMsg = when (response.code) {
+                val errorMsg = when (finalResponse.code) {
                     -10403 -> "需要大会员才能观看"
-                    -404 -> "视频不存在"
-                    -101 -> "请先登录后观看"  //  新增：检测需要登录
+                    -404 -> "视频或课程不存在"
+                    -101 -> "请先登录后观看"
                     -400 -> "请求参数错误"
-                    -403 -> "访问权限不足"
-                    else -> "获取播放地址失败: ${response.message} (code=${response.code})"
+                    -403 -> if (isCourse) "访问权限不足：该课程需购买后观看" else "访问权限不足"
+                    else -> "获取播放地址失败: ${finalResponse.message} (code=${finalResponse.code})"
                 }
                 Result.failure(Exception(errorMsg))
             }
@@ -425,18 +516,24 @@ object BangumiRepository {
     }
     
     /**
-     * 追番/追剧
+     * 追番/追剧/收藏课程
      */
     suspend fun followBangumi(seasonId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val csrf = TokenManager.csrfCache ?: return@withContext Result.failure(Exception("未登录"))
-            android.util.Log.w("BangumiRepo", "📌 追番请求: seasonId=$seasonId, csrf=${csrf.take(10)}...")
+            android.util.Log.w("BangumiRepo", "📌 追番/收藏请求: seasonId=$seasonId, csrf=${csrf.take(10)}...")
             val response = api.followBangumi(seasonId = seasonId, csrf = csrf)
             android.util.Log.w("BangumiRepo", "📌 追番响应: code=${response.code}, message=${response.message}")
             if (response.code == 0) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("追番失败: ${response.message}"))
+                // 如果常规追番失败，尝试课程收藏接口
+                val pugvResponse = runCatching { api.addFavPugv(seasonId = seasonId, csrf = csrf) }.getOrNull()
+                if (pugvResponse?.code == 0) {
+                    Result.success(true)
+                } else {
+                    Result.failure(Exception("追番/收藏失败: ${response.message}"))
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("BangumiRepo", "followBangumi error: ${e.message}")
@@ -445,7 +542,7 @@ object BangumiRepository {
     }
     
     /**
-     * 取消追番/追剧
+     * 取消追番/追剧/取消收藏课程
      */
     suspend fun unfollowBangumi(seasonId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
@@ -454,7 +551,13 @@ object BangumiRepository {
             if (response.code == 0) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("取消追番失败: ${response.message}"))
+                // 如果常规取消追番失败，尝试课程取消收藏接口
+                val pugvResponse = runCatching { api.delFavPugv(seasonId = seasonId, csrf = csrf) }.getOrNull()
+                if (pugvResponse?.code == 0) {
+                    Result.success(true)
+                } else {
+                    Result.failure(Exception("取消追番/收藏失败: ${response.message}"))
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("BangumiRepo", "unfollowBangumi error: ${e.message}")

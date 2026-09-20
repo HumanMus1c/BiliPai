@@ -1207,6 +1207,7 @@ fun rememberVideoPlayerState(
                     val pauseDecision = resolvePlaybackPauseDecision(
                         isMiniMode = isMiniMode,
                         isPip = isPip,
+                        isInAudioMode = viewModel.isInAudioMode.value,
                         isBackgroundAudio = isBackgroundAudio,
                         wasPlaybackActive = wasPlaying,
                         hasRecentUserLeaveHint = hasRecentUserLeaveHint,

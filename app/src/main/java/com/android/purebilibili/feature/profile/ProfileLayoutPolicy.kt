@@ -10,7 +10,8 @@ data class ProfileLayoutTokens(
     val contentSheetTopPaddingDp: Int = 8,
     val contentSheetBottomPaddingDp: Int = 24,
     val heroBottomInsetDp: Int = 16,
-    val sectionSpacingDp: Int = 20
+    val sectionSpacingDp: Int = 20,
+    val tabletWallpaperRevealHeightDp: Int = 224
 )
 
 data class ProfileCardTokens(
@@ -46,6 +47,12 @@ fun resolveProfileTopBannerHeightDp(
 ): Float {
     return resolveProfileHeroHeightDp(screenHeightDp = screenHeightDp, widthSizeClass = widthSizeClass)
 }
+
+fun resolveProfileTabletWallpaperRevealHeightDp(
+    useSplitLayout: Boolean,
+    hasWallpaper: Boolean,
+    tokens: ProfileLayoutTokens = resolveProfileLayoutTokens()
+): Int = if (useSplitLayout && hasWallpaper) tokens.tabletWallpaperRevealHeightDp else 0
 
 internal fun referenceProfileScreenHeightDp(widthSizeClass: WindowWidthSizeClass): Int {
     return when (widthSizeClass) {

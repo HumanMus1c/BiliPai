@@ -69,6 +69,7 @@ fun BangumiPlayerScreen(
     resumePositionMs: Long = 0L,
     onBack: () -> Unit,
     onNavigateToLogin: () -> Unit = {},
+    onUserClick: (Long) -> Unit = {},
     viewModel: BangumiPlayerViewModel = viewModel(),
     commentViewModel: VideoCommentViewModel = viewModel()
 ) {
@@ -333,12 +334,16 @@ fun BangumiPlayerScreen(
         CommentSortMode.fromApiMode(defaultCommentSortMode)
     }
 
-    LaunchedEffect(currentAid, preferredCommentSortMode, successState?.seasonDetail?.stat?.reply) {
-        if (currentAid > 0L) {
+    LaunchedEffect(currentAid, currentEpisodeIdForDebug, preferredCommentSortMode, successState?.seasonDetail?.stat?.reply) {
+        val isPugv = successState?.seasonDetail?.let { it.seasonType == 10 || it.seasonTypeName == "课堂" } == true
+        val targetOid = if (isPugv) (successState?.currentEpisode?.id ?: currentEpisodeIdForDebug) else currentAid
+        val targetType = if (isPugv) 33 else 1
+        if (targetOid > 0L) {
             commentViewModel.init(
-                aid = currentAid,
+                aid = targetOid,
                 preferredSortMode = preferredCommentSortMode,
-                expectedReplyCount = successState?.seasonDetail?.stat?.reply?.toInt() ?: 0
+                expectedReplyCount = successState?.seasonDetail?.stat?.reply?.toInt() ?: 0,
+                commentType = targetType
             )
         }
     }
@@ -797,7 +802,8 @@ fun BangumiPlayerScreen(
                                 currentEpisode = state.currentEpisode,
                                 commentViewModel = commentViewModel,
                                 onEpisodeClick = { viewModel.switchEpisode(it) },
-                                onFollowStatusSelect = { viewModel.updateFollowStatus(it) }
+                                onFollowStatusSelect = { viewModel.updateFollowStatus(it) },
+                                onUserClick = onUserClick
                             )
                         }
                     }

@@ -308,11 +308,17 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                         cid = cachedState.currentEpisode.cid
                     ) ?: 0L
                 )
+                val isCourse = cachedState.seasonDetail.seasonType == 10 || cachedState.seasonDetail.seasonTypeName == "课堂"
+                val cachedReferer = if (isCourse) {
+                    "https://www.bilibili.com/cheese/play/ep${cachedState.currentEpisode.id}"
+                } else {
+                    "https://www.bilibili.com/bangumi/play/ep${cachedState.currentEpisode.id}"
+                }
                 playDashVideo(
                     videoUrl = requireNotNull(cachedState.playUrl),
                     audioUrl = cachedState.audioUrl,
                     seekToMs = restorePositionMs,
-                    referer = "https://www.bilibili.com/bangumi/play/ep${cachedState.currentEpisode.id}"
+                    referer = cachedReferer
                 )
                 return
             }
@@ -405,13 +411,16 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         episodeIndex: Int,
         startPositionMs: Long = 0L
     ) {
-        com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "🎬 fetchPlayUrl: epId=${episode.id}, cid=${episode.cid}")
+        com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "🎬 fetchPlayUrl: epId=${episode.id}, cid=${episode.cid}, aid=${episode.aid}")
+        val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
         val playUrlResult = BangumiRepository.getBangumiPlayUrl(
             epId = episode.id,
             qn = resolveBangumiInitialQuality(),
             cid = episode.cid,
             bvid = episode.bvid,
-            seasonId = detail.seasonId
+            seasonId = detail.seasonId,
+            aid = episode.aid,
+            isCourse = isCourse
         )
         
         playUrlResult.onSuccess { playData ->
@@ -578,8 +587,13 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 com.android.purebilibili.core.util.Logger.e("BangumiPlayerVM", "❌ exoPlayer is NULL when trying to play! Video URL: ${videoUrl.take(50)}...")
             }
             
-            //  [修复] 构建番剧专用 Referer，解决 CDN 403 播放失败问题
-            val referer = "https://www.bilibili.com/bangumi/play/ep${episode.id}"
+            //  [修复] 构建番剧/课程专用 Referer，解决 CDN 403 播放失败问题
+            val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+            val referer = if (isCourse) {
+                "https://www.bilibili.com/cheese/play/ep${episode.id}"
+            } else {
+                "https://www.bilibili.com/bangumi/play/ep${episode.id}"
+            }
             com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "🔗 Using Referer: $referer")
             
             //  [修复] 多段 durl 使用拼接播放，避免只播第一段

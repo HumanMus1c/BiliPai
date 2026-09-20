@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.purebilibili.feature.article.ArticleDetailScreen
 import com.android.purebilibili.feature.article.shouldUseArticleNoOpRouteTransition
 import com.android.purebilibili.feature.audio.library.resolveListenVideoPlaybackSelection
@@ -149,6 +151,8 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
@@ -381,9 +385,20 @@ fun AppNavigation(
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val coroutineScope = rememberCoroutineScope()
+    val videoDetailViewModelOwners = remember {
+        mutableMapOf<BiliPaiNavKey.VideoDetail, ViewModelStoreOwner>()
+    }
     
     // 单一首页视觉配置源：减少根导航层多路 DataStore 收集导致的全局重组。
     val context = androidx.compose.ui.platform.LocalContext.current
+    val windowConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
+    val windowDensity = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.runtime.SideEffect {
+        CardPositionManager.invalidateVideoSourceIfWindowChanged(
+            screenWidth = with(windowDensity) { windowConfiguration.screenWidthDp.dp.toPx() },
+            screenHeight = with(windowDensity) { windowConfiguration.screenHeightDp.dp.toPx() },
+        )
+    }
     val application = remember(context) { context.applicationContext as Application }
     // Navigation3 的条目级 ViewModelStore 不一定携带 Application extras，设置页统一从根导航注入。
     val settingsViewModel: SettingsViewModel = viewModel(
@@ -617,24 +632,19 @@ fun AppNavigation(
         var navigationHostOriginInRoot by remember { mutableStateOf(Offset.Zero) }
         var sidebarAccountSwitcherVisible by rememberSaveable { mutableStateOf(false) }
         var sidebarAccountSessionGeneration by remember { mutableIntStateOf(0) }
-        val sidebarAccounts = remember(
-            accountSessionRefreshGeneration,
-            sidebarAccountSessionGeneration,
+        val sidebarAccountSnapshot by produceState(
+            initialValue = com.android.purebilibili.core.store.AccountSessionSnapshot(),
+            key1 = context,
+            key2 = accountSessionRefreshGeneration,
+            key3 = sidebarAccountSessionGeneration,
         ) {
-            AccountSessionStore.getAccounts(context)
+            value = withContext(Dispatchers.IO) {
+                AccountSessionStore.readSnapshot(context)
+            }
         }
-        val sidebarActiveAccountMid = remember(
-            accountSessionRefreshGeneration,
-            sidebarAccountSessionGeneration,
-        ) {
-            AccountSessionStore.getActiveAccountMid(context)
-        }
-        val sidebarPlaybackAccountMid = remember(
-            accountSessionRefreshGeneration,
-            sidebarAccountSessionGeneration,
-        ) {
-            AccountSessionStore.getPlaybackAccountMid(context)
-        }
+        val sidebarAccounts = sidebarAccountSnapshot.accounts
+        val sidebarActiveAccountMid = sidebarAccountSnapshot.activeAccountMid
+        val sidebarPlaybackAccountMid = sidebarAccountSnapshot.playbackAccountMid
         val playerInteractionSettings by SettingsManager.getPlayerInteractionSettings(context)
             .collectAsStateWithLifecycle(
                 initialValue = com.android.purebilibili.core.store.PlayerInteractionSettings(),
@@ -1855,34 +1865,52 @@ fun AppNavigation(
                         pushNavigation3Key(BiliPaiNavKey.Login)
                     },
                     onSwitch = { mid ->
-                        coroutineScope.launch {
-                            if (!AccountSessionStore.activateAccount(context, mid)) {
-                                Toast.makeText(context, "切换账号失败", Toast.LENGTH_SHORT).show()
-                                return@launch
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val switched = AccountSessionStore.activateAccount(context, mid)
+                            withContext(Dispatchers.Main.immediate) {
+                                if (!switched) {
+                                    Toast.makeText(context, "切换账号失败", Toast.LENGTH_SHORT).show()
+                                    return@withContext
+                                }
+                                sidebarAccountSessionGeneration += 1
+                                accountSessionRefreshGeneration += 1
+                                homeViewModel.refresh()
+                                sidebarAccountSwitcherVisible = false
+                                Toast.makeText(context, "已切换账号", Toast.LENGTH_SHORT).show()
                             }
-                            sidebarAccountSessionGeneration += 1
-                            accountSessionRefreshGeneration += 1
-                            homeViewModel.refresh()
-                            sidebarAccountSwitcherVisible = false
-                            Toast.makeText(context, "已切换账号", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onSetPlayback = { mid ->
-                        if (AccountSessionStore.setPlaybackAccountMid(context, mid)) {
-                            sidebarAccountSessionGeneration += 1
-                        } else {
-                            Toast.makeText(context, "播放账号不可用，请重新登录后再试", Toast.LENGTH_SHORT)
-                                .show()
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val updated = AccountSessionStore.setPlaybackAccountMid(context, mid)
+                            withContext(Dispatchers.Main.immediate) {
+                                if (updated) {
+                                    sidebarAccountSessionGeneration += 1
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "播放账号不可用，请重新登录后再试",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
                         }
                     },
                     onRemove = { mid ->
                         if (mid == sidebarActiveAccountMid) {
                             Toast.makeText(context, "请先切换到其他账号后再移除当前账号", Toast.LENGTH_SHORT)
                                 .show()
-                        } else if (AccountSessionStore.removeAccount(context, mid)) {
-                            sidebarAccountSessionGeneration += 1
                         } else {
-                            Toast.makeText(context, "移除账号失败", Toast.LENGTH_SHORT).show()
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val removed = AccountSessionStore.removeAccount(context, mid)
+                                withContext(Dispatchers.Main.immediate) {
+                                    if (removed) {
+                                        sidebarAccountSessionGeneration += 1
+                                    } else {
+                                        Toast.makeText(context, "移除账号失败", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         }
                     },
                 )
@@ -2696,7 +2724,26 @@ fun AppNavigation(
                         BiliPaiNavEntryContentRole.VIDEO_DETAIL -> {
                             val videoKey = key as BiliPaiNavKey.VideoDetail
                             val activity = context as? android.app.Activity
-                            var isNavigatingToAudioMode by remember(videoKey.bvid) { mutableStateOf(false) }
+                            val videoDetailOwner = LocalViewModelStoreOwner.current
+                            val videoPlaybackViewModel:
+                                com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel =
+                                viewModel()
+                            var isNavigatingToAudioMode by remember(videoKey) { mutableStateOf(false) }
+                            DisposableEffect(videoKey, videoDetailOwner) {
+                                if (videoDetailOwner != null) {
+                                    videoDetailViewModelOwners[videoKey] = videoDetailOwner
+                                }
+                                onDispose {
+                                    if (videoDetailViewModelOwners[videoKey] === videoDetailOwner) {
+                                        videoDetailViewModelOwners.remove(videoKey)
+                                    }
+                                }
+                            }
+                            LaunchedEffect(navigation3BackStack.lastOrNull(), videoKey) {
+                                if (navigation3BackStack.lastOrNull() == videoKey) {
+                                    isNavigatingToAudioMode = false
+                                }
+                            }
                             val isImmediateVideoBackPreview =
                                 navigation3BackStack.getOrNull(
                                     navigation3BackStack.lastIndex - 1
@@ -2710,6 +2757,13 @@ fun AppNavigation(
                             val activateVideoBackPreviewPlayback =
                                 bindVideoBackPreviewPlayer &&
                                     navigation3ReturnSession.isReturningFromDetail
+                            val videoDetailPlaybackSessionActive =
+                                shouldActivateVideoDetailPlaybackSession(
+                                    currentKey = navigation3BackStack.lastOrNull(),
+                                    detailKey = videoKey,
+                                    isImmediateBackPreview = isImmediateVideoBackPreview,
+                                    activateBackPreviewPlayback = activateVideoBackPreviewPlayback,
+                                )
                             val latestNavTopIsVideo by rememberUpdatedState(
                                 navigation3BackStack.lastOrNull() is BiliPaiNavKey.VideoDetail
                             )
@@ -2754,13 +2808,9 @@ fun AppNavigation(
                                 },
                                 miniPlayerManager = miniPlayerManager,
                                 isInPipMode = isInPipMode,
-                                isVisible = shouldActivateVideoDetailPlaybackSession(
-                                    currentKey = navigation3BackStack.lastOrNull(),
-                                    detailKey = videoKey,
-                                    isImmediateBackPreview = isImmediateVideoBackPreview,
-                                    activateBackPreviewPlayback =
-                                        activateVideoBackPreviewPlayback,
-                                ),
+                                isVisible = videoDetailPlaybackSessionActive &&
+                                    navigation3BackStack.lastOrNull() !is BiliPaiNavKey.AudioMode,
+                                isPlaybackSessionActive = videoDetailPlaybackSessionActive,
                                 startInFullscreen = videoKey.fullscreen,
                                 startAudioFromRoute = videoKey.startAudio,
                                 autoEnterPortraitFromRoute = videoKey.autoPortrait,
@@ -2880,7 +2930,8 @@ fun AppNavigation(
                                             BiliPaiNavKey.NativeMusic(title, videoKey.bvid, videoKey.cid)
                                         )
                                     }
-                                }
+                                },
+                                viewModel = videoPlaybackViewModel,
                             )
                         }
                         BiliPaiNavEntryContentRole.ONBOARDING ->
@@ -3427,8 +3478,19 @@ fun AppNavigation(
                             }
                         BiliPaiNavEntryContentRole.AUDIO_MODE -> {
                                 val audioModeKey = key as BiliPaiNavKey.AudioMode
+                                val previousVideoKey = remember(audioModeKey) {
+                                    navigation3BackStack
+                                        .takeWhile { it != audioModeKey }
+                                        .lastOrNull() as? BiliPaiNavKey.VideoDetail
+                                }
+                                val sharedVideoOwner =
+                                    previousVideoKey?.let(videoDetailViewModelOwners::get)
                                 val viewModel: com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel =
-                                    viewModel()
+                                    if (sharedVideoOwner != null) {
+                                        viewModel(viewModelStoreOwner = sharedVideoOwner)
+                                    } else {
+                                        viewModel()
+                                    }
                                 DisposableEffect(Unit) {
                                     onAudioModeEnter()
                                     onDispose {
@@ -3437,7 +3499,9 @@ fun AppNavigation(
                                 }
                                 val initialLoadRequest = resolveAudioModeInitialLoadRequest(
                                     key = audioModeKey,
-                                    hasDisplayState = false
+                                    hasDisplayState =
+                                        viewModel.uiState.value is
+                                            com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState.Success
                                 )
                                 com.android.purebilibili.feature.video.screen.AudioModeScreen(
                                     viewModel = viewModel,
@@ -3576,7 +3640,8 @@ fun AppNavigation(
                                     epId = playerKey.epId,
                                     resumePositionMs = playerKey.resumePositionMs,
                                     onBack = { performSystemBackAction() },
-                                    onNavigateToLogin = { pushNavigation3Key(BiliPaiNavKey.Login) }
+                                    onNavigateToLogin = { pushNavigation3Key(BiliPaiNavKey.Login) },
+                                    onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) }
                                 )
                             }
                         BiliPaiNavEntryContentRole.MUSIC_DETAIL -> {
@@ -3622,6 +3687,11 @@ fun AppNavigation(
                                     onBangumiClick = { seasonId ->
                                         if (seasonId > 0L) {
                                             pushNavigation3Key(BiliPaiNavKey.BangumiDetail(seasonId = seasonId))
+                                        }
+                                    },
+                                    onCheeseClick = { seasonId ->
+                                        if (seasonId > 0L) {
+                                            pushNavigation3Key(BiliPaiNavKey.BangumiPlayer(seasonId = seasonId, epId = 0L))
                                         }
                                     },
                                     onWebClick = { url, title ->
@@ -3905,7 +3975,8 @@ fun AppNavigation(
                                                 )
                                             )
                                         }
-                                    }
+                                    },
+                                    onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) }
                                 )
                             }
                         BiliPaiNavEntryContentRole.BANGUMI_REVIEW -> {
@@ -4040,9 +4111,10 @@ fun AppNavigation(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        val dockAudioContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? =
+                        val dockAudioContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? =
                             if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
-                                { audioModifier, dockMergeProgress, iconOnlyProgress, surfaceMergeProgress ->
+                                { audioModifier, dockMergeProgress, iconOnlyProgress, surfaceMergeProgress,
+                                    compactClick, layoutStable ->
                                     val playbackManager = miniPlayerManager ?: MiniPlayerManager.getInstance(context)
                                     AudioNowPlayingBar(
                                         state = AudioNowPlayingBarState(
@@ -4054,10 +4126,13 @@ fun AppNavigation(
                                             isPlaying = playbackManager.isPlaying,
                                             playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
                                         ),
+                                        onCompactClick = compactClick,
+                                        isLayoutStable = layoutStable && !driveBottomBarByProgress,
                                         sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
                                         isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                                         returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
-                                        isSharedTransitionActive = sharedVideoCardTransitionEnabled,
+                                        isSharedTransitionRunning = driveBottomBarByProgress,
+                                        isSharedTransitionSourceOwner = videoCardSourceChromeVisible,
                                         onExpand = {
                                             val expandRoute = resolveAudioNowPlayingBarExpandRoute(
                                                 opensAudioMode = audioNowPlayingBarOpensAudioMode,
@@ -4113,7 +4188,7 @@ fun AppNavigation(
                                 }
                             } else null
                         if (!isBottomBarFloating) {
-                            dockAudioContent?.invoke(Modifier, 0f, 0f, 0f)
+                            dockAudioContent?.invoke(Modifier, 0f, 0f, 0f, null, true)
                         }
                         if (isBottomBarFloating) {
                             val isBookPosture = appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book
@@ -4241,10 +4316,12 @@ fun AppNavigation(
                         isPlaying = playbackManager.isPlaying,
                         playbackSpeed = playbackManager.player?.playbackParameters?.speed ?: 1f
                     ),
+                    isLayoutStable = !driveBottomBarByProgress,
                     sourceRoute = currentRoute ?: ScreenRoutes.Home.route,
                     isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                     returningDetailBvid = navigation3ReturnSession.transitionSession?.bvid,
-                    isSharedTransitionActive = sharedVideoCardTransitionEnabled,
+                    isSharedTransitionRunning = driveBottomBarByProgress,
+                    isSharedTransitionSourceOwner = videoCardSourceChromeVisible,
                     onExpand = {
                         val expandRoute = resolveAudioNowPlayingBarExpandRoute(
                             opensAudioMode = audioNowPlayingBarOpensAudioMode,

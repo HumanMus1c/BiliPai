@@ -28,8 +28,6 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -37,14 +35,9 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.util.CardPositionManager
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +52,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +61,6 @@ import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.LocalLiquidGlassRenderConfig
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
-import kotlinx.coroutines.delay
 import kotlin.math.abs
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
@@ -85,6 +78,8 @@ internal data class AudioNowPlayingBarState(
 internal fun AudioNowPlayingBar(
     state: AudioNowPlayingBarState,
     onExpand: () -> Unit,
+    onCompactClick: (() -> Unit)? = null,
+    isLayoutStable: Boolean = true,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -93,7 +88,8 @@ internal fun AudioNowPlayingBar(
     sourceRoute: String? = null,
     isReturningFromDetail: Boolean = false,
     returningDetailBvid: String? = null,
-    isSharedTransitionActive: Boolean = false,
+    isSharedTransitionRunning: Boolean = false,
+    isSharedTransitionSourceOwner: Boolean = false,
     glassEnabled: Boolean = LocalSettingsLiquidGlassEnabled.current,
     blurEnabled: Boolean = false,
     hazeState: HazeState? = null,
@@ -115,76 +111,62 @@ internal fun AudioNowPlayingBar(
     val screenHeightPx = remember(configuration.screenHeightDp, density) {
         with(density) { configuration.screenHeightDp.dp.toPx() }
     }
+    SideEffect {
+        CardPositionManager.invalidateVideoSourceIfWindowChanged(screenWidthPx, screenHeightPx)
+    }
 
     val barCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
 
     val handleExpand = {
-        barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
-            val sourceCoverBounds = coverCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()
-            val effectiveSourceLayout = if (iconOnlyProgress >= 0.99f) {
-                VideoCardSourceLayout.COVER_ONLY
-            } else {
-                VideoCardSourceLayout.SIDE_BY_SIDE
-            }
-            if (state.bvid.isNotBlank()) {
-                CardPositionManager.recordVideoCardPosition(
-                    bvid = state.bvid,
-                    sourceRoute = sourceRoute,
-                    bounds = bounds,
-                    screenWidth = screenWidthPx,
-                    screenHeight = screenHeightPx,
-                    density = density.density,
-                    sourceCornerDp = 28,
-                    coverBounds = sourceCoverBounds,
-                    sourceLayout = effectiveSourceLayout,
-                    sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
-                        title = state.title,
-                        ownerName = state.artist,
-                        ownerFaceUrl = state.artistAvatarUrl,
-                        viewText = "",
-                        danmakuText = "",
-                        durationText = "",
-                        followed = false,
+        if (onCompactClick != null) {
+            onCompactClick()
+        } else if (canOpenAudioNowPlayingBarSource(isLayoutStable)) {
+            barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
+                val sourceCoverBounds = coverCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()
+                val effectiveSourceLayout = if (iconOnlyProgress >= 0.99f) {
+                    VideoCardSourceLayout.COVER_ONLY
+                } else {
+                    VideoCardSourceLayout.SIDE_BY_SIDE
+                }
+                if (state.bvid.isNotBlank() &&
+                    bounds.left.isFinite() && bounds.top.isFinite() &&
+                    bounds.right.isFinite() && bounds.bottom.isFinite() &&
+                    bounds.width > 0f && bounds.height > 0f
+                ) {
+                    CardPositionManager.recordVideoCardPosition(
+                        bvid = state.bvid,
+                        sourceRoute = sourceRoute,
+                        bounds = bounds,
+                        screenWidth = screenWidthPx,
+                        screenHeight = screenHeightPx,
+                        density = density.density,
+                        sourceCornerDp = 28,
+                        coverBounds = sourceCoverBounds,
+                        sourceLayout = effectiveSourceLayout,
+                        sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                            title = state.title,
+                            ownerName = state.artist,
+                            ownerFaceUrl = state.artistAvatarUrl,
+                            viewText = "",
+                            danmakuText = "",
+                            durationText = "",
+                            followed = false,
+                        )
                     )
-                )
+                }
             }
+            onExpand()
         }
-        onExpand()
     }
-
-    val landingProgress = remember { Animatable(1f) }
-    var hasTriggeredForSession by remember { mutableStateOf(false) }
     val reduceMotion = rememberSystemReduceMotion()
-    val landingMotionEnabled = resolveAudioNowPlayingBarLandingMotionEnabled(reduceMotion)
-    val shouldTriggerLanding = resolveAudioNowPlayingBarShouldTriggerLanding(
+    val sourceInActiveReturn = shouldHideAudioNowPlayingBarForSharedReturn(
         isReturningFromDetail = isReturningFromDetail,
         targetBvid = returningDetailBvid,
         currentBvid = state.bvid,
-        isSharedTransitionActive = isSharedTransitionActive,
+        isSharedTransitionRunning = isSharedTransitionRunning,
+        isSharedTransitionSourceOwner = isSharedTransitionSourceOwner,
     )
-
-    LaunchedEffect(shouldTriggerLanding, landingMotionEnabled) {
-        if (shouldTriggerLanding && landingMotionEnabled) {
-            if (!hasTriggeredForSession) {
-                hasTriggeredForSession = true
-                delay(AUDIO_NOW_PLAYING_BAR_LANDING_DELAY_MS)
-                landingProgress.snapTo(0f)
-                landingProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = AUDIO_NOW_PLAYING_BAR_LANDING_DURATION_MS,
-                        easing = AudioNowPlayingBarLandingEasing
-                    )
-                )
-            }
-        } else if (!shouldTriggerLanding) {
-            hasTriggeredForSession = false
-            if (!landingProgress.isRunning && landingProgress.value != 1f) {
-                landingProgress.snapTo(1f)
-            }
-        }
-    }
 
     val mergeProgress = dockMergeProgress.coerceIn(0f, 1f)
     val searchProgress = iconOnlyProgress.coerceIn(0f, 1f)
@@ -223,34 +205,30 @@ internal fun AudioNowPlayingBar(
                 barCoordsRef[0] = coordinates
             }
             .graphicsLayer {
-                val isSourceInActiveReturn = isSharedTransitionActive &&
-                    isReturningFromDetail &&
-                    (returningDetailBvid == null || returningDetailBvid == state.bvid)
-                if (isSourceInActiveReturn) {
-                    alpha = 0f
-                } else {
-                    val progress = landingProgress.value
-                    if (progress == 1f) {
-                        scaleX = 1f
-                        scaleY = 1f
-                        translationY = 0f
-                        alpha = 1f
-                    } else {
-                        // 无额外内存分配的高刷标量求值（resolveAudioNowPlayingBarLandingScale）：
-                        scaleX = resolveAudioNowPlayingBarLandingScaleX(progress)
-                        scaleY = resolveAudioNowPlayingBarLandingScaleY(progress)
-                        translationY = resolveAudioNowPlayingBarLandingOffsetY(progress) * density.density
-                        alpha = resolveAudioNowPlayingBarLandingAlpha(progress)
-                    }
-                }
+                // The transition host owns the source pixels during return; do not
+                // start a second settle animation when the real bar is revealed.
+                alpha = if (sourceInActiveReturn) 0f else 1f
             }
             .clip(shape)
-            .semantics { contentDescription = "当前视频：${state.title}，打开$expandDestinationLabel" }
-            .clickable(onClick = handleExpand)
-            .audioNowPlayingSkipGesture(
-                onSkipNext = onSkipNext,
-                onSkipPrevious = onSkipPrevious
-            ),
+            .semantics {
+                contentDescription = if (onCompactClick != null) {
+                    "当前视频：${state.title}，收起搜索并展开视频小横条"
+                } else {
+                    "当前视频：${state.title}，打开$expandDestinationLabel"
+                }
+            }
+            .clickable(enabled = !sourceInActiveReturn, onClick = handleExpand)
+            .then(
+                if (!sourceInActiveReturn) {
+                    Modifier.audioNowPlayingSkipGesture(
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .then(if (sourceInActiveReturn) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
         Box(
             Modifier.matchParentSize()

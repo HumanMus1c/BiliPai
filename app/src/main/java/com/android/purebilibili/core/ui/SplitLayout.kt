@@ -41,6 +41,31 @@ enum class AppSplitPane {
     Tertiary,
 }
 
+internal data class AppHingeSplitGeometry(
+    val primaryRatio: Float,
+    val dividerSizePx: Float,
+)
+
+internal fun resolveAppHingeSplitGeometry(
+    totalSizePx: Float,
+    hingeStartPx: Float,
+    hingeEndPx: Float,
+    clearancePx: Float,
+    fallbackRatio: Float,
+): AppHingeSplitGeometry {
+    if (totalSizePx <= 0f || hingeStartPx < 0f || hingeEndPx <= hingeStartPx) {
+        return AppHingeSplitGeometry(fallbackRatio, 1f)
+    }
+    val dividerSizePx = (hingeEndPx - hingeStartPx + clearancePx * 2f)
+        .coerceAtMost(totalSizePx)
+    val distributableSizePx = (totalSizePx - dividerSizePx).coerceAtLeast(1f)
+    val primarySizePx = (hingeStartPx - clearancePx).coerceIn(0f, distributableSizePx)
+    return AppHingeSplitGeometry(
+        primaryRatio = (primarySizePx / distributableSizePx).coerceIn(0.05f, 0.95f),
+        dividerSizePx = dividerSizePx,
+    )
+}
+
 /**
  * Small list/detail-style navigator for [AppSplitLayout].
  *
@@ -143,33 +168,33 @@ fun AppSplitLayout(
     val density = LocalDensity.current
     val foldingFeature = adaptiveInfo.foldingFeature
     val hingeBounds = foldingFeature.hingeBounds
+    val hasObstructingHinge = foldingFeature.hasObstructingHinge
     val splitAxis = when (foldingFeature.hingeOrientation) {
         AppHingeOrientation.Horizontal -> AppSplitAxis.Vertical
         AppHingeOrientation.Vertical,
         AppHingeOrientation.None -> AppSplitAxis.Horizontal
     }
-    val hingeAwareRatio = if (adaptiveInfo.shouldAvoidHinge && hingeBounds != null) {
-        with(density) {
-            when (splitAxis) {
-                AppSplitAxis.Horizontal ->
-                    hingeBounds.left / windowSizeClass.widthDp.toPx()
-                AppSplitAxis.Vertical ->
-                    hingeBounds.top / windowSizeClass.heightDp.toPx()
-            }
-        }.coerceIn(0.2f, 0.8f)
-    } else {
-        primaryRatio
-    }
-    val dividerSize = if (adaptiveInfo.shouldAvoidHinge && hingeBounds != null) {
-        with(density) {
-            when (splitAxis) {
-                AppSplitAxis.Horizontal -> hingeBounds.width.toDp()
-                AppSplitAxis.Vertical -> hingeBounds.height.toDp()
-            }
-        }.coerceAtLeast(1.dp)
-    } else {
-        1.dp
-    }
+    val hingeGeometry = if (hasObstructingHinge && hingeBounds != null) {
+        val clearancePx = with(density) { 16.dp.toPx() }
+        when (splitAxis) {
+            AppSplitAxis.Horizontal -> resolveAppHingeSplitGeometry(
+                totalSizePx = with(density) { windowSizeClass.widthDp.toPx() },
+                hingeStartPx = hingeBounds.left.toFloat(),
+                hingeEndPx = hingeBounds.right.toFloat(),
+                clearancePx = clearancePx,
+                fallbackRatio = primaryRatio,
+            )
+            AppSplitAxis.Vertical -> resolveAppHingeSplitGeometry(
+                totalSizePx = with(density) { windowSizeClass.heightDp.toPx() },
+                hingeStartPx = hingeBounds.top.toFloat(),
+                hingeEndPx = hingeBounds.bottom.toFloat(),
+                clearancePx = clearancePx,
+                fallbackRatio = primaryRatio,
+            )
+        }
+    } else null
+    val hingeAwareRatio = hingeGeometry?.primaryRatio ?: primaryRatio
+    val dividerSize = hingeGeometry?.let { with(density) { it.dividerSizePx.toDp() } } ?: 1.dp
     LaunchedEffect(state, tertiaryContent != null) {
         state.ensureAvailable(tertiaryAvailable = tertiaryContent != null)
     }
@@ -192,8 +217,8 @@ fun AppSplitLayout(
         return
     }
     val sceneLayout = resolveAppAdaptiveSceneLayout(adaptiveInfo)
-    val useSplitLayout = windowSizeClass.shouldUseSplitLayout || adaptiveInfo.shouldAvoidHinge
-    if (!useSplitLayout || sceneLayout == AppAdaptiveSceneLayout.SinglePane) {
+    val useSplitLayout = windowSizeClass.shouldUseSplitLayout || hasObstructingHinge
+    if (!useSplitLayout || (sceneLayout == AppAdaptiveSceneLayout.SinglePane && !hasObstructingHinge)) {
         androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
             when (state.currentPane) {
                 AppSplitPane.Primary -> savedPrimaryContent()

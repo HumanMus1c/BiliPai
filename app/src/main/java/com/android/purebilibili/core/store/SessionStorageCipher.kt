@@ -16,6 +16,9 @@ object SessionStorageCipher {
     private const val ALIAS = "bilipai.session.storage"
     private const val PREFIX = "v1:"
 
+    @Volatile
+    private var cachedKey: SecretKey? = null
+
     fun encrypt(value: String): String {
         if (value.isEmpty()) return value
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
@@ -38,16 +41,29 @@ object SessionStorageCipher {
     }
 
     private fun key(): SecretKey {
-        val store = KeyStore.getInstance(STORE).apply { load(null) }
-        if (!store.containsAlias(ALIAS)) {
-            KeyGenerator.getInstance("AES", STORE).apply {
-                init(KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .build())
-            }.generateKey()
+        cachedKey?.let { return it }
+        return synchronized(this) {
+            cachedKey?.let { return@synchronized it }
+
+            var store = KeyStore.getInstance(STORE).apply { load(null) }
+            if (!store.containsAlias(ALIAS)) {
+                KeyGenerator.getInstance("AES", STORE).apply {
+                    init(
+                        KeyGenParameterSpec.Builder(
+                            ALIAS,
+                            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                        )
+                            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                            .build(),
+                    )
+                }.generateKey()
+                // Reload after generation so this lookup observes the newly-created alias.
+                store = KeyStore.getInstance(STORE).apply { load(null) }
+            }
+            (store.getEntry(ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
+                .also { cachedKey = it }
         }
-        return (store.getEntry(ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
     }
 
     private fun b64(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP or Base64.URL_SAFE)

@@ -1028,8 +1028,12 @@ internal fun ElegantVideoCard(
                 .fillMaxWidth()
                 .recordNativeVideoCardLayer(
                     layer = nativeCardLayer,
-                    freezeProvider = { freezeNativeCardLayer.value },
+                    freezeProvider = {
+                        freezeNativeCardLayer.value &&
+                            CardPositionManager.isNativeVideoCardLayerCurrentOwner(nativeCardLayer)
+                    },
                     bvid = video.bvid,
+                    sourceRoute = effectiveSharedElementSourceRoute,
                     enabled = effectiveTransitionEnabled,
                 ),
         ) {
@@ -1170,8 +1174,14 @@ internal fun ElegantVideoCard(
                     .fillMaxSize()
                     .recordNativeVideoCardLayer(
                         layer = nativeCoverOverlayLayer,
-                        freezeProvider = { freezeNativeCardLayer.value },
+                        freezeProvider = {
+                            freezeNativeCardLayer.value &&
+                                CardPositionManager.isNativeCoverOverlayLayerCurrentOwner(
+                                    nativeCoverOverlayLayer
+                                )
+                        },
                         bvid = video.bvid,
+                        sourceRoute = effectiveSharedElementSourceRoute,
                         enabled = effectiveTransitionEnabled,
                     ),
             ) {

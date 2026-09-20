@@ -227,6 +227,7 @@ internal fun resolveFloatingDockIndicatorHeightDp(
     tabWidthDp: Float,
     geometryMode: FloatingBottomBarGeometryMode = FloatingBottomBarGeometryMode.Dock,
     shellHeightDp: Float? = null,
+    proportionalReferenceWidthDp: Float? = null,
 ): Float {
     if (requestedHeightDp <= 0f) return 0f
     if (tabWidthDp <= 0f) return requestedHeightDp
@@ -248,6 +249,10 @@ internal fun resolveFloatingDockIndicatorHeightDp(
         ?: 0f
     val restingHeightDp = (shellHeightDp ?: requestedHeightDp) - restingInsetDp * 2f
     val cappedHeightDp = min(requestedHeightDp, restingHeightDp).coerceAtLeast(0f)
+    if (proportionalReferenceWidthDp != null && proportionalReferenceWidthDp > 0f) {
+        val widthScale = (tabWidthDp / proportionalReferenceWidthDp).coerceIn(0f, 1f)
+        return cappedHeightDp * widthScale
+    }
     // A slot that is already wider than the pill can keep the authored height.
     // Forcing the 1.35 aspect here flattens icon+label after search takes a side slot.
     if (tabWidthDp >= cappedHeightDp) return cappedHeightDp

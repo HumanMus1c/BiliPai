@@ -68,6 +68,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,8 +87,6 @@ import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
-import com.android.purebilibili.core.ui.components.AppSlider
-import com.android.purebilibili.core.ui.components.AppSliderDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
@@ -1197,44 +1196,36 @@ fun FullscreenPlayerOverlay(
                             )
                             
                             var isDragging by remember { mutableStateOf(false) }
-                            var dragProgress by remember { mutableFloatStateOf(0f) }
                             
-                            AppSlider(
-                                value = if (isDragging) {
-                                    dragProgress
-                                } else if (displayedProgressState.duration > 0L) {
-                                    (displayedProgressState.current.toFloat() / displayedProgressState.duration.toFloat()).coerceIn(0f, 1f)
-                                } else {
-                                    currentProgress
-                                },
-                                onValueChange = { newValue ->
-                                    if (!isDragging) {
-                                        danmakuManager.clear()  //  拖动开始时清除弹幕
-                                    }
-                                    isDragging = true
-                                    dragProgress = newValue
-                                    lastInteractionTime = System.currentTimeMillis()
-                                },
-                                onValueChangeFinished = {
+                            ThinWigglyProgressBar(
+                                progress = currentProgress,
+                                seekPositionMs = displayedProgressState.current,
+                                isSeekScrubbing = isDragging,
+                                layoutPolicy = resolvePortraitProgressBarLayoutPolicy(
+                                    LocalConfiguration.current.screenWidthDp
+                                ),
+                                onSeek = { newProgress ->
                                     isDragging = false
                                     val seekableDuration = resolveSeekableDurationMs(
                                         playbackDurationMs = duration,
                                         fallbackDurationMs = miniPlayerManager.duration
                                     )
-                                    val newPosition = (dragProgress * seekableDuration).toLong()
+                                    val newPosition = (newProgress * seekableDuration).toLong()
                                     player?.let {
                                         pendingGestureSeekPositionMs = newPosition
                                         seekPlayerFromUserAction(it, newPosition)
                                         danmakuManager.seekTo(newPosition)
                                     }
-                                    currentProgress = dragProgress
+                                    currentProgress = newProgress
                                 },
+                                onSeekStart = {
+                                    danmakuManager.clear()
+                                    isDragging = true
+                                    lastInteractionTime = System.currentTimeMillis()
+                                },
+                                onSeekDragCancel = { isDragging = false },
+                                duration = duration,
                                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                                colors = AppSliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                )
                             )
                             
                             AppText(FormatUtils.formatDuration((duration / 1000).toInt()), color = Color.White, fontSize = 12.sp)

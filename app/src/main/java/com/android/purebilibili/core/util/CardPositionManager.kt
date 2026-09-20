@@ -11,6 +11,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 
 private const val QUICK_RETURN_THRESHOLD_MS = 500L
 private const val HOME_CATEGORY_SOURCE_PREFIX = "home?category="
@@ -104,6 +105,9 @@ object CardPositionManager {
     var lastScreenDensity: Float = 3f
         private set
 
+    private var lastRecordedScreenWidth: Float = 0f
+    private var lastRecordedScreenHeight: Float = 0f
+
     /**
      * 记录卡片位置
      * @param bounds 卡片在 Root 坐标系中的边界
@@ -130,6 +134,8 @@ object CardPositionManager {
         clearNativeVideoCardLayers()
         lastClickedCardBounds = bounds
         lastScreenDensity = density
+        lastRecordedScreenWidth = screenWidth
+        lastRecordedScreenHeight = screenHeight
         isSingleColumnCard = isSingleColumn
         //  [修复] 计算可见区域的底边界（屏幕高度减去底部导航栏）
         val bottomBarHeightPx = bottomBarHeightDp * density
@@ -217,6 +223,26 @@ object CardPositionManager {
         lastClickedNativeCoverOverlayLayer = null
         lastClickedNativeCardBitmap = null
     }
+
+    /** Drop click-time geometry when the window changed after the source was captured. */
+    internal fun invalidateVideoSourceIfWindowChanged(
+        screenWidth: Float,
+        screenHeight: Float,
+        tolerancePx: Float = 1f,
+    ) {
+        if (lastClickedCardBounds == null) return
+        if (abs(lastRecordedScreenWidth - screenWidth) > tolerancePx ||
+            abs(lastRecordedScreenHeight - screenHeight) > tolerancePx
+        ) {
+            clear()
+        }
+    }
+
+    internal fun isNativeVideoCardLayerCurrentOwner(layer: GraphicsLayer): Boolean =
+        lastClickedNativeCardLayer === layer
+
+    internal fun isNativeCoverOverlayLayerCurrentOwner(layer: GraphicsLayer): Boolean =
+        lastClickedNativeCoverOverlayLayer === layer
     
     /**
      * 清除记录的位置
@@ -230,6 +256,8 @@ object CardPositionManager {
         lastClickedVideoSourceCornerDp = null
         lastClickedVideoSourceLayout = VideoCardSourceLayout.COVER_ONLY
         lastClickedVideoSourceChromeSnapshot = null
+        lastRecordedScreenWidth = 0f
+        lastRecordedScreenHeight = 0f
         clearNativeVideoCardLayers()
     }
 

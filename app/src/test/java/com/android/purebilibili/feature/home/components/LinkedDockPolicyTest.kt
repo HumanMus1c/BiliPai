@@ -217,6 +217,14 @@ class LinkedDockPolicyTest {
         assertEquals(LinkedDockPhase.Expanded, resolveLinkedDockPhaseOnSearchDismiss(hasAudio = false))
     }
 
+    @Test
+    fun searchPlaybackTargetConsumesFirstTapToRestorePlayback() {
+        assertTrue(shouldExpandPlaybackFromSearch(LinkedDockPhase.Search, hasAudio = true))
+        kotlin.test.assertFalse(shouldExpandPlaybackFromSearch(LinkedDockPhase.Search, hasAudio = false))
+        kotlin.test.assertFalse(shouldExpandPlaybackFromSearch(LinkedDockPhase.Playback, hasAudio = true))
+        kotlin.test.assertFalse(shouldExpandPlaybackFromSearch(LinkedDockPhase.Expanded, hasAudio = true))
+    }
+
     private fun geometry(merge: Float, search: Float) =
         resolveLinkedDockGeometry(336, 56, 64, 8, true, true, merge, search)
 }

@@ -4,6 +4,12 @@ import kotlin.math.roundToInt
 
 enum class LinkedDockPhase { Expanded, Playback, Search }
 
+/** Search owns the first tap on the compact artwork target. */
+internal fun shouldExpandPlaybackFromSearch(
+    phase: LinkedDockPhase,
+    hasAudio: Boolean,
+): Boolean = hasAudio && phase == LinkedDockPhase.Search
+
 /** Accumulate one direction before changing chrome; tiny reversals must not cause flicker. */
 internal fun accumulateDockScroll(previous: Float, delta: Float): Float =
     if (previous * delta < 0f) delta else previous + delta

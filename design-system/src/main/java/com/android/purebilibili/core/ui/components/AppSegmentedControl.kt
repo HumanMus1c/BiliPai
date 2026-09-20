@@ -18,6 +18,8 @@ import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
 import com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.core.ui.renderer.material3.AppMaterial3SegmentedControl
 import com.android.purebilibili.core.ui.renderer.material3.AppMaterial3TabRow
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixSegmentedControl
 import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixTabRow
 
@@ -266,14 +268,20 @@ fun <T> AppNativeSegmentedControl(
     val policy = rememberAppSegmentedControlPolicy()
     val materialColors = MaterialTheme.colorScheme
     val isImmersiveTopChrome = LocalImmersiveTopChromeActive.current
-    val trackColor = if (isImmersiveTopChrome) {
+    val isMiuixNonGlass = isMiuixNonGlassEnabled()
+    val isDark = isSystemInDarkTheme()
+    val trackColor = if (isImmersiveTopChrome || isMiuixNonGlass) {
         Color.Transparent
     } else {
         AppSurfaceTokens.surfaceContainerHigh()
     }
-    val activeCardColor = AppSurfaceTokens.surfaceContainer()
+    val activeCardColor = if (isMiuixNonGlass) {
+        if (isDark) Color(0xFF383838) else AppSurfaceTokens.surfaceContainer()
+    } else {
+        AppSurfaceTokens.surfaceContainer()
+    }
     val activeTextColor = AppSurfaceTokens.onSurface()
-    val inactiveTextColor = AppSurfaceTokens.onSurfaceContainerHigh()
+    val inactiveTextColor = AppSurfaceTokens.onSurfaceVariantSummary()
     val colors = resolveAppSegmentedControlColors(
         usesMaterialColorTokens = policy.usesMaterialColorTokens,
         materialPrimaryContainer = materialColors.primaryContainer,
@@ -361,14 +369,20 @@ fun <T> AppNativeTabRow(
     val policy = rememberAppSegmentedControlPolicy()
     val materialColors = MaterialTheme.colorScheme
     val isImmersiveTopChrome = LocalImmersiveTopChromeActive.current
-    val trackColor = if (isImmersiveTopChrome) {
+    val isMiuixNonGlass = isMiuixNonGlassEnabled()
+    val isDark = isSystemInDarkTheme()
+    val trackColor = if (isImmersiveTopChrome || isMiuixNonGlass) {
         Color.Transparent
     } else {
         AppSurfaceTokens.surfaceContainerHigh()
     }
-    val activeCardColor = AppSurfaceTokens.surfaceContainer()
+    val activeCardColor = if (isMiuixNonGlass) {
+        if (isDark) Color(0xFF383838) else AppSurfaceTokens.surfaceContainer()
+    } else {
+        AppSurfaceTokens.surfaceContainer()
+    }
     val activeTextColor = AppSurfaceTokens.onSurface()
-    val inactiveTextColor = AppSurfaceTokens.onSurfaceContainerHigh()
+    val inactiveTextColor = AppSurfaceTokens.onSurfaceVariantSummary()
     val colors = resolveAppSegmentedControlColors(
         usesMaterialColorTokens = policy.usesMaterialColorTokens,
         materialPrimaryContainer = materialColors.primaryContainer,

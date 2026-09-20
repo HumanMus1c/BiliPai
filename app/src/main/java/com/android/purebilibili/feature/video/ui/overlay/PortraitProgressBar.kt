@@ -116,7 +116,8 @@ fun ThinWigglyProgressBar(
     duration: Long,
     bufferProgress: Float = 0f,
     videoshotData: VideoshotData? = null,
-    videoAspectRatio: Float? = null
+    videoAspectRatio: Float? = null,
+    modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
     var dragTargetPositionMs by remember { mutableLongStateOf(seekPositionMs.coerceAtLeast(0L)) }
@@ -159,7 +160,7 @@ fun ThinWigglyProgressBar(
     val thumbSizePx = with(LocalDensity.current) { thumbSize.toPx() }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight()
             .onSizeChanged { containerWidth = it.width.toFloat() }

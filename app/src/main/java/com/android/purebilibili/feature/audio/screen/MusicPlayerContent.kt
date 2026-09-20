@@ -1,5 +1,10 @@
 package com.android.purebilibili.feature.audio.screen
 
+import top.yukonga.miuix.kmp.window.WindowListPopup
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.ListPopupDefaults
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
+
 import com.android.purebilibili.navigation.animatePagerSelection
 
 import coil3.request.allowHardware
@@ -7,6 +12,7 @@ import coil3.request.allowHardware
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
@@ -15,14 +21,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,16 +41,22 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -48,21 +65,27 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.theme.calculateContrastRatio
 import com.android.purebilibili.core.ui.components.AppFilledIconButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
-import com.android.purebilibili.core.ui.components.AppSlider
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
@@ -80,11 +103,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -93,6 +118,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -103,6 +130,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -113,10 +141,15 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.android.purebilibili.core.lifecycle.BackgroundManager
+import com.android.purebilibili.core.util.AppHingeOrientation
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
+import com.android.purebilibili.feature.audio.lyrics.BiliSubtitleLyricsPolicy
+import com.android.purebilibili.feature.audio.lyrics.LyricDocument
 import com.android.purebilibili.feature.audio.lyrics.LyricLine
 import com.android.purebilibili.feature.audio.lyrics.resolveActiveLyricIndex
 import com.android.purebilibili.feature.audio.lyrics.resolveLyricFocusScrollOffsetPx
 import com.android.purebilibili.feature.audio.player.MusicPlayerUiState
+import com.android.purebilibili.feature.audio.player.MusicQueueItemUi
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
@@ -152,28 +185,63 @@ import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
 
-private val MusicFallbackColor = Color(0xFF342B42)
+internal enum class MusicGlassMaterialMode {
+    LIQUID,
+    FROSTED,
+    SURFACE,
+}
 
-private val LocalMusicContentColor = staticCompositionLocalOf { Color.White }
-private val LocalMusicAccentColor = staticCompositionLocalOf { Color.White }
+internal data class MusicPlayerMaterial(
+    val mode: MusicGlassMaterialMode,
+    val backdropColor: Color,
+    val surfaceColor: Color,
+    val contentColor: Color,
+    val accentColor: Color,
+    val borderColor: Color,
+    val shadowColor: Color,
+    val likeColor: Color,
+)
+
+internal val LocalMusicPlayerMaterial = staticCompositionLocalOf {
+    MusicPlayerMaterial(
+        mode = MusicGlassMaterialMode.SURFACE,
+        backdropColor = Color.Unspecified,
+        surfaceColor = Color.Unspecified,
+        contentColor = Color.Unspecified,
+        accentColor = Color.Unspecified,
+        borderColor = Color.Unspecified,
+        shadowColor = Color.Unspecified,
+        likeColor = Color.Unspecified,
+    )
+}
 
 /** 当前听视频页前景色（随封面色板明暗切换，保证可读）。 */
-private val MusicContentColor: Color
+internal val MusicContentColor: Color
     @Composable
     @ReadOnlyComposable
-    get() = LocalMusicContentColor.current
+    get() = LocalMusicPlayerMaterial.current.contentColor
 
 /** 与视频播放器一致的主题强调色（控件高亮、进度、选中态）。 */
-private val MusicAccentColor: Color
+internal val MusicAccentColor: Color
     @Composable
     @ReadOnlyComposable
-    get() = LocalMusicAccentColor.current
+    get() = LocalMusicPlayerMaterial.current.accentColor
+
+internal val MusicLikeColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalMusicPlayerMaterial.current.likeColor
+
+internal val MusicShadowColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalMusicPlayerMaterial.current.shadowColor
 
 /**
- * 听视频/音乐页正文色：按背景亮度在可读 token 间切换。
+ * 听视频/音乐页正文色：按背景亮度在可读 token 间切换，并确保高对比度。
  *
- * - 亮底 → [onLightBackground]
- * - 暗底 → [onDarkBackground]（应用层应传高对比色，避免 inverseOnSurface 在自定义主题下发灰）
+ * - 亮底 → [onLightBackground]（对应高对比暗色字）
+ * - 暗底 → [onDarkBackground]（对应高对比亮色字）
  */
 internal fun resolveMusicPlayerContentColor(
     backgroundColor: Color,
@@ -181,22 +249,75 @@ internal fun resolveMusicPlayerContentColor(
     onDarkBackground: Color,
     lightLuminanceThreshold: Float = 0.45f,
 ): Color {
-    return if (backgroundColor.luminance() >= lightLuminanceThreshold) {
-        onLightBackground
+    val isLightBackground = backgroundColor.luminance() >= lightLuminanceThreshold
+    val target = if (isLightBackground) onLightBackground else onDarkBackground
+    val alternate = if (isLightBackground) onDarkBackground else onLightBackground
+    val targetContrast = calculateContrastRatio(target, backgroundColor)
+    val alternateContrast = calculateContrastRatio(alternate, backgroundColor)
+    return if (targetContrast >= alternateContrast) {
+        target
     } else {
-        onDarkBackground
+        alternate
     }
 }
+
+internal fun resolveMusicPlayerThemeContentColors(
+    colorScheme: ColorScheme,
+): Pair<Color, Color> {
+    val isDark = colorScheme.surface.luminance() < 0.5f
+    // onLightBackground: 浅色背景下使用暗色文字
+    // onDarkBackground: 深色背景下使用浅色文字
+    val onLight = if (isDark) colorScheme.inverseOnSurface else colorScheme.onSurface
+    val onDark = if (isDark) colorScheme.onSurface else colorScheme.inverseOnSurface
+    return onLight to onDark
+}
+
+@Composable
+internal fun resolveMusicPlayerThemeContentColors(): Pair<Color, Color> =
+    resolveMusicPlayerThemeContentColors(MaterialTheme.colorScheme)
 
 /** Bottom controls inherit the artwork palette while staying on the dark immersive floor. */
 internal fun resolveMusicImmersivePanelColor(
     backgroundColor: Color,
-    darkOverlayFraction: Float = 0.62f,
+    surfaceColor: Color,
+    darkOverlayFraction: Float = 0.45f,
 ): Color = lerp(
     start = backgroundColor,
-    stop = Color.Black,
+    stop = surfaceColor,
     fraction = darkOverlayFraction.coerceIn(0f, 1f),
 )
+
+/** Frosted glass container tint adapting to background color and dark/light environment. */
+@Composable
+internal fun resolveMusicGlassContainerColor(
+    glassTintColor: Color,
+    isDark: Boolean
+): Color {
+    val materialColor = LocalMusicPlayerMaterial.current.surfaceColor
+    if (materialColor != Color.Unspecified) return materialColor
+    val base = glassTintColor.takeOrElse { MaterialTheme.colorScheme.surface }
+    val tonalTarget = if (isDark) {
+        MaterialTheme.colorScheme.surfaceBright
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    return lerp(base, tonalTarget, if (isDark) 0.24f else 0.40f)
+        .copy(alpha = if (isDark) 0.28f else 0.42f)
+}
+
+/** Frosted glass subtle border adapting to dark/light environment. */
+@Composable
+internal fun resolveMusicGlassBorderColor(
+    glassTintColor: Color,
+    isDark: Boolean
+): Color {
+    val materialColor = LocalMusicPlayerMaterial.current.borderColor
+    if (materialColor != Color.Unspecified) return materialColor
+    val base = glassTintColor.takeOrElse { MaterialTheme.colorScheme.surface }
+    val edge = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+    return lerp(base, edge, if (isDark) 0.42f else 0.28f)
+        .copy(alpha = if (isDark) 0.30f else 0.22f)
+}
 
 /** 听视频强调色：直接使用应用主题 primary，与播放器一致。 */
 internal fun resolveMusicPlayerAccentColor(primary: Color): Color = primary
@@ -246,15 +367,39 @@ internal fun MusicPlayerContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var paletteColor by remember { mutableStateOf(MusicFallbackColor) }
+    val themeSurfaceColor = MaterialTheme.colorScheme.surface
+    val adaptiveInfo = LocalAppWindowAdaptiveInfo.current
+    val density = LocalDensity.current
+    var paletteColor by remember(themeSurfaceColor) { mutableStateOf(themeSurfaceColor) }
     var artworkBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var showQueue by remember { mutableStateOf(false) }
+    var isQueueCoverFlow by remember { mutableStateOf(true) }
     var showActions by remember { mutableStateOf(false) }
+    var expandedRightPaneTab by remember { mutableStateOf(ExpandedRightPaneTab.LYRICS) }
+    var layoutPreferenceName by rememberSaveable {
+        mutableStateOf(MusicPlayerLayoutPreference.AUTO.name)
+    }
     var showAudioQuality by remember { mutableStateOf(false) }
     var showLyricsSearch by remember { mutableStateOf(false) }
     var progressSeekRevision by remember { mutableIntStateOf(0) }
-    var lyricsControlsVisible by remember(state.title) { mutableStateOf(true) }
+    var lyricsControlsVisible by remember(state.title) { mutableStateOf(false) }
     var lyricSearchText by remember(state.title) { mutableStateOf(state.title) }
+    val currentItem = remember(state.title, state.artist, state.coverUrl) {
+        state.queue.getOrNull(state.currentQueueIndex) ?: MusicQueueItemUi(
+            stableId = "current",
+            title = state.title.ifBlank { "正在播放" },
+            artist = state.artist,
+            coverUrl = state.coverUrl
+        )
+    }
+    val (effectiveQueue, effectiveCurrentIndex) = remember(state.queue, state.currentQueueIndex, currentItem) {
+        val realQueue = state.queue.ifEmpty { listOf(currentItem) }
+        realQueue to if (state.queue.isEmpty()) {
+            0
+        } else {
+            state.currentQueueIndex.coerceIn(0, realQueue.lastIndex)
+        }
+    }
     val systemReduceMotion = remember(context) {
         Settings.Global.getFloat(
             context.contentResolver,
@@ -262,7 +407,7 @@ internal fun MusicPlayerContent(
             1f
         ) == 0f
     }
-    val effectiveReduceMotion = reduceMotion || systemReduceMotion
+    val effectiveReduceMotion = reduceMotion || systemReduceMotion || BackgroundManager.isInBackground
     val musicBackdropSource = rememberChromeBackdropSource()
     // The source and all liquid overlays are siblings in this draw tree, so the content layer is
     // recorded before the overlays sample it. Mount the glass chrome on the first composition.
@@ -282,10 +427,10 @@ internal fun MusicPlayerContent(
         )
     }
 
-    LaunchedEffect(state.coverUrl) {
+    LaunchedEffect(state.coverUrl, themeSurfaceColor) {
         val result = loadMusicArtwork(context.imageLoader, state.coverUrl, context)
         artworkBitmap = result?.first
-        paletteColor = result?.second ?: MusicFallbackColor
+        paletteColor = result?.second ?: themeSurfaceColor
     }
 
     val backgroundColor by animateColorAsState(
@@ -299,38 +444,102 @@ internal fun MusicPlayerContent(
         isAppInBackground = BackgroundManager.isInBackground,
         reduceMotion = effectiveReduceMotion
     )
+    var coverStyle by remember { mutableStateOf(MusicCoverStyle.APPLE_MUSIC_CARD) }
     val chromeSpec = resolveMusicPlayerChromeSpec(
         uiStyle = LocalAppUiStyle.current,
-        glassEnabled = glassEnabled
+        glassEnabled = glassEnabled,
+        coverStyle = coverStyle
     )
-    val pageBackground = if (chromeSpec.usePaletteImmersiveBackdrop) {
-        backgroundColor
-    } else {
-        MaterialTheme.colorScheme.background
-    }
-    val resolvedContentColor = if (chromeSpec.usePaletteImmersiveBackdrop) {
-        resolveMusicPlayerContentColor(
-            backgroundColor = backgroundColor,
-            onLightBackground = MaterialTheme.colorScheme.onSurface,
-            onDarkBackground = Color.White,
-        )
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val pageBackground = backgroundColor
+    val (themeOnLight, themeOnDark) = resolveMusicPlayerThemeContentColors()
+    val resolvedContentColor = resolveMusicPlayerContentColor(
+        backgroundColor = backgroundColor,
+        onLightBackground = themeOnLight,
+        onDarkBackground = themeOnDark,
+    )
     val resolvedAccentColor = resolveMusicPlayerAccentColor(MaterialTheme.colorScheme.primary)
+    val isSystemDark = isSystemInDarkTheme()
+    val isDarkEnvironment = remember(backgroundColor, isSystemDark) {
+        if (backgroundColor != Color.Unspecified) {
+            backgroundColor.luminance() < 0.48f
+        } else {
+            isSystemDark
+        }
+    }
+    val materialMode = when {
+        glassEnabled -> MusicGlassMaterialMode.LIQUID
+        musicBackdrop != null -> MusicGlassMaterialMode.FROSTED
+        else -> MusicGlassMaterialMode.SURFACE
+    }
+    val materialSurfaceTarget = if (isDarkEnvironment) {
+        MaterialTheme.colorScheme.surfaceBright
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val materialSurfaceColor = lerp(
+        backgroundColor,
+        materialSurfaceTarget,
+        if (isDarkEnvironment) 0.24f else 0.40f,
+    ).copy(alpha = if (isDarkEnvironment) 0.28f else 0.42f)
+    val materialBorderColor = lerp(
+        backgroundColor,
+        if (isDarkEnvironment) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+        if (isDarkEnvironment) 0.42f else 0.28f,
+    ).copy(alpha = if (isDarkEnvironment) 0.30f else 0.22f)
+    val musicMaterial = MusicPlayerMaterial(
+        mode = materialMode,
+        backdropColor = backgroundColor,
+        surfaceColor = materialSurfaceColor,
+        contentColor = resolvedContentColor,
+        accentColor = resolvedAccentColor,
+        borderColor = materialBorderColor,
+        shadowColor = MaterialTheme.colorScheme.scrim,
+        likeColor = MaterialTheme.colorScheme.error,
+    )
 
     CompositionLocalProvider(
-        LocalMusicContentColor provides resolvedContentColor,
-        LocalMusicAccentColor provides resolvedAccentColor,
+        LocalMusicPlayerMaterial provides musicMaterial,
     ) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(pageBackground)
     ) {
-        val layout = resolveMusicPlayerLayout(maxWidth.value.roundToInt(), isInPipMode)
         val availableWidthDp = maxWidth.value.roundToInt()
         val availableHeightDp = maxHeight.value.roundToInt()
+        val layoutPreference = remember(layoutPreferenceName) {
+            runCatching { MusicPlayerLayoutPreference.valueOf(layoutPreferenceName) }
+                .getOrDefault(MusicPlayerLayoutPreference.AUTO)
+        }
+        val hingeBounds = adaptiveInfo.foldingFeature.hingeBounds
+        val hingeStartDp = hingeBounds?.let { bounds ->
+            val startPx = when (adaptiveInfo.foldingFeature.hingeOrientation) {
+                AppHingeOrientation.Horizontal -> bounds.top
+                AppHingeOrientation.Vertical -> bounds.left
+                AppHingeOrientation.None -> return@let null
+            }
+            (startPx / density.density).roundToInt()
+        }
+        val hingeEndDp = hingeBounds?.let { bounds ->
+            val endPx = when (adaptiveInfo.foldingFeature.hingeOrientation) {
+                AppHingeOrientation.Horizontal -> bounds.bottom
+                AppHingeOrientation.Vertical -> bounds.right
+                AppHingeOrientation.None -> return@let null
+            }
+            (endPx / density.density).roundToInt()
+        }
+        val layout = resolveMusicPlayerLayout(
+            widthDp = availableWidthDp,
+            heightDp = availableHeightDp,
+            fontScale = density.fontScale,
+            isInPipMode = isInPipMode,
+            preference = layoutPreference,
+            posture = adaptiveInfo.posture,
+            hingeOrientation = adaptiveInfo.foldingFeature.hingeOrientation,
+            hingeStartDp = hingeStartDp,
+            hingeEndDp = hingeEndDp,
+            hasObstructingHinge = adaptiveInfo.foldingFeature.hasObstructingHinge,
+        )
         if (layout != MusicPlayerLayout.PIP_ARTWORK) {
             Box(
                 modifier = Modifier
@@ -340,12 +549,9 @@ internal fun MusicPlayerContent(
             ) {
                 MusicArtworkBackground(
                     coverUrl = state.coverUrl,
-                    backgroundColor = if (chromeSpec.usePaletteImmersiveBackdrop) {
-                        backgroundColor
-                    } else {
-                        pageBackground
-                    },
-                    immersive = chromeSpec.usePaletteImmersiveBackdrop
+                    bitmap = artworkBitmap,
+                    backgroundColor = backgroundColor,
+                    immersive = true
                 )
             }
         }
@@ -356,6 +562,115 @@ internal fun MusicPlayerContent(
                 modifier = Modifier.fillMaxSize(),
                 shape = RectangleShape
             )
+
+            MusicPlayerLayout.COMPACT_LANDSCAPE -> {
+                var landscapeLyrics by rememberSaveable { mutableStateOf(false) }
+                Row(
+                    modifier = Modifier.fillMaxSize().safeDrawingPadding()
+                        .padding(horizontal = 64.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BoxWithConstraints(
+                        modifier = Modifier.weight(0.85f).fillMaxHeight(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MusicArtwork(
+                            coverUrl = state.coverUrl,
+                            bitmap = artworkBitmap,
+                            modifier = Modifier.width(minOf(maxWidth, maxHeight, 280.dp)),
+                            coverStyle = coverStyle,
+                            isPlaying = state.isPlaying,
+                            rotate = state.isPlaying && !effectiveReduceMotion,
+                            playbackSpeed = state.playbackSpeed,
+                            reduceMotion = effectiveReduceMotion,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = { coverStyle = resolveNextCoverStyle(coverStyle) },
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            AppTextButton(onClick = { landscapeLyrics = !landscapeLyrics }) {
+                                AppText(if (landscapeLyrics) "返回播放" else "歌词", color = MusicContentColor)
+                            }
+                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            if (landscapeLyrics) {
+                            LyricsPage(
+                                state = state,
+                                glassEnabled = glassEnabled,
+                                onPlayPause = onPlayPause,
+                                onSeek = { positionMs ->
+                                    progressSeekRevision += 1
+                                    onSeek(positionMs)
+                                },
+                                onPrevious = onPrevious,
+                                onNext = onNext,
+                                onLyricsOffsetChange = onLyricsOffsetChange,
+                                onLyricsRetry = onLyricsRetry,
+                                onOpenLyricsSearch = { showLyricsSearch = true },
+                                blurEffectsEnabled = lyricsBlurEffectsEnabled,
+                                reduceMotion = effectiveReduceMotion,
+                                glassTintColor = backgroundColor,
+                                isDarkEnvironment = isDarkEnvironment,
+                                liquidGlassTuning = liquidGlassTuning,
+                                miuixBackdrop = musicBackdrop,
+                                progressSeekRevision = progressSeekRevision,
+                                controlsVisible = lyricsControlsVisible,
+                                onControlsVisibleChange = { lyricsControlsVisible = it },
+                                showBottomControls = false,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            } else {
+                            PlayerPage(
+                                state = state,
+                                artworkBitmap = artworkBitmap,
+                                artworkSizeDp = resolveMusicArtworkSizeDp(
+                                    availableWidthDp,
+                                    availableHeightDp,
+                                    layout
+                                ),
+                                chromeSpec = chromeSpec,
+                                glassEnabled = glassEnabled,
+                                reduceMotion = effectiveReduceMotion,
+                                onPlayPause = onPlayPause,
+                                onSeek = { positionMs ->
+                                    progressSeekRevision += 1
+                                    onSeek(positionMs)
+                                },
+                                onPrevious = onPrevious,
+                                onNext = onNext,
+                                onPlayModeChange = onPlayModeChange,
+                                onShuffleEnabledChange = onShuffleEnabledChange,
+                                isLiked = isLiked,
+                                onLikeClick = onLikeClick,
+                                onCommentsClick = onCommentsClick,
+                                onQueueClick = { showQueue = !showQueue },
+                                isQueueActive = showQueue,
+                                miuixBackdrop = musicBackdrop,
+                                audioQualityLabel = audioQualityLabel,
+                                isHiResAudioSelected = isHiResAudioSelected,
+                                isDolbyAudioSelected = isDolbyAudioSelected,
+                                onAudioQualityClick = onAudioQualitySelected?.let {
+                                    { showAudioQuality = true }
+                                },
+                                glassTintColor = backgroundColor,
+                                isDarkEnvironment = isDarkEnvironment,
+                                coverStyle = coverStyle,
+                                onToggleCoverStyle = {
+                                    coverStyle = resolveNextCoverStyle(coverStyle)
+                                },
+                                showLyricsPreview = false,
+                                onOpenLyrics = { landscapeLyrics = true },
+                                isExpandedLayout = true,
+                                compactLandscape = true,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            }
+                        }
+                    }
+                }
+            }
 
             MusicPlayerLayout.COMPACT_PAGER -> {
                 val pagerState = rememberPagerState(pageCount = { 2 })
@@ -389,7 +704,8 @@ internal fun MusicPlayerContent(
                                 isLiked = isLiked,
                                 onLikeClick = onLikeClick,
                                 onCommentsClick = onCommentsClick,
-                                onQueueClick = { showQueue = true },
+                                onQueueClick = { showQueue = !showQueue },
+                                isQueueActive = showQueue,
                                 miuixBackdrop = musicBackdrop,
                                 audioQualityLabel = audioQualityLabel,
                                 isHiResAudioSelected = isHiResAudioSelected,
@@ -398,6 +714,17 @@ internal fun MusicPlayerContent(
                                     { showAudioQuality = true }
                                 },
                                 glassTintColor = backgroundColor,
+                                isDarkEnvironment = isDarkEnvironment,
+                                coverStyle = coverStyle,
+                                onToggleCoverStyle = {
+                                    coverStyle = resolveNextCoverStyle(coverStyle)
+                                },
+                                showLyricsPreview = true,
+                                onOpenLyrics = {
+                                    pagerScope.launch {
+                                        pagerState.animateScrollToPage(1)
+                                    }
+                                },
                                 modifier = Modifier.padding(bottom = MUSIC_PLAYER_COMPACT_DOCK_BOTTOM_PADDING_DP.dp)
                             )
                         } else {
@@ -417,11 +744,13 @@ internal fun MusicPlayerContent(
                                 blurEffectsEnabled = lyricsBlurEffectsEnabled,
                                 reduceMotion = effectiveReduceMotion,
                                 glassTintColor = backgroundColor,
+                                isDarkEnvironment = isDarkEnvironment,
                                 liquidGlassTuning = liquidGlassTuning,
                                 miuixBackdrop = musicBackdrop,
                                 progressSeekRevision = progressSeekRevision,
                                 controlsVisible = lyricsControlsVisible,
                                 onControlsVisibleChange = { lyricsControlsVisible = it },
+                                showBottomControls = true,
                                 modifier = Modifier.padding(bottom = MUSIC_PLAYER_COMPACT_DOCK_BOTTOM_PADDING_DP.dp)
                             )
                         }
@@ -430,7 +759,10 @@ internal fun MusicPlayerContent(
                         items = resolveMusicPlayerPageTabs(),
                         selectedIndex = pagerState.currentPage,
                         onSelected = { page ->
-                            pagerScope.launch { animatePagerSelection(pagerState, page) }
+                            pagerScope.launch {
+                                // animateScrollToPage via continuous pager selection
+                                animatePagerSelection(pagerState, page)
+                            }
                         },
                         itemWidth = 84.dp,
                         modifier = Modifier
@@ -460,67 +792,259 @@ internal fun MusicPlayerContent(
                 }
             }
 
-            MusicPlayerLayout.EXPANDED_SPLIT -> Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(top = 56.dp, start = 32.dp, end = 32.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp)
-            ) {
-                PlayerPage(
-                    state = state,
-                    artworkBitmap = artworkBitmap,
-                    artworkSizeDp = resolveMusicArtworkSizeDp(
-                        availableWidthDp,
-                        availableHeightDp,
-                        layout
-                    ),
-                    chromeSpec = chromeSpec,
-                    glassEnabled = glassEnabled,
-                    reduceMotion = effectiveReduceMotion,
-                    onPlayPause = onPlayPause,
-                    onSeek = { positionMs ->
-                        progressSeekRevision += 1
-                        onSeek(positionMs)
-                    },
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onPlayModeChange = onPlayModeChange,
-                    onShuffleEnabledChange = onShuffleEnabledChange,
-                    isLiked = isLiked,
-                    onLikeClick = onLikeClick,
-                    onCommentsClick = onCommentsClick,
-                    onQueueClick = { showQueue = true },
-                    miuixBackdrop = musicBackdrop,
-                    audioQualityLabel = audioQualityLabel,
-                    isHiResAudioSelected = isHiResAudioSelected,
-                    isDolbyAudioSelected = isDolbyAudioSelected,
-                    onAudioQualityClick = onAudioQualitySelected?.let {
-                        { showAudioQuality = true }
-                    },
-                    glassTintColor = backgroundColor,
-                    modifier = Modifier.weight(1f)
+            MusicPlayerLayout.TABLETOP -> TabletopPlayerLayout(
+                coverStyle = coverStyle,
+                state = state,
+                queue = effectiveQueue,
+                currentIndex = effectiveCurrentIndex,
+                artworkBitmap = artworkBitmap,
+                glassEnabled = glassEnabled,
+                reduceMotion = effectiveReduceMotion,
+                lyricsBlurEffectsEnabled = lyricsBlurEffectsEnabled,
+                backgroundColor = backgroundColor,
+                musicBackdrop = musicBackdrop,
+                liquidGlassTuning = liquidGlassTuning,
+                progressSeekRevision = progressSeekRevision,
+                isLiked = isLiked,
+                onPlayPause = onPlayPause,
+                onSeek = { positionMs ->
+                    progressSeekRevision += 1
+                    onSeek(positionMs)
+                },
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onQueueItemSelected = onQueueItemSelected,
+                onLikeClick = onLikeClick,
+                onToggleCoverStyle = { coverStyle = resolveNextCoverStyle(coverStyle) },
+                onLyricsOffsetChange = onLyricsOffsetChange,
+                onLyricsRetry = onLyricsRetry,
+                onOpenLyricsSearch = { showLyricsSearch = true },
+                availableWidthDp = availableWidthDp,
+                hingeStartDp = if (adaptiveInfo.foldingFeature.hingeOrientation == AppHingeOrientation.Horizontal) {
+                    hingeStartDp
+                } else null,
+                hingeEndDp = if (adaptiveInfo.foldingFeature.hingeOrientation == AppHingeOrientation.Horizontal) {
+                    hingeEndDp
+                } else null,
+                isDarkEnvironment = isDarkEnvironment,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            MusicPlayerLayout.EXPANDED_SPLIT -> {
+                    val hasVerticalHinge =
+                        adaptiveInfo.foldingFeature.hasObstructingHinge &&
+                            adaptiveInfo.foldingFeature.hingeOrientation == AppHingeOrientation.Vertical &&
+                            hingeStartDp != null &&
+                            hingeEndDp != null
+                    val primaryPaneWeight = if (hasVerticalHinge) {
+                        (hingeStartDp!! - MUSIC_PLAYER_HINGE_CLEARANCE_DP)
+                            .coerceAtLeast(1)
+                            .toFloat()
+                    } else {
+                        1f
+                    }
+                    val secondaryPaneWeight = if (hasVerticalHinge) {
+                        (availableWidthDp - hingeEndDp!! - MUSIC_PLAYER_HINGE_CLEARANCE_DP)
+                            .coerceAtLeast(1)
+                            .toFloat()
+                    } else {
+                        1.15f
+                    }
+                    val horizontalPadding = if (hasVerticalHinge) {
+                        0.dp
+                    } else {
+                        resolveLargeScreenHorizontalPaddingDp(availableWidthDp).dp
+                    }
+                    val gutter = if (hasVerticalHinge) {
+                        (hingeEndDp!! - hingeStartDp!! + MUSIC_PLAYER_HINGE_CLEARANCE_DP * 2).dp
+                    } else {
+                        resolveLargeScreenGutterDp(availableWidthDp).dp
+                    }
+                    val maximumContentWidth = if (hasVerticalHinge) {
+                        availableWidthDp.dp
+                    } else {
+                        LARGE_SCREEN_MAX_CONTENT_WIDTH_DP.dp
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .navigationBarsPadding(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .widthIn(max = maximumContentWidth)
+                                .padding(top = 48.dp, start = horizontalPadding, end = horizontalPadding, bottom = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(gutter)
+                        ) {
+                            PlayerPage(
+                                state = state,
+                                artworkBitmap = artworkBitmap,
+                                artworkSizeDp = resolveMusicArtworkSizeDp(
+                                    availableWidthDp,
+                                    availableHeightDp,
+                                    layout
+                                ),
+                                chromeSpec = chromeSpec,
+                                glassEnabled = glassEnabled,
+                                reduceMotion = effectiveReduceMotion,
+                                onPlayPause = onPlayPause,
+                                onSeek = { positionMs ->
+                                    progressSeekRevision += 1
+                                    onSeek(positionMs)
+                                },
+                                onPrevious = onPrevious,
+                                onNext = onNext,
+                                onPlayModeChange = onPlayModeChange,
+                                onShuffleEnabledChange = onShuffleEnabledChange,
+                                isLiked = isLiked,
+                                onLikeClick = onLikeClick,
+                                onCommentsClick = onCommentsClick,
+                                onQueueClick = {
+                                    expandedRightPaneTab = if (expandedRightPaneTab == ExpandedRightPaneTab.QUEUE) {
+                                        ExpandedRightPaneTab.LYRICS
+                                    } else {
+                                        ExpandedRightPaneTab.QUEUE
+                                    }
+                                },
+                                miuixBackdrop = musicBackdrop,
+                                audioQualityLabel = audioQualityLabel,
+                                isHiResAudioSelected = isHiResAudioSelected,
+                                isDolbyAudioSelected = isDolbyAudioSelected,
+                                onAudioQualityClick = onAudioQualitySelected?.let {
+                                    { showAudioQuality = true }
+                                },
+                                glassTintColor = backgroundColor,
+                                isDarkEnvironment = isDarkEnvironment,
+                                coverStyle = coverStyle,
+                                onToggleCoverStyle = {
+                                    coverStyle = resolveNextCoverStyle(coverStyle)
+                                },
+                                showLyricsPreview = false,
+                                onOpenLyrics = null,
+                                isExpandedLayout = true,
+                                isQueueActive = expandedRightPaneTab == ExpandedRightPaneTab.QUEUE,
+                                modifier = Modifier.weight(primaryPaneWeight)
+                            )
+                            Box(modifier = Modifier.weight(secondaryPaneWeight).fillMaxHeight()) {
+                                Crossfade(
+                                    targetState = expandedRightPaneTab,
+                                    label = "expanded_right_pane"
+                                ) { tab ->
+                                    when (tab) {
+                                        ExpandedRightPaneTab.LYRICS -> {
+                                            LyricsPage(
+                                                state = state,
+                                                glassEnabled = glassEnabled,
+                                                onPlayPause = onPlayPause,
+                                                onSeek = onSeek,
+                                                onPrevious = onPrevious,
+                                                onNext = onNext,
+                                                onLyricsOffsetChange = onLyricsOffsetChange,
+                                                onLyricsRetry = onLyricsRetry,
+                                                onOpenLyricsSearch = { showLyricsSearch = true },
+                                                blurEffectsEnabled = lyricsBlurEffectsEnabled,
+                                                reduceMotion = effectiveReduceMotion,
+                                                glassTintColor = backgroundColor,
+                                                isDarkEnvironment = isDarkEnvironment,
+                                                liquidGlassTuning = liquidGlassTuning,
+                                                miuixBackdrop = musicBackdrop,
+                                                progressSeekRevision = progressSeekRevision,
+                                                controlsVisible = lyricsControlsVisible,
+                                                onControlsVisibleChange = { lyricsControlsVisible = it },
+                                                showBottomControls = false,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                        ExpandedRightPaneTab.QUEUE -> {
+                                            ExpandedQueuePane(
+                                                queue = effectiveQueue,
+                                                currentIndex = effectiveCurrentIndex,
+                                                onItemClick = onQueueItemSelected,
+                                                onClose = { expandedRightPaneTab = ExpandedRightPaneTab.LYRICS },
+                                                glassEnabled = glassEnabled,
+                                                reduceMotion = effectiveReduceMotion,
+                                                miuixBackdrop = musicBackdrop,
+                                                glassTintColor = backgroundColor,
+                                                isDarkEnvironment = isDarkEnvironment,
+                                                liquidGlassTuning = liquidGlassTuning,
+                                                isPlaying = state.isPlaying,
+                                                onPlayPause = onPlayPause,
+                                                onPrevious = onPrevious,
+                                                onNext = onNext,
+                                                isLiked = isLiked,
+                                                onLikeClick = onLikeClick,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+
+        // 沉浸式悬浮待播唱片架 / 待播列表 (非弹窗式，浮于底部)
+        AnimatedVisibility(
+            visible = showQueue && layout in setOf(MusicPlayerLayout.COMPACT_PAGER, MusicPlayerLayout.COMPACT_LANDSCAPE) && !isInPipMode,
+            enter = if (effectiveReduceMotion) {
+                fadeIn(animationSpec = AppMotionTokens.standardSpec())
+            } else {
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = AppMotionTokens.emphasizedSpec()
+                ) + fadeIn(animationSpec = AppMotionTokens.emphasizedSpec())
+            },
+            exit = if (effectiveReduceMotion) {
+                fadeOut(animationSpec = AppMotionTokens.standardSpec())
+            } else {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = AppMotionTokens.standardSpec()
+                ) + fadeOut(animationSpec = AppMotionTokens.standardSpec())
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // 点击上半部分透明区域收起待播架，完全无暗色遮罩 scrim
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            showQueue = false
+                        }
                 )
-                LyricsPage(
-                    state = state,
-                    glassEnabled = glassEnabled,
+
+                // 悬浮于底部的沉浸式唱片架面板
+                ImmersiveBottomQueueShelf(
+                    queue = effectiveQueue,
+                    currentIndex = effectiveCurrentIndex,
+                    isPlaying = state.isPlaying,
+                    isLiked = isLiked,
                     onPlayPause = onPlayPause,
-                    onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
-                    onLyricsOffsetChange = onLyricsOffsetChange,
-                    onLyricsRetry = onLyricsRetry,
-                    onOpenLyricsSearch = { showLyricsSearch = true },
-                    blurEffectsEnabled = lyricsBlurEffectsEnabled,
+                    onLikeClick = onLikeClick,
+                    onQueueItemSelected = onQueueItemSelected,
+                    onClose = { showQueue = false },
+                    isQueueCoverFlow = isQueueCoverFlow,
+                    onToggleQueueCoverFlow = { isQueueCoverFlow = !isQueueCoverFlow },
+                    glassEnabled = glassEnabled,
                     reduceMotion = effectiveReduceMotion,
+                    miuixBackdrop = musicBackdrop,
                     glassTintColor = backgroundColor,
                     liquidGlassTuning = liquidGlassTuning,
-                    miuixBackdrop = musicBackdrop,
-                    progressSeekRevision = progressSeekRevision,
-                    controlsVisible = lyricsControlsVisible,
-                    onControlsVisibleChange = { lyricsControlsVisible = it },
-                    modifier = Modifier.weight(1f)
+                    isDarkEnvironment = isDarkEnvironment,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .widthIn(max = LARGE_SCREEN_MAX_CONTENT_WIDTH_DP.dp)
+                        .fillMaxWidth()
                 )
             }
         }
@@ -530,8 +1054,145 @@ internal fun MusicPlayerContent(
                 glassEnabled = glassEnabled,
                 miuixBackdrop = musicBackdrop,
                 liquidGlassTuning = liquidGlassTuning,
+                glassTintColor = backgroundColor,
+                isDarkEnvironment = isDarkEnvironment,
                 onBack = onBack,
                 onMore = { showActions = true },
+                actionsPopup = {
+                    if (showActions) {
+                        // 菜单使用主题文字色，与动态封面背景解耦。
+                        val sheetContentColor = MaterialTheme.colorScheme.onSurface
+                        WindowListPopup(
+                            show = showActions,
+                            onDismissRequest = { showActions = false },
+                            alignment = PopupPositionProvider.Align.End,
+                            popupPositionProvider = ListPopupDefaults.dropdownPositionProvider(
+                                verticalMargin = 8.dp,
+                                horizontalMargin = 12.dp,
+                            ),
+                            enableWindowDim = false,
+                            maxHeight = 440.dp,
+                        ) {
+                            ListPopupColumn {
+                                AppText(
+                                    text = "播放器操作",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = sheetContentColor,
+                                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                                )
+                                MusicActionSheetItem(
+                                    "切换封面：${resolveCoverStyleLabel(resolveNextCoverStyle(coverStyle))}",
+                                    contentColor = sheetContentColor
+                                ) {
+                                    showActions = false
+                                    coverStyle = resolveNextCoverStyle(coverStyle)
+                                }
+                                if (
+                                    !adaptiveInfo.foldingFeature.hasObstructingHinge &&
+                                    adaptiveInfo.windowSizeClass.widthDp.value >= MUSIC_PLAYER_EXPANDED_WIDTH_DP
+                                ) {
+                                    MusicPlayerLayoutPreference.entries.forEach { preference ->
+                                        MusicActionSheetItem(
+                                            label = "布局：${resolveMusicPlayerLayoutPreferenceLabel(preference)}" +
+                                                if (layoutPreferenceName == preference.name) "（当前）" else "",
+                                            contentColor = sheetContentColor,
+                                        ) {
+                                            layoutPreferenceName = preference.name
+                                            showActions = false
+                                        }
+                                    }
+                                }
+                                if (onAudioQualitySelected != null) {
+                                    MusicActionSheetItem(
+                                        "音频音质：$audioQualityLabel",
+                                        contentColor = sheetContentColor
+                                    ) {
+                                        showActions = false
+                                        showAudioQuality = true
+                                    }
+                                }
+                                MusicActionSheetItem("3D 唱片架 / 播放队列", contentColor = sheetContentColor) {
+                                    showActions = false
+                                    showQueue = true
+                                }
+                                onVideoModeClick?.let { action ->
+                                    MusicActionSheetItem("返回视频", contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onCollectionClick?.let { action ->
+                                    MusicActionSheetItem("选集 / 合集", contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onSpeedClick?.let { action ->
+                                    MusicActionSheetItem(speedLabel, contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onSleepTimerClick?.let { action ->
+                                    MusicActionSheetItem(sleepTimerLabel, contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onFavoriteClick?.let { action ->
+                                    MusicActionSheetItem(
+                                        if (isFavorited) "已收藏" else "收藏",
+                                        contentColor = sheetContentColor
+                                    ) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onDownloadClick?.let { action ->
+                                    MusicActionSheetItem("缓存音频", contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onShareClick?.let { action ->
+                                    MusicActionSheetItem("分享", contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onPipClick?.let { action ->
+                                    MusicActionSheetItem("画中画", contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                onToggleOrientation?.let { action ->
+                                    MusicActionSheetItem(orientationActionLabel, contentColor = sheetContentColor) {
+                                        showActions = false
+                                        action()
+                                    }
+                                }
+                                MusicActionSheetItem("搜索歌词", contentColor = sheetContentColor) {
+                                    showActions = false
+                                    showLyricsSearch = true
+                                }
+                            }
+                        }
+                    }
+                },
+                onToggleLayout = if (
+                    !adaptiveInfo.foldingFeature.hasObstructingHinge &&
+                    availableWidthDp >= MUSIC_PLAYER_EXPANDED_WIDTH_DP &&
+                    availableHeightDp >= 480
+                ) {
+                    {
+                        layoutPreferenceName = nextMusicPlayerLayoutPreference(layoutPreference).name
+                    }
+                } else null,
+                layoutActionLabel = resolveMusicPlayerLayoutPreferenceLabel(
+                    nextMusicPlayerLayoutPreference(layoutPreference)
+                ),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
@@ -540,91 +1201,6 @@ internal fun MusicPlayerContent(
         }
     }
 
-    if (showActions) {
-        // 操作 sheet 与封面色板解耦：MD3 会强制主题 surface，必须用 onSurface 才能保证深浅色可读
-        val sheetContentColor = MaterialTheme.colorScheme.onSurface
-        AppModalBottomSheet(
-            onDismissRequest = { showActions = false },
-            containerColor = AppSurfaceTokens.surface(),
-            contentColor = sheetContentColor
-        ) {
-            AppText(
-                text = "播放器操作",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = sheetContentColor,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
-            )
-            if (state.queueControls.showQueue) {
-                MusicActionSheetItem("播放队列", contentColor = sheetContentColor) {
-                    showActions = false
-                    showQueue = true
-                }
-            }
-            onVideoModeClick?.let { action ->
-                MusicActionSheetItem("返回视频", contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onCollectionClick?.let { action ->
-                MusicActionSheetItem("选集 / 合集", contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onSpeedClick?.let { action ->
-                MusicActionSheetItem(speedLabel, contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onSleepTimerClick?.let { action ->
-                MusicActionSheetItem(sleepTimerLabel, contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onFavoriteClick?.let { action ->
-                MusicActionSheetItem(
-                    if (isFavorited) "已收藏" else "收藏",
-                    contentColor = sheetContentColor
-                ) {
-                    showActions = false
-                    action()
-                }
-            }
-            onDownloadClick?.let { action ->
-                MusicActionSheetItem("缓存音频", contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onShareClick?.let { action ->
-                MusicActionSheetItem("分享", contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onPipClick?.let { action ->
-                MusicActionSheetItem("画中画", contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            onToggleOrientation?.let { action ->
-                MusicActionSheetItem(orientationActionLabel, contentColor = sheetContentColor) {
-                    showActions = false
-                    action()
-                }
-            }
-            MusicActionSheetItem("搜索歌词", contentColor = sheetContentColor) {
-                showActions = false
-                showLyricsSearch = true
-            }
-            Spacer(Modifier.navigationBarsPadding().height(12.dp))
-        }
-    }
 
     if (showAudioQuality && onAudioQualitySelected != null) {
         AudioQualitySelectionMenu(
@@ -636,73 +1212,6 @@ internal fun MusicPlayerContent(
             },
             onDismiss = { showAudioQuality = false }
         )
-    }
-
-    if (showQueue) {
-        AppModalBottomSheet(
-            onDismissRequest = { showQueue = false },
-            containerColor = AppSurfaceTokens.surface(),
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            AppText(
-                text = "待播清单",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
-            )
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 12.dp)
-            ) {
-                itemsIndexed(state.queue, key = { _, item -> item.stableId }) { index, item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onQueueItemSelected(index)
-                                showQueue = false
-                            }
-                            .padding(horizontal = 24.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = item.coverUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(AppShapes.container(ContainerLevel.Field)),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            AppText(
-                                text = item.title,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontWeight = if (index == state.currentQueueIndex) FontWeight.Bold else FontWeight.Normal
-                            )
-                            AppText(
-                                text = item.artist,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        if (index == state.currentQueueIndex) {
-                            AppIcon(
-                                Icons.Outlined.MusicNote,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 
     if (showLyricsSearch) {
@@ -779,41 +1288,295 @@ internal fun MusicPlayerContent(
             }
         }
     }
-    } // CompositionLocalProvider
+    }
+}
+
+/**
+ * 沉浸式悬浮待播唱片架 / 待播列表（非弹窗式，浮于底部）。
+ *
+ * 核心设计：
+ * 1. 悬浮浮层：浮于播放器底层舞台之上，无全屏暗色遮罩 (scrim)，保持上半部封面与歌词通透沉浸。
+ * 2. 质感材质：RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp) + biliPaiFloatingDockShell 流体毛玻璃。
+ * 3. 极简导览：待播清单 (数量) + [切换列表 / 3D 唱片架] 模式胶囊 + [v] 优雅下推收起按钮，支持顶部下推手势收起。
+ * 4. 模式无缝切换：3D 实体 CD 唱片架 (Cover Flow) 与 高级毛玻璃清单双模态切换。
+ */
+@Composable
+private fun ImmersiveBottomQueueShelf(
+    queue: List<MusicQueueItemUi>,
+    currentIndex: Int,
+    isPlaying: Boolean,
+    isLiked: Boolean,
+    onPlayPause: () -> Unit,
+    onPrevious: (() -> Unit)?,
+    onNext: (() -> Unit)?,
+    onLikeClick: (() -> Unit)?,
+    onQueueItemSelected: (Int) -> Unit,
+    onClose: () -> Unit,
+    isQueueCoverFlow: Boolean,
+    onToggleQueueCoverFlow: () -> Unit,
+    glassEnabled: Boolean,
+    miuixBackdrop: MiuixBackdrop?,
+    glassTintColor: Color,
+    liquidGlassTuning: LiquidGlassTuning,
+    reduceMotion: Boolean,
+    isDarkEnvironment: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val panelShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val panelColor = resolveMusicImmersivePanelColor(
+        backgroundColor = glassTintColor,
+        surfaceColor = MaterialTheme.colorScheme.surface,
+    ).copy(alpha = 0.92f)
+
+    AppSurface(
+        shape = panelShape,
+        color = if (miuixBackdrop != null) Color.Transparent else panelColor,
+        contentColor = MusicContentColor,
+        border = BorderStroke(1.dp, resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)),
+        shadowElevation = 16.dp,
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {}
+            .biliPaiFloatingDockShell(
+                backdrop = miuixBackdrop,
+                containerColor = panelColor,
+                pressProgress = 0f,
+                shape = panelShape,
+                enabled = glassEnabled,
+                blurEnabled = !glassEnabled,
+                liquidGlassTuning = liquidGlassTuning
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp)
+        ) {
+            // 顶栏：待播清单 (数量) + 模式切换 + 收起按钮（支持下拉手势快速收起）
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures { _, dragAmount ->
+                            if (dragAmount > 12f) {
+                                onClose()
+                            }
+                        }
+                    }
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppText(
+                        text = if (queue.isNotEmpty()) "待播清单 (${queue.size})" else "待播清单",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MusicContentColor
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (queue.isNotEmpty()) {
+                        AppSurface(
+                            onClick = onToggleQueueCoverFlow,
+                            shape = AppShapes.container(ContainerLevel.Pill),
+                            color = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment),
+                            border = BorderStroke(0.8.dp, resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppText(
+                                    text = if (isQueueCoverFlow) "切换列表" else "3D 唱片架",
+                                    color = MusicAccentColor,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                    AppIconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = "收起待播清单",
+                            tint = MusicContentColor.copy(alpha = 0.72f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            if (queue.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppText(
+                        text = "待播清单为空",
+                        color = MusicContentColor.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            } else if (isQueueCoverFlow) {
+                Music3DCoverFlow(
+                    queue = queue,
+                    currentIndex = currentIndex,
+                    isPlaying = isPlaying,
+                    onItemClick = onQueueItemSelected,
+                    onPlayPause = onPlayPause,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    isLiked = isLiked,
+                    onLikeClick = onLikeClick,
+                    cardSizeDp = 150,
+                    showTransportControls = true,
+                    glassEnabled = glassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    liquidGlassTuning = liquidGlassTuning,
+                    glassTintColor = glassTintColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    reduceMotion = reduceMotion,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp)
+                        .padding(horizontal = 8.dp)
+                ) {
+                    itemsIndexed(queue, key = { _, item -> item.stableId }) { index, item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    onQueueItemSelected(index)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = item.coverUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                AppText(
+                                    text = item.title,
+                                    color = if (index == currentIndex) MusicAccentColor else MusicContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Normal,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                AppText(
+                                    text = item.artist,
+                                    color = MusicContentColor.copy(alpha = 0.65f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            if (index == currentIndex) {
+                                AppIcon(
+                                    Icons.Outlined.MusicNote,
+                                    contentDescription = null,
+                                    tint = MusicAccentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun MusicArtworkBackground(
     coverUrl: String,
+    bitmap: ImageBitmap? = null,
     backgroundColor: Color,
     immersive: Boolean
 ) {
     Box(Modifier.fillMaxSize()) {
-        if (immersive && coverUrl.isNotBlank()) {
-            AsyncImage(
-                model = coverUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(64.dp),
-                contentScale = ContentScale.Crop,
-                alpha = 0.52f
-            )
+        if (bitmap != null || coverUrl.isNotBlank()) {
+            val imageModifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1.55f
+                    scaleY = 1.55f
+                }
+                .blur(80.dp)
+            val alpha = if (immersive) 1.0f else 0.85f
+
+            if (bitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = imageModifier,
+                    contentScale = ContentScale.Crop,
+                    alpha = alpha
+                )
+            } else {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    modifier = imageModifier,
+                    contentScale = ContentScale.Crop,
+                    alpha = alpha
+                )
+            }
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                backgroundColor.copy(alpha = 0.42f),
-                                Color.Black.copy(alpha = 0.66f),
-                                Color.Black.copy(alpha = 0.88f)
+                                Color.Transparent,
+                                backgroundColor.copy(alpha = 0.12f),
+                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.22f)
                             )
                         )
                     )
             )
         } else {
-            Box(Modifier.fillMaxSize().background(backgroundColor))
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                backgroundColor.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            )
         }
     }
 }
@@ -842,102 +1605,206 @@ private fun PlayerPage(
     isDolbyAudioSelected: Boolean,
     onAudioQualityClick: (() -> Unit)?,
     glassTintColor: Color,
+    isDarkEnvironment: Boolean = true,
+    coverStyle: MusicCoverStyle = MusicCoverStyle.APPLE_MUSIC_CARD,
+    onToggleCoverStyle: () -> Unit = {},
+    showLyricsPreview: Boolean = true,
+    showQuickFormatControls: Boolean = false,
+    onOpenLyrics: (() -> Unit)? = null,
+    isExpandedLayout: Boolean = false,
+    compactLandscape: Boolean = false,
+    isQueueActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val topPadding = if (compactLandscape) 0.dp else if (isExpandedLayout) 12.dp else 64.dp
+    val bottomPadding = if (isExpandedLayout) 12.dp else 12.dp
+    val horizontalPadding = if (isExpandedLayout) 16.dp else chromeSpec.horizontalPaddingDp.dp
+    val portraitArtworkSizeDp = if (!isExpandedLayout && !compactLandscape) {
+        (artworkSizeDp * 1.12f).roundToInt()
+    } else {
+        artworkSizeDp
+    }
+
     Column(
         modifier = modifier
-            .fillMaxHeight()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
+            .fillMaxSize()
+            .then(if (compactLandscape) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+            .then(if (isExpandedLayout) Modifier else Modifier.navigationBarsPadding())
             .padding(
-                start = chromeSpec.horizontalPaddingDp.dp,
-                top = 76.dp,
-                end = chromeSpec.horizontalPaddingDp.dp,
-                bottom = 16.dp
+                start = horizontalPadding,
+                top = topPadding,
+                end = horizontalPadding,
+                bottom = bottomPadding
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        if (state.isLoading && state.coverUrl.isBlank()) {
-            AdaptiveLoadingIndicator(color = MusicContentColor)
-        } else {
-            MusicArtwork(
-                coverUrl = state.coverUrl,
-                bitmap = artworkBitmap,
-                modifier = Modifier.size(artworkSizeDp.dp),
-                shape = if (chromeSpec.coverShapeIsCircle) CircleShape else AppShapes.container(ContainerLevel.Card),
-                rotate = shouldRotateMusicArtwork(
-                    isPlaying = state.isPlaying,
-                    reduceMotion = reduceMotion
-                ),
-                playbackSpeed = state.playbackSpeed
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                AppText(
-                    text = state.title,
-                    color = MusicAccentColor,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                AppText(
-                    text = state.artist.ifBlank { "未知艺术家" },
-                    color = MusicContentColor.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                state.error?.let {
-                    AppText(it, color = Color(0xFFFF9B92), style = MaterialTheme.typography.bodySmall)
+        if (!compactLandscape) {
+            // 上半部：封面展示与实时歌词空间（弹性居中占满可用剩余空间，绝不挤压底部控制栏）
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .then(
+                        if (!isExpandedLayout && !compactLandscape) {
+                            Modifier.offset(y = 12.dp)
+                        } else {
+                            Modifier
+                        }
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (state.isLoading && state.coverUrl.isBlank()) {
+                    AdaptiveLoadingIndicator(color = MusicContentColor)
+                } else {
+                    MusicArtwork(
+                        coverUrl = state.coverUrl,
+                        bitmap = artworkBitmap,
+                        modifier = Modifier.width(portraitArtworkSizeDp.dp),
+                        shape = if (coverStyle == MusicCoverStyle.TURNTABLE) CircleShape else AppShapes.container(ContainerLevel.Card),
+                        rotate = shouldRotateMusicArtwork(
+                            isPlaying = state.isPlaying,
+                            reduceMotion = reduceMotion
+                        ),
+                        playbackSpeed = state.playbackSpeed,
+                        coverStyle = coverStyle,
+                        isPlaying = state.isPlaying,
+                        reduceMotion = reduceMotion,
+                        isDarkEnvironment = isDarkEnvironment,
+                        onClick = onToggleCoverStyle
+                    )
                 }
-            }
-            onLikeClick?.let { like ->
-                AppIconButton(onClick = like, modifier = Modifier.size(48.dp)) {
-                    AppIcon(
-                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (isLiked) "取消点赞" else "点赞",
-                        tint = if (isLiked) MaterialTheme.colorScheme.error else MusicContentColor
+                if (showLyricsPreview) {
+                    Spacer(Modifier.height(14.dp))
+                    PlayerLyricsPreview(
+                        lyrics = state.lyrics,
+                        positionMs = state.positionMs,
+                        onOpenLyrics = onOpenLyrics
                     )
                 }
             }
+
         }
-        onAudioQualityClick?.let { action ->
-            Spacer(Modifier.height(12.dp))
-            MusicAudioQualityControl(
-                label = audioQualityLabel,
-                isHiResSelected = isHiResAudioSelected,
-                isDolbySelected = isDolbyAudioSelected,
-                onClick = action
+
+        // 下半部：歌曲信息与控制组件区（始终稳定坐落于底端，完整展示播放/暂停与切歌）
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    AppText(
+                        text = state.title,
+                        color = MusicContentColor,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppText(
+                            text = state.artist.ifBlank { "未知艺术家" },
+                            color = MusicContentColor.copy(alpha = 0.68f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                    state.error?.let {
+                        AppText(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                onLikeClick?.let { like ->
+                    AppIconButton(onClick = like, modifier = Modifier.size(48.dp)) {
+                        AppIcon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (isLiked) "取消点赞" else "点赞",
+                            tint = if (isLiked) MusicLikeColor else MusicContentColor.copy(alpha = 0.72f)
+                        )
+                    }
+                }
+            }
+            if (showQuickFormatControls) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onAudioQualityClick != null) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            MusicAudioQualityControl(
+                                label = audioQualityLabel,
+                                isHiResSelected = isHiResAudioSelected,
+                                isDolbySelected = isDolbyAudioSelected,
+                                onClick = onAudioQualityClick,
+                                glassTintColor = glassTintColor,
+                                isDarkEnvironment = isDarkEnvironment
+                            )
+                        }
+                    }
+                    AppSurface(
+                        onClick = onToggleCoverStyle,
+                        shape = AppShapes.container(ContainerLevel.Dialog),
+                        color = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment),
+                        border = BorderStroke(0.8.dp, resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)),
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppText(
+                                text = resolveCoverStyleShortLabel(resolveNextCoverStyle(coverStyle)),
+                                color = MusicAccentColor,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            MusicProgress(
+                state = state,
+                onSeek = onSeek,
+                glassEnabled = chromeSpec.glassEnabled,
+                glassTintColor = glassTintColor,
+                isDarkEnvironment = isDarkEnvironment,
+                miuixBackdrop = miuixBackdrop,
+            )
+            Spacer(Modifier.height(8.dp))
+            PlaybackControls(
+                state = state,
+                playButtonSizeDp = if (compactLandscape) 56 else chromeSpec.playButtonSizeDp,
+                skipButtonSizeDp = if (compactLandscape) 48 else chromeSpec.skipButtonSizeDp,
+                onPlayPause = onPlayPause,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                isDarkEnvironment = isDarkEnvironment,
+                glassTintColor = glassTintColor
+            )
+            Spacer(Modifier.height(10.dp))
+            MusicSecondaryControls(
+                mode = state.playMode,
+                shuffleEnabled = state.shuffleEnabled,
+                showQueue = state.queueControls.showQueue || state.queue.isNotEmpty(),
+                onPlayModeChange = onPlayModeChange,
+                onShuffleEnabledChange = onShuffleEnabledChange,
+                onCommentsClick = onCommentsClick,
+                onQueueClick = onQueueClick,
+                isQueueActive = isQueueActive
             )
         }
-        Spacer(Modifier.height(12.dp))
-        MusicProgress(state, onSeek, glassEnabled = chromeSpec.glassEnabled)
-        Spacer(Modifier.height(8.dp))
-        PlaybackControls(
-            state = state,
-            playButtonSizeDp = chromeSpec.playButtonSizeDp,
-            skipButtonSizeDp = chromeSpec.skipButtonSizeDp,
-            onPlayPause = onPlayPause,
-            onPrevious = onPrevious,
-            onNext = onNext
-        )
-        Spacer(Modifier.height(12.dp))
-        MusicSecondaryControls(
-            mode = state.playMode,
-            shuffleEnabled = state.shuffleEnabled,
-            showQueue = state.queueControls.showQueue,
-            onPlayModeChange = onPlayModeChange,
-            onShuffleEnabledChange = onShuffleEnabledChange,
-            onCommentsClick = onCommentsClick,
-            onQueueClick = onQueueClick
-        )
     }
 }
 
@@ -946,14 +1813,21 @@ private fun MusicAudioQualityControl(
     label: String,
     isHiResSelected: Boolean,
     isDolbySelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    glassTintColor: Color = Color.Unspecified,
+    isDarkEnvironment: Boolean = true
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 40.dp)
+            .heightIn(min = 48.dp)
             .clip(AppShapes.container(ContainerLevel.Dialog))
-            .background(MusicAccentColor.copy(alpha = 0.16f))
+            .background(resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment))
+            .border(
+                0.8.dp,
+                resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment),
+                AppShapes.container(ContainerLevel.Dialog)
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -988,7 +1862,8 @@ private fun MusicSecondaryControls(
     onPlayModeChange: (PlayMode) -> Unit,
     onShuffleEnabledChange: (Boolean) -> Unit,
     onCommentsClick: (() -> Unit)?,
-    onQueueClick: () -> Unit
+    onQueueClick: () -> Unit,
+    isQueueActive: Boolean = false
 ) {
     val transport = resolveMusicSecondaryTransport(mode, shuffleEnabled)
     val active = MusicAccentColor
@@ -1041,7 +1916,7 @@ private fun MusicSecondaryControls(
             AppIcon(
                 Icons.Outlined.QueueMusic,
                 contentDescription = "播放队列",
-                tint = if (showQueue) inactive else inactive.copy(alpha = 0.28f)
+                tint = if (isQueueActive) active else if (showQueue) inactive else inactive.copy(alpha = 0.28f)
             )
         }
     }
@@ -1054,43 +1929,156 @@ private fun MusicArtwork(
     modifier: Modifier,
     shape: Shape = CircleShape,
     rotate: Boolean = false,
-    playbackSpeed: Float = 1f
+    playbackSpeed: Float = 1f,
+    coverStyle: MusicCoverStyle = MusicCoverStyle.APPLE_MUSIC_CARD,
+    isPlaying: Boolean = false,
+    reduceMotion: Boolean = false,
+    isDarkEnvironment: Boolean = true,
+    onClick: (() -> Unit)? = null
 ) {
-    val rotationDegrees = rememberMusicArtworkRotationDegrees(
-        active = rotate,
-        contentKey = coverUrl,
-        playbackSpeed = playbackSpeed
+    val artworkShadowColor = MusicShadowColor
+    val artworkBorderColor = resolveMusicGlassBorderColor(
+        LocalMusicPlayerMaterial.current.backdropColor,
+        isDarkEnvironment,
     )
-    Box(
-        modifier = modifier
-            .graphicsLayer { rotationZ = rotationDegrees() }
-            .clip(shape)
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF615571), Color(0xFF27212F))
+    val artworkFallbackBrush = Brush.linearGradient(
+        listOf(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surface,
+        )
+    )
+    if (shape == RectangleShape) {
+        // PiP 模式：直接铺满画中画窗口
+        Box(
+            modifier = modifier
+                .clip(shape)
+                .background(
+                    artworkFallbackBrush
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                bitmap != null -> androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            bitmap != null -> androidx.compose.foundation.Image(
-                bitmap = bitmap,
-                contentDescription = "专辑封面",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            coverUrl.isNotBlank() -> AsyncImage(
-                model = coverUrl,
-                contentDescription = "专辑封面",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            else -> AppIcon(
-                Icons.Outlined.MusicNote,
-                contentDescription = null,
-                tint = MusicContentColor.copy(alpha = 0.78f),
-                modifier = Modifier.size(96.dp)
-            )
+                coverUrl.isNotBlank() -> AsyncImage(
+                    model = coverUrl,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                else -> AppIcon(
+                    Icons.Outlined.MusicNote,
+                    contentDescription = null,
+                    tint = MusicContentColor.copy(alpha = 0.78f),
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        }
+    } else if (coverStyle == MusicCoverStyle.TURNTABLE) {
+        val rotationDegrees = rememberMusicArtworkRotationDegrees(
+            active = rotate,
+            contentKey = coverUrl,
+            playbackSpeed = playbackSpeed
+        )
+        Box(
+            modifier = modifier
+                .aspectRatio(1f)
+                .shadow(
+                    elevation = if (isPlaying) 18.dp else 10.dp,
+                    shape = CircleShape,
+                    ambientColor = artworkShadowColor.copy(alpha = if (isDarkEnvironment) 0.55f else 0.20f),
+                    spotColor = artworkShadowColor.copy(alpha = if (isDarkEnvironment) 0.65f else 0.25f)
+                )
+                .graphicsLayer { rotationZ = rotationDegrees() }
+                .clip(CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = artworkBorderColor,
+                    shape = CircleShape
+                )
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                bitmap != null -> androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                coverUrl.isNotBlank() -> AsyncImage(
+                    model = coverUrl,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                else -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppIcon(
+                        Icons.Outlined.MusicNote,
+                        contentDescription = null,
+                        tint = MusicContentColor.copy(alpha = 0.78f),
+                        modifier = Modifier.size(64.dp)
+                    )
+                }
+            }
+        }
+    } else {
+        // Apple Music Style: 宽屏卡片（16:10，自适应视频比例）或经典方图（1:1）与氛围弥散阴影
+        val isCard = coverStyle == MusicCoverStyle.APPLE_MUSIC_CARD
+        val cardAspectRatio = if (isCard) (16f / 10f) else 1f
+        val cornerRadius = if (isCard) APPLE_MUSIC_CARD_CORNER_RADIUS_DP.dp else APPLE_MUSIC_COVER_CORNER_RADIUS_DP.dp
+        val cornerShape = RoundedCornerShape(cornerRadius)
+        val shadowElevation = APPLE_MUSIC_COVER_SHADOW_ELEVATION_DP.dp
+        Box(
+            modifier = modifier
+                .aspectRatio(cardAspectRatio)
+                .shadow(
+                    elevation = shadowElevation,
+                    shape = cornerShape,
+                    ambientColor = artworkShadowColor.copy(alpha = if (isDarkEnvironment) 0.45f else 0.15f),
+                    spotColor = artworkShadowColor.copy(alpha = if (isDarkEnvironment) 0.55f else 0.20f)
+                )
+                .clip(cornerShape)
+                .border(
+                    width = 1.dp,
+                    color = artworkBorderColor.copy(alpha = if (isDarkEnvironment) 0.20f else 0.14f),
+                    shape = cornerShape
+                )
+                .background(
+                    artworkFallbackBrush
+                )
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                bitmap != null -> androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                coverUrl.isNotBlank() -> AsyncImage(
+                    model = coverUrl,
+                    contentDescription = "专辑封面",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                else -> AppIcon(
+                    Icons.Outlined.MusicNote,
+                    contentDescription = null,
+                    tint = MusicContentColor.copy(alpha = 0.78f),
+                    modifier = Modifier.size(if (isCard) 64.dp else 96.dp)
+                )
+            }
         }
     }
 }
@@ -1099,53 +2087,51 @@ private fun MusicArtwork(
 private fun MusicProgress(
     state: MusicPlayerUiState,
     onSeek: (Long) -> Unit,
-    glassEnabled: Boolean
+    glassEnabled: Boolean,
+    glassTintColor: Color = Color.Unspecified,
+    isDarkEnvironment: Boolean = true,
+    miuixBackdrop: MiuixBackdrop? = null,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
+    modifier: Modifier = Modifier
 ) {
     val duration = state.durationMs.coerceAtLeast(1L)
     var draggedPosition by remember { mutableStateOf<Float?>(null) }
-    val context = LocalContext.current
-    val reduceMotion = remember(context) {
-        android.provider.Settings.Global.getFloat(
-            context.contentResolver,
-            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f
-        ) == 0f
-    }
     val sliderValue = draggedPosition ?: state.positionMs.coerceIn(0L, duration).toFloat()
     val onSliderChange: (Float) -> Unit = { draggedPosition = it }
     val onSliderChangeFinished = {
         draggedPosition?.let { onSeek(it.toLong()) }
         draggedPosition = null
     }
-    val uiStyle = LocalAppUiStyle.current
-    if (shouldUseNativeThemeMusicProgress(glassEnabled = glassEnabled, uiStyle = uiStyle)) {
-        AppSlider(
-            value = sliderValue,
-            onValueChange = onSliderChange,
-            onValueChangeFinished = onSliderChangeFinished,
-            valueRange = 0f..duration.toFloat()
-        )
-    } else {
-        MusicWavySlider(
-            value = sliderValue,
-            onValueChange = onSliderChange,
-            onValueChangeFinished = onSliderChangeFinished,
-            valueRange = 0f..duration.toFloat(),
-            wavy = shouldUseMusicWavyProgress(
-                glassEnabled = glassEnabled,
-                uiStyle = uiStyle,
-                isPlaying = state.isPlaying,
-                isDragging = draggedPosition != null,
-                reduceMotion = reduceMotion
-            ),
-            activeColor = MusicAccentColor,
-            inactiveColor = MusicContentColor.copy(alpha = 0.28f),
-            thumbColor = MusicAccentColor
-        )
-    }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        AppText(formatMusicTime(state.positionMs), color = MusicContentColor.copy(alpha = 0.78f), fontSize = 12.sp)
-        AppText("-${formatMusicTime((state.durationMs - state.positionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.78f), fontSize = 12.sp)
+    val inactiveTrackColor = lerp(
+        glassTintColor.takeOrElse { MaterialTheme.colorScheme.surface },
+        MaterialTheme.colorScheme.onSurface,
+        if (isDarkEnvironment) 0.34f else 0.22f,
+    ).copy(alpha = if (isDarkEnvironment) 0.36f else 0.24f)
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            MusicWavySlider(
+                value = sliderValue,
+                onValueChange = onSliderChange,
+                onValueChangeFinished = onSliderChangeFinished,
+                valueRange = 0f..duration.toFloat(),
+                wavy = false,
+                activeColor = MusicAccentColor,
+                inactiveColor = inactiveTrackColor,
+                thumbColor = MusicAccentColor,
+                modifier = Modifier.height(48.dp),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val displayedPositionMs = draggedPosition?.toLong() ?: state.positionMs
+            AppText(formatMusicTime(displayedPositionMs), color = MusicContentColor.copy(alpha = 0.85f), fontSize = 12.sp)
+            AppText("-${formatMusicTime((state.durationMs - displayedPositionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.85f), fontSize = 12.sp)
+        }
     }
 }
 
@@ -1157,7 +2143,9 @@ private fun PlaybackControls(
     onNext: (() -> Unit)?,
     modifier: Modifier = Modifier,
     playButtonSizeDp: Int = 72,
-    skipButtonSizeDp: Int = 56
+    skipButtonSizeDp: Int = 56,
+    isDarkEnvironment: Boolean = true,
+    glassTintColor: Color = Color.Unspecified
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -1171,24 +2159,41 @@ private fun PlaybackControls(
             onClick = onPrevious ?: {},
             sizeDp = skipButtonSizeDp
         )
-        AppFilledIconButton(
-            onClick = onPlayPause,
-            modifier = Modifier.size(playButtonSizeDp.dp),
-            colors = AppIconButtonDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+        // 播放控制主按钮：沿用播放器的背景取色毛玻璃材质，保持图标高对比。
+        val playButtonBg = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment)
+            .copy(alpha = if (isDarkEnvironment) 0.62f else 0.52f)
+        val playButtonFg = MusicContentColor
+        val playButtonBorder = resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)
+            .copy(alpha = 0.62f)
+        Box(
+            modifier = Modifier
+                .size(playButtonSizeDp.dp)
+                .drawBehind {
+                    val radius = size.minDimension / 2f
+                    drawCircle(color = playButtonBg, radius = radius)
+                    drawCircle(
+                        color = playButtonBorder,
+                        radius = radius - 0.8.dp.toPx(),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onPlayPause,
+                ),
+            contentAlignment = Alignment.Center
         ) {
             if (state.isBuffering) {
                 AppCircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = playButtonFg,
                     modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
                 )
             } else {
                 AppIcon(
                     imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (state.isPlaying) "暂停" else "播放",
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = playButtonFg,
                     modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
                 )
             }
@@ -1200,6 +2205,149 @@ private fun PlaybackControls(
             onClick = onNext ?: {},
             sizeDp = skipButtonSizeDp
         )
+    }
+}
+
+@Composable
+private fun PlayerLyricsPreview(
+    lyrics: LyricDocument?,
+    positionMs: Long,
+    onOpenLyrics: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val activeIndex = lyrics?.let { resolveActiveLyricIndex(it, positionMs) } ?: -1
+    val lines = lyrics?.lines.orEmpty()
+    val prevLine = if (activeIndex > 0 && activeIndex - 1 in lines.indices) lines[activeIndex - 1] else null
+    val activeLine = if (activeIndex in lines.indices) lines[activeIndex] else null
+    val nextLine1 = if (activeIndex + 1 in lines.indices) lines[activeIndex + 1] else null
+    val nextLine2 = if (activeIndex + 2 in lines.indices) lines[activeIndex + 2] else null
+
+    AppSurface(
+        onClick = onOpenLyrics ?: {},
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Transparent,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp, horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (activeLine != null) {
+                // 上一行（淡出弱化呈现）
+                if (prevLine != null) {
+                    AppText(
+                        text = prevLine.text,
+                        color = MusicContentColor.copy(alpha = 0.38f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // 当前行（醒目高亮）
+                AppText(
+                    text = activeLine.text,
+                    color = MusicAccentColor,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // 翻译（若有）
+                val translation = activeLine.translations.firstOrNull()
+                if (!translation.isNullOrBlank()) {
+                    AppText(
+                        text = translation,
+                        color = MusicAccentColor.copy(alpha = 0.72f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // 下一行（预览）
+                if (nextLine1 != null) {
+                    AppText(
+                        text = nextLine1.text,
+                        color = MusicContentColor.copy(alpha = 0.58f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // 再下一行（若无翻译且存在下下句，展示保持 3~4 行层次感）
+                if (translation.isNullOrBlank() && nextLine2 != null) {
+                    AppText(
+                        text = nextLine2.text,
+                        color = MusicContentColor.copy(alpha = 0.32f),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else if (lyrics != null && lines.isNotEmpty()) {
+                val firstLine = lines.firstOrNull()
+                val isPrelude = firstLine != null && positionMs < firstLine.startTimeMs
+                val hint = if (isPrelude) "··· 前奏 ···" else "··· 间奏 ···"
+
+                AppText(
+                    text = hint,
+                    color = MusicAccentColor.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+
+                // 前奏时展示前 2~3 句歌词预览
+                if (isPrelude) {
+                    lines.take(3).forEachIndexed { idx, line ->
+                        val alpha = when (idx) {
+                            0 -> 0.65f
+                            1 -> 0.45f
+                            else -> 0.28f
+                        }
+                        AppText(
+                            text = line.text,
+                            color = MusicContentColor.copy(alpha = alpha),
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    AppIcon(
+                        Icons.Outlined.MusicNote,
+                        contentDescription = null,
+                        tint = MusicContentColor.copy(alpha = 0.45f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    AppText(
+                        text = "轻点查看完整歌词",
+                        color = MusicContentColor.copy(alpha = 0.45f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1241,6 +2389,8 @@ private fun LyricsPage(
     progressSeekRevision: Int,
     controlsVisible: Boolean,
     onControlsVisibleChange: (Boolean) -> Unit,
+    showBottomControls: Boolean = true,
+    isDarkEnvironment: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val document = state.lyrics
@@ -1281,7 +2431,7 @@ private fun LyricsPage(
         modifier = modifier
             .fillMaxSize()
             .clickable { onControlsVisibleChange(!controlsVisible) }
-            .padding(top = 72.dp, bottom = 16.dp)
+            .padding(top = if (showBottomControls) 72.dp else 16.dp, bottom = 16.dp)
     ) {
         if (document == null || document.lines.isEmpty()) {
             Column(
@@ -1295,21 +2445,25 @@ private fun LyricsPage(
                         state.lyricsError != null -> "歌词加载失败"
                         else -> "未找到匹配歌词"
                     },
-                    color = MusicContentColor.copy(alpha = 0.72f),
+                    color = MusicContentColor.copy(alpha = 0.88f),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     GlassTextButton(
-                        "重新匹配",
-                        glassEnabled,
-                        miuixBackdrop,
-                        onLyricsRetry
+                        label = "重新匹配",
+                        glassEnabled = glassEnabled,
+                        miuixBackdrop = miuixBackdrop,
+                        glassTintColor = glassTintColor,
+                        isDarkEnvironment = isDarkEnvironment,
+                        onClick = onLyricsRetry
                     )
                     GlassTextButton(
-                        "手动搜索",
-                        glassEnabled,
-                        miuixBackdrop,
-                        onOpenLyricsSearch
+                        label = "手动搜索",
+                        glassEnabled = glassEnabled,
+                        miuixBackdrop = miuixBackdrop,
+                        glassTintColor = glassTintColor,
+                        isDarkEnvironment = isDarkEnvironment,
+                        onClick = onOpenLyricsSearch
                     )
                 }
             }
@@ -1318,9 +2472,9 @@ private fun LyricsPage(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 28.dp,
-                    top = 120.dp,
-                    end = 28.dp,
+                    start = if (showBottomControls) 28.dp else 12.dp,
+                    top = if (showBottomControls) 120.dp else 24.dp,
+                    end = if (showBottomControls) 28.dp else 16.dp,
                     bottom = 260.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(22.dp)
@@ -1342,43 +2496,106 @@ private fun LyricsPage(
             }
         }
 
-        AnimatedVisibility(
-            visible = controlsVisible,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(start = 20.dp, end = 20.dp),
-            enter = if (reduceMotion) EnterTransition.None else fadeIn() + slideInVertically { it / 2 },
-            exit = if (reduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { it / 2 }
-        ) {
-            LyricsPrimaryControls(
-                state = state,
-                glassEnabled = glassEnabled,
-                miuixBackdrop = miuixBackdrop,
-                glassTintColor = glassTintColor,
-                liquidGlassTuning = liquidGlassTuning,
-                onPlayPause = onPlayPause,
-                onSeek = onSeek,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onOpenSettings = { showLyricsSettings = true },
-                onHideControls = { onControlsVisibleChange(false) }
-            )
-        }
-        if (!controlsVisible) {
-            LyricsImmersiveProgress(
-                state = state,
+        if (showBottomControls) {
+            AnimatedVisibility(
+                visible = controlsVisible,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
-            )
+                    .padding(start = 20.dp, end = 20.dp),
+                enter = if (reduceMotion) EnterTransition.None else fadeIn() + slideInVertically { it / 2 },
+                exit = if (reduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { it / 2 }
+            ) {
+                LyricsPrimaryControls(
+                    state = state,
+                    glassEnabled = glassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    glassTintColor = glassTintColor,
+                    liquidGlassTuning = liquidGlassTuning,
+                    isDarkEnvironment = isDarkEnvironment,
+                    onPlayPause = onPlayPause,
+                    onSeek = onSeek,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onOpenSettings = { showLyricsSettings = true },
+                    onHideControls = { onControlsVisibleChange(false) }
+                )
+            }
+            if (!controlsVisible) {
+                LyricsImmersiveProgress(
+                    state = state,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+            }
+        } else {
+            AnimatedVisibility(
+                visible = controlsVisible,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 20.dp, end = 20.dp),
+                enter = if (reduceMotion) EnterTransition.None else fadeIn() + slideInVertically { -it / 2 },
+                exit = if (reduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { -it / 2 }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isAutoFollowPaused) {
+                        GlassTextButton(
+                            label = "回到当前歌词",
+                            glassEnabled = glassEnabled,
+                            miuixBackdrop = miuixBackdrop,
+                            glassTintColor = glassTintColor,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = { isAutoFollowPaused = false }
+                        )
+                    } else {
+                        Spacer(Modifier.width(1.dp))
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        GlassTextButton(
+                            label = if (showTranslations) "译:开" else "译:关",
+                            glassEnabled = glassEnabled,
+                            miuixBackdrop = miuixBackdrop,
+                            glassTintColor = glassTintColor,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = { showTranslations = !showTranslations }
+                        )
+                        GlassTextButton(
+                            label = "搜索",
+                            glassEnabled = glassEnabled,
+                            miuixBackdrop = miuixBackdrop,
+                            glassTintColor = glassTintColor,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = onOpenLyricsSearch
+                        )
+                        GlassTextButton(
+                            label = "歌词设置",
+                            glassEnabled = glassEnabled,
+                            miuixBackdrop = miuixBackdrop,
+                            glassTintColor = glassTintColor,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = { showLyricsSettings = true }
+                        )
+                    }
+                }
+            }
         }
-        if (isAutoFollowPaused && controlsVisible) {
+        if (showBottomControls && isAutoFollowPaused && controlsVisible) {
             GlassTextButton(
                 label = "回到当前歌词",
                 glassEnabled = glassEnabled,
                 miuixBackdrop = miuixBackdrop,
+                glassTintColor = glassTintColor,
+                isDarkEnvironment = isDarkEnvironment,
                 onClick = { isAutoFollowPaused = false },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -1398,6 +2615,7 @@ private fun LyricsPage(
             LyricsSettingsContent(
                 showTranslations = showTranslations,
                 lyricsOffsetMs = document?.offsetMs ?: 0L,
+                sourceLabel = BiliSubtitleLyricsPolicy.resolveSourceLabel(document),
                 contentColor = sheetContentColor,
                 secondaryColor = sheetSecondaryColor,
                 onToggleTranslations = { showTranslations = !showTranslations },
@@ -1419,6 +2637,7 @@ private fun LyricsPrimaryControls(
     miuixBackdrop: MiuixBackdrop?,
     glassTintColor: Color,
     liquidGlassTuning: LiquidGlassTuning,
+    isDarkEnvironment: Boolean = true,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onPrevious: (() -> Unit)?,
@@ -1430,21 +2649,21 @@ private fun LyricsPrimaryControls(
         uiStyle = LocalAppUiStyle.current,
         glassEnabled = glassEnabled
     )
-    val panelColor = if (glassEnabled) {
-        resolveMusicImmersivePanelColor(glassTintColor)
-    } else {
-        AppSurfaceTokens.surfaceContainer()
-    }
-    val panelContentColor = if (glassEnabled) {
-        resolveMusicPlayerContentColor(
-            backgroundColor = panelColor,
-            onLightBackground = MaterialTheme.colorScheme.onSurface,
-            onDarkBackground = Color.White,
-        )
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val panelColor = resolveMusicImmersivePanelColor(
+        glassTintColor,
+        MaterialTheme.colorScheme.surface,
+    )
+    val (themeOnLight, themeOnDark) = resolveMusicPlayerThemeContentColors()
+    val panelContentColor = resolveMusicPlayerContentColor(
+        backgroundColor = panelColor,
+        onLightBackground = themeOnLight,
+        onDarkBackground = themeOnDark,
+    )
     val panelShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    val panelMaterial = LocalMusicPlayerMaterial.current.copy(
+        surfaceColor = panelColor,
+        contentColor = panelContentColor,
+    )
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1454,23 +2673,36 @@ private fun LyricsPrimaryControls(
                 pressProgress = 0f,
                 shape = panelShape,
                 enabled = glassEnabled,
+                blurEnabled = !glassEnabled,
                 liquidGlassTuning = liquidGlassTuning,
             ),
         shape = panelShape,
-        color = if (glassEnabled) Color.Transparent else panelColor,
+        // color = Color.Transparent
+        color = if (miuixBackdrop != null) Color.Transparent else panelColor,
         contentColor = panelContentColor,
-        tonalElevation = if (chromeSpec.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 && !glassEnabled) {
+        tonalElevation = if (
+            chromeSpec.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 &&
+            miuixBackdrop == null
+        ) {
             1.dp
         } else {
             0.dp
         }
     ) {
-        CompositionLocalProvider(LocalMusicContentColor provides panelContentColor) {
+        CompositionLocalProvider(LocalMusicPlayerMaterial provides panelMaterial) {
             Column(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                MusicProgress(state, onSeek, glassEnabled = glassEnabled)
+                MusicProgress(
+                    state = state,
+                    onSeek = onSeek,
+                    glassEnabled = glassEnabled,
+                    glassTintColor = glassTintColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    miuixBackdrop = miuixBackdrop,
+                    liquidGlassTuning = liquidGlassTuning,
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PlaybackControls(
                         state = state,
@@ -1479,7 +2711,9 @@ private fun LyricsPrimaryControls(
                         onNext = onNext,
                         modifier = Modifier.weight(1f),
                         playButtonSizeDp = chromeSpec.playButtonSizeDp,
-                        skipButtonSizeDp = chromeSpec.skipButtonSizeDp
+                        skipButtonSizeDp = chromeSpec.skipButtonSizeDp,
+                        isDarkEnvironment = isDarkEnvironment,
+                        glassTintColor = glassTintColor
                     )
                     AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
                         AppText("歌词设置", color = MusicContentColor, fontSize = 12.sp)
@@ -1522,6 +2756,7 @@ private fun LyricsImmersiveProgress(
 private fun LyricsSettingsContent(
     showTranslations: Boolean,
     lyricsOffsetMs: Long,
+    sourceLabel: String = "",
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     secondaryColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     onToggleTranslations: () -> Unit,
@@ -1542,6 +2777,13 @@ private fun LyricsSettingsContent(
             fontWeight = FontWeight.Bold,
             color = contentColor
         )
+        if (sourceLabel.isNotBlank()) {
+            AppText(
+                "当前来源 · $sourceLabel",
+                color = secondaryColor,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
         MusicActionSheetItem(
             if (showTranslations) "隐藏翻译与罗马音" else "显示翻译与罗马音",
             contentColor = contentColor,
@@ -1646,27 +2888,57 @@ private fun MusicTopBar(
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
     liquidGlassTuning: LiquidGlassTuning,
+    glassTintColor: Color = Color.Unspecified,
+    isDarkEnvironment: Boolean = true,
     onBack: () -> Unit,
     onMore: () -> Unit,
-    modifier: Modifier = Modifier
+    actionsPopup: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    onToggleLayout: (() -> Unit)? = null,
+    layoutActionLabel: String = "切换布局",
 ) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         GlassIconButton(
-            Icons.Outlined.KeyboardArrowDown,
-            "返回",
-            glassEnabled,
-            miuixBackdrop,
-            liquidGlassTuning,
-            onBack
+            icon = Icons.Outlined.KeyboardArrowDown,
+            description = "返回",
+            glassEnabled = glassEnabled,
+            miuixBackdrop = miuixBackdrop,
+            liquidGlassTuning = liquidGlassTuning,
+            glassTintColor = glassTintColor,
+            isDarkEnvironment = isDarkEnvironment,
+            onClick = onBack
         )
-        GlassIconButton(
-            Icons.Outlined.MoreHoriz,
-            "更多操作",
-            glassEnabled,
-            miuixBackdrop,
-            liquidGlassTuning,
-            onMore
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (onToggleLayout != null) {
+                GlassIconButton(
+                    icon = Icons.Outlined.QueueMusic,
+                    description = layoutActionLabel,
+                    glassEnabled = glassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    liquidGlassTuning = liquidGlassTuning,
+                    glassTintColor = glassTintColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    onClick = onToggleLayout
+                )
+            }
+            Box {
+                GlassIconButton(
+                    icon = Icons.Outlined.MoreHoriz,
+                    description = "更多操作",
+                    glassEnabled = glassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    liquidGlassTuning = liquidGlassTuning,
+                    glassTintColor = glassTintColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    onClick = onMore
+                )
+                actionsPopup()
+            }
+        }
     }
 }
 
@@ -1677,6 +2949,8 @@ private fun GlassIconButton(
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
     liquidGlassTuning: LiquidGlassTuning,
+    glassTintColor: Color = Color.Unspecified,
+    isDarkEnvironment: Boolean = true,
     onClick: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -1732,17 +3006,23 @@ private fun GlassIconButton(
             }
             .biliPaiFloatingDockShell(
                 backdrop = miuixBackdrop,
-                containerColor = AppSurfaceTokens.cardContainer(),
+                containerColor = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment),
                 pressProgress = 0f,
                 shape = CircleShape,
                 enabled = glassEnabled,
+                blurEnabled = !glassEnabled,
                 liquidGlassTuning = liquidGlassTuning,
+            )
+            .border(
+                width = 0.5.dp,
+                color = resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment),
+                shape = CircleShape
             )
     ) {
         AppIcon(
             icon,
             contentDescription = description,
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = MusicContentColor,
         )
     }
 }
@@ -1753,22 +3033,420 @@ private fun GlassTextButton(
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
+    glassTintColor: Color = Color.Unspecified,
+    isDarkEnvironment: Boolean = true,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ) {
-    val shape = AppShapes.container(ContainerLevel.Pill)
+    val shape = CircleShape
+    val containerColor = if (isSelected) {
+        MusicAccentColor.copy(alpha = 0.26f)
+    } else {
+        resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment)
+    }
+    val borderColor = if (isSelected) {
+        MusicAccentColor.copy(alpha = 0.40f)
+    } else {
+        resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)
+    }
+    val textColor = if (isSelected) {
+        MusicAccentColor
+    } else {
+        MusicContentColor
+    }
     Box(
         modifier = modifier
             .height(48.dp)
-            .background(AppSurfaceTokens.cardContainer(), shape)
+            .biliPaiFloatingDockShell(
+                backdrop = miuixBackdrop,
+                containerColor = containerColor,
+                pressProgress = 0f,
+                shape = shape,
+                enabled = glassEnabled,
+                blurEnabled = !glassEnabled,
+                liquidGlassTuning = liquidGlassTuning,
+            )
+            .border(0.8.dp, borderColor, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 15.dp),
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         AppText(
             label,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = textColor,
             style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+@Composable
+private fun TabletopPlayerLayout(
+    coverStyle: MusicCoverStyle,
+    state: MusicPlayerUiState,
+    queue: List<MusicQueueItemUi>,
+    currentIndex: Int,
+    artworkBitmap: ImageBitmap?,
+    glassEnabled: Boolean,
+    reduceMotion: Boolean,
+    lyricsBlurEffectsEnabled: Boolean,
+    backgroundColor: Color,
+    musicBackdrop: MiuixBackdrop?,
+    liquidGlassTuning: LiquidGlassTuning,
+    progressSeekRevision: Int,
+    isLiked: Boolean,
+    onPlayPause: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onPrevious: (() -> Unit)?,
+    onNext: (() -> Unit)?,
+    onQueueItemSelected: (Int) -> Unit,
+    onLikeClick: (() -> Unit)?,
+    onToggleCoverStyle: () -> Unit,
+    onLyricsOffsetChange: (Long) -> Unit,
+    onLyricsRetry: () -> Unit,
+    onOpenLyricsSearch: () -> Unit,
+    availableWidthDp: Int,
+    hingeStartDp: Int? = null,
+    hingeEndDp: Int? = null,
+    isDarkEnvironment: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val tabletopDensity = LocalDensity.current
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(top = 40.dp, bottom = 4.dp)
+    ) {
+        val contentHeightDp = maxHeight.value.roundToInt()
+        val topChromeOffsetDp = with(tabletopDensity) {
+            WindowInsets.statusBars.getTop(this).toDp().value.roundToInt()
+        } + 40
+        val paneSizes = resolveMusicTabletopPaneSizes(
+            availableHeightDp = contentHeightDp,
+            hingeStartDp = hingeStartDp?.minus(topChromeOffsetDp),
+            hingeEndDp = hingeEndDp?.minus(topChromeOffsetDp),
+        )
+        Column(modifier = Modifier.fillMaxSize()) {
+        // 上半部分（观赏区）：左侧封面 + 右侧滚动歌词
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(paneSizes.upperHeightDp.dp)
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 封面在独立左栏内居中，与歌词保留稳定间距。
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                val artworkSize = minOf(
+                    (((availableWidthDp - 68) / 2) * 0.88f).toInt().coerceAtLeast(0),
+                    (paneSizes.upperHeightDp - 24).coerceAtLeast(0),
+                    340
+                ).coerceAtLeast(0)
+
+                MusicArtwork(
+                    coverUrl = state.coverUrl,
+                    bitmap = artworkBitmap,
+                    isPlaying = state.isPlaying,
+                    rotate = state.isPlaying && !reduceMotion,
+                    playbackSpeed = state.playbackSpeed,
+                    coverStyle = coverStyle,
+                    reduceMotion = reduceMotion,
+                    shape = CircleShape,
+                    isDarkEnvironment = isDarkEnvironment,
+                    onClick = onToggleCoverStyle,
+                    modifier = Modifier.width(artworkSize.dp)
+                )
+            }
+
+            // 右侧歌词
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                LyricsPage(
+                    state = state,
+                    glassEnabled = glassEnabled,
+                    onPlayPause = onPlayPause,
+                    onSeek = onSeek,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onLyricsOffsetChange = onLyricsOffsetChange,
+                    onLyricsRetry = onLyricsRetry,
+                    onOpenLyricsSearch = onOpenLyricsSearch,
+                    blurEffectsEnabled = lyricsBlurEffectsEnabled,
+                    reduceMotion = reduceMotion,
+                    glassTintColor = backgroundColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    liquidGlassTuning = liquidGlassTuning,
+                    miuixBackdrop = musicBackdrop,
+                    progressSeekRevision = progressSeekRevision,
+                    controlsVisible = false,
+                    onControlsVisibleChange = {},
+                    showBottomControls = false,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        if (paneSizes.hingeGapDp > 0) {
+            Spacer(Modifier.height(paneSizes.hingeGapDp.dp))
+        }
+
+        // 下半部分：同宽进度与控制区，下方展开唱片架。
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(paneSizes.lowerHeightDp.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val cardSizeDp = minOf(
+                (availableWidthDp * 0.24f).toInt(),
+                215
+            ).coerceAtLeast(0)
+
+            Music3DCoverFlow(
+                queue = queue,
+                currentIndex = currentIndex,
+                isPlaying = state.isPlaying,
+                onItemClick = onQueueItemSelected,
+                onPlayPause = onPlayPause,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                isLiked = isLiked,
+                onLikeClick = onLikeClick,
+                cardSizeDp = cardSizeDp,
+                // 让细进度轨道接近截图中的内容宽度，同时给左右保留呼吸空间。
+                controlsWidthDp = (availableWidthDp * 0.80f).toInt().coerceIn(320, 920),
+                showTransportControls = true,
+                shelfBelowControls = true,
+                progressContent = {
+                    MusicProgress(
+                        state = state,
+                        onSeek = onSeek,
+                glassEnabled = glassEnabled,
+                        glassTintColor = backgroundColor,
+                        isDarkEnvironment = isDarkEnvironment,
+                        miuixBackdrop = musicBackdrop,
+                        liquidGlassTuning = liquidGlassTuning,
+                    )
+                },
+                glassEnabled = glassEnabled,
+                miuixBackdrop = musicBackdrop,
+                liquidGlassTuning = liquidGlassTuning,
+                glassTintColor = backgroundColor,
+                isDarkEnvironment = isDarkEnvironment,
+                reduceMotion = reduceMotion,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 6.dp)
+            )
+        }
+        }
+    }
+}
+
+@Composable
+private fun ExpandedQueuePane(
+    queue: List<MusicQueueItemUi>,
+    currentIndex: Int,
+    onItemClick: (Int) -> Unit,
+    onClose: () -> Unit,
+    glassEnabled: Boolean,
+    reduceMotion: Boolean,
+    miuixBackdrop: MiuixBackdrop?,
+    glassTintColor: Color,
+    isDarkEnvironment: Boolean = true,
+    liquidGlassTuning: LiquidGlassTuning,
+    isPlaying: Boolean = false,
+    onPlayPause: () -> Unit = {},
+    onPrevious: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
+    isLiked: Boolean = false,
+    onLikeClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    var isCoverFlowView by remember { mutableStateOf(true) }
+    val panelShape = AppShapes.borderedContainer(ContainerLevel.Card)
+    val panelColor = resolveMusicImmersivePanelColor(
+        glassTintColor,
+        MaterialTheme.colorScheme.surface,
+    )
+    AppSurface(
+        shape = panelShape,
+        color = if (miuixBackdrop != null) Color.Transparent else panelColor,
+        contentColor = MusicContentColor,
+        border = BorderStroke(1.dp, resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)),
+        modifier = modifier
+            .fillMaxSize()
+            .biliPaiFloatingDockShell(
+                backdrop = miuixBackdrop,
+                containerColor = panelColor,
+                pressProgress = 0f,
+                shape = panelShape,
+                enabled = glassEnabled,
+                blurEnabled = !glassEnabled,
+                liquidGlassTuning = liquidGlassTuning
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppText(
+                        text = if (queue.isNotEmpty()) "待播清单 (${queue.size})" else "待播清单",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MusicContentColor
+                    )
+                    if (queue.isNotEmpty()) {
+                        GlassTextButton(
+                            label = if (isCoverFlowView) "3D 唱片架" else "列表",
+                            isSelected = true,
+                            glassEnabled = glassEnabled,
+                            miuixBackdrop = miuixBackdrop,
+                            glassTintColor = glassTintColor,
+                            isDarkEnvironment = isDarkEnvironment,
+                            onClick = { isCoverFlowView = !isCoverFlowView }
+                        )
+                    }
+                }
+                GlassTextButton(
+                    label = "返回歌词",
+                    glassEnabled = glassEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    glassTintColor = glassTintColor,
+                    isDarkEnvironment = isDarkEnvironment,
+                    onClick = onClose
+                )
+            }
+            if (queue.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppText(
+                        text = "待播清单为空",
+                        color = MusicContentColor.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            } else if (isCoverFlowView) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 6.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    val availableWidth = maxWidth
+                    val availableHeight = maxHeight
+                    val adaptiveCardSizeDp = minOf(
+                        (availableWidth.value * 0.52f).toInt(),
+                        (availableHeight.value * 0.46f).toInt(),
+                        230
+                    ).coerceAtLeast(165)
+
+                    Music3DCoverFlow(
+                        queue = queue,
+                        currentIndex = currentIndex,
+                        isPlaying = isPlaying,
+                        onItemClick = onItemClick,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        isLiked = isLiked,
+                        onLikeClick = onLikeClick,
+                        cardSizeDp = adaptiveCardSizeDp,
+                        showTransportControls = false,
+                        glassEnabled = glassEnabled,
+                        miuixBackdrop = miuixBackdrop,
+                        liquidGlassTuning = liquidGlassTuning,
+                        glassTintColor = glassTintColor,
+                        isDarkEnvironment = isDarkEnvironment,
+                        reduceMotion = reduceMotion,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    itemsIndexed(queue, key = { _, item -> item.stableId }) { index, item ->
+                        val isPlayingItem = index == currentIndex
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isPlayingItem) MusicAccentColor.copy(alpha = 0.16f) else Color.Transparent
+                                )
+                                .clickable { onItemClick(index) }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = item.coverUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                AppText(
+                                    text = item.title,
+                                    color = if (isPlayingItem) MusicAccentColor else MusicContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontWeight = if (isPlayingItem) FontWeight.Bold else FontWeight.Normal,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                AppText(
+                                    text = item.artist.ifBlank { "未知艺术家" },
+                                    color = if (isPlayingItem) MusicAccentColor.copy(alpha = 0.78f) else MusicContentColor.copy(alpha = 0.65f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            if (isPlayingItem) {
+                                Spacer(Modifier.width(8.dp))
+                                AppIcon(
+                                    Icons.Outlined.MusicNote,
+                                    contentDescription = "正在播放",
+                                    tint = MusicAccentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1805,10 +3483,11 @@ private suspend fun loadMusicArtwork(
         val result = imageLoader.execute(request) as SuccessResult
         val bitmap = (result.image as coil3.BitmapImage).bitmap
         val palette = Palette.from(bitmap).clearFilters().generate()
-        val colorInt = palette.mutedSwatch?.rgb
-            ?: palette.darkMutedSwatch?.rgb
-            ?: palette.dominantSwatch?.rgb
-            ?: 0xFF342B42.toInt()
+        val colorInt = palette.dominantSwatch?.rgb
+            ?: palette.vibrantSwatch?.rgb
+            ?: palette.lightVibrantSwatch?.rgb
+            ?: palette.mutedSwatch?.rgb
+            ?: bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
         bitmap.asImageBitmap() to Color(colorInt)
     }.getOrNull()
 }

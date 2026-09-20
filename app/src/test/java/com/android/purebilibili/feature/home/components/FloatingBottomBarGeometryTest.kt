@@ -165,6 +165,22 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
+    fun `search-compressed liquid indicator scales both axes proportionally`() {
+        val referenceWidth = 69f
+        val compressedWidth = 64.2f
+        val height = resolveFloatingDockIndicatorHeightDp(
+            requestedHeightDp = 56f,
+            tabWidthDp = compressedWidth,
+            geometryMode = FloatingBottomBarGeometryMode.Dock,
+            shellHeightDp = 64f,
+            proportionalReferenceWidthDp = referenceWidth,
+        )
+
+        assertEquals(compressedWidth / referenceWidth, height / 56f, 0.001f)
+        assertTrue(height < 56f)
+    }
+
+    @Test
     fun `captured content counters horizontal indicator stretch`() {
         assertEquals(
             1f,

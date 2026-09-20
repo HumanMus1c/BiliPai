@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -287,7 +288,11 @@ internal fun PortraitInlineVideoPlayerHost(
             isVerticalVideo = isVerticalVideo,
             onPortraitFullscreen = onPortraitFullscreen,
             isPortraitFullscreen = isPortraitFullscreen,
-            viewportWidthDpOverride = animatedViewportWidth.value.roundToInt(),
+            viewportWidthDpOverride = if (animatedViewportWidth.isSpecified) {
+                animatedViewportWidth.value.roundToInt().coerceAtLeast(1)
+            } else {
+                null
+            },
             onPipClick = onPipClick,
             currentCodec = codecPreference,
             onCodecChange = { playbackActions.setVideoCodec(it) },

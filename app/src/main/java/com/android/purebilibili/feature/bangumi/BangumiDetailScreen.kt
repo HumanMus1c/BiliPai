@@ -78,6 +78,7 @@ fun BangumiDetailScreen(
     onEpisodeClick: (Long, BangumiEpisode) -> Unit,  // 点击剧集播放
     onSeasonClick: (Long) -> Unit = {},        //  点击切换季度
     onReviewsClick: (Long, String) -> Unit = { _, _ -> },
+    onUserClick: (Long) -> Unit = {},
     viewModel: BangumiViewModel = viewModel()
 ) {
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
@@ -90,8 +91,11 @@ fun BangumiDetailScreen(
     AppScaffold(
         blurContentReady = detailState !is BangumiDetailState.Loading,
         topBar = {
+            val isCourse = (detailState as? BangumiDetailState.Success)?.detail?.let {
+                it.seasonType == 10 || it.seasonTypeName == "课堂"
+            } == true
             AppTopBar(
-                title = "番剧详情",
+                title = if (isCourse) "课程详情" else "番剧详情",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
                         AppIcon(rememberAppBackIcon(), contentDescription = "返回")
@@ -153,7 +157,8 @@ fun BangumiDetailScreen(
                         onFollowStatusSelect = { status ->
                             viewModel.updateFollowStatus(actionSeasonId, status)
                         },
-                        onReviewsClick = onReviewsClick
+                        onReviewsClick = onReviewsClick,
+                        onUserClick = onUserClick
                     )
                 } else {
                     MobileBangumiDetailContent(
@@ -164,7 +169,8 @@ fun BangumiDetailScreen(
                         onFollowStatusSelect = { status ->
                             viewModel.updateFollowStatus(actionSeasonId, status)
                         },
-                        onReviewsClick = onReviewsClick
+                        onReviewsClick = onReviewsClick,
+                        onUserClick = onUserClick
                     )
                 }
             }
@@ -179,7 +185,8 @@ private fun TabletBangumiDetailContent(
     onEpisodeClick: (BangumiEpisode) -> Unit,
     onSeasonClick: (Long) -> Unit,
     onFollowStatusSelect: (Int) -> Unit,
-    onReviewsClick: (Long, String) -> Unit
+    onReviewsClick: (Long, String) -> Unit,
+    onUserClick: (Long) -> Unit = {}
 ) {
     // 状态管理
     val isFollowing = isBangumiFollowed(detail.userStatus)
@@ -284,8 +291,10 @@ private fun TabletBangumiDetailContent(
                             
                             // Stats
                             detail.stat?.let { stat ->
+                                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                                val followVerb = if (isCourse) "收藏" else "追番"
                                 AppText(
-                                    text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}追番",
+                                    text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp
                                 )
@@ -294,14 +303,91 @@ private fun TabletBangumiDetailContent(
                     }
                 }
                 
+                // UP 主信息（课堂/课程或合作视频）
+                detail.upInfo?.let { up ->
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(AppShapes.container(ContainerLevel.Card))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                .clickable(enabled = up.mid > 0L) { onUserClick(up.mid) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = FormatUtils.fixImageUrl(up.avatar),
+                                contentDescription = up.uname,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                AppText(
+                                    text = up.uname,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val subText = if (up.follower > 0L) {
+                                    "${FormatUtils.formatStat(up.follower)}粉丝"
+                                } else {
+                                    up.brief.orEmpty()
+                                }
+                                if (subText.isNotBlank()) {
+                                    AppText(
+                                        text = subText,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Action Buttons
                 item {
+                    val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                    val targetEpisode = remember(detail) {
+                        val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
+                        detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        if (targetEpisode != null) {
+                            AppButton(
+                                onClick = { onEpisodeClick(targetEpisode) },
+                                modifier = Modifier.weight(1f),
+                                shape = AppShapes.container(ContainerLevel.Chip),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+                                    contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
+                                )
+                            ) {
+                                AppIcon(
+                                    Icons.Outlined.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val playLabel = if (isCourse) {
+                                    if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续学习" else "开始学习"
+                                } else {
+                                    if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续观看" else "立即播放"
+                                }
+                                AppText(playLabel)
+                            }
+                        }
                         // Follow Button
-                         AppButton(
+                        AppButton(
                             onClick = {
                                 if (isFollowing) {
                                     showFollowStatusDialog = true
@@ -310,8 +396,8 @@ private fun TabletBangumiDetailContent(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if(isFollowing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
-                                contentColor = if(isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
+                                containerColor = if (isFollowing || targetEpisode != null) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isFollowing || targetEpisode != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.weight(1f),
                             shape = AppShapes.container(ContainerLevel.Chip)
@@ -322,7 +408,11 @@ private fun TabletBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
+                            AppText(if (isCourse) {
+                                if (isFollowing) "已收藏" else "收藏"
+                            } else {
+                                resolveBangumiFollowStatusLabel(detail.userStatus)
+                            })
                         }
                         if (canReviewBangumi(detail.mediaId, detail.rights)) {
                             AppOutlinedButton(
@@ -356,6 +446,36 @@ private fun TabletBangumiDetailContent(
                                 fontSize = 14.sp,
                                 lineHeight = 22.sp
                             )
+                        }
+                    }
+                }
+
+                // 课程概述图片 (PUGV brief images)
+                if (!detail.briefImgs.isNullOrEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AppText(
+                                text = "课程概述",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            detail.briefImgs.forEach { briefImg ->
+                                if (briefImg.url.isNotBlank()) {
+                                    val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
+                                    AsyncImage(
+                                        model = FormatUtils.fixImageUrl(briefImg.url),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(ratio)
+                                            .clip(AppShapes.container(ContainerLevel.Card)),
+                                        contentScale = ContentScale.FillWidth
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -553,8 +673,10 @@ private fun TabletBangumiDetailContent(
         )
     }
     if (showFollowStatusDialog) {
+        val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
         BangumiFollowStatusDialog(
             currentStatus = detail.userStatus?.followStatus ?: 0,
+            isCourse = isCourse,
             onSelect = { status ->
                 showFollowStatusDialog = false
                 onFollowStatusSelect(status)
@@ -571,7 +693,8 @@ private fun MobileBangumiDetailContent(
     onEpisodeClick: (BangumiEpisode) -> Unit,
     onSeasonClick: (Long) -> Unit,
     onFollowStatusSelect: (Int) -> Unit,
-    onReviewsClick: (Long, String) -> Unit
+    onReviewsClick: (Long, String) -> Unit,
+    onUserClick: (Long) -> Unit = {}
 ) {
     //  [修复] 使用 detail 本身作为 key，这样当 ViewModel 更新 detail 时，状态会正确同步
     val isFollowing = isBangumiFollowed(detail.userStatus)
@@ -702,10 +825,61 @@ private fun MobileBangumiDetailContent(
                             
                             // 播放量
                             detail.stat?.let { stat ->
+                                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                                val followVerb = if (isCourse) "收藏" else "追番"
                                 AppText(
-                                    text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}追番",
+                                    text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
                                     color = Color.White.copy(alpha = 0.7f),
                                     fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // UP 主信息（课堂/课程或合作视频）
+            detail.upInfo?.let { up ->
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .clip(AppShapes.container(ContainerLevel.Card))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .clickable(enabled = up.mid > 0L) { onUserClick(up.mid) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = FormatUtils.fixImageUrl(up.avatar),
+                            contentDescription = up.uname,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            AppText(
+                                text = up.uname,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val subText = if (up.follower > 0L) {
+                                "${FormatUtils.formatStat(up.follower)}粉丝"
+                            } else {
+                                up.brief.orEmpty()
+                            }
+                            if (subText.isNotBlank()) {
+                                AppText(
+                                    text = subText,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -715,15 +889,44 @@ private fun MobileBangumiDetailContent(
             
             // 操作按钮
             item {
+                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                val targetEpisode = remember(detail) {
+                    val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
+                    detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // 追番按钮
+                    if (targetEpisode != null) {
+                        AppButton(
+                            onClick = { onEpisodeClick(targetEpisode) },
+                            modifier = Modifier.weight(1f),
+                            shape = AppShapes.container(ContainerLevel.Chip),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+                                contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
+                            )
+                        ) {
+                            AppIcon(
+                                Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val playLabel = if (isCourse) {
+                                if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续学习" else "开始学习"
+                            } else {
+                                if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续观看" else "立即播放"
+                            }
+                            AppText(playLabel)
+                        }
+                    }
+                    // 追番/收藏按钮
                     if (isFollowing) {
-                        //  已追番：使用带边框的样式，更清晰可见
+                        //  已追番/已收藏：使用带边框的样式，更清晰可见
                         AppOutlinedButton(
                             onClick = {
                                 showFollowStatusDialog = true
@@ -735,6 +938,7 @@ private fun MobileBangumiDetailContent(
                                 1.dp, 
                                 MaterialTheme.colorScheme.primary
                             ),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             modifier = Modifier.weight(1f)
                         ) {
                             AppIcon(
@@ -743,19 +947,19 @@ private fun MobileBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
+                            AppText(if (isCourse) "已收藏" else resolveBangumiFollowStatusLabel(detail.userStatus))
                         }
                     } else {
-                        //  未追番：使用填充的主色按钮
+                        //  未追番/未收藏：使用填充的主色按钮
                         AppButton(
                             onClick = {
                                 onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_WATCHING)
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-
-                                contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
+                                containerColor = if (targetEpisode != null) MaterialTheme.colorScheme.surfaceVariant else resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+                                contentColor = if (targetEpisode != null) MaterialTheme.colorScheme.onSurfaceVariant else resolveFilledButtonContentColor(MaterialTheme.colorScheme)
                             ),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             modifier = Modifier.weight(1f)
                         ) {
                             AppIcon(
@@ -764,13 +968,14 @@ private fun MobileBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            AppText("追番")
+                            AppText(if (isCourse) "收藏" else "追番")
                         }
                     }
                     if (canReviewBangumi(detail.mediaId, detail.rights)) {
                         AppOutlinedButton(
                             onClick = { onReviewsClick(detail.mediaId, detail.title) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         ) {
                             AppText("点评")
                         }
@@ -803,6 +1008,38 @@ private fun MobileBangumiDetailContent(
                             fontSize = 14.sp,
                             lineHeight = 20.sp
                         )
+                    }
+                }
+            }
+
+            // 课程概述图片 (PUGV brief images)
+            if (!detail.briefImgs.isNullOrEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppText(
+                            text = "课程概述",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        detail.briefImgs.forEach { briefImg ->
+                            if (briefImg.url.isNotBlank()) {
+                                val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
+                                AsyncImage(
+                                    model = FormatUtils.fixImageUrl(briefImg.url),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(ratio)
+                                        .clip(AppShapes.container(ContainerLevel.Card)),
+                                    contentScale = ContentScale.FillWidth
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1085,8 +1322,10 @@ private fun MobileBangumiDetailContent(
             )
         }
         if (showFollowStatusDialog) {
+            val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
             BangumiFollowStatusDialog(
                 currentStatus = detail.userStatus?.followStatus ?: 0,
+                isCourse = isCourse,
                 onSelect = { status ->
                     showFollowStatusDialog = false
                     onFollowStatusSelect(status)
@@ -1225,12 +1464,13 @@ private fun BangumiSectionPreview(
 @Composable
 private fun BangumiFollowStatusDialog(
     currentStatus: Int,
+    isCourse: Boolean = false,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { AppText("追番状态") },
+        title = { AppText(if (isCourse) "收藏状态" else "追番状态") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BANGUMI_FOLLOW_STATUS_OPTIONS.forEach { option ->
@@ -1257,7 +1497,7 @@ private fun BangumiFollowStatusDialog(
         },
         confirmButton = {
             AppTextButton(onClick = { onSelect(BANGUMI_FOLLOW_STATUS_UNFOLLOW) }) {
-                AppText("取消追番")
+                AppText(if (isCourse) "取消收藏" else "取消追番")
             }
         },
         dismissButton = {

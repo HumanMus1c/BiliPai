@@ -483,6 +483,7 @@ internal data class BiliPaiBottomBarSearchLayout(
     val searchWidth: Dp,
     val gap: Dp,
     val minimumIndicatorWidth: Dp,
+    val indicatorReferenceWidth: Dp,
 )
 
 internal fun resolveBiliPaiBottomBarSearchCircleSize(): Dp =
@@ -522,6 +523,11 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
             searchWidth = AppSpacingTokens.None,
             gap = AppSpacingTokens.None,
             minimumIndicatorWidth = AppSpacingTokens.None,
+            indicatorReferenceWidth = resolveBiliPaiBottomBarItemSlotWidth(
+                dockWidth = baseDockWidth,
+                horizontalPadding = AppSpacingTokens.ExtraSmall,
+                itemCount = itemCount,
+            ),
         )
     }
 
@@ -563,6 +569,13 @@ internal fun resolveBiliPaiBottomBarSearchLayout(
         // The indicator must match the navigation slot. Keeping the pre-search
         // width makes it overlap neighbouring destinations and shifts it at the dock edges.
         minimumIndicatorWidth = AppSpacingTokens.None,
+        // Preserve the uncompressed selected-background proportions when the
+        // adjacent search control takes width away from the navigation dock.
+        indicatorReferenceWidth = resolveBiliPaiBottomBarItemSlotWidth(
+            dockWidth = baseDockWidth,
+            horizontalPadding = AppSpacingTokens.ExtraSmall,
+            itemCount = itemCount,
+        ),
     )
 }
 
@@ -615,6 +628,7 @@ private data class BiliPaiBottomBarSearchLayoutState(
     val dockWidth: Dp,
     val dockHeight: Dp,
     val minimumIndicatorWidth: Dp,
+    val indicatorReferenceWidth: Dp,
     val searchWidth: Dp,
     val searchHeight: Dp,
     val searchGap: Dp,
@@ -662,6 +676,7 @@ private fun rememberBiliPaiBottomBarSearchLayoutState(
             dockWidth = dockWidth,
             dockHeight = dockHeight,
             minimumIndicatorWidth = targetSearchLayout.minimumIndicatorWidth,
+            indicatorReferenceWidth = targetSearchLayout.indicatorReferenceWidth,
             searchWidth = AppSpacingTokens.None,
             searchHeight = AppSpacingTokens.None,
             searchGap = AppSpacingTokens.None,
@@ -702,6 +717,7 @@ private fun rememberBiliPaiBottomBarSearchLayoutState(
         dockWidth = dockWidth,
         dockHeight = dockHeight,
         minimumIndicatorWidth = targetSearchLayout.minimumIndicatorWidth,
+        indicatorReferenceWidth = targetSearchLayout.indicatorReferenceWidth,
         searchWidth = searchWidth,
         searchHeight = searchHeight,
         searchGap = searchGap,
@@ -2193,7 +2209,7 @@ fun FrostedBottomBar(
     currentItem: BottomNavItem = BottomNavItem.HOME,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? = null,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
     hazeState: HazeState? = null,
     isFloating: Boolean = true,
     labelMode: Int = 1,
@@ -2331,7 +2347,7 @@ private fun MaterialBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? = null,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -2900,7 +2916,7 @@ private fun MiuixBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? = null,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -3332,7 +3348,7 @@ private fun BiliPaiFloatingBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)? = null,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String> = emptyMap(),
     itemColorIndices: Map<String, Int> = emptyMap(),
@@ -3904,6 +3920,11 @@ private fun BiliPaiFloatingBottomBarChrome(
                                 shellHeight = dockHeight,
                                 indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
                                 minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
+                                proportionalIndicatorReferenceWidth = if (effectiveGlassEnabled) {
+                                    searchLayoutState.indicatorReferenceWidth
+                                } else {
+                                    null
+                                },
                                 indicatorPositionProvider = indicatorPositionProvider,
                                 isScrollInProgressProvider = isPagerScrollInProgressProvider,
                                 liquidGlassTuning = liquidGlassTuning,

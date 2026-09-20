@@ -85,10 +85,11 @@ internal fun <T> AppMiuixSegmentedControl(
     val inactiveContentColor = resolveAppMiuixTabContentColor(
         nonGlassMiuix = nonGlassMiuix,
         inactiveContentColor = tabColors.contentColor,
-        readableContentColor = tabColors.selectedContentColor,
+        readableContentColor = tabColors.contentColor,
     )
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val currentPosition = indicatorPositionProvider?.invoke()
+    val outlineColor = MiuixTheme.colorScheme.outline
 
     Row(
         modifier = modifier
@@ -150,6 +151,11 @@ internal fun <T> AppMiuixSegmentedControl(
                     )
                     .adaptiveSquircleBackground(
                         color = itemBackground,
+                        cornerRadius = cornerRadius,
+                    )
+                    .squircleBorder(
+                        width = { if (isSelected) 0.dp else 1.dp },
+                        color = { outlineColor },
                         cornerRadius = cornerRadius,
                     )
                     .clickable(

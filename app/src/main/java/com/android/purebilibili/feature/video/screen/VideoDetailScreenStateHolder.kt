@@ -463,6 +463,7 @@ internal fun VideoDetailScreenStateHolder(
     miniPlayerManager: MiniPlayerManager? = null,
     isInPipMode: Boolean = false,
     isVisible: Boolean = true,
+    isPlaybackSessionActive: Boolean = isVisible,
     onImmersivePlaybackChanged: (Boolean) -> Unit = {},
     viewModel: VideoPlaybackViewModel = viewModel(),
     engagementViewModel: VideoEngagementViewModel = viewModel(),
@@ -696,6 +697,13 @@ internal fun VideoDetailScreenStateHolder(
     var isNavigatingToMiniMode by presentationState.navigatingToMiniModeState
     var hasAutoEnteredAudioMode by rememberSaveable { mutableStateOf(false) }
     var hasAutoEnteredPortraitFromRoute by rememberSaveable(bvid) { mutableStateOf(false) }
+    LaunchedEffect(isVisible, isNavigatingToAudioMode) {
+        if (isVisible && isNavigatingToAudioMode) {
+            // The retained detail entry is active again after audio mode popped. Do not leave
+            // later navigation/disposal permanently classified as an audio hand-off.
+            presentationState.clearNavigatingToAudioMode()
+        }
+    }
     // 路由要求直达竖屏全屏时，立刻盖过可能被 saveable 复写的详情态。
     LaunchedEffect(
         bvid,
@@ -1931,7 +1939,7 @@ internal fun VideoDetailScreenStateHolder(
     var portraitPendingSelectionBvid by rememberSaveable { mutableStateOf<String?>(null) }
     // 返回 morph 中栈已 pop 时 isVisible=false，仍须保活 surface，避免壳缩前半段黑掉。
     val playbackSessionActiveForMorph = shouldKeepPlaybackSessionActiveForSharedReturnMorph(
-        isVisible = isVisible,
+        isVisible = isPlaybackSessionActive,
         sharedBoundsActive = sharedBoundsActive,
         isExitTransitionInProgress = isExitTransitionInProgress,
     )
@@ -2580,6 +2588,7 @@ internal fun VideoDetailScreenStateHolder(
         isPortraitFullscreen,
         displayContext,
         isFullscreenPlayerLocked,
+        userRequestedFullscreen,
     ) {
         val hostActivity = activity
         if (
@@ -2617,9 +2626,13 @@ internal fun VideoDetailScreenStateHolder(
                     orientationDegrees = orientation,
                     isCurrentlyLandscape = isCurrentlyLandscape,
                     useExactLandscapeSide = orientationPolicyDevice,
-                    // Auto-rotate off still permits a fullscreen half-turn, but never
-                    // enters/exits fullscreen just because the phone passes portrait.
-                    allowPortraitTransitions = autoRotateEnabled,
+                    // A manual fullscreen press can happen while the device is still upright.
+                    // Wait for one physical landscape observation before allowing the sensor
+                    // to treat portrait as an explicit rotate-back gesture.
+                    allowPortraitTransitions = shouldAllowPhoneSensorPortraitTransition(
+                        autoRotateEnabled = autoRotateEnabled,
+                        manualFullscreenRequested = userRequestedFullscreen,
+                    ),
                 )
                 val nowMs = SystemClock.elapsedRealtime()
                 val targetToApply = resolvePhoneAutoRotateTargetToApply(
@@ -2637,6 +2650,13 @@ internal fun VideoDetailScreenStateHolder(
                     lastPhoneAutoRotatePortraitAppliedAtMs = nowMs
                     lastPhoneAutoRotateLandscapeAppliedAtMs = null
                 } else if (isLandscapeRequestedOrientation(targetToApply)) {
+                    if (shouldReleaseManualFullscreenRequestAfterSensorTarget(
+                            manualFullscreenRequested = userRequestedFullscreen,
+                            sensorTargetOrientation = targetToApply,
+                        )
+                    ) {
+                        userRequestedFullscreen = false
+                    }
                     lastPhoneAutoRotateLandscapeAppliedAtMs = nowMs
                     lastPhoneAutoRotatePortraitAppliedAtMs = null
                 }
@@ -3694,6 +3714,27 @@ internal fun VideoDetailScreenStateHolder(
                     // Full-viewport host for Miuix landing chrome (stacked home + side-by-side
                     // related). Anchors are entry-space; never nest under the player column.
                     Box(modifier = Modifier.fillMaxSize()) {
+                    // Shared movable player content for tablet and large screen.
+                    // onPortraitFullscreen = { enterPortraitFullscreen() }
+                    val continuousPlayerSlot: @Composable (Modifier) -> Unit = remember(
+                        continuousPlayerContent,
+                        continuousPlayerUnitState,
+                    ) {
+                        { playerModifier ->
+                            BoxWithConstraints(modifier = playerModifier) {
+                                continuousPlayerContent(
+                                    ContinuousPlayerHostLayout(
+                                        modifier = Modifier.fillMaxSize(),
+                                        viewportWidth = maxWidth,
+                                        alpha = continuousPlayerUnitState,
+                                        scale = continuousPlayerUnitState,
+                                        isFullscreen = false,
+                                        contentTopInset = 0.dp,
+                                    )
+                                )
+                            }
+                        }
+                    }
                     //  📐 [大屏适配] 根据设备类型选择布局
                     if (useTabletLayout) {
                         if (
@@ -3764,6 +3805,7 @@ internal fun VideoDetailScreenStateHolder(
                                 videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
                                 videoNoteEnabled = videoNoteEnabled,
                                 videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
+                                playerContent = continuousPlayerSlot,
                             )
                         } else {
                             LargeScreenVideoLayout(
@@ -3835,6 +3877,7 @@ internal fun VideoDetailScreenStateHolder(
                             videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
                             videoNoteEnabled = videoNoteEnabled,
                             videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
+                            playerContent = continuousPlayerSlot,
                             )
                         }
                     } else {
@@ -4592,89 +4635,16 @@ internal fun VideoDetailScreenStateHolder(
                                         alpha = returnMediaFrameProvider().playerAlpha
                                     }
                             ) {
-                            if (continuousFullscreenTransitionEnabled) {
                                 continuousPlayerContent(
                                     ContinuousPlayerHostLayout(
                                         modifier = Modifier.align(Alignment.TopCenter),
-                                        viewportWidth = screenWidthDp,
+                                        viewportWidth = if (continuousFullscreenTransitionEnabled) screenWidthDp else inlineViewportWidth,
                                         alpha = inlinePlayerAlpha,
                                         scale = inlinePlayerScale,
                                         isFullscreen = false,
                                         contentTopInset = playerTopInset,
                                     )
                                 )
-                            } else {
-                            PortraitInlineVideoPlayerHost(
-                                modifier = Modifier.align(Alignment.TopCenter),
-                                animatedViewportWidth = inlineViewportWidth,
-                                contentTopInset = playerTopInset,
-                                inlinePlayerAlpha = inlinePlayerAlpha,
-                                inlinePlayerScale = inlinePlayerScale,
-                                playerState = playerState,
-                                uiState = uiState,
-                                isPipMode = isPipMode,
-                                transitionEnabled = detailChildTransitionEnabled,
-                                transitionChromeAlphaProvider =
-                                    videoCardDetailChromeAlphaProvider,
-                                danmakuHostActive = !hasCommittedRelatedVideoNavigation,
-                                onToggleFullscreen = { toggleFullscreen() },
-                                playbackActions = playbackActions,
-                                onDoubleTapLike = engagementViewModel::toggleLike,
-                                onBack = handleBack,
-                                onHomeClick = {
-                                    handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
-                                },
-                                endDrawerRequestKey = collapsedPlayerMoreRequestKey,
-                                videoPlayerSectionTarget = videoPlayerSectionTarget,
-                                residentCoverSource = residentCoverSource,
-                                sponsorSegment = sponsorSegment,
-                                showSponsorSkipButton = showSponsorSkipButton,
-                                sponsorContributionState = sponsorContributionState,
-                                sleepTimerMinutes = sleepTimerMinutes,
-                                viewPoints = viewPoints,
-                                pbpProgressData = visiblePbpProgressData,
-                                sponsorProgressMarkers = sponsorProgressMarkers,
-                                isVerticalVideo = isVerticalVideo,
-                                onPortraitFullscreen = {
-                                    when (
-                                        resolvePortraitFullscreenButtonAction(
-                                            useOfficialInlinePortraitDetailExperience = useOfficialInlinePortraitDetailExperience
-                                        )
-                                    ) {
-                                        PortraitFullscreenButtonAction.ENTER_PORTRAIT_FULLSCREEN -> {
-                                            enterPortraitFullscreen()
-                                        }
-                                    }
-                                },
-                                isPortraitFullscreen = isPortraitFullscreen,
-                                onPipClick = handlePipClick,
-                                codecPreference = codecPreference,
-                                secondCodecPreference = secondCodecPreference,
-                                audioQualityPreference = audioQualityPreference,
-                                onNavigateToAudioMode = {
-                                    viewModel.setAudioMode(true)
-                                    presentationState.markNavigatingToAudioMode()
-                                    onNavigateToAudioMode()
-                                },
-                                forceCoverOnly = forceCoverOnlyForLiveSafeReturn ||
-                                    shouldForceBackPreviewPlayerCover(
-                                        keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
-                                        bindLivePlayerForBackPreview = bindLivePlayerForBackPreview
-                                    ),
-                                preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
-                                liveBackPreview = bindLivePlayerForBackPreview,
-                                useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
-                                predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-                                allowLivePlayerSharedElement = allowLivePlayerSharedElement,
-                                sourceRouteForSharedElement = sourceRouteForSharedElement,
-                                preserveSourceCardCornerDuringSharedReturn =
-                                    detailShellSharedBoundsEnabled &&
-                                        useReturningVideoDetailVisualState,
-                                suppressSubtitleOverlay = shouldSuppressSubtitleOverlay,
-                                subtitleDisplayModePreferenceOverride = subtitleDisplayModeOverride,
-                                onSubtitleDisplayModePreferenceOverrideChange = { subtitleDisplayModeOverride = it }
-                            )
-                            }
                             }
                             if (
                                 miuixVisualAssetsActive &&

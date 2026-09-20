@@ -121,4 +121,24 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `audio mode keeps its source video playback session warm behind the cover`() {
+        val coveredVideo = BiliPaiNavKey.VideoDetail(bvid = "BV_AUDIO_SOURCE")
+
+        assertTrue(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = BiliPaiNavKey.AudioMode(sourceBvid = "BV_AUDIO_SOURCE"),
+                detailKey = coveredVideo,
+                isImmediateBackPreview = true,
+            )
+        )
+        assertFalse(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = BiliPaiNavKey.AudioMode(sourceBvid = "BV_OTHER"),
+                detailKey = coveredVideo,
+                isImmediateBackPreview = true,
+            )
+        )
+    }
 }

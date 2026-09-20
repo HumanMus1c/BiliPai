@@ -201,7 +201,11 @@ import kotlin.math.roundToInt
 import com.android.purebilibili.data.model.response.FollowBangumiItem
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceArticleItem
+import com.android.purebilibili.data.model.response.SpaceCheeseItem
 import com.android.purebilibili.data.model.response.displayImageUrls
+import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
 import com.android.purebilibili.data.model.response.SpaceAudioItem
 import com.android.purebilibili.data.model.response.SpaceDynamicItem
 import com.android.purebilibili.data.model.response.SpaceTopArcData
@@ -236,6 +240,7 @@ fun SpaceScreen(
     onVideoClick: (String, Long, Long) -> Unit,
     onAudioClick: (Long) -> Unit = {},
     onBangumiClick: (Long) -> Unit = {},
+    onCheeseClick: (Long) -> Unit = onBangumiClick,
     onWebClick: (String, String) -> Unit = { _, _ -> },
     onLiveClick: (Long, String, String) -> Unit = { _, _, _ -> },
     onUserClick: (Long) -> Unit = {},
@@ -669,6 +674,7 @@ fun SpaceScreen(
                             videoProgressLookup = videoProgressLookup,
                             onAudioClick = onAudioClick,
                             onBangumiClick = onBangumiClick,
+                            onCheeseClick = onCheeseClick,
                             onWebClick = onWebClick,
                             onLiveClick = onLiveClick,
                             onUserClick = onUserClick,
@@ -693,6 +699,8 @@ fun SpaceScreen(
                             onLoadMoreAudios = { viewModel.loadSpaceAudios(refresh = false) },
                             onLoadArticles = { viewModel.loadSpaceArticles(refresh = true) },
                             onLoadMoreArticles = { viewModel.loadSpaceArticles(refresh = false) },
+                            onLoadCheese = { viewModel.loadSpaceCheese(refresh = true) },
+                            onLoadMoreCheese = { viewModel.loadSpaceCheese(refresh = false) },
                             onSearchQueryChange = viewModel::updateSearchQuery,
                             onSearchEntryClick = { viewModel.setSearchMode(true) },
                             onLocateTargetConsumed = viewModel::consumePendingLocateBvid,
@@ -1029,6 +1037,7 @@ private fun SpaceContent(
     videoProgressLookup: (String) -> Long,
     onAudioClick: (Long) -> Unit,
     onBangumiClick: (Long) -> Unit,
+    onCheeseClick: (Long) -> Unit = onBangumiClick,
     onWebClick: (String, String) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
     onUserClick: (Long) -> Unit,
@@ -1053,6 +1062,8 @@ private fun SpaceContent(
     onLoadMoreAudios: () -> Unit,
     onLoadArticles: () -> Unit,
     onLoadMoreArticles: () -> Unit,
+    onLoadCheese: () -> Unit = {},
+    onLoadMoreCheese: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onSearchEntryClick: () -> Unit,
     onLocateTargetConsumed: (String) -> Unit,
@@ -1170,6 +1181,7 @@ private fun SpaceContent(
     }
 
     val bangumiTabState = state.tabShellState.tabStates[SpaceMainTab.BANGUMI] ?: SpaceTabContentState()
+    val cheeseTabState = state.tabShellState.tabStates[SpaceMainTab.CHEESE] ?: SpaceTabContentState()
     var highlightedLocateBvid by remember { mutableStateOf<String?>(null) }
     var isLocateHighlightVisible by remember { mutableStateOf(false) }
 
@@ -1188,6 +1200,12 @@ private fun SpaceContent(
     LaunchedEffect(selectedMainTab, bangumiTabState.hasLoaded, state.isLoadingBangumi) {
         if (selectedMainTab == SpaceMainTab.BANGUMI && !bangumiTabState.hasLoaded && !state.isLoadingBangumi) {
             onLoadBangumi()
+        }
+    }
+
+    LaunchedEffect(selectedMainTab, cheeseTabState.hasLoaded, state.isLoadingCheese) {
+        if (selectedMainTab == SpaceMainTab.CHEESE && !cheeseTabState.hasLoaded && !state.isLoadingCheese) {
+            onLoadCheese()
         }
     }
 
@@ -2389,6 +2407,54 @@ private fun SpaceContent(
                     }
                 }
             }
+
+            SpaceMainTab.CHEESE -> {
+                if (state.isLoadingCheese && state.cheeseItems.isEmpty()) {
+                    items(6, span = { GridItemSpan(maxLineSpan) }) {
+                        SpaceCheeseSkeletonItem(
+                            modifier = boundedListModifier
+                        )
+                    }
+                } else if (state.cheeseItems.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        if (state.lastCheeseLoadFailed) {
+                            SpaceErrorSection(
+                                message = "加载课堂失败",
+                                onRetry = onLoadCheese
+                            )
+                        } else {
+                            SpaceSectionEmptyState(
+                                title = "暂无课堂内容",
+                                subtitle = "该 UP 还没有公开的课程或付费内容"
+                            )
+                        }
+                    }
+                } else {
+                    items(
+                        items = state.cheeseItems,
+                        key = { "space_cheese_${it.seasonId}" },
+                        span = { GridItemSpan(maxLineSpan) }
+                    ) { item ->
+                        SpaceCheeseCard(
+                            item = item,
+                            modifier = boundedListModifier,
+                            onClick = {
+                                onCheeseClick(item.seasonId)
+                            }
+                        )
+                    }
+                    if (state.isLoadingCheese) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            SpaceLoadingFooter()
+                        }
+                    } else if (state.hasMoreCheese) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            LaunchedEffect(state.cheeseItems.size) { onLoadMoreCheese() }
+                            Spacer(modifier = Modifier.height(1.dp))
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -2905,10 +2971,12 @@ private fun SpaceContentTabs(
     modifier: Modifier = Modifier,
 ) {
     val selectedMainTab = state.tabShellState.selectedTab
-    val displayedMainTabs = remember(state.mainTabs, selectedMainTab) {
+    val hasCheese = state.hasCheeseTab || state.cheeseItems.isNotEmpty()
+    val displayedMainTabs = remember(state.mainTabs, selectedMainTab, hasCheese) {
         resolveSpaceDisplayedMainTabs(
             tabs = state.mainTabs,
-            selectedTab = selectedMainTab
+            selectedTab = selectedMainTab,
+            hasCheese = hasCheese,
         )
     }
     val displayedContributionTabs = remember(state.contributionTabs, state.totalAudios) {
@@ -2917,8 +2985,11 @@ private fun SpaceContentTabs(
             totalAudios = state.totalAudios
         )
     }
-    val secondarySwitchItems = remember(displayedContributionTabs) {
-        resolveSpaceSecondarySwitchItems(displayedContributionTabs)
+    val secondarySwitchItems = remember(displayedContributionTabs, hasCheese) {
+        resolveSpaceSecondarySwitchItems(
+            contributionTabs = displayedContributionTabs,
+            hasCheese = hasCheese,
+        )
     }
     val selectedSecondarySwitchId = remember(
         selectedMainTab,
@@ -4337,6 +4408,164 @@ private fun SpaceBangumiCard(
 }
 
 @Composable
+private fun SpaceCheeseCard(
+    item: SpaceCheeseItem,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    AppSurface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(116.dp)
+                    .height(72.dp)
+                    .clip(AppShapes.mediaCover())
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(FormatUtils.buildSizedImageUrl(item.cover, width = 480, height = 300))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (!item.marks.isNullOrEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        AppText(
+                            text = item.marks.joinToString("·"),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .align(Alignment.CenterVertically)
+            ) {
+                AppText(
+                    text = item.title,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!item.status.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AppText(
+                        text = item.status,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                val ctimeFormatted = remember(item.ctime) {
+                    item.ctime?.toLongOrNull()?.let {
+                        FormatUtils.formatPublishTime(it)
+                    }
+                }
+                if (!ctimeFormatted.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AppText(
+                        text = "更新于 $ctimeFormatted",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.outline,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceCheeseSkeletonItem(
+    modifier: Modifier = Modifier,
+) {
+    val pulse = rememberContentSkeletonPulse()
+    val blockColor = rememberContentSkeletonBlockColor(pulse)
+    AppSurface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ContentSkeletonBlock(
+                modifier = Modifier
+                    .width(116.dp)
+                    .height(72.dp),
+                shape = AppShapes.mediaCover(),
+                color = blockColor,
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .align(Alignment.CenterVertically)
+            ) {
+                ContentSkeletonBlock(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(18.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = blockColor,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ContentSkeletonBlock(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(14.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = blockColor,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                ContentSkeletonBlock(
+                    modifier = Modifier
+                        .fillMaxWidth(0.3f)
+                        .height(12.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = blockColor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SpaceCollectionSummaryCard(
     title: String,
     subtitle: String,
@@ -4697,7 +4926,7 @@ private fun SpaceHeaderStat(
         AppText(
             text = label,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.outline,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -5076,8 +5305,9 @@ private fun handleAggregateArchiveClick(
     onBangumiClick: (Long) -> Unit,
     onWebClick: (String, String) -> Unit
 ) {
+    val videoId = resolveSpaceAggregateVideoId(item)
     when {
-        item.bvid.isNotBlank() -> onVideoClick(item.bvid)
+        videoId != null -> onVideoClick(videoId)
         item.goto.contains("bangumi", ignoreCase = true) ||
             item.isPgc ||
             item.coverIcon.contains("bangumi", ignoreCase = true) -> {

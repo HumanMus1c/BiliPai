@@ -99,4 +99,54 @@ class LyricsMatchingPolicyTest {
 
         assertEquals(candidate, selectBestLyricCandidate(noisyVideo, listOf(candidate)))
     }
+
+    @Test
+    fun `version suffixes and featured artists are ignored when ranking`() {
+        val noisyQuery = LyricQuery(
+            title = "周杰伦 - 晴天 (Official Live Video)",
+            artist = "周杰伦 feat. 五月天",
+            durationMs = 182_000L
+        )
+        val candidate = LyricCandidate(
+            source = LyricSource.NETEASE,
+            remoteId = "sunny-day",
+            title = "晴天",
+            artist = "周杰伦",
+            durationMs = 184_000L
+        )
+
+        assertEquals(candidate, selectBestLyricCandidate(noisyQuery, listOf(candidate)))
+    }
+
+    @Test
+    fun `strong metadata allows a longer edit duration`() {
+        val candidate = LyricCandidate(
+            source = LyricSource.NETEASE,
+            remoteId = "edited",
+            title = "若能绽放光芒",
+            artist = "Goose house",
+            durationMs = 276_000L
+        )
+
+        assertEquals(candidate, selectBestLyricCandidate(query, listOf(candidate)))
+    }
+
+    @Test
+    fun `ranking keeps the closest metadata match before provider order`() {
+        val exact = LyricCandidate(
+            source = LyricSource.QQ_MUSIC,
+            remoteId = "exact",
+            title = "若能绽放光芒",
+            artist = "Goose house",
+            durationMs = 258_000L
+        )
+        val weaker = exact.copy(
+            source = LyricSource.NETEASE,
+            remoteId = "popular",
+            title = "若能绽放光芒 (Live)",
+            durationMs = 270_000L
+        )
+
+        assertEquals(exact, rankLyricCandidates(query, listOf(weaker, exact)).first())
+    }
 }

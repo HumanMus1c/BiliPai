@@ -46,6 +46,46 @@ class BilibiliNavigationTargetParserTest {
     }
 
     @Test
+    fun parse_cheeseSeasonUrl_resolvesSeasonTarget() {
+        val target = BilibiliNavigationTargetParser.parse(
+            "https://www.bilibili.com/cheese/play/ss150"
+        )
+
+        assertIs<BilibiliNavigationTarget.BangumiSeason>(target)
+        assertEquals(150L, target.seasonId)
+    }
+
+    @Test
+    fun parse_cheeseEpisodeUrl_resolvesEpisodeTarget() {
+        val target = BilibiliNavigationTargetParser.parse(
+            "https://www.bilibili.com/cheese/play/ep2425"
+        )
+
+        assertIs<BilibiliNavigationTarget.BangumiEpisode>(target)
+        assertEquals(2425L, target.epId)
+    }
+
+    @Test
+    fun parse_cheeseCustomSchemeSeason_resolvesSeasonTarget() {
+        val target = BilibiliNavigationTargetParser.parse(
+            "bilibili://cheese/season/150"
+        )
+
+        assertIs<BilibiliNavigationTarget.BangumiSeason>(target)
+        assertEquals(150L, target.seasonId)
+    }
+
+    @Test
+    fun parse_cheeseCustomSchemePlay_resolvesSeasonTarget() {
+        val target = BilibiliNavigationTargetParser.parse(
+            "bilibili://cheese/play/ss150"
+        )
+
+        assertIs<BilibiliNavigationTarget.BangumiSeason>(target)
+        assertEquals(150L, target.seasonId)
+    }
+
+    @Test
     fun parse_bangumiMediaUrl_resolvesMediaTarget() {
         val target = BilibiliNavigationTargetParser.parse(
             "https://www.bilibili.com/bangumi/media/md28237119"

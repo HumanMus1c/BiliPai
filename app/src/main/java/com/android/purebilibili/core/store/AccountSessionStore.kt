@@ -23,6 +23,12 @@ data class StoredAccountSession(
     val lastUsedAt: Long = 0L
 )
 
+data class AccountSessionSnapshot(
+    val accounts: List<StoredAccountSession> = emptyList(),
+    val activeAccountMid: Long? = null,
+    val playbackAccountMid: Long? = null,
+)
+
 object AccountSessionStore {
     private const val SP_NAME = "multi_account_sessions"
     private const val KEY_ACCOUNTS = "accounts"
@@ -44,6 +50,13 @@ object AccountSessionStore {
             json.decodeFromString<List<StoredAccountSession>>(raw)
         }.getOrDefault(emptyList()).sortedByDescending { it.lastUsedAt }
     }
+
+    /** Reads all account-session UI data in one storage pass. Callers should use an IO dispatcher. */
+    fun readSnapshot(context: Context): AccountSessionSnapshot = AccountSessionSnapshot(
+        accounts = getAccounts(context),
+        activeAccountMid = getActiveAccountMid(context),
+        playbackAccountMid = getPlaybackAccountMid(context),
+    )
 
     fun getActiveAccountMid(context: Context): Long? {
         return context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)

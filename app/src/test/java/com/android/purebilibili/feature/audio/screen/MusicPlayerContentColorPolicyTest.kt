@@ -69,7 +69,7 @@ class MusicPlayerContentColorPolicyTest {
     @Test
     fun immersivePanelKeepsArtworkHueOnADarkReadableFloor() {
         val artworkColor = Color(0xFF9CA9F5)
-        val panelColor = resolveMusicImmersivePanelColor(artworkColor)
+        val panelColor = resolveMusicImmersivePanelColor(artworkColor, Color.Black)
 
         assertTrue(panelColor.luminance() < 0.45f)
         assertEquals(
@@ -84,8 +84,38 @@ class MusicPlayerContentColorPolicyTest {
 
     @Test
     fun immersivePanelKeepsWhiteTextReadableForTheBrightestArtwork() {
-        val panelColor = resolveMusicImmersivePanelColor(Color.White)
+        val panelColor = resolveMusicImmersivePanelColor(Color.White, Color.Black)
 
         assertTrue(calculateContrastRatio(Color.White, panelColor) >= 4.5f)
+    }
+
+    @Test
+    fun themeContentColorsProvideReadableTextInBothLightAndDarkSchemes() {
+        val lightScheme = androidx.compose.material3.lightColorScheme()
+        val darkScheme = androidx.compose.material3.darkColorScheme()
+
+        val (lightSchemeOnLight, lightSchemeOnDark) = resolveMusicPlayerThemeContentColors(lightScheme)
+        val (darkSchemeOnLight, darkSchemeOnDark) = resolveMusicPlayerThemeContentColors(darkScheme)
+
+        assertTrue(calculateContrastRatio(lightSchemeOnLight, Color(0xFFF5F5F5)) >= 4.5f)
+        assertTrue(calculateContrastRatio(darkSchemeOnLight, Color(0xFFF5F5F5)) >= 4.5f)
+
+        assertTrue(calculateContrastRatio(lightSchemeOnDark, Color(0xFF1C1B1F)) >= 4.5f)
+        assertTrue(calculateContrastRatio(darkSchemeOnDark, Color(0xFF1C1B1F)) >= 4.5f)
+    }
+
+    @Test
+    fun contrastProtectionPicksHigherContrastEvenWhenTokensAreSwapped() {
+        val darkBackground = Color(0xFF221A2E)
+        val lightForeground = Color(0xFFE6E1E5)
+        val darkForeground = Color(0xFF1C1B1F)
+
+        val result = resolveMusicPlayerContentColor(
+            backgroundColor = darkBackground,
+            onLightBackground = lightForeground,
+            onDarkBackground = darkForeground,
+        )
+        assertEquals(lightForeground, result)
+        assertTrue(calculateContrastRatio(result, darkBackground) >= 4.5f)
     }
 }

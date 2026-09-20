@@ -69,6 +69,10 @@ internal class VideoDetailPresentationState private constructor(
         navigatingToAudioModeState.value = true
     }
 
+    fun clearNavigatingToAudioMode() {
+        navigatingToAudioModeState.value = false
+    }
+
     fun markNavigatingToMiniMode() {
         navigatingToMiniModeState.value = true
     }

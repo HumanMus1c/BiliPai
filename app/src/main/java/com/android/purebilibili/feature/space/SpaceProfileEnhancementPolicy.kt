@@ -8,7 +8,8 @@ enum class SpaceMainTab {
     CONTRIBUTION,
     FAVORITE,
     BANGUMI,
-    COLLECTIONS
+    COLLECTIONS,
+    CHEESE
 }
 
 data class SpaceMainTabItem(
@@ -91,9 +92,12 @@ data class SpaceSecondarySwitchItem(
 internal const val SPACE_SECONDARY_COLLECTIONS_ID = "library_collections"
 internal const val SPACE_SECONDARY_FAVORITE_ID = "library_favorite"
 internal const val SPACE_SECONDARY_BANGUMI_ID = "library_bangumi"
+internal const val SPACE_SECONDARY_CHEESE_ID = "library_cheese"
 
 internal fun resolveSpaceSecondarySwitchItems(
     contributionTabs: List<SpaceContributionTab>,
+    hasCheese: Boolean = false,
+    cheeseTitle: String = "课堂",
 ): List<SpaceSecondarySwitchItem> {
     val items = contributionTabs.map { tab ->
         SpaceSecondarySwitchItem(
@@ -120,6 +124,13 @@ internal fun resolveSpaceSecondarySwitchItems(
         title = "追番",
         targetTab = SpaceMainTab.BANGUMI,
     )
+    if (hasCheese) {
+        items += SpaceSecondarySwitchItem(
+            id = SPACE_SECONDARY_CHEESE_ID,
+            title = cheeseTitle.ifBlank { "课堂" },
+            targetTab = SpaceMainTab.CHEESE,
+        )
+    }
     return items
 }
 
@@ -131,24 +142,35 @@ internal fun resolveSelectedSpaceSecondarySwitchId(
         SpaceMainTab.FAVORITE -> SPACE_SECONDARY_FAVORITE_ID
         SpaceMainTab.BANGUMI -> SPACE_SECONDARY_BANGUMI_ID
         SpaceMainTab.COLLECTIONS -> SPACE_SECONDARY_COLLECTIONS_ID
+        SpaceMainTab.CHEESE -> SPACE_SECONDARY_CHEESE_ID
         else -> selectedContributionTabId
     }
 }
 
 /**
- * PiliPlus 一级栏只保留 主页 / 动态 / 投稿。
+ * PiliPlus 一级栏保留 主页 / 动态 / 投稿，以及课堂 (若存在)。
  * 收藏、追番、合集进入投稿下的二级开关。
  */
 internal fun resolveSpaceDisplayedMainTabs(
     tabs: List<SpaceMainTabItem>,
-    selectedTab: SpaceMainTab
+    selectedTab: SpaceMainTab,
+    hasCheese: Boolean = false,
+    cheeseTitle: String = "课堂",
 ): List<SpaceMainTabItem> {
     val defaults = buildDefaultSpaceMainTabs()
-    if (tabs.isEmpty()) return defaults
-    val primary = defaults.map { default ->
-        tabs.firstOrNull { it.tab == default.tab } ?: default
+    val base = if (tabs.isEmpty()) defaults else {
+        defaults.map { default ->
+            tabs.firstOrNull { it.tab == default.tab } ?: default
+        }
     }
-    return primary
+    val result = base.toMutableList()
+    val cheeseTab = tabs.firstOrNull { it.tab == SpaceMainTab.CHEESE }
+    if (cheeseTab != null) {
+        result.add(cheeseTab)
+    } else if (hasCheese || selectedTab == SpaceMainTab.CHEESE) {
+        result.add(SpaceMainTabItem(SpaceMainTab.CHEESE, cheeseTitle.ifBlank { "课堂" }))
+    }
+    return result
 }
 
 fun buildDefaultSpaceContributionTabs(): List<SpaceContributionTab> {
@@ -190,6 +212,7 @@ fun tabIndexToMainTab(index: Int): SpaceMainTab {
         3 -> SpaceMainTab.FAVORITE
         4 -> SpaceMainTab.BANGUMI
         5 -> SpaceMainTab.COLLECTIONS
+        6 -> SpaceMainTab.CHEESE
         else -> SpaceMainTab.HOME
     }
 }
@@ -202,6 +225,7 @@ fun mainTabToTabIndex(tab: SpaceMainTab): Int {
         SpaceMainTab.FAVORITE -> 3
         SpaceMainTab.BANGUMI -> 4
         SpaceMainTab.COLLECTIONS -> 5
+        SpaceMainTab.CHEESE -> 6
     }
 }
 
@@ -238,15 +262,22 @@ internal fun resolveSpaceMainTabs(tab2: List<SpaceAggregateTab>): List<SpaceMain
             "bangumi" -> SpaceMainTabItem(SpaceMainTab.BANGUMI, item.title.ifBlank { "追番" })
             "channel", "collection", "collections", "series" ->
                 SpaceMainTabItem(SpaceMainTab.COLLECTIONS, item.title.ifBlank { "合集" })
+            "cheese" -> SpaceMainTabItem(SpaceMainTab.CHEESE, item.title.ifBlank { "课堂" })
             else -> null
         }
     }.distinctBy { it.tab }
 
     if (resolved.isEmpty()) return defaults
 
-    return defaults.map { default ->
+    val result = defaults.map { default ->
         resolved.firstOrNull { it.tab == default.tab } ?: default
+    }.toMutableList()
+
+    resolved.firstOrNull { it.tab == SpaceMainTab.CHEESE }?.let {
+        result.add(it)
     }
+
+    return result
 }
 
 internal fun resolveSpaceContributionTabs(tab2: List<SpaceAggregateTab>): List<SpaceContributionTab> {

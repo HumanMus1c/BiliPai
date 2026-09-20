@@ -87,45 +87,31 @@ internal fun resolveSpaceBannerColorFilter(
  * - Strips redundant prefixes such as "IP属地：" or "IP 属地：".
  * - Returns clean "IP 属地 · $cleanLocation" or null if empty/blank.
  */
-internal fun resolveSpaceIpLocationDisplay(rawIpLocation: String?): String? {
-    if (rawIpLocation.isNullOrBlank()) return null
-    val clean = rawIpLocation
-        .replace("IP属地：", "")
-        .replace("IP 属地：", "")
-        .replace("IP属地:", "")
-        .replace("IP 属地:", "")
-        .trim()
-    if (clean.isBlank()) return null
-    return "IP 属地 · $clean"
-}
-
 /**
- * Resolves the tags displayed on the UP space header alongside the UID:
- * Aligned with PiliPlus (`where((e) => ['location', 'real_name'].contains(e['type']))`):
- * - IP location tag: extracted from spaceTags or fallback to ipLocation string.
- * - Real name / verification tag: extracted from spaceTags.
- * - Formats IP tag display to clean format (e.g. "IP 属地 · 广东").
+ * Resolves the tags displayed beside the UID using the same contract as PiliPlus:
+ * keep the server-provided `location` / `real_name` titles unchanged. The fallback is
+ * only used when the Android space aggregate response did not include a location tag.
  */
 internal fun resolveSpaceDisplayTags(
     spaceTags: List<SpaceTagItem>,
     ipLocation: String? = null,
 ): List<SpaceTagItem> {
     val result = mutableListOf<SpaceTagItem>()
-    val locationTag = spaceTags.firstOrNull {
-        it.type == "location" || it.title.startsWith("IP属地") || it.title.contains("IP")
-    }
+    val locationTag = spaceTags.firstOrNull { it.type == "location" }
     val otherTags = spaceTags.filter {
-        it !== locationTag && (it.type == "real_name" || it.title.isNotBlank())
+        it !== locationTag && it.type == "real_name"
     }
 
     val resolvedIp = locationTag?.title?.takeIf { it.isNotBlank() }
         ?: ipLocation?.takeIf { it.isNotBlank() }
 
     if (!resolvedIp.isNullOrBlank()) {
-        val displayTitle = resolveSpaceIpLocationDisplay(resolvedIp) ?: resolvedIp
         result.add(
-            locationTag?.copy(title = displayTitle)
-                ?: SpaceTagItem(title = displayTitle, type = "location")
+            locationTag
+                ?: SpaceTagItem(
+                    title = if (resolvedIp.startsWith("IP属地")) resolvedIp else "IP属地：$resolvedIp",
+                    type = "location"
+                )
         )
     }
     result.addAll(otherTags)

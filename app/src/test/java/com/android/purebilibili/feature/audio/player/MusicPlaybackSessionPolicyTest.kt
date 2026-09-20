@@ -14,7 +14,7 @@ class MusicPlaybackSessionPolicyTest {
             MusicQueueControlState(
                 hasPrevious = false,
                 hasNext = false,
-                showQueue = false
+                showQueue = true
             ),
             resolveMusicQueueControlState(queueSize = 1, currentIndex = 0)
         )

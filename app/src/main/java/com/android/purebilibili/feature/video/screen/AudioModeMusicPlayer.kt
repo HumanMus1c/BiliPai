@@ -27,6 +27,7 @@ import com.android.purebilibili.core.player.PlayerVolumeController
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.Page
+import com.android.purebilibili.feature.audio.lyrics.BiliSubtitleLyricsPolicy
 import com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
 import com.android.purebilibili.feature.audio.player.MusicPlayerUiState
 import com.android.purebilibili.feature.audio.player.MusicLyricCandidateUi
@@ -175,14 +176,40 @@ internal fun AudioModeMusicPlayer(
     }
 
     val queue = if (playlist.isEmpty()) {
-        listOf(
-            MusicQueueItemUi(
+        if (info.pages.size > 1) {
+            info.pages.mapIndexed { index, page ->
+                MusicQueueItemUi(
+                    stableId = "video:${info.bvid}:${page.cid}",
+                    title = if (page.part.isNotBlank()) page.part else "${displayTitle} P${page.page}",
+                    artist = info.owner.name,
+                    coverUrl = FormatUtils.fixImageUrl(info.pic)
+                )
+            }
+        } else if (successState.related.isNotEmpty()) {
+            val currentItem = MusicQueueItemUi(
                 stableId = "video:${info.bvid}:${info.cid}",
                 title = displayTitle,
                 artist = info.owner.name,
                 coverUrl = FormatUtils.fixImageUrl(info.pic)
             )
-        )
+            listOf(currentItem) + successState.related.take(10).map { rel ->
+                MusicQueueItemUi(
+                    stableId = "video:${rel.bvid}:${rel.cid}",
+                    title = rel.title,
+                    artist = rel.owner.name,
+                    coverUrl = FormatUtils.fixImageUrl(rel.pic)
+                )
+            }
+        } else {
+            listOf(
+                MusicQueueItemUi(
+                    stableId = "video:${info.bvid}:${info.cid}",
+                    title = displayTitle,
+                    artist = info.owner.name,
+                    coverUrl = FormatUtils.fixImageUrl(info.pic)
+                )
+            )
+        }
     } else {
         playlist.mapIndexed { index, item ->
             MusicQueueItemUi(
@@ -193,7 +220,13 @@ internal fun AudioModeMusicPlayer(
             )
         }
     }
-    val currentIndex = playlistIndex.takeIf { it in queue.indices } ?: 0
+    val currentIndex = if (playlist.isNotEmpty()) {
+        playlistIndex.takeIf { it in queue.indices } ?: 0
+    } else if (info.pages.size > 1) {
+        info.pages.indexOfFirst { it.cid == info.cid }.takeIf { it >= 0 } ?: 0
+    } else {
+        0
+    }
     val coverUrl = queue.getOrNull(currentIndex)?.coverUrl ?: FormatUtils.fixImageUrl(info.pic)
     val audioNowPlayingBarEnabled by SettingsManager
         .getAudioNowPlayingBarEnabled(context)
@@ -221,6 +254,27 @@ internal fun AudioModeMusicPlayer(
         )
     }
 
+    val subtitleLyrics = remember(
+        successState.subtitlePrimaryCues,
+        successState.subtitleSecondaryCues,
+        successState.subtitlePrimaryLikelyAi,
+        successState.subtitlePrimaryLanguage
+    ) {
+        BiliSubtitleLyricsPolicy.convertSubtitlesToLyricDocument(
+            primaryCues = successState.subtitlePrimaryCues,
+            secondaryCues = successState.subtitleSecondaryCues,
+            isAiGenerated = successState.subtitlePrimaryLikelyAi,
+            languageLabel = successState.subtitlePrimaryLanguage
+        )
+    }
+
+    val effectiveLyrics = remember(lyricsState.lyricsDocument, subtitleLyrics) {
+        BiliSubtitleLyricsPolicy.resolveEffectiveLyrics(
+            musicLyrics = lyricsState.lyricsDocument,
+            subtitleLyrics = subtitleLyrics
+        )
+    }
+
     MusicPlayerContent(
         state = MusicPlayerUiState(
             title = displayTitle,
@@ -231,12 +285,12 @@ internal fun AudioModeMusicPlayer(
             isBuffering = playback.isBuffering,
             positionMs = playback.positionMs,
             durationMs = playback.durationMs.takeIf { it > 0L } ?: metadataDurationMs,
-            lyrics = lyricsState.lyricsDocument,
-            lyricsError = lyricsState.lyricsError,
+            lyrics = effectiveLyrics,
+            lyricsError = if (effectiveLyrics != null) null else lyricsState.lyricsError,
             lyricCandidates = lyricsState.lyricCandidates.map {
                 MusicLyricCandidateUi(it.title, it.artist, it.source.name)
             },
-            isLyricsSearching = lyricsState.isLyricsSearching,
+            isLyricsSearching = lyricsState.isLyricsSearching && effectiveLyrics == null,
             queue = queue,
             currentQueueIndex = currentIndex,
             playMode = playMode,
@@ -252,12 +306,30 @@ internal fun AudioModeMusicPlayer(
         onPrevious = { viewModel.playPreviousAudioModeTrack() },
         onNext = { viewModel.playNextAudioModeTrack() },
         onQueueItemSelected = { index ->
-            PlaylistManager.playAt(index)?.let {
-                viewModel.loadVideo(
-                    bvid = it.bvid,
-                    cid = it.cid,
-                    autoPlay = resolveAudioModePageSwitchAutoPlay()
-                )
+            if (playlist.isNotEmpty()) {
+                PlaylistManager.playAt(index)?.let {
+                    viewModel.loadVideo(
+                        bvid = it.bvid,
+                        cid = it.cid,
+                        autoPlay = resolveAudioModePageSwitchAutoPlay()
+                    )
+                }
+            } else if (info.pages.size > 1) {
+                info.pages.getOrNull(index)?.let { page ->
+                    viewModel.loadVideo(
+                        bvid = info.bvid,
+                        cid = page.cid,
+                        autoPlay = resolveAudioModePageSwitchAutoPlay()
+                    )
+                }
+            } else if (index > 0) {
+                successState.related.getOrNull(index - 1)?.let { rel ->
+                    viewModel.loadVideo(
+                        bvid = rel.bvid,
+                        cid = rel.cid,
+                        autoPlay = resolveAudioModePageSwitchAutoPlay()
+                    )
+                }
             }
         },
         onPlayModeChange = PlaylistManager::setPlayMode,

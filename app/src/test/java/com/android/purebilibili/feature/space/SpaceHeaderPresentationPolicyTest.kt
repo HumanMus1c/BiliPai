@@ -95,28 +95,16 @@ class SpaceHeaderPresentationPolicyTest {
     }
 
     @Test
-    fun `resolveSpaceIpLocationDisplay normalizes prefixes and filters blanks`() {
-        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP属地：广东"))
-        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP 属地：广东"))
-        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("IP属地: 广东"))
-        assertEquals("IP 属地 · 广东", resolveSpaceIpLocationDisplay("广东"))
-        assertEquals("IP 属地 · 日本", resolveSpaceIpLocationDisplay("IP属地：日本"))
-        kotlin.test.assertNull(resolveSpaceIpLocationDisplay(null))
-        kotlin.test.assertNull(resolveSpaceIpLocationDisplay(""))
-        kotlin.test.assertNull(resolveSpaceIpLocationDisplay("   "))
-        kotlin.test.assertNull(resolveSpaceIpLocationDisplay("IP属地："))
-    }
-
-    @Test
     fun `resolveSpaceDisplayTags extracts location and preserves real_name tags`() {
         val tags = listOf(
             SpaceTagItem(type = "location", title = "IP属地：广东"),
-            SpaceTagItem(type = "real_name", title = "已实名认证", uri = "https://www.bilibili.com/verify")
+            SpaceTagItem(type = "real_name", title = "已实名认证", uri = "https://www.bilibili.com/verify"),
+            SpaceTagItem(type = "other", title = "不应展示")
         )
         val result = resolveSpaceDisplayTags(tags)
 
         assertEquals(2, result.size)
-        assertEquals("IP 属地 · 广东", result[0].title)
+        assertEquals("IP属地：广东", result[0].title)
         assertEquals("location", result[0].type)
         assertEquals("已实名认证", result[1].title)
         assertEquals("real_name", result[1].type)
@@ -131,7 +119,7 @@ class SpaceHeaderPresentationPolicyTest {
         val result = resolveSpaceDisplayTags(tags, ipLocation = "北京")
 
         assertEquals(2, result.size)
-        assertEquals("IP 属地 · 北京", result[0].title)
+        assertEquals("IP属地：北京", result[0].title)
         assertEquals("location", result[0].type)
         assertEquals("已实名认证", result[1].title)
     }

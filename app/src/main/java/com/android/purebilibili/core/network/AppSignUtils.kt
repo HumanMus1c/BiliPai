@@ -63,6 +63,16 @@ object AppSignUtils {
     fun signForTvLogin(params: Map<String, String>): Map<String, String> {
         return sign(params, TV_APP_SEC)
     }
+
+    /** Signs API parameters with the TV credentials while preserving URI encoding. */
+    fun signForTvApi(params: Map<String, String>): Map<String, String> {
+        val withAppKey = if (params.containsKey("appkey")) {
+            params
+        } else {
+            params + ("appkey" to TV_APP_KEY)
+        }
+        return signEncoded(withAppKey, TV_APP_SEC)
+    }
     
     /**
      * 为 Android APP API 生成签名 (用于 playurl 等)
@@ -81,11 +91,15 @@ object AppSignUtils {
         } else {
             params + ("appkey" to ANDROID_HD_APP_KEY)
         }
-        val sortedParams = withAppKey.toSortedMap()
+        return signEncoded(withAppKey, ANDROID_HD_APP_SEC)
+    }
+
+    private fun signEncoded(params: Map<String, String>, appSec: String): Map<String, String> {
+        val sortedParams = params.toSortedMap()
         val queryString = sortedParams.entries.joinToString("&") { (key, value) ->
             "${percentEncode(key)}=${percentEncode(value)}"
         }
-        return sortedParams + ("sign" to md5(queryString + ANDROID_HD_APP_SEC))
+        return sortedParams + ("sign" to md5(queryString + appSec))
     }
 
     fun createLoginSessionId(buvid: String, timestampMillis: Long): String {

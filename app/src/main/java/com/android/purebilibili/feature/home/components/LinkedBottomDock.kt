@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Constraints
@@ -56,7 +59,7 @@ internal fun LinkedBottomDock(
     navigationItemCount: Int,
     navigationLabelMode: Int,
     navigationMinEdgePadding: androidx.compose.ui.unit.Dp,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float) -> Unit)?,
+    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)?,
     dockPhase: LinkedDockPhase? = null,
     onDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
@@ -91,17 +94,19 @@ internal fun LinkedBottomDock(
     }
     var query by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scroll = LocalHomeScrollOffset.current
+    val currentPhase by rememberUpdatedState(phase)
     val scrolling by rememberUpdatedState(isFeedScrollInProgress)
     val threshold = with(LocalDensity.current) { 24.dp.toPx() }
-    LaunchedEffect(currentItem, hasAudio, scroll, threshold) {
+    LaunchedEffect(currentItem, hasAudio, scroll, threshold, isTopLevelDestination) {
         if (currentItem != BottomNavItem.HOME) return@LaunchedEffect
         var previous = scroll.floatValue
         var accumulated = 0f
         snapshotFlow { scroll.floatValue to scrolling }.collect { (offset, active) ->
             val delta = offset - previous
             previous = offset
-            if (!active || phase == LinkedDockPhase.Search) {
+            if (!active || !isTopLevelDestination || currentPhase == LinkedDockPhase.Search) {
                 accumulated = 0f
             } else {
                 accumulated = accumulateDockScroll(accumulated, delta)
@@ -115,13 +120,14 @@ internal fun LinkedBottomDock(
             }
         }
     }
-    LaunchedEffect(currentItem, collapseRequested, hasAudio) {
-        if (currentItem != BottomNavItem.HOME && phase != LinkedDockPhase.Search) {
+    LaunchedEffect(currentItem, collapseRequested, hasAudio, isTopLevelDestination) {
+        if (isTopLevelDestination && currentItem != BottomNavItem.HOME && currentPhase != LinkedDockPhase.Search) {
             updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
         }
     }
     fun expand() {
         focusManager.clearFocus()
+        keyboardController?.hide()
         updatePhase(LinkedDockPhase.Expanded)
     }
     val backEnabled = shouldEnableLinkedDockBackHandler(
@@ -130,6 +136,7 @@ internal fun LinkedBottomDock(
     )
     BackHandler(enabled = backEnabled) {
         focusManager.clearFocus()
+        keyboardController?.hide()
         updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio))
     }
     val reduceMotion = rememberSystemReduceMotion()
@@ -146,6 +153,9 @@ internal fun LinkedBottomDock(
         },
         label = "dockSearch",
     ) { if (it == LinkedDockPhase.Search) 1f else 0f }
+    val imeSettled = WindowInsets.ime
+        .getBottom(LocalDensity.current) == 0
+    val nowPlayingLayoutStable = !transition.isRunning && imeSettled
     val shape = resolveSharedBottomBarCapsuleShape()
     val contentColor = MaterialTheme.colorScheme.onSurface
     val accentColor = MaterialTheme.colorScheme.primary
@@ -197,8 +207,24 @@ internal fun LinkedBottomDock(
                 }
             }
             Box {
-                nowPlayingContent?.invoke(Modifier.fillMaxSize(), merge.value.coerceIn(0f, 1f),
-                    search.value.coerceIn(0f, 1f), 0f)
+                nowPlayingContent?.invoke(
+                    Modifier.fillMaxSize(),
+                    merge.value.coerceIn(0f, 1f),
+                    search.value.coerceIn(0f, 1f),
+                    0f,
+                    if (shouldExpandPlaybackFromSearch(phase, hasAudio)) {
+                        {
+                            if (!transition.isRunning) {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                updatePhase(LinkedDockPhase.Playback)
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                    nowPlayingLayoutStable,
+                )
             }
             Box(contentAlignment = Alignment.Center) {
                 if (searchEnabled) {

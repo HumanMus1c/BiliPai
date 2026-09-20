@@ -953,3 +953,34 @@ data class SpaceArticleStats(
     val coin: Int = 0,
     val dynamic: Int = 0
 )
+
+// ==================== UP主空间课堂 (Cheese / PUGV) ====================
+
+@Serializable
+data class SpaceCheeseResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: SpaceCheeseData? = null
+)
+
+@Serializable
+data class SpaceCheeseData(
+    val items: List<SpaceCheeseItem> = emptyList(),
+    val page: SpaceCheesePage? = null
+)
+
+@Serializable
+data class SpaceCheesePage(
+    val next: Boolean = false
+)
+
+@Serializable
+data class SpaceCheeseItem(
+    val cover: String = "",
+    val marks: List<String> = emptyList(),
+    @SerialName("season_id")
+    val seasonId: Long = 0L,
+    val status: String = "",
+    val title: String = "",
+    val ctime: String = ""
+)

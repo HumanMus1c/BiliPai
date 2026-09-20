@@ -14,7 +14,9 @@ import com.android.purebilibili.data.model.response.SpaceAggregateCard
 import com.android.purebilibili.data.model.response.SpaceAggregateData
 import com.android.purebilibili.data.model.response.SpaceAggregateImages
 import com.android.purebilibili.data.model.response.SpaceAggregateRelation
+import com.android.purebilibili.data.model.response.SpaceAggregateTab
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
+import com.android.purebilibili.data.model.response.SpaceTagItem
 import com.android.purebilibili.data.model.response.SpaceTopArcData
 import com.android.purebilibili.data.model.response.SpaceUserInfo
 import com.android.purebilibili.data.model.response.SpaceVideoItem
@@ -26,6 +28,49 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SpaceLoadPolicyTest {
+
+    @Test
+    fun `aggregate video target falls back to bilibili video deep link when bvid is absent`() {
+        assertEquals(
+            "av2001",
+            resolveSpaceAggregateVideoId(
+                SpaceAggregateArchiveItem(
+                    aid = 2001L,
+                    uri = "bilibili://video/2001",
+                    goto = "av",
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `aggregate video target falls back to numeric archive param`() {
+        assertEquals(
+            "av2002",
+            resolveSpaceAggregateVideoId(
+                SpaceAggregateArchiveItem(
+                    aid = 2002L,
+                    param = "2002",
+                    goto = "av",
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `aggregate pgc item is not mistaken for a regular video`() {
+        assertNull(
+            resolveSpaceAggregateVideoId(
+                SpaceAggregateArchiveItem(
+                    aid = 3001L,
+                    param = "3001",
+                    goto = "bangumi",
+                    uri = "bilibili://bangumi/play/ep3001",
+                    isPgc = true,
+                )
+            )
+        )
+    }
 
     @Test
     fun `aggregate lazy keys stay unique when api omits archive ids`() {
@@ -743,6 +788,28 @@ class SpaceLoadPolicyTest {
     }
 
     @Test
+    fun `resolveSpaceInitialSeedFromAggregate keeps PiliPlus space tag contract`() {
+        val seed = resolveSpaceInitialSeedFromAggregate(
+            data = SpaceAggregateData(
+                card = SpaceAggregateCard(
+                    mid = "42",
+                    spaceTag = listOf(
+                        SpaceTagItem(type = "location", title = "IP属地：广东"),
+                        SpaceTagItem(type = "real_name", title = "已实名认证"),
+                        SpaceTagItem(type = "other", title = "不应展示")
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf("IP属地：广东", "已实名认证"),
+            seed?.userInfo?.spaceTags?.map { it.title }
+        )
+        assertEquals("IP属地：广东", seed?.userInfo?.ipLocation)
+    }
+
+    @Test
     fun `resolveSpaceAggregateTopPhoto prefers collection top simple image`() {
         val images = SpaceAggregateImages(
             imgUrl = "https://i0.hdslb.com/bfs/space/fallback.jpg",
@@ -942,5 +1009,20 @@ class SpaceLoadPolicyTest {
             Pair(false, 0),
             resolveSpaceRelationState()
         )
+    }
+
+    @Test
+    fun `resolveSpaceInitialSeedFromAggregate detects cheese tab in tab2`() {
+        val seed = resolveSpaceInitialSeedFromAggregate(
+            data = SpaceAggregateData(
+                card = SpaceAggregateCard(mid = "123", name = "Teacher"),
+                tab2 = listOf(
+                    SpaceAggregateTab(title = "主页", param = "home"),
+                    SpaceAggregateTab(title = "课堂", param = "cheese")
+                )
+            )
+        )
+
+        assertTrue(seed?.hasCheeseTab == true)
     }
 }

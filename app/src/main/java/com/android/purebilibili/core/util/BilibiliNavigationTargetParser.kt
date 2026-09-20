@@ -126,6 +126,16 @@ object BilibiliNavigationTargetParser {
                 resolveBangumiTarget(pathSegments)?.let { return it }
             }
 
+            host == "cheese" -> {
+                val seasonIndex = pathSegments.indexOfFirst { it.equals("season", ignoreCase = true) }
+                if (seasonIndex >= 0) {
+                    pathSegments.getOrNull(seasonIndex + 1)?.toLongOrNull()?.let {
+                        return BilibiliNavigationTarget.BangumiSeason(it)
+                    }
+                }
+                resolveBangumiTarget(pathSegments)?.let { return it }
+            }
+
             host == "pgc" -> {
                 resolvePgcTarget(pathSegments)?.let { return it }
             }

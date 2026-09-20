@@ -42,13 +42,13 @@ internal fun resolveMusicQueueControlState(
     playMode: PlayMode = PlayMode.SEQUENTIAL,
     shuffleEnabled: Boolean = false
 ): MusicQueueControlState {
-    if (queueSize <= 1 || currentIndex !in 0 until queueSize) {
+    if (queueSize <= 0 || currentIndex !in 0 until queueSize) {
         return MusicQueueControlState(false, false, false)
     }
     val wrapsQueue = shuffleEnabled || playMode != PlayMode.SEQUENTIAL
     return MusicQueueControlState(
-        hasPrevious = wrapsQueue || currentIndex > 0,
-        hasNext = wrapsQueue || currentIndex < queueSize - 1,
+        hasPrevious = queueSize > 1 && (wrapsQueue || currentIndex > 0),
+        hasNext = queueSize > 1 && (wrapsQueue || currentIndex < queueSize - 1),
         showQueue = true
     )
 }

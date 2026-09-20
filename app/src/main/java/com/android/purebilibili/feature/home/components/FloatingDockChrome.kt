@@ -16,6 +16,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -450,7 +452,22 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
                             )
                         }
                 } else {
+                    val solidCapsuleColor = if (!isDark) {
+                        AppSurfaceTokens.surfaceContainer()
+                    } else {
+                        AppSurfaceTokens.surfaceContainerHighest()
+                    }
                     Modifier
+                        .then(
+                            if (!isDark) {
+                                Modifier.dropShadow(
+                                    shape = shape,
+                                    shadow = Shadow(radius = 3.dp, color = Color.Black, alpha = 0.08f)
+                                )
+                            } else Modifier
+                        )
+                        .clip(shape)
+                        .background(solidCapsuleColor, shape)
                 }
             )
     )

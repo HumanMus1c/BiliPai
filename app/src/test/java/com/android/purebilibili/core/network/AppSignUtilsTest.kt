@@ -6,6 +6,19 @@ import kotlin.test.assertEquals
 class AppSignUtilsTest {
 
     @Test
+    fun `TV API signing percent encodes structured parameter values`() {
+        val params = mapOf(
+            "statistics" to "{\"appId\":1,\"platform\":3}",
+            "vmid" to "2"
+        )
+
+        val signed = AppSignUtils.signForTvApi(params)
+
+        assertEquals(AppSignUtils.TV_APP_KEY, signed["appkey"])
+        assertEquals(signed["sign"], AppSignUtils.signForTvApi(params)["sign"])
+    }
+
+    @Test
     fun `official bilibili APP sign demo vector matches documented hash`() {
         // https://github.com/SocialSisterYi/bilibili-API-collect docs/misc/sign/APP.md
         val params = mapOf(

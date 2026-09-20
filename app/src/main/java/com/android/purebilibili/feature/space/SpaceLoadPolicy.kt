@@ -2,6 +2,8 @@ package com.android.purebilibili.feature.space
 
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
+import com.android.purebilibili.core.util.BilibiliNavigationTarget
+import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
 import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.util.resolveWindowWidthSizeClass
 import com.android.purebilibili.feature.home.resolveHomeFeedGridColumns
@@ -254,6 +256,40 @@ internal fun resolveSpaceAggregateLazyItemKey(
     return "${section}_${item.aid}_${item.bvid}_$index"
 }
 
+/**
+ * Resolves the in-app video target used by aggregate cards (coin/like previews).
+ *
+ * The aggregate endpoint is inconsistent: some responses populate [bvid], while
+ * others only provide an `av`/numeric [param] or a `bilibili://video/...` [uri].
+ * Keep that fallback inside the navigation policy so a missing bvid cannot send
+ * a video deep link through the generic browser callback.
+ */
+internal fun resolveSpaceAggregateVideoId(item: SpaceAggregateArchiveItem): String? {
+    item.bvid.trim().takeIf { it.isNotEmpty() }?.let { return it }
+
+    val isVideoArchive = item.goto.equals("av", ignoreCase = true) ||
+        item.goto.equals("video", ignoreCase = true) ||
+        item.goto.equals("archive", ignoreCase = true)
+    val hasExplicitVideoUri = item.uri.contains("/video/", ignoreCase = true)
+    if (!isVideoArchive && !hasExplicitVideoUri) return null
+
+    sequenceOf(item.uri, item.param)
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .mapNotNull { candidate ->
+            BilibiliNavigationTargetParser.parse(candidate)
+                ?.let { target -> (target as? BilibiliNavigationTarget.Video)?.videoId }
+        }
+        .firstOrNull()
+        ?.let { return it }
+
+    if (isVideoArchive) {
+        item.param.trim().toLongOrNull()?.takeIf { it > 0L }?.let { return "av$it" }
+        item.aid.takeIf { it > 0L }?.let { return "av$it" }
+    }
+    return null
+}
+
 internal fun resolveInitialSpaceVideoPage(
     order: VideoSortOrder,
     totalCount: Int,
@@ -452,7 +488,8 @@ internal data class SpaceInitialSeed(
     val contributionTabs: List<SpaceContributionTab>,
     val defaultMainTab: SpaceMainTab,
     val defaultSubTab: SpaceSubTab,
-    val defaultContributionTabId: String
+    val defaultContributionTabId: String,
+    val hasCheeseTab: Boolean = false
 )
 
 internal fun resolveSpaceAggregateTopPhoto(
@@ -561,14 +598,12 @@ internal fun resolveSpaceInitialSeedFromAggregate(
         defaultTab = data.defaultTab,
         contributionTabs = contributionTabs
     )
-    val ipFromTag = card.spaceTag.firstOrNull {
-        it.type == "location" || it.title.startsWith("IP属地") || it.title.contains("IP")
-    }?.title
+    val ipFromTag = card.spaceTag.firstOrNull { it.type == "location" }?.title
     val resolvedIpLocation = ipFromTag
         ?: data.card?.ipLocation?.takeIf { it.isNotBlank() }
         ?: cardIpLocation?.takeIf { it.isNotBlank() }
-    val filteredTags = card.spaceTag.filter { it.type in setOf("location", "real_name") || it.title.contains("IP") }
-    val resolvedSpaceTags = if (filteredTags.none { it.type == "location" || it.title.contains("IP") } && !resolvedIpLocation.isNullOrBlank()) {
+    val filteredTags = card.spaceTag.filter { it.type in setOf("location", "real_name") }
+    val resolvedSpaceTags = if (filteredTags.none { it.type == "location" } && !resolvedIpLocation.isNullOrBlank()) {
         val locationTitle = if (resolvedIpLocation.startsWith("IP属地")) resolvedIpLocation else "IP属地：$resolvedIpLocation"
         filteredTags + SpaceTagItem(type = "location", title = locationTitle)
     } else {
@@ -625,7 +660,8 @@ internal fun resolveSpaceInitialSeedFromAggregate(
         contributionTabs = contributionTabs,
         defaultMainTab = defaultSelection.first,
         defaultSubTab = defaultSelection.second,
-        defaultContributionTabId = defaultSelection.third
+        defaultContributionTabId = defaultSelection.third,
+        hasCheeseTab = data.tab2.any { it.param.equals("cheese", ignoreCase = true) }
     )
 }
 
@@ -688,7 +724,8 @@ internal fun buildInitialSpaceSuccessState(
             collectedFavorites = emptyList()
         ),
         tabShellState = tabShellState,
-        mainTabs = seed.mainTabs
+        mainTabs = seed.mainTabs,
+        hasCheeseTab = seed.hasCheeseTab
     )
 }
 

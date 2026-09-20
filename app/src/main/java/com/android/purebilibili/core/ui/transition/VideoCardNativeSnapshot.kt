@@ -54,6 +54,7 @@ internal fun shouldHideStationarySourceCard(
 
 internal fun isRecordedNativeCardSource(
     bvid: String,
+    sourceRoute: String?,
     activeSourceKey: String?,
     recordedSourceKey: String? = CardPositionManager.lastClickedVideoSourceKey,
 ): Boolean {
@@ -62,7 +63,8 @@ internal fun isRecordedNativeCardSource(
     if (activeSourceKey != clicked) return false
     val id = bvid.trim()
     if (id.isEmpty()) return false
-    return clicked == id || clicked.endsWith(":$id")
+    val route = normalizeSharedElementSourceRoute(sourceRoute) ?: return false
+    return clicked == "$route:$id"
 }
 
 internal fun isNativeVideoCardLayerDrawable(widthPx: Int, heightPx: Int): Boolean =
@@ -82,6 +84,7 @@ internal fun Modifier.recordNativeVideoCardLayer(
     layer: GraphicsLayer,
     freezeProvider: () -> Boolean,
     bvid: String = "",
+    sourceRoute: String?,
     enabled: Boolean = true,
 ): Modifier {
     if (!enabled) return this
@@ -95,7 +98,11 @@ internal fun Modifier.recordNativeVideoCardLayer(
             }
         }
         val hide = shouldHideStationarySourceCard(
-            isSharedMorphSourceCard = isRecordedNativeCardSource(bvid, bgState.sourceKeyProvider()),
+            isSharedMorphSourceCard = isRecordedNativeCardSource(
+                bvid = bvid,
+                sourceRoute = sourceRoute,
+                activeSourceKey = bgState.sourceKeyProvider(),
+            ),
             phase = bgState.phaseProvider(),
             depthProgress = bgState.progressProvider(),
             isReturnGestureInProgress = bgState.isReturnGestureInProgressProvider() ||
@@ -162,17 +169,25 @@ internal fun rememberNativeVideoCardSnapshotController(
     val captureScope = rememberCoroutineScope()
     val freezeState = remember(key) { mutableStateOf(false) }
     val bvid = (key as? String).orEmpty()
+    val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     return NativeVideoCardSnapshotController(
         modifier = Modifier.recordNativeVideoCardLayer(
             layer = layer,
-            freezeProvider = { freezeState.value },
+            freezeProvider = {
+                freezeState.value && CardPositionManager.isNativeVideoCardLayerCurrentOwner(layer)
+            },
             bvid = bvid,
+            sourceRoute = sourceRoute,
             enabled = enabled,
         ),
         coverOverlayModifier = Modifier.recordNativeVideoCardLayer(
             layer = coverOverlayLayer,
-            freezeProvider = { freezeState.value },
+            freezeProvider = {
+                freezeState.value &&
+                    CardPositionManager.isNativeCoverOverlayLayerCurrentOwner(coverOverlayLayer)
+            },
             bvid = bvid,
+            sourceRoute = sourceRoute,
             enabled = enabled,
         ),
         capture = {

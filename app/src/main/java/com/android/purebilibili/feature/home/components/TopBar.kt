@@ -194,12 +194,12 @@ internal fun resolveTopTabDockEndInsetDp(
 internal fun resolveTopTabIndicatorShape(
     showIcon: Boolean,
     showText: Boolean,
-): Shape =
-    if (showIcon && showText) {
-        RoundedCornerShape(12.dp)
-    } else {
-        resolveSharedBottomBarCapsuleShape()
-    }
+    isMiuixNonGlass: Boolean = false,
+): Shape = when {
+    isMiuixNonGlass -> RoundedCornerShape(8.dp)
+    showIcon && showText -> RoundedCornerShape(12.dp)
+    else -> resolveSharedBottomBarCapsuleShape()
+}
 
 /**
  * Resolves the vertical center offset (in Dp) of the MD3 native underline indicator
@@ -1871,7 +1871,11 @@ private fun LightweightHomeTopTabs(
                                         .biliPaiFloatingDockCaptureSurface(
                                             backdrop = miuixBackdrop,
                                             containerColor = topTabIndicatorCaptureSurfaceColor,
-                                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
+                                            shape = resolveTopTabIndicatorShape(
+                                                showIcon = showIcon,
+                                                showText = showText,
+                                                isMiuixNonGlass = isMiuixOfficialTabs,
+                                            ),
                                             liquidGlassTuning = resolvedLiquidGlassTuning,
                                         )
                                 } else {
@@ -2107,7 +2111,11 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
+                            shape = resolveTopTabIndicatorShape(
+                                showIcon = showIcon,
+                                showText = showText,
+                                isMiuixNonGlass = isMiuixOfficialTabs,
+                            ),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
@@ -2124,7 +2132,11 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
+                            shape = resolveTopTabIndicatorShape(
+                                showIcon = showIcon,
+                                showText = showText,
+                                isMiuixNonGlass = isMiuixOfficialTabs,
+                            ),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
@@ -2141,7 +2153,11 @@ private fun LightweightHomeTopTabs(
                             scaleY = indicatorScaleY,
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
-                            shape = resolveTopTabIndicatorShape(showIcon = showIcon, showText = showText),
+                            shape = resolveTopTabIndicatorShape(
+                                showIcon = showIcon,
+                                showText = showText,
+                                isMiuixNonGlass = isMiuixOfficialTabs,
+                            ),
                             liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }

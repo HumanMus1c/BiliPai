@@ -38,10 +38,10 @@ enum class AppUiScalePreset(
     val label: String,
     val densityMultiplier: Float
 ) {
-    COMPACT(0, "紧凑", 1.08f),
+    COMPACT(0, "紧凑", 0.92f),
     STANDARD(1, "标准", 1.00f),
-    COMFORTABLE(2, "舒适", 0.96f),
-    LARGE(3, "更大", 0.92f);
+    COMFORTABLE(2, "舒适", 1.04f),
+    LARGE(3, "更大", 1.08f);
 
     companion object {
         fun fromValue(value: Int): AppUiScalePreset {

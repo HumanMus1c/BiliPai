@@ -958,6 +958,24 @@ internal fun resolveEffectivePhoneAutoRotateEnabled(
     return autoRotateEnabled && !manualPortraitHoldActive
 }
 
+/**
+ * A fullscreen-button press may force landscape while the phone is still physically upright.
+ * Do not interpret that already-existing portrait posture as a rotate-back gesture. Once the
+ * sensor observes a real landscape posture, the manual intent is released and normal automatic
+ * portrait exit is enabled again.
+ */
+internal fun shouldAllowPhoneSensorPortraitTransition(
+    autoRotateEnabled: Boolean,
+    manualFullscreenRequested: Boolean,
+): Boolean = autoRotateEnabled && !manualFullscreenRequested
+
+internal fun shouldReleaseManualFullscreenRequestAfterSensorTarget(
+    manualFullscreenRequested: Boolean,
+    sensorTargetOrientation: Int?,
+): Boolean = manualFullscreenRequested &&
+    sensorTargetOrientation != null &&
+    isLandscapeRequestedOrientation(sensorTargetOrientation)
+
 internal fun shouldObservePhoneAutoRotate(
     autoRotateEnabled: Boolean,
     isCompactDevice: Boolean,

@@ -38,6 +38,31 @@ class ProfileLayoutPolicyTest {
     }
 
     @Test
+    fun tabletWallpaper_reservesLargerVisibleBannerBeforeSplitContent() {
+        assertEquals(
+            224,
+            resolveProfileTabletWallpaperRevealHeightDp(
+                useSplitLayout = true,
+                hasWallpaper = true
+            )
+        )
+        assertEquals(
+            0,
+            resolveProfileTabletWallpaperRevealHeightDp(
+                useSplitLayout = true,
+                hasWallpaper = false
+            )
+        )
+        assertEquals(
+            0,
+            resolveProfileTabletWallpaperRevealHeightDp(
+                useSplitLayout = false,
+                hasWallpaper = true
+            )
+        )
+    }
+
+    @Test
     fun cardTokens_useUnifiedPosterDimensions() {
         val tokens = resolveProfileCardTokens()
 

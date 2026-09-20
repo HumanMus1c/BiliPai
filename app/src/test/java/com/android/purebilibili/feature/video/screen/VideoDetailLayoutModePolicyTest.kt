@@ -622,6 +622,61 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun manualFullscreenSensorPolicy_doesNotTreatExistingPortraitPostureAsFullscreenExit() {
+        val allowPortraitTransition = shouldAllowPhoneSensorPortraitTransition(
+            autoRotateEnabled = true,
+            manualFullscreenRequested = true,
+        )
+        assertFalse(allowPortraitTransition)
+        assertEquals(
+            null,
+            resolvePhoneAutoRotateRequestedOrientation(
+                orientationDegrees = 0,
+                isCurrentlyLandscape = true,
+                allowPortraitTransitions = allowPortraitTransition,
+            )
+        )
+
+        val allowPortraitAfterLandscapeObserved = shouldAllowPhoneSensorPortraitTransition(
+            autoRotateEnabled = true,
+            manualFullscreenRequested = false,
+        )
+        assertTrue(
+            allowPortraitAfterLandscapeObserved
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolvePhoneAutoRotateRequestedOrientation(
+                orientationDegrees = 0,
+                isCurrentlyLandscape = true,
+                allowPortraitTransitions = allowPortraitAfterLandscapeObserved,
+            )
+        )
+    }
+
+    @Test
+    fun manualFullscreenSensorPolicy_releasesIntentAfterPhysicalLandscapeIsObserved() {
+        assertTrue(
+            shouldReleaseManualFullscreenRequestAfterSensorTarget(
+                manualFullscreenRequested = true,
+                sensorTargetOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            )
+        )
+        assertFalse(
+            shouldReleaseManualFullscreenRequestAfterSensorTarget(
+                manualFullscreenRequested = true,
+                sensorTargetOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            )
+        )
+        assertFalse(
+            shouldReleaseManualFullscreenRequestAfterSensorTarget(
+                manualFullscreenRequested = false,
+                sensorTargetOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            )
+        )
+    }
+
+    @Test
     fun phoneOrientationPolicy_autoRotateHorizontalMode_withoutManualRequest_usesSensor() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,

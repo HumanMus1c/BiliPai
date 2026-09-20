@@ -85,6 +85,14 @@ sealed class SpaceUiState {
         val isLoadingDynamics: Boolean = false,
         val hasLoadedDynamicsOnce: Boolean = false,
         val lastDynamicLoadFailed: Boolean = false,
+        //  课堂 Tab
+        val cheeseItems: List<SpaceCheeseItem> = emptyList(),
+        val cheesePage: Int = 1,
+        val isLoadingCheese: Boolean = false,
+        val hasMoreCheese: Boolean = true,
+        val hasLoadedCheeseOnce: Boolean = false,
+        val lastCheeseLoadFailed: Boolean = false,
+        val hasCheeseTab: Boolean = false,
         
         //  Uploads Sub-Tab
         val selectedSubTab: SpaceSubTab = SpaceSubTab.VIDEO,
@@ -165,6 +173,7 @@ class SpaceViewModel(
     private var activeSpaceLoadJob: Job? = null
     private var activeSpaceSupplementalJob: Job? = null
     private var activeSpaceArticleJob: Job? = null
+    private var activeSpaceCheeseJob: Job? = null
     private var activeSpaceSearchJob: Job? = null
     private var activeVideoListJob: Job? = null
     private var activeSpaceWatchHistoryJob: Job? = null
@@ -212,6 +221,7 @@ class SpaceViewModel(
         activeSpaceLoadJob?.cancel()
         activeSpaceSupplementalJob?.cancel()
         activeSpaceArticleJob?.cancel()
+        activeSpaceCheeseJob?.cancel()
         activeSpaceWatchHistoryJob?.cancel()
 
         activeSpaceLoadJob = viewModelScope.launch {
@@ -268,6 +278,7 @@ class SpaceViewModel(
                         hydrateInitialContributionVideos(mid = mid, requestGeneration = requestGeneration)
                         ensureSelectedContributionContentLoaded()
                         probeSpaceArticles(mid = mid, requestGeneration = requestGeneration)
+                        probeSpaceCheese(mid = mid, requestGeneration = requestGeneration)
                     }
                     return@launch
                 }
@@ -291,6 +302,7 @@ class SpaceViewModel(
                     }
                 } else {
                     probeSpaceArticles(mid = mid, requestGeneration = requestGeneration)
+                    probeSpaceCheese(mid = mid, requestGeneration = requestGeneration)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -711,6 +723,11 @@ class SpaceViewModel(
         }
         if (newTab == SpaceMainTab.CONTRIBUTION) {
             ensureSelectedContributionContentLoaded()
+        } else if (newTab == SpaceMainTab.CHEESE) {
+            val cheeseTabState = current.tabShellState.tabStates[SpaceMainTab.CHEESE]
+            if (cheeseTabState?.hasLoaded != true && !current.isLoadingCheese) {
+                loadSpaceCheese()
+            }
         }
     }
     
@@ -1488,6 +1505,70 @@ class SpaceViewModel(
         }
     }
 
+    // ==========  课堂 Tab 数据加载 ==========
+
+    fun loadSpaceCheese(refresh: Boolean = false) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        if (current.isLoadingCheese) return
+        if (!refresh && !current.hasMoreCheese) return
+
+        viewModelScope.launch {
+            val page = if (refresh) 1 else current.cheesePage + 1
+            _uiState.value = current.copy(
+                isLoadingCheese = true,
+                lastCheeseLoadFailed = false
+            ).markTabLoading(SpaceMainTab.CHEESE)
+
+            try {
+                val response = spaceApi.getSpaceCheese(
+                    mid = currentMid,
+                    page = page,
+                    pageSize = 30
+                )
+                val latest = _uiState.value as? SpaceUiState.Success ?: return@launch
+                if (response.code == 0 && response.data != null) {
+                    val incomingItems = response.data.items
+                    val previousItems = if (refresh) emptyList() else latest.cheeseItems
+                    val mergedItems = if (refresh) {
+                        incomingItems
+                    } else {
+                        mergeSpaceCheeseItems(previousItems, incomingItems)
+                    }
+                    val hasNext = response.data.page?.next == true
+                    _uiState.value = latest.copy(
+                        cheeseItems = mergedItems,
+                        cheesePage = page,
+                        isLoadingCheese = false,
+                        hasMoreCheese = hasNext && incomingItems.isNotEmpty(),
+                        hasLoadedCheeseOnce = true,
+                        lastCheeseLoadFailed = false
+                    ).markTabResult(SpaceMainTab.CHEESE)
+                } else {
+                    _uiState.value = latest.copy(
+                        isLoadingCheese = false,
+                        lastCheeseLoadFailed = true,
+                        hasLoadedCheeseOnce = true
+                    ).markTabResult(
+                        SpaceMainTab.CHEESE,
+                        error = response.message.ifBlank { "课堂加载失败" },
+                        hasLoaded = true
+                    )
+                }
+            } catch (e: Exception) {
+                val latest = _uiState.value as? SpaceUiState.Success ?: return@launch
+                _uiState.value = latest.copy(
+                    isLoadingCheese = false,
+                    lastCheeseLoadFailed = true,
+                    hasLoadedCheeseOnce = true
+                ).markTabResult(
+                    SpaceMainTab.CHEESE,
+                    error = e.message ?: "课堂加载失败",
+                    hasLoaded = true
+                )
+            }
+        }
+    }
+
     // ==========  Uploads Tab Sub-navigation ==========
     
     fun selectSubTab(tab: SpaceSubTab) {
@@ -1982,6 +2063,40 @@ class SpaceViewModel(
             }
         }
     }
+
+    private fun probeSpaceCheese(mid: Long, requestGeneration: Long) {
+        activeSpaceCheeseJob?.cancel()
+        activeSpaceCheeseJob = viewModelScope.launch {
+            try {
+                val response = spaceApi.getSpaceCheese(mid = mid, page = 1, pageSize = 30)
+                if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
+                    return@launch
+                }
+                val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
+                val items = response.takeIf { it.code == 0 }?.data?.items.orEmpty()
+                if (items.isEmpty()) return@launch
+
+                val hasNext = response.data?.page?.next == true
+                val updatedMainTabs = if (currentState.mainTabs.none { it.tab == SpaceMainTab.CHEESE }) {
+                    currentState.mainTabs + SpaceMainTabItem(SpaceMainTab.CHEESE, "课堂")
+                } else {
+                    currentState.mainTabs
+                }
+                _uiState.value = currentState.copy(
+                    hasCheeseTab = true,
+                    cheeseItems = items,
+                    cheesePage = 1,
+                    hasMoreCheese = hasNext && items.isNotEmpty(),
+                    hasLoadedCheeseOnce = true,
+                    mainTabs = updatedMainTabs
+                ).markTabResult(SpaceMainTab.CHEESE)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("SpaceVM", "probeCheese error: ${e.message}")
+            }
+        }
+    }
     
     private suspend fun fetchSpaceAudioList(uid: Long, page: Int): SpaceAudioResponse? {
         return try {
@@ -2196,6 +2311,26 @@ class SpaceViewModel(
             items.forEach { item ->
                 val key = item.seasonId.takeIf { it > 0L } ?: item.mediaId
                 if (key > 0L && seen.add(key)) {
+                    merged += item
+                }
+            }
+        }
+        addAll(existing)
+        addAll(incoming)
+        return merged
+    }
+
+    private fun mergeSpaceCheeseItems(
+        existing: List<SpaceCheeseItem>,
+        incoming: List<SpaceCheeseItem>
+    ): List<SpaceCheeseItem> {
+        val seen = LinkedHashSet<Long>()
+        val merged = ArrayList<SpaceCheeseItem>(existing.size + incoming.size)
+        fun addAll(items: List<SpaceCheeseItem>) {
+            items.forEach { item ->
+                if (item.seasonId > 0L && seen.add(item.seasonId)) {
+                    merged += item
+                } else if (item.seasonId <= 0L) {
                     merged += item
                 }
             }

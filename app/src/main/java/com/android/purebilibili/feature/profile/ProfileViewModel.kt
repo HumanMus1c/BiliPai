@@ -98,17 +98,30 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshSavedAccounts() {
         val context = getApplication<Application>()
-        _accounts.value = AccountSessionStore.getAccounts(context)
-        _activeAccountMid.value = AccountSessionStore.getActiveAccountMid(context)
-        _playbackAccountMid.value = AccountSessionStore.getPlaybackAccountMid(context)
+        viewModelScope.launch(Dispatchers.IO) {
+            val accounts = AccountSessionStore.getAccounts(context)
+            val activeAccountMid = AccountSessionStore.getActiveAccountMid(context)
+            val playbackAccountMid = AccountSessionStore.getPlaybackAccountMid(context)
+            withContext(Dispatchers.Main.immediate) {
+                _accounts.value = accounts
+                _activeAccountMid.value = activeAccountMid
+                _playbackAccountMid.value = playbackAccountMid
+            }
+        }
     }
 
     fun setPlaybackAccount(mid: Long?, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
-        if (AccountSessionStore.setPlaybackAccountMid(getApplication(), mid)) {
-            refreshSavedAccounts()
-            onSuccess()
-        } else {
-            onFailure("播放账号不可用，请重新登录后再试")
+        val context = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val updated = AccountSessionStore.setPlaybackAccountMid(context, mid)
+            withContext(Dispatchers.Main.immediate) {
+                if (updated) {
+                    refreshSavedAccounts()
+                    onSuccess()
+                } else {
+                    onFailure("播放账号不可用，请重新登录后再试")
+                }
+            }
         }
     }
 

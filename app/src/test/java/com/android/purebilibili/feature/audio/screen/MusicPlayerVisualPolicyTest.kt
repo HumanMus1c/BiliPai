@@ -14,6 +14,16 @@ import kotlin.test.assertTrue
 class MusicPlayerVisualPolicyTest {
 
     @Test
+    fun `cover flow fades distant covers completely while preserving focus`() {
+        assertEquals(1f, resolveMusicCoverFlowItemAlpha(0f))
+        assertTrue(resolveMusicCoverFlowItemAlpha(1f) > resolveMusicCoverFlowItemAlpha(2f))
+        assertTrue(resolveMusicCoverFlowItemAlpha(2.5f) < resolveMusicCoverFlowItemAlpha(2f))
+        assertEquals(0f, resolveMusicCoverFlowItemAlpha(3f))
+        assertEquals(0f, resolveMusicCoverFlowItemAlpha(8f))
+    }
+
+
+    @Test
     fun `pager indicator follows drag and stays inside two segments`() {
         assertEquals(0f, resolveMusicPagerIndicatorPosition(0, -0.4f))
         assertEquals(0.35f, resolveMusicPagerIndicatorPosition(0, 0.35f))
@@ -132,7 +142,7 @@ class MusicPlayerVisualPolicyTest {
             resolveMusicLyricFocusStyle(lineIndex = 4, currentIndex = 4, blurEnabled = true)
         )
         assertEquals(
-            MusicLyricFocusStyle(blurRadiusDp = 2, alphaPercent = 46),
+            MusicLyricFocusStyle(blurRadiusDp = 1, alphaPercent = 62),
             resolveMusicLyricFocusStyle(lineIndex = 5, currentIndex = 4, blurEnabled = true)
         )
         assertEquals(
@@ -148,8 +158,30 @@ class MusicPlayerVisualPolicyTest {
         assertFalse(resolveMusicLyricsBlurEnabled(sdkInt = 35, effectsEnabled = false, reduceMotion = false))
         assertFalse(resolveMusicLyricsBlurEnabled(sdkInt = 35, effectsEnabled = true, reduceMotion = true))
         assertEquals(
-            MusicLyricFocusStyle(blurRadiusDp = 0, alphaPercent = 46),
+            MusicLyricFocusStyle(blurRadiusDp = 0, alphaPercent = 62),
             resolveMusicLyricFocusStyle(lineIndex = 5, currentIndex = 4, blurEnabled = false)
         )
+    }
+
+    @Test
+    fun `apple music cover scale remains constant on play pause`() {
+        assertEquals(1.0f, resolveAppleMusicCoverScale(isPlaying = true, reduceMotion = false))
+        assertEquals(1.0f, resolveAppleMusicCoverScale(isPlaying = false, reduceMotion = false))
+        assertEquals(1.0f, resolveAppleMusicCoverScale(isPlaying = false, reduceMotion = true))
+    }
+
+    @Test
+    fun `cover flow entrance stabilizes center before opening neighboring covers`() {
+        assertEquals(0.25f, resolveMusicCoverFlowItemEntranceProgress(0.25f, 0f))
+        assertEquals(0f, resolveMusicCoverFlowItemEntranceProgress(0.25f, 2f))
+        assertTrue(resolveMusicCoverFlowItemEntranceProgress(0.5f, 1f) > 0f)
+        assertEquals(1f, resolveMusicCoverFlowItemEntranceProgress(1f, 2f))
+    }
+
+    @Test
+    fun `cover flow reflection waits until covers are seated`() {
+        assertEquals(0f, resolveMusicCoverFlowShadowEntranceProgress(0.58f))
+        assertTrue(resolveMusicCoverFlowShadowEntranceProgress(0.8f) in 0f..1f)
+        assertEquals(1f, resolveMusicCoverFlowShadowEntranceProgress(1f))
     }
 }

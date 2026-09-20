@@ -51,6 +51,12 @@ import com.android.purebilibili.feature.video.ui.components.VideoCommentMainList
 import com.android.purebilibili.feature.video.ui.components.SubReplySheet
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -64,8 +70,10 @@ fun BangumiPlayerContent(
     currentEpisode: BangumiEpisode,
     commentViewModel: VideoCommentViewModel,
     onEpisodeClick: (BangumiEpisode) -> Unit,
-    onFollowStatusSelect: (Int) -> Unit
+    onFollowStatusSelect: (Int) -> Unit,
+    onUserClick: ((Long) -> Unit)? = null
 ) {
+    val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
     val isFollowing = isBangumiFollowed(detail.userStatus)
     val followedIcon = rememberAppCheckCircleIcon()
     val followIcon = rememberAppProfileAddIcon()
@@ -130,6 +138,52 @@ fun BangumiPlayerContent(
         // 标题和信息
         item {
             Column(modifier = Modifier.padding(16.dp)) {
+                // UP 主信息（课堂/课程或合作视频）
+                detail.upInfo?.let { up ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = onUserClick != null && up.mid > 0L) {
+                                onUserClick?.invoke(up.mid)
+                            }
+                            .padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = FormatUtils.fixImageUrl(up.avatar),
+                            contentDescription = up.uname,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            AppText(
+                                text = up.uname,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val subText = if (up.follower > 0L) {
+                                "${FormatUtils.formatStat(up.follower)}粉丝"
+                            } else {
+                                up.brief.orEmpty()
+                            }
+                            if (subText.isNotBlank()) {
+                                AppText(
+                                    text = subText,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
                 AppText(
                     text = detail.title,
                     fontSize = 18.sp,
@@ -137,20 +191,43 @@ fun BangumiPlayerContent(
                     maxLines = 2
                 )
                 
+                if (detail.subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AppText(
+                        text = detail.subtitle,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(4.dp))
                 
+                val currentPlayingLabel = listOf(currentEpisode.title, currentEpisode.longTitle)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
                 AppText(
-                    text = "正在播放：${currentEpisode.title} ${currentEpisode.longTitle}",
+                    text = "正在播放：$currentPlayingLabel",
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 detail.stat?.let { stat ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val statText = if (isCourse) {
+                            val playText = "${FormatUtils.formatStat(stat.views)}播放"
+                            val favText = if (stat.favorites > 0L) " · ${FormatUtils.formatStat(stat.favorites)}收藏" else ""
+                            playText + favText
+                        } else {
+                            "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.danmakus)}弹幕"
+                        }
                         AppText(
-                            text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.danmakus)}弹幕",
+                            text = statText,
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -159,7 +236,7 @@ fun BangumiPlayerContent(
             }
         }
         
-        // 追番操作
+        // 追番/收藏操作
         item {
             Row(
                 modifier = Modifier
@@ -169,18 +246,28 @@ fun BangumiPlayerContent(
             ) {
                 AppButton(
                     onClick = {
-                        if (isFollowing) {
-                            showFollowStatusDialog = true
+                        if (isCourse) {
+                            if (isFollowing) {
+                                onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_UNFOLLOW)
+                            } else {
+                                onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_WATCHING)
+                            }
                         } else {
-                            onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_WATCHING)
+                            if (isFollowing) {
+                                showFollowStatusDialog = true
+                            } else {
+                                onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_WATCHING)
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f),
                     colors = if (isFollowing) {
                         ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     } else {
-                        ButtonDefaults.buttonColors(containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
+                        ButtonDefaults.buttonColors(
+                            containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+                            contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
+                        )
                     }
                 ) {
                     AppIcon(
@@ -189,7 +276,12 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
+                    val followLabel = if (isCourse) {
+                        if (isFollowing) "已收藏" else "收藏"
+                    } else {
+                        resolveBangumiFollowStatusLabel(detail.userStatus)
+                    }
+                    AppText(followLabel)
                 }
             }
         }
@@ -305,6 +397,7 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
                             EpisodeChipSelectable(
                                 episode = episode,
                                 isSelected = episode.id == currentEpisode.id,
+                                isCourse = isCourse,
                                 onClick = { onEpisodeClick(episode) }
                             )
                         }
@@ -321,6 +414,7 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
                             EpisodeChipSelectable(
                                 episode = episode,
                                 isSelected = episode.id == currentEpisode.id,
+                                isCourse = isCourse,
                                 onClick = { onEpisodeClick(episode) }
                             )
                         }
@@ -346,6 +440,41 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
+            }
+        }
+
+        // 课程概述图片 (PUGV brief images)
+        if (!detail.briefImgs.isNullOrEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                AppText(
+                    text = "课程概述",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    detail.briefImgs.forEach { briefImg ->
+                        if (briefImg.url.isNotBlank()) {
+                            val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
+                            AsyncImage(
+                                model = FormatUtils.fixImageUrl(briefImg.url),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(ratio)
+                                    .clip(AppShapes.container(ContainerLevel.Card)),
+                                contentScale = ContentScale.FillWidth
+                            )
+                        }
+                    }
+                }
             }
         }
                 }
@@ -446,22 +575,101 @@ contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
 fun EpisodeChipSelectable(
     episode: BangumiEpisode,
     isSelected: Boolean,
+    isCourse: Boolean = false,
     onClick: () -> Unit
 ) {
     val selectedColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
 
-    AppSurface(
-        modifier = Modifier.clickable(onClick = onClick),
-        shape = AppShapes.container(ContainerLevel.Chip),
-        color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        AppText(
-            text = episode.title.ifEmpty { "第${episode.id}话" },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
-            fontSize = 14.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
+    if (isCourse) {
+        AppSurface(
+            modifier = Modifier
+                .width(180.dp)
+                .height(68.dp)
+                .clickable(onClick = onClick),
+            shape = AppShapes.container(ContainerLevel.Card),
+            color = if (isSelected) {
+                selectedColors.backgroundColor
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    AppText(
+                        text = episode.title.ifEmpty { "第${episode.id}讲" },
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (episode.badge.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        val isPreview = episode.badge.contains("试看")
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = if (isPreview) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    },
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            AppText(
+                                text = episode.badge,
+                                fontSize = 10.sp,
+                                color = if (isPreview) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                },
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                if (episode.longTitle.isNotBlank()) {
+                    AppText(
+                        text = episode.longTitle,
+                        fontSize = 11.sp,
+                        color = if (isSelected) {
+                            selectedColors.contentColor.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    } else {
+        AppSurface(
+            modifier = Modifier.clickable(onClick = onClick),
+            shape = AppShapes.container(ContainerLevel.Chip),
+            color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            AppText(
+                text = episode.title.ifEmpty { "第${episode.id}话" },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+        }
     }
 }
 
