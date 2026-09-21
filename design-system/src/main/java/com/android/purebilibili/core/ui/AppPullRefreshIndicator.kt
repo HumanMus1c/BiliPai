@@ -66,9 +66,19 @@ fun AppPullRefreshLoadingIndicator(
             modifier = modifier,
         )
 
-        PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshLoadingIndicator(
-            modifier = modifier,
-        )
+        PresetPrimitiveRenderer.MIUIX_BRIDGED -> {
+            if (isRefreshing) {
+                AppPullRefreshLoadingIndicator(
+                    modifier = modifier,
+                )
+            } else if (state.distanceFraction > 0f) {
+                PullToRefreshDefaults.Indicator(
+                    state = state,
+                    isRefreshing = false,
+                    modifier = modifier,
+                )
+            }
+        }
     }
 }
 

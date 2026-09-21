@@ -146,10 +146,13 @@ internal fun resolveFullscreenVisibleBottomControlsGestureExclusionHeightDp(): I
 }
 
 internal fun Key.toFullscreenShortcutKey(): FullscreenShortcutKey = when (this) {
-    Key.Spacebar -> FullscreenShortcutKey.Space
+    Key.Spacebar, Key.K -> FullscreenShortcutKey.Space
     Key.DirectionLeft -> FullscreenShortcutKey.Left
     Key.DirectionRight -> FullscreenShortcutKey.Right
     Key.Escape -> FullscreenShortcutKey.Escape
+    Key.F, Key.Enter, Key.NumPadEnter -> FullscreenShortcutKey.KeyF
+    Key.M -> FullscreenShortcutKey.KeyM
+    Key.D -> FullscreenShortcutKey.KeyD
     else -> FullscreenShortcutKey.Other
 }
 
@@ -658,10 +661,26 @@ fun FullscreenPlayerOverlay(
                         lastInteractionTime = System.currentTimeMillis()
                         true
                     }
-                    FullscreenKeyboardAction.CloseTopLayer -> {
+                    FullscreenKeyboardAction.CloseTopLayer,
+                    FullscreenKeyboardAction.ToggleFullscreen -> {
                         closeTopLayerOrExit()
                         true
                     }
+                    FullscreenKeyboardAction.ToggleMute -> {
+                        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        if (currentVolume > 0) {
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, AudioManager.FLAG_SHOW_UI)
+                        } else {
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume / 3, AudioManager.FLAG_SHOW_UI)
+                        }
+                        true
+                    }
+                    FullscreenKeyboardAction.ToggleDanmaku -> {
+                        danmakuManager.isEnabled = !danmakuManager.isEnabled
+                        if (!danmakuManager.isEnabled) danmakuManager.clear()
+                        true
+                    }
+                    FullscreenKeyboardAction.ToggleLock -> false
                     FullscreenKeyboardAction.None -> false
                 }
             }

@@ -6,7 +6,6 @@ import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -374,6 +373,7 @@ private fun FrostedSideBarContent(
     onAccountSwitchClick: (() -> Unit)?,
 ) {
     val haptic = rememberHapticFeedback()
+    var lastHomeClickMs by remember { mutableLongStateOf(0L) }
     val blurIntensity = com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity()
     val backgroundAlpha = com.android.purebilibili.core.ui.blur.BlurStyles.getBackgroundAlpha(blurIntensity)
     val chromeBackground = AppSurfaceTokens.chromeBackground()
@@ -452,38 +452,40 @@ private fun FrostedSideBarContent(
                     label = "iconColor"
                 )
                 val triggerItemClick = {
-                    performHomeSideBarItemTap(
-                        haptic = haptic,
-                        onClick = { onItemClick(item) }
-                    )
+                    val nowMs = SystemClock.elapsedRealtime()
+                    when (
+                        resolveHomeSideBarClickAction(
+                            item = item,
+                            nowMs = nowMs,
+                            lastHomeClickMs = lastHomeClickMs,
+                        )
+                    ) {
+                        HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
+                            haptic(HapticType.MEDIUM)
+                            onHomeDoubleTap()
+                        }
+                        HomeSideBarClickAction.NAVIGATE -> {
+                            performHomeSideBarItemTap(
+                                haptic = haptic,
+                                onClick = { onItemClick(item) }
+                            )
+                        }
+                    }
+                    if (item == BottomNavItem.HOME) {
+                        lastHomeClickMs = nowMs
+                    }
                 }
 
                 Column(
                     modifier = Modifier
                         .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
                         .then(if (itemIndex == 0) firstItemModifier else Modifier)
-                        .then(
-                            if (item == BottomNavItem.HOME) {
-                                Modifier.pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = {
-                                            triggerItemClick()
-                                        },
-                                        onDoubleTap = {
-                                            haptic(HapticType.MEDIUM)
-                                            onHomeDoubleTap()
-                                        }
-                                    )
-                                }
-                            } else {
-                                Modifier.clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    triggerItemClick()
-                                }
-                            }
-                        ),
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            triggerItemClick()
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {

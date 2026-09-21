@@ -54,6 +54,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
 import com.android.purebilibili.feature.home.components.cards.LiveRoomCard
+import com.android.purebilibili.feature.home.components.cards.LocalHomeScrollTickProvider
 import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 
 import androidx.compose.ui.Alignment
@@ -415,9 +416,14 @@ internal fun HomeCategoryPageContent(
         }
     }
 
+    val homeScrollTickProvider = remember(gridState) {
+        { (gridState.firstVisibleItemIndex shl 16) + gridState.firstVisibleItemScrollOffset }
+    }
+
     Box(modifier = modifier) {
         CompositionLocalProvider(
-            LocalVideoCardSharedElementSourceRoute provides sourceRoute
+            LocalVideoCardSharedElementSourceRoute provides sourceRoute,
+            LocalHomeScrollTickProvider provides homeScrollTickProvider
         ) {
             FeedVerticalStaggeredGrid(
                 state = gridState,

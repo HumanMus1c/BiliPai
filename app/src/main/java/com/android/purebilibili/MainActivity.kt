@@ -457,8 +457,12 @@ internal fun resolveMainActivityPlaybackOverlayState(
     isMiniMode: Boolean,
     showAudioNowPlaying: Boolean = false
 ): MainActivityPlaybackOverlayState {
+    // The mini player owns the visible video surface whenever it is active.
+    // Guard this here as well as in the bar visibility policy so a one-frame
+    // state lag cannot hide both overlays at once.
+    val showAudioNowPlayingEffective = showAudioNowPlaying && !isMiniMode && !isInPipMode
     return MainActivityPlaybackOverlayState(
-        showMiniPlayerOverlay = !isInPipMode && !showAudioNowPlaying,
+        showMiniPlayerOverlay = !isInPipMode && (isMiniMode || !showAudioNowPlayingEffective),
         // 从首页小窗进入系统 PiP 时，原详情页已销毁，需要独立渲染面承接同一个 Player。
         showDedicatedPipPlayer = isInPipMode && isMiniMode
     )
@@ -1675,6 +1679,7 @@ open class MainActivity : AppCompatActivity() {
                         isInPipMode = isInPipMode,
                         hasCurrentItem = audioNowPlayingItem != null,
                         barEnabled = audioNowPlayingBarEnabled,
+                        isInMiniMode = miniPlayerManager.isMiniMode,
                         isVideoDetailDestination = isInVideoDetail
                     )
                     val playbackOverlayState = remember(

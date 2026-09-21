@@ -82,6 +82,7 @@ import com.android.purebilibili.feature.personal.PERSONAL_LIST_HORIZONTAL_COVER_
 internal fun resolveHistoryKindLabel(business: HistoryBusiness): String = when (business) {
     HistoryBusiness.ARCHIVE -> "视频"
     HistoryBusiness.PGC -> "番剧"
+    HistoryBusiness.CHEESE -> "课堂"
     HistoryBusiness.LIVE -> "直播"
     HistoryBusiness.ARTICLE -> "专栏"
     HistoryBusiness.UNKNOWN -> "未知"

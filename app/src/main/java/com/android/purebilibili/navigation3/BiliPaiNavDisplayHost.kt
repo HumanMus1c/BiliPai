@@ -122,6 +122,7 @@ internal fun BiliPaiNavDisplayHost(
     onBack: () -> Unit,
     onPrepareVideoCardSharedReturn: () -> Boolean = { false },
     onRelatedVideoDetailReturned: () -> Unit = {},
+    restorePreviousVideoSourceOnDetailReturn: Boolean = false,
     modifier: Modifier = Modifier,
     content: @Composable (BiliPaiNavKey) -> Unit,
 ) = BoxWithConstraints(modifier = modifier) {
@@ -169,6 +170,7 @@ internal fun BiliPaiNavDisplayHost(
         cardMorphAvailable,
         videoReturnAnimated,
         sourceMetadata.sourceRoute,
+        restorePreviousVideoSourceOnDetailReturn,
     ) {
         {
             val leavingKey = backStack.lastOrNull()
@@ -181,7 +183,7 @@ internal fun BiliPaiNavDisplayHost(
             val returningFromRelated = (leavingKey as? BiliPaiNavKey.VideoDetail)
                 ?.sourceRoute
                 ?.substringBefore('?')
-                ?.startsWith("video/") == true
+                ?.startsWith("video/") == true || restorePreviousVideoSourceOnDetailReturn
             latestOnBack()
             if (returningFromRelated) {
                 if (videoReturnAnimated) {

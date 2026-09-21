@@ -149,6 +149,7 @@ fun DynamicTopBarWithTabs(
     val headerBlurEnabled = appThemeConfig.headerBlurEnabled
     val progressiveTopBlurEnabled = appThemeConfig.progressiveTopBlurEnabled
     val isProgressiveBlurActive = progressiveTopBlurEnabled && !headerBlurEnabled
+    val isProgressiveFadeActive = appThemeConfig.progressiveTopFadeEnabled && !headerBlurEnabled
 
     BiliPaiImmersiveTopBar(
         backdrop = dockBackdrop,
@@ -156,6 +157,7 @@ fun DynamicTopBarWithTabs(
         headerBlurActive = headerBlurEnabled &&
             hazeState?.let { recoverableBlurEnabled(it) } == true &&
             !isProgressiveBlurActive,
+        fadeEnabled = isProgressiveFadeActive,
         surfaceColor = globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.background),
         // 不让顶栏的渐进模糊向下越界盖住 UP 头像或动态卡片。
         // 顶栏自身渐进模糊效果保持不变，仅收敛其向下延伸。

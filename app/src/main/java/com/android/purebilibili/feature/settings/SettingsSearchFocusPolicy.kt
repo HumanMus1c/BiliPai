@@ -70,8 +70,8 @@ internal fun resolveAppearanceSettingsScrollIndex(
 ): Int? {
     return when (focusId) {
         SettingsSearchFocusIds.APPEARANCE_THEME -> 0
-        SettingsSearchFocusIds.APPEARANCE_DISPLAY -> 2
-        SettingsSearchFocusIds.APPEARANCE_SPLASH -> 4
+        SettingsSearchFocusIds.APPEARANCE_DISPLAY -> 4
+        SettingsSearchFocusIds.APPEARANCE_SPLASH -> 6
         SettingsSearchFocusIds.APPEARANCE_PERSONALIZATION -> 6
         SettingsSearchFocusIds.APPEARANCE_TABLET -> null
         else -> null

@@ -92,7 +92,7 @@ fun BangumiDetailScreen(
         blurContentReady = detailState !is BangumiDetailState.Loading,
         topBar = {
             val isCourse = (detailState as? BangumiDetailState.Success)?.detail?.let {
-                it.seasonType == 10 || it.seasonTypeName == "课堂"
+                it.seasonType == 10
             } == true
             AppTopBar(
                 title = if (isCourse) "课程详情" else "番剧详情",
@@ -190,6 +190,11 @@ private fun TabletBangumiDetailContent(
 ) {
     // 状态管理
     val isFollowing = isBangumiFollowed(detail.userStatus)
+    val coverUrl = if (detail.seasonType == 10) {
+        FormatUtils.resolveVideoCoverUrl(detail.cover, useLowQuality = false)
+    } else {
+        FormatUtils.fixImageUrl(detail.cover)
+    }
     var showFollowStatusDialog by remember { mutableStateOf(false) }
     
     // 选集相关状态
@@ -242,7 +247,7 @@ private fun TabletBangumiDetailContent(
                     ) {
                         // Cover
                         AsyncImage(
-                            model = FormatUtils.fixImageUrl(detail.cover),
+                            model = coverUrl,
                             contentDescription = detail.title,
                             modifier = Modifier
                                 .width(140.dp)
@@ -291,7 +296,7 @@ private fun TabletBangumiDetailContent(
                             
                             // Stats
                             detail.stat?.let { stat ->
-                                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                                val isCourse = detail.seasonType == 10
                                 val followVerb = if (isCourse) "收藏" else "追番"
                                 AppText(
                                     text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
@@ -353,7 +358,7 @@ private fun TabletBangumiDetailContent(
 
                 // Action Buttons
                 item {
-                    val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                    val isCourse = detail.seasonType == 10
                     val targetEpisode = remember(detail) {
                         val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
                         detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
@@ -466,7 +471,10 @@ private fun TabletBangumiDetailContent(
                                 if (briefImg.url.isNotBlank()) {
                                     val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
                                     AsyncImage(
-                                        model = FormatUtils.fixImageUrl(briefImg.url),
+                                        model = FormatUtils.resolveVideoCoverUrl(
+                                            briefImg.url,
+                                            useLowQuality = false
+                                        ),
                                         contentDescription = null,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -673,7 +681,7 @@ private fun TabletBangumiDetailContent(
         )
     }
     if (showFollowStatusDialog) {
-        val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+        val isCourse = detail.seasonType == 10
         BangumiFollowStatusDialog(
             currentStatus = detail.userStatus?.followStatus ?: 0,
             isCourse = isCourse,
@@ -698,6 +706,11 @@ private fun MobileBangumiDetailContent(
 ) {
     //  [修复] 使用 detail 本身作为 key，这样当 ViewModel 更新 detail 时，状态会正确同步
     val isFollowing = isBangumiFollowed(detail.userStatus)
+    val coverUrl = if (detail.seasonType == 10) {
+        FormatUtils.resolveVideoCoverUrl(detail.cover, useLowQuality = false)
+    } else {
+        FormatUtils.fixImageUrl(detail.cover)
+    }
     var showFollowStatusDialog by remember { mutableStateOf(false) }
     
     //  [修复] 移除 LaunchedEffect，避免重置用户的点击状态
@@ -730,7 +743,7 @@ private fun MobileBangumiDetailContent(
                 ) {
                     // 封面背景（模糊）
                     AsyncImage(
-                        model = FormatUtils.fixImageUrl(detail.cover),
+                        model = coverUrl,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -760,7 +773,7 @@ private fun MobileBangumiDetailContent(
                     ) {
                         // 封面图
                         AsyncImage(
-                            model = FormatUtils.fixImageUrl(detail.cover),
+                            model = coverUrl,
                             contentDescription = detail.title,
                             modifier = Modifier
                                 .width(120.dp)
@@ -825,7 +838,7 @@ private fun MobileBangumiDetailContent(
                             
                             // 播放量
                             detail.stat?.let { stat ->
-                                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                                val isCourse = detail.seasonType == 10
                                 val followVerb = if (isCourse) "收藏" else "追番"
                                 AppText(
                                     text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
@@ -889,7 +902,7 @@ private fun MobileBangumiDetailContent(
             
             // 操作按钮
             item {
-                val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+                val isCourse = detail.seasonType == 10
                 val targetEpisode = remember(detail) {
                     val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
                     detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
@@ -1030,7 +1043,10 @@ private fun MobileBangumiDetailContent(
                             if (briefImg.url.isNotBlank()) {
                                 val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
                                 AsyncImage(
-                                    model = FormatUtils.fixImageUrl(briefImg.url),
+                                    model = FormatUtils.resolveVideoCoverUrl(
+                                        briefImg.url,
+                                        useLowQuality = false
+                                    ),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1322,7 +1338,7 @@ private fun MobileBangumiDetailContent(
             )
         }
         if (showFollowStatusDialog) {
-            val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+            val isCourse = detail.seasonType == 10
             BangumiFollowStatusDialog(
                 currentStatus = detail.userStatus?.followStatus ?: 0,
                 isCourse = isCourse,

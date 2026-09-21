@@ -3,6 +3,11 @@ package com.android.purebilibili.feature.search
 internal sealed interface SearchResultNavigationTarget {
     data class Video(val bvid: String) : SearchResultNavigationTarget
 
+    data class Course(
+        val seasonId: Long,
+        val epId: Long = 0L
+    ) : SearchResultNavigationTarget
+
     data class Web(
         val url: String,
         val title: String
@@ -19,6 +24,18 @@ internal sealed interface SearchResultNavigationTarget {
     data object None : SearchResultNavigationTarget
 }
 
+internal fun parseCourseSearchNavigationTarget(url: String): SearchResultNavigationTarget.Course? {
+    val ssMatch = Regex("""(?:ss|season/|season_id=)(\d+)""").find(url)?.groupValues?.get(1)?.toLongOrNull()
+    val epMatch = Regex("""(?:ep|ep/|ep_id=)(\d+)""").find(url)?.groupValues?.get(1)?.toLongOrNull()
+    if (ssMatch != null && ssMatch > 0L) {
+        return SearchResultNavigationTarget.Course(seasonId = ssMatch, epId = epMatch ?: 0L)
+    }
+    if (epMatch != null && epMatch > 0L) {
+        return SearchResultNavigationTarget.Course(seasonId = 0L, epId = epMatch)
+    }
+    return null
+}
+
 internal fun resolveVideoSearchNavigationTarget(
     bvid: String,
     contentType: String,
@@ -33,14 +50,19 @@ internal fun resolveVideoSearchNavigationTarget(
     val normalizedUrl = navigationUrl.trim()
     val isSupportedWebUrl = normalizedUrl.startsWith("https://") ||
         normalizedUrl.startsWith("http://")
-    return if (contentType.equals("ketang", ignoreCase = true) && isSupportedWebUrl) {
-        SearchResultNavigationTarget.Web(
-            url = normalizedUrl,
-            title = title.trim().ifBlank { "课堂" }
-        )
-    } else {
-        SearchResultNavigationTarget.None
+    if (contentType.equals("ketang", ignoreCase = true)) {
+        val courseTarget = parseCourseSearchNavigationTarget(normalizedUrl)
+        if (courseTarget != null) {
+            return courseTarget
+        }
+        if (isSupportedWebUrl) {
+            return SearchResultNavigationTarget.Web(
+                url = normalizedUrl,
+                title = title.trim().ifBlank { "课堂" }
+            )
+        }
     }
+    return SearchResultNavigationTarget.None
 }
 
 internal fun resolveLiveUserSearchNavigationTarget(

@@ -1,6 +1,5 @@
 package com.android.purebilibili.core.ui.components
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -190,7 +189,8 @@ fun <T> AppLiquidAwareTabRow(
                 onSelected = { index ->
                     options.getOrNull(index)?.let { onSelectionChange(it.value) }
                 },
-                modifier = Modifier.horizontalScroll(scrollState),
+                modifier = Modifier.liquidDockViewport(),
+                scrollState = scrollState,
                 enabled = enabled,
                 itemWidth = readableTabWidth,
                 height = height,

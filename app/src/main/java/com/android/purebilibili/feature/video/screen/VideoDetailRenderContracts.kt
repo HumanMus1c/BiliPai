@@ -53,7 +53,9 @@ internal data class VideoDetailPlaybackActions(
     val retryVideoNote: () -> Unit,
     val openRootCommentComposer: () -> Unit,
     val replyTo: (ReplyItem) -> Unit,
-    val markVideoNotInterested: () -> Unit
+    val markVideoNotInterested: () -> Unit,
+    val likeDanmaku: (Long) -> Unit = {},
+    val recallDanmaku: (Long) -> Unit = {}
 )
 
 @Immutable
@@ -83,7 +85,8 @@ internal data class VideoDetailCommentActions(
     val likeComment: (Long) -> Unit,
     val hateComment: (Long) -> Unit,
     val reportComment: (Long, Int) -> Unit,
-    val toggleTopComment: (ReplyItem) -> Unit
+    val toggleTopComment: (ReplyItem) -> Unit,
+    val checkCommentFraud: (ReplyItem) -> Unit
 )
 
 @Immutable

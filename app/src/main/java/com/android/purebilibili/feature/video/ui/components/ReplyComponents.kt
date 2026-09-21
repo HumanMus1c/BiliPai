@@ -460,6 +460,7 @@ internal enum class ReplyActionSheetAction {
     REPLY,
     BLOCK_USER,
     REPORT,
+    CHECK_FRAUD,
     TOGGLE_TOP,
     DELETE
 }
@@ -491,6 +492,9 @@ internal fun buildReplyActionSheetActions(
         if (canReport) {
             add(ReplyActionSheetAction.REPORT)
         }
+        if (canDelete) {
+            add(ReplyActionSheetAction.CHECK_FRAUD)
+        }
         if (!topActionLabel.isNullOrBlank()) {
             add(ReplyActionSheetAction.TOGGLE_TOP)
         }
@@ -514,6 +518,7 @@ private fun resolveReplyActionSheetLabel(
         ReplyActionSheetAction.REPLY -> "回复"
         ReplyActionSheetAction.BLOCK_USER -> "屏蔽用户"
         ReplyActionSheetAction.REPORT -> "举报"
+        ReplyActionSheetAction.CHECK_FRAUD -> "检测评论状态"
         ReplyActionSheetAction.TOGGLE_TOP -> topActionLabel.orEmpty()
         ReplyActionSheetAction.DELETE -> "删除"
     }
@@ -1105,6 +1110,7 @@ fun ReplyItemView(
     onReplyClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
+    onCheckFraudClick: (() -> Unit)? = null,
     onReportClick: ((Int) -> Unit)? = null,
     canToggleTop: Boolean = false,
     onToggleTopClick: (() -> Unit)? = null,
@@ -1338,6 +1344,9 @@ fun ReplyItemView(
             onToggleTop = {
                 onToggleTopClick?.invoke()
             },
+            onCheckFraud = {
+                onCheckFraudClick?.invoke()
+            },
             onDelete = {
                 onDeleteClick?.invoke()
             }
@@ -1557,7 +1566,7 @@ fun ReplyItemView(
                                                     Toast.makeText(context, "翻译结果为空", Toast.LENGTH_SHORT).show()
                                                 }
                                             }.onFailure { e ->
-                                                Toast.makeText(context, "翻译失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "${e.javaClass.simpleName}: ${e.message}", Toast.LENGTH_SHORT).show()
                                             }
                                             isTranslating = false
                                         }
@@ -2634,6 +2643,7 @@ internal fun ReplyActionSheet(
     onReply: () -> Unit,
     onBlockUser: () -> Unit = {},
     onReport: () -> Unit,
+    onCheckFraud: () -> Unit = {},
     onToggleTop: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -2680,6 +2690,7 @@ internal fun ReplyActionSheet(
                             ReplyActionSheetAction.REPLY -> onReply()
                             ReplyActionSheetAction.BLOCK_USER -> onBlockUser()
                             ReplyActionSheetAction.REPORT -> onReport()
+                            ReplyActionSheetAction.CHECK_FRAUD -> onCheckFraud()
                             ReplyActionSheetAction.TOGGLE_TOP -> onToggleTop()
                             ReplyActionSheetAction.DELETE -> onDelete()
                         }

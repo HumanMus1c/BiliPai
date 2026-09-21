@@ -4,6 +4,8 @@ package com.android.purebilibili.feature.list
 import android.app.Application
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.core.network.NetworkModule
@@ -58,17 +60,96 @@ abstract class BaseListViewModel(application: Application, private val pageTitle
     abstract suspend fun fetchItems(): List<VideoItem>
 }
 
-class LikedVideosViewModel(application: Application) : BaseListViewModel(application, "我的点赞") {
+class LikedVideosViewModel(
+    application: Application,
+    private val targetMid: Long? = null,
+    ownerName: String? = null,
+) : BaseListViewModel(
+    application,
+    ownerName?.takeIf { it.isNotBlank() }?.let { "$it 的点赞" }
+        ?: if (targetMid != null && targetMid > 0L) "最近点赞" else "我的点赞",
+) {
+    private val pageSize = 20
+    private var currentPage = 1
+    private var hasMore = true
+    private var isLoadingMore = false
+    private var resolvedMid: Long = targetMid ?: 0L
+
+    private val _isLoadingMoreState = MutableStateFlow(false)
+    val isLoadingMoreState = _isLoadingMoreState.asStateFlow()
+
+    private val _hasMoreState = MutableStateFlow(true)
+    val hasMoreState = _hasMoreState.asStateFlow()
+
     override suspend fun fetchItems(): List<VideoItem> {
-        val mid = NetworkModule.api.getNavInfo().data?.mid ?: 0L
+        val mid = targetMid?.takeIf { it > 0L } ?: NetworkModule.api.getNavInfo().data?.mid ?: 0L
         check(mid > 0L) { "请先登录" }
-        return com.android.purebilibili.data.repository.LikedVideosRepository
-            .getLikedVideos(mid)
+        resolvedMid = mid
+        val page = com.android.purebilibili.data.repository.LikedVideosRepository
+            .getLikedVideos(mid = mid, page = 1, pageSize = pageSize)
             .getOrThrow()
+        currentPage = 1
+        hasMore = page.items.size >= pageSize &&
+            (page.total <= 0 || page.items.size < page.total)
+        _hasMoreState.value = hasMore
+        return page.items
+    }
+
+    fun loadMore() {
+        if (!hasMore || isLoadingMore) return
+        val mid = if (resolvedMid > 0L) resolvedMid else (targetMid?.takeIf { it > 0L } ?: return)
+        isLoadingMore = true
+        _isLoadingMoreState.value = true
+        viewModelScope.launch {
+            try {
+                val nextPage = currentPage + 1
+                val page = com.android.purebilibili.data.repository.LikedVideosRepository
+                    .getLikedVideos(mid = mid, page = nextPage, pageSize = pageSize)
+                    .getOrThrow()
+                if (page.items.isEmpty()) {
+                    hasMore = false
+                    _hasMoreState.value = false
+                    return@launch
+                }
+                val currentItems = _uiState.value.items
+                val merged = (currentItems + page.items)
+                    .distinctBy { item -> item.bvid.ifBlank { item.id.toString() } }
+                if (merged.size == currentItems.size) {
+                    hasMore = false
+                    _hasMoreState.value = false
+                    return@launch
+                }
+                currentPage = nextPage
+                hasMore = page.items.size >= pageSize &&
+                    (page.total <= 0 || merged.size < page.total)
+                _hasMoreState.value = hasMore
+                _uiState.value = _uiState.value.copy(items = merged, error = null)
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(error = error.message ?: "加载更多失败")
+            } finally {
+                isLoadingMore = false
+                _isLoadingMoreState.value = false
+            }
+        }
     }
 
     init {
         loadData()
+    }
+}
+
+class LikedVideosViewModelFactory(
+    private val application: Application,
+    private val targetMid: Long,
+    private val ownerName: String,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return LikedVideosViewModel(
+            application = application,
+            targetMid = targetMid,
+            ownerName = ownerName,
+        ) as T
     }
 }
 

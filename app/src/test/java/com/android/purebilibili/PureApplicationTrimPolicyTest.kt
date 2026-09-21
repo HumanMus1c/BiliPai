@@ -17,6 +17,11 @@ class PureApplicationTrimPolicyTest {
                 ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
             )
         )
+        assertFalse(
+            PureApplicationRuntimeConfig.shouldClearImageMemoryCacheOnTrimLevel(
+                ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+            )
+        )
     }
 
     @Test

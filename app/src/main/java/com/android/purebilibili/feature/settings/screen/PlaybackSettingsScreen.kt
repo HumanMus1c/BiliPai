@@ -1178,7 +1178,11 @@ fun PlaybackSettingsContent(
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    PlaybackFullscreenGestureSettingsSection(context = context)
+                    PlaybackFullscreenGestureSettingsSection(
+                        context = context,
+                        state = state,
+                        viewModel = viewModel,
+                    )
                 }
             }
 
@@ -1194,6 +1198,12 @@ private fun PlaybackInteractionSettingsSection(
     viewModel: SettingsViewModel
 ) {
     val scope = rememberCoroutineScope()
+    val hideInteractiveCommandDanmaku by com.android.purebilibili.core.store.SettingsManager
+        .getDanmakuHideInteractiveCommands(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val danmakuCloudSyncEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getDanmakuCloudSyncEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     //  [新增] 自动播放下一个
     val autoPlayEnabled by com.android.purebilibili.core.store.SettingsManager
         .getAutoPlay(context).collectAsStateWithLifecycle(initialValue = true)
@@ -1384,6 +1394,39 @@ private fun PlaybackInteractionSettingsSection(
             )
             AppPreferenceDivider()
         }
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTIVE_COMMANDS),
+            title = "隐藏视频内互动提示",
+            subtitle = if (hideInteractiveCommandDanmaku) {
+                "已开启：不显示关注、一键三连、UP 提示和投票等视频内互动提示"
+            } else {
+                "关闭后：播放时仍显示关注、一键三连、UP 提示和投票等视频内互动提示"
+            },
+            checked = hideInteractiveCommandDanmaku,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setDanmakuHideInteractiveCommands(context, it)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSPink
+        )
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.DANMAKU_CLOUD_SYNC),
+            title = "同步弹幕设置到账号",
+            subtitle = com.android.purebilibili.feature.video.danmaku
+                .resolveDanmakuCloudSyncToggleSubtitle(danmakuCloudSyncEnabled),
+            checked = danmakuCloudSyncEnabled,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setDanmakuCloudSyncEnabled(context, it)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSPurple
+        )
+        AppPreferenceDivider()
 	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_DESCRIPTION),
             title = "默认展开视频简介",
@@ -1591,7 +1634,9 @@ private fun PlaybackInteractionSettingsSection(
 
 @Composable
 private fun PlaybackFullscreenGestureSettingsSection(
-    context: Context
+    context: Context,
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
 ) {
     val scope = rememberCoroutineScope()
     val portraitPlayerCollapseMode by com.android.purebilibili.core.store.SettingsManager
@@ -1683,12 +1728,6 @@ private fun PlaybackFullscreenGestureSettingsSection(
         .getSeekForwardSeconds(context).collectAsStateWithLifecycle(initialValue = 10)
     val seekBackwardSeconds by com.android.purebilibili.core.store.SettingsManager
         .getSeekBackwardSeconds(context).collectAsStateWithLifecycle(initialValue = 10)
-    val hideInteractiveCommandDanmaku by com.android.purebilibili.core.store.SettingsManager
-        .getDanmakuHideInteractiveCommands(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val danmakuCloudSyncEnabled by com.android.purebilibili.core.store.SettingsManager
-        .getDanmakuCloudSyncEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
     if (showSystemBrightnessPermissionDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showSystemBrightnessPermissionDialog = false },
@@ -1735,6 +1774,18 @@ private fun PlaybackFullscreenGestureSettingsSection(
         )
     }
     AppPreferenceGroup {
+        AppSliderDialogPreference(
+            title = "手势灵敏度",
+            subtitle = "调整快进、音量和亮度手势的响应速度",
+            value = state.gestureSensitivity,
+            onValueChange = viewModel::setGestureSensitivity,
+            valueRange = 0.5f..2.0f,
+            steps = 5,
+            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_gesture_24),
+            iconTint = rememberAdaptiveSemanticIconTint(com.android.purebilibili.core.theme.iOSOrange),
+            valueFormatter = { value -> "${(value * 100).toInt()}%" },
+        )
+        AppPreferenceDivider()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1808,39 +1859,6 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 )
             }
         }
-        AppPreferenceDivider()
-	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTIVE_COMMANDS),
-            title = "隐藏视频内互动提示",
-            subtitle = if (hideInteractiveCommandDanmaku) {
-                "已开启：不显示关注、一键三连、UP 提示和投票等视频内互动提示"
-            } else {
-                "关闭后：播放时仍显示关注、一键三连、UP 提示和投票等视频内互动提示"
-            },
-            checked = hideInteractiveCommandDanmaku,
-            onCheckedChange = {
-                scope.launch {
-                    com.android.purebilibili.core.store.SettingsManager
-                        .setDanmakuHideInteractiveCommands(context, it)
-                }
-            },
-            iconTint = com.android.purebilibili.core.theme.iOSPink
-        )
-        AppPreferenceDivider()
-	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.DANMAKU_CLOUD_SYNC),
-            title = "同步弹幕设置到账号",
-            subtitle = com.android.purebilibili.feature.video.danmaku
-                .resolveDanmakuCloudSyncToggleSubtitle(danmakuCloudSyncEnabled),
-            checked = danmakuCloudSyncEnabled,
-            onCheckedChange = {
-                scope.launch {
-                    com.android.purebilibili.core.store.SettingsManager
-                        .setDanmakuCloudSyncEnabled(context, it)
-                }
-            },
-            iconTint = com.android.purebilibili.core.theme.iOSPurple
-        )
         AppPreferenceDivider()
         SettingsSingleChoicePreference(
             title = "评论上滑缩小播放器：${portraitPlayerCollapseMode.label}",

@@ -47,7 +47,7 @@ class VideoPlayerOverlayPolicyTest {
             )
         )
         assertEquals(
-            500L,
+            1000L,
             resolveInlineVideoOverlayProgressPollingIntervalMs(
                 controlsVisible = false,
                 isPlaying = true,

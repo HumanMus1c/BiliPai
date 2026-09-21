@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import com.android.purebilibili.feature.settings.isSettingsSearchNavKey
 import com.android.purebilibili.feature.settings.isSettingsSubtreeNavKey
 import com.android.purebilibili.feature.settings.resolveSettingsCategoryNavKey
 import com.android.purebilibili.feature.settings.resolveSettingsTabletShellCategory
@@ -45,6 +46,7 @@ internal fun SettingsTabletRouteShell(
             onCategoryClick = onCategoryClick,
             onBack = onBack,
             onSearchOpen = onSearchOpen,
+            isSearchActive = isSettingsSearchNavKey(key),
             rightPane = {
                 Box(modifier = Modifier.fillMaxSize()) {
                     phoneContent()

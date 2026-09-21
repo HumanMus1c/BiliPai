@@ -53,7 +53,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -647,6 +646,7 @@ fun SearchScreen(
     onWebClick: (String, String) -> Unit,
     onUpClick: (Long) -> Unit,  //  点击UP主跳转到空间
     onBangumiClick: (Long) -> Unit, //  点击番剧/影视跳转详情
+    onCheeseClick: ((Long, Long) -> Unit)? = null, // 点击课堂跳转
     onLiveClick: (Long, String, String) -> Unit, // [新增] 直播点击
     onTopicClick: (Long) -> Unit,
     onArticleClick: (Long, String) -> Unit,
@@ -1717,6 +1717,13 @@ fun SearchScreen(
                                                     ) {
                                                         is SearchResultNavigationTarget.Video ->
                                                             onVideoClick(target.bvid, 0, video.pic)
+                                                        is SearchResultNavigationTarget.Course -> {
+                                                            if (onCheeseClick != null) {
+                                                                onCheeseClick(target.seasonId, target.epId)
+                                                            } else {
+                                                                onBangumiClick(target.seasonId)
+                                                            }
+                                                        }
                                                         is SearchResultNavigationTarget.Web ->
                                                             onWebClick(target.url, target.title)
                                                         else -> Unit
@@ -3162,12 +3169,11 @@ private fun SearchResultTypeTabRow(
                 }
             },
             modifier = if (useScrollableRail) {
-                Modifier
-                    .liquidDockViewport()
-                    .horizontalScroll(scrollState)
+                Modifier.liquidDockViewport()
             } else {
                 Modifier.fillMaxWidth()
             },
+            scrollState = scrollState.takeIf { useScrollableRail },
         )
     }
 }

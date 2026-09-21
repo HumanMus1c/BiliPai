@@ -174,7 +174,9 @@ internal fun resolveSpaceSecondarySwitchNonGlassMinTabWidthDp(): Int {
 }
 
 internal fun shouldScrollSpaceSecondarySwitchForNonGlass(itemCount: Int): Boolean {
-    return itemCount > 1
+    // A single item still needs the content-sized Miuix rail. Otherwise it
+    // falls back to the equal-width segmented control and fills the viewport.
+    return itemCount > 0
 }
 
 internal fun resolveSpaceSecondarySwitchAdaptiveItemWidthDp(

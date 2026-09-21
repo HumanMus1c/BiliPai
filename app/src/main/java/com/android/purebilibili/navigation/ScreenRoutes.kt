@@ -29,7 +29,15 @@ sealed class ScreenRoutes(val route: String) {
     }
     object History : ScreenRoutes("history")
     object Favorite : ScreenRoutes("favorite")
-    object LikedVideos : ScreenRoutes("liked_videos")
+    object LikedVideos : ScreenRoutes("liked_videos") {
+        fun createRoute(mid: Long = 0L, ownerName: String = ""): String {
+            return if (mid > 0L) {
+                "liked_videos?mid=$mid&ownerName=${encodeUrlComponentCompat(ownerName)}"
+            } else {
+                "liked_videos"
+            }
+        }
+    }
     object WatchLater : ScreenRoutes("watch_later")  //  [新增] 稍后再看
     object LiveList : ScreenRoutes("live_list")  //  [新增] 直播列表
     object LiveSearch : ScreenRoutes("live_search")
@@ -203,16 +211,19 @@ sealed class ScreenRoutes(val route: String) {
     }
     
     //  [新增] 番剧播放页面
-    object BangumiPlayer : ScreenRoutes("bangumi/play/{seasonId}/{epId}?resumePositionMs={resumePositionMs}") {
+    object BangumiPlayer : ScreenRoutes("bangumi/play/{seasonId}/{epId}?resumePositionMs={resumePositionMs}&preferredAid={preferredAid}&isCourse={isCourse}") {
         fun createRoute(
             seasonId: Long,
             epId: Long,
-            resumePositionMs: Long = 0L
+            resumePositionMs: Long = 0L,
+            preferredAid: Long = 0L,
+            isCourse: Boolean = false
         ): String {
             val route = "bangumi/play/$seasonId/$epId"
             val resumePosition = resumePositionMs.coerceAtLeast(0L)
-            return if (resumePosition > 0L) {
-                "$route?resumePositionMs=$resumePosition"
+            val aid = preferredAid.coerceAtLeast(0L)
+            return if (resumePosition > 0L || aid > 0L || isCourse) {
+                "$route?resumePositionMs=$resumePosition&preferredAid=$aid&isCourse=$isCourse"
             } else {
                 route
             }

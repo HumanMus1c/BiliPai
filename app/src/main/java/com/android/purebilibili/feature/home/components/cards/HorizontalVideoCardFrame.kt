@@ -41,6 +41,7 @@ internal fun HorizontalVideoCardFrame(
     trailingContent: (@Composable BoxScope.() -> Unit)? = null,
     coverWidth: Dp = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp,
     coverAspectRatio: Float = HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO,
+    stacked: Boolean = false,
     minimumHeight: Dp? = null,
     infoVerticalArrangement: Arrangement.Vertical = Arrangement.SpaceBetween,
 ) {
@@ -49,49 +50,90 @@ internal fun HorizontalVideoCardFrame(
     val resolvedMinimumHeight = minimumHeight ?: (coverWidth / effectiveAspectRatio)
 
     Box(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = resolvedMinimumHeight),
-            horizontalArrangement = Arrangement.spacedBy(
-                HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp
-            ),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = coverModifier
-                    .width(coverWidth)
-                    .aspectRatio(effectiveAspectRatio)
-                    .clip(AppShapes.mediaCover())
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                coverContent()
-                if (coverOverlayContent != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(coverOverlayModifier),
-                        content = coverOverlayContent,
-                    )
-                }
-            }
-
+        if (stacked) {
             Column(
-                modifier = infoModifier
-                    .weight(1f)
-                    .heightIn(min = resolvedMinimumHeight)
-                    .padding(
-                        top = AppSpacingTokens.Small,
-                        bottom = AppSpacingTokens.Small,
-                        end = if (trailingContent == null) {
-                            AppSpacingTokens.Small
-                        } else {
-                            AppSpacingTokens.TripleExtraLarge
-                        },
-                    ),
-                verticalArrangement = infoVerticalArrangement,
-                content = infoContent,
-            )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = AppSpacingTokens.Small),
+            ) {
+                Box(
+                    modifier = coverModifier
+                        .fillMaxWidth()
+                        .aspectRatio(effectiveAspectRatio)
+                        .clip(AppShapes.mediaCover())
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    coverContent()
+                    if (coverOverlayContent != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(coverOverlayModifier),
+                            content = coverOverlayContent,
+                        )
+                    }
+                }
+                Column(
+                    modifier = infoModifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = AppSpacingTokens.Small,
+                            bottom = AppSpacingTokens.Small,
+                            end = if (trailingContent == null) {
+                                AppSpacingTokens.Small
+                            } else {
+                                AppSpacingTokens.TripleExtraLarge
+                            },
+                        ),
+                    verticalArrangement = infoVerticalArrangement,
+                    content = infoContent,
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = resolvedMinimumHeight),
+                horizontalArrangement = Arrangement.spacedBy(
+                    HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp
+                ),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Box(
+                    modifier = coverModifier
+                        .width(coverWidth)
+                        .aspectRatio(effectiveAspectRatio)
+                        .clip(AppShapes.mediaCover())
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    coverContent()
+                    if (coverOverlayContent != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(coverOverlayModifier),
+                            content = coverOverlayContent,
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = infoModifier
+                        .weight(1f)
+                        .heightIn(min = resolvedMinimumHeight)
+                        .padding(
+                            top = AppSpacingTokens.Small,
+                            bottom = AppSpacingTokens.Small,
+                            end = if (trailingContent == null) {
+                                AppSpacingTokens.Small
+                            } else {
+                                AppSpacingTokens.TripleExtraLarge
+                            },
+                        ),
+                    verticalArrangement = infoVerticalArrangement,
+                    content = infoContent,
+                )
+            }
         }
 
         trailingContent?.invoke(this)

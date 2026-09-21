@@ -179,6 +179,13 @@ class DanmakuManager private constructor(
             config.isEnabled = value
             if (value) show() else hide()
         }
+
+    /**
+     * 获取当前视频已加载的弹幕列表（按时间顺序排序）。
+     */
+    fun getLoadedDanmakuList(): List<DanmakuItem> {
+        return sourceDanmakuList ?: cachedDanmakuList ?: emptyList()
+    }
     
     var opacity: Float
         get() = config.opacity

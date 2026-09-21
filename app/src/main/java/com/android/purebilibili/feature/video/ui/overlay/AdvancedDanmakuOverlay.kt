@@ -48,7 +48,11 @@ fun AdvancedDanmakuOverlay(
 ) {
     // 使用 produceState 每一帧更新播放进度
     // 并处理暂停/播放状态
-    val currentPosition by androidx.compose.runtime.produceState(initialValue = player.currentPosition, key1 = player) {
+    val currentPosition by androidx.compose.runtime.produceState(
+        initialValue = player.currentPosition,
+        key1 = player,
+        key2 = danmakuList
+    ) {
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 value = player.currentPosition
@@ -64,11 +68,25 @@ fun AdvancedDanmakuOverlay(
         
         try {
             while (isActive) {
-                if (player.isPlaying) {
-                    value = player.currentPosition
+                val isPlaying = player.isPlaying
+                val pos = player.currentPosition
+                if (isPlaying) {
+                    value = pos
                 }
-                // 约 60fps 更新
-                kotlinx.coroutines.delay(16)
+                if (!isPlaying) {
+                    kotlinx.coroutines.delay(500)
+                } else {
+                    val hasActiveDanmaku = danmakuList.any { danmaku ->
+                        pos >= danmaku.startTimeMs - 500 && pos <= danmaku.startTimeMs + danmaku.durationMs + 200
+                    }
+                    if (hasActiveDanmaku) {
+                        // 约 60fps 更新保证动画平滑
+                        kotlinx.coroutines.delay(16)
+                    } else {
+                        // 无活跃高级弹幕时降频到 250ms，大幅减少空转 CPU 消耗与无效重组
+                        kotlinx.coroutines.delay(250)
+                    }
+                }
             }
         } finally {
             player.removeListener(listener)

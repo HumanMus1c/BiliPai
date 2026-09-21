@@ -48,4 +48,32 @@ class SettingsTabletShellPolicyTest {
             heightDp = 700.dp,
         ),
     )
+
+    @Test
+    fun shouldRenderSettingsTabletDetailPane_returnsTrueForCategoryOrSearch() {
+        // Root settings with no category selected -> false (empty detail pane)
+        kotlin.test.assertFalse(
+            shouldRenderSettingsTabletDetailPane(selectedCategory = null, isSearchActive = false)
+        )
+        // Category selected -> true
+        assertTrue(
+            shouldRenderSettingsTabletDetailPane(
+                selectedCategory = SettingsRootCategory.APPEARANCE_THEME,
+                isSearchActive = false
+            )
+        )
+        // Search active -> true (even with no category selected)
+        assertTrue(
+            shouldRenderSettingsTabletDetailPane(selectedCategory = null, isSearchActive = true)
+        )
+    }
+
+    @Test
+    fun isSettingsSearchNavKey_matchesSettingsSearch() {
+        assertTrue(isSettingsSearchNavKey(com.android.purebilibili.navigation3.BiliPaiNavKey.SettingsSearch))
+        kotlin.test.assertFalse(isSettingsSearchNavKey(com.android.purebilibili.navigation3.BiliPaiNavKey.Settings))
+        kotlin.test.assertFalse(
+            isSettingsSearchNavKey(com.android.purebilibili.navigation3.BiliPaiNavKey.AppearanceSettings)
+        )
+    }
 }

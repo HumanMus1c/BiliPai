@@ -39,6 +39,7 @@ import com.android.purebilibili.core.ui.rememberAppDownloadIcon
 import com.android.purebilibili.core.ui.rememberAppFlipHorizontalIcon
 import com.android.purebilibili.core.ui.rememberAppFlipVerticalIcon
 import com.android.purebilibili.core.ui.rememberAppGestureTapIcon
+import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppHeadphonesIcon
 import com.android.purebilibili.core.ui.rememberAppSettingsIcon
 import com.android.purebilibili.core.ui.rememberAppMusicIcon
@@ -67,6 +68,8 @@ import com.android.purebilibili.core.ui.isMiuixNonGlassEnabled
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.settings.SettingsIconRole
+import com.android.purebilibili.feature.settings.rememberSettingsSemanticIcon
 
 private enum class VideoSettingsPanelTextRole {
     TITLE,
@@ -228,6 +231,7 @@ fun VideoSettingsPanel(
     // 视频控制
     onReload: () -> Unit,
     onDanmakuSettingsClick: () -> Unit = {},
+    onShowDanmakuPool: (() -> Unit)? = null,
     
     // 画质 - 内联选择
     currentQualityLabel: String,
@@ -359,6 +363,10 @@ fun VideoSettingsPanel(
         .getRememberLastPlaybackSpeed(context)
         .collectAsStateWithLifecycle(initialValue = false
         )
+    val progressPeakDanmakuEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getProgressPeakDanmakuEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false
+        )
     val timerIcon = rememberAppTimerIcon()
     val refreshIcon = rememberAppRefreshIcon()
     val photoIcon = rememberAppPhotoIcon()
@@ -455,6 +463,21 @@ fun VideoSettingsPanel(
                     onClick = onDanmakuSettingsClick,
                 )
                 SettingsDivider()
+            }
+
+            if (onShowDanmakuPool != null) {
+                item {
+                    SettingsItem(
+                        icon = rememberAppCommentIcon(),
+                        title = "查看弹幕列表",
+                        subtitle = "搜索、筛选并快速跳转弹幕",
+                        onClick = {
+                            onDismiss()
+                            onShowDanmakuPool()
+                        },
+                    )
+                    SettingsDivider()
+                }
             }
 
             item {
@@ -1354,6 +1377,23 @@ fun VideoSettingsPanel(
                         }
                     )
                 }
+                SettingsDivider()
+            }
+
+            item {
+                VideoSettingsSwitchRow(
+                    icon = rememberSettingsSemanticIcon(SettingsIconRole.PROGRESS_PEAK_DANMAKU),
+                    title = "高能进度条趋势",
+                    subtitle = if (progressPeakDanmakuEnabled) "在进度条上展示弹幕高能热度曲线" else "关闭高能弹幕热度曲线",
+                    checked = progressPeakDanmakuEnabled,
+                    onCheckedChange = { checked ->
+                        scope.launch {
+                            com.android.purebilibili.core.store.SettingsManager
+                                .setProgressPeakDanmakuEnabled(context, checked)
+                        }
+                    }
+                )
+                SettingsDivider()
             }
         }
     }

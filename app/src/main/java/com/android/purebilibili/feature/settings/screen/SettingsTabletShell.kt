@@ -62,6 +62,7 @@ import com.android.purebilibili.feature.settings.resolveSettingsRootCategoryOrde
 import com.android.purebilibili.feature.settings.resolveSettingsSiblingIconTints
 import com.android.purebilibili.feature.settings.resolveSettingsTabletLayoutPolicy
 import com.android.purebilibili.feature.settings.resolveSettingsVisualSpec
+import com.android.purebilibili.feature.settings.shouldRenderSettingsTabletDetailPane
 
 @Composable
 fun SettingsTabletShell(
@@ -70,6 +71,7 @@ fun SettingsTabletShell(
     onBack: () -> Unit,
     onSearchOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    isSearchActive: Boolean = false,
     rightPane: @Composable () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
@@ -78,8 +80,12 @@ fun SettingsTabletShell(
     }
     val categories = remember { resolveSettingsRootCategoryOrder() }
     val splitLayoutState = rememberAppSplitLayoutState()
-    LaunchedEffect(selectedCategory) {
-        if (selectedCategory != null) {
+    val isDetailActive = shouldRenderSettingsTabletDetailPane(
+        selectedCategory = selectedCategory,
+        isSearchActive = isSearchActive,
+    )
+    LaunchedEffect(isDetailActive) {
+        if (isDetailActive) {
             splitLayoutState.navigateTo(AppSplitPane.Secondary)
         }
     }
@@ -256,7 +262,7 @@ fun SettingsTabletShell(
             }
         },
         secondaryContent = {
-            if (useThreePaneLayout) {
+            if (useThreePaneLayout && !isSearchActive) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -276,10 +282,10 @@ fun SettingsTabletShell(
                     )
                 }
             } else {
-                if (selectedCategory == null) emptyDetailPane() else detailPane()
+                if (!isDetailActive) emptyDetailPane() else detailPane()
             }
         },
-        tertiaryContent = if (useThreePaneLayout) detailPane else null,
+        tertiaryContent = if (useThreePaneLayout && !isSearchActive) detailPane else null,
         state = splitLayoutState,
     )
 }

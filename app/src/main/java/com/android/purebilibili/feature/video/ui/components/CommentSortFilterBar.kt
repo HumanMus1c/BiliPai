@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +117,7 @@ fun CommentSortHeader(
     sortMode: CommentSortMode,
     onSortModeChange: (CommentSortMode) -> Unit,
     modifier: Modifier = Modifier,
+    onSearchClick: (() -> Unit)? = null,
 ) {
     val uiStyle = LocalAppUiStyle.current
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
@@ -134,39 +137,57 @@ fun CommentSortHeader(
             title = if (uiStyle == AppUiStyle.MIUIX) "评论" else "${sortMode.label}评论",
             count = count,
         )
-        if (uiStyle == AppUiStyle.MIUIX) {
-            Box(
-                modifier = Modifier.width((spec.itemWidthDp * sortModes.size).dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                AppThemeAdaptiveTabRow(
-                    options = sortModes.map { AppSegmentOption(it, it.label) },
-                    selectedValue = sortMode,
-                    onSelectionChange = onSortModeChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    height = spec.heightDp.dp,
-                    indicatorHeight = spec.indicatorHeightDp.dp,
-                    labelFontSize = 13.sp,
-                    compactMiuixWhenTwoOptions = true,
-                    dragSelectionEnabled = true,
-                    tapPressRefractionEnabled = false,
-                )
-            }
-        } else {
-            AppTextButton(
-                onClick = {
-                    onSortModeChange(
-                        if (sortMode == CommentSortMode.HOT) CommentSortMode.NEWEST else CommentSortMode.HOT
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (onSearchClick != null) {
+                AppIconButton(
+                    onClick = onSearchClick,
+                    modifier = Modifier.size(spec.heightDp.dp),
+                ) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "搜索评论",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                },
-            ) {
-                AppIcon(
-                    imageVector = Icons.AutoMirrored.Outlined.Sort,
-                    contentDescription = "切换评论排序",
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                AppText(text = sortMode.label, fontSize = 14.sp)
+                }
+            }
+            if (uiStyle == AppUiStyle.MIUIX) {
+                Box(
+                    modifier = Modifier.width((spec.itemWidthDp * sortModes.size).dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    AppThemeAdaptiveTabRow(
+                        options = sortModes.map { AppSegmentOption(it, it.label) },
+                        selectedValue = sortMode,
+                        onSelectionChange = onSortModeChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = spec.heightDp.dp,
+                        indicatorHeight = spec.indicatorHeightDp.dp,
+                        labelFontSize = 13.sp,
+                        compactMiuixWhenTwoOptions = true,
+                        dragSelectionEnabled = true,
+                        tapPressRefractionEnabled = false,
+                    )
+                }
+            } else {
+                AppTextButton(
+                    onClick = {
+                        onSortModeChange(
+                            if (sortMode == CommentSortMode.HOT) CommentSortMode.NEWEST else CommentSortMode.HOT
+                        )
+                    },
+                ) {
+                    AppIcon(
+                        imageVector = Icons.AutoMirrored.Outlined.Sort,
+                        contentDescription = "切换评论排序",
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    AppText(text = sortMode.label, fontSize = 14.sp)
+                }
             }
         }
     }
@@ -182,25 +203,45 @@ fun CommentSortFilterBar(
     modifier: Modifier = Modifier,
     miuixBackdrop: MiuixBackdrop? = null,
     liquidGlassEffectsEnabled: Boolean = true,
+    onSearchClick: (() -> Unit)? = null,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
     val spec = remember(sortModes.size) {
         resolveCommentSortSegmentedControlSpec(itemCount = sortModes.size)
     }
-    Box(
-        modifier = modifier.requiredWidth((spec.itemWidthDp * sortModes.size).dp),
-        contentAlignment = Alignment.CenterStart,
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        CommentSegmentedControl(
-            items = sortModes.map { it.label },
-            selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-            onScaleChange = { index ->
-                sortModes.getOrNull(index)?.let(onSortModeChange)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            miuixBackdrop = miuixBackdrop,
-            liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-        )
+        if (onSearchClick != null) {
+            AppIconButton(
+                onClick = onSearchClick,
+                modifier = Modifier.size(spec.heightDp.dp),
+            ) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "搜索评论",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Box(
+            modifier = Modifier.requiredWidth((spec.itemWidthDp * sortModes.size).dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            CommentSegmentedControl(
+                items = sortModes.map { it.label },
+                selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
+                onScaleChange = { index ->
+                    sortModes.getOrNull(index)?.let(onSortModeChange)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                miuixBackdrop = miuixBackdrop,
+                liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
+            )
+        }
     }
 }
 

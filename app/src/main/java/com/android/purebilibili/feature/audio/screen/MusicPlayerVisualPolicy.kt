@@ -123,7 +123,8 @@ internal fun resolveMusicCoverFlowShadowEntranceProgress(overallProgress: Float)
 
 internal const val APPLE_MUSIC_COVER_SCALE = 1.0f
 internal const val APPLE_MUSIC_COVER_SCALE_PLAYING = 1.0f
-internal const val APPLE_MUSIC_COVER_SCALE_PAUSED = 1.0f
+internal const val APPLE_MUSIC_COVER_SCALE_PAUSED = 0.88f
+internal const val APPLE_MUSIC_COVER_MOTION_STIFFNESS = 180f
 internal const val APPLE_MUSIC_COVER_CORNER_RADIUS_DP = 20
 internal const val APPLE_MUSIC_CARD_CORNER_RADIUS_DP = 18
 internal const val APPLE_MUSIC_COVER_SHADOW_ELEVATION_DP = 16
@@ -131,7 +132,18 @@ internal const val APPLE_MUSIC_COVER_SHADOW_ELEVATION_DP = 16
 internal fun resolveAppleMusicCoverScale(
     isPlaying: Boolean = true,
     reduceMotion: Boolean = false
-): Float = APPLE_MUSIC_COVER_SCALE
+): Float = if (isPlaying) {
+    APPLE_MUSIC_COVER_SCALE_PLAYING
+} else {
+    APPLE_MUSIC_COVER_SCALE_PAUSED
+}
+
+internal fun resolveAppleMusicCoverShadowElevation(
+    playbackProgress: Float,
+): Float {
+    val progress = playbackProgress.coerceIn(0f, 1f)
+    return APPLE_MUSIC_COVER_SHADOW_ELEVATION_DP * (0.72f + 0.28f * progress)
+}
 
 // Fade out beyond the second neighbor instead of leaving an opaque wall of covers.
 internal fun resolveMusicCoverFlowItemAlpha(distanceFromCenter: Float): Float {

@@ -336,6 +336,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     onSearchKeywordClick = onSearchKeywordClick,
                                     onReportComment = commentActions.reportComment,
                                     onToggleTopComment = commentActions.toggleTopComment,
+                                    onCheckCommentFraud = commentActions.checkCommentFraud,
                                 ),
                                 noteActions = VideoContentNoteActions(
                                     onRetryAiSummary = playbackActions.retryAiSummary,

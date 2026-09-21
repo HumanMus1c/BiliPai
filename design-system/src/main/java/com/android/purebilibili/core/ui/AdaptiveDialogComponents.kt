@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -77,19 +76,21 @@ internal fun AdaptiveAlertDialog(
     shape: Shape? = null,
     containerColor: Color? = null,
     tonalElevation: Dp? = null,
-    properties: DialogProperties = DialogProperties()
+    properties: DialogProperties = DialogProperties(),
+    contentLayout: AppContentDialogLayoutPolicy = resolveAppCompactContentDialogLayoutPolicy(),
 ) {
     val uiStyle = LocalAppUiStyle.current
-    when (resolveAppAlertDialogRenderer(
+    val themeConfig = LocalAppThemeConfig.current
+    val renderer = resolveAppAlertDialogRenderer(
         uiStyle = uiStyle,
-        nativeMiuixPopupsEnabled = LocalAppThemeConfig.current.nativeMiuixPopupsEnabled,
-    )) {
+        nativeMiuixPopupsEnabled = themeConfig.nativeMiuixPopupsEnabled,
+    )
+    when (renderer) {
         AppAlertDialogRenderer.LOCAL_DIALOG -> {
-            val contentLayout = resolveAppCompactContentDialogLayoutPolicy()
             val dialogShape = shape ?: AppShapes.resolveContainerShape(
                 level = ContainerLevel.Dialog,
                 uiStyle = uiStyle,
-                liquidGlassEnabled = !isMiuixNonGlassEnabled(),
+                liquidGlassEnabled = false,
             )
             val dialogColor = containerColor ?: AppSurfaceTokens.cardContainer()
             val dialogBody: @Composable () -> Unit = {
@@ -101,37 +102,21 @@ internal fun AdaptiveAlertDialog(
                     dismissButton = dismissButton,
                 )
             }
-            if (isMiuixNonGlassEnabled()) {
-                WindowDialog(
-                    show = true,
-                    onDismissRequest = onDismissRequest,
-                    maxWidth = contentLayout.maxWidthDp.dp,
+            WindowDialog(
+                show = true,
+                onDismissRequest = onDismissRequest,
+                maxWidth = contentLayout.maxWidthDp.dp,
+            ) {
+                AppPopupSurface(
+                    type = AppPopupSurfaceType.DIALOG,
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .widthIn(min = contentLayout.minWidthDp.dp, max = contentLayout.maxWidthDp.dp),
+                    shape = dialogShape,
+                    containerColor = dialogColor,
+                    tonalElevation = tonalElevation ?: 0.dp,
                 ) {
-                    Surface(
-                        modifier = modifier.fillMaxWidth(),
-                        shape = dialogShape,
-                        color = dialogColor,
-                        tonalElevation = tonalElevation ?: 0.dp,
-                    ) {
-                        dialogBody()
-                    }
-                }
-            } else {
-                Dialog(
-                    onDismissRequest = onDismissRequest,
-                    properties = resolveAppContentDialogProperties(
-                        base = properties,
-                        usePlatformDefaultWidth = contentLayout.usePlatformDefaultWidth,
-                    ),
-                ) {
-                    Surface(
-                        modifier = modifier.appContentDialogWidth(policy = contentLayout),
-                        shape = dialogShape,
-                        color = dialogColor,
-                        tonalElevation = tonalElevation ?: 6.dp,
-                    ) {
-                        dialogBody()
-                    }
+                    dialogBody()
                 }
             }
             return

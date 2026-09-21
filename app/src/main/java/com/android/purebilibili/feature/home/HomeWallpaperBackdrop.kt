@@ -27,6 +27,7 @@ import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionExposure
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
+import com.android.purebilibili.core.ui.wallpaper.isVideoWallpaper
 
 /**
  * App 根层全局壁纸。
@@ -111,13 +112,15 @@ internal fun HomeWallpaperBackdrop(
             configuration.screenWidthDp,
             configuration.screenHeightDp,
             density.density,
-            isDataSaverActive
+            isDataSaverActive,
+            appearance.blurRadiusDp
         ) {
             resolveHomeWallpaperDecodeSizePx(
                 screenWidthDp = configuration.screenWidthDp,
                 screenHeightDp = configuration.screenHeightDp,
                 density = density.density,
-                isDataSaverActive = isDataSaverActive
+                isDataSaverActive = isDataSaverActive,
+                blurRadiusDp = appearance.blurRadiusDp
             )
         }
         val imageRequest = remember(context, wallpaperUri, decodeSize) {
@@ -170,4 +173,17 @@ internal fun HomeWallpaperBackdrop(
                 )
         )
     }
+}
+
+/**
+ * The first wallpaper glass path only samples stable image content. Animated media keeps the
+ * existing lightweight tint until a frame-aware source is available.
+ */
+internal fun isStaticHomeWallpaperUri(uri: String): Boolean {
+    val extension = uri
+        .substringBefore('?')
+        .substringBefore('#')
+        .substringAfterLast('.', missingDelimiterValue = "")
+        .lowercase()
+    return !isVideoWallpaper(uri) && extension !in setOf("gif", "webp")
 }

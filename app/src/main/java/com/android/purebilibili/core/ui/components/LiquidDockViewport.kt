@@ -11,16 +11,19 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 
 /**
- * Non-glass rails keep their conventional rounded viewport. Liquid-glass rails must remain
- * unclipped so the moving indicator can bloom and disperse beyond both vertical dock edges.
- * The liquid shell and indicator already draw their own capsule shapes.
+ * Keep the visible dock viewport rounded for every chrome mode.
+ *
+ * A long liquid rail is wider than the viewport that hosts it. Its shared renderer draws a
+ * fixed capsule behind the moving content; this clip keeps labels and the indicator inside
+ * that visible capsule instead of leaking across its rounded ends.
  */
 @Composable
 internal fun Modifier.liquidDockViewport(): Modifier {
     val uiStyle = LocalAppUiStyle.current
     val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
-    if (liquidGlassEnabled) return this
-    val shape = if (uiStyle == AppUiStyle.MIUIX) {
+    val shape = if (liquidGlassEnabled) {
+        CircleShape
+    } else if (uiStyle == AppUiStyle.MIUIX) {
         AppShapes.container(ContainerLevel.Card)
     } else {
         CircleShape

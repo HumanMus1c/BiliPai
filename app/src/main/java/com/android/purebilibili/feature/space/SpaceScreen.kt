@@ -134,6 +134,8 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Scale
 import com.android.purebilibili.R
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
@@ -172,7 +174,6 @@ import com.android.purebilibili.feature.home.components.cards.HorizontalVideoCar
 import com.android.purebilibili.feature.home.components.cards.HorizontalVideoStatRow
 import com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -250,6 +251,7 @@ fun SpaceScreen(
     onDynamicDetailClick: (String) -> Unit = {},
     onArticleClick: (Long, String) -> Unit = { _, _ -> },
     onViewAllClick: (String, Long, Long, String, String) -> Unit = { _, _, _, _, _ -> },
+    onLikedVideosClick: ((Long, String) -> Unit)? = null,
     onMessageClick: (Long, String, String) -> Unit = { _, _, _ -> },
     onFollowingClick: (Long) -> Unit = {},
     onFansClick: (Long) -> Unit = {},
@@ -684,6 +686,7 @@ fun SpaceScreen(
                             onDynamicDetailClick = onDynamicDetailClick,
                             onArticleClick = onArticleClick,
                             onViewAllClick = onViewAllClick,
+                            onLikedVideosClick = onLikedVideosClick,
                             onMainTabSelected = viewModel::selectMainTab,
                             onContributionTabSelected = viewModel::selectContributionTab,
                             onCategorySelected = viewModel::selectCategory,
@@ -1047,6 +1050,7 @@ private fun SpaceContent(
     onDynamicDetailClick: (String) -> Unit,
     onArticleClick: (Long, String) -> Unit,
     onViewAllClick: (String, Long, Long, String, String) -> Unit,
+    onLikedVideosClick: ((Long, String) -> Unit)? = null,
     onMainTabSelected: (SpaceMainTab) -> Unit,
     onContributionTabSelected: (String) -> Unit,
     onCategorySelected: (Int) -> Unit,
@@ -1547,7 +1551,20 @@ private fun SpaceContent(
                         SpaceSectionHeader(
                             title = "最近点赞的视频",
                             count = state.homeLikeVideoCount.takeIf { it > 0 } ?: state.homeLikeVideos.size,
-                            actionLabel = null
+                            actionLabel = "查看全部",
+                            onActionClick = {
+                                if (onLikedVideosClick != null) {
+                                    onLikedVideosClick(state.userInfo.mid, state.userInfo.name)
+                                } else {
+                                    onViewAllClick(
+                                        "like",
+                                        0L,
+                                        state.userInfo.mid,
+                                        "最近点赞的视频",
+                                        state.userInfo.name
+                                    )
+                                }
+                            }
                         )
                     }
                     itemsIndexed(
@@ -1770,7 +1787,14 @@ private fun SpaceContent(
                                             onWebClick(url, title)
                                         }
                                     },
-                                    onCourseClick = onWebClick,
+                                    onCourseClick = { url, title ->
+                                        val courseNav = com.android.purebilibili.feature.bangumi.policy.parseCourseNavigation(url)
+                                        if (courseNav != null && courseNav.seasonId > 0L) {
+                                            onCheeseClick(courseNav.seasonId)
+                                        } else {
+                                            onWebClick(url, title)
+                                        }
+                                    },
                                     onArticleClick = onArticleClick,
                                     onDynamicDetailClick = onDynamicDetailClick,
                                 ),
@@ -2985,10 +3009,10 @@ private fun SpaceContentTabs(
             totalAudios = state.totalAudios
         )
     }
-    val secondarySwitchItems = remember(displayedContributionTabs, hasCheese) {
+    val secondarySwitchItems = remember(displayedContributionTabs) {
         resolveSpaceSecondarySwitchItems(
             contributionTabs = displayedContributionTabs,
-            hasCheese = hasCheese,
+            hasCheese = false,
         )
     }
     val selectedSecondarySwitchId = remember(
@@ -3035,111 +3059,29 @@ private fun SpaceSecondarySwitchRow(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = null)
-    val liquidGlassEnabled = homeSettings?.androidNativeLiquidGlassEnabled
-        ?: com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
     val spec = remember(items, selectedId) {
         resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
     }
-    val scrollState = rememberScrollState()
-    val density = LocalDensity.current
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = spec.horizontalPaddingDp.dp, vertical = 6.dp),
     ) {
-        val containerHorizontalPaddingDp = AppSpacingTokens.ExtraSmall.value.roundToInt()
-        val preferredItemWidthDp = spec.itemWidthDp ?: 104
-        val useScrollableRail = shouldScrollSpaceSecondarySwitch(
-            itemCount = items.size,
-            itemWidthDp = preferredItemWidthDp,
-            viewportWidthDp = maxWidth.value.roundToInt(),
-            containerHorizontalPaddingDp = containerHorizontalPaddingDp
-        ) || items.size > 3 || items.any { it.title.length > 4 }
-        // Keep three slots visible in the viewport even when later library entries
-        // make the rail scrollable; long contribution titles then use the same
-        // compact width as the legacy three-tab dock.
-        val itemWidthDp = resolveSpaceSecondarySwitchAdaptiveItemWidthDp(
-            preferredItemWidthDp = preferredItemWidthDp,
-            itemCount = items.size,
-            viewportWidthDp = maxWidth.value.roundToInt(),
-            containerHorizontalPaddingDp = containerHorizontalPaddingDp
+        AppNativeTabRow(
+            options = items.map { AppSegmentOption(it.id, it.title) },
+            selectedValue = selectedId,
+            onSelectionChange = onSelect,
+            modifier = Modifier.fillMaxWidth(),
+            scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
+            minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
+            compactMiuixWhenTwoOptions = false,
+            // Let the shared renderer size each Miuix item from its own label;
+            // long labels remain fully visible inside the horizontal rail.
+            allowLabelOverflow = true,
+            miuixNonGlassItemWidthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
+            contentSizedMiuixNonGlassItems = true,
+            contentSizedMiuixNonGlassMaxItemWidth = Dp.Infinity,
         )
-        // Keep the viewport-derived cap even when the rail scrolls. The preferred
-        // width is estimated from the longest title, so restoring it here would
-        // make every category as wide as that one outlier and needlessly lengthen
-        // the whole rail. Individual long labels already ellipsize inside the slot.
-        val itemWidth = itemWidthDp.dp
-        val viewportWidthPx = with(density) { maxWidth.toPx() }
-        val itemWidthPx = with(density) { itemWidth.toPx() }
-        val containerHorizontalPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() }
-        val dragFollowEdgePaddingPx = with(density) { 12.dp.toPx() }
-
-        KeepScrollableTabSelectionVisible(
-            scrollState = scrollState,
-            selectedIndex = if (useScrollableRail) spec.selectedIndex else 0,
-            itemWidthPx = itemWidthPx,
-            viewportWidthPx = viewportWidthPx,
-            contentPaddingPx = containerHorizontalPaddingPx,
-        )
-
-        if (liquidGlassEnabled) {
-            BottomBarLiquidSegmentedControl(
-                items = items.map { it.title },
-                selectedIndex = spec.selectedIndex,
-                onSelected = { index -> items.getOrNull(index)?.id?.let(onSelect) },
-                itemWidth = itemWidth.takeIf { useScrollableRail || items.size <= 2 },
-                height = spec.heightDp.dp,
-                indicatorHeight = spec.indicatorHeightDp.dp,
-                labelFontSize = 14.sp,
-                liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
-                dragSelectionEnabled = spec.dragSelectionEnabled || useScrollableRail,
-                onIndicatorPositionChanged = { position ->
-                    if (useScrollableRail) {
-                        scrollState.dispatchRawDelta(
-                            resolveSpaceSecondarySwitchDragScrollDeltaPx(
-                                indicatorPosition = position,
-                                itemWidthPx = itemWidthPx,
-                                viewportWidthPx = viewportWidthPx,
-                                currentScrollPx = scrollState.value.toFloat(),
-                                containerHorizontalPaddingPx = containerHorizontalPaddingPx,
-                                edgePaddingPx = dragFollowEdgePaddingPx
-                            )
-                        )
-                    }
-                },
-                tapPressRefractionEnabled = !useScrollableRail,
-                modifier = if (useScrollableRail) {
-                    Modifier
-                        .liquidDockViewport()
-                        .horizontalScroll(scrollState)
-                } else if (items.size <= 2) {
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentWidth(Alignment.CenterHorizontally)
-                } else {
-                    Modifier.fillMaxWidth()
-                }
-            )
-        } else {
-            AppNativeTabRow(
-                options = items.map { AppSegmentOption(it.id, it.title) },
-                selectedValue = selectedId,
-                onSelectionChange = onSelect,
-                modifier = Modifier.fillMaxWidth(),
-                scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
-                minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
-                compactMiuixWhenTwoOptions = false,
-                // Let the shared renderer derive a readable minimum from the longest
-                // category title; only titles that exceed that estimate are ellipsized.
-                allowLabelOverflow = true,
-                miuixNonGlassItemWidthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
-                contentSizedMiuixNonGlassItems = true,
-            )
-        }
     }
 }
 
@@ -4455,7 +4397,7 @@ private fun SpaceCheeseCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         AppText(
-                            text = item.marks.joinToString("·"),
+                            text = item.marks.joinToString(" · "),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium

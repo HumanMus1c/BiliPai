@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -178,6 +179,7 @@ fun RelatedVideoItem(
     isFollowed: Boolean = false,
     showUpBadge: Boolean = true,
     coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
+    stacked: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onMoreClick: (() -> Unit)? = null
@@ -254,7 +256,11 @@ fun RelatedVideoItem(
                     density = densityValue,
                     sourceCornerDp = cardCornerRadiusDp,
                     coverBounds = sourceCoverBounds,
-                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceLayout = if (stacked) {
+                        VideoCardSourceLayout.STACKED
+                    } else {
+                        VideoCardSourceLayout.SIDE_BY_SIDE
+                    },
                     sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
                         title = video.title,
                         ownerName = video.owner.name,
@@ -312,6 +318,7 @@ fun RelatedVideoItem(
     ) {
         HorizontalVideoCardFrame(
             coverAspectRatio = coverAspectRatio,
+            stacked = stacked,
             coverModifier = Modifier.onGloballyPositioned { coordinates ->
                 coverCoordinatesRef.value = coordinates
             },
@@ -465,6 +472,7 @@ fun RelatedVideoItem(
 internal fun RelatedVideoGridRow(
     videos: List<RelatedVideo>,
     cardLayout: HomeFeedCardLayout,
+    cardPresentation: RelatedVideoCardLayout? = null,
     followingMids: Set<Long> = emptySet(),
     showUpBadge: Boolean = true,
     onVideoClick: (RelatedVideo) -> Unit,
@@ -478,21 +486,26 @@ internal fun RelatedVideoGridRow(
     }
     var isBlockingCreator by remember { mutableStateOf(false) }
     val blockedUpRepository = remember(context) { BlockedUpRepository(context) }
-    Row(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = cardLayout.outerPaddingDp.dp, vertical = 2.dp)
     ) {
+        val resolvedCardPresentation = cardPresentation
+            ?: resolveRelatedVideoCardLayout(maxWidth.value.toInt())
+        Row(modifier = Modifier.fillMaxWidth()) {
         videos.firstOrNull()?.let { video ->
             RelatedVideoItem(
                 video = video,
                 isFollowed = video.owner.mid in followingMids,
                 showUpBadge = showUpBadge,
                 coverAspectRatio = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
+                stacked = resolvedCardPresentation == RelatedVideoCardLayout.STACKED,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onVideoClick(video) },
                 onMoreClick = { actionVideo = video }
             )
+        }
         }
     }
 

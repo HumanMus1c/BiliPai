@@ -222,6 +222,7 @@ fun CommonListScreen(
     onCollectionClick: ((FavoriteCollectionRoute) -> Unit)? = null,
     onFavoriteFolderClick: ((Long, Long, String, String) -> Unit)? = null,
     onFavoriteBangumiClick: (Long) -> Unit = {},
+    onFavoriteCheeseClick: ((Long) -> Unit)? = null,
     onFavoriteArticleClick: (Long, String) -> Unit = { _, _ -> },
     onFavoriteTopicClick: (Long) -> Unit = {},
     onFavoriteWebClick: (String, String) -> Unit = { _, _ -> },
@@ -284,10 +285,15 @@ fun CommonListScreen(
     val personalListColumns = columns
     val spacing = rememberResponsiveSpacing()
 
-    //  [修复] 分页支持：收藏 + 历史记录
+    //  [修复] 分页支持：收藏 + 历史记录 + 用户最近点赞
     val favoriteViewModel = viewModel as? FavoriteViewModel
     val historyViewModel = viewModel as? HistoryViewModel
+    val likedVideosViewModel = viewModel as? LikedVideosViewModel
     val seasonSeriesDetailViewModel = viewModel as? SeasonSeriesDetailViewModel
+    val likedVideosHasMore by likedVideosViewModel?.hasMoreState?.collectAsStateWithLifecycle()
+        ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val likedVideosIsLoadingMore by likedVideosViewModel?.isLoadingMoreState?.collectAsStateWithLifecycle()
+        ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val historyDeleteSession by historyViewModel?.deleteSession?.collectAsStateWithLifecycle()
         ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<HistoryDeleteSession?>(null) }
     val isHistoryPaused by historyViewModel?.isHistoryPausedState?.collectAsStateWithLifecycle()
@@ -435,6 +441,7 @@ fun CommonListScreen(
         isSubscribedBrowse = isSubscribedBrowse,
         hasFavoriteViewModel = favoriteViewModel != null,
         hasHistoryViewModel = historyViewModel != null,
+        hasLikedVideosViewModel = likedVideosViewModel != null,
         hasSeasonSeriesDetailViewModel = seasonSeriesDetailViewModel != null
     )
     val shouldUseFavoritePlaybackQueue = shouldUseFavoriteExternalPlaylist(
@@ -1043,6 +1050,7 @@ fun CommonListScreen(
                         onArticleClick = onFavoriteArticleClick,
                         onTopicClick = onFavoriteTopicClick,
                         onWebClick = onFavoriteWebClick,
+                        onCheeseClick = onFavoriteCheeseClick,
                     )
                 } else if (isSubscribedBrowse) {
                     val favoriteVm = requireNotNull(favoriteViewModel)
@@ -1298,13 +1306,12 @@ fun CommonListScreen(
                                 }
                             },
                             onCollectionClick = onCollectionClick,
-                            onRetry = favoriteViewModel?.let { favoriteVm ->
-                                { favoriteVm.loadData() }
-                            },
+                            onRetry = { viewModel.loadData() },
                             onLoadMore = {
                                 when (loadMoreOwner) {
                                     CommonListLoadMoreOwner.FAVORITE -> favoriteViewModel?.loadMore()
                                     CommonListLoadMoreOwner.HISTORY -> historyViewModel?.loadMore()
+                                    CommonListLoadMoreOwner.LIKED_VIDEOS -> likedVideosViewModel?.loadMore()
                                     CommonListLoadMoreOwner.SEASON_SERIES_DETAIL -> seasonSeriesDetailViewModel?.loadMore()
                                     CommonListLoadMoreOwner.NONE -> Unit
                                 }
@@ -1317,9 +1324,9 @@ fun CommonListScreen(
                             } else {
                                 null
                             },
-                            searchPaginationFallbackEnabled = false,
-                            hasMoreSearchResults = false,
-                            isLoadingMoreSearchResults = false,
+                            searchPaginationFallbackEnabled = likedVideosViewModel != null,
+                            hasMoreSearchResults = likedVideosHasMore,
+                            isLoadingMoreSearchResults = likedVideosIsLoadingMore,
                             historyDeleteSession = null,
                             historyBatchMode = false,
                             historySelectedKeys = emptySet(),

@@ -183,6 +183,15 @@ class VideoActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = true)
             val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = false)
+            val progressiveTopBlurEnabled by SettingsManager
+                .getProgressiveTopBlurEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val progressiveTopFadeEnabled by SettingsManager
+                .getProgressiveTopFadeEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val cardDynamicTintEnabled by SettingsManager
+                .getHomeCardDynamicTintEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
             val hapticFeedbackEnabled by SettingsManager
                 .getHapticFeedbackEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
@@ -202,6 +211,8 @@ class VideoActivity : ComponentActivity() {
                 blurIntensity,
                 headerBlurEnabled,
                 bottomBarBlurEnabled,
+                progressiveTopBlurEnabled,
+                progressiveTopFadeEnabled,
                 hapticFeedbackEnabled,
                 globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
@@ -212,6 +223,8 @@ class VideoActivity : ComponentActivity() {
                     blurIntensity = blurIntensity,
                     headerBlurEnabled = headerBlurEnabled,
                     bottomBarBlurEnabled = bottomBarBlurEnabled,
+                    progressiveTopBlurEnabled = progressiveTopBlurEnabled,
+                    progressiveTopFadeEnabled = progressiveTopFadeEnabled,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
                     globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
@@ -234,6 +247,8 @@ class VideoActivity : ComponentActivity() {
                     LocalWindowSizeClass provides windowSizeClass,
                     LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
                     LocalVideoTransitionAdaptiveInfo provides videoTransitionAdaptiveInfo,
+                    com.android.purebilibili.feature.home.components.cards.LocalHomeCardDynamicTintEnabled provides
+                        cardDynamicTintEnabled,
                 ) {
                 // VideoDetailScreen handles its own UI state and player initialization
                 com.android.purebilibili.feature.video.screen.VideoDetailScreen(

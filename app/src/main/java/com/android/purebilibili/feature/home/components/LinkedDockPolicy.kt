@@ -131,7 +131,7 @@ internal fun resolveLinkedDockGeometry(
         searchWidth = searchWidth,
         audioWidth = if (hasAudio) (width + (compactAudioWidth - width) * merge).roundToInt() else 0,
         audioX = ((button + playbackGap) * merge).roundToInt(),
-        audioY = (top * merge).roundToInt(),
+        audioY = 0,
         top = top,
         height = top + barHeight,
     )

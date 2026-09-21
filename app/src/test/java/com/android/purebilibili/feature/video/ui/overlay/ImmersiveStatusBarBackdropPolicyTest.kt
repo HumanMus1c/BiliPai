@@ -20,8 +20,8 @@ class ImmersiveStatusBarBackdropPolicyTest {
     }
 
     @Test
-    fun `ambient capture refreshes often with a small frame budget`() {
-        assertTrue(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS <= 67L)
+    fun `ambient capture balances visual freshness with low cpu and battery overhead`() {
+        assertTrue(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS >= 500L)
         assertEquals(96, VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX)
         assertEquals(54, VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX)
     }

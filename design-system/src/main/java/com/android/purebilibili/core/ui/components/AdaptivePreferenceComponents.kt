@@ -1585,6 +1585,7 @@ fun AdaptiveSearchFieldRenderer(
     autoFocusEnabled: Boolean = forceExpandedInput,
     focusRequester: FocusRequester? = null,
     interactionSource: MutableInteractionSource? = null,
+    leadingIconHorizontalOffset: Dp = 0.dp,
 ) {
     val uiStyle = LocalAppUiStyle.current
     val colorScheme = MaterialTheme.colorScheme
@@ -1611,7 +1612,7 @@ fun AdaptiveSearchFieldRenderer(
             }
         }
         val focusModifier = Modifier.focusRequester(resolvedFocusRequester)
-        if (shouldUseNativeMiuixSearchBar(uiStyle)) {
+        if (shouldUseNativeMiuixSearchBar(uiStyle) && leadingIconHorizontalOffset == 0.dp) {
             MiuixAdaptiveSearchBar(
                 query = query,
                 onQueryChange = onQueryChange,
@@ -1758,7 +1759,7 @@ fun AdaptiveSearchFieldRenderer(
         return
     }
 
-    if (shouldUseNativeMiuixSearchBar(uiStyle)) {
+    if (shouldUseNativeMiuixSearchBar(uiStyle) && leadingIconHorizontalOffset == 0.dp) {
         MiuixAdaptiveSearchBar(
             query = query,
             onQueryChange = onQueryChange,
@@ -1796,7 +1797,9 @@ fun AdaptiveSearchFieldRenderer(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier
+                        .padding(start = leadingIconHorizontalOffset)
+                        .size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.weight(1f)) {

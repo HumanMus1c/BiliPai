@@ -24,15 +24,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppCard
-import com.android.purebilibili.core.ui.components.AppCardDefaults
-import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import java.io.File
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppPopupSurface
+import com.android.purebilibili.core.ui.AppPopupSurfaceType
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
@@ -75,14 +74,13 @@ fun DirectorySelectionDialog(
             usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
         ),
     ) {
-        AppCard(
+        AppPopupSurface(
+            type = AppPopupSurfaceType.DIALOG,
             modifier = Modifier
                 .appContentDialogWidth(policy = dialogLayout, wrapHeight = false)
                 .height(500.dp),
-            shape = AppCardShape.Semantic(ContainerLevel.Card),
-            colors = AppCardDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            shape = AppShapes.container(ContainerLevel.Card),
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // 1. 顶部标题和当前路径

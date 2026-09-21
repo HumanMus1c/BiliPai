@@ -33,6 +33,7 @@ internal fun resolveHistoryRenderKey(item: HistoryItem): String {
     val fallbackId = when (item.business) {
         HistoryBusiness.ARCHIVE -> item.videoItem.id
         HistoryBusiness.PGC -> item.seasonId.takeIf { it > 0L } ?: item.videoItem.id
+        HistoryBusiness.CHEESE -> item.seasonId.takeIf { it > 0L } ?: item.videoItem.id
         HistoryBusiness.LIVE -> item.roomId.takeIf { it > 0L } ?: item.videoItem.id
         HistoryBusiness.ARTICLE -> item.videoItem.id
         HistoryBusiness.UNKNOWN -> item.videoItem.id
@@ -51,6 +52,7 @@ internal fun resolveHistoryDeleteKid(item: HistoryItem): String? {
     val prefixAndId = when (item.business) {
         HistoryBusiness.ARCHIVE -> "archive" to item.videoItem.id
         HistoryBusiness.PGC -> "pgc" to item.seasonId
+        HistoryBusiness.CHEESE -> "cheese" to (item.seasonId.takeIf { it > 0L } ?: item.videoItem.id)
         HistoryBusiness.LIVE -> "live" to item.roomId
         HistoryBusiness.ARTICLE -> "article" to item.videoItem.id
         HistoryBusiness.UNKNOWN -> {

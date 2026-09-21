@@ -363,6 +363,7 @@ fun DanmakuSettingsPanel(
     onPortraitDisplayAreaModeChange: (PortraitDanmakuDisplayAreaMode) -> Unit = {},
     onCloudSyncEnabledChange: (Boolean) -> Unit = {},
     onSyncNowClick: () -> Unit = {},
+    onShowDanmakuPool: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     var showBlockManager by remember { mutableStateOf(false) }
@@ -560,6 +561,49 @@ fun DanmakuSettingsPanel(
                             tapPressRefractionEnabled = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    if (showSectionBasic && onShowDanmakuPool != null) {
+                        AppSurface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onDismiss()
+                                    onShowDanmakuPool()
+                                },
+                            color = panelColors.itemColor,
+                            shape = AppShapes.container(ContainerLevel.Card)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    AppIcon(
+                                        imageVector = Icons.Outlined.FormatListBulleted,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    AppText(
+                                        text = "查看弹幕列表",
+                                        color = panelColors.titleColor,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                AppText(
+                                    text = "搜索 · 筛选 · 跳转",
+                                    color = panelColors.supportingColor,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 

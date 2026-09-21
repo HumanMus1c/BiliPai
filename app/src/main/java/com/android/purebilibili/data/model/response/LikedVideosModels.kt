@@ -11,7 +11,9 @@ data class LikedVideosResponse(
 
 @Serializable
 data class LikedVideosData(
-    val list: List<LikedVideoData> = emptyList()
+    val count: Int = 0,
+    val list: List<LikedVideoData> = emptyList(),
+    val item: List<SpaceAggregateArchiveItem> = emptyList(),
 )
 
 @Serializable

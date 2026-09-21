@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -194,9 +195,29 @@ internal fun <T> AppMiuixTabRow(
     indicatorPositionProvider: (() -> Float)? = null,
     equalizeScrollableItemWidths: Boolean = false,
     contentSizedNonGlassItems: Boolean = false,
+    contentSizedNonGlassMaxItemWidth: Dp = 320.dp,
     drawNonGlassTrack: Boolean = false,
     onSelectionChange: (T) -> Unit,
 ) {
+    if (contentSizedNonGlassItems && scrollable) {
+        AppMiuixNonGlassTabs(
+            options = options,
+            selectedValue = selectedValue,
+            enabled = enabled,
+            compact = false,
+            scrollable = true,
+            minTabWidth = minTabWidth,
+            colors = colors,
+            height = height,
+            modifier = modifier,
+            equalizeScrollableItemWidths = equalizeScrollableItemWidths,
+            contentSizedItems = true,
+            contentSizedMaxItemWidth = contentSizedNonGlassMaxItemWidth,
+            drawTrack = drawNonGlassTrack,
+            onSelectionChange = onSelectionChange,
+        )
+        return
+    }
     if (isMiuixNonGlassEnabled()) {
         if (options.size <= 2 && !scrollable) {
             AppMiuixSegmentedControl(
@@ -224,6 +245,7 @@ internal fun <T> AppMiuixTabRow(
             modifier = modifier,
             equalizeScrollableItemWidths = equalizeScrollableItemWidths,
             contentSizedItems = contentSizedNonGlassItems,
+            contentSizedMaxItemWidth = contentSizedNonGlassMaxItemWidth,
             drawTrack = drawNonGlassTrack,
             onSelectionChange = onSelectionChange,
         )
@@ -264,7 +286,7 @@ internal fun <T> AppMiuixTabRow(
     )
 }
 
-/** Non-glass Miuix tabs delegate directly to the upstream TabRow implementation. */
+/** Miuix tabs delegate to the upstream TabRow unless caller-requested content sizing is active. */
 @Composable
 private fun <T> AppMiuixNonGlassTabs(
     options: List<AppSegmentOption<T>>,
@@ -278,6 +300,7 @@ private fun <T> AppMiuixNonGlassTabs(
     modifier: Modifier,
     equalizeScrollableItemWidths: Boolean = false,
     contentSizedItems: Boolean = false,
+    contentSizedMaxItemWidth: Dp = 320.dp,
     drawTrack: Boolean = true,
     onSelectionChange: (T) -> Unit,
 ) {
@@ -304,6 +327,7 @@ private fun <T> AppMiuixNonGlassTabs(
             itemWidths = resolveMiuixNonGlassContentTabItemWidths(
                 labelWidths = labelSizes.map { with(density) { it.width.toDp() } },
                 minTabWidth = minTabWidth,
+                maxTabWidth = contentSizedMaxItemWidth,
             ),
             colors = colors,
             height = height ?: geometry.height,
@@ -409,6 +433,7 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
                 ) {
                     androidx.compose.material3.Text(
                         text = option.label,
+                        modifier = Modifier.wrapContentWidth(unbounded = true),
                         color = if (selected) {
                             tabColors.selectedContentColor
                         } else {
@@ -417,7 +442,8 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         fontSize = MiuixTheme.textStyles.body1.fontSize,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        overflow = TextOverflow.Visible,
                     )
                 }
             }

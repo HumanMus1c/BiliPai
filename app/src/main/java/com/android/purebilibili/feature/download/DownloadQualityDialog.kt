@@ -21,9 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.android.purebilibili.core.ui.appContentDialogWidth
-import com.android.purebilibili.core.ui.components.AppCard
-import com.android.purebilibili.core.ui.components.AppCardDefaults
-import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
@@ -31,6 +28,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppPopupSurface
+import com.android.purebilibili.core.ui.AppPopupSurfaceType
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
@@ -52,12 +51,11 @@ fun DownloadQualityDialog(
             usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
         ),
     ) {
-        AppCard(
+        AppPopupSurface(
+            type = AppPopupSurfaceType.DIALOG,
             modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
-            shape = AppCardShape.Semantic(ContainerLevel.Card),
-            colors = AppCardDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            shape = AppShapes.container(ContainerLevel.Card),
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // 标题行

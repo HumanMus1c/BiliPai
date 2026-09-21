@@ -152,6 +152,16 @@ class LinkedDockPolicyTest {
     }
 
     @Test
+    fun intermediateMergeKeepsAudioYZeroToAvoidQuadraticDropDistortion() {
+        val half = geometry(merge = 0.5f, search = 0f)
+        assertEquals(0, half.audioY)
+        assertEquals(36, half.top)
+        assertEquals(100, half.height)
+        assertEquals(32, half.audioX)
+        assertEquals(272, half.audioWidth)
+    }
+
+    @Test
     fun playbackGapsRemainVisibleAcrossWindowWidths() {
         for (width in listOf(240, 296, 336, 600)) {
             for (searchEnabled in listOf(false, true)) {

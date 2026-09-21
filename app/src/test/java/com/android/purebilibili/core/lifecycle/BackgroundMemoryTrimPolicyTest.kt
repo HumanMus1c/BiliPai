@@ -15,7 +15,6 @@ class BackgroundMemoryTrimPolicyTest {
         assertFalse(plan.clearImageMemoryCache)
         assertFalse(plan.notifyPlayerHeavyOptimization)
         assertFalse(plan.requestIdlePlaybackRelease)
-        assertTrue(plan.requestGcHint)
     }
 
     @Test
@@ -25,7 +24,6 @@ class BackgroundMemoryTrimPolicyTest {
         assertFalse(plan.clearImageMemoryCache)
         assertTrue(plan.notifyPlayerHeavyOptimization)
         assertFalse(plan.requestIdlePlaybackRelease)
-        assertFalse(plan.requestGcHint)
     }
 
     @Test
@@ -35,7 +33,6 @@ class BackgroundMemoryTrimPolicyTest {
         assertTrue(plan.clearImageMemoryCache)
         assertTrue(plan.notifyPlayerHeavyOptimization)
         assertFalse(plan.requestIdlePlaybackRelease)
-        assertTrue(plan.requestGcHint)
     }
 
     @Test
@@ -58,6 +55,5 @@ class BackgroundMemoryTrimPolicyTest {
         assertFalse(plan.clearImageMemoryCache)
         assertFalse(plan.notifyPlayerHeavyOptimization)
         assertFalse(plan.requestIdlePlaybackRelease)
-        assertFalse(plan.requestGcHint)
     }
 }

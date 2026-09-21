@@ -57,6 +57,23 @@ class HistoryNavigationPolicyTest {
     }
 
     @Test
+    fun `history navigation kind resolves cheese entries explicitly`() {
+        val kind = resolveHistoryNavigationKind(
+            HistoryItem(
+                videoItem = VideoItem(
+                    id = 667788L,
+                    title = "精品课程"
+                ),
+                business = HistoryBusiness.CHEESE,
+                seasonId = 1234L,
+                epid = 5678L
+            )
+        )
+
+        assertEquals(HistoryNavigationKind.CHEESE, kind)
+    }
+
+    @Test
     fun `pgc history card hides up badge and uses content type when owner is missing`() {
         val item = HistoryItem(
             videoItem = VideoItem(

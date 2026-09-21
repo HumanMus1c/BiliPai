@@ -109,6 +109,30 @@ class AudioNowPlayingVisibilityPolicyTest {
     }
 
     @Test
+    fun miniPlayerTakesPriorityOverAudioNowPlayingBar() {
+        assertFalse(
+            resolveAudioNowPlayingVisible(
+                sessionActive = true,
+                isOnAudioModeScreen = false,
+                isInPipMode = false,
+                isInMiniMode = true,
+                hasCurrentItem = true,
+                barEnabled = true
+            )
+        )
+        assertTrue(
+            resolveAudioNowPlayingVisible(
+                sessionActive = true,
+                isOnAudioModeScreen = false,
+                isInPipMode = false,
+                isInMiniMode = false,
+                hasCurrentItem = true,
+                barEnabled = true
+            )
+        )
+    }
+
+    @Test
     fun dockNowPlayingStaysVisibleDuringChromeTransition() {
         assertTrue(
             resolveAudioNowPlayingVisible(

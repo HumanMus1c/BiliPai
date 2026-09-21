@@ -190,7 +190,7 @@ class SpaceTabChromePolicyTest {
         assertTrue(shouldScrollSpaceSecondarySwitch(3, 176, 328, 4))
         assertTrue(shouldScrollSpaceSecondarySwitch(4, 104, 360, 4))
         assertEquals(48, resolveSpaceSecondarySwitchNonGlassMinTabWidthDp())
-        assertFalse(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 1))
+        assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 1))
         assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 2))
         assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 6))
     }

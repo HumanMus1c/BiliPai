@@ -294,6 +294,7 @@ private fun CollapsedPlayerNavigationBar(
         val useMiuixNonGlassChrome = isMiuixNonGlassEnabled()
         val mediaScrimAlpha = resolveCollapsedPlayerMediaScrimAlpha(scrollRatio)
         val toolbarAlpha = resolveCollapsedPlayerToolbarAlpha(scrollRatio)
+        val toolbarSurface = MaterialTheme.colorScheme.surface
         Box(
             modifier = modifier.drawBehind {
                 drawRect(
@@ -312,13 +313,13 @@ private fun CollapsedPlayerNavigationBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(topInset)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(toolbarSurface)
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(toolbarSurface)
                         .clickable(onClick = onPlayClick),
                 ) {
                     Row(
@@ -644,7 +645,9 @@ internal fun VideoDetailScreenStateHolder(
                 viewModel.setReplyingTo(it)
                 viewModel.showCommentInputDialog()
             },
-            markVideoNotInterested = viewModel::markVideoNotInterested
+            markVideoNotInterested = viewModel::markVideoNotInterested,
+            likeDanmaku = { viewModel.likeDanmaku(it) },
+            recallDanmaku = { viewModel.recallDanmaku(it) }
         )
     }
     val engagementActions = remember(engagementViewModel) {
@@ -674,7 +677,8 @@ internal fun VideoDetailScreenStateHolder(
             likeComment = commentViewModel::likeComment,
             hateComment = commentViewModel::hateComment,
             reportComment = { rpid, reason -> commentViewModel.reportComment(rpid, reason) },
-            toggleTopComment = commentViewModel::toggleTopComment
+            toggleTopComment = commentViewModel::toggleTopComment,
+            checkCommentFraud = commentViewModel::checkCommentFraud
         )
     }
     VideoDetailDomainEffects(
@@ -3414,7 +3418,9 @@ internal fun VideoDetailScreenStateHolder(
                             onCommentHate = commentActions.hateComment,
                             hatedComments = commentState.hatedComments,
                             onCommentUrlClick = openCommentUrl,
-                            onReportComment = commentActions.reportComment, onToggleTopComment = commentActions.toggleTopComment,
+                            onReportComment = commentActions.reportComment,
+                            onToggleTopComment = commentActions.toggleTopComment,
+                            onCheckCommentFraud = commentActions.checkCommentFraud,
                             onTimestampClick = { position -> seekPlayerFromUserAction(playerState.player, position) },
                             onDismiss = {
                                 commentActions.closeSubReply()
@@ -3446,6 +3452,7 @@ internal fun VideoDetailScreenStateHolder(
                                         onConversationBack = commentActions.closeSubReplyConversation,
                                         onDissolveStart = commentActions.startSubDissolve,
                                         onDeleteComment = commentActions.deleteSubComment,
+                                        onCheckCommentFraud = commentActions.checkCommentFraud,
                                         onCommentLike = commentActions.likeComment,
                                         onCommentHate = commentActions.hateComment,
                                         onReportComment = commentActions.reportComment,
@@ -3653,6 +3660,7 @@ internal fun VideoDetailScreenStateHolder(
                             onCommentUrlClick = openCommentUrl,
                             onReportComment = commentActions.reportComment,
                             onToggleTopComment = commentActions.toggleTopComment,
+                            onCheckCommentFraud = commentActions.checkCommentFraud,
                             onTimestampClick = { position -> seekPlayerFromUserAction(playerState.player, position) },
                             onDismiss = {
                                 commentActions.closeSubReply()
@@ -3684,6 +3692,7 @@ internal fun VideoDetailScreenStateHolder(
                                         onConversationBack = commentActions.closeSubReplyConversation,
                                         onDissolveStart = commentActions.startSubDissolve,
                                         onDeleteComment = commentActions.deleteSubComment,
+                                        onCheckCommentFraud = commentActions.checkCommentFraud,
                                         onCommentLike = commentActions.likeComment,
                                         onCommentHate = commentActions.hateComment,
                                         onReportComment = commentActions.reportComment,
@@ -3757,6 +3766,7 @@ internal fun VideoDetailScreenStateHolder(
                                 isVerticalVideo = isVerticalVideo,
                                 sleepTimerMinutes = sleepTimerMinutes,
                                 viewPoints = viewPoints,
+                                pbpProgressData = visiblePbpProgressData,
                                 bvid = bvid,
                                 coverUrl = coverUrl,
                                 onBack = { handleBack() },
@@ -3823,6 +3833,7 @@ internal fun VideoDetailScreenStateHolder(
                             isVerticalVideo = isVerticalVideo,
                             sleepTimerMinutes = sleepTimerMinutes,
                             viewPoints = viewPoints,
+                            pbpProgressData = visiblePbpProgressData,
                             bvid = bvid,
                             coverUrl = coverUrl,
                             onBack = {
@@ -4056,12 +4067,13 @@ internal fun VideoDetailScreenStateHolder(
                         )
                         LaunchedEffect(
                             skipGesturePlayerCollapse,
+                            compactInlinePlayerForIntroScroll,
                             collapseRangePx,
                             isExitTransitionInProgress,
                         ) {
                             // 返回 morph 期间不要再强制压扁，否则封面又被裁成一条。
                             if (isExitTransitionInProgress) return@LaunchedEffect
-                            if (skipGesturePlayerCollapse && collapseRangePx > 0f) {
+                            if (compactInlinePlayerForIntroScroll && collapseRangePx > 0f) {
                                 // 与视觉折叠对齐，避免之后阈值解除时 offset 仍停在半途。
                                 inlinePlayerCollapseState.updateOffset(-collapseRangePx)
                             }
@@ -4164,7 +4176,7 @@ internal fun VideoDetailScreenStateHolder(
                             isPortraitFullscreen = isPortraitFullscreen
                         )
                         val commentTabCollapseProgress by animateFloatAsState(
-                            targetValue = if (compactInlinePlayerForCommentTab || compactInlinePlayerForIntroScroll) 1f else 0f,
+                            targetValue = if (compactInlinePlayerForCommentTab) 1f else 0f,
                             animationSpec = tween(
                                 durationMillis = resolveInlinePortraitPlayerCommentCollapseDurationMillis(
                                     videoContentTabSwitchAnimationSpec
@@ -4179,8 +4191,8 @@ internal fun VideoDetailScreenStateHolder(
                             restoreRequested = inlinePlayerCollapseState.restoreRequested
                         )
                         // Drag/scroll collapse stays directly coupled to the finger. Only an
-                        // explicit restore ("立即播放" / comment back-to-top) eases the player from
-                        // the 56dp toolbar back to its full viewport instead of jumping in one frame.
+                        // An explicit restore (for example comment back-to-top) eases the player from
+                        // the compact viewport back to its full size instead of jumping in one frame.
                         val animatedCollapseProgress by animateFloatAsState(
                             targetValue = effectiveCollapseProgress,
                             animationSpec = if (inlinePlayerCollapseState.restoreRequested) {
@@ -4259,12 +4271,12 @@ internal fun VideoDetailScreenStateHolder(
                             useOfficialInlinePortraitDetailExperience -> expandedPortraitInlineSpec.heightDp.dp
                             else -> videoHeight
                         }
-                        // PiliPlus 的 VideoHeader minExtent 始终是 kToolbarHeight；不能在非
-                        // official-inline 路径把播放器收成 0，否则 Overlay 会被父布局裁掉。
+                        // 官方竖屏详情折叠到全宽 16:9 画布；其他播放器路径继续保留原有
+                        // 56dp 紧凑栏。竖屏路径必须优先判断，否则会再次被压成工具栏高度。
                         val collapsedViewportHeight = when {
-                            portraitPlayerCollapseMode != PortraitPlayerCollapseMode.OFF -> 56.dp
                             useOfficialInlinePortraitDetailExperience ->
                                 collapsedPortraitInlineSpec.heightDp.dp
+                            portraitPlayerCollapseMode != PortraitPlayerCollapseMode.OFF -> 56.dp
                             else -> 0.dp
                         }
                         val inlineViewportHeight = lerp(
@@ -4688,22 +4700,24 @@ internal fun VideoDetailScreenStateHolder(
                                         },
                                 )
                             }
-                            CollapsedPlayerNavigationBar(
-                                scrollRatio = layoutCollapseProgress,
-                                topInset = collapsedSystemBarInset,
-                                onBack = handleBack,
-                                onHomeClick = {
-                                    handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
-                                },
-                                onPlayClick = {
-                                    inlinePlayerCollapseState.restore()
-                                    playPlayerFromUserAction(playerState.player)
-                                },
-                                onMoreClick = { collapsedPlayerMoreRequestKey += 1 },
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .zIndex(2f),
-                            )
+                            if (!isVerticalVideo) {
+                                CollapsedPlayerNavigationBar(
+                                    scrollRatio = layoutCollapseProgress,
+                                    topInset = collapsedSystemBarInset,
+                                    onBack = handleBack,
+                                    onHomeClick = {
+                                        handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
+                                    },
+                                    onPlayClick = {
+                                        inlinePlayerCollapseState.restore()
+                                        playPlayerFromUserAction(playerState.player)
+                                    },
+                                    onMoreClick = { collapsedPlayerMoreRequestKey += 1 },
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .zIndex(2f),
+                                )
+                            }
                         }
                         Box(
                             modifier = Modifier

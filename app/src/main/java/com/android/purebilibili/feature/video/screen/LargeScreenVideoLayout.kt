@@ -30,10 +30,15 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
+import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.LocalVideoTransitionAdaptiveInfo
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
+import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.ViewPoint
+import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
@@ -61,6 +66,7 @@ internal fun LargeScreenVideoLayout(
     isVerticalVideo: Boolean,
     sleepTimerMinutes: Int?,
     viewPoints: List<ViewPoint>,
+    pbpProgressData: PbpProgressData? = null,
     bvid: String,
     coverUrl: String = "",
     onBack: () -> Unit,
@@ -132,6 +138,7 @@ internal fun LargeScreenVideoLayout(
                 isPortraitFullscreen = isPortraitFullscreen,
                 sleepTimerMinutes = sleepTimerMinutes,
                 viewPoints = viewPoints,
+                pbpProgressData = pbpProgressData,
                 currentCodec = currentCodec,
                 currentSecondCodec = currentSecondCodec,
                 currentAudioQuality = currentAudioQuality,
@@ -397,6 +404,7 @@ private fun LargeScreenPlayerHost(
     isPortraitFullscreen: Boolean,
     sleepTimerMinutes: Int?,
     viewPoints: List<ViewPoint>,
+    pbpProgressData: PbpProgressData? = null,
     currentCodec: String,
     currentSecondCodec: String,
     currentAudioQuality: Int,
@@ -425,6 +433,21 @@ private fun LargeScreenPlayerHost(
     val sharedCoverShape = remember(sourceRoute) {
         RoundedCornerShape(resolveVideoSharedTransitionSourceCornerDp(sourceRoute).dp)
     }
+    val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val transitionAdaptiveInfo = LocalVideoTransitionAdaptiveInfo.current
+    val sharedTransitionMotionSpec = remember(
+        sourceRoute,
+        transitionEnabled,
+        sharedTransitionSpeedSettings,
+        transitionAdaptiveInfo,
+    ) {
+        resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = sourceRoute,
+            transitionEnabled = transitionEnabled,
+            speedSettings = sharedTransitionSpeedSettings,
+            adaptiveInfo = transitionAdaptiveInfo,
+        )
+    }
     val playerContainerModifier = if (
         transitionEnabled &&
         sharedTransitionScope != null &&
@@ -437,7 +460,18 @@ private fun LargeScreenPlayerHost(
                     key = videoCoverSharedElementKey(bvid),
                 ),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { _, _ -> AppMotionTokens.spatialSpec() },
+                boundsTransform = { initialBounds, targetBounds ->
+                    if (sharedTransitionMotionSpec.enabled) {
+                        videoSharedElementBoundsTransformSpec(
+                            motion = sharedTransitionMotionSpec,
+                            initialBounds = initialBounds,
+                            targetBounds = targetBounds,
+                            durationMillis = sharedTransitionMotionSpec.durationMillis,
+                        )
+                    } else {
+                        AppMotionTokens.spatialSpec()
+                    }
+                },
                 clipInOverlayDuringTransition = OverlayClip(sharedCoverShape),
             )
         }
@@ -485,6 +519,7 @@ private fun LargeScreenPlayerHost(
                 onSleepTimerChange = playbackActions.setSleepTimer,
                 videoshotData = (uiState as? VideoPlaybackUiState.Success)?.videoshotData,
                 viewPoints = viewPoints,
+                pbpProgressData = pbpProgressData,
                 isVerticalVideo = isVerticalVideo,
                 onPortraitFullscreen = onPortraitFullscreen,
                 isPortraitFullscreen = isPortraitFullscreen,
@@ -503,6 +538,8 @@ private fun LargeScreenPlayerHost(
                 viewportWidthDpOverride = viewportWidthDpOverride,
                 onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
                 onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
+                onLikeDanmaku = playbackActions.likeDanmaku,
+                onRecallDanmaku = playbackActions.recallDanmaku,
             )
         }
     }

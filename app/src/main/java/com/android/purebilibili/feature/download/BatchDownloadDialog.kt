@@ -18,9 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppCard
-import com.android.purebilibili.core.ui.components.AppCardDefaults
-import com.android.purebilibili.core.ui.components.AppCardShape
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +40,8 @@ import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppPopupSurface
+import com.android.purebilibili.core.ui.AppPopupSurfaceType
 import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
@@ -76,14 +75,13 @@ internal fun BatchDownloadDialog(
                 qualityOptionCount = qualityOptions.size
             ).dp
 
-            AppCard(
+            AppPopupSurface(
+                type = AppPopupSurfaceType.DIALOG,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = dialogMaxHeight),
-                shape = AppCardShape.Semantic(ContainerLevel.Floating),
-                colors = AppCardDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                shape = AppShapes.container(ContainerLevel.Floating),
+                containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 Column(
                     modifier = Modifier

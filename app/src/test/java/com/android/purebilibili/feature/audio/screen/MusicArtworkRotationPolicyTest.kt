@@ -23,4 +23,12 @@ class MusicArtworkRotationPolicyTest {
         assertEquals(6_000, resolveMusicArtworkRotationDurationMs(4f))
         assertEquals(96_000, resolveMusicArtworkRotationDurationMs(0.25f))
     }
+
+    @Test
+    fun appleMusicArtworkScalesDownOnlyWhenPaused() {
+        assertEquals(1.0f, resolveAppleMusicCoverScale(isPlaying = true))
+        assertEquals(0.88f, resolveAppleMusicCoverScale(isPlaying = false))
+        assertEquals(16f, resolveAppleMusicCoverShadowElevation(1f))
+        assertEquals(11.52f, resolveAppleMusicCoverShadowElevation(0f), 0.001f)
+    }
 }

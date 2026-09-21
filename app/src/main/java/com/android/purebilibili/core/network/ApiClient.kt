@@ -373,7 +373,9 @@ interface BilibiliApi {
 
     @GET("x/space/like/video")
     suspend fun getLikedVideos(
-        @Query("vmid") mid: Long
+        @Query("vmid") mid: Long,
+        @Query("pn") page: Int = 1,
+        @Query("ps") pageSize: Int = 20,
     ): LikedVideosResponse
 
     @GET("x/space/fav/season/list")
@@ -1955,6 +1957,18 @@ interface SpaceApi {
         @QueryMap params: Map<String, String>
     ): com.android.purebilibili.data.model.response.SpaceAggregateResponse
 
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "bili-http-engine: cronet",
+        "env: prod",
+        "app-key: android64",
+        "x-bili-aurora-zone: sh001"
+    )
+    @GET("https://app.bilibili.com/x/v2/space/likearc")
+    suspend fun getSpaceLikedArchive(
+        @QueryMap params: Map<String, String>
+    ): com.android.purebilibili.data.model.response.LikedVideosResponse
+
     // 获取用户详细信息 (需要 WBI 签名)
     @GET("x/space/wbi/acc/info")
     suspend fun getSpaceInfo(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceInfoResponse
@@ -2077,6 +2091,54 @@ internal fun buildSpaceAggregateParams(
         "statistics" to "{\"appId\":1,\"platform\":3,\"version\":\"8.43.0\",\"abtest\":\"\"}",
         "ts" to AppSignUtils.getTimestamp().toString(),
         "vmid" to mid.toString()
+    )
+    accessToken?.takeIf { it.isNotBlank() }?.let { params["access_key"] = it }
+    return if (
+        !accessToken.isNullOrBlank() &&
+        accessTokenPlatform == TokenManager.ACCESS_TOKEN_PLATFORM_TV
+    ) {
+        AppSignUtils.signForTvApi(params)
+    } else {
+        AppSignUtils.signForAndroidHdLogin(params)
+    }
+}
+
+suspend fun SpaceApi.getSpaceLikedArchive(
+    mid: Long,
+    page: Int = 1,
+    pageSize: Int = 20,
+): com.android.purebilibili.data.model.response.LikedVideosResponse {
+    return getSpaceLikedArchive(
+        buildSpaceLikedArchiveParams(
+            mid = mid,
+            page = page,
+            pageSize = pageSize,
+            accessToken = TokenManager.accessTokenCache,
+            accessTokenPlatform = TokenManager.accessTokenPlatformCache,
+        )
+    )
+}
+
+internal fun buildSpaceLikedArchiveParams(
+    mid: Long,
+    page: Int = 1,
+    pageSize: Int = 20,
+    accessToken: String?,
+    accessTokenPlatform: String = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID,
+): Map<String, String> {
+    val params = linkedMapOf(
+        "build" to "8430300",
+        "version" to "8.43.0",
+        "c_locale" to "zh_CN",
+        "channel" to "master",
+        "mobi_app" to "android",
+        "platform" to "android",
+        "s_locale" to "zh_CN",
+        "pn" to page.toString(),
+        "ps" to pageSize.toString(),
+        "statistics" to "{\"appId\":1,\"platform\":3,\"version\":\"8.43.0\",\"abtest\":\"\"}",
+        "ts" to AppSignUtils.getTimestamp().toString(),
+        "vmid" to mid.toString(),
     )
     accessToken?.takeIf { it.isNotBlank() }?.let { params["access_key"] = it }
     return if (
@@ -2708,6 +2770,15 @@ object NetworkModule {
         appSessionCookieJar.clear()
     }
 
+    /**
+     * 后台或内存整理时主动释放空闲的 TCP / TLS 连接与底层 Socket 缓冲区。
+     */
+    fun evictIdleConnections() {
+        runCatching {
+            okHttpClient.connectionPool.evictAll()
+        }
+    }
+
     @Synchronized
     fun clearPlaybackAccountClient() {
         playbackAccountKey = null
@@ -2966,7 +3037,8 @@ object NetworkModule {
                 val isHdFeedRequest = url.encodedPath == "/x/v2/feed/index" &&
                     url.queryParameter("mobi_app") == "android_hd"
                 val isAndroidHdLoginEndpoint = androidHdLoginAppKeyHeader != null || isHdFeedRequest
-                val isSpaceAppRequest = url.host == "app.bilibili.com" && url.encodedPath == "/x/v2/space"
+                val isSpaceAppRequest = url.host == "app.bilibili.com" &&
+                    (url.encodedPath == "/x/v2/space" || url.encodedPath == "/x/v2/space/likearc")
                 val isAppBiliEndpoint = url.host == "app.bilibili.com" || isAndroidHdLoginEndpoint
                 val explicitReferer = original.header("Referer")
                 val explicitUserAgent = original.header("User-Agent")

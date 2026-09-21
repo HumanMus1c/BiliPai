@@ -32,13 +32,16 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.BangumiDetail
 import com.android.purebilibili.data.model.response.BangumiEpisode
@@ -49,7 +52,9 @@ import com.android.purebilibili.feature.bangumi.isBangumiFollowed
 import com.android.purebilibili.feature.bangumi.resolveBangumiFollowStatusLabel
 import com.android.purebilibili.feature.video.ui.components.VideoCommentMainList
 import com.android.purebilibili.feature.video.ui.components.SubReplySheet
+import com.android.purebilibili.feature.video.ui.components.CommentInputDialog
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,14 +76,19 @@ fun BangumiPlayerContent(
     commentViewModel: VideoCommentViewModel,
     onEpisodeClick: (BangumiEpisode) -> Unit,
     onFollowStatusSelect: (Int) -> Unit,
-    onUserClick: ((Long) -> Unit)? = null
+    onUserClick: ((Long) -> Unit)? = null,
+    onCommentUrlClick: ((String) -> Unit)? = null,
+    onDownloadClick: () -> Unit = {},
+    onShareClick: () -> Unit = {}
 ) {
-    val isCourse = detail.seasonType == 10 || detail.seasonTypeName == "课堂"
+    val isCourse = detail.seasonType == 10
     val isFollowing = isBangumiFollowed(detail.userStatus)
     val followedIcon = rememberAppCheckCircleIcon()
     val followIcon = rememberAppProfileAddIcon()
     var showFollowStatusDialog by remember { mutableStateOf(false) }
     val tabs = listOf("简介", "评论")
+    val useCapsuleTabs = LocalAppUiStyle.current == AppUiStyle.MIUIX
+    val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
     val selectionBackdrop = rememberLayerBackdrop()
@@ -87,6 +97,27 @@ fun BangumiPlayerContent(
     }
     val subReplyState by commentViewModel.subReplyState.collectAsStateWithLifecycle()
     val commentState by commentViewModel.commentState.collectAsStateWithLifecycle()
+    var commentInputVisible by rememberSaveable(currentEpisode.id) { mutableStateOf(false) }
+    var sendPending by remember(currentEpisode.id) { mutableStateOf(false) }
+    var previewImages by remember(currentEpisode.id) { mutableStateOf<List<String>>(emptyList()) }
+    var previewIndex by remember(currentEpisode.id) { mutableIntStateOf(0) }
+
+    LaunchedEffect(currentEpisode.id, commentState.isSending, commentState.sendError) {
+        if (sendPending && !commentState.isSending) {
+            if (commentState.sendError == null) commentInputVisible = false
+            sendPending = false
+        }
+    }
+
+    fun openRootCommentComposer() {
+        commentViewModel.cancelReply()
+        commentInputVisible = true
+    }
+
+    fun openReplyComposer(reply: com.android.purebilibili.data.model.response.ReplyItem) {
+        commentViewModel.replyTo(reply)
+        commentInputVisible = true
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -113,9 +144,10 @@ fun BangumiPlayerContent(
                 indicatorHeight = com.android.purebilibili.core.ui
                     .roundMatchedLiquidIndicatorHeightDp(44f).dp,
                 labelFontSize = 15.sp,
+                compactMiuixWhenTwoOptions = useCapsuleTabs,
                 dragSelectionEnabled = tabs.size > 1,
                 tapPressRefractionEnabled = false,
-                miuixBackdrop = selectionBackdrop,
+                miuixBackdrop = if (liquidGlassEnabled) selectionBackdrop else null,
                 indicatorPositionProvider = indicatorPositionProvider,
                 isScrollInProgressProvider = { pagerState.isScrollInProgress },
             )
@@ -184,6 +216,47 @@ fun BangumiPlayerContent(
                     }
                 }
 
+                if (detail.cooperators.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        contentPadding = PaddingValues(bottom = 10.dp)
+                    ) {
+                        items(detail.cooperators, key = { it.mid }) { cooperator ->
+                            Row(
+                                modifier = Modifier
+                                    .sizeIn(minHeight = 48.dp)
+                                    .clickable(enabled = cooperator.mid > 0L && onUserClick != null) {
+                                        onUserClick?.invoke(cooperator.mid)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = FormatUtils.fixImageUrl(cooperator.avatar),
+                                    contentDescription = cooperator.uname,
+                                    modifier = Modifier.size(32.dp).clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    AppText(
+                                        text = cooperator.uname,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    cooperator.role?.takeIf { it.isNotBlank() }?.let {
+                                        AppText(
+                                            text = it,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 AppText(
                     text = detail.title,
                     fontSize = 18.sp,
@@ -214,6 +287,23 @@ fun BangumiPlayerContent(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (isCourse) {
+                    val accessLabel = when {
+                        currentEpisode.playable || currentEpisode.episodeCanView -> "可试看"
+                        detail.hasPaid -> "已购买"
+                        else -> "购买后观看"
+                    }
+                    AppText(
+                        text = accessLabel,
+                        fontSize = 12.sp,
+                        color = if (currentEpisode.playable || currentEpisode.episodeCanView) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
@@ -282,6 +372,38 @@ fun BangumiPlayerContent(
                         resolveBangumiFollowStatusLabel(detail.userStatus)
                     }
                     AppText(followLabel)
+                }
+            }
+        }
+
+        if (isCourse) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AppButton(
+                        onClick = onDownloadClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        AppText("下载当前集")
+                    }
+                    AppButton(
+                        onClick = onShareClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        AppText("分享课程")
+                    }
                 }
             }
         }
@@ -378,7 +500,7 @@ fun BangumiPlayerContent(
                                     text = "$start-$end",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     fontSize = 12.sp,
-                                    color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isCurrentPage) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -464,7 +586,10 @@ fun BangumiPlayerContent(
                         if (briefImg.url.isNotBlank()) {
                             val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
                             AsyncImage(
-                                model = FormatUtils.fixImageUrl(briefImg.url),
+                                model = FormatUtils.resolveVideoCoverUrl(
+                                    briefImg.url,
+                                    useLowQuality = false
+                                ),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -480,17 +605,21 @@ fun BangumiPlayerContent(
                 }
 
                 1 -> {
-                    if (currentEpisode.aid > 0L) {
+                    val hasComments = if (isCourse) (currentEpisode.id > 0L || currentEpisode.aid > 0L) else currentEpisode.aid > 0L
+                    if (hasComments) {
                         VideoCommentMainList(
                             viewModel = commentViewModel,
                             showIdentityDecorations = false,
-                            onRootCommentClick = {},
-                            onReplyClick = {},
-                            onUserClick = {},
-                            onCommentUrlClick = {},
+                            onRootCommentClick = ::openRootCommentComposer,
+                            onReplyClick = ::openReplyComposer,
+                            onUserClick = onUserClick ?: {},
+                            onCommentUrlClick = { url -> onCommentUrlClick?.invoke(url) },
                             onTimestampClick = null,
                             maxTimestampMs = currentEpisode.duration.takeIf { it > 0L },
-                            onImagePreview = { _, _, _, _ -> }
+                            onImagePreview = { images, index, _, _ ->
+                                previewImages = images
+                                previewIndex = index
+                            }
                         )
                     } else {
                         Box(
@@ -562,8 +691,38 @@ fun BangumiPlayerContent(
         likedComments = commentState.likedComments,
         currentMid = commentState.currentMid,
         showUpFlag = commentState.showUpFlag,
-        onReplyClick = {},
-        onRootCommentClick = {}
+        onReplyClick = ::openReplyComposer,
+        onRootCommentClick = ::openRootCommentComposer,
+        onUrlClick = { url -> onCommentUrlClick?.invoke(url) },
+        onImagePreview = { images, index, _, _ ->
+            previewImages = images
+            previewIndex = index
+        }
+    )
+
+    if (previewImages.isNotEmpty()) {
+        ImagePreviewDialog(
+            images = previewImages,
+            initialIndex = previewIndex,
+            onDismiss = { previewImages = emptyList() }
+        )
+    }
+
+    CommentInputDialog(
+        visible = commentInputVisible,
+        onDismiss = {
+            commentInputVisible = false
+            commentViewModel.cancelReply()
+        },
+        onSend = { message, imageUris, syncToDynamic ->
+            sendPending = true
+            commentViewModel.sendComment(message, imageUris, syncToDynamic)
+        },
+        isSending = commentState.isSending,
+        replyToName = commentState.replyTarget?.member?.uname,
+        inputHint = if (commentState.replyTarget == null) commentState.rootInputHint else commentState.childInputHint,
+        canInputComment = commentState.canInputComment,
+        currentVideoPositionMsProvider = { 0L }
     )
 }
 }
@@ -615,7 +774,7 @@ fun EpisodeChipSelectable(
                     )
                     if (episode.badge.isNotBlank()) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        val isPreview = episode.badge.contains("试看")
+                        val isPreview = episode.playable || episode.episodeCanView
                         Box(
                             modifier = Modifier
                                 .background(

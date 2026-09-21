@@ -181,6 +181,7 @@ fun AppSearchField(
     shapeOverride: Shape? = null,
     heightOverride: Dp? = null,
     interactionSource: MutableInteractionSource? = null,
+    leadingIconHorizontalOffset: Dp = 0.dp,
 ) = AdaptiveSearchFieldRenderer(
     query = query,
     onQueryChange = onQueryChange,
@@ -197,6 +198,7 @@ fun AppSearchField(
     autoFocusEnabled = autoFocusEnabled,
     focusRequester = focusRequester,
     interactionSource = interactionSource,
+    leadingIconHorizontalOffset = leadingIconHorizontalOffset,
 )
 
 @Composable

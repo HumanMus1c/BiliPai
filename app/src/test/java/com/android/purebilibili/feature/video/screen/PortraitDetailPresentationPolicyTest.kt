@@ -151,9 +151,9 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun enabledCollapseModes_usePiliPlusToolbarHeight() {
+    fun enabledCollapseModes_keepFullWidth16By9PortraitCanvas() {
         assertEquals(
-            56f,
+            231.75f,
             resolvePiliPlusCollapsedPlayerViewportHeightDp(
                 standardCollapsedHeightDp = 231.75f,
                 collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
@@ -161,7 +161,7 @@ class PortraitDetailPresentationPolicyTest {
             )
         )
         assertEquals(
-            56f,
+            231.75f,
             resolvePiliPlusCollapsedPlayerViewportHeightDp(
                 standardCollapsedHeightDp = 231.75f,
                 collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
@@ -171,7 +171,7 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun regularCollapseModes_useToolbarExceptWhenDisabled() {
+    fun everyCollapseMode_usesFullWidth16By9PortraitCanvas() {
         listOf(
             PortraitPlayerCollapseMode.OFF,
             PortraitPlayerCollapseMode.INTRO_ONLY,
@@ -179,7 +179,7 @@ class PortraitDetailPresentationPolicyTest {
             PortraitPlayerCollapseMode.BOTH,
         ).forEach { mode ->
             assertEquals(
-                if (mode == PortraitPlayerCollapseMode.OFF) 231.75f else 56f,
+                231.75f,
                 resolvePiliPlusCollapsedPlayerViewportHeightDp(
                     standardCollapsedHeightDp = 231.75f,
                     collapseMode = mode,
@@ -190,33 +190,14 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun piliPlusToolbar_appearsWheneverAnEnabledPlayerIsFullyCollapsed() {
-        assertTrue(
-            shouldShowPiliPlusCollapsedPlayAction(
-                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
-                isPlaybackPaused = true,
-                collapseProgress = 1f,
-            )
-        )
+    fun switchingToCommentTab_doesNotHidePortraitPlayer() {
         assertFalse(
-            shouldShowPiliPlusCollapsedPlayAction(
-                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
-                isPlaybackPaused = false,
-                collapseProgress = 1f,
-            )
-        )
-        assertFalse(
-            shouldShowPiliPlusCollapsedPlayAction(
-                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
-                isPlaybackPaused = true,
-                collapseProgress = 0.75f,
-            )
-        )
-        assertTrue(
-            shouldShowPiliPlusCollapsedPlayAction(
+            shouldUseCompactInlinePortraitPlayerForCommentTab(
+                useOfficialInlinePortraitDetailExperience = true,
+                selectedTabIndex = 1,
+                isPortraitFullscreen = false,
                 collapseMode = PortraitPlayerCollapseMode.BOTH,
-                isPlaybackPaused = true,
-                collapseProgress = 1f,
+                isVerticalVideo = true,
             )
         )
     }
@@ -260,8 +241,8 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun inlinePortraitPlayer_compactsImmediatelyWhenCommentTabIsSelected() {
-        assertTrue(
+    fun inlinePortraitPlayer_keepsCommentTabPlayerVisible() {
+        assertFalse(
             shouldUseCompactInlinePortraitPlayerForCommentTab(
                 useOfficialInlinePortraitDetailExperience = true,
                 selectedTabIndex = 1,
@@ -269,7 +250,7 @@ class PortraitDetailPresentationPolicyTest {
                 collapseMode = PortraitPlayerCollapseMode.BOTH
             )
         )
-        assertTrue(
+        assertFalse(
             shouldUseCompactInlinePortraitPlayerForCommentTab(
                 useOfficialInlinePortraitDetailExperience = true,
                 selectedTabIndex = 1,
@@ -308,8 +289,8 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun inlinePortraitPlayer_compactsWhenCommentThreadDetailIsVisible() {
-        assertTrue(
+    fun inlinePortraitPlayer_keepsPlayerWhenCommentThreadDetailIsVisible() {
+        assertFalse(
             shouldUseCompactInlinePortraitPlayerForCommentTab(
                 useOfficialInlinePortraitDetailExperience = true,
                 selectedTabIndex = 0,
@@ -442,7 +423,7 @@ class PortraitDetailPresentationPolicyTest {
                 isVerticalVideo = true
             )
         )
-        assertTrue(
+        assertFalse(
             shouldUseCompactInlinePortraitPlayerForCommentTab(
                 useOfficialInlinePortraitDetailExperience = true,
                 selectedTabIndex = 1,
@@ -482,7 +463,7 @@ class PortraitDetailPresentationPolicyTest {
                 isVerticalVideo = false
             )
         )
-        assertTrue(
+        assertFalse(
             shouldUseCompactInlinePortraitPlayerForCommentTab(
                 useOfficialInlinePortraitDetailExperience = true,
                 selectedTabIndex = 1,
@@ -494,9 +475,9 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun inlinePortraitPlayer_commentTabUsesCollapsedVisualProgressWithoutChangingManualState() {
+    fun inlinePortraitPlayer_scrollProgressFollowsManualOffsetForRestore() {
         assertEquals(
-            1f,
+            0f,
             resolveInlinePortraitPlayerCollapseProgress(
                 manualCollapseProgress = 0f,
                 compactForCommentTabProgress = 1f
@@ -510,7 +491,7 @@ class PortraitDetailPresentationPolicyTest {
             )
         )
         assertEquals(
-            0.6f,
+            0.2f,
             resolveInlinePortraitPlayerCollapseProgress(
                 manualCollapseProgress = 0.2f,
                 compactForCommentTabProgress = 0.6f

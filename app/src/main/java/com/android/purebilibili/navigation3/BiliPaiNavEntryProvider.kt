@@ -60,6 +60,7 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     entry<BiliPaiNavKey.FavoriteSubscribed>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.FavoriteSearch>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.LikedVideos>(swipeDismiss = swipeBackDirection, content = content)
+    entry<BiliPaiNavKey.LikedVideos.Companion>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.WatchLater>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.WatchLaterSearch>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Onboarding>(swipeDismiss = swipeBackDirection, content = content)

@@ -105,7 +105,7 @@ class VideoDetailScrollCoordinatorTest {
             layoutAlreadyCollapsed = true,
         )
         assertNull(update)
-        assertTrue(
+        assertFalse(
             shouldSkipGesturePlayerCollapseForLayout(
                 compactForIntroScroll = true,
                 compactForCommentTab = false,
@@ -130,6 +130,21 @@ class VideoDetailScrollCoordinatorTest {
             layoutAlreadyCollapsed = true,
         )
         assertNull(update)
+    }
+
+    @Test
+    fun postScroll_restoresPortraitPlayerAfterIntroThreshold() {
+        val update = reduceVideoDetailPostScroll(
+            currentOffsetPx = -320f,
+            deltaPx = 48f,
+            minOffsetPx = -320f,
+            inlinePortraitScrollEnabled = true,
+            isPortraitFullscreen = false,
+            layoutAlreadyCollapsed = false,
+        )
+
+        assertEquals(-272f, update?.nextOffsetPx)
+        assertEquals(48f, update?.consumedDeltaPx)
     }
 
     @Test

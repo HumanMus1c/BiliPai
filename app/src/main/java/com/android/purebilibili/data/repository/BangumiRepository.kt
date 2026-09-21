@@ -31,10 +31,22 @@ internal fun shouldFallbackToLegacyBangumiPlayUrl(payload: BangumiPlayUrlPayload
 internal fun validateBangumiPlayableVideoInfo(
     videoInfo: BangumiVideoInfo
 ): Result<BangumiVideoInfo> = when {
-    videoInfo.isDrm -> Result.failure(
+    videoInfo.isDrm && !videoInfo.hasPlayableWebStream() -> Result.failure(
         UnsupportedOperationException("该番剧使用 DRM 版权保护，当前版本暂不支持播放")
     )
     else -> Result.success(videoInfo)
+}
+
+/**
+ * Some PUGV responses keep the DRM marker while still returning a regular DASH/DURL stream.
+ * PiliPlus hands those streams to its player, so the marker alone cannot be treated as a hard
+ * failure. A response is unsupported only when it has no usable video URL at all.
+ */
+private fun BangumiVideoInfo.hasPlayableWebStream(): Boolean {
+    if (dash?.video.orEmpty().any { it.getValidUrl().isNotBlank() }) return true
+    return (durl.orEmpty() + durls.orEmpty()).any { segment ->
+        segment.url.isNotBlank() || segment.backupUrl.orEmpty().any { it.isNotBlank() }
+    }
 }
 
 internal fun buildBangumiPlayUrlParams(
@@ -44,21 +56,25 @@ internal fun buildBangumiPlayUrlParams(
     bvid: String? = null,
     seasonId: Long? = null,
     aid: Long = 0L,
-    tryLook: Boolean = true
+    tryLook: Boolean = true,
+    isCourse: Boolean = false
 ): Map<String, String> {
-    val params = linkedMapOf(
-        "ep_id" to epId.toString(),
-        "cid" to cid.toString(),
-        "qn" to qn.toString(),
-        // DASH + HDR + 4K + Dolby + 8K + AV1 + smart-repair capabilities.
-        "fnval" to "12240",
-        "fnver" to "0",
-        "fourk" to "1",
-        "voice_balance" to "1",
-        "gaia_source" to "pre-load",
-        "isGaiaAvoided" to "true",
-        "web_location" to "1315873"
-    )
+    val params = linkedMapOf<String, String>()
+    if (epId > 0L) {
+        params["ep_id"] = epId.toString()
+    }
+    if (cid > 0L) {
+        params["cid"] = cid.toString()
+    }
+    params["qn"] = qn.toString()
+    // For courses/PUGV, fnval=4048 (aligned with PiliPlus), whereas PGC uses 12240
+    params["fnval"] = if (isCourse) "4048" else "12240"
+    params["fnver"] = "0"
+    params["fourk"] = "1"
+    params["voice_balance"] = "1"
+    params["gaia_source"] = "pre-load"
+    params["isGaiaAvoided"] = "true"
+    params["web_location"] = "1315873"
     if (seasonId != null && seasonId > 0L) {
         params["season_id"] = seasonId.toString()
     }
@@ -86,11 +102,12 @@ internal fun buildBangumiPlayUrlParams(
 
 internal fun signBangumiPlayUrlParams(
     params: Map<String, String>,
-    wbiKeys: Pair<String, String>?
+    wbiKeys: Pair<String, String>?,
+    includeRiskFingerprint: Boolean = false
 ): Map<String, String> {
     val (imgKey, subKey) = wbiKeys ?: return params
     if (imgKey.isBlank() || subKey.isBlank()) return params
-    return WbiUtils.sign(params, imgKey, subKey)
+    return WbiUtils.sign(params, imgKey, subKey, includeRiskFingerprint = includeRiskFingerprint)
 }
 
 internal fun decodeBangumiPlayUrlPayload(
@@ -105,9 +122,16 @@ internal fun decodeBangumiPlayUrlPayload(
     val message = root["message"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val resultObject = root["result"] as? JsonObject
     val dataObject = root["data"] as? JsonObject
-    val videoInfoElement = resultObject?.get("video_info") ?: resultObject ?: (dataObject?.get("video_info") ?: dataObject)
+    val videoInfoElement = resultObject?.get("video_info")
+        ?: dataObject?.get("video_info")
+        ?: dataObject
+        ?: resultObject
     val videoInfo = videoInfoElement?.let {
-        runCatching { json.decodeFromString<BangumiVideoInfo>(it.toString()) }.getOrNull()
+        runCatching {
+            json.decodeFromString<BangumiVideoInfo>(it.toString())
+        }.onFailure { e ->
+            android.util.Log.w("BangumiRepo", "decodeBangumiPlayUrlPayload videoInfo parse failed: ${e.message}")
+        }.getOrNull()
     }
     return BangumiPlayUrlPayload(
         code = code,
@@ -423,13 +447,15 @@ object BangumiRepository {
                 qn = qn,
                 bvid = bvid,
                 seasonId = seasonId,
-                aid = aid
+                aid = aid,
+                isCourse = isCourse
             )
             val wbiKeys = WbiKeyManager.getWbiKeys().getOrNull()
                 ?: WbiKeyManager.refreshKeys().getOrNull()
             val signedParams = signBangumiPlayUrlParams(
                 params = baseParams,
-                wbiKeys = wbiKeys
+                wbiKeys = wbiKeys,
+                includeRiskFingerprint = isCourse
             )
             android.util.Log.d(
                 "BangumiRepo",
@@ -518,10 +544,18 @@ object BangumiRepository {
     /**
      * 追番/追剧/收藏课程
      */
-    suspend fun followBangumi(seasonId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun followBangumi(seasonId: Long, isCourse: Boolean = false): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val csrf = TokenManager.csrfCache ?: return@withContext Result.failure(Exception("未登录"))
-            android.util.Log.w("BangumiRepo", "📌 追番/收藏请求: seasonId=$seasonId, csrf=${csrf.take(10)}...")
+            android.util.Log.w("BangumiRepo", "📌 追番/收藏请求: seasonId=$seasonId, isCourse=$isCourse, csrf=${csrf.take(10)}...")
+            if (isCourse) {
+                val pugvResponse = runCatching { api.addFavPugv(seasonId = seasonId, csrf = csrf) }.getOrNull()
+                return@withContext if (pugvResponse?.code == 0) {
+                    Result.success(true)
+                } else {
+                    Result.failure(Exception(pugvResponse?.message?.ifBlank { "收藏课程失败" } ?: "收藏课程失败"))
+                }
+            }
             val response = api.followBangumi(seasonId = seasonId, csrf = csrf)
             android.util.Log.w("BangumiRepo", "📌 追番响应: code=${response.code}, message=${response.message}")
             if (response.code == 0) {
@@ -544,9 +578,17 @@ object BangumiRepository {
     /**
      * 取消追番/追剧/取消收藏课程
      */
-    suspend fun unfollowBangumi(seasonId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun unfollowBangumi(seasonId: Long, isCourse: Boolean = false): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val csrf = TokenManager.csrfCache ?: return@withContext Result.failure(Exception("未登录"))
+            if (isCourse) {
+                val pugvResponse = runCatching { api.delFavPugv(seasonId = seasonId, csrf = csrf) }.getOrNull()
+                return@withContext if (pugvResponse?.code == 0) {
+                    Result.success(true)
+                } else {
+                    Result.failure(Exception(pugvResponse?.message?.ifBlank { "取消收藏失败" } ?: "取消收藏失败"))
+                }
+            }
             val response = api.unfollowBangumi(seasonId = seasonId, csrf = csrf)
             if (response.code == 0) {
                 Result.success(true)

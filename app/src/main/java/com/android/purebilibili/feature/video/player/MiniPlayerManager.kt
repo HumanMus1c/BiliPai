@@ -433,6 +433,23 @@ internal fun resolveLaunchActivityIconRes(context: Context): Int {
     }.getOrDefault(0)
 }
 
+internal fun resolveActivePlaybackLaunchIntent(
+    context: Context,
+    bvid: String?,
+): Intent {
+    val launchIntent = context.packageManager
+        .getLaunchIntentForPackage(context.packageName)
+        ?: Intent(context, com.android.purebilibili.MainActivity::class.java)
+    return launchIntent.apply {
+        bvid?.takeIf { it.isNotBlank() }?.let { activeBvid ->
+            action = Intent.ACTION_VIEW
+            data = Uri.parse("https://www.bilibili.com/video/$activeBvid")
+        }
+        putExtra(com.android.purebilibili.EXTRA_OPEN_ACTIVE_PLAYBACK, true)
+        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    }
+}
+
 internal fun shouldRebindMediaSessionPlayer(
     sessionPlayer: Any?,
     playbackPlayer: Any?
@@ -866,7 +883,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         )
         if (shouldPauseOnBackground) {
             currentPlayer.pause()
-            Logger.d(TAG, "🔋 后台轻量模式：未播放，先暂停缓冲，延迟拆视频链路")
+            Logger.d(TAG, "🔋 后台轻量模式：未播放，先暂停缓冲")
         } else if (shouldKeepBackgroundAudio) {
             Logger.d(TAG, "🔋 后台轻量模式：先保留视频链路，延迟切到仅音频")
         }
@@ -876,7 +893,19 @@ class MiniPlayerManager private constructor(private val context: Context) :
         }
 
         pendingHeavyBackgroundVideoOptimization = true
-        // 短后台不立刻关视频轨/清 surface/清弹幕，降低回前台固定顿一下的概率。
+        // 优化：未处于播放状态且无后台音频意图时，直接拆解视频链路并释放 Surface/解码器，无需等待 15 秒延迟
+        if (shouldPauseOnBackground && !shouldKeepBackgroundAudio) {
+            Logger.d(TAG, "🔋 后台即时优化：未在播放且无后台音频，立即拆除视频链路与释放闲置资源")
+            applyHeavyBackgroundVideoOptimization(
+                currentPlayer = currentPlayer,
+                shouldKeepBackgroundAudio = false,
+                wasPlaybackActive = foregroundResumeIntent,
+                requestIdlePlaybackRelease = true
+            )
+            return
+        }
+
+        // 短后台不立刻关视频轨/清 surface/清弹幕，降低回前台固定顿一下的概率（仅针对活跃后台音频）。
         backgroundHeavyOptimizationJob = scope.launch {
             delay(SHORT_BACKGROUND_LIGHT_MODE_MS)
             val elapsedMs = (SystemClock.elapsedRealtime() - enteredBackgroundAtMs).coerceAtLeast(0L)
@@ -1810,14 +1839,9 @@ class MiniPlayerManager private constructor(private val context: Context) :
                     prepare()
                 }
             
-            // 创建 MediaSession
-            // 🎯 [修复] 使用 MainActivity 以保持单一任务栈，防止进入 VideoActivity 导致状态丢失
-            val sessionIntent = Intent(context, com.android.purebilibili.MainActivity::class.java).apply {
-                action = Intent.ACTION_VIEW
-                // 占位符 URL，实际点击时会复用 Activity 栈顶
-                data = Uri.parse("https://www.bilibili.com/video/")
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
+            // Follow the currently enabled launcher alias. Targeting MainActivity directly can
+            // create a second activity instance when the selected app icon uses a splash alias.
+            val sessionIntent = resolveActivePlaybackLaunchIntent(context, currentBvid)
             val pendingIntent = PendingIntent.getActivity(
                 context, 0, sessionIntent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -2235,14 +2259,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
             // 构建新的 Session
             val sessionActivityPendingIntent = PendingIntent.getActivity(
                 context, 0,
-                Intent(context, com.android.purebilibili.MainActivity::class.java).apply {
-                    if (currentBvid != null) {
-                        action = Intent.ACTION_VIEW
-                        data = Uri.parse("https://www.bilibili.com/video/$currentBvid")
-                    }
-                    putExtra(com.android.purebilibili.EXTRA_OPEN_ACTIVE_PLAYBACK, true)
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                },
+                resolveActivePlaybackLaunchIntent(context, currentBvid),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             
@@ -2785,12 +2802,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
             }
         
         // 🎯 [修复] 确保点击通知本体也能正确跳转（覆盖 setContentIntent 作为双重保障）
-        val intent = Intent(context, com.android.purebilibili.MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            data = Uri.parse("https://www.bilibili.com/video/$currentBvid") // 携带 BVID
-            putExtra(com.android.purebilibili.EXTRA_OPEN_ACTIVE_PLAYBACK, true)
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+        val intent = resolveActivePlaybackLaunchIntent(context, currentBvid)
         val contentIntent = PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

@@ -71,15 +71,64 @@ class PlayerKeyboardPolicyTest {
                 )
             )
         )
-        // L -> SeekRelative(+10000ms)
-        assertEquals(
-            PlayerKeyAction.SeekRelative(KEYBOARD_SEEK_LONG_STEP_MS),
-            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_L))
-        )
         // J -> SeekRelative(-10000ms)
         assertEquals(
             PlayerKeyAction.SeekRelative(-KEYBOARD_SEEK_LONG_STEP_MS),
             resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_J))
+        )
+    }
+
+    @Test
+    fun resolvePlayerKeyAction_mapsInteractionKeysCorrectly() {
+        // Q -> ToggleLike
+        assertEquals(
+            PlayerKeyAction.ToggleLike,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_Q))
+        )
+        // W -> Coin
+        assertEquals(
+            PlayerKeyAction.Coin,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_W))
+        )
+        // E -> ToggleFavorite
+        assertEquals(
+            PlayerKeyAction.ToggleFavorite,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_E))
+        )
+        // R -> TripleAction
+        assertEquals(
+            PlayerKeyAction.TripleAction,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_R))
+        )
+        // S -> TakeScreenshot
+        assertEquals(
+            PlayerKeyAction.TakeScreenshot,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_S))
+        )
+        // L -> ToggleScreenLock
+        assertEquals(
+            PlayerKeyAction.ToggleScreenLock,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_L))
+        )
+        // [ -> PreviousPart
+        assertEquals(
+            PlayerKeyAction.PreviousPart,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_LEFT_BRACKET))
+        )
+        // ] -> NextPart
+        assertEquals(
+            PlayerKeyAction.NextPart,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_RIGHT_BRACKET))
+        )
+        // Shift + 1 -> SetSpeed(1.0f)
+        assertEquals(
+            PlayerKeyAction.SetSpeed(1.0f),
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_1, metaState = AndroidKeyEvent.META_SHIFT_ON))
+        )
+        // Shift + 2 -> SetSpeed(2.0f)
+        assertEquals(
+            PlayerKeyAction.SetSpeed(2.0f),
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_2, metaState = AndroidKeyEvent.META_SHIFT_ON))
         )
     }
 
@@ -151,8 +200,12 @@ class PlayerKeyboardPolicyTest {
         )
         assertNull(resolvePlayerKeyAction(upEvent))
 
-        // Screen locked
+        // Screen locked suppresses playback keys, but L unlocks
         assertNull(resolvePlayerKeyAction(spaceEvent, isScreenLocked = true))
+        assertEquals(
+            PlayerKeyAction.ToggleScreenLock,
+            resolvePlayerKeyAction(createKeyEvent(AndroidKeyEvent.KEYCODE_L), isScreenLocked = true)
+        )
 
         // In PiP mode
         assertNull(resolvePlayerKeyAction(spaceEvent, isInPipMode = true))

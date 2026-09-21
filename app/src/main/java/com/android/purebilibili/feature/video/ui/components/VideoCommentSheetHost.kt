@@ -892,6 +892,7 @@ internal fun VideoCommentMainList(
     val scope = rememberCoroutineScope()
     val appearance = rememberVideoCommentAppearance()
     val commentChromeBackdrop = rememberLayerBackdrop()
+    var showCommentSearchSheet by remember { mutableStateOf(false) }
     val latestOnBackToTop by rememberUpdatedState(onBackToTop)
     val shouldShowBackToTop by remember(listState) {
         androidx.compose.runtime.derivedStateOf {
@@ -926,6 +927,7 @@ internal fun VideoCommentMainList(
                     viewModel.setSortMode(mode)
                     scope.launch { SettingsManager.setCommentDefaultSortMode(context, mode.apiMode) }
                 },
+                onSearchClick = { showCommentSearchSheet = true },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -1027,6 +1029,21 @@ internal fun VideoCommentMainList(
                 )
             }
         }
+    }
+
+    if (showCommentSearchSheet) {
+        CommentSearchSheet(
+            replies = state.replies,
+            upMid = state.upMid,
+            onCommentClick = { reply ->
+                onReplyClick(reply)
+            },
+            onSubReplyClick = { rootReply ->
+                viewModel.openSubReply(rootReply)
+            },
+            onDismiss = { showCommentSearchSheet = false },
+            miuixBackdrop = commentChromeBackdrop,
+        )
     }
 }
 

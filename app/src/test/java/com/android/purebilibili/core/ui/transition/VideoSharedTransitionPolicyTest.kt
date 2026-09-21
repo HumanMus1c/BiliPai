@@ -1042,4 +1042,30 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(12, resolveVideoSharedTransitionSourceCornerDp("history", fallbackCornerDp = 12))
         assertEquals(12, resolveVideoSharedTransitionSourceCornerDp("partition?from=tab", fallbackCornerDp = 12))
     }
+
+    @Test
+    fun livePlayerAndExpandedLayoutSharedBoundsDoNotUseUnsynchronizedSpatialSpring() {
+        val playerSource = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"),
+            File("src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt")
+        ).first { it.exists() }.readText()
+        val tabletSource = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/video/screen/TabletVideoLayout.kt"),
+            File("src/main/java/com/android/purebilibili/feature/video/screen/TabletVideoLayout.kt")
+        ).first { it.exists() }.readText()
+        val largeScreenSource = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/video/screen/LargeScreenVideoLayout.kt"),
+            File("src/main/java/com/android/purebilibili/feature/video/screen/LargeScreenVideoLayout.kt")
+        ).first { it.exists() }.readText()
+
+        assertTrue(playerSource.contains("livePlayerSharedTransitionMotionSpec"))
+        assertTrue(playerSource.contains("videoSharedElementBoundsTransformSpec("))
+        assertFalse(
+            playerSource.contains("com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()"),
+            "VideoPlayerSection should not use spatialSpec() for shared bounds"
+        )
+
+        assertTrue(tabletSource.contains("videoSharedElementBoundsTransformSpec("))
+        assertTrue(largeScreenSource.contains("videoSharedElementBoundsTransformSpec("))
+    }
 }

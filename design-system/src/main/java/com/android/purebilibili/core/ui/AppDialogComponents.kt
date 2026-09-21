@@ -21,6 +21,7 @@ fun AppAlertDialog(
     containerColor: Color? = null,
     tonalElevation: Dp? = null,
     properties: DialogProperties = DialogProperties(),
+    contentLayout: AppContentDialogLayoutPolicy = resolveAppCompactContentDialogLayoutPolicy(),
 ) = AdaptiveAlertDialog(
     onDismissRequest = onDismissRequest,
     modifier = modifier,
@@ -33,6 +34,7 @@ fun AppAlertDialog(
     containerColor = containerColor,
     tonalElevation = tonalElevation,
     properties = properties,
+    contentLayout = contentLayout,
 )
 
 /** Style-neutral action slot for [AppAlertDialog]. */

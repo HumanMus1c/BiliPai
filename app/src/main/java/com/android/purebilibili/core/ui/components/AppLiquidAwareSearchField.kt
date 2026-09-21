@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
 import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
@@ -30,6 +31,7 @@ fun AppLiquidAwareSearchField(
     interactionSource: MutableInteractionSource? = null,
     backdrop: Backdrop? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
+    leadingIconHorizontalOffset: Dp = 0.dp,
 ) {
     BottomBarMatchedReusableLiquidDock(
         shape = CircleShape,
@@ -52,6 +54,7 @@ fun AppLiquidAwareSearchField(
             autoFocusEnabled = autoFocusEnabled,
             focusRequester = focusRequester,
             interactionSource = interactionSource,
+            leadingIconHorizontalOffset = leadingIconHorizontalOffset,
             containerColor = if (liquidChromeActive) Color.Transparent else Color.Unspecified,
             shapeOverride = CircleShape.takeIf { liquidChromeActive },
             heightOverride = if (liquidChromeActive) {

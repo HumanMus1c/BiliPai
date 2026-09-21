@@ -1,11 +1,16 @@
 package com.android.purebilibili.feature.video.viewmodel
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.data.model.CommentFraudStatus
 import com.android.purebilibili.data.model.response.ReplyData
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.ReplyPage
+import com.android.purebilibili.data.model.response.ReplyPicture
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.data.repository.CommentFraudRepository
 import com.android.purebilibili.data.repository.shouldStartCommentFraudDetection
@@ -15,6 +20,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
@@ -324,8 +331,9 @@ class VideoCommentViewModel : ViewModel() {
         viewModelScope.launch {
             val pageToLoad = currentState.nextPage
             //  使用当前排序模式
-            val result = CommentRepository.getComments(
-                aid = requestSubject.oid,
+            val result = CommentRepository.getCommentsForSubject(
+                oid = requestSubject.oid,
+                type = requestSubject.type,
                 page = pageToLoad, 
                 ps = 20,
                 mode = currentState.sortMode.apiMode,
@@ -876,34 +884,60 @@ class VideoCommentViewModel : ViewModel() {
     
     fun sendComment(
         message: String,
+        imageUris: List<Uri> = emptyList(),
+        syncToDynamic: Boolean = false,
         fraudDetectionEnabled: Boolean = true
     ) {
-        if (message.isBlank()) return
+        if (message.isBlank() && imageUris.isEmpty()) return
         val currentState = _commentState.value
         if (currentState.isSending) return
         
         _commentState.value = currentState.copy(isSending = true, sendError = null)
+
+        // Keep the request bound to the episode that opened the composer. A quick episode
+        // switch must not let a late response update the newly selected comment thread.
+        val sendSubject = currentSubject
+        val sendCurrentAid = currentAid
+        val sendReplyTarget = currentState.replyTarget
+        val sendSubReplyState = _subReplyState.value
         
         viewModelScope.launch {
-            val replyTarget = currentState.replyTarget
             // [修复] 正确计算 root ID
             // 如果是在二级评论页回复，root 为当前二级评论页的根评论 ID
             // 如果是一级评论页回复某评论，root 为该评论 ID
             // 如果是直接发表评论，root 为 0
-            val subReplyState = _subReplyState.value
-            val isSubReplyContext = subReplyState.visible && subReplyState.rootReply != null
+            val isSubReplyContext = sendSubReplyState.visible && sendSubReplyState.rootReply != null
             
             val root = if (isSubReplyContext) {
-                subReplyState.rootReply.rpid
+                sendSubReplyState.rootReply!!.rpid
             } else {
-                replyTarget?.rpid ?: 0
+                sendReplyTarget?.rpid ?: 0
             }
             // parent 总是回复目标的 ID (如果没有回复目标，则是 0)
-            val parent = replyTarget?.rpid ?: 0
+            val parent = sendReplyTarget?.rpid ?: 0
             
-            val result = CommentRepository.addComment(currentAid, message, root, parent)
+            val picturesResult = uploadCommentPictures(imageUris)
+            val pictures = picturesResult.getOrElse { error ->
+                if (shouldApplyCommentSubjectResult(sendSubject, currentSubject)) {
+                    _commentState.value = _commentState.value.copy(
+                        isSending = false,
+                        sendError = error.message ?: "图片上传失败"
+                    )
+                }
+                return@launch
+            }
+            val result = CommentRepository.addCommentForSubject(
+                oid = sendSubject.oid,
+                type = sendSubject.type,
+                message = message,
+                root = root,
+                parent = parent,
+                pictures = pictures,
+                syncToDynamic = syncToDynamic
+            )
             
             result.onSuccess { newReply ->
+                if (!shouldApplyCommentSubjectResult(sendSubject, currentSubject)) return@onSuccess
                 android.util.Log.d("CommentVM", " sendComment success: newReply=${newReply?.rpid}, root=$root, parent=$parent")
                 val current = _commentState.value
 
@@ -914,8 +948,8 @@ class VideoCommentViewModel : ViewModel() {
                     viewModelScope.launch {
                         com.android.purebilibili.data.repository.CommentFraudRepository.saveRecord(
                             rpid = rpidToCheck,
-                            oid = currentAid,
-                            type = 1,
+                            oid = sendSubject.oid,
+                            type = sendSubject.type,
                             root = root,
                             message = message,
                             status = com.android.purebilibili.data.model.CommentFraudStatus.NORMAL
@@ -924,7 +958,7 @@ class VideoCommentViewModel : ViewModel() {
                     
                     val sentAtSeconds = newReply?.ctime?.takeIf { it > 0L } ?: (System.currentTimeMillis() / 1000L)
                     launchFraudDetection(
-                        aid = currentAid,
+                        aid = sendCurrentAid,
                         rpid = rpidToCheck,
                         rootId = root,
                         message = message,
@@ -984,7 +1018,7 @@ class VideoCommentViewModel : ViewModel() {
                                 grpcNextOffset = null
                             )
                             loadSubReplies(
-                                subject = currentSubject,
+                                subject = sendSubject,
                                 rootId = root.rpid,
                                 page = 1,
                                 paginationOffset = null
@@ -1008,10 +1042,48 @@ class VideoCommentViewModel : ViewModel() {
                     )
                 }
             }.onFailure { e ->
+                if (!shouldApplyCommentSubjectResult(sendSubject, currentSubject)) return@onFailure
                 android.util.Log.e("CommentVM", " sendComment failed: ${e.message}")
                 _commentState.value = _commentState.value.copy(isSending = false, sendError = e.message)
             }
         }
+    }
+
+    private suspend fun uploadCommentPictures(imageUris: List<Uri>): Result<List<ReplyPicture>> {
+        if (imageUris.isEmpty()) return Result.success(emptyList())
+        val context = NetworkModule.appContext ?: return Result.failure(Exception("应用上下文不可用"))
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                imageUris.take(9).mapIndexed { index, uri ->
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("无法读取图片文件")
+                    require(bytes.isNotEmpty()) { "图片内容为空" }
+                    require(bytes.size <= 15 * 1024 * 1024) { "图片过大（单张最大 15MB）" }
+                    val fileName = queryDisplayName(context, uri)
+                        ?: "comment_${System.currentTimeMillis()}_${index + 1}.jpg"
+                    CommentRepository.uploadCommentImage(
+                        fileName = fileName,
+                        mimeType = context.contentResolver.getType(uri) ?: "image/jpeg",
+                        bytes = bytes
+                    ).getOrElse { throw it }
+                }
+            }
+        }
+    }
+
+    private fun queryDisplayName(context: Context, uri: Uri): String? {
+        return runCatching {
+            context.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+            }
+        }.getOrNull()
     }
     
     fun replyTo(reply: ReplyItem) {
@@ -1033,7 +1105,12 @@ class VideoCommentViewModel : ViewModel() {
         )
         
         viewModelScope.launch {
-            CommentRepository.likeComment(currentAid, rpid, !isCurrentlyLiked).onFailure {
+            CommentRepository.likeCommentForSubject(
+                oid = currentSubject.oid,
+                type = currentSubject.type,
+                rpid = rpid,
+                like = !isCurrentlyLiked
+            ).onFailure {
                 _commentState.value = _commentState.value.copy(likedComments = currentState.likedComments, hatedComments = currentState.hatedComments)
             }
         }
@@ -1050,7 +1127,12 @@ class VideoCommentViewModel : ViewModel() {
         )
         
         viewModelScope.launch {
-            CommentRepository.hateComment(currentAid, rpid, !isCurrentlyHated).onFailure {
+            CommentRepository.hateCommentForSubject(
+                oid = currentSubject.oid,
+                type = currentSubject.type,
+                rpid = rpid,
+                hate = !isCurrentlyHated
+            ).onFailure {
                 _commentState.value = _commentState.value.copy(likedComments = currentState.likedComments, hatedComments = currentState.hatedComments)
             }
         }
@@ -1059,16 +1141,25 @@ class VideoCommentViewModel : ViewModel() {
 
     
     fun reportComment(rpid: Long, reason: Int, content: String = "") {
-        viewModelScope.launch { CommentRepository.reportComment(currentAid, rpid, reason, content) }
+        viewModelScope.launch {
+            CommentRepository.reportCommentForSubject(
+                oid = currentSubject.oid,
+                type = currentSubject.type,
+                rpid = rpid,
+                reason = reason,
+                content = content
+            )
+        }
     }
 
     fun toggleTopComment(reply: ReplyItem) {
-        if (currentAid <= 0L || reply.rpid <= 0L) return
+        if (currentSubject.oid <= 0L || reply.rpid <= 0L) return
         val current = _commentState.value
         val isCurrentlyTop = reply.rpid in current.pinnedReplyIds || reply.replyControl?.isUpTop == true
         viewModelScope.launch {
-            CommentRepository.setCommentTop(
-                aid = currentAid,
+            CommentRepository.setCommentTopForSubject(
+                oid = currentSubject.oid,
+                type = currentSubject.type,
                 rpid = reply.rpid,
                 isCurrentlyTop = isCurrentlyTop
             ).onSuccess {
@@ -1090,7 +1181,9 @@ class VideoCommentViewModel : ViewModel() {
         rootId: Long,
         message: String = "",
         hasPictures: Boolean = false,
-        sentAtSeconds: Long = 0
+        sentAtSeconds: Long = 0,
+        waitMs: Long = -1L,
+        preserveInitialStatus: Boolean = false
     ) {
         _commentState.value = _commentState.value.copy(
             isDetectingFraud = true,
@@ -1103,11 +1196,11 @@ class VideoCommentViewModel : ViewModel() {
                 rpid = rpid,
                 rootId = rootId,
                 hasPictures = hasPictures,
-                sentAtSeconds = sentAtSeconds
+                sentAtSeconds = sentAtSeconds,
+                waitMs = waitMs
             )
             result.onSuccess { status ->
                 android.util.Log.d("CommentVM", "评论反诈检测结果: $status (rpid=$rpid)")
-                // [存储初检] 初检完成，同步将真实状态写入 initial_status 与 status
                 CommentFraudRepository.saveRecord(
                     rpid = rpid,
                     oid = aid,
@@ -1115,7 +1208,8 @@ class VideoCommentViewModel : ViewModel() {
                     root = rootId,
                     message = message,
                     status = status,
-                    initialStatus = status // 该评论发布 T+5s 的“初始出生状态”！
+                    // 发评自动检测写入初始出生状态；手动复检保留历史 initial_status
+                    initialStatus = if (preserveInitialStatus) null else status
                 )
                 _commentState.value = _commentState.value.copy(
                     isDetectingFraud = false,
@@ -1131,6 +1225,28 @@ class VideoCommentViewModel : ViewModel() {
                 )
             }
         }
+    }
+    /**
+     * 手动触发某条自己评论的反诈检测（评论长按菜单「检测评论状态」入口）。
+     *
+     * 与发评自动检测的区别：
+     * - 不受 [fraudDetectionEnabled] 设置门控（用户主动触发）；
+     * - waitMs=0 立即检测（不是刚发的评论，无需等待主从同步缓冲）；
+     * - 仅更新 status，initialStatus 传 null 以保留历史记录中的初始出生状态。
+     */
+    fun checkCommentFraud(reply: ReplyItem) {
+        val aid = currentAid
+        if (aid <= 0L || reply.rpid <= 0L) return
+        launchFraudDetection(
+            aid = aid,
+            rpid = reply.rpid,
+            rootId = reply.root,
+            message = reply.content.message,
+            hasPictures = !reply.content.pictures.isNullOrEmpty(),
+            sentAtSeconds = reply.ctime.takeIf { it > 0L } ?: 0L,
+            waitMs = 0L,
+            preserveInitialStatus = true
+        )
     }
 
     /** 清除检测结果（用户关闭弹窗后调用） */
@@ -1170,7 +1286,11 @@ class VideoCommentViewModel : ViewModel() {
 
         // 发起网络请求
         viewModelScope.launch {
-            CommentRepository.deleteComment(currentAid, rpid).onFailure { e ->
+            CommentRepository.deleteCommentForSubject(
+                oid = currentSubject.oid,
+                type = currentSubject.type,
+                rpid = rpid
+            ).onFailure { e ->
                 // 如果删除失败，可能需要恢复? 暂时只需提示
                 // 实际场景中很少失败，除非网络极差
                 // 若要严格一致性，可以在这里重新加载评论列表
@@ -1204,7 +1324,11 @@ class VideoCommentViewModel : ViewModel() {
         // 发起网络删除请求（使用 rootReply 的 oid）
         val oid = currentSubject.oid.takeIf { it > 0L } ?: return
         viewModelScope.launch {
-            CommentRepository.deleteComment(oid, rpid).onFailure { e ->
+            CommentRepository.deleteCommentForSubject(
+                oid = oid,
+                type = currentSubject.type,
+                rpid = rpid
+            ).onFailure { e ->
                 android.util.Log.e("CommentVM", "Delete sub-comment failed for $rpid: ${e.message}")
             }
         }

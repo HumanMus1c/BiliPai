@@ -467,7 +467,11 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertFalse(floating.contains("biliPaiFloatingDockShell("))
         assertFalse(floating.contains("BiliPaiFloatingDockIndicator("))
         assertFalse(floating.contains("displayPosition"))
-        assertFalse(floating.contains("BottomBarMatchedLiquidDock("))
+        assertTrue(
+            floating.contains("BottomBarMatchedLiquidDock("),
+            "Scrollable rails need one fixed-width liquid shell behind their moving content"
+        )
+        assertTrue(floating.contains("drawShell = scrollState == null"))
         assertFalse(floating.contains("horizontalDragGesture("))
         assertFalse(floating.contains("rememberBottomBarMatchedLiquidChromeState("))
         assertFalse(floating.contains("Invisible hit / drag layer"))

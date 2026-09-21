@@ -30,6 +30,27 @@ class VideoDetailScreenPolicyTest {
     }
 
     @Test
+    fun portraitCollapseKeepsVideoCanvasWithoutImmediatePlayToolbar() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
+            .readText()
+        val playerHost = source
+            .substringAfter("if (!isVerticalVideo) {")
+            .substringBefore("Box(\n                            modifier = Modifier")
+
+        assertTrue(playerHost.contains("CollapsedPlayerNavigationBar("))
+        assertFalse(playerHost.contains("isPortraitVideo"))
+
+        val collapsedHeightPolicy = source
+            .substringAfter("val collapsedViewportHeight = when {")
+            .substringBefore("val inlineViewportHeight = lerp(")
+        assertTrue(
+            collapsedHeightPolicy.indexOf("useOfficialInlinePortraitDetailExperience") <
+                collapsedHeightPolicy.indexOf("portraitPlayerCollapseMode != PortraitPlayerCollapseMode.OFF")
+        )
+        assertTrue(collapsedHeightPolicy.contains("collapsedPortraitInlineSpec.heightDp.dp"))
+    }
+
+    @Test
     fun localBack_prefersPortraitFullscreenOverLandscapeFullscreen() {
         assertEquals(
             VideoDetailLocalBackTarget.EXIT_PORTRAIT_FULLSCREEN,

@@ -12,6 +12,7 @@ internal data class HistoryCardPresentation(
 internal enum class HistoryNavigationKind {
     VIDEO,
     PGC,
+    CHEESE,
     LIVE,
     ARTICLE
 }
@@ -21,6 +22,7 @@ internal fun resolveHistoryNavigationKind(
 ): HistoryNavigationKind {
     return when (historyItem?.business) {
         HistoryBusiness.PGC -> HistoryNavigationKind.PGC
+        HistoryBusiness.CHEESE -> HistoryNavigationKind.CHEESE
         HistoryBusiness.LIVE -> HistoryNavigationKind.LIVE
         HistoryBusiness.ARTICLE -> HistoryNavigationKind.ARTICLE
         else -> HistoryNavigationKind.VIDEO

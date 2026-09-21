@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /** Material 3 renderer: native AlertDialog hierarchy and standard action buttons. */
@@ -39,7 +39,7 @@ internal fun Material3AppUpdateDialog(
     state: AppUpdateDialogState,
     actions: AppUpdateDialogActions,
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = actions.onDismissRequest,
         title = {
             Row(

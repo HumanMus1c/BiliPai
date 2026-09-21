@@ -13,6 +13,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -389,6 +391,7 @@ fun BottomBarLiquidSegmentedControl(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    scrollState: ScrollState? = null,
     enabled: Boolean = true,
     itemWidth: Dp? = null,
     height: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.dp,
@@ -447,13 +450,18 @@ fun BottomBarLiquidSegmentedControl(
         val nativeOptions = remember(items) {
             items.mapIndexed { index, label -> AppSegmentOption(index, label) }
         }
+        val nativeScrollModifier = if (scrollState != null) {
+            modifier.horizontalScroll(scrollState)
+        } else {
+            modifier
+        }
         val nativeModifier = if (itemWidth != null) {
-            modifier.width(
+            nativeScrollModifier.width(
                 itemWidth.coerceAtLeast(AppChromeSizeTokens.MinimumTouchTarget) * items.size +
                     containerHorizontalPadding.coerceAtLeast(0.dp) * 2
             )
         } else {
-            modifier
+            nativeScrollModifier
         }
         AppNativeTabRow(
             options = nativeOptions,
@@ -532,6 +540,7 @@ fun BottomBarLiquidSegmentedControl(
         externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
         liquidGlassTuningOverride = liquidGlassTuningOverride,
         geometryMode = geometryMode,
+        scrollState = scrollState,
     )
 }
 

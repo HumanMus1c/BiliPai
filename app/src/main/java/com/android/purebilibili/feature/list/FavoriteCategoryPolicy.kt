@@ -23,9 +23,9 @@ internal fun opensFavoriteCategoryInNativeScreen(section: FavoriteSection): Bool
     FavoriteSection.BANGUMI,
     FavoriteSection.CINEMA,
     FavoriteSection.ARTICLE,
-    FavoriteSection.TOPIC -> true
-    FavoriteSection.NOTE,
-    FavoriteSection.COURSE -> false
+    FavoriteSection.TOPIC,
+    FavoriteSection.COURSE -> true
+    FavoriteSection.NOTE -> false
 }
 
 internal fun resolveFavoriteSearchApiType(scope: FavoriteSearchScope): Int = when (scope) {

@@ -713,7 +713,7 @@ internal fun resolvePhoneVideoRequestedOrientation(
             else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
-    return if (isFullscreenMode) {
+    return if (isFullscreenMode || manualFullscreenRequested) {
         val fullscreenOrientation = resolvePhoneFullscreenEnterOrientation(
             fullscreenMode = fullscreenMode,
             isVerticalVideo = isVerticalVideo,

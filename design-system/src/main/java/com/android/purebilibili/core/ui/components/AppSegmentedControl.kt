@@ -167,6 +167,12 @@ internal fun resolveEqualMiuixNonGlassTabItemWidth(
     longestLabelWidth + horizontalContentPadding * 2,
 )
 
+internal fun resolveMiuixTabMinWidth(
+    requestedMinWidth: Dp,
+    sharedMinWidth: Dp,
+    contentSizedItems: Boolean,
+): Dp = if (contentSizedItems) requestedMinWidth else sharedMinWidth
+
 fun resolveMiuixNonGlassContentTabItemWidths(
     labelWidths: List<Dp>,
     minTabWidth: Dp,
@@ -337,6 +343,7 @@ fun <T> AppNativeTabRow(
     miuixNonGlassItemWidthMode: MiuixNonGlassTabItemWidthMode =
         MiuixNonGlassTabItemWidthMode.CONTENT,
     contentSizedMiuixNonGlassItems: Boolean = false,
+    contentSizedMiuixNonGlassMaxItemWidth: Dp = 320.dp,
     // Miuix non-glass tabs keep their individual item surfaces, without adding
     // an extra full-width dock behind the items. Callers that intentionally own
     // a track (for example a liquid-glass rail) can still opt in explicitly.
@@ -361,7 +368,6 @@ fun <T> AppNativeTabRow(
             (readableMinTabWidth > minTabWidth && options.size > 2))
     val useContentSizedMiuixItems = contentSizedMiuixNonGlassItems &&
         miuixNonGlassItemWidthMode == MiuixNonGlassTabItemWidthMode.CONTENT &&
-        com.android.purebilibili.core.ui.isMiuixNonGlassEnabled() &&
         effectiveScrollable
     val viewportBoundedModifier = modifier.widthIn(
         max = LocalConfiguration.current.screenWidthDp.dp,
@@ -416,7 +422,13 @@ fun <T> AppNativeTabRow(
             selectedValue = selectedValue,
             enabled = enabled,
             scrollable = effectiveScrollable,
-            minTabWidth = targetTabWidth,
+            // Content-sized tabs measure each label independently. A shared longest-label
+            // minimum would enlarge every short tab when a long collection title appears.
+            minTabWidth = resolveMiuixTabMinWidth(
+                requestedMinWidth = minTabWidth,
+                sharedMinWidth = targetTabWidth,
+                contentSizedItems = useContentSizedMiuixItems,
+            ),
             colors = colors,
             preferredCornerRadius = policy.preferredCornerRadius,
             height = height,
@@ -428,6 +440,7 @@ fun <T> AppNativeTabRow(
             indicatorPositionProvider = indicatorPositionProvider,
             equalizeScrollableItemWidths = equalizeMiuixNonGlassItems,
             contentSizedNonGlassItems = useContentSizedMiuixItems,
+            contentSizedNonGlassMaxItemWidth = contentSizedMiuixNonGlassMaxItemWidth,
             drawNonGlassTrack = drawMiuixNonGlassTrack,
             onSelectionChange = onSelectionChange,
         )

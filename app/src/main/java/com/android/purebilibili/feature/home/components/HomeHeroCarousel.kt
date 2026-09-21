@@ -45,6 +45,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +98,8 @@ import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.util.HomeCoverReturnPrefetchEntry
+import com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.feature.home.components.cards.isVideoCardSharedSourceInstanceOwner
 import com.android.purebilibili.core.util.CardPositionManager
@@ -335,6 +338,19 @@ private fun HomeHeroCarouselCard(
             .memoryCacheKey(normalizedCoverUrl)
             .diskCacheKey(normalizedCoverUrl)
             .build()
+    }
+
+    // Use the same cover identity and return prefetch registry as ordinary
+    // video cards so a detail return can settle into the hero without a
+    // second decode or a one-frame placeholder.
+    SideEffect {
+        HomeCoverReturnPrefetchRegistry.onCardVisible(
+            HomeCoverReturnPrefetchEntry(
+                bvid = video.bvid.trim(),
+                url = normalizedCoverUrl,
+                cacheKey = normalizedCoverUrl,
+            )
+        )
     }
 
     // 记录源卡位置后进入详情。

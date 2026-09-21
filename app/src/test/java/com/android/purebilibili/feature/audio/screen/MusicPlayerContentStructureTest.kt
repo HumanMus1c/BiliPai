@@ -32,6 +32,24 @@ class MusicPlayerContentStructureTest {
     }
 
     @Test
+    fun `compact landscape exposes transport below artwork`() {
+        val source = loadSource()
+        val compactLandscape = source
+            .substringAfter("MusicPlayerLayout.COMPACT_LANDSCAPE ->")
+            .substringBefore("MusicPlayerLayout.COMPACT_PAGER ->")
+
+        assertTrue(compactLandscape.contains("MusicArtwork("))
+        assertTrue(compactLandscape.contains("MusicProgress("))
+        assertTrue(compactLandscape.contains("MusicPlayPauseButton("))
+        assertTrue(compactLandscape.contains("onPlayPause = onPlayPause"))
+        assertTrue(compactLandscape.contains("progressSeekRevision += 1"))
+        assertTrue(compactLandscape.contains("if (landscapeLyrics)"))
+        assertTrue(compactLandscape.contains("val landscapeHeaderHeight = 48.dp"))
+        assertTrue(compactLandscape.contains("contentAlignment = Alignment.TopCenter"))
+        assertTrue(compactLandscape.contains("Alignment.Center"))
+    }
+
+    @Test
     fun `music backdrop records opaque page background before glass samples it`() {
         val source = loadSource()
         assertTrue(source.contains("val musicBackdrop = musicBackdropSource.backdrop"))
@@ -86,6 +104,21 @@ class MusicPlayerContentStructureTest {
         assertTrue(source.contains("onCollectionClick"))
         assertTrue(!source.contains("MusicPlayModeDock("))
         assertTrue(!source.contains("listOf(\"顺序播放\", \"随机播放\", \"单曲循环\", \"列表循环\")"))
+    }
+
+    @Test
+    fun `artwork uses one reversible playback scale timeline`() {
+        val source = loadSource()
+        val artwork = source
+            .substringAfter("private fun MusicArtwork(")
+            .substringBefore("private fun MusicProgress(")
+
+        assertTrue(artwork.contains("animateFloatAsState("))
+        assertTrue(artwork.contains("APPLE_MUSIC_COVER_MOTION_STIFFNESS"))
+        assertTrue(artwork.contains("resolveAppleMusicCoverShadowElevation(playbackProgress)"))
+        assertTrue(artwork.contains("scaleX = artworkScale"))
+        assertTrue(artwork.contains("scaleY = artworkScale"))
+        assertTrue(artwork.contains("if (reduceMotion)"))
     }
 
     @Test

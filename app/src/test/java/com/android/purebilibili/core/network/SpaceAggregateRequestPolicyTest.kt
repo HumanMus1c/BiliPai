@@ -62,4 +62,24 @@ class SpaceAggregateRequestPolicyTest {
             tvParams["sign"]
         )
     }
+
+    @Test
+    fun `space liked archive request includes pagination params and app sign`() {
+        val params = buildSpaceLikedArchiveParams(
+            mid = 8047632L,
+            page = 2,
+            pageSize = 20,
+            accessToken = null
+        )
+
+        assertEquals("8047632", params["vmid"])
+        assertEquals("2", params["pn"])
+        assertEquals("20", params["ps"])
+        assertEquals(AppSignUtils.ANDROID_HD_APP_KEY, params["appkey"])
+        assertTrue(params["sign"].orEmpty().isNotBlank())
+        assertEquals(
+            AppSignUtils.signForAndroidHdLogin(params - "sign")["sign"],
+            params["sign"]
+        )
+    }
 }

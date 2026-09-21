@@ -19,16 +19,32 @@ class SearchResultNavigationPolicyTest {
     }
 
     @Test
-    fun videoNavigation_opensClassroomResultInWebPageWhenBvidIsMissing() {
+    fun videoNavigation_opensClassroomResultInCoursePlayerWhenSeasonIdPresent() {
         assertEquals(
-            SearchResultNavigationTarget.Web(
-                url = "https://www.bilibili.com/cheese/play/ss37632",
-                title = "系统课程"
+            SearchResultNavigationTarget.Course(
+                seasonId = 37632L,
+                epId = 0L
             ),
             resolveVideoSearchNavigationTarget(
                 bvid = "",
                 contentType = "ketang",
                 navigationUrl = "https://www.bilibili.com/cheese/play/ss37632",
+                title = "系统课程"
+            )
+        )
+    }
+
+    @Test
+    fun videoNavigation_opensClassroomResultInWebPageWhenSeasonIdMissing() {
+        assertEquals(
+            SearchResultNavigationTarget.Web(
+                url = "https://www.bilibili.com/cheese/intro",
+                title = "系统课程"
+            ),
+            resolveVideoSearchNavigationTarget(
+                bvid = "",
+                contentType = "ketang",
+                navigationUrl = "https://www.bilibili.com/cheese/intro",
                 title = "系统课程"
             )
         )

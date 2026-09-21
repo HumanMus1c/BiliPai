@@ -322,7 +322,7 @@ internal fun resolveInlineVideoOverlayProgressPollingIntervalMs(
     return when {
         highFrequencyProgressActive -> 100L
         controlsVisible && isPlaying -> 200L
-        else -> 500L
+        else -> 1000L
     }
 }
 
@@ -707,6 +707,7 @@ fun VideoPlayerOverlay(
     drawerHazeState: HazeState? = null,
     statusBarAmbientFrame: State<ImageBitmap?>? = null,
     statusBarBackdropHeight: androidx.compose.ui.unit.Dp = 0.dp,
+    onShowDanmakuPool: (() -> Unit)? = null,
 ) {
     var showQualityMenu by remember { mutableStateOf(false) }
     var showAudioQualityMenu by remember { mutableStateOf(false) }
@@ -2075,6 +2076,12 @@ fun VideoPlayerOverlay(
                 onPortraitDisplayAreaModeChange = onPortraitDanmakuDisplayAreaModeChange,
                 onCloudSyncEnabledChange = onDanmakuCloudSyncEnabledChange,
                 onSyncNowClick = onDanmakuSyncNowClick,
+                onShowDanmakuPool = onShowDanmakuPool?.let { action ->
+                    {
+                        showDanmakuSettings = false
+                        action()
+                    }
+                },
                 onDismiss = { showDanmakuSettings = false }
             )
         }
@@ -2088,6 +2095,12 @@ fun VideoPlayerOverlay(
                 onDanmakuSettingsClick = {
                     showVideoSettings = false
                     showDanmakuSettings = true
+                },
+                onShowDanmakuPool = onShowDanmakuPool?.let { action ->
+                    {
+                        showVideoSettings = false
+                        action()
+                    }
                 },
                 currentQualityLabel = currentQualityLabel,
                 qualityLabels = qualityLabels,

@@ -421,6 +421,7 @@ internal fun VideoInlineSubReplyDetailContent(
     onConversationBack: () -> Unit,
     onDissolveStart: (Long) -> Unit,
     onDeleteComment: (Long) -> Unit,
+    onCheckCommentFraud: (ReplyItem) -> Unit = {},
     onCommentLike: (Long) -> Unit,
     onCommentHate: (Long) -> Unit,
     onReportComment: (Long, Int) -> Unit,
@@ -462,6 +463,7 @@ internal fun VideoInlineSubReplyDetailContent(
         currentMid = commentState.currentMid,
         onDissolveStart = onDissolveStart,
         onDeleteComment = onDeleteComment,
+        onCheckCommentFraud = onCheckCommentFraud,
         onCommentLike = onCommentLike,
         onCommentHate = onCommentHate,
         onReportComment = onReportComment,
@@ -502,6 +504,7 @@ internal fun SubReplyDetailContent(
     currentMid: Long = 0,
     onDissolveStart: ((Long) -> Unit)? = null,
     onDeleteComment: ((Long) -> Unit)? = null,
+    onCheckCommentFraud: ((ReplyItem) -> Unit)? = null,
     onCommentLike: ((Long) -> Unit)? = null,
     onCommentHate: ((Long) -> Unit)? = null,
     onReportComment: ((Long, Int) -> Unit)? = null,
@@ -758,6 +761,9 @@ internal fun SubReplyDetailContent(
                             onDeleteClick = if (currentMid > 0 && rootReply.mid == currentMid) {
                                 { onDeleteComment?.invoke(rootReply.rpid) }
                             } else null,
+                            onCheckFraudClick = if (currentMid > 0 && rootReply.mid == currentMid) {
+                                { onCheckCommentFraud?.invoke(rootReply) }
+                            } else null,
                             onLikeClick = { onCommentLike?.invoke(rootReply.rpid) },
                             onHateClick = { onCommentHate?.invoke(rootReply.rpid) },
                             isLiked = rootReply.action == 1 || rootReply.rpid in likedComments,
@@ -880,6 +886,9 @@ internal fun SubReplyDetailContent(
                             } else {
                                 null
                             },
+                            onCheckFraudClick = if (currentMid > 0 && item.mid == currentMid) {
+                                { onCheckCommentFraud?.invoke(item) }
+                            } else null,
                             onLikeClick = { onCommentLike?.invoke(item.rpid) },
                             onHateClick = { onCommentHate?.invoke(item.rpid) },
                             isLiked = item.action == 1 || item.rpid in likedComments,
@@ -972,6 +981,7 @@ private fun SubReplyDetailItem(
     onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)?,
     onReplyClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
+    onCheckFraudClick: (() -> Unit)? = null,
     onLikeClick: (() -> Unit)?,
     onHateClick: (() -> Unit)?,
     isLiked: Boolean,
@@ -1134,6 +1144,9 @@ private fun SubReplyDetailItem(
             },
             onReport = { showReportDialog = true },
             onToggleTop = {},
+            onCheckFraud = {
+                onCheckFraudClick?.invoke()
+            },
             onDelete = { onDeleteClick?.invoke() }
         )
     }
@@ -1328,7 +1341,7 @@ private fun SubReplyDetailItem(
                                                     Toast.makeText(context, "翻译结果为空", Toast.LENGTH_SHORT).show()
                                                 }
                                             }.onFailure { e ->
-                                                Toast.makeText(context, "翻译失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "${e.javaClass.simpleName}: ${e.message}", Toast.LENGTH_SHORT).show()
                                             }
                                             isTranslating = false
                                         }

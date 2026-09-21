@@ -19,6 +19,15 @@ sealed interface PlayerKeyAction {
     data object ToggleMute : PlayerKeyAction
     data object ToggleFullscreen : PlayerKeyAction
     data object ToggleDanmaku : PlayerKeyAction
+    data object ToggleLike : PlayerKeyAction
+    data object Coin : PlayerKeyAction
+    data object ToggleFavorite : PlayerKeyAction
+    data object TripleAction : PlayerKeyAction
+    data object TakeScreenshot : PlayerKeyAction
+    data object ToggleScreenLock : PlayerKeyAction
+    data object PreviousPart : PlayerKeyAction
+    data object NextPart : PlayerKeyAction
+    data class SetSpeed(val speed: Float) : PlayerKeyAction
 }
 
 internal const val KEYBOARD_SEEK_SHORT_STEP_MS = 5_000L
@@ -31,7 +40,16 @@ internal fun resolvePlayerKeyAction(
     isTextInputActive: Boolean = false,
 ): PlayerKeyAction? {
     if (event.type != KeyEventType.KeyDown) return null
-    if (isScreenLocked || isInPipMode || isTextInputActive) return null
+    if (isInPipMode || isTextInputActive) return null
+
+    // Screen locked: only L (unlock) is accepted
+    if (isScreenLocked) {
+        return if (event.key == Key.L && !event.isCtrlPressed && !event.isAltPressed && !event.isMetaPressed) {
+            PlayerKeyAction.ToggleScreenLock
+        } else {
+            null
+        }
+    }
 
     // Do not intercept system-level shortcuts (Ctrl, Alt, Meta/Cmd)
     if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) {
@@ -40,23 +58,34 @@ internal fun resolvePlayerKeyAction(
 
     val shift = event.isShiftPressed
 
+    if (shift) {
+        return when (event.key) {
+            Key.DirectionLeft -> PlayerKeyAction.SeekRelative(-KEYBOARD_SEEK_LONG_STEP_MS)
+            Key.DirectionRight -> PlayerKeyAction.SeekRelative(KEYBOARD_SEEK_LONG_STEP_MS)
+            Key.One, Key.NumPad1 -> PlayerKeyAction.SetSpeed(1.0f)
+            Key.Two, Key.NumPad2 -> PlayerKeyAction.SetSpeed(2.0f)
+            else -> null
+        }
+    }
+
     return when (event.key) {
         Key.Spacebar, Key.K -> PlayerKeyAction.PlayPause
-        Key.DirectionLeft -> {
-            val step = if (shift) KEYBOARD_SEEK_LONG_STEP_MS else KEYBOARD_SEEK_SHORT_STEP_MS
-            PlayerKeyAction.SeekRelative(-step)
-        }
-        Key.DirectionRight -> {
-            val step = if (shift) KEYBOARD_SEEK_LONG_STEP_MS else KEYBOARD_SEEK_SHORT_STEP_MS
-            PlayerKeyAction.SeekRelative(step)
-        }
+        Key.DirectionLeft -> PlayerKeyAction.SeekRelative(-KEYBOARD_SEEK_SHORT_STEP_MS)
+        Key.DirectionRight -> PlayerKeyAction.SeekRelative(KEYBOARD_SEEK_SHORT_STEP_MS)
         Key.J -> PlayerKeyAction.SeekRelative(-KEYBOARD_SEEK_LONG_STEP_MS)
-        Key.L -> PlayerKeyAction.SeekRelative(KEYBOARD_SEEK_LONG_STEP_MS)
         Key.DirectionUp -> PlayerKeyAction.VolumeUp
         Key.DirectionDown -> PlayerKeyAction.VolumeDown
         Key.F, Key.Enter, Key.NumPadEnter -> PlayerKeyAction.ToggleFullscreen
         Key.M -> PlayerKeyAction.ToggleMute
         Key.D -> PlayerKeyAction.ToggleDanmaku
+        Key.Q -> PlayerKeyAction.ToggleLike
+        Key.W -> PlayerKeyAction.Coin
+        Key.E -> PlayerKeyAction.ToggleFavorite
+        Key.R -> PlayerKeyAction.TripleAction
+        Key.S -> PlayerKeyAction.TakeScreenshot
+        Key.L -> PlayerKeyAction.ToggleScreenLock
+        Key.LeftBracket -> PlayerKeyAction.PreviousPart
+        Key.RightBracket -> PlayerKeyAction.NextPart
         Key.Zero, Key.NumPad0 -> PlayerKeyAction.SeekPercent(0.0f)
         Key.One, Key.NumPad1 -> PlayerKeyAction.SeekPercent(0.1f)
         Key.Two, Key.NumPad2 -> PlayerKeyAction.SeekPercent(0.2f)

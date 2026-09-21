@@ -574,6 +574,7 @@ fun AppDropdownMenu(
     offset: DpOffset = DpOffset.Zero,
     scrollState: ScrollState = rememberScrollState(),
     properties: PopupProperties = PopupProperties(focusable = true),
+    shape: androidx.compose.ui.graphics.Shape? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
@@ -587,6 +588,9 @@ fun AppDropdownMenu(
             }
         }
     } else {
+        val resolvedShape = shape ?: com.android.purebilibili.core.ui.AppShapes.container(
+            com.android.purebilibili.core.ui.ContainerLevel.Card
+        )
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = onDismissRequest,
@@ -594,8 +598,20 @@ fun AppDropdownMenu(
             offset = offset,
             scrollState = scrollState,
             properties = properties,
-            content = content,
-        )
+            shape = resolvedShape,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+        ) {
+            com.android.purebilibili.core.ui.AppPopupSurface(
+                type = com.android.purebilibili.core.ui.AppPopupSurfaceType.MENU,
+                shape = resolvedShape,
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                Column(content = content)
+            }
+        }
     }
 }
 

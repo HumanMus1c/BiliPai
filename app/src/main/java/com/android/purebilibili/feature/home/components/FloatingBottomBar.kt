@@ -462,6 +462,7 @@ fun FloatingBottomBar(
     onIndicatorPositionChanged: ((Float) -> Unit)? = null,
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
+    drawShell: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
     // Do not use the system night flag here: BiliPai supports an app-only dark theme.
@@ -879,23 +880,8 @@ fun FloatingBottomBar(
             LocalFloatingBottomBarItemAlignmentOffset provides itemAlignmentOffsetProvider,
             LocalFloatingBottomBarBaseContentAlpha provides baseContentAlphaProvider,
         ) {
-            Row(
+            val shellModifier = if (drawShell) {
                 Modifier
-                    .onGloballyPositioned { coords ->
-                        totalWidthPx = coords.size.width.toFloat()
-                        dragHitTest.dockWindowLeftPx = coords.positionInWindow().x
-                        tabWidthPx = resolveFloatingDockSlotWidthPx(
-                            containerWidthPx = totalWidthPx,
-                            horizontalPaddingPx = with(density) { horizontalPadding.toPx() },
-                            itemCount = safeTabsCount,
-                        )
-                    }
-                    .graphicsLayer {
-                        translationX = panelOffset
-                        if (allowOverflow) {
-                            clip = false
-                        }
-                    }
                     .dropShadow(
                         shape = pillShape,
                         shadow = Shadow(
@@ -967,9 +953,7 @@ fun FloatingBottomBar(
                                     },
                                 )
                             }
-                            else -> {
-                                Modifier.background(containerColor, pillShape)
-                            }
+                            else -> Modifier.background(containerColor, pillShape)
                         }
                     )
                     .then(
@@ -979,6 +963,27 @@ fun FloatingBottomBar(
                             Modifier
                         }
                     )
+            } else {
+                Modifier
+            }
+            Row(
+                Modifier
+                    .onGloballyPositioned { coords ->
+                        totalWidthPx = coords.size.width.toFloat()
+                        dragHitTest.dockWindowLeftPx = coords.positionInWindow().x
+                        tabWidthPx = resolveFloatingDockSlotWidthPx(
+                            containerWidthPx = totalWidthPx,
+                            horizontalPaddingPx = with(density) { horizontalPadding.toPx() },
+                            itemCount = safeTabsCount,
+                        )
+                    }
+                    .graphicsLayer {
+                        translationX = panelOffset
+                        if (allowOverflow) {
+                            clip = false
+                        }
+                    }
+                    .then(shellModifier)
                     .height(shellHeight)
                     .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                 verticalAlignment = Alignment.CenterVertically,

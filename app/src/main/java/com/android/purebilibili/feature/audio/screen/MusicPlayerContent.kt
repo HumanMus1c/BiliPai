@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
@@ -565,6 +566,7 @@ internal fun MusicPlayerContent(
 
             MusicPlayerLayout.COMPACT_LANDSCAPE -> {
                 var landscapeLyrics by rememberSaveable { mutableStateOf(false) }
+                val landscapeHeaderHeight = 48.dp
                 Row(
                     modifier = Modifier.fillMaxSize().safeDrawingPadding()
                         .padding(horizontal = 64.dp, vertical = 8.dp),
@@ -573,23 +575,70 @@ internal fun MusicPlayerContent(
                 ) {
                     BoxWithConstraints(
                         modifier = Modifier.weight(0.85f).fillMaxHeight(),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = if (landscapeLyrics) {
+                            Alignment.Center
+                        } else {
+                            Alignment.TopCenter
+                        },
                     ) {
-                        MusicArtwork(
-                            coverUrl = state.coverUrl,
-                            bitmap = artworkBitmap,
-                            modifier = Modifier.width(minOf(maxWidth, maxHeight, 280.dp)),
-                            coverStyle = coverStyle,
-                            isPlaying = state.isPlaying,
-                            rotate = state.isPlaying && !effectiveReduceMotion,
-                            playbackSpeed = state.playbackSpeed,
-                            reduceMotion = effectiveReduceMotion,
-                            isDarkEnvironment = isDarkEnvironment,
-                            onClick = { coverStyle = resolveNextCoverStyle(coverStyle) },
-                        )
+                        val artworkWidth = minOf(maxWidth, maxHeight * 0.70f, 280.dp)
+                        Column(
+                            modifier = Modifier
+                                .width(artworkWidth)
+                                .then(
+                                    if (landscapeLyrics) {
+                                        Modifier
+                                    } else {
+                                        Modifier.padding(top = landscapeHeaderHeight)
+                                    }
+                                ),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            MusicArtwork(
+                                coverUrl = state.coverUrl,
+                                bitmap = artworkBitmap,
+                                modifier = Modifier.width(artworkWidth),
+                                coverStyle = coverStyle,
+                                isPlaying = state.isPlaying,
+                                rotate = state.isPlaying && !effectiveReduceMotion,
+                                playbackSpeed = state.playbackSpeed,
+                                reduceMotion = effectiveReduceMotion,
+                                isDarkEnvironment = isDarkEnvironment,
+                                onClick = { coverStyle = resolveNextCoverStyle(coverStyle) },
+                            )
+                            if (landscapeLyrics) {
+                                Spacer(Modifier.height(8.dp))
+                                MusicProgress(
+                                    state = state,
+                                    onSeek = { positionMs ->
+                                        progressSeekRevision += 1
+                                        onSeek(positionMs)
+                                    },
+                                    glassEnabled = glassEnabled,
+                                    glassTintColor = backgroundColor,
+                                    isDarkEnvironment = isDarkEnvironment,
+                                    miuixBackdrop = musicBackdrop,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                MusicPlayPauseButton(
+                                    state = state,
+                                    onPlayPause = onPlayPause,
+                                    sizeDp = 56,
+                                    isDarkEnvironment = isDarkEnvironment,
+                                    glassTintColor = backgroundColor,
+                                )
+                            }
+                        }
                     }
                     Column(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(landscapeHeaderHeight),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             AppTextButton(onClick = { landscapeLyrics = !landscapeLyrics }) {
                                 AppText(if (landscapeLyrics) "返回播放" else "歌词", color = MusicContentColor)
                             }
@@ -2037,9 +2086,31 @@ private fun MusicArtwork(
         val cardAspectRatio = if (isCard) (16f / 10f) else 1f
         val cornerRadius = if (isCard) APPLE_MUSIC_CARD_CORNER_RADIUS_DP.dp else APPLE_MUSIC_COVER_CORNER_RADIUS_DP.dp
         val cornerShape = RoundedCornerShape(cornerRadius)
-        val shadowElevation = APPLE_MUSIC_COVER_SHADOW_ELEVATION_DP.dp
+        val playbackProgress by animateFloatAsState(
+            targetValue = if (isPlaying) 1f else 0f,
+            animationSpec = if (reduceMotion) {
+                snap()
+            } else {
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = APPLE_MUSIC_COVER_MOTION_STIFFNESS,
+                )
+            },
+            label = "music_artwork_playback_progress",
+        )
+        val playingScale = resolveAppleMusicCoverScale(isPlaying = true)
+        val pausedScale = resolveAppleMusicCoverScale(isPlaying = false)
+        val artworkScale = pausedScale + (playingScale - pausedScale) * playbackProgress
+        val shadowElevation = resolveAppleMusicCoverShadowElevation(playbackProgress).dp
         Box(
             modifier = modifier
+                // Put the transform before the visual chrome so the artwork, rounded clip,
+                // border and shadow settle as one card. A later graphicsLayer only scales the
+                // image subtree and leaves the old-size frame behind while pausing.
+                .graphicsLayer {
+                    scaleX = artworkScale
+                    scaleY = artworkScale
+                }
                 .aspectRatio(cardAspectRatio)
                 .shadow(
                     elevation = shadowElevation,
@@ -2159,45 +2230,13 @@ private fun PlaybackControls(
             onClick = onPrevious ?: {},
             sizeDp = skipButtonSizeDp
         )
-        // 播放控制主按钮：沿用播放器的背景取色毛玻璃材质，保持图标高对比。
-        val playButtonBg = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment)
-            .copy(alpha = if (isDarkEnvironment) 0.62f else 0.52f)
-        val playButtonFg = MusicContentColor
-        val playButtonBorder = resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)
-            .copy(alpha = 0.62f)
-        Box(
-            modifier = Modifier
-                .size(playButtonSizeDp.dp)
-                .drawBehind {
-                    val radius = size.minDimension / 2f
-                    drawCircle(color = playButtonBg, radius = radius)
-                    drawCircle(
-                        color = playButtonBorder,
-                        radius = radius - 0.8.dp.toPx(),
-                        style = Stroke(width = 1.dp.toPx())
-                    )
-                }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onPlayPause,
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (state.isBuffering) {
-                AppCircularProgressIndicator(
-                    color = playButtonFg,
-                    modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
-                )
-            } else {
-                AppIcon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (state.isPlaying) "暂停" else "播放",
-                    tint = playButtonFg,
-                    modifier = Modifier.size((playButtonSizeDp * 0.45f).dp)
-                )
-            }
-        }
+        MusicPlayPauseButton(
+            state = state,
+            onPlayPause = onPlayPause,
+            sizeDp = playButtonSizeDp,
+            isDarkEnvironment = isDarkEnvironment,
+            glassTintColor = glassTintColor,
+        )
         PlaybackIconButton(
             icon = Icons.Filled.SkipNext,
             description = "下一首",
@@ -2750,6 +2789,56 @@ private fun LyricsImmersiveProgress(
         color = MusicContentColor,
         trackColor = MusicContentColor.copy(alpha = 0.22f)
     )
+}
+
+@Composable
+private fun MusicPlayPauseButton(
+    state: MusicPlayerUiState,
+    onPlayPause: () -> Unit,
+    sizeDp: Int,
+    isDarkEnvironment: Boolean,
+    glassTintColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    // Keep the standalone landscape button visually identical to the main player control.
+    val playButtonBg = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment)
+        .copy(alpha = if (isDarkEnvironment) 0.62f else 0.52f)
+    val playButtonFg = MusicContentColor
+    val playButtonBorder = resolveMusicGlassBorderColor(glassTintColor, isDarkEnvironment)
+        .copy(alpha = 0.62f)
+    Box(
+        modifier = modifier
+            .size(sizeDp.dp)
+            .drawBehind {
+                val radius = size.minDimension / 2f
+                drawCircle(color = playButtonBg, radius = radius)
+                drawCircle(
+                    color = playButtonBorder,
+                    radius = radius - 0.8.dp.toPx(),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onPlayPause,
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (state.isBuffering) {
+            AppCircularProgressIndicator(
+                color = playButtonFg,
+                modifier = Modifier.size((sizeDp * 0.45f).dp)
+            )
+        } else {
+            AppIcon(
+                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (state.isPlaying) "暂停" else "播放",
+                tint = playButtonFg,
+                modifier = Modifier.size((sizeDp * 0.45f).dp)
+            )
+        }
+    }
 }
 
 @Composable

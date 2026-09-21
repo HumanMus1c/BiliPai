@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import android.os.Build
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
@@ -27,6 +28,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -36,10 +39,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -87,10 +93,10 @@ import com.android.purebilibili.core.ui.videoCardTitleOverflow
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.feedContentTypography
-import com.android.purebilibili.feature.home.LocalHomeMiuixBackdrop
+import com.android.purebilibili.feature.home.LocalHomeWallpaperBackdrop
+import com.android.purebilibili.feature.home.LocalHomeWallpaperBackdropReady
+import com.android.purebilibili.feature.home.LocalHomeWallpaperIsStatic
 import com.android.purebilibili.feature.home.HomeCoverRequestSpec
-import com.android.purebilibili.feature.home.components.liquid.lens
-import com.android.purebilibili.feature.home.components.liquid.vibrancy
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -124,6 +130,8 @@ import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
 import com.android.purebilibili.feature.home.resolveHomeCardInfoSurfaceAppearance
+import com.android.purebilibili.feature.home.resolveHomeCardWallpaperSurfaceMode
+import com.android.purebilibili.feature.home.HomeCardWallpaperSurfaceMode
 import com.android.purebilibili.feature.home.HomeGlassPillStyle
 import com.android.purebilibili.feature.home.HomeGlassResolvedColors
 import com.android.purebilibili.feature.home.resolveHomeGlassCoverPillBaseColor
@@ -613,7 +621,9 @@ internal fun ElegantVideoCard(
     val showDurationOutside = homeDurationStyle == HomeDurationStyle.OUTSIDE_COVER
     val inlinePillBaseColor = AppSurfaceTokens.cardContainer()
     val wallpaperHazeState = LocalWallpaperHazeState.current
-    val homeMiuixBackdrop = LocalHomeMiuixBackdrop.current
+    val homeWallpaperBackdrop = LocalHomeWallpaperBackdrop.current
+    val homeWallpaperBackdropReady = LocalHomeWallpaperBackdropReady.current
+    val homeWallpaperIsStatic = LocalHomeWallpaperIsStatic.current
     val badgeEffectVisual = remember(badgeEffectMode, wallpaperHazeState != null) {
         resolveHomeCardBadgeEffectVisual(
             mode = badgeEffectMode,
@@ -633,6 +643,35 @@ internal fun ElegantVideoCard(
     val coverPillColors = pillColors.cover
     val inlinePillColors = pillColors.inline
     val isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f
+    val wallpaperPalette = LocalWallpaperPalette.current
+    val homeCardDynamicTintEnabled = LocalHomeCardDynamicTintEnabled.current
+    val lowBlurBudgetForced = isLowBlurBudgetForced()
+    val homeWallpaperSurfaceMode = remember(
+        homeCardDynamicTintEnabled,
+        wallpaperTintEnabled,
+        homeWallpaperIsStatic,
+        homeWallpaperBackdropReady,
+        blurEnabled,
+        isDataSaverActive,
+        lowBlurBudgetForced,
+        Build.VERSION.SDK_INT,
+    ) {
+        resolveHomeCardWallpaperSurfaceMode(
+            dynamicTintEnabled = homeCardDynamicTintEnabled,
+            wallpaperVisible = wallpaperTintEnabled,
+            wallpaperIsStatic = homeWallpaperIsStatic,
+            backdropReady = homeWallpaperBackdropReady,
+            blurEnabled = blurEnabled,
+            isDataSaverActive = isDataSaverActive,
+            lowBlurBudgetForced = lowBlurBudgetForced,
+            sdkInt = Build.VERSION.SDK_INT,
+        )
+    }
+    val useRealtimeWallpaperBackdrop =
+        homeWallpaperSurfaceMode == HomeCardWallpaperSurfaceMode.REALTIME_FROSTED
+    val cardYFraction = remember { mutableFloatStateOf(0.5f) }
+    val infoLayoutCoordinates = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val homeScrollTickProvider = LocalHomeScrollTickProvider.current
     val infoSurfaceAppearance = remember(
         wallpaperTintEnabled,
         wallpaperEffectMode,
@@ -640,7 +679,6 @@ internal fun ElegantVideoCard(
         isDataSaverActive,
         infoGlassMode,
         wallpaperHazeState != null,
-        homeMiuixBackdrop != null,
         blurEnabled
     ) {
         resolveHomeCardInfoSurfaceAppearance(
@@ -650,10 +688,13 @@ internal fun ElegantVideoCard(
             isDataSaverActive = isDataSaverActive,
             infoGlassMode = infoGlassMode,
             hasWallpaperHazeState = wallpaperHazeState != null,
-            hasLayerBackdrop = homeMiuixBackdrop != null,
+            hasLayerBackdrop = false,
             blurEnabled = blurEnabled
         )
     }
+    // The global card switch is authoritative. Older per-card glass settings must not
+    // re-enable frosted surfaces after the user turns the shared setting off.
+    val shouldUseFrostedGlass = homeCardDynamicTintEnabled
     val scrollLitePolicy = remember(compactStatsOnCover) {
         resolveVideoCardScrollLiteVisualPolicy(
             scrollLiteModeEnabled = false,
@@ -727,6 +768,36 @@ internal fun ElegantVideoCard(
         coverCacheKey = cache
         coverUrl = url
         premiumBadgeLabel = badge
+    }
+    var coverTint by remember(coverCacheKey) {
+        mutableStateOf(VideoCardCoverColorStore.getCachedColor(coverCacheKey))
+    }
+    val activeCoverCacheKey by rememberUpdatedState(coverCacheKey)
+    val animatedCoverTint by animateColorAsState(
+        targetValue = coverTint ?: Color.Transparent,
+        animationSpec = tween(durationMillis = 350),
+        label = "video_card_cover_tint"
+    )
+    val defaultOnSurface = MaterialTheme.colorScheme.onSurface
+    val defaultOnSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val adaptiveContentColors = remember(
+        wallpaperPalette,
+        animatedCoverTint,
+        wallpaperTintEnabled,
+        isDarkCardTheme,
+        defaultOnSurface,
+        defaultOnSurfaceVariant,
+        homeCardDynamicTintEnabled
+    ) {
+        resolveVideoCardAdaptiveContentColors(
+            wallpaperPalette = wallpaperPalette,
+            coverTint = if (animatedCoverTint.alpha > 0f) animatedCoverTint else null,
+            wallpaperTintEnabled = wallpaperTintEnabled,
+            isDarkTheme = isDarkCardTheme,
+            defaultOnSurface = defaultOnSurface,
+            defaultOnSurfaceVariant = defaultOnSurfaceVariant,
+            homeCardDynamicTintEnabled = homeCardDynamicTintEnabled
+        )
     }
     // 返回预热：组合即可见，上报 (bvid, url, cacheKey)，供详情返回时按同一 cacheKey
     // prefetch，避免首页 scene 重建后封面重新解码造成落位闪变。
@@ -868,7 +939,7 @@ internal fun ElegantVideoCard(
                             publishTimeText = publishTimeRowText,
                             showStatsInInfo = scrollLitePolicy.showSecondaryStatsRow,
                             showDurationInInfo = showDurationOutside,
-                            useTintedInfoSurface = infoSurfaceAppearance.useTintedSurface,
+                            useTintedInfoSurface = shouldUseFrostedGlass,
                             showOverflowMenu = hasOverflowMenu,
                         ),
                     coverPresentation = VideoCardSourceCoverPresentation(
@@ -1037,11 +1108,16 @@ internal fun ElegantVideoCard(
                     enabled = effectiveTransitionEnabled,
                 ),
         ) {
+            val cardShellBaseColor = if (shouldUseFrostedGlass) {
+                Color.Transparent
+            } else {
+                AppSurfaceTokens.cardContainer()
+            }
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .clip(cardShellShape)
-                    .background(AppSurfaceTokens.cardContainer())
+                    .background(cardShellBaseColor)
                     .videoCardShellReturnCoverAlpha(
                         enabled = useCardShellSharedBounds,
                         bvid = video.bvid,
@@ -1113,6 +1189,10 @@ internal fun ElegantVideoCard(
                 .clip(coverShape)
                 .onGloballyPositioned { coordinates ->
                     coverCoordsRef.value = coordinates
+                    val rootTop = coordinates.boundsInRoot().top
+                    if (screenMetrics.heightPx > 0f) {
+                        cardYFraction.floatValue = (rootTop / screenMetrics.heightPx).coerceIn(0f, 1f)
+                    }
                 }
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 //  [交互优化] 封面区域：点击跳转
@@ -1162,6 +1242,22 @@ internal fun ElegantVideoCard(
             AsyncImage(
                 model = coverImageRequest,
                 contentDescription = null,
+                onSuccess = { state ->
+                    if (homeCardDynamicTintEnabled && coverTint == null) {
+                        val bitmap = (state.result.image as? coil3.BitmapImage)?.bitmap
+                        if (bitmap != null) {
+                            VideoCardCoverColorStore.extractColorAsync(
+                                cacheKey = requestCoverCacheKey,
+                                bitmap = bitmap,
+                                scope = scope
+                            ) { extracted ->
+                                if (activeCoverCacheKey == requestCoverCacheKey) {
+                                    coverTint = extracted
+                                }
+                            }
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxSize(),
                 // 官方粉版：居中 Crop；16:9 框配 16:9 投稿封面时基本不裁
@@ -1447,7 +1543,7 @@ internal fun ElegantVideoCard(
         val infoSurfaceShape = remember(cardCornerRadius) {
             AppShapes.bottomRounded(cardCornerRadius)
         }
-        val infoContainerModifier = if (infoSurfaceAppearance.useTintedSurface) {
+        val infoContainerModifier = if (shouldUseFrostedGlass) {
             // Wallpaper-only Haze for realtime blur (never main content HazeState).
             val hazeModifier = if (
                 infoSurfaceAppearance.useRealtimeHaze && wallpaperHazeState != null
@@ -1463,41 +1559,110 @@ internal fun ElegantVideoCard(
             } else {
                 Modifier
             }
-            // Miuix liquid glass — independent of Haze, samples the home feed layer.
-            val liquidModifier = if (
-                infoSurfaceAppearance.useRealtimeLiquidGlass &&
-                homeMiuixBackdrop != null &&
-                !isLowBlurBudgetForced()
+            // Wallpaper-only Miuix blur. The source is attached to the sibling wallpaper layer,
+            // so this surface never samples its own cover, text, or the feed content.
+            val wallpaperBlurRadiusPx = with(density) { 24.dp.toPx() }
+            val wallpaperBackdropModifier = if (
+                useRealtimeWallpaperBackdrop &&
+                homeWallpaperBackdrop != null
             ) {
                 Modifier.drawBackdrop(
-                    backdrop = homeMiuixBackdrop,
+                    backdrop = homeWallpaperBackdrop,
                     shape = { infoSurfaceShape },
                     effects = {
-                        vibrancy()
-                        val blurRadius = (AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro).toPx()
-                        blur(blurRadius, blurRadius)
-                        lens(
-                            refractionHeight = AppSpacingTokens.Small.toPx(),
-                            refractionAmount = (AppSpacingTokens.Medium + AppSpacingTokens.Micro).toPx(),
-                            depthEffect = true,
-                        )
+                        blur(wallpaperBlurRadiusPx, wallpaperBlurRadiusPx)
                     }
                 )
             } else {
                 Modifier
             }
+            val baseContainerColor = AppSurfaceTokens.cardContainer()
+            val baseBorderColor = MediaContrastPalette.Foreground
             Modifier
                 .fillMaxWidth()
                 .clip(infoSurfaceShape)
                 .then(hazeModifier)
-                .then(liquidModifier)
-                .background(
-                    color = AppSurfaceTokens.cardContainer().copy(alpha = infoSurfaceAppearance.containerAlpha),
-                    shape = infoSurfaceShape
-                )
+                .then(wallpaperBackdropModifier)
+                .onPlaced { coordinates ->
+                    infoLayoutCoordinates.value = coordinates
+                }
+                .drawBehind {
+                    if (homeCardDynamicTintEnabled && !useRealtimeWallpaperBackdrop) {
+                        // 1. 在 Draw 阶段按需读取滚动 tick，零重组实现 120fps 实时刷新跟随
+                        homeScrollTickProvider?.invoke()
+
+                        // 2. 动态获取当前帧卡片底部组件在窗口根布局的物理 Y 坐标
+                        val coords = infoLayoutCoordinates.value
+                        val currentY = if (coords != null && coords.isAttached) {
+                            coords.positionInRoot().y
+                        } else null
+
+                        val yFrac = if (currentY != null && screenMetrics.heightPx > 0f) {
+                            (currentY / screenMetrics.heightPx).coerceIn(0f, 1f)
+                        } else {
+                            cardYFraction.floatValue
+                        }
+                        val drawSpec = resolveVideoCardAmbientDrawSpec(
+                            wallpaperPalette = wallpaperPalette,
+                            yFraction = yFrac,
+                            coverTint = if (animatedCoverTint.alpha > 0f) animatedCoverTint else null,
+                            wallpaperTintEnabled = wallpaperTintEnabled,
+                            isDarkTheme = isDarkCardTheme,
+                            defaultContainerColor = baseContainerColor,
+                            defaultBorderColor = baseBorderColor,
+                            isDataSaverActive = isDataSaverActive,
+                            frostedGlassEnabled = true
+                        )
+                        drawRect(color = drawSpec.containerColor)
+                        if (drawSpec.coverGlowAlpha > 0f && animatedCoverTint.alpha > 0f) {
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        animatedCoverTint.copy(alpha = drawSpec.coverGlowAlpha),
+                                        animatedCoverTint.copy(alpha = drawSpec.coverGlowAlpha * 0.35f),
+                                        Color.Transparent
+                                    ),
+                                    startY = 0f,
+                                    endY = size.height * 0.85f
+                                )
+                            )
+                        }
+                    } else {
+                        val realtimeAlpha = if (isDarkCardTheme) 0.24f else 0.16f
+                        drawRect(
+                            color = baseContainerColor.copy(
+                                alpha = if (useRealtimeWallpaperBackdrop) {
+                                    realtimeAlpha
+                                } else {
+                                    infoSurfaceAppearance.containerAlpha
+                                }
+                            )
+                        )
+                    }
+                }
                 .border(
-                    width = AppSpacingTokens.Micro * 0.4f,
-                    color = MediaContrastPalette.Foreground.copy(alpha = infoSurfaceAppearance.borderAlpha),
+                    width = 0.5.dp,
+                    color = if (homeCardDynamicTintEnabled && !useRealtimeWallpaperBackdrop) {
+                        val borderAlpha = if (isDarkCardTheme) 0.30f else 0.45f
+                        val baseBorder = Color.White.copy(alpha = borderAlpha)
+                        if (
+                            shouldUseCoverTintForCard(wallpaperTintEnabled, coverTint) &&
+                            animatedCoverTint.alpha > 0f
+                        ) {
+                            val borderBlend = if (isDarkCardTheme) 0.50f else 0.40f
+                            androidx.compose.ui.graphics.lerp(baseBorder, animatedCoverTint, borderBlend).copy(alpha = borderAlpha)
+                        } else {
+                            baseBorder
+                        }
+                    } else {
+                        baseBorderColor.copy(
+                            alpha = if (useRealtimeWallpaperBackdrop) {
+                                if (isDarkCardTheme) 0.14f else 0.22f
+                            } else {
+                                infoSurfaceAppearance.borderAlpha
+                            }
+                        )
+                    },
                     shape = infoSurfaceShape
                 )
                 .padding(
@@ -1505,8 +1670,29 @@ internal fun ElegantVideoCard(
                     vertical = if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small
                 )
         } else {
+            val ambientCoverGlowModifier = if (
+                homeCardDynamicTintEnabled &&
+                shouldUseCoverTintForCard(wallpaperTintEnabled, coverTint) &&
+                animatedCoverTint.alpha > 0f
+            ) {
+                Modifier.drawBehind {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                animatedCoverTint.copy(alpha = if (isDarkCardTheme) 0.16f else 0.10f),
+                                Color.Transparent
+                            ),
+                            startY = 0f,
+                            endY = size.height * 0.75f
+                        )
+                    )
+                }
+            } else {
+                Modifier
+            }
             Modifier
                 .fillMaxWidth()
+                .then(ambientCoverGlowModifier)
                 .padding(
                     start = AppSpacingTokens.Small + AppSpacingTokens.Micro,
                     top = AppSpacingTokens.None,
@@ -1529,7 +1715,7 @@ internal fun ElegantVideoCard(
             )
         ) {
         Column {
-        if (!infoSurfaceAppearance.useTintedSurface) {
+        if (!shouldUseFrostedGlass) {
             Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         }
 
@@ -1539,7 +1725,7 @@ internal fun ElegantVideoCard(
             minLines = titleMinLines,
             overflow = videoCardTitleOverflow(),
             style = contentTypography.title.copy(
-                color = MaterialTheme.colorScheme.onSurface
+                color = adaptiveContentColors.titleColor
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1580,8 +1766,8 @@ internal fun ElegantVideoCard(
             modifier = resolveVideoCardMetadataModifier(hasTrailingCardAction)
         ) {
         val metadataColors = resolveHomeVideoCardMetadataColors(
-            onSurfaceColor = MaterialTheme.colorScheme.onSurface,
-            onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onSurfaceColor = adaptiveContentColors.titleColor,
+            onSurfaceVariantColor = adaptiveContentColors.subtitleColor,
         )
 
         val resolvedUpBadgeVisibility = com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current
@@ -1609,11 +1795,11 @@ internal fun ElegantVideoCard(
                             imageVector = Icons.Outlined.Visibility,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = adaptiveContentColors.subtitleColor
                         )
                         AppText(
                             text = onlineCount,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveContentColors.subtitleColor,
                             style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
                             maxLines = 1,
                             softWrap = false,
@@ -1672,7 +1858,7 @@ internal fun ElegantVideoCard(
                             imageVector = Icons.Filled.ThumbUp,
                             contentDescription = "取消收藏",
                             modifier = Modifier.size(AppSpacingTokens.Large),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            tint = adaptiveContentColors.subtitleColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -1693,7 +1879,7 @@ internal fun ElegantVideoCard(
                     ) {
                         AppText(
                             text = "⋮",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveContentColors.subtitleColor,
                             fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(

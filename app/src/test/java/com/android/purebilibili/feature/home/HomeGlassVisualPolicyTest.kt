@@ -380,6 +380,16 @@ class HomeGlassVisualPolicyTest {
                 isDataSaverActive = true
             )
         )
+        assertEquals(
+            540 to 960,
+            resolveHomeWallpaperDecodeSizePx(
+                screenWidthDp = 1200,
+                screenHeightDp = 900,
+                density = 3f,
+                isDataSaverActive = false,
+                blurRadiusDp = 24f
+            )
+        )
     }
 
     @Test

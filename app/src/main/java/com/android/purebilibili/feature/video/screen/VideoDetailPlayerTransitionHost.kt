@@ -335,7 +335,9 @@ internal fun PortraitInlineVideoPlayerHost(
             suppressSubtitleOverlay = suppressSubtitleOverlay,
             subtitleDisplayModePreferenceOverride = subtitleDisplayModePreferenceOverride,
             onSubtitleDisplayModePreferenceOverrideChange = onSubtitleDisplayModePreferenceOverrideChange,
-            onSubtitleTrackSelected = playbackActions.selectSubtitleTrack
+            onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
+            onLikeDanmaku = playbackActions.likeDanmaku,
+            onRecallDanmaku = playbackActions.recallDanmaku
         )
     }
 }

@@ -60,6 +60,7 @@ class ProgressiveTopChromePolicyTest {
         assertTrue(homeHeader.contains("useProgressiveTopBlur = isProgressiveBlurRequested"))
         assertTrue(dynamicTopBar.contains("BiliPaiImmersiveTopBar("))
         assertTrue(dynamicTopBar.contains("enabled = isProgressiveBlurActive"))
+        assertTrue(dynamicTopBar.contains("fadeEnabled = isProgressiveFadeActive"))
         assertTrue(commonList.contains("BiliPaiImmersiveTopBar("))
         assertTrue(commonList.contains("enabled = isProgressiveTopBlurEnabled && !isHeaderBlurEnabled"))
         val bangumiHub = loadSource("feature/bangumi/BangumiScreen.kt")
@@ -92,6 +93,17 @@ class ProgressiveTopChromePolicyTest {
         assertTrue(bangumiHub.contains("globalWallpaperAwareBackground(MaterialTheme.colorScheme.background)"))
         assertTrue(bangumiHub.contains("showFollowStatusTabs = false"))
         assertTrue(settingsTablet.contains("BiliPaiImmersiveTopBar("))
+    }
+
+    @Test
+    fun independentVideoActivityProvidesGlobalFadeAndCardEffectSettings() {
+        val videoActivity = loadSource("feature/video/VideoActivity.kt")
+
+        assertTrue(videoActivity.contains("getProgressiveTopBlurEnabled(this@VideoActivity)"))
+        assertTrue(videoActivity.contains("getProgressiveTopFadeEnabled(this@VideoActivity)"))
+        assertTrue(videoActivity.contains("progressiveTopFadeEnabled = progressiveTopFadeEnabled"))
+        assertTrue(videoActivity.contains("getHomeCardDynamicTintEnabled(this@VideoActivity)"))
+        assertTrue(videoActivity.contains("LocalHomeCardDynamicTintEnabled provides"))
     }
 
     @Test

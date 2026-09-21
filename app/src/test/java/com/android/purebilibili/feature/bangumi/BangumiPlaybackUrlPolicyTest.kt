@@ -1,6 +1,8 @@
 package com.android.purebilibili.feature.bangumi
 
 import com.android.purebilibili.data.model.response.Durl
+import com.android.purebilibili.data.model.response.Dash
+import com.android.purebilibili.data.model.response.DashVideo
 import com.android.purebilibili.core.network.BANGUMI_PLAY_URL_PATH
 import com.android.purebilibili.data.repository.BangumiPlayUrlPayload
 import com.android.purebilibili.data.repository.shouldFallbackToLegacyBangumiPlayUrl
@@ -42,13 +44,27 @@ class BangumiPlaybackUrlPolicyTest {
     }
 
     @Test
-    fun `DRM playurl is rejected with an actionable non-generic reason`() {
+    fun `DRM playurl without a usable stream is rejected with an actionable reason`() {
         val result = validateBangumiPlayableVideoInfo(
             com.android.purebilibili.data.model.response.BangumiVideoInfo(isDrm = true)
         )
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("DRM") == true)
+    }
+
+    @Test
+    fun `DRM marker does not block a clear web stream`() {
+        val result = validateBangumiPlayableVideoInfo(
+            com.android.purebilibili.data.model.response.BangumiVideoInfo(
+                isDrm = true,
+                dash = Dash(
+                    video = listOf(DashVideo(baseUrl = "https://cdn.example/video.m4s"))
+                )
+            )
+        )
+
+        assertTrue(result.isSuccess)
     }
 
     @Test
@@ -158,5 +174,31 @@ class BangumiPlaybackUrlPolicyTest {
         )
 
         assertEquals(listOf("https://cdn-1/video-2.m4s"), urls)
+    }
+
+    @Test
+    fun `course pugv playurl params use fnval 4048 and omit zero ids`() {
+        val params = com.android.purebilibili.data.repository.buildBangumiPlayUrlParams(
+            epId = 0L,
+            cid = 2002L,
+            qn = 80,
+            isCourse = true
+        )
+        assertFalse(params.containsKey("ep_id"))
+        assertEquals("2002", params["cid"])
+        assertEquals("4048", params["fnval"])
+    }
+
+    @Test
+    fun `course pugv playurl params include ep_id when positive`() {
+        val params = com.android.purebilibili.data.repository.buildBangumiPlayUrlParams(
+            epId = 5555L,
+            cid = 0L,
+            qn = 80,
+            isCourse = true
+        )
+        assertEquals("5555", params["ep_id"])
+        assertFalse(params.containsKey("cid"))
+        assertEquals("4048", params["fnval"])
     }
 }

@@ -120,7 +120,10 @@ internal fun LinkedBottomDock(
             }
         }
     }
-    LaunchedEffect(currentItem, collapseRequested, hasAudio, isTopLevelDestination) {
+    // Keep the dock phase while a child destination covers the current tab. Keying this effect
+    // by isTopLevelDestination made the returning page re-expand/re-collapse the playback strip,
+    // which also shifted the predictive-back target after the gesture had started.
+    LaunchedEffect(currentItem, collapseRequested, hasAudio) {
         if (isTopLevelDestination && currentItem != BottomNavItem.HOME && currentPhase != LinkedDockPhase.Search) {
             updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
         }

@@ -104,6 +104,7 @@ internal fun resolveBiliPaiNavEntryContentRole(key: BiliPaiNavKey): BiliPaiNavEn
         BiliPaiNavKey.Favorite -> BiliPaiNavEntryContentRole.FAVORITE
         BiliPaiNavKey.FavoriteSubscribed -> BiliPaiNavEntryContentRole.FAVORITE
         is BiliPaiNavKey.FavoriteSearch -> BiliPaiNavEntryContentRole.FAVORITE
+        is BiliPaiNavKey.LikedVideos,
         BiliPaiNavKey.LikedVideos -> BiliPaiNavEntryContentRole.LIKED_VIDEOS
         BiliPaiNavKey.WatchLater -> BiliPaiNavEntryContentRole.WATCH_LATER
         is BiliPaiNavKey.WatchLaterSearch -> BiliPaiNavEntryContentRole.WATCH_LATER

@@ -172,6 +172,8 @@ internal fun AudioNowPlayingBar(
     val searchProgress = iconOnlyProgress.coerceIn(0f, 1f)
     val primaryContentProgress = 1f - searchProgress
     val supplementalContentProgress = (1f - mergeProgress) * primaryContentProgress
+    val primaryAlpha = ((primaryContentProgress - 0.12f) / 0.88f).coerceIn(0f, 1f)
+    val supplementalAlpha = ((supplementalContentProgress - 0.15f) / 0.85f).coerceIn(0f, 1f)
     val chrome = resolveMusicPlayerChromeSpec(
         uiStyle = LocalAppUiStyle.current,
         glassEnabled = glassEnabled
@@ -274,7 +276,7 @@ internal fun AudioNowPlayingBar(
                 ) {
                     AppText(
                         text = state.title,
-                        modifier = if (state.isPlaying) {
+                        modifier = if (state.isPlaying && isLayoutStable) {
                             Modifier.basicMarquee(iterations = Int.MAX_VALUE)
                         } else {
                             Modifier
@@ -286,12 +288,12 @@ internal fun AudioNowPlayingBar(
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    if (supplementalContentProgress > 0.001f) {
+                    if (supplementalContentProgress > 0.05f) {
                         Box(
                             modifier = Modifier
                                 .height((20f * supplementalContentProgress).dp)
                                 .clipToBounds()
-                                .graphicsLayer { alpha = supplementalContentProgress },
+                                .graphicsLayer { alpha = supplementalAlpha },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -324,7 +326,7 @@ internal fun AudioNowPlayingBar(
                         .height(48.dp)
                         .clipToBounds()
                         .graphicsLayer {
-                            alpha = primaryContentProgress
+                            alpha = primaryAlpha
                             scaleX = primaryContentProgress
                             scaleY = primaryContentProgress
                         },
@@ -338,14 +340,14 @@ internal fun AudioNowPlayingBar(
                         )
                     }
                 }
-                if (supplementalContentProgress > 0.001f) {
+                if (supplementalContentProgress > 0.05f) {
                     Box(
                         modifier = Modifier
                             .width((48f * supplementalContentProgress).dp)
                             .height(48.dp)
                             .clipToBounds()
                             .graphicsLayer {
-                                alpha = supplementalContentProgress
+                                alpha = supplementalAlpha
                                 scaleX = supplementalContentProgress
                                 scaleY = supplementalContentProgress
                             },
@@ -365,7 +367,7 @@ internal fun AudioNowPlayingBar(
                             .height(48.dp)
                             .clipToBounds()
                             .graphicsLayer {
-                                alpha = supplementalContentProgress
+                                alpha = supplementalAlpha
                                 scaleX = supplementalContentProgress
                                 scaleY = supplementalContentProgress
                             },

@@ -5,6 +5,10 @@ internal enum class FullscreenShortcutKey {
     Left,
     Right,
     Escape,
+    KeyF,
+    KeyM,
+    KeyD,
+    KeyL,
     Other,
 }
 
@@ -13,6 +17,10 @@ internal enum class FullscreenKeyboardAction {
     SeekBackward,
     SeekForward,
     CloseTopLayer,
+    ToggleFullscreen,
+    ToggleMute,
+    ToggleDanmaku,
+    ToggleLock,
     None,
 }
 
@@ -30,6 +38,10 @@ internal fun resolveFullscreenKeyboardAction(
         FullscreenShortcutKey.Left -> FullscreenKeyboardAction.SeekBackward
         FullscreenShortcutKey.Right -> FullscreenKeyboardAction.SeekForward
         FullscreenShortcutKey.Escape -> FullscreenKeyboardAction.CloseTopLayer
+        FullscreenShortcutKey.KeyF -> FullscreenKeyboardAction.ToggleFullscreen
+        FullscreenShortcutKey.KeyM -> FullscreenKeyboardAction.ToggleMute
+        FullscreenShortcutKey.KeyD -> FullscreenKeyboardAction.ToggleDanmaku
+        FullscreenShortcutKey.KeyL -> FullscreenKeyboardAction.ToggleLock
         FullscreenShortcutKey.Other -> FullscreenKeyboardAction.None
     }
 }

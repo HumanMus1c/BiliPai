@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.bangumi
 
+import com.android.purebilibili.data.model.response.BangumiDetail
+import com.android.purebilibili.data.model.response.BangumiEpisode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -67,6 +69,24 @@ class BangumiResumePolicyTest {
                 savedEpisodePositionMs = 45_000L
             )
         )
+    }
+
+    @Test
+    fun `course entry prefers aid then explicit episode then remembered progress`() {
+        val detail = BangumiDetail(
+            seasonId = 9L,
+            episodes = listOf(
+                BangumiEpisode(id = 11L, aid = 101L),
+                BangumiEpisode(id = 12L, aid = 102L)
+            ),
+            userStatus = com.android.purebilibili.data.model.response.UserStatus(
+                progress = com.android.purebilibili.data.model.response.WatchProgress(lastEpId = 12L)
+            )
+        )
+
+        assertEquals(12L, resolveBangumiInitialEpisode(detail, 102L, 11L, true)?.epId)
+        assertEquals(11L, resolveBangumiInitialEpisode(detail, 0L, 11L, true)?.epId)
+        assertEquals(12L, resolveBangumiInitialEpisode(detail, 0L, 0L, true)?.epId)
     }
 
     @Test

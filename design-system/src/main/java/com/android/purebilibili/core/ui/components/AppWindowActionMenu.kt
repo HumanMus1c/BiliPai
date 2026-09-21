@@ -9,8 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,48 +54,65 @@ fun AppWindowActionMenu(
 ) {
     if (!LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
         var expanded by remember { mutableStateOf(false) }
+        var parentActions by remember { mutableStateOf(emptyList<AppWindowAction>()) }
+        val visibleGroups = parentActions.lastOrNull()?.let { listOf(it.children) }
+            ?: groups.filter { it.isNotEmpty() }
         Box(modifier = modifier) {
             IconButton(
                 onClick = {
+                    parentActions = emptyList()
                     expanded = true
                     onExpandedChange?.invoke(true)
                 },
                 enabled = enabled,
             ) { content() }
-            DropdownMenu(
+            AppDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = {
+                    parentActions = emptyList()
                     expanded = false
                     onExpandedChange?.invoke(false)
                 },
             ) {
-                groups.filter { it.isNotEmpty() }.forEach { actions ->
+                if (parentActions.isNotEmpty()) {
+                    AppDropdownMenuItem(
+                        text = { AppText("返回") },
+                        onClick = { parentActions = parentActions.dropLast(1) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    )
+                }
+                visibleGroups.forEachIndexed { groupIndex, actions ->
+                    if (groupIndex > 0) {
+                        AppHorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+                    }
                     actions.forEach { action ->
-                        val visibleActions = if (action.children.isEmpty()) listOf(action) else action.children
-                        visibleActions.forEach { visibleAction ->
-                            DropdownMenuItem(
-                                text = { AppText(visibleAction.label) },
-                                leadingIcon = visibleAction.icon?.let { icon ->
-                                    {
-                                        if (visibleAction.iconTint == null) {
-                                            AppIcon(icon, contentDescription = null)
-                                        } else {
-                                            AppIcon(icon, contentDescription = null, tint = visibleAction.iconTint)
-                                        }
+                        AppDropdownMenuItem(
+                            text = { AppText(action.label) },
+                            leadingIcon = action.icon?.let { icon ->
+                                {
+                                    if (action.iconTint == null) {
+                                        AppIcon(icon, contentDescription = null)
+                                    } else {
+                                        AppIcon(icon, contentDescription = null, tint = action.iconTint)
                                     }
-                                },
-                                trailingIcon = if (visibleAction.selected) {
-                                    { AppText("✓") }
-                                } else null,
-                                enabled = visibleAction.enabled,
-                                onClick = {
-                                    visibleAction.onClick?.invoke()
+                                }
+                            },
+                            trailingIcon = when {
+                                action.children.isNotEmpty() -> { { AppText("›") } }
+                                action.selected -> { { AppText("✓") } }
+                                else -> null
+                            },
+                            enabled = action.enabled,
+                            onClick = {
+                                if (action.children.isNotEmpty()) {
+                                    parentActions = parentActions + action
+                                } else {
                                     expanded = false
                                     onExpandedChange?.invoke(false)
-                                },
-                                modifier = if (action.children.isNotEmpty()) Modifier.padding(start = 12.dp) else Modifier,
-                            )
-                        }
+                                    action.onClick?.invoke()
+                                }
+                            },
+                        )
                     }
                 }
             }

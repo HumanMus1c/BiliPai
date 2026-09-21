@@ -63,6 +63,7 @@ import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
+import com.android.purebilibili.core.ui.blur.topSolidProgressiveFade
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
@@ -92,6 +93,7 @@ import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.CommentListHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
+import com.android.purebilibili.feature.video.ui.components.CommentSearchSheet
 import com.android.purebilibili.feature.video.ui.components.resolveCommentSortDockViewportOverflowDp
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -500,6 +502,7 @@ internal class VideoContentCommentActions(
     val onSearchKeywordClick: (String) -> Unit,
     val onReportComment: (Long, Int) -> Unit,
     val onToggleTopComment: (ReplyItem) -> Unit,
+    val onCheckCommentFraud: (ReplyItem) -> Unit,
 )
 
 internal class VideoContentNoteActions(
@@ -608,6 +611,7 @@ internal fun VideoContentSection(
     val onSearchKeywordClick = commentActions.onSearchKeywordClick
     val onReportComment = commentActions.onReportComment
     val onToggleTopComment = commentActions.onToggleTopComment
+    val onCheckCommentFraud = commentActions.onCheckCommentFraud
     val onRetryAiSummary = noteActions.onRetryAiSummary
     val onCreateNoteDraftFromAiSummary = noteActions.onCreateNoteDraftFromAiSummary
     val onOpenVideoNoteEditor = noteActions.onOpenVideoNoteEditor
@@ -623,11 +627,17 @@ internal fun VideoContentSection(
     val onIntroScrollThresholdChange = uiActions.onIntroScrollThresholdChange
     val onCommentScrollStateChange = uiActions.onCommentScrollStateChange
     val context = LocalContext.current
-    val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
-    val progressiveCommentHeaderEnabled = LocalAppThemeConfig.current.progressiveTopBlurEnabled
-    val immersiveVideoContentChromeEnabled = progressiveCommentHeaderEnabled
+    val themeConfig = LocalAppThemeConfig.current
+    val liquidGlassEnabled = themeConfig.liquidGlassEnabled
+    val progressiveCommentHeaderEnabled = themeConfig.progressiveTopBlurEnabled &&
+        !themeConfig.headerBlurEnabled
+    val solidProgressiveCommentHeaderEnabled = themeConfig.progressiveTopFadeEnabled &&
+        !themeConfig.headerBlurEnabled
+    val immersiveVideoContentChromeEnabled = progressiveCommentHeaderEnabled ||
+        solidProgressiveCommentHeaderEnabled
     val tabs = listOf("简介", "评论")
     val scope = rememberCoroutineScope()
+    var showCommentSearchSheet by remember { mutableStateOf(false) }
     TrackJankStateFlag(
         stateName = "video_detail:tab_swipe",
         isActive = pagerState.isScrollInProgress
@@ -990,6 +1000,7 @@ internal fun VideoContentSection(
                         onCommentUrlClick = onCommentUrlClick,
                         onReportComment = onReportComment,
                         onToggleTopComment = onToggleTopComment,
+                        onCheckCommentFraud = onCheckCommentFraud,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
                         sortMode = sortMode,
@@ -998,6 +1009,7 @@ internal fun VideoContentSection(
                         showSortControlInHeader = true,
                         showHeader = !immersiveVideoContentChromeEnabled,
                         floatingHeaderContentPadding = if (immersiveVideoContentChromeEnabled) 46.dp else 0.dp,
+                        onSearchClick = { showCommentSearchSheet = true },
                     )
                 }
             }
@@ -1013,8 +1025,12 @@ internal fun VideoContentSection(
                     .height(tabBarVisibleHeightDp + commentChromeHeight)
                     .biliPaiProgressiveTopBlur(
                         backdrop = videoContentMiuixBackdrop,
-                        enabled = true,
+                        enabled = progressiveCommentHeaderEnabled,
                         surfaceColor = Color.Transparent,
+                    )
+                    .topSolidProgressiveFade(
+                        surfaceColor = MaterialTheme.colorScheme.surface,
+                        enabled = solidProgressiveCommentHeaderEnabled,
                     ),
             )
         }
@@ -1113,6 +1129,7 @@ internal fun VideoContentSection(
                         .offset(y = (-commentSortDockLiftDp).dp),
                     miuixBackdrop = if (liquidGlassEnabled) videoContentMiuixBackdrop else null,
                     liquidGlassEffectsEnabled = liquidGlassEnabled,
+                    onSearchClick = { showCommentSearchSheet = true },
                 )
             }
         }
@@ -1195,6 +1212,22 @@ internal fun VideoContentSection(
             },
             onDismiss = { confirmDeleteNote = false }
         )
+
+        if (showCommentSearchSheet) {
+            CommentSearchSheet(
+                replies = replies,
+                upMid = info.owner.mid,
+                onCommentClick = { reply ->
+                    onCommentReplyClick(reply)
+                },
+                onSubReplyClick = { rootReply ->
+                    onSubReplyClick(rootReply, 0L)
+                },
+                onDismiss = { showCommentSearchSheet = false },
+                miuixBackdrop = videoContentMiuixBackdrop,
+                liquidGlassEffectsEnabled = liquidGlassEnabled,
+            )
+        }
     }
 }
 
@@ -1410,6 +1443,7 @@ internal fun VideoCommentTab(
     onCommentUrlClick: (String) -> Unit,
     onReportComment: (Long, Int) -> Unit,
     onToggleTopComment: (ReplyItem) -> Unit,
+    onCheckCommentFraud: (ReplyItem) -> Unit,
     showIdentityDecorations: Boolean,
     lightweightCommentRendering: Boolean,
     sortMode: CommentSortMode = CommentSortMode.HOT,
@@ -1418,6 +1452,7 @@ internal fun VideoCommentTab(
     showSortControlInHeader: Boolean = false,
     showHeader: Boolean = true,
     floatingHeaderContentPadding: Dp = 0.dp,
+    onSearchClick: (() -> Unit)? = null,
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
@@ -1450,6 +1485,7 @@ internal fun VideoCommentTab(
                     count = replyCount,
                     sortMode = sortMode,
                     onSortModeChange = onSortModeChange,
+                    onSearchClick = onSearchClick,
                 )
             } else {
                 CommentListHeader(
@@ -1539,6 +1575,9 @@ internal fun VideoCommentTab(
                             onDeleteClick = if (currentMid > 0 && reply.mid == currentMid) {
                                 { onDissolveStart(reply.rpid) }
                             } else null,
+                            onCheckFraudClick = if (currentMid > 0 && reply.mid == currentMid) {
+                                { onCheckCommentFraud(reply) }
+                            } else null,
                             // [新增] URL 点击跳转
                             onUrlClick = onCommentUrlClick,
                             // [新增] 头像点击
@@ -1599,6 +1638,7 @@ internal fun LandscapeCommentPanel(
     onCommentUrlClick: (String) -> Unit,
     onReportComment: (Long, Int) -> Unit,
     onToggleTopComment: (ReplyItem) -> Unit,
+    onCheckCommentFraud: (ReplyItem) -> Unit = {},
     onTimestampClick: ((Long) -> Unit)?,
     onDismiss: () -> Unit,
     onSwitchSide: () -> Unit,
@@ -1612,6 +1652,7 @@ internal fun LandscapeCommentPanel(
     var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
+    var showCommentSearchSheet by remember { mutableStateOf(false) }
     val commentAppearance = rememberVideoCommentAppearance()
 
     LandscapeSidePanel(
@@ -1637,6 +1678,7 @@ internal fun LandscapeCommentPanel(
                         sortMode = sortMode,
                         onSortModeChange = onSortModeChange,
                         modifier = Modifier.padding(horizontal = 8.dp),
+                        onSearchClick = { showCommentSearchSheet = true },
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     AppTextButton(
@@ -1707,6 +1749,7 @@ internal fun LandscapeCommentPanel(
                         onCommentUrlClick = onCommentUrlClick,
                         onReportComment = onReportComment,
                         onToggleTopComment = onToggleTopComment,
+                        onCheckCommentFraud = onCheckCommentFraud,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = false,
                     )
@@ -1721,6 +1764,19 @@ internal fun LandscapeCommentPanel(
             sourceRect = previewSourceRect,
             textContent = previewTextContent,
             onDismiss = { showImagePreview = false },
+        )
+    }
+    if (showCommentSearchSheet) {
+        CommentSearchSheet(
+            replies = replies,
+            upMid = info.owner.mid,
+            onCommentClick = { reply ->
+                onCommentReplyClick(reply)
+            },
+            onSubReplyClick = { rootReply ->
+                onSubReplyClick(rootReply, 0L)
+            },
+            onDismiss = { showCommentSearchSheet = false },
         )
     }
 }

@@ -681,6 +681,7 @@ data class HomeSettings(
     val showHomeUpAvatars: Boolean = false, // 首页视频卡片 UP 主头像显示(默认关闭,设置后全局生效)
     val showFullVideoCardContent: Boolean = false, // 视频卡片标题完整展示(默认关闭,设置后全局生效)
     val videoCardLongPressActionEnabled: Boolean = false, // 长按视频卡片快捷操作与预览（默认关闭）
+    val homeCardDynamicTintEnabled: Boolean = true, // 卡片毛玻璃与动态取色
     val homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     val easterEggEnabled: Boolean = false, // 下拉刷新趣味提示开关
     //  [修复] 默认值改为 true，避免在 Flow 加载实际值之前错误触发弹窗
@@ -1555,6 +1556,8 @@ object SettingsManager {
         booleanPreferencesKey("full_video_card_content_visible")
     private val KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED =
         booleanPreferencesKey("video_card_long_press_action_enabled")
+    private val KEY_HOME_CARD_DYNAMIC_TINT_ENABLED =
+        booleanPreferencesKey("home_card_dynamic_tint_enabled")
     private val KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE =
         booleanPreferencesKey("home_video_duration_badges_visible")
     private val KEY_HOME_DURATION_STYLE = intPreferencesKey("home_duration_style")
@@ -1765,6 +1768,7 @@ object SettingsManager {
             showHomeUpAvatars = preferences[KEY_HOME_UP_AVATARS_VISIBLE] ?: false,
             showFullVideoCardContent = preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false,
             videoCardLongPressActionEnabled = preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] ?: false,
+            homeCardDynamicTintEnabled = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: true,
             homeDurationStyle = preferences[KEY_HOME_DURATION_STYLE]
                 ?.let(HomeDurationStyle::fromValue)
                 ?: if (preferences[KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE] ?: true) {
@@ -3320,6 +3324,15 @@ object SettingsManager {
         }
     }
 
+    fun getHomeCardDynamicTintEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: true }
+
+    suspend fun setHomeCardDynamicTintEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] = value
+        }
+    }
+
     fun getHomeDurationStyle(context: Context): Flow<HomeDurationStyle> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_HOME_DURATION_STYLE]
@@ -3977,6 +3990,7 @@ object SettingsManager {
             }
         }
     }
+
     
     fun getLiquidGlassStyle(context: Context): Flow<LiquidGlassStyle> = context.settingsDataStore.data
         .map { preferences ->

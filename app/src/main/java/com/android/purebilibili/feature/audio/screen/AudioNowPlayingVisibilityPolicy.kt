@@ -17,6 +17,7 @@ internal fun resolveAudioNowPlayingVisible(
     isInPipMode: Boolean,
     hasCurrentItem: Boolean,
     barEnabled: Boolean,
+    isInMiniMode: Boolean = false,
     isVideoDetailDestination: Boolean = false,
     isLandscape: Boolean = false,
     isPlayerDestination: Boolean = false
@@ -25,6 +26,7 @@ internal fun resolveAudioNowPlayingVisible(
         sessionActive &&
         !isOnAudioModeScreen &&
         !isInPipMode &&
+        !isInMiniMode &&
         hasCurrentItem &&
         !isVideoDetailDestination &&
         !isLandscape &&

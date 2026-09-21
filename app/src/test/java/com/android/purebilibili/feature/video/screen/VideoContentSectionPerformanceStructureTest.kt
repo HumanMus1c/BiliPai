@@ -74,6 +74,8 @@ class VideoContentSectionPerformanceStructureTest {
         assertFalse(source.contains("(!tabBarCollapseEnabled || commentListAtTop)"))
         assertTrue(source.contains("顶部标签与评论标题/排序共用同一张渐进模糊材质"))
         assertTrue(source.contains(".height(tabBarVisibleHeightDp + commentChromeHeight)"))
+        assertTrue(source.contains("progressiveTopFadeEnabled"))
+        assertTrue(source.contains(".topSolidProgressiveFade("))
         assertTrue(source.contains("showHeader = !immersiveVideoContentChromeEnabled"))
         assertTrue(source.contains("shouldShowVideoContentTabBarDanmakuActions(selectedTabIndex)"))
     }

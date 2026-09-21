@@ -34,6 +34,7 @@ internal fun filterHistoryItemsByContent(
             HistoryBusiness.PGC -> filter == HistoryContentFilter.PGC
             HistoryBusiness.LIVE -> filter == HistoryContentFilter.LIVE
             HistoryBusiness.ARTICLE -> filter == HistoryContentFilter.ARTICLE
+            HistoryBusiness.CHEESE,
             HistoryBusiness.ARCHIVE,
             HistoryBusiness.UNKNOWN,
             null -> filter == HistoryContentFilter.VIDEO

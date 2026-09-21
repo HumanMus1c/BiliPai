@@ -44,7 +44,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("top = chromeTopInset"))
         assertFalse(source.contains("onPinnedChromeHeightChanged"))
         assertFalse(source.contains("val tabPinned = gridState.firstVisibleItemIndex > 0"))
-        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("AppThemeAdaptiveTabRow("))
         assertTrue(source.contains("scrollable = spec.scrollable"))
         assertTrue(source.contains("private fun SpaceSectionEmptyState("))
@@ -172,25 +172,16 @@ class SpaceScreenStructureTest {
     }
 
     @Test
-    fun `secondary contribution switch uses responsive liquid glass rail`() {
+    fun `secondary contribution switch returns to native tab row component`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
         val secondaryRow = source
             .substringAfter("private fun SpaceSecondarySwitchRow(")
             .substringBefore("private fun SpaceMainTabRow(")
 
         assertTrue(source.contains("SpaceSecondarySwitchRow("))
-        assertTrue(secondaryRow.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(secondaryRow.contains("shouldScrollSpaceSecondarySwitch("))
-        assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchAdaptiveItemWidthDp("))
-        assertTrue(secondaryRow.contains("itemWidthDp = preferredItemWidthDp"))
-        assertTrue(secondaryRow.contains("val itemWidth = itemWidthDp.dp"))
-        assertFalse(secondaryRow.contains("maxOf(itemWidthDp, preferredItemWidthDp)"))
-        assertTrue(secondaryRow.contains(".liquidDockViewport()"))
-        assertTrue(secondaryRow.contains(".horizontalScroll(scrollState)"))
-        assertTrue(secondaryRow.contains("dragSelectionEnabled = spec.dragSelectionEnabled || useScrollableRail"))
-        assertTrue(secondaryRow.contains("scrollState.dispatchRawDelta("))
-        assertTrue(secondaryRow.contains("resolveSpaceSecondarySwitchDragScrollDeltaPx("))
-        assertTrue(secondaryRow.contains("onIndicatorPositionChanged = { position ->"))
+        assertFalse(secondaryRow.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(secondaryRow.contains("if (liquidGlassEnabled)"))
+        assertFalse(secondaryRow.contains("LocalAppThemeConfig.current.liquidGlassEnabled"))
         assertFalse(secondaryRow.contains("AppFilterChip("))
         assertTrue(secondaryRow.contains("AppNativeTabRow("))
         assertTrue(secondaryRow.contains("minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp"))
@@ -199,7 +190,7 @@ class SpaceScreenStructureTest {
         assertTrue(secondaryRow.contains("MiuixNonGlassTabItemWidthMode.CONTENT"))
         assertTrue(secondaryRow.contains("contentSizedMiuixNonGlassItems = true"))
         assertTrue(secondaryRow.contains("allowLabelOverflow = true"))
-        assertTrue(secondaryRow.contains("homeSettings.androidNativeLiquidGlassEnabled"))
+        assertFalse(secondaryRow.contains("getHomeSettings("))
         assertFalse(source.contains("rememberTextMeasurer()"))
     }
 
@@ -339,6 +330,19 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("rememberBackToTopButtonEnabled()"))
         assertTrue(source.contains("gridState.animateScrollToTop()"))
         assertTrue(source.contains("shouldShowScrollToTop("))
+    }
+
+    @Test
+    fun `space recent liked videos section provides view all action to open user liked list`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+        val likeSection = source.substringAfter("state.homeLikeVideos.isNotEmpty()")
+            .substringBefore("itemsIndexed(")
+
+        assertTrue(likeSection.contains("title = \"最近点赞的视频\""))
+        assertTrue(likeSection.contains("actionLabel = \"查看全部\""))
+        assertTrue(likeSection.contains("onLikedVideosClick(state.userInfo.mid, state.userInfo.name)"))
+        assertTrue(likeSection.contains("onViewAllClick("))
+        assertTrue(source.contains("onLikedVideosClick: ((Long, String) -> Unit)? = null"))
     }
 
     private fun loadSource(path: String): String {

@@ -272,4 +272,23 @@ class BiliPaiReturnSessionStateTest {
         assertEquals("home:BV_A", backAtA.lastVideoSourceKey)
         assertTrue(backAtA.previousTransitionSessions.isEmpty())
     }
+
+    @Test
+    fun nestedDetailThroughSpacePreservesOriginalVideoReturnSession() {
+        val homeToVideo = transitionSession("BV_A", "home", "home:BV_A")
+        val spaceToSameVideo = transitionSession("BV_A", "space/123", "space:BV_A")
+
+        val nested = BiliPaiReturnSessionState()
+            .recordTransitionSession(homeToVideo)
+            .recordTransitionSession(
+                session = spaceToSameVideo,
+                preserveCurrentSession = true,
+            )
+
+        assertEquals(listOf(homeToVideo), nested.previousTransitionSessions)
+        val restored = nested.restorePreviousVideoSourceAfterRelatedReturn()
+        assertEquals(homeToVideo, restored.transitionSession)
+        assertEquals("home", restored.lastVideoSourceRoute)
+        assertEquals("home:BV_A", restored.lastVideoSourceKey)
+    }
 }

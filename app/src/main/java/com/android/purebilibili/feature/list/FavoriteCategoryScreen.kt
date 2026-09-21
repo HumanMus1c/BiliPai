@@ -280,6 +280,7 @@ fun FavoriteCategoryRoute(
     onArticleClick: (Long, String) -> Unit,
     onTopicClick: (Long) -> Unit,
     onWebClick: (String, String) -> Unit,
+    onCheeseClick: ((Long) -> Unit)? = null,
     viewModel: FavoriteCategoryViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -302,6 +303,7 @@ fun FavoriteCategoryRoute(
         onArticleClick = onArticleClick,
         onTopicClick = onTopicClick,
         onWebClick = onWebClick,
+        onCheeseClick = onCheeseClick,
     )
 }
 
@@ -324,6 +326,7 @@ private fun FavoriteCategoryContent(
     onArticleClick: (Long, String) -> Unit,
     onTopicClick: (Long) -> Unit,
     onWebClick: (String, String) -> Unit,
+    onCheeseClick: ((Long) -> Unit)? = null,
 ) {
     val visibleItems = state.items.filter { item ->
         query.isBlank() || item.title.contains(query, ignoreCase = true) ||
@@ -373,6 +376,7 @@ private fun FavoriteCategoryContent(
                 onArticleClick = onArticleClick,
                 onTopicClick = onTopicClick,
                 onWebClick = onWebClick,
+                onCheeseClick = onCheeseClick,
             )
         }
         Column(
@@ -459,6 +463,7 @@ private fun FavoriteCategoryGrid(
     onArticleClick: (Long, String) -> Unit,
     onTopicClick: (Long) -> Unit,
     onWebClick: (String, String) -> Unit,
+    onCheeseClick: ((Long) -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val columns = resolveFavoriteCategoryColumnCount(state.section, maxWidth.value)
@@ -504,7 +509,14 @@ private fun FavoriteCategoryGrid(
                         onClick = {
                             when (item.section) {
                                 FavoriteSection.ARTICLE -> onArticleClick(item.id, item.title)
-                                FavoriteSection.NOTE, FavoriteSection.COURSE -> onWebClick(item.url, item.title)
+                                FavoriteSection.COURSE -> {
+                                    if (onCheeseClick != null) {
+                                        onCheeseClick(item.id)
+                                    } else {
+                                        onBangumiClick(item.id)
+                                    }
+                                }
+                                FavoriteSection.NOTE -> onWebClick(item.url, item.title)
                                 else -> Unit
                             }
                         },

@@ -1513,7 +1513,7 @@ class SpaceViewModel(
         if (!refresh && !current.hasMoreCheese) return
 
         viewModelScope.launch {
-            val page = if (refresh) 1 else current.cheesePage + 1
+            val page = if (refresh || !current.hasLoadedCheeseOnce) 1 else current.cheesePage + 1
             _uiState.value = current.copy(
                 isLoadingCheese = true,
                 lastCheeseLoadFailed = false

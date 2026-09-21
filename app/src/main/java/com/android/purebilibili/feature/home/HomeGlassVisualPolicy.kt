@@ -140,6 +140,43 @@ data class HomeCardInfoSurfaceAppearance(
     val useRealtimeLiquidGlass: Boolean = false
 )
 
+internal enum class HomeCardWallpaperSurfaceMode {
+    STANDARD,
+    LIGHTWEIGHT_TINT,
+    REALTIME_FROSTED,
+}
+
+/**
+ * Select the card-info material without reading frame-rate state during composition. The
+ * caller supplies source readiness and the current performance budget as stable inputs; scroll
+ * position is resolved by the backdrop draw node itself.
+ */
+internal fun resolveHomeCardWallpaperSurfaceMode(
+    dynamicTintEnabled: Boolean,
+    wallpaperVisible: Boolean,
+    wallpaperIsStatic: Boolean,
+    backdropReady: Boolean,
+    blurEnabled: Boolean,
+    isDataSaverActive: Boolean,
+    lowBlurBudgetForced: Boolean,
+    sdkInt: Int,
+): HomeCardWallpaperSurfaceMode {
+    if (!dynamicTintEnabled || !wallpaperVisible) {
+        return HomeCardWallpaperSurfaceMode.STANDARD
+    }
+    if (
+        wallpaperIsStatic &&
+            backdropReady &&
+            blurEnabled &&
+            !isDataSaverActive &&
+            !lowBlurBudgetForced &&
+            sdkInt >= 31
+    ) {
+        return HomeCardWallpaperSurfaceMode.REALTIME_FROSTED
+    }
+    return HomeCardWallpaperSurfaceMode.LIGHTWEIGHT_TINT
+}
+
 internal fun resolveHomeGlassChromeStyle(
     glassEnabled: Boolean,
     blurEnabled: Boolean
@@ -338,15 +375,26 @@ internal fun resolveHomeWallpaperDecodeSizePx(
     screenWidthDp: Int,
     screenHeightDp: Int,
     density: Float,
-    isDataSaverActive: Boolean
+    isDataSaverActive: Boolean,
+    blurRadiusDp: Float = 0f,
 ): Pair<Int, Int> {
     val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
     val widthPx = (screenWidthDp.coerceAtLeast(320) * safeDensity).toInt().coerceAtLeast(720)
     val heightPx = (screenHeightDp.coerceAtLeast(568) * safeDensity).toInt().coerceAtLeast(1280)
     val shortSide = min(widthPx, heightPx)
     val longSide = max(widthPx, heightPx)
-    val maxShortSide = if (isDataSaverActive) 720 else 1080
-    val maxLongSide = if (isDataSaverActive) 1280 else 1920
+    val maxShortSide = when {
+        isDataSaverActive -> 720
+        blurRadiusDp >= 24f -> 540
+        blurRadiusDp >= 12f -> 720
+        else -> 1080
+    }
+    val maxLongSide = when {
+        isDataSaverActive -> 1280
+        blurRadiusDp >= 24f -> 960
+        blurRadiusDp >= 12f -> 1280
+        else -> 1920
+    }
     return min(shortSide, maxShortSide) to min(longSide, maxLongSide)
 }
 

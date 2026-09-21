@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -204,11 +203,15 @@ fun AppModalBottomSheet(
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     presentationProgress: Float = 1f,
     dismissOnBackPress: Boolean = true,
-    dragHandle: @Composable (() -> Unit)? = { AppBottomSheetDragHandle() },
+    dragHandle: @Composable (() -> Unit)? = null,
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
+    val resolvedDragHandle = dragHandle ?: when (uiStyle) {
+        AppUiStyle.MIUIX -> { { AppBottomSheetDragHandle() } }
+        AppUiStyle.MATERIAL3 -> { { BottomSheetDefaults.DragHandle() } }
+    }
     val miuixNonGlass = isMiuixNonGlassEnabled()
     val configuration = LocalConfiguration.current
     val layoutSpec = remember(configuration.screenWidthDp, miuixNonGlass) {
@@ -256,7 +259,8 @@ fun AppModalBottomSheet(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Surface(
+                AppPopupSurface(
+                    type = AppPopupSurfaceType.SHEET,
                     modifier = Modifier
                         .widthIn(max = layoutSpec.maxWidthDp.dp)
                         .heightIn(
@@ -266,7 +270,7 @@ fun AppModalBottomSheet(
                         .then(modifier)
                         .fillMaxWidth(),
                     shape = centeredSheetShape,
-                    color = resolvedContainerColor,
+                    containerColor = resolvedContainerColor,
                     contentColor = contentColor,
                     tonalElevation = tonalElevation,
                 ) {
@@ -282,17 +286,26 @@ fun AppModalBottomSheet(
         sheetState = sheetState,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = dismissOnBackPress),
         shape = sheetShape,
-        containerColor = resolvedContainerColor,
+        containerColor = Color.Transparent,
         contentColor = contentColor,
         tonalElevation = tonalElevation,
         scrimColor = scrimColor.copy(alpha = progressVisual.scrimAlpha),
-        dragHandle = when (uiStyle) {
-            AppUiStyle.MIUIX -> { { AppBottomSheetDragHandle() } }
-            AppUiStyle.MATERIAL3 -> { { BottomSheetDefaults.DragHandle() } }
-        },
+        dragHandle = null,
         contentWindowInsets = { windowInsets },
         content = {
-            content()
+            AppPopupSurface(
+                type = AppPopupSurfaceType.SHEET,
+                modifier = Modifier.fillMaxWidth(),
+                shape = sheetShape,
+                containerColor = resolvedContainerColor,
+                contentColor = contentColor,
+                tonalElevation = tonalElevation,
+            ) {
+                Column {
+                    resolvedDragHandle()
+                    content()
+                }
+            }
         }
     )
 }

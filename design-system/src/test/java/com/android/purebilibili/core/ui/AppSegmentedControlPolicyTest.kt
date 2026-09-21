@@ -9,6 +9,7 @@ import com.android.purebilibili.core.ui.components.resolveLabelContentMinWidth
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColor
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
 import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
+import com.android.purebilibili.core.ui.components.resolveMiuixTabMinWidth
 import com.android.purebilibili.core.ui.components.resolveMiuixNonGlassContentTabItemWidths
 import com.android.purebilibili.core.ui.components.shouldEqualizeMiuixNonGlassTabItems
 import com.android.purebilibili.core.ui.components.shouldStretchMiuixNonGlassTabRowToTrack
@@ -132,6 +133,46 @@ class AppSegmentedControlPolicyTest {
             resolveMiuixNonGlassContentTabItemWidths(
                 labelWidths = listOf(20.dp, 51.dp, 400.dp),
                 minTabWidth = 48.dp,
+            ),
+        )
+    }
+
+    @Test
+    fun `long collection titles do not inflate short content sized tabs`() {
+        val sharedWidth = resolveReadableNativeTabMinWidth(
+            requestedMinWidth = 48.dp,
+            labels = listOf("视频", "图文", "这是一个很长的合集标题"),
+            allowLabelOverflow = true,
+        )
+        assertTrue(sharedWidth > 56.dp)
+        val contentMinWidth = resolveMiuixTabMinWidth(
+            requestedMinWidth = 48.dp,
+            sharedMinWidth = sharedWidth,
+            contentSizedItems = true,
+        )
+        assertEquals(
+            listOf(56.dp, 56.dp, 200.dp),
+            resolveMiuixNonGlassContentTabItemWidths(
+                labelWidths = listOf(32.dp, 32.dp, 176.dp),
+                minTabWidth = contentMinWidth,
+            ),
+        )
+        assertEquals(sharedWidth, resolveMiuixTabMinWidth(48.dp, sharedWidth, false))
+        assertEquals(72.dp, resolveMiuixTabMinWidth(72.dp, sharedWidth, true))
+        val source = loadSource("src/main/java/com/android/purebilibili/core/ui/components/AppSegmentedControl.kt")
+        val renderer = source.substringAfter("AppSegmentedRenderer.MIUIX -> AppMiuixTabRow(")
+        assertTrue(renderer.contains("minTabWidth = resolveMiuixTabMinWidth("))
+        assertTrue(renderer.contains("contentSizedItems = useContentSizedMiuixItems"))
+    }
+
+    @Test
+    fun `Miuix non glass content tabs can keep long labels complete`() {
+        assertEquals(
+            listOf(48.dp, 424.dp),
+            resolveMiuixNonGlassContentTabItemWidths(
+                labelWidths = listOf(20.dp, 400.dp),
+                minTabWidth = 48.dp,
+                maxTabWidth = androidx.compose.ui.unit.Dp.Infinity,
             ),
         )
     }

@@ -2136,6 +2136,15 @@ fun AboutSection(
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
+            icon = licensesVisual.icon,
+            iconPainter = licensesVisual.iconResId?.let { painterResource(id = it) },
+            title = "开源许可证",
+            value = "License",
+            onClick = onLicenseClick,
+            iconTint = licensesVisual.iconTint
+        )
+        SettingsAdaptiveDivider()
+        SettingClickableItem(
             icon = verificationIcon,
             title = "源码一致性",
             subtitle = verificationSubtitle,
@@ -2191,15 +2200,6 @@ fun AboutSection(
 
     SettingsSectionTitle(title = "更新")
     SettingsCardGroup {
-        SettingClickableItem(
-            icon = licensesVisual.icon,
-            iconPainter = licensesVisual.iconResId?.let { painterResource(id = it) },
-            title = "开源许可证",
-            value = "License",
-            onClick = onLicenseClick,
-            iconTint = updateSiblingTints[0]
-        )
-        SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = checkUpdateVisual.icon,
             iconPainter = checkUpdateVisual.iconResId?.let { painterResource(id = it) },

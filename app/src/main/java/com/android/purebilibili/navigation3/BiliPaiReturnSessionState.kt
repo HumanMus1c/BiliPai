@@ -80,22 +80,22 @@ internal data class BiliPaiReturnSessionState(
 
     fun recordTransitionSession(
         session: VideoCardTransitionSession,
-    ): BiliPaiReturnSessionState {
-        val relatedDetailSource = session.sourceRoute
+        preserveCurrentSession: Boolean = session.sourceRoute
             ?.substringBefore("?")
-            ?.startsWith("video/") == true
+            ?.startsWith("video/") == true,
+    ): BiliPaiReturnSessionState {
         val currentSession = transitionSession
-        val updatedSessionHistory = if (relatedDetailSource && currentSession != null) {
+        val updatedSessionHistory = if (preserveCurrentSession && currentSession != null) {
             previousTransitionSessions + currentSession
-        } else if (relatedDetailSource) {
+        } else if (preserveCurrentSession) {
             previousTransitionSessions
         } else {
             emptyList()
         }
         val currentSource = BiliPaiVideoSource(lastVideoSourceRoute, lastVideoSourceKey)
-        val updatedSourceHistory = if (relatedDetailSource && currentSource.route != null) {
+        val updatedSourceHistory = if (preserveCurrentSession && currentSource.route != null) {
             previousVideoSources + currentSource
-        } else if (relatedDetailSource) {
+        } else if (preserveCurrentSession) {
             previousVideoSources
         } else {
             emptyList()

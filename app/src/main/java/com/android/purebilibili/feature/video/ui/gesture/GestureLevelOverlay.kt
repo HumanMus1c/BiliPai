@@ -178,46 +178,37 @@ private fun Md3GestureLevelIndicator(
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         val diameter = resolveMd3GestureLevelDiameterDp(maxWidth.value, maxHeight.value)
         val compact = diameter < 112f
-        AppSurface(
+        Box(
             modifier = Modifier.size(diameter.dp),
-            shape = CircleShape,
-            color = spec.containerColor,
-            shadowElevation = 8.dp,
-            tonalElevation = 0.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, spec.borderColor)
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.padding(8.dp),
-                contentAlignment = Alignment.Center
+            CircularWavyProgressIndicator(
+                progress = progress,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
+                color = spec.fillColor,
+                trackColor = spec.trackColor
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                CircularWavyProgressIndicator(
-                    progress = progress,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
-                    color = spec.fillColor,
-                    trackColor = spec.trackColor
+                GestureLevelIconSlot(
+                    icon = icon,
+                    tint = spec.iconTint,
+                    sizeDp = if (compact) 18 else spec.iconSizeDp,
+                    glowColor = spec.accentColor.copy(alpha = 0.12f)
                 )
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    GestureLevelIconSlot(
-                        icon = icon,
-                        tint = spec.iconTint,
-                        sizeDp = if (compact) 18 else spec.iconSizeDp,
-                        glowColor = spec.accentColor.copy(alpha = 0.12f)
-                    )
-                    key(spec.kind) {
-                        CircularGesturePercentText(
-                            percent = percent,
-                            color = spec.textColor,
-                            textStyle = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = if (compact) 14.sp else 18.sp
-                            )
+                key(spec.kind) {
+                    CircularGesturePercentText(
+                        percent = percent,
+                        color = spec.textColor,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = if (compact) 14.sp else 18.sp
                         )
-                    }
+                    )
                 }
             }
         }

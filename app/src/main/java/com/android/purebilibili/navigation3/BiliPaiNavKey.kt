@@ -196,8 +196,15 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
-    data object LikedVideos : BiliPaiNavKey {
+    data class LikedVideos(
+        val mid: Long = 0L,
+        val ownerName: String = "",
+    ) : BiliPaiNavKey {
         override val routeBase: String = "liked_videos"
+
+        companion object : BiliPaiNavKey {
+            override val routeBase: String = "liked_videos"
+        }
     }
 
     @Serializable
@@ -349,7 +356,9 @@ internal sealed interface BiliPaiNavKey : NavKey {
     data class BangumiPlayer(
         val seasonId: Long,
         val epId: Long,
-        val resumePositionMs: Long = 0L
+        val resumePositionMs: Long = 0L,
+        val isCourse: Boolean = false,
+        val preferredAid: Long = 0L
     ) : BiliPaiNavKey {
         override val routeBase: String = "bangumi/play"
     }

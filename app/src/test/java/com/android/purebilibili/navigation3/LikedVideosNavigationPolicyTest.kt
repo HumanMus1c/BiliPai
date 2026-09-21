@@ -20,4 +20,18 @@ class LikedVideosNavigationPolicyTest {
             resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.LikedVideos)
         )
     }
+
+    @Test
+    fun userLikedVideosRoute_roundTripsThroughNavigation3() {
+        val userLikedKey = BiliPaiNavKey.LikedVideos(mid = 12345L, ownerName = "测试UP主")
+        val route = userLikedKey.toLegacyRoute()
+        assertEquals(
+            userLikedKey,
+            legacyRouteToBiliPaiNavKey(route)
+        )
+        assertEquals(
+            BiliPaiNavEntryContentRole.LIKED_VIDEOS,
+            resolveBiliPaiNavEntryContentRole(userLikedKey)
+        )
+    }
 }

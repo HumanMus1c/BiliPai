@@ -48,6 +48,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppPopupSurface
+import com.android.purebilibili.core.ui.AppPopupSurfaceType
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.components.AppButton
@@ -103,13 +105,14 @@ internal fun CacheClearConfirmDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
+        AppPopupSurface(
+            type = AppPopupSurfaceType.DIALOG,
             modifier = Modifier
                 .padding(horizontal = 20.dp, vertical = 24.dp)
                 .widthIn(max = 480.dp)
                 .fillMaxWidth(),
             shape = AppShapes.container(ContainerLevel.Dialog),
-            color = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp
         ) {
             Column(
@@ -349,13 +352,14 @@ fun CacheClearAnimationDialog(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Surface(
+            AppPopupSurface(
+                type = AppPopupSurfaceType.DIALOG,
                 modifier = Modifier
                     .padding(48.dp)
                     .widthIn(max = 360.dp)
                     .fillMaxWidth(),
                 shape = AppShapes.container(ContainerLevel.Dialog),
-                color = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 3.dp
             ) {
                 Column(
