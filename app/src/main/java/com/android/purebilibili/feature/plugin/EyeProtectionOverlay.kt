@@ -42,6 +42,7 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.motion.continuityTween
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 @Composable
 fun EyeProtectionOverlay(
@@ -163,7 +164,7 @@ private fun RestReminderDialog(
             AppText(
                 text = reminder.title,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -181,15 +182,14 @@ private fun RestReminderDialog(
                     color = AppSurfaceTokens.onSurfaceVariantSummary(),
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 AppText(
                     text = reminder.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                    textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 AppText(
                     text = reminder.suggestion,
                     style = MaterialTheme.typography.bodySmall,

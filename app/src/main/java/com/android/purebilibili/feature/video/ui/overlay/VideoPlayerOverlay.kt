@@ -3056,7 +3056,7 @@ private fun InteractionButton(
         AppText(
             text = label,
             color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 10.sp
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

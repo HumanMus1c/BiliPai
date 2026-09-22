@@ -92,7 +92,7 @@ fun BangumiCard(
                     AppText(
                         text = item.score,
                         color = iOSYellow,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -102,7 +102,7 @@ fun BangumiCard(
                     AppText(
                         text = indexShow,
                         color = Color.White,
-                        fontSize = 10.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
@@ -114,8 +114,7 @@ fun BangumiCard(
             modifier = Modifier.padding(top = 6.dp),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 12.sp,
-            lineHeight = 16.sp
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -171,7 +170,7 @@ fun BangumiSearchCard(
             // 标题
             AppText(
                 text = item.orgTitle.ifEmpty { item.title.replace("<em class=\"keyword\">", "").replace("</em>", "") },
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -181,7 +180,7 @@ fun BangumiSearchCard(
             if (item.seasonTypeName.isNotEmpty()) {
                 AppText(
                     text = item.seasonTypeName,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -193,13 +192,13 @@ fun BangumiSearchCard(
                         AppText(
                             text = String.format("%.1f", score.score),
                             color = iOSYellow,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
                         AppText(
                             text = " · ${score.userCount}人评分",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -209,7 +208,7 @@ fun BangumiSearchCard(
             if (item.indexShow.isNotEmpty()) {
                 AppText(
                     text = item.indexShow,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -277,7 +276,7 @@ fun BangumiSearchCardGrid(
                         AppText(
                             text = String.format("%.1f", score.score),
                             color = iOSYellow,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -288,7 +287,7 @@ fun BangumiSearchCardGrid(
                     AppText(
                         text = item.indexShow,
                         color = Color.White,
-                        fontSize = 10.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
@@ -300,8 +299,7 @@ fun BangumiSearchCardGrid(
             modifier = Modifier.padding(top = 6.dp),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 12.sp,
-            lineHeight = 16.sp
+            style = MaterialTheme.typography.bodySmall
         )
         val hitEpisode = item.episodes?.firstOrNull { it.id > 0L }
         if (hitEpisode != null && onEpisodeClick != null) {
@@ -316,7 +314,7 @@ fun BangumiSearchCardGrid(
                     text = item.buttonText.ifBlank { "播匹配分集" },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 11.sp
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -355,7 +353,7 @@ fun BangumiBadge(
             text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             color = badgeColors.contentColor,
-            fontSize = 10.sp
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

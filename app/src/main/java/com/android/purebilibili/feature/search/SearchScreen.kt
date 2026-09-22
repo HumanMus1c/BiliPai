@@ -1289,7 +1289,7 @@ fun SearchScreen(
                                                         AppText(
                                                             text = easterEggMsg,
                                                             color = easterEggColors.contentColor,
-                                                            fontSize = 14.sp,
+                                                            style = MaterialTheme.typography.bodyMedium,
                                                             fontWeight = FontWeight.Medium,
                                                             maxLines = 2,
                                                             overflow = TextOverflow.Ellipsis,
@@ -1747,14 +1747,14 @@ fun SearchScreen(
                                                     AppText(
                                                         text = pageEmptyStateCopy.title,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontSize = 15.sp,
+                                                        style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
                                                         text = pageEmptyStateCopy.subtitle,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        fontSize = 13.sp
+                                                        style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }
                                             }
@@ -1792,7 +1792,7 @@ fun SearchScreen(
                                                     .padding(16.dp),
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                fontSize = 12.sp
+                                                style = MaterialTheme.typography.bodySmall
                                             )
                                         }
                                     }
@@ -1852,14 +1852,14 @@ fun SearchScreen(
                                                     AppText(
                                                         text = pageEmptyStateCopy.title,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontSize = 15.sp,
+                                                        style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
                                                         text = pageEmptyStateCopy.subtitle,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        fontSize = 13.sp,
+                                                        style = MaterialTheme.typography.bodyMedium,
                                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                                     )
                                                 }
@@ -1958,14 +1958,14 @@ fun SearchScreen(
                                                     AppText(
                                                         text = pageEmptyStateCopy.title,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontSize = 15.sp,
+                                                        style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
                                                         text = pageEmptyStateCopy.subtitle,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        fontSize = 13.sp
+                                                        style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }
                                             }
@@ -2018,14 +2018,14 @@ fun SearchScreen(
                                                     AppText(
                                                         text = pageEmptyStateCopy.title,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontSize = 15.sp,
+                                                        style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
                                                         text = pageEmptyStateCopy.subtitle,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        fontSize = 13.sp,
+                                                        style = MaterialTheme.typography.bodyMedium,
                                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                                     )
                                                 }
@@ -2151,14 +2151,14 @@ fun SearchScreen(
                                                     AppText(
                                                         text = pageEmptyStateCopy.title,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontSize = 15.sp,
+                                                        style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
                                                         text = pageEmptyStateCopy.subtitle,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        fontSize = 13.sp,
+                                                        style = MaterialTheme.typography.bodyMedium,
                                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                                     )
                                                 }
@@ -2862,7 +2862,7 @@ fun HistoryChip(
             AppText(
                 text = keyword,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2899,8 +2899,8 @@ fun QuickCategory(
             .heightIn(min = 48.dp)
             .padding(8.dp)
     ) {
-        AppText(text = emoji, fontSize = 24.sp)
-        AppText(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+        AppText(text = emoji, style = MaterialTheme.typography.headlineSmall)
+        AppText(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -2929,7 +2929,7 @@ fun SearchDiscoverySection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppText(
                     "💎",
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText(
@@ -2963,7 +2963,7 @@ fun SearchDiscoverySection(
                 ) {
                     AppText(
                         keyword,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
@@ -3000,7 +3000,7 @@ fun SearchHotSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AppText(
                         "", // 🔥
-                        fontSize = 16.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     AppText(
@@ -3025,7 +3025,7 @@ fun SearchHotSection(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                     )
                 }
@@ -3059,7 +3059,7 @@ fun SearchHotSection(
                                     // 排名序号
                                     AppText(
                                         text = "${globalIndex + 1}",
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.labelLarge,
                                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                                         color = if (isTop3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                         modifier = Modifier.width(24.dp)
@@ -3068,7 +3068,7 @@ fun SearchHotSection(
                                     // 标题
                                     AppText(
                                         text = hotItem.show_name,
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -3581,7 +3581,7 @@ private fun FilterMenuChip(
         label = {
             AppText(
                 text = text,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -3858,11 +3858,7 @@ fun SearchResultCard(
                         )
                     }
                 } else null,
-                nameStyle = if (useMiuixNonGlassPresentation) {
-                    MaterialTheme.typography.labelSmall
-                } else {
-                    MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
-                },
+                nameStyle = MaterialTheme.typography.labelSmall,
                 nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),

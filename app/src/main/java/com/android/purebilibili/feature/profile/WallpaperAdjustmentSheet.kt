@@ -185,7 +185,7 @@ fun WallpaperAdjustmentSheet(
                             AppText(
                                 text = "预览效果",
                                 color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))
@@ -207,7 +207,7 @@ fun WallpaperAdjustmentSheet(
                                 AppText(
                                     text = if (previewFailed) "图片加载失败，请返回重新选择" else "正在加载图片…",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         }
@@ -419,7 +419,7 @@ fun ProfileWallpaperAdjustmentSheet(
                         AppText(
                             text = "双指缩放  单指拖动",
                             color = Color.White.copy(alpha = 0.86f),
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))

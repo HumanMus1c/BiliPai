@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.space
 
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.data.model.response.VideoSortOrder
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -193,6 +194,18 @@ class SpaceTabChromePolicyTest {
         assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 1))
         assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 2))
         assertTrue(shouldScrollSpaceSecondarySwitchForNonGlass(itemCount = 6))
+    }
+
+    @Test
+    fun `secondary contribution switch in Material 3 removes container horizontal padding for edge alignment`() {
+        val items = listOf(
+            SpaceSecondarySwitchItem("video", "视频", SpaceMainTab.CONTRIBUTION),
+            SpaceSecondarySwitchItem("article", "图文", SpaceMainTab.CONTRIBUTION),
+        )
+        val m3Spec = resolveSpaceSecondarySwitchChromeSpec(items, "video", uiStyle = AppUiStyle.MATERIAL3)
+        assertEquals(0, m3Spec.horizontalPaddingDp)
+        val miuixSpec = resolveSpaceSecondarySwitchChromeSpec(items, "video", uiStyle = AppUiStyle.MIUIX)
+        assertEquals(16, miuixSpec.horizontalPaddingDp)
     }
 
     @Test

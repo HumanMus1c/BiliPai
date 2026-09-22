@@ -248,14 +248,13 @@ fun FavoriteFolderItem(
         Column(modifier = Modifier.weight(1f)) {
             AppText(
                 text = folder.title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             AppText(
                 text = "${folder.media_count}个内容",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

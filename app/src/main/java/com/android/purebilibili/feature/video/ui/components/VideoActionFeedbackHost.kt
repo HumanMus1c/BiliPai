@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackAnchor
@@ -53,7 +52,8 @@ fun BoxScope.VideoActionFeedbackHost(
     val maxWidth = if (emphasized) 320.dp else 280.dp
     val backgroundAlpha = backgroundAlphaOverride
         ?: if (emphasized) 0.62f else 0.46f
-    val fontSize = (if (emphasized) 17.sp else 15.sp) * scale
+    val baseFontSize = if (emphasized) MaterialTheme.typography.titleMedium.fontSize else MaterialTheme.typography.bodyMedium.fontSize
+    val fontSize = baseFontSize * scale
     val fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium
 
     AnimatedVisibility(

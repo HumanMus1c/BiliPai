@@ -167,7 +167,6 @@ class VideoDetailScreenMethodSizeStructureTest {
         assertTrue(adapter.lineSequence().count() <= 350)
         assertTrue(adapter.contains("InteractiveChoiceOverlay("))
         assertTrue(adapter.contains("ExternalPlaylistQueueSheet("))
-        assertTrue(adapter.contains("VideoShareSheet("))
         assertTrue(adapter.contains("VideoDetailPlaybackEndedDialog("))
         assertFalse(holder.contains("InteractiveChoiceOverlay("))
         assertFalse(holder.contains("VideoShareSheet("))

@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppText
@@ -123,7 +122,7 @@ fun BangumiCollapsedPlayerBar(
                     AppText(
                         text = playLabel,
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 15.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }

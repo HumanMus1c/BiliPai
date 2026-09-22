@@ -380,7 +380,7 @@ private fun SearchVideoFilterSheetContent(
             )
             AppText(
                 text = "至",
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             SearchFilterSelectableChip(
@@ -457,7 +457,7 @@ private fun SearchFilterSectionTitle(
 ) {
     AppText(
         text = text,
-        style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp)
+        style = MaterialTheme.typography.titleMedium
     )
 }
 
@@ -476,7 +476,7 @@ private fun SearchFilterSelectableChip(
         label = {
             AppText(
                 text = label,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 textAlign = if (center) TextAlign.Center else TextAlign.Start,
                 modifier = if (center) Modifier.fillMaxWidth() else Modifier

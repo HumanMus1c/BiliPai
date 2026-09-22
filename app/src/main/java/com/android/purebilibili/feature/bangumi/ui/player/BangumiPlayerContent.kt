@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -143,7 +142,7 @@ fun BangumiPlayerContent(
                 height = 44.dp,
                 indicatorHeight = com.android.purebilibili.core.ui
                     .roundMatchedLiquidIndicatorHeightDp(44f).dp,
-                labelFontSize = 15.sp,
+                labelFontSize = MaterialTheme.typography.titleSmall.fontSize,
                 compactMiuixWhenTwoOptions = useCapsuleTabs,
                 dragSelectionEnabled = tabs.size > 1,
                 tapPressRefractionEnabled = false,
@@ -193,7 +192,7 @@ fun BangumiPlayerContent(
                         Column(modifier = Modifier.weight(1f)) {
                             AppText(
                                 text = up.uname,
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -206,7 +205,7 @@ fun BangumiPlayerContent(
                             if (subText.isNotBlank()) {
                                 AppText(
                                     text = subText,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -240,14 +239,14 @@ fun BangumiPlayerContent(
                                 Column {
                                     AppText(
                                         text = cooperator.uname,
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     cooperator.role?.takeIf { it.isNotBlank() }?.let {
                                         AppText(
                                             text = it,
-                                            fontSize = 11.sp,
+                                            style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -259,7 +258,7 @@ fun BangumiPlayerContent(
 
                 AppText(
                     text = detail.title,
-                    fontSize = 18.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2
                 )
@@ -268,7 +267,7 @@ fun BangumiPlayerContent(
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = detail.subtitle,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -282,7 +281,7 @@ fun BangumiPlayerContent(
                     .joinToString(" ")
                 AppText(
                     text = "正在播放：$currentPlayingLabel",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -296,7 +295,7 @@ fun BangumiPlayerContent(
                     }
                     AppText(
                         text = accessLabel,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = if (currentEpisode.playable || currentEpisode.episodeCanView) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -318,7 +317,7 @@ fun BangumiPlayerContent(
                         }
                         AppText(
                             text = statText,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -426,8 +425,8 @@ fun BangumiPlayerContent(
                 ) {
                     AppText(
                         text = "选集 (${detail.episodes.size})",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                     
                     // 当集数超过 50 时显示快速跳转
@@ -442,7 +441,7 @@ fun BangumiPlayerContent(
                             AppText(
                                 text = "跳转",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -499,7 +498,7 @@ fun BangumiPlayerContent(
                                 AppText(
                                     text = "$start-$end",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = if (isCurrentPage) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -552,15 +551,14 @@ fun BangumiPlayerContent(
                 AppText(
                     text = "简介",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
                 AppText(
                     text = detail.evaluate,
                     modifier = Modifier.padding(16.dp),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -572,8 +570,8 @@ fun BangumiPlayerContent(
                 AppText(
                     text = "课程概述",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(
@@ -656,7 +654,7 @@ fun BangumiPlayerContent(
                             AppText(
                                 text = option.label,
                                 color = AppSurfaceTokens.onSurfaceContainerHigh(),
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -765,7 +763,7 @@ fun EpisodeChipSelectable(
                 ) {
                     AppText(
                         text = episode.title.ifEmpty { "第${episode.id}讲" },
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -789,7 +787,7 @@ fun EpisodeChipSelectable(
                         ) {
                             AppText(
                                 text = episode.badge,
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = if (isPreview) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
@@ -803,7 +801,7 @@ fun EpisodeChipSelectable(
                 if (episode.longTitle.isNotBlank()) {
                     AppText(
                         text = episode.longTitle,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = if (isSelected) {
                             selectedColors.contentColor.copy(alpha = 0.8f)
                         } else {
@@ -825,7 +823,7 @@ fun EpisodeChipSelectable(
                 text = episode.title.ifEmpty { "第${episode.id}话" },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
             )
         }
@@ -864,7 +862,7 @@ fun EpisodeJumpDialog(
                     AppText(
                         text = errorMessage!!,
                         color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
@@ -919,12 +917,12 @@ fun BangumiErrorContent(
                     isLoginRequired -> ""
                     else -> ""
                 },
-                fontSize = 48.sp
+                style = MaterialTheme.typography.displaySmall
             )
             Spacer(modifier = Modifier.height(16.dp))
             AppText(
                 text = message,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -932,7 +930,7 @@ fun BangumiErrorContent(
                 Spacer(modifier = Modifier.height(8.dp))
                 AppText(
                     text = "开通大会员即可观看",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
             }

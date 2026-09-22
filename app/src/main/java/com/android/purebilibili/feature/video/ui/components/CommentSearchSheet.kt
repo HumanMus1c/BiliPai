@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -168,7 +167,7 @@ fun CommentSearchSheet(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AppText(
                             text = "搜索评论",
-                            fontSize = 18.sp,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -176,7 +175,7 @@ fun CommentSearchSheet(
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText(
                                 text = "找到 ${filteredResults.size} 条",
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -281,13 +280,13 @@ fun CommentSearchSheet(
                             Spacer(modifier = Modifier.height(10.dp))
                             AppText(
                                 text = "输入关键词搜索已加载的评论",
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             AppText(
                                 text = "支持搜索主评论、楼中楼及作者名称",
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                             )
                         }
@@ -302,13 +301,13 @@ fun CommentSearchSheet(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             AppText(
                                 text = "未找到包含「$searchQuery」的评论",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             AppText(
                                 text = "可滚动评论区加载更多评论后再试",
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                             )
                         }
@@ -367,7 +366,7 @@ private fun CommentSearchSegmentedDock(
         modifier = modifier,
         height = 48.dp,
         indicatorHeight = 42.dp,
-        labelFontSize = 12.sp,
+        labelFontSize = MaterialTheme.typography.bodySmall.fontSize,
         forceEqualWidth = true,
         allowNativeLabelOverflow = true,
         liquidGlassEffectsEnabled = liquidGlassEnabled,
@@ -438,7 +437,7 @@ private fun CommentSearchResultRow(
                     Spacer(modifier = Modifier.width(8.dp))
                     AppText(
                         text = highlightQuery(item.member.uname, searchQuery, primaryColor),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -454,7 +453,7 @@ private fun CommentSearchResultRow(
                         ) {
                             AppText(
                                 text = "UP主",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -470,7 +469,7 @@ private fun CommentSearchResultRow(
                         ) {
                             AppText(
                                 text = "楼中楼回复",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
@@ -484,7 +483,7 @@ private fun CommentSearchResultRow(
                 if (timeStr.isNotBlank()) {
                     AppText(
                         text = timeStr,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     )
                 }
@@ -495,8 +494,7 @@ private fun CommentSearchResultRow(
             // 评论内容（关键字高亮）
             AppText(
                 text = highlightQuery(item.content.message, searchQuery, primaryColor),
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f),
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
@@ -522,7 +520,7 @@ private fun CommentSearchResultRow(
                             Spacer(modifier = Modifier.width(3.dp))
                             AppText(
                                 text = FormatUtils.formatStat(item.like.toLong()),
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                         }
@@ -540,7 +538,7 @@ private fun CommentSearchResultRow(
                             Spacer(modifier = Modifier.width(3.dp))
                             AppText(
                                 text = "${item.rcount}条回复",
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                         }
@@ -551,7 +549,7 @@ private fun CommentSearchResultRow(
                     if (!location.isNullOrBlank()) {
                         AppText(
                             text = location,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                         )
                     }
@@ -560,7 +558,7 @@ private fun CommentSearchResultRow(
                 // 复制按钮
                 AppText(
                     text = "复制",
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .clickable(onClick = onCopy)

@@ -26,7 +26,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -168,7 +167,7 @@ fun CollectionRow(
                 collectionId = collectionSubscriptionId,
                 currentBvid = currentBvid,
                 currentAid = currentAid,
-                fontSize = 12.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 immersive = immersive,
             )
 

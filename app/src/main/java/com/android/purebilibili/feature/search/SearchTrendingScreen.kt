@@ -209,9 +209,8 @@ private fun SearchTrendingHero() {
                 .align(Alignment.Center)
                 .padding(horizontal = 24.dp),
             color = Color.White,
-            style = MaterialTheme.typography.displaySmall.copy(
-                fontWeight = FontWeight.Black,
-                fontSize = 46.sp
+            style = MaterialTheme.typography.displayMedium.copy(
+                fontWeight = FontWeight.Black
             )
         )
     }

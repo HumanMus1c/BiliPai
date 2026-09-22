@@ -58,6 +58,9 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
@@ -909,12 +912,17 @@ private fun LiveAreaHomeChipRow(
         .firstOrNull { it.value == selectedAreaIndex }
         ?.value
         ?: LIVE_HOME_RECOMMEND_INDEX
-    val categoryMinWidth = rememberAppTopChromePolicy()
-        .compactChromeSpec
-        .let(::resolveLiveHomeCategorySegmentedControlSpec)
-        .itemWidthDp
-        ?.dp
-        ?: 82.dp
+    val uiStyle = LocalAppUiStyle.current
+    val categoryMinWidth = if (uiStyle == AppUiStyle.MATERIAL3) {
+        AppChromeSizeTokens.MinimumTouchTarget
+    } else {
+        rememberAppTopChromePolicy()
+            .compactChromeSpec
+            .let(::resolveLiveHomeCategorySegmentedControlSpec)
+            .itemWidthDp
+            ?.dp
+            ?: 82.dp
+    }
 
     // MD3 follows the app-wide animated underline. Miuix uses the shared moving
     // capsule, which automatically opts into global liquid-glass reuse when enabled.
@@ -985,6 +993,12 @@ private fun LiveSortTagChipRow(
     val selectedValue = selectedSortType
         ?.takeIf { selected -> options.any { it.value == selected } }
         ?: options.first().value
+    val uiStyle = LocalAppUiStyle.current
+    val sortTagMinWidth = if (uiStyle == AppUiStyle.MATERIAL3) {
+        AppChromeSizeTokens.MinimumTouchTarget
+    } else {
+        72.dp
+    }
     AppThemeAdaptiveTabRow(
         options = options,
         selectedValue = selectedValue,
@@ -992,7 +1006,7 @@ private fun LiveSortTagChipRow(
             onSortTagSelected(value.takeIf { it.isNotBlank() })
         },
         scrollable = true,
-        minTabWidth = 72.dp,
+        minTabWidth = sortTagMinWidth,
         modifier = Modifier.fillMaxWidth(),
     )
 }

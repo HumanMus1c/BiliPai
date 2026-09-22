@@ -282,4 +282,15 @@ class VideoInfoDisplayPolicyTest {
             )
         )
     }
+
+    @Test
+    fun shouldUseCompactUpInfoLayout_whenWidthBelowThreshold() {
+        assertTrue(shouldUseCompactUpInfoLayout(180))
+        assertTrue(shouldUseCompactUpInfoLayout(240))
+        assertTrue(shouldUseCompactUpInfoLayout(319))
+        assertFalse(shouldUseCompactUpInfoLayout(320))
+        assertFalse(shouldUseCompactUpInfoLayout(412))
+        assertFalse(shouldUseCompactUpInfoLayout(0))
+        assertFalse(shouldUseCompactUpInfoLayout(-1))
+    }
 }

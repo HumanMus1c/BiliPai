@@ -385,7 +385,7 @@ private fun LiveKeywordSection(
                             AppText(
                                 text = item.keyword,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.labelMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

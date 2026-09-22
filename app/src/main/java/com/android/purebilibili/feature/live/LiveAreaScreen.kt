@@ -39,6 +39,9 @@ import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -296,15 +299,17 @@ private fun LiveAreaParentTabRow(
     val options = remember(areas) {
         areas.mapIndexed { index, area -> AppSegmentOption(index, area.name) }
     }
+    val uiStyle = LocalAppUiStyle.current
+    val effectiveHorizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3) 0.dp else horizontalPadding
     AppThemeAdaptiveTabRow(
         options = options,
         selectedValue = safeSelectedTab,
         onSelectionChange = onTabSelected,
         scrollable = true,
-        minTabWidth = 112.dp,
+        minTabWidth = AppChromeSizeTokens.MinimumTouchTarget,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding),
+            .padding(horizontal = effectiveHorizontalPadding),
     )
 }
 

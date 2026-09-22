@@ -483,7 +483,7 @@ private fun PortraitSubtitlePanel(
                 AppText(
                     text = "字幕显示",
                     color = Color.White.copy(alpha = 0.88f),
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
@@ -514,7 +514,7 @@ private fun PortraitSubtitlePanel(
                             } else {
                                 Color.White.copy(alpha = if (option.enabled) 1f else 0.4f)
                             },
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                         )
@@ -525,7 +525,7 @@ private fun PortraitSubtitlePanel(
                     AppText(
                         text = "字幕轨道",
                         color = Color.White.copy(alpha = 0.72f),
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
                     )
@@ -547,7 +547,7 @@ private fun PortraitSubtitlePanel(
                                 } else {
                                     Color.White
                                 },
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (option.selected) FontWeight.SemiBold else FontWeight.Normal,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                             )
@@ -565,7 +565,7 @@ private fun PortraitSubtitlePanel(
                     AppText(
                         text = "大字号",
                         color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                     AppSwitch(
@@ -576,7 +576,7 @@ private fun PortraitSubtitlePanel(
                 AppText(
                     text = if (positionLocked) "字幕位置已固定" else "上下拖动字幕可调整位置",
                     color = Color.White.copy(alpha = 0.55f),
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(start = 4.dp, top = 2.dp)
                 )
                 Row(
@@ -589,7 +589,7 @@ private fun PortraitSubtitlePanel(
                     AppText(
                         text = "锁定位置",
                         color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                     AppSwitch(
@@ -607,7 +607,7 @@ private fun PortraitSubtitlePanel(
                         AppText(
                             text = "重置位置",
                             color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                         )

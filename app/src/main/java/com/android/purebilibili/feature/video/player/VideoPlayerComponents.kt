@@ -75,7 +75,6 @@ fun VideoTitleSection(
             AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 16.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
@@ -100,7 +99,7 @@ fun VideoTitleSection(
         // 统计行 (官方样式：播放量 • 弹幕 • 日期)
         AppText(
             text = "${FormatUtils.formatStat(info.stat.view.toLong())}  •  ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕  •  ${FormatUtils.formatPublishTime(info.pubdate)}",
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             maxLines = 1
         )
@@ -129,8 +128,7 @@ fun VideoTitleWithDesc(
             AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
+                    lineHeight = 22.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
                 maxLines = if (expanded) Int.MAX_VALUE else 1,
@@ -157,7 +155,7 @@ fun VideoTitleWithDesc(
         ) {
             AppText(
                 text = "${FormatUtils.formatStat(info.stat.view.toLong())}播放  •  ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕  •  ${FormatUtils.formatPublishTime(info.pubdate)}",
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 maxLines = 1
             )
@@ -168,10 +166,7 @@ fun VideoTitleWithDesc(
             Spacer(Modifier.height(4.dp))  //  紧凑布局
             AppText(
                 text = info.desc,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp
-                ),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 maxLines = if (expanded) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis,
@@ -219,8 +214,7 @@ fun UpInfoSection(
                 Spacer(Modifier.width(4.dp))
                 AppText(
                     text = info.owner.name,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -250,9 +244,8 @@ fun UpInfoSection(
                 }
                 AppText(
                     text = if (isFollowing) "已关注" else "关注",
-                    fontSize = 13.sp,
-                    color = if (isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = if (isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
                 )
             }
         }
@@ -392,9 +385,8 @@ private fun BiliActionButton(
         Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = textColor,
-            fontWeight = FontWeight.Normal,
             maxLines = 1
         )
     }
@@ -481,9 +473,8 @@ fun ActionButton(
         Spacer(modifier = Modifier.height(4.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Normal,
             maxLines = 1
         )
     }
@@ -508,10 +499,7 @@ fun DescriptionSection(desc: String) {
         ) {
             AppText(
                 text = desc,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                ),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                 maxLines = if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis
@@ -529,8 +517,7 @@ fun DescriptionSection(desc: String) {
                     AppText(
                         text = if (expanded) "收起" else "展开更多",
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     AppIcon(
@@ -561,7 +548,6 @@ fun RelatedVideosHeader() {
             AppText(
                 text = "更多推荐",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = MaterialTheme.colorScheme.onBackground
@@ -658,7 +644,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     AppText(
                         text = FormatUtils.formatStat(video.stat.view.toLong()),
                         color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 10.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
@@ -676,7 +662,6 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                 AppText(
                     text = video.title,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 14.sp,
                         lineHeight = 19.sp,
                         fontWeight = FontWeight.Medium
                     ),
@@ -694,9 +679,8 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText(
                             text = video.owner.name,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -717,19 +701,19 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                         Spacer(modifier = Modifier.width(2.dp))
                         AppText(
                             text = FormatUtils.formatStat(video.stat.view.toLong()),
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         AppText(
                             text = "·",
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         AppText(
                             text = "${FormatUtils.formatStat(video.stat.danmaku.toLong())}弹幕",
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
@@ -770,7 +754,6 @@ fun PagesSelector(
                 AppText(
                     text = "选集",
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onBackground
@@ -778,7 +761,7 @@ fun PagesSelector(
                 Spacer(modifier = Modifier.width(8.dp))
                 AppText(
                     text = "(${pages.size}P)",
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
@@ -792,9 +775,8 @@ fun PagesSelector(
             ) {
                 AppText(
                     text = if (isExpanded) "收起" else "展开",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.primary
                 )
                 AppIcon(
                     imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
@@ -838,14 +820,13 @@ fun PagesSelector(
                                 ) {
                                     AppText(
                                         text = "P${page.page}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                         color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     AppText(
                                         text = page.part.ifEmpty { "第${page.page}P" },
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         color = if (isSelected) selectedColors.contentColor.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -882,14 +863,13 @@ fun PagesSelector(
                         ) {
                             AppText(
                                 text = "P${page.page}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             AppText(
                                 text = page.part.ifEmpty { "第${page.page}P" },
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 color = if (isSelected) selectedColors.contentColor.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant

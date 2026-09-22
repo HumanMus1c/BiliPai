@@ -425,7 +425,7 @@ fun SplashWallpaperPickerSheet(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            AppText(actionText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            AppText(actionText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                     }
 

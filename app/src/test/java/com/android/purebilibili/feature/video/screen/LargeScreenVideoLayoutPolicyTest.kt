@@ -137,6 +137,34 @@ class LargeScreenVideoLayoutPolicyTest {
     }
 
     @Test
+    fun puraXMaxCoverPortrait_reservesScrollableDetailViewport() {
+        // Pura X Max cover display: 1848 x 1264 px. Its landscape-natural cover window is about
+        // 672 x 460dp even when the device is held in its normal portrait posture.
+        assertEquals(
+            230f,
+            resolvePhoneInlineVideoViewportHeightDp(
+                windowWidthDp = 672f,
+                windowHeightDp = 460f,
+                isFoldableCoverWindow = true,
+            ),
+            0.1f,
+        )
+    }
+
+    @Test
+    fun regularPhone_keepsFullWidthSixteenByNinePlayer() {
+        assertEquals(
+            393f * 9f / 16f,
+            resolvePhoneInlineVideoViewportHeightDp(
+                windowWidthDp = 393f,
+                windowHeightDp = 851f,
+                isFoldableCoverWindow = false,
+            ),
+            0.1f,
+        )
+    }
+
+    @Test
     fun puraXMaxInnerPortrait_entersAlmostSquareLayout() {
         // Pura X Max inner display: 1828 x 2584 px, aspect ratio ~ 0.7074
         // With density ~ 2.75, width ~ 665dp, height ~ 940dp

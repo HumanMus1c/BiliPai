@@ -339,7 +339,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                         AppText(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
                     }

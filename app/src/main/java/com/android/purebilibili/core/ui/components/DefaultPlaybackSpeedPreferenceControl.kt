@@ -110,7 +110,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
                         AppText(
                             text = formatDefaultPlaybackSpeed(sliderValue),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
@@ -125,7 +125,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
         ) {
             AppText(
                 text = formatDefaultPlaybackSpeed(DEFAULT_PLAYBACK_SPEED_MIN),
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             AppSlider(
@@ -140,7 +140,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
             )
             AppText(
                 text = formatDefaultPlaybackSpeed(DEFAULT_PLAYBACK_SPEED_MAX),
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -171,7 +171,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
                     ) {
                         AppText(
                             text = formatDefaultPlaybackSpeed(preset),
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             color = if (isSelected) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {

@@ -380,13 +380,14 @@ private fun LivePortraitDanmakuBubble(
                 )
             }
         } else {
-            val annotatedText = remember(item.text, item.uname, item.replyToName, emoticonMap, usernameColor) {
+            val chatFontSize = MaterialTheme.typography.bodySmall.fontSize
+            val annotatedText = remember(item.text, item.uname, item.replyToName, emoticonMap, usernameColor, chatFontSize) {
                 val builder = androidx.compose.ui.text.AnnotatedString.Builder()
                 builder.pushStyle(
                     androidx.compose.ui.text.SpanStyle(
                         color = usernameColor,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
+                        fontSize = chatFontSize
                     )
                 )
                 builder.append("${item.uname.ifBlank { "直播观众" }}: ")
@@ -397,7 +398,7 @@ private fun LivePortraitDanmakuBubble(
                         androidx.compose.ui.text.SpanStyle(
                             color = LiveStatusPalette.Reply,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 13.sp
+                            fontSize = chatFontSize
                         )
                     )
                     builder.append("@${item.replyToName} ")
@@ -408,7 +409,7 @@ private fun LivePortraitDanmakuBubble(
                     androidx.compose.ui.text.SpanStyle(
                         color = LiveStatusPalette.MediaContent,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 13.sp
+                        fontSize = chatFontSize
                     )
                 )
                 builder.append(DanmakuEmoticonMapper.parse(item.text, emoticonMap))

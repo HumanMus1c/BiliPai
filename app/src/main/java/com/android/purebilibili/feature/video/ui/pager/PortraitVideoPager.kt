@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -2825,14 +2826,14 @@ private fun VideoPageItem(
                     AppText(
                         text = "$targetTimeText / $totalTimeText",
                         color = Color.White,
-                        fontSize = 22.sp,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = deltaText,
                         color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
@@ -2864,7 +2865,7 @@ private fun VideoPageItem(
                     } else {
                         Color(0xFFFF6666)
                     },
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -2963,9 +2964,9 @@ private fun VideoPageItem(
                 AppText(
                     text = "${effectiveLongPressSpeed}x",
                     color = Color.White,
-                    fontSize = 13.sp * longPressSpeedHintScale,
                     fontWeight = FontWeight.Medium,
-                    style = androidx.compose.ui.text.TextStyle(
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize * longPressSpeedHintScale,
                         shadow = Shadow(
                             color = Color.Black.copy(alpha = 0.25f),
                             offset = Offset(1f, 1f),

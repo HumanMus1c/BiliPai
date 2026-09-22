@@ -776,7 +776,7 @@ enum class HomeWallpaperEffectMode(val value: Int, val label: String) {
 
 enum class HomeWallpaperEffectScope(val value: Int, val label: String) {
     HOME_ONLY(0, "仅首页"),
-    GLOBAL(1, "全局");
+    GLOBAL(1, "首页与聊天");
 
     companion object {
         fun fromValue(value: Int): HomeWallpaperEffectScope =

@@ -1595,7 +1595,7 @@ internal fun VideoCommentTab(
                         when {
                             isRepliesLoading -> AdaptiveLoadingIndicator()
                             isRepliesEnd -> {
-                                AppText("—— end ——", color = commentAppearance.secondaryTextColor, fontSize = 12.sp)
+                                AppText("—— end ——", color = commentAppearance.secondaryTextColor, style = MaterialTheme.typography.bodySmall)
                             }
                             // 当 shouldLoadMore 为 true 时才显示加载指示器
                             shouldLoadMore -> AdaptiveLoadingIndicator()
@@ -2100,7 +2100,7 @@ private fun VideoRecommendationHeader() {
     ) {
         AppText(
             text = "相关推荐",
-            fontSize = 15.sp,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -2151,7 +2151,7 @@ fun VideoTagChip(
     ) {
         AppText(
             text = tagName,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 6.dp)

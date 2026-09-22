@@ -87,6 +87,7 @@ import com.android.purebilibili.core.ui.SuccessAnimation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 
 @Immutable
@@ -337,16 +338,16 @@ fun BrandingHeader(isSmall: Boolean = false) {
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(12.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                 AppText(
                     text = "高画质登录",
                     color = palette.secondaryText,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold
                 )
             }
         }
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         AppSurface(
             modifier = Modifier.size(logoSize),
             shape = RoundedCornerShape(if (isSmall) 18.dp else 26.dp),
@@ -363,18 +364,18 @@ fun BrandingHeader(isSmall: Boolean = false) {
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
         AppText(
             text = "BiliPai 登录",
             color = palette.primaryText,
-            fontSize = if (isSmall) 24.sp else 30.sp,
+            style = if (isSmall) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
         AppText(
             text = "安全登录，继续你的观看进度",
             color = palette.secondaryText,
-            fontSize = 13.sp
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -443,11 +444,11 @@ fun LoginMethodTabs(
                         tint = fg,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                     AppText(
                         text = title,
                         color = fg,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }
@@ -467,30 +468,30 @@ fun QrCodeLoginContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
         AppText(
             text = "打开哔哩哔哩 App 扫码",
-            fontSize = 22.sp,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = palette.primaryText
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
         AppText(
             text = resolveQrLoginReason(),
             color = palette.secondaryText,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
+        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
             LoginPill("推荐", palette)
             LoginPill("4K/HDR", palette)
             LoginPill("快速登录", palette)
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
         Box(
             modifier = Modifier
@@ -541,11 +542,11 @@ fun QrCodeLoginContent(
                                 tint = palette.success,
                                 modifier = Modifier.size(38.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                             AppText(
                                 text = "已扫码，请在手机确认",
                                 color = palette.qrContent,
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -558,11 +559,11 @@ fun QrCodeLoginContent(
                                 tint = palette.error,
                                 modifier = Modifier.size(34.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                             AppText(
                                 text = "二维码加载失败",
                                 color = palette.qrContent,
-                                fontSize = 13.sp
+                                style = MaterialTheme.typography.bodySmall
                             )
                             AppTextButton(onClick = onRefresh) {
                                 AppText(text = "重试", color = palette.link)
@@ -575,7 +576,7 @@ fun QrCodeLoginContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         AppSurface(
             shape = AppShapes.container(ContainerLevel.Pill),
             color = palette.segmentTrack,
@@ -583,12 +584,12 @@ fun QrCodeLoginContent(
             modifier = Modifier.clickable(onClick = onRefresh)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AppText(text = "↻", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(6.dp))
-                AppText(text = "刷新二维码", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                AppText(text = "↻", color = palette.link, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                AppText(text = "刷新二维码", color = palette.link, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -653,24 +654,24 @@ fun PhoneLoginContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
         AppText(
             text = "手机号验证登录",
-            fontSize = 22.sp,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = palette.primaryText
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
         AppText(
             text = "验证码有效期 5 分钟，同手机号 60 秒内不可重复发送",
             color = palette.secondaryText,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(0.92f)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         AppSurface(
             shape = AppShapes.container(ContainerLevel.Card),
             color = palette.segmentTrack,
@@ -678,7 +679,7 @@ fun PhoneLoginContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIcon(
@@ -687,20 +688,20 @@ fun PhoneLoginContent(
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 AppText(
                     text = "提示：仅扫码登录可解锁更高画质（4K/HDR/1080P60）",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     color = palette.tertiaryText
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CountryCodeSelector(
@@ -738,17 +739,17 @@ fun PhoneLoginContent(
         }
 
         if (phoneNumber.isNotBlank() && !phoneEligible) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             AppText(
                 text = "号码长度需为 ${selectedRegion.minDigits}-${selectedRegion.maxDigits} 位",
                 color = palette.tertiaryText,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(0.96f)
             )
         }
 
         if (showCodeInput) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             ModernTextField(
                 value = smsCode,
                 onValueChange = { value ->
@@ -762,7 +763,7 @@ fun PhoneLoginContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
         AppSurface(
             shape = AppShapes.container(ContainerLevel.Card),
             color = palette.segmentTrack,
@@ -770,7 +771,7 @@ fun PhoneLoginContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIcon(
@@ -779,16 +780,16 @@ fun PhoneLoginContent(
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 AppText(
                     text = "先完成安全验证，再发送短信验证码",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     color = palette.tertiaryText
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
 
         if (showCodeInput) {
             ModernButton(
@@ -797,7 +798,7 @@ fun PhoneLoginContent(
                 enabled = smsCode.length == 6,
                 isLoading = state is LoginState.Loading
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             AppTextButton(
                 onClick = {
                     focusManager.clearFocus(force = true)
@@ -806,7 +807,7 @@ fun PhoneLoginContent(
                 },
                 enabled = phoneEligible && state !is LoginState.Loading
             ) {
-                AppText(text = "重新获取验证码", color = palette.link, fontSize = 13.sp)
+                AppText(text = "重新获取验证码", color = palette.link, style = MaterialTheme.typography.labelMedium)
             }
         } else {
             ModernButton(
@@ -822,11 +823,11 @@ fun PhoneLoginContent(
         }
 
         if (state is LoginState.Error) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             AppText(
                 text = state.msg,
                 color = palette.error,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
@@ -855,21 +856,21 @@ private fun CountryCodeSelector(
         AppText(
             text = region.dialingCode,
             color = palette.inputText,
-            fontSize = 15.sp,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
         AppText(
             text = region.name,
             color = palette.inputPlaceholder,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             modifier = Modifier.weight(1f)
         )
         AppText(
             text = "▾",
             color = palette.inputIcon,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -893,9 +894,8 @@ fun ModernTextField(
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
         singleLine = true,
-        textStyle = TextStyle(
+        textStyle = MaterialTheme.typography.bodyLarge.copy(
             color = palette.inputText,
-            fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         ),
         cursorBrush = SolidColor(palette.buttonFill),
@@ -927,13 +927,13 @@ fun ModernTextField(
                                 .padding(5.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                     Box(modifier = Modifier.weight(1f)) {
                         if (value.isEmpty()) {
                             AppText(
                                 text = placeholder,
                                 color = palette.inputPlaceholder,
-                                fontSize = 15.sp
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
                         innerTextField()
@@ -982,7 +982,7 @@ fun ModernButton(
             AppText(
                 text = text,
                 color = palette.buttonText,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -1011,7 +1011,7 @@ fun TopBar(
             AppText(
                 text = "‹",
                 color = palette.closeFg,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -1028,7 +1028,7 @@ private fun LoginPill(text: String, palette: LoginPalette) {
         AppText(
             text = text,
             color = palette.tertiaryText,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )

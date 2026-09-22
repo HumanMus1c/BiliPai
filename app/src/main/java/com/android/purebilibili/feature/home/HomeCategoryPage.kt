@@ -33,7 +33,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode

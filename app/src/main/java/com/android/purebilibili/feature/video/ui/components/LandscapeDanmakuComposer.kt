@@ -212,7 +212,7 @@ fun LandscapeDanmakuComposer(
                                 AppFilterChip(
                                     selected = selectedMode == option.value,
                                     onClick = { selectedMode = option.value },
-                                    label = { AppText(option.label, fontSize = 12.sp) },
+                                    label = { AppText(option.label, style = MaterialTheme.typography.labelMedium) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                                         selectedLabelColor = Color.White
@@ -226,7 +226,7 @@ fun LandscapeDanmakuComposer(
                                 AppFilterChip(
                                     selected = selectedFontSize == option.value,
                                     onClick = { selectedFontSize = option.value },
-                                    label = { AppText(option.label, fontSize = 12.sp) },
+                                    label = { AppText(option.label, style = MaterialTheme.typography.labelMedium) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                                         selectedLabelColor = Color.White
@@ -256,11 +256,11 @@ fun LandscapeDanmakuComposer(
                                     }
                                 )
                                 Column {
-                                    AppText("内嵌关注按钮", color = Color.White, fontSize = 13.sp)
+                                    AppText("内嵌关注按钮", color = Color.White, style = MaterialTheme.typography.bodySmall)
                                     AppText(
                                         "发送视频内嵌关注按钮",
                                         color = Color.White.copy(alpha = 0.68f),
-                                        fontSize = 11.sp
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
@@ -269,7 +269,7 @@ fun LandscapeDanmakuComposer(
                                 onClick = { showAdvancedOptions = true },
                                 contentPadding = PaddingValues(horizontal = 0.dp)
                             ) {
-                                AppText("更多发送选项", color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp)
+                                AppText("更多发送选项", color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -313,8 +313,7 @@ fun LandscapeDanmakuComposer(
                                 .fillMaxWidth()
                                 .testTag("danmaku_landscape_composer_input")
                                 .focusRequester(focusRequester),
-                            textStyle = TextStyle(
-                                fontSize = 15.sp,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 color = Color.White
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -338,7 +337,7 @@ fun LandscapeDanmakuComposer(
                                     AppText(
                                         text = "发个友善的弹幕见证当下",
                                         color = Color.White.copy(alpha = 0.55f),
-                                        fontSize = 15.sp
+                                        style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
                                 innerTextField()
@@ -394,7 +393,7 @@ fun LandscapeDanmakuComposer(
                         } else {
                             AppText(
                                 text = "发送",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -409,7 +408,7 @@ fun LandscapeDanmakuComposer(
                     AppText(
                         text = if (showStylePanel) "样式仅作用于本条弹幕" else "回车或点发送即可提交",
                         color = Color.White.copy(alpha = 0.62f),
-                        fontSize = 11.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                     AppText(
                         text = "${text.length}/100",
@@ -418,7 +417,7 @@ fun LandscapeDanmakuComposer(
                         } else {
                             Color.White.copy(alpha = 0.62f)
                         },
-                        fontSize = 11.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }

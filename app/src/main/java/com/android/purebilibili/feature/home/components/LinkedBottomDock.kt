@@ -41,6 +41,15 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 private const val LINKED_DOCK_MERGE_DURATION_MILLIS = 280
 private const val LINKED_DOCK_SEARCH_DURATION_MILLIS = 240
 
+typealias LinkedDockNowPlayingSlot = @Composable (
+    Modifier,
+    () -> Float,
+    () -> Float,
+    () -> Float,
+    (() -> Unit)?,
+    Boolean,
+) -> Unit
+
 @Composable
 internal fun LinkedBottomDock(
     currentItem: BottomNavItem,
@@ -59,7 +68,7 @@ internal fun LinkedBottomDock(
     navigationItemCount: Int,
     navigationLabelMode: Int,
     navigationMinEdgePadding: androidx.compose.ui.unit.Dp,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)?,
+    nowPlayingContent: LinkedDockNowPlayingSlot?,
     dockPhase: LinkedDockPhase? = null,
     onDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
@@ -159,6 +168,14 @@ internal fun LinkedBottomDock(
     val imeSettled = WindowInsets.ime
         .getBottom(LocalDensity.current) == 0
     val nowPlayingLayoutStable = !transition.isRunning && imeSettled
+    val mergeProgressProvider = remember(merge) {
+        { merge.value.coerceIn(0f, 1f) }
+    }
+    val searchProgressProvider = remember(search) {
+        { search.value.coerceIn(0f, 1f) }
+    }
+    val zeroProgressProvider = remember { { 0f } }
+    val identityIconScaleProvider = remember { { 1f } }
     val shape = resolveSharedBottomBarCapsuleShape()
     val contentColor = MaterialTheme.colorScheme.onSurface
     val accentColor = MaterialTheme.colorScheme.primary
@@ -178,7 +195,7 @@ internal fun LinkedBottomDock(
                     }
                 }
                 .then(if (phase != LinkedDockPhase.Expanded) Modifier.clearAndSetSemantics {} else Modifier)) {
-                if (merge.value < 0.999f) navigationContent()
+                navigationContent()
             }
             Box(Modifier.graphicsLayer {
                 alpha = (merge.value * 2f).coerceIn(0f, 1f)
@@ -199,22 +216,20 @@ internal fun LinkedBottomDock(
                             liquidGlassTuning = liquidGlassTuning,
                         )
                 )
-                if (merge.value > 0.001f) {
-                    AppIcon(
-                        imageVector = if (iconStyle == SharedFloatingBottomBarIconStyle.MIUIX) {
-                            resolveHomeNavigationBarIcon(firstItem, currentItem == firstItem)
-                        } else resolveMaterialBottomBarIcon(firstItem, currentItem == firstItem),
-                        contentDescription = "$firstLabel，展开底栏",
-                        tint = accentColor,
-                    )
-                }
+                AppIcon(
+                    imageVector = if (iconStyle == SharedFloatingBottomBarIconStyle.MIUIX) {
+                        resolveHomeNavigationBarIcon(firstItem, currentItem == firstItem)
+                    } else resolveMaterialBottomBarIcon(firstItem, currentItem == firstItem),
+                    contentDescription = "$firstLabel，展开底栏",
+                    tint = accentColor,
+                )
             }
             Box {
                 nowPlayingContent?.invoke(
                     Modifier.fillMaxSize(),
-                    merge.value.coerceIn(0f, 1f),
-                    search.value.coerceIn(0f, 1f),
-                    0f,
+                    mergeProgressProvider,
+                    searchProgressProvider,
+                    zeroProgressProvider,
                     if (shouldExpandPlaybackFromSearch(phase, hasAudio)) {
                         {
                             if (!transition.isRunning) {
@@ -266,8 +281,8 @@ internal fun LinkedBottomDock(
                                 },
                                 contentColor = contentColor,
                                 accentColor = accentColor,
-                                iconScale = 1f,
-                                fieldAlpha = search.value.coerceIn(0f, 1f),
+                                iconScale = identityIconScaleProvider,
+                                fieldAlpha = searchProgressProvider,
                                 interactive = true,
                                 iconStyle = iconStyle,
                             )

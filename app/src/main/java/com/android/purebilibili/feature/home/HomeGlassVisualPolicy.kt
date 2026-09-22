@@ -13,6 +13,7 @@ import kotlin.math.min
 
 private const val HOME_WALLPAPER_HOME_ROUTE_BASE = "home"
 private const val HOME_WALLPAPER_MAIN_HOST_ROUTE = "main_host"
+private const val HOME_WALLPAPER_CHAT_ROUTE_BASE = "chat"
 
 /**
  * 底栏宿主的当前路由是 `main_host`，真正的首页/动态等 tab 在 [mainHostTabRoute]。
@@ -31,8 +32,8 @@ internal fun resolveGlobalHomeWallpaperRoute(
 }
 
 /**
- * App 根层全局壁纸：GLOBAL 且当前不在首页路由时绘制。
- * 首页由 [HomeScreen] 自绘，避免叠两层。
+ * App 根层全局壁纸：GLOBAL 时只为私信聊天页绘制。
+ * 首页由 [HomeScreen] 自绘；其它页面保持不接入壁纸。
  */
 internal fun shouldRenderGlobalHomeWallpaperBackdrop(
     effectScope: HomeWallpaperEffectScope,
@@ -44,10 +45,7 @@ internal fun shouldRenderGlobalHomeWallpaperBackdrop(
         currentRoute = currentRoute,
         mainHostTabRoute = mainHostTabRoute,
     )
-    // Navigation3 的部分承载场景（弹层、过渡页及恢复中的 back stack）没有稳定的
-    // currentRoute；GLOBAL 模式下不能因为 route 暂时为空就把根壁纸卸载，否则会出现
-    // “部分场景有、部分场景没有”的闪断。只有明确处于首页时才交给 HomeScreen 自绘。
-    return route != HOME_WALLPAPER_HOME_ROUTE_BASE
+    return route?.isChatWallpaperRoute() == true
 }
 
 /**
@@ -84,6 +82,10 @@ internal fun shouldExposeGlobalHomeWallpaperChrome(
 private fun normalizeHomeWallpaperRoute(route: String?): String? {
     return route?.trim()?.takeIf { it.isNotBlank() }?.substringBefore("?")
 }
+
+private fun String.isChatWallpaperRoute(): Boolean =
+    this == HOME_WALLPAPER_CHAT_ROUTE_BASE ||
+        startsWith("$HOME_WALLPAPER_CHAT_ROUTE_BASE/")
 
 data class HomeGlassChromeStyle(
     val containerAlpha: Float,

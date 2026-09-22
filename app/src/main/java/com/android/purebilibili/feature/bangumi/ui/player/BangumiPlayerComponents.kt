@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -796,7 +795,7 @@ fun BangumiGestureIndicator(
                     AppText(
                         "${FormatUtils.formatDuration(((seekTime ?: 0) / 1000).toInt())} / ${FormatUtils.formatDuration((duration / 1000).toInt())}",
                         color = Color.White,
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -925,7 +924,7 @@ fun BangumiQualityMenu(
                 AppText(
                     text = "画质选择",
                     color = Color.White,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
@@ -947,7 +946,7 @@ fun BangumiQualityMenu(
                         AppText(
                             text = quality,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.9f),
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                         
@@ -960,7 +959,7 @@ fun BangumiQualityMenu(
                                 AppText(
                                     text = tag,
                                     color = Color.White,
-                                    fontSize = 10.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )

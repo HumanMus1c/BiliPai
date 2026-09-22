@@ -232,16 +232,28 @@ class HomeGlassVisualPolicyTest {
         assertTrue(
             shouldRenderGlobalHomeWallpaperBackdrop(
                 effectScope = HomeWallpaperEffectScope.GLOBAL,
+                currentRoute = "chat/123/1?name=UP主",
+            )
+        )
+        assertFalse(
+            shouldRenderGlobalHomeWallpaperBackdrop(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
                 currentRoute = "dynamic",
             )
         )
-        assertTrue(
+        assertFalse(
+            shouldRenderGlobalHomeWallpaperBackdrop(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
+                currentRoute = "message/reply_me",
+            )
+        )
+        assertFalse(
             shouldRenderGlobalHomeWallpaperBackdrop(
                 effectScope = HomeWallpaperEffectScope.GLOBAL,
                 currentRoute = null,
             )
         )
-        assertTrue(
+        assertFalse(
             shouldExposeGlobalHomeWallpaperChrome(
                 effectScope = HomeWallpaperEffectScope.GLOBAL,
                 hasWallpaperUri = true,
@@ -265,14 +277,14 @@ class HomeGlassVisualPolicyTest {
                 mainHostTabRoute = "home",
             )
         )
-        assertTrue(
+        assertFalse(
             shouldRenderGlobalHomeWallpaperBackdrop(
                 effectScope = HomeWallpaperEffectScope.GLOBAL,
                 currentRoute = "main_host",
                 mainHostTabRoute = "dynamic",
             )
         )
-        assertTrue(
+        assertFalse(
             shouldExposeGlobalHomeWallpaperChrome(
                 effectScope = HomeWallpaperEffectScope.GLOBAL,
                 hasWallpaperUri = true,

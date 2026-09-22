@@ -21,7 +21,9 @@ internal fun pushBiliPaiNavKey(
     key: BiliPaiNavKey
 ): List<BiliPaiNavKey> {
     val base = currentStack.ifEmpty { listOf(BiliPaiNavKey.MainHost) }
-    val existingIndex = base.indexOfLast { it == key }
+    val existingIndex = base.indexOfLast { existing ->
+        areSameReusableBiliPaiDestination(existing, key)
+    }
     return if (existingIndex >= 0) {
         // Miuix NavDisplay requires every contentKey in the back stack to be unique. Reopening a
         // singleton destination (for example Search from a video that was opened from Search)
@@ -29,6 +31,24 @@ internal fun pushBiliPaiNavKey(
         base.take(existingIndex + 1)
     } else {
         base + key
+    }
+}
+
+/**
+ * Navigation identity for destinations whose route carries transient presentation arguments.
+ *
+ * [BiliPaiNavKey.Space.targetBvid] only asks a newly opened space page to locate/highlight a
+ * video. It must not make the same UP's space a second destination: Space -> Video -> same Space
+ * would otherwise retain two blur sources and an outgoing touch layer during the transition.
+ */
+internal fun areSameReusableBiliPaiDestination(
+    existing: BiliPaiNavKey,
+    target: BiliPaiNavKey,
+): Boolean {
+    return when {
+        existing is BiliPaiNavKey.Space && target is BiliPaiNavKey.Space ->
+            existing.mid == target.mid
+        else -> existing == target
     }
 }
 

@@ -31,7 +31,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
@@ -80,7 +79,7 @@ fun CommentInputBar(
             ) {
                 AppText(
                     text = "回复 @${replyToName ?: ""}",
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -137,7 +136,7 @@ fun CommentInputBar(
                 if (value.isEmpty()) {
                     AppText(
                         text = if (replyToName != null) "回复 @$replyToName" else "发一条友善的评论",
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
@@ -147,8 +146,7 @@ fun CommentInputBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    textStyle = TextStyle(
-                        fontSize = 14.sp,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),

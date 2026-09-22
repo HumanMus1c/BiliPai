@@ -26,6 +26,7 @@ import com.android.purebilibili.core.database.entity.CommentFraudRecord
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
@@ -291,13 +292,13 @@ private fun CommentFraudItemCard(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
                     AppText(
                         text = postTimeStr,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                     AppText(
                         text = record.source_id ?: "OID: ${record.oid}",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -312,7 +313,7 @@ private fun CommentFraudItemCard(
                 ) {
                     AppText(
                         text = statusLabel,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = statusColor
                     )
@@ -324,8 +325,7 @@ private fun CommentFraudItemCard(
             // --- 评论正文内容 (点击复制/展开) ---
             AppText(
                 text = record.message,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable { onCopyMessage() }
             )
@@ -334,7 +334,7 @@ private fun CommentFraudItemCard(
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(14.dp))
                 AppHorizontalDivider()
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     DetailRow(label = "当前状态", value = statusLabel, valueColor = statusColor) {
@@ -342,9 +342,13 @@ private fun CommentFraudItemCard(
                             onClick = onRecheck,
                             enabled = !isRechecking,
                             colors = ButtonDefaults.textButtonColors(contentColor = iOSBlue),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            contentPadding = PaddingValues(horizontal = AppSpacingTokens.Small, vertical = 2.dp)
                         ) {
-                            AppText(if (isRechecking) "更新中…" else "【更新状态】", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            AppText(
+                                if (isRechecking) "更新中…" else "【更新状态】",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -389,22 +393,25 @@ private fun CommentFraudItemCard(
                         enabled = !isRechecking,
                         colors = ButtonDefaults.textButtonColors(contentColor = iOSBlue)
                     ) {
-                        AppText(if (isRechecking) "复检中…" else "🔄 复检", fontSize = 12.sp)
+                        AppText(
+                            if (isRechecking) "复检中…" else "🔄 复检",
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
 
                     AppTextButton(onClick = onCopyScheme) {
-                        AppText("📱 Scheme", fontSize = 12.sp)
+                        AppText("📱 Scheme", style = MaterialTheme.typography.labelMedium)
                     }
 
                     AppTextButton(onClick = onDeleteLocal) {
-                        AppText("❌ 移除", fontSize = 12.sp)
+                        AppText("❌ 移除", style = MaterialTheme.typography.labelMedium)
                     }
 
                     AppTextButton(
                         onClick = onDeleteBili,
                         colors = ButtonDefaults.textButtonColors(contentColor = iOSRed)
                     ) {
-                        AppText("🗑️ 删评", fontSize = 12.sp)
+                        AppText("🗑️ 删评", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
@@ -439,13 +446,13 @@ private fun DetailRow(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
             AppText(
                 text = "$label：",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
             AppText(
                 text = value,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = valueColor,
                 fontWeight = FontWeight.Normal
             )

@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -200,7 +199,7 @@ fun BangumiReviewScreen(
                     itemWidth = 66.dp,
                     height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
                     indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-                    labelFontSize = 13.sp,
+                    labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
                     miuixBackdrop = reviewChromeBackdrop,
                     liquidGlassEffectsEnabled = true,
                     dragSelectionEnabled = reviewTypes.size > 1,
@@ -214,7 +213,7 @@ fun BangumiReviewScreen(
                     itemWidth = 66.dp,
                     height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
                     indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-                    labelFontSize = 13.sp,
+                    labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
                     miuixBackdrop = reviewChromeBackdrop,
                     liquidGlassEffectsEnabled = true,
                     dragSelectionEnabled = sortLabels.size > 1,

@@ -67,6 +67,38 @@ class SideBarRendererPolicyTest {
     }
 
     @Test
+    fun dynamicDoubleTapMapsFromRapidSuccessiveClicks() {
+        assertFalse(
+            resolveDynamicSideBarClickAction(
+                item = BottomNavItem.DYNAMIC,
+                nowMs = 1_000L,
+                lastDynamicClickMs = 0L
+            )
+        )
+        assertTrue(
+            resolveDynamicSideBarClickAction(
+                item = BottomNavItem.DYNAMIC,
+                nowMs = 1_200L,
+                lastDynamicClickMs = 1_000L
+            )
+        )
+        assertFalse(
+            resolveDynamicSideBarClickAction(
+                item = BottomNavItem.HOME,
+                nowMs = 1_200L,
+                lastDynamicClickMs = 1_000L
+            )
+        )
+        assertFalse(
+            resolveDynamicSideBarClickAction(
+                item = BottomNavItem.DYNAMIC,
+                nowMs = 1_400L,
+                lastDynamicClickMs = 1_000L
+            )
+        )
+    }
+
+    @Test
     fun frostedSideBarSourceRoutesMiuixBranchToOfficialRail() {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/SideBar.kt")
             .takeIf { it.exists() }

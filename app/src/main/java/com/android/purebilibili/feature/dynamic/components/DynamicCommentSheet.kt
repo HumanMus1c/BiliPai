@@ -56,7 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.dynamic.DynamicViewModel
@@ -668,7 +667,7 @@ private fun DynamicCommentSortControl(
             itemWidth = spec.itemWidthDp.dp,
             height = spec.heightDp.dp,
             indicatorHeight = spec.indicatorHeightDp.dp,
-            labelFontSize = 13.sp,
+            labelFontSize = MaterialTheme.typography.bodySmall.fontSize,
             // Keep the renderer's fillMaxWidth() inside the fixed-width outer box so
             // the whole latest/hottest control remains aligned to the header's end.
             modifier = Modifier.fillMaxWidth(),
@@ -918,9 +917,8 @@ private fun DynamicCommentComposer(
                     keyboardOptions = keyboardOptions,
                     keyboardActions = keyboardActions,
                     shape = dockShape,
-                    textStyle = TextStyle(
-                        color = fieldTextColor,
-                        fontSize = 14.sp,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = fieldTextColor
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = fieldColor,
@@ -957,9 +955,8 @@ private fun DynamicCommentComposer(
                     keyboardOptions = keyboardOptions,
                     keyboardActions = keyboardActions,
                     shape = dockShape,
-                    textStyle = TextStyle(
-                        color = fieldTextColor,
-                        fontSize = 14.sp,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = fieldTextColor
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = fieldColor,

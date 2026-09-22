@@ -262,7 +262,7 @@ private fun TabletBangumiDetailContent(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             AppText(
                                 text = detail.title,
-                                fontSize = 24.sp,
+                                style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 3,
@@ -288,7 +288,7 @@ private fun TabletBangumiDetailContent(
                                         AppText(
                                             text = " (${rating.count}人评分)",
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 12.sp
+                                            style = MaterialTheme.typography.bodySmall
                                         )
                                     }
                                 }
@@ -301,7 +301,7 @@ private fun TabletBangumiDetailContent(
                                 AppText(
                                     text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
@@ -332,7 +332,7 @@ private fun TabletBangumiDetailContent(
                             Column(modifier = Modifier.weight(1f)) {
                                 AppText(
                                     text = up.uname,
-                                    fontSize = 15.sp,
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -345,7 +345,7 @@ private fun TabletBangumiDetailContent(
                                 if (subText.isNotBlank()) {
                                     AppText(
                                         text = subText,
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -442,14 +442,13 @@ private fun TabletBangumiDetailContent(
                             AppText(
                                 text = "简介",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                style = MaterialTheme.typography.titleMedium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             AppText(
                                 text = detail.evaluate,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp,
-                                lineHeight = 22.sp
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
                     }
@@ -465,7 +464,7 @@ private fun TabletBangumiDetailContent(
                             AppText(
                                 text = "课程概述",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                style = MaterialTheme.typography.titleMedium
                             )
                             detail.briefImgs.forEach { briefImg ->
                                 if (briefImg.url.isNotBlank()) {
@@ -523,8 +522,8 @@ private fun TabletBangumiDetailContent(
                         ) {
                             AppText(
                                 text = "选集 (${allEpisodes.size})",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 AppTextButton(onClick = {
@@ -558,7 +557,7 @@ private fun TabletBangumiDetailContent(
                                                  descending = episodesDescending
                                              ),
                                              modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                             fontSize = 12.sp,
+                                             style = MaterialTheme.typography.bodySmall,
                                              color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                          )
                                      }
@@ -582,8 +581,8 @@ private fun TabletBangumiDetailContent(
                              AppText(
                                  text = resolveBangumiSectionTitle(section, index),
                                  modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
-                                 fontWeight = FontWeight.Bold,
-                                 fontSize = 20.sp
+                                 style = MaterialTheme.typography.titleLarge,
+                                 fontWeight = FontWeight.Bold
                              )
                          }
 
@@ -601,8 +600,8 @@ private fun TabletBangumiDetailContent(
                          AppText(
                             text = "相关季度",
                             modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                      }
                      
@@ -618,7 +617,7 @@ private fun TabletBangumiDetailContent(
                                  AppText(
                                     text = season.seasonTitle.ifEmpty { season.title },
                                     modifier = Modifier.padding(horizontal = 12.dp),
-                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = if (isCurrentSeason) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -653,7 +652,7 @@ private fun TabletBangumiDetailContent(
                         AppText(
                             text = jumpErrorMessage!!,
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -791,7 +790,7 @@ private fun MobileBangumiDetailContent(
                             AppText(
                                 text = detail.title,
                                 color = Color.White,
-                                fontSize = 20.sp,
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 2
                             )
@@ -817,7 +816,7 @@ private fun MobileBangumiDetailContent(
                                         AppText(
                                             text = " (${rating.count}人评分)",
                                             color = Color.White.copy(alpha = 0.7f),
-                                            fontSize = 12.sp
+                                            style = MaterialTheme.typography.bodySmall
                                         )
                                     }
                                 }
@@ -830,7 +829,7 @@ private fun MobileBangumiDetailContent(
                                 AppText(
                                     text = desc,
                                     color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 12.sp
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                             
@@ -843,7 +842,7 @@ private fun MobileBangumiDetailContent(
                                 AppText(
                                     text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
                                     color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 12.sp
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
@@ -876,7 +875,7 @@ private fun MobileBangumiDetailContent(
                         Column(modifier = Modifier.weight(1f)) {
                             AppText(
                                 text = up.uname,
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -889,7 +888,7 @@ private fun MobileBangumiDetailContent(
                             if (subText.isNotBlank()) {
                                 AppText(
                                     text = subText,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1011,15 +1010,14 @@ private fun MobileBangumiDetailContent(
                     ) {
                         AppText(
                             text = "简介",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         AppText(
                             text = detail.evaluate,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -1036,8 +1034,8 @@ private fun MobileBangumiDetailContent(
                     ) {
                         AppText(
                             text = "课程概述",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                         detail.briefImgs.forEach { briefImg ->
                             if (briefImg.url.isNotBlank()) {
@@ -1083,8 +1081,8 @@ private fun MobileBangumiDetailContent(
                     ) {
                         AppText(
                             text = "选集 (${detail.episodes.size})",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                         
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1105,7 +1103,7 @@ private fun MobileBangumiDetailContent(
                                 AppText(
                                     text = "跳转",
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -1140,7 +1138,7 @@ private fun MobileBangumiDetailContent(
                                             descending = episodesDescending
                                         ),
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -1198,7 +1196,7 @@ private fun MobileBangumiDetailContent(
                                             )
                                             AppText(
                                                 text = "全部${detail.episodes.size}集",
-                                                fontSize = 10.sp,
+                                                style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
@@ -1229,8 +1227,8 @@ private fun MobileBangumiDetailContent(
                     AppText(
                         text = "相关季度",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 
@@ -1257,7 +1255,7 @@ private fun MobileBangumiDetailContent(
                                 AppText(
                                     text = season.seasonTitle.ifEmpty { season.title },
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = if (isCurrentSeason) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
@@ -1293,7 +1291,7 @@ private fun MobileBangumiDetailContent(
                             AppText(
                                 text = jumpErrorMessage!!,
                                 color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -1410,7 +1408,7 @@ private fun BangumiCreditsSection(
         ) {
             AppText(
                 text = "演职人员",
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             detail.actors.takeIf { it.isNotBlank() }?.let { actors ->
@@ -1435,14 +1433,13 @@ private fun BangumiCreditRow(
     ) {
         AppText(
             text = label,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium
         )
         AppText(
             text = value,
-            fontSize = 14.sp,
-            lineHeight = 21.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -1460,8 +1457,8 @@ private fun BangumiSectionPreview(
         AppText(
             text = title,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
         )
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -1498,7 +1495,7 @@ private fun BangumiFollowStatusDialog(
                     ) {
                             AppText(
                                 text = option.label,
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (currentStatus == option.status) {
                                     FontWeight.SemiBold
                                 } else {
@@ -1565,7 +1562,7 @@ private fun EpisodeChip(
                             text = episode.badge,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             color = badgeColors.contentColor,
-                            fontSize = 9.sp
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -1582,7 +1579,7 @@ private fun EpisodeChip(
             // 集数数字
             AppText(
                 text = episode.title.ifEmpty { episode.id.toString() },
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -1592,7 +1589,7 @@ private fun EpisodeChip(
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText(
                     text = episode.longTitle,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1644,7 +1641,7 @@ private fun EpisodeSelectionSheet(
             ) {
                 AppText(
                     text = "选集 (${detail.episodes?.size ?: 0})",
-                    fontSize = 18.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -1692,7 +1689,7 @@ private fun EpisodeSelectionSheet(
                             AppText(
                                 text = season.seasonTitle.ifEmpty { season.title },
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isCurrentSeason) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isCurrentSeason) {
                                     MaterialTheme.colorScheme.onPrimary
@@ -1710,7 +1707,7 @@ private fun EpisodeSelectionSheet(
                 AppText(
                     text = desc,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -1746,7 +1743,7 @@ private fun EpisodeSelectionSheet(
                                     descending = episodesDescending
                                 ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -1828,7 +1825,7 @@ private fun EpisodeListItem(
                         text = episode.badge,
                         modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
                         color = badgeColors.contentColor,
-                        fontSize = 8.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
@@ -1843,7 +1840,7 @@ private fun EpisodeListItem(
             // 集数
             AppText(
                 text = "第${episode.title}话",
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
@@ -1853,7 +1850,7 @@ private fun EpisodeListItem(
             if (episode.longTitle.isNotEmpty()) {
                 AppText(
                     text = episode.longTitle,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

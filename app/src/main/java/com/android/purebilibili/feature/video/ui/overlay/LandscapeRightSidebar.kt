@@ -174,7 +174,7 @@ private fun SidebarTextButton(
         AppText(
             text = text,
             color = if (isHighlighted) MaterialTheme.colorScheme.primary else Color.White,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
         )
@@ -235,7 +235,7 @@ private fun SidebarActionButton(
         AppText(
             text = label,
             color = if (isActive) (if (activeColor == Color.Unspecified) MaterialTheme.colorScheme.primary else activeColor) else Color.White.copy(alpha = 0.9f),
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1
         )

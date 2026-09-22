@@ -1136,7 +1136,7 @@ fun BottomControlBar(
                     AppText(
                         text = "字幕显示",
                         color = Color.White.copy(alpha = 0.88f),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                     )
@@ -1162,7 +1162,7 @@ fun BottomControlBar(
                         AppText(
                             text = "字幕轨道",
                             color = Color.White.copy(alpha = 0.72f),
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
                         )
@@ -1192,7 +1192,7 @@ fun BottomControlBar(
                             AppText(
                                 text = "大字号",
                                 color = Color.White.copy(alpha = 0.85f),
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
                             AppSwitch(
@@ -1213,7 +1213,7 @@ fun BottomControlBar(
                         AppText(
                             text = "锁定位置",
                             color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium
                         )
                         AppSwitch(
@@ -1309,7 +1309,7 @@ private fun SubtitlePanelOption(
             else -> Color.White
         },
         textAlign = TextAlign.Center,
-        fontSize = 13.sp,
+        style = MaterialTheme.typography.bodySmall,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         modifier = Modifier
             .widthIn(min = minWidthDp.dp)
@@ -1330,7 +1330,7 @@ private fun MoreActionTextButton(
         text = label,
         color = if (highlighted) MaterialTheme.colorScheme.primary else Color.White,
         textAlign = TextAlign.Center,
-        fontSize = 14.sp,
+        style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .widthIn(min = minWidthDp.dp)
@@ -1379,13 +1379,13 @@ private fun VideoEnhancementSettingsPanel(
                     AppText(
                         text = "画质增强",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
                     AppText(
                         text = if (enabled) "当前视频已开启" else "当前视频已关闭",
                         color = Color.White.copy(alpha = 0.68f),
-                        fontSize = 11.sp
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
                 AppSwitch(
@@ -1398,7 +1398,7 @@ private fun VideoEnhancementSettingsPanel(
             AppText(
                 text = "增强算法",
                 color = Color.White.copy(alpha = 0.72f),
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
@@ -1425,7 +1425,7 @@ private fun VideoEnhancementSettingsPanel(
                 AppText(
                     text = "Anime4K 模型",
                     color = Color.White.copy(alpha = 0.72f),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
@@ -1454,13 +1454,13 @@ private fun VideoEnhancementSettingsPanel(
                     AppText(
                         text = "FSR 锐化",
                         color = Color.White.copy(alpha = 0.72f),
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                     AppText(
                         text = "${(fsrSharpness.coerceIn(0f, 1f) * 100).roundToInt()}%",
                         color = Color.White,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -1476,7 +1476,7 @@ private fun VideoEnhancementSettingsPanel(
             AppText(
                 text = "算法与模型会沿用上次选择",
                 color = Color.White.copy(alpha = 0.56f),
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
@@ -1509,7 +1509,7 @@ private fun VideoEnhancementChoice(
             text = label,
             color = if (selected) MaterialTheme.colorScheme.primary else Color.White,
             textAlign = TextAlign.Center,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

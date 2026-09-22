@@ -204,10 +204,11 @@ private fun Md3GestureLevelIndicator(
                     CircularGesturePercentText(
                         percent = percent,
                         color = spec.textColor,
-                        textStyle = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = if (compact) 14.sp else 18.sp
-                        )
+                        textStyle = if (compact) {
+                            MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                        } else {
+                            MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        }
                     )
                 }
             }
@@ -253,7 +254,7 @@ private fun IosGestureLevelCapsule(
             AnimatedGesturePercentText(
                 percent = percent,
                 color = spec.textColor,
-                fontSize = 24.sp,
+                fontSize = MaterialTheme.typography.headlineSmall.fontSize,
                 fontWeight = FontWeight.Bold,
                 label = "ios-gesture-level-percent",
                 // Host-level GestureLevelStepHaptics already ticks for all themes.

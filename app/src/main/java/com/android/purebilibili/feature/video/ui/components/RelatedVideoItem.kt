@@ -44,7 +44,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -457,7 +456,7 @@ fun RelatedVideoItem(
                         AppText(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 20.sp,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 2.dp),
                         )

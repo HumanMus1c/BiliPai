@@ -200,8 +200,7 @@ private fun PlaybackOrderSheetContent(
             ) {
                 AppText(
                     text = behavior.label,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                 )

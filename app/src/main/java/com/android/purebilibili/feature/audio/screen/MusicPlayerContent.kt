@@ -2200,8 +2200,16 @@ private fun MusicProgress(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             val displayedPositionMs = draggedPosition?.toLong() ?: state.positionMs
-            AppText(formatMusicTime(displayedPositionMs), color = MusicContentColor.copy(alpha = 0.85f), fontSize = 12.sp)
-            AppText("-${formatMusicTime((state.durationMs - displayedPositionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.85f), fontSize = 12.sp)
+            AppText(
+                formatMusicTime(displayedPositionMs),
+                color = MusicContentColor.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.labelSmall
+            )
+            AppText(
+                "-${formatMusicTime((state.durationMs - displayedPositionMs).coerceAtLeast(0L))}",
+                color = MusicContentColor.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
@@ -2755,10 +2763,10 @@ private fun LyricsPrimaryControls(
                         glassTintColor = glassTintColor
                     )
                     AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
-                        AppText("歌词设置", color = MusicContentColor, fontSize = 12.sp)
+                        AppText("歌词设置", color = MusicContentColor, style = MaterialTheme.typography.labelMedium)
                     }
                     AppTextButton(onClick = onHideControls, modifier = Modifier.height(48.dp)) {
-                        AppText("收起", color = MusicContentColor, fontSize = 12.sp)
+                        AppText("收起", color = MusicContentColor, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

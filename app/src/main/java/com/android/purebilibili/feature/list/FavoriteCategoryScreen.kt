@@ -37,6 +37,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
@@ -435,18 +438,30 @@ private fun FavoriteCategoryFilterRow(
     val options = remember(labels) {
         labels.mapIndexed { index, label -> AppSegmentOption(index, label) }
     }
+    val uiStyle = LocalAppUiStyle.current
+    val isScrollable = labels.size > 4
+    val horizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3 && isScrollable) 0.dp else AppSpacingTokens.Medium
+    val minTabWidth = if (labels.size <= 3) {
+        84.dp
+    } else if (uiStyle == AppUiStyle.MATERIAL3) {
+        AppChromeSizeTokens.MinimumTouchTarget
+    } else {
+        Dp.Unspecified
+    }
     AppThemeAdaptiveTabRow(
         options = options,
         selectedValue = selectedIndex.coerceIn(0, labels.lastIndex.coerceAtLeast(0)),
         onSelectionChange = onSelected,
-        scrollable = labels.size > 4,
-        minTabWidth = if (labels.size <= 3) 84.dp else Dp.Unspecified,
+        scrollable = isScrollable,
+        minTabWidth = minTabWidth,
         dragSelectionEnabled = labels.size > 1,
         tapPressRefractionEnabled = true,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = AppSpacingTokens.Medium)
-            .wrapContentWidth(Alignment.CenterHorizontally),
+            .padding(horizontal = horizontalPadding)
+            .then(
+                if (isScrollable) Modifier else Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+            ),
     )
 }
 

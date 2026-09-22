@@ -74,7 +74,7 @@ fun SponsorSkipButton(
                     AppText(
                         text = seg.categoryName,
                         color = Color(0xFFFFA500),
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium
                     )
                     
@@ -99,7 +99,7 @@ fun SponsorSkipButton(
                             AppText(
                                 text = "跳过",
                                 color = Color.White,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -161,7 +161,7 @@ fun SponsorContributionOverlay(
                     AppText(
                         text = if (marking) "结束标记" else "标记片段",
                         color = Color.White,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                     )
                     AppText(
@@ -171,7 +171,7 @@ fun SponsorContributionOverlay(
                             "投稿前会再次确认"
                         },
                         color = Color.White.copy(alpha = 0.72f),
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
@@ -327,7 +327,7 @@ fun SponsorSkipToast(
                     AppText(
                         text = it,
                         color = Color.White,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                 }

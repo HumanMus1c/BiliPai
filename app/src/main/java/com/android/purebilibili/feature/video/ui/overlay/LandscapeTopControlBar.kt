@@ -93,7 +93,7 @@ fun LandscapeTopControlBar(
             AppText(
                 text = title,
                 color = Color.White,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -104,7 +104,7 @@ fun LandscapeTopControlBar(
                 AppText(
                     text = onlineCount,
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Normal
                 )
             }
@@ -189,7 +189,7 @@ private fun TopBarActionButton(
                 AppText(
                     text = label,
                     color = if (isActive) (if (activeColor == Color.Unspecified) MaterialTheme.colorScheme.primary else activeColor) else Color.White,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
                 )
             }

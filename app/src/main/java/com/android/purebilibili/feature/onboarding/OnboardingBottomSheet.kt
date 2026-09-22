@@ -56,6 +56,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.opaqueCompositeOver
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 
@@ -262,17 +263,17 @@ fun OnboardingBottomSheet(
                                 AppText(
                                     "开始探索 BiliPai",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
+                                    style = MaterialTheme.typography.labelLarge
                                 )
                             }
                         }
                     }
                     
                     //  GitHub 链接
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                     AppText(
                         "github.com/jay3-yy/BiliPai",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         modifier = Modifier.clickable {
                             uriHandler.openUri("https://github.com/jay3-yy/BiliPai")
@@ -348,12 +349,12 @@ private fun WelcomePage(hazeState: HazeState) {
             )
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
         
         // 标题 - 动画项 1
         AppText(
             "欢迎使用 BiliPai",
-            fontSize = 28.sp,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.graphicsLayer {
@@ -362,12 +363,12 @@ private fun WelcomePage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         
         // 副标题 - 动画项 2
         AppText(
             "简洁 · 流畅 · 开源",
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 3.sp,
             modifier = Modifier.graphicsLayer {
@@ -376,7 +377,7 @@ private fun WelcomePage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.DoubleExtraLarge))
         
         // 特性标签 - 动画项 3, 4, 5
         Row(
@@ -402,7 +403,7 @@ private fun WelcomePage(hazeState: HazeState) {
             )
         }
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.DoubleExtraLarge))
         
         val disclaimerColors = resolveAccessibleContainerColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
@@ -425,11 +426,10 @@ private fun WelcomePage(hazeState: HazeState) {
         ) {
             AppText(
                 "本应用仅供学习交流，所有内容版权归 Bilibili 及原作者。",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = disclaimerColors.contentColor,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(12.dp),
-                lineHeight = 16.sp
+                modifier = Modifier.padding(AppSpacingTokens.Medium)
             )
         }
     }
@@ -503,12 +503,12 @@ private fun AppearanceSettingsPage(hazeState: HazeState) {
             )
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
         
         // 标题 - 动画项 1
         AppText(
             "个性化外观",
-            fontSize = 24.sp,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.graphicsLayer {
@@ -517,12 +517,12 @@ private fun AppearanceSettingsPage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         
         // 副标题 - 动画项 2
         AppText(
             "打造专属于你的界面风格",
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.graphicsLayer {
                 alpha = animatedItems[2].value
@@ -530,7 +530,7 @@ private fun AppearanceSettingsPage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.DoubleExtraLarge))
         
         // 功能列表 - 动画项 3, 4, 5, 6
         FeatureListItem(
@@ -641,12 +641,12 @@ private fun PlaybackSettingsPage(hazeState: HazeState) {
             )
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
         
         // 标题 - 动画项 1
         AppText(
             "智能播放体验",
-            fontSize = 24.sp,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.graphicsLayer {
@@ -655,12 +655,12 @@ private fun PlaybackSettingsPage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         
         // 副标题 - 动画项 2
         AppText(
             "流畅观看，省流省电",
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.graphicsLayer {
                 alpha = animatedItems[2].value
@@ -668,7 +668,7 @@ private fun PlaybackSettingsPage(hazeState: HazeState) {
             }
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.DoubleExtraLarge))
         
         // 功能列表 - 动画项 3, 4, 5, 6
         FeatureListItem(
@@ -780,13 +780,13 @@ private fun FeatureBadge(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                AppText(emoji, fontSize = 24.sp)
+                AppText(emoji, style = MaterialTheme.typography.titleLarge)
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         AppText(
             label,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -825,7 +825,7 @@ private fun FeatureListItem(
             )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppSpacingTokens.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -837,23 +837,22 @@ private fun FeatureListItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                AppText(icon, fontSize = 20.sp)
+                AppText(icon, style = MaterialTheme.typography.titleMedium)
             }
             
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     title,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 AppText(
                     description,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 16.sp
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

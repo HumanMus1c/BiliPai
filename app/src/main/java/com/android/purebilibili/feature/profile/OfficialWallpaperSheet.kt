@@ -328,7 +328,7 @@ fun OfficialWallpaperSheet(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                AppText("设为背景", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                AppText("设为背景", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                         
@@ -355,7 +355,7 @@ fun OfficialWallpaperSheet(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                AppText("设为开屏", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                AppText("设为开屏", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

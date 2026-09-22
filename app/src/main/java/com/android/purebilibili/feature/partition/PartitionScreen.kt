@@ -1066,8 +1066,7 @@ private fun PartitionSideRailItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
-                    fontSize = if (showIcon) 12.sp else 16.sp,
-                    lineHeight = if (showIcon) 14.sp else 20.sp,
+                    style = if (showIcon) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
                     fontWeight = if (selected || clampedSelectionProgress > 0.5f) {
                         FontWeight.SemiBold
                     } else {

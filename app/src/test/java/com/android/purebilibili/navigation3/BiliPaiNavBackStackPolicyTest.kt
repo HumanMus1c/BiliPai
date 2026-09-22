@@ -65,6 +65,39 @@ class BiliPaiNavBackStackPolicyTest {
     }
 
     @Test
+    fun push_sameUpSpaceIgnoresTransientTargetVideoAndPopsVideoDetail() {
+        val originalSpace = BiliPaiNavKey.Space(mid = 42L)
+        val video = BiliPaiNavKey.VideoDetail(
+            bvid = "BV1",
+            sourceRoute = originalSpace.toLegacyRoute(),
+            openId = 1L,
+        )
+
+        assertEquals(
+            listOf(BiliPaiNavKey.MainHost, originalSpace),
+            pushBiliPaiNavKey(
+                currentStack = listOf(BiliPaiNavKey.MainHost, originalSpace, video),
+                key = BiliPaiNavKey.Space(mid = 42L, targetBvid = "BV1"),
+            ),
+        )
+    }
+
+    @Test
+    fun push_differentUpSpaceStillAppends() {
+        val originalSpace = BiliPaiNavKey.Space(mid = 42L)
+        val video = BiliPaiNavKey.VideoDetail("BV1", openId = 1L)
+        val otherSpace = BiliPaiNavKey.Space(mid = 84L, targetBvid = "BV1")
+
+        assertEquals(
+            listOf(BiliPaiNavKey.MainHost, originalSpace, video, otherSpace),
+            pushBiliPaiNavKey(
+                currentStack = listOf(BiliPaiNavKey.MainHost, originalSpace, video),
+                key = otherSpace,
+            ),
+        )
+    }
+
+    @Test
     fun push_distinctInstanceKeyStillAppends() {
         val first = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "search", openId = 1L)
         val second = first.copy(openId = 2L)

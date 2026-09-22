@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppText
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -403,16 +404,14 @@ internal fun CompactSeekPreview(
             AppText(
                 text = FormatUtils.formatDuration((targetPositionMs / 1000L).toInt()),
                 color = Color.White,
-                fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                style = androidx.compose.ui.text.TextStyle(shadow = shadow)
+                style = MaterialTheme.typography.titleMedium.copy(shadow = shadow)
             )
             AppText(
                 text = " / ${FormatUtils.formatDuration((durationMs / 1000L).toInt())}",
                 color = Color.White.copy(alpha = 0.62f),
-                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                style = androidx.compose.ui.text.TextStyle(shadow = shadow)
+                style = MaterialTheme.typography.titleMedium.copy(shadow = shadow)
             )
         }
     }
@@ -433,7 +432,7 @@ private fun SeekPreviewImage(
             AppText(
                 text = "预览加载中",
                 color = Color.White.copy(alpha = 0.72f),
-                fontSize = 12.sp
+                style = MaterialTheme.typography.bodySmall
             )
         }
         return
@@ -460,7 +459,7 @@ private fun SeekPreviewImage(
                 modifier = modifier.background(Color(0xFF1A1A1A)),
                 contentAlignment = Alignment.Center
             ) {
-                AppText(text = "...", color = Color.White, fontSize = 13.sp)
+                AppText(text = "...", color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
         }
         is AsyncImagePainter.State.Error -> {
@@ -468,7 +467,7 @@ private fun SeekPreviewImage(
                 modifier = modifier.background(Color(0xFF1A1A1A)),
                 contentAlignment = Alignment.Center
             ) {
-                AppText(text = "预览不可用", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                AppText(text = "预览不可用", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
             }
         }
         is AsyncImagePainter.State.Success -> {

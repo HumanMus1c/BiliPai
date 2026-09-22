@@ -446,7 +446,7 @@ private fun TripleProgressActionButton(
         Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = textTint,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1,
@@ -645,7 +645,7 @@ fun TripleProgressIcon(
         Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = textTint,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1
@@ -741,7 +741,7 @@ private fun BiliActionButton(
         Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = textTint,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
             maxLines = 1,
@@ -833,7 +833,7 @@ fun ActionButton(
         Spacer(modifier = Modifier.height(4.dp))
         AppText(
             text = text,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Normal,
             maxLines = 1

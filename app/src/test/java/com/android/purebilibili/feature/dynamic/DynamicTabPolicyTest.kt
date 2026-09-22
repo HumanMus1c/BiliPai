@@ -106,4 +106,16 @@ class DynamicTabPolicyTest {
             resolveDynamicTabReselectAction(currentVisibleIndex = 1, tappedVisibleIndex = 3)
         )
     }
+
+    @Test
+    fun `pager key and content tolerate a stale page after tabs are hidden`() {
+        val visibleTabs = resolveDynamicVisibleTabs(setOf("all", "video", "article"))
+
+        assertEquals(3, resolveDynamicPagerTabKey(visibleTabs, page = 2))
+        assertEquals(
+            DynamicPagerInvalidPageKey(page = 3),
+            resolveDynamicPagerTabKey(visibleTabs, page = 3)
+        )
+        assertEquals(null, visibleTabs.getOrNull(3))
+    }
 }

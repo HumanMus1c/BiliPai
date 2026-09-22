@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
@@ -128,7 +127,7 @@ fun CollectionSheet(
                     collectionId = collectionSubscriptionId,
                     currentBvid = currentBvid,
                     currentAid = currentAid,
-                    fontSize = 13.sp
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize
                 )
 
                 AppIconButton(onClick = onDismiss) {

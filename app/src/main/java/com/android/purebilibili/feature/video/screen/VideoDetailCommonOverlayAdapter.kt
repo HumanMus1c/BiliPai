@@ -4,8 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.media3.common.Player
 import com.android.purebilibili.feature.video.interaction.InteractiveChoicePanelUiState
 import com.android.purebilibili.feature.video.player.PlaylistItem
-import com.android.purebilibili.feature.video.share.VideoSharePayload
-import com.android.purebilibili.feature.video.share.VideoShareSheet
 import com.android.purebilibili.feature.video.ui.components.CoinDialog
 import com.android.purebilibili.feature.video.ui.components.InteractiveChoiceOverlay
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
@@ -25,11 +23,9 @@ internal fun VideoDetailCommonOverlayAdapter(
     playlistCurrentIndex: Int,
     hazeState: HazeState,
     queuePresentation: ExternalPlaylistQueueSheetPresentation,
-    pendingVideoShare: VideoSharePayload?,
     player: Player,
     onDismissQueue: () -> Unit,
     onVideoSelected: (Int, PlaylistItem) -> Unit,
-    onDismissShare: () -> Unit,
 ) {
     InteractiveChoiceOverlay(
         state = interactiveChoicePanel,
@@ -56,8 +52,5 @@ internal fun VideoDetailCommonOverlayAdapter(
         onDismiss = onDismissQueue,
         onVideoSelected = onVideoSelected,
     )
-    pendingVideoShare?.let { payload ->
-        VideoShareSheet(payload = payload, onDismiss = onDismissShare)
-    }
     VideoDetailPlaybackEndedDialog(viewModel = playbackViewModel, player = player)
 }

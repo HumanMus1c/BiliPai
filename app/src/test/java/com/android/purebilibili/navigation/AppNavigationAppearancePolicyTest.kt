@@ -109,6 +109,8 @@ class AppNavigationAppearancePolicyTest {
         assertTrue(capturedLayerSource.contains("if (isBottomBarBlurEnabled && mainHazeState != null)"))
         assertTrue(capturedLayerSource.contains("Modifier.hazeSourceCompat(mainHazeState)"))
         assertTrue(source.contains("mainHostTabRoute = currentBottomNavItem.route"))
+        assertTrue(source.contains("LocalWallpaperPalette provides"))
+        assertTrue(source.contains("WallpaperPaletteStore.loadWallpaperPalette("))
     }
 
     @Test

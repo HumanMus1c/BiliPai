@@ -14,6 +14,7 @@ import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import android.app.Activity
 import android.content.Context
@@ -3537,23 +3538,23 @@ fun GuestProfileContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.DoubleExtraLarge))
 
             AppText(
                 text = "欢迎使用 BiliPai",
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             AppText(
                 text = "登录后享受完整的 B站 体验",
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = AppSpacingTokens.Small)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.TripleExtraLarge))
 
             //  登录按钮 - 使用现代化渐变按钮
             AppPrimaryButton(
@@ -3565,7 +3566,7 @@ fun GuestProfileContent(
                     .height(56.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
             // 安全提示
             Row(
@@ -3578,10 +3579,10 @@ fun GuestProfileContent(
                     tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                 AppText(
                     text = "支持扫码登录和网页登录",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color.White
                 )
             }
@@ -3993,17 +3994,17 @@ fun UserInfoText(user: UserState, centered: Boolean = false, forceWhite: Boolean
     Spacer(modifier = Modifier.height(8.dp)) // Increased spacing
     Row(verticalAlignment = Alignment.CenterVertically) {
         LevelTag(level = user.level)
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
         if (user.isVip) {
             // Theme soft pill (same as space header / side drawer), not brand primary pink.
             com.android.purebilibili.core.ui.components.UserVipBadge(
                 label = user.vipLabel,
-                fontSize = 10.sp,
+                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 compact = true,
             )
         } else {
             AppSurface(color = MaterialTheme.colorScheme.surfaceVariant, shape = AppShapes.container(ContainerLevel.Tag)) {
-                AppText("正式会员", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                AppText("正式会员", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro))
             }
         }
     }
@@ -4066,15 +4067,13 @@ fun StatItem(
         AppText(
             text = count, 
             fontWeight = FontWeight.Bold, 
-            fontSize = 18.sp, 
             color = textColor,
-            style = LocalTextStyle.current.copy(shadow = shadow)
+            style = MaterialTheme.typography.titleMedium.copy(shadow = shadow)
         )
         AppText(
             text = label, 
-            fontSize = 12.sp, 
             color = if (useShadow) Color.White.copy(alpha = 0.9f) else labelColor, // Whiter label
-            style = LocalTextStyle.current.copy(shadow = shadow) // Apply same shadow to label
+            style = MaterialTheme.typography.bodySmall.copy(shadow = shadow) // Apply same shadow to label
         )
     }
 }
@@ -4085,7 +4084,7 @@ fun VipBannerSection(user: UserState) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium)
             .height(60.dp)
             .clip(AppShapes.container(ContainerLevel.Chip))
             .background(
@@ -4100,7 +4099,7 @@ fun VipBannerSection(user: UserState) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = AppSpacingTokens.Large),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -4109,18 +4108,18 @@ fun VipBannerSection(user: UserState) {
                     text = if (user.isVip) "尊贵的大会员" else "成为大会员",
                     color = colorScheme.onTertiaryContainer,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    style = MaterialTheme.typography.titleSmall
                 )
                 AppText(
                     text = "硬币: ${user.coin}   B币: ${user.bcoin}",
                     color = colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
-                    fontSize = 11.sp
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
             AppText(
                 text = if (user.isVip) "续费 >" else "开通 >",
                 color = colorScheme.onTertiaryContainer,
-                fontSize = 12.sp
+                style = MaterialTheme.typography.labelMedium
             )
         }
     }
@@ -4747,8 +4746,8 @@ internal fun AccountSwitchDialog(
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AppText("🎬", fontSize = 16.sp)
-                            Spacer(Modifier.width(8.dp))
+                            AppText("🎬", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.width(AppSpacingTokens.Small))
                             AppText(
                                 text = "正在用「${playbackAccount.name.ifBlank { "UID ${playbackAccount.mid}" }}」${if (playbackAccount.isVip) "的大会员" else "的账号"}播放",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -4757,7 +4756,7 @@ internal fun AccountSwitchDialog(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(AppSpacingTokens.Small))
                             AppTextButton(
                                 onClick = { onSetPlayback(null) }
                             ) {
@@ -4782,8 +4781,8 @@ internal fun AccountSwitchDialog(
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AppText("💎", fontSize = 16.sp)
-                            Spacer(Modifier.width(8.dp))
+                            AppText("💎", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.width(AppSpacingTokens.Small))
                             AppText(
                                 text = guideAccount?.let {
                                     "「${it.name.ifBlank { "UID ${it.mid}" }}」是大会员，设为播放账号即可观看大会员视频"

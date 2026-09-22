@@ -1077,14 +1077,13 @@ fun ReplyHeader(count: Int) {
     ) {
         AppText(
             text = "评论",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.width(8.dp))
         AppText(
             text = FormatUtils.formatStat(count.toLong()),
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -2383,7 +2382,7 @@ private fun FansMedalTag(detail: ReplyFansDetail) {
     ) {
         AppText(
             text = detail.medalName,
-            fontSize = 9.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
             color = accentColor.copy(alpha = 0.95f),
             maxLines = 1,
@@ -2397,7 +2396,7 @@ private fun FansMedalTag(detail: ReplyFansDetail) {
         ) {
             AppText(
                 text = detail.level.toString(),
-                fontSize = 9.sp,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
@@ -2511,17 +2510,21 @@ internal fun FanGroupDecorationBadge(
             ) {
                 AppText(
                     text = "NO.",
-                    fontSize = 7.sp,
-                    lineHeight = 8.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 7.sp,
+                        lineHeight = 8.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
                     color = textColor,
                     maxLines = 1
                 )
                 AppText(
                     text = fanNumberText,
-                    fontSize = 8.sp,
-                    lineHeight = 9.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 8.sp,
+                        lineHeight = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = textColor,
                     maxLines = 1
                 )
@@ -2590,8 +2593,7 @@ fun formatTime(timestamp: Long): String {
 internal fun ReplySpecialLabelChip(text: String) {
     AppText(
         text = text,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
         color = MaterialTheme.colorScheme.primary
     )
 }
@@ -2710,7 +2712,7 @@ private fun ReplyActionSheetItem(
 ) {
     AppText(
         text = label,
-        fontSize = 16.sp,
+        style = MaterialTheme.typography.bodyLarge,
         color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
@@ -2739,8 +2741,7 @@ fun TopTag() {
     ) {
         AppText(
             text = "TOP",
-            fontSize = 9.sp,
-            lineHeight = 9.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
@@ -2875,8 +2876,7 @@ fun CommentPictures(
                                         AppText(
                                             "+${totalCount - 9}",
                                             color = Color.White,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
+                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                                         )
                                     }
                                 }

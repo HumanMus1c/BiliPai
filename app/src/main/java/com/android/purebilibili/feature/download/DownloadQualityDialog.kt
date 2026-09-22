@@ -3,6 +3,7 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSingleChoiceRow
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -57,7 +58,7 @@ fun DownloadQualityDialog(
             shape = AppShapes.container(ContainerLevel.Card),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(AppSpacingTokens.Large)) {
                 // 标题行
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -66,7 +67,7 @@ fun DownloadQualityDialog(
                 ) {
                     AppText(
                         text = "选择下载画质",
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -79,24 +80,24 @@ fun DownloadQualityDialog(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 
                 // 视频标题
                 AppText(
                     text = title,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2
                 )
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(AppShapes.container(ContainerLevel.Chip))
                         .clickable { includeDanmaku = !includeDanmaku }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = AppSpacingTokens.Small),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppCheckbox(
@@ -110,7 +111,7 @@ fun DownloadQualityDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 
                 // 画质列表
                 qualityOptions.forEach { (qualityId, qualityLabel) ->
@@ -131,14 +132,14 @@ fun DownloadQualityDialog(
                                 color = AppSurfaceTokens.onSurfaceContainerHigh()
                             )
                             if (isVip) {
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                                 AppSurface(
                                     color = MaterialTheme.colorScheme.tertiary,
                                     shape = AppShapes.container(ContainerLevel.Tag)
                                 ) {
                                     AppText(
                                         text = "VIP",
-                                        fontSize = 10.sp,
+                                        style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onTertiary,
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -147,7 +148,7 @@ fun DownloadQualityDialog(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))

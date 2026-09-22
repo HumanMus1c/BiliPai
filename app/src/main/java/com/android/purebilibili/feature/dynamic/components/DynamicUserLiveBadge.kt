@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.feature.dynamic.resolveDynamicUserLiveBadgeLabel
 import kotlin.math.PI

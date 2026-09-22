@@ -92,7 +92,7 @@ private fun CommentListTitle(title: String, count: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         AppText(
             text = title,
-            fontSize = 20.sp, // iOS Large Title style scale
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = appearance.primaryTextColor,
             modifier = Modifier.alignByBaseline(),
@@ -100,7 +100,7 @@ private fun CommentListTitle(title: String, count: Int) {
         Spacer(modifier = Modifier.width(6.dp))
         AppText(
             text = FormatUtils.formatStat(count.toLong()),
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Normal,
             color = appearance.secondaryTextColor,
             modifier = Modifier.alignByBaseline(),
@@ -186,7 +186,7 @@ fun CommentSortHeader(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    AppText(text = sortMode.label, fontSize = 14.sp)
+                    AppText(text = sortMode.label, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

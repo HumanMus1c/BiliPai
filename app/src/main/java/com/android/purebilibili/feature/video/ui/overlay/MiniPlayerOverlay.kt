@@ -844,7 +844,7 @@ fun MiniPlayerOverlay(
                             AppText(
                                 text = "直播",
                                 color = Color.White,
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
                         }

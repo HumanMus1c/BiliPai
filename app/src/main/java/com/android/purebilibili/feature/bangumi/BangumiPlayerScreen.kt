@@ -1067,7 +1067,7 @@ private fun BangumiPlayNoticeOverlay(
             if (title.isNotBlank()) {
                 AppText(
                     text = title,
-                    fontSize = if (isFullscreen) 16.sp else 14.sp,
+                    style = if (isFullscreen) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                     maxLines = 1,
@@ -1078,7 +1078,7 @@ private fun BangumiPlayNoticeOverlay(
             }
             AppText(
                 text = message,
-                fontSize = if (isFullscreen) 14.sp else 13.sp,
+                style = if (isFullscreen) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.8f),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -1090,7 +1090,7 @@ private fun BangumiPlayNoticeOverlay(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                AppText("重试", fontSize = 13.sp)
+                AppText("重试", style = MaterialTheme.typography.labelMedium)
             }
         }
 

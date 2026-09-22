@@ -79,7 +79,7 @@ class AppDisplayPolicyTest {
     @Test
     fun `typography applies imported font family to all text levels`() {
         val fontFamily = FontFamily.Serif
-        val typography = BiliTypography.withFontFamily(fontFamily)
+        val typography = Md3Typography.withFontFamily(fontFamily)
 
         assertSame(fontFamily, typography.bodyLarge.fontFamily)
         assertSame(fontFamily, typography.titleMedium.fontFamily)

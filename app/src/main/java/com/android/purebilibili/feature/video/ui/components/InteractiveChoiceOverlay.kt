@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.feature.video.interaction.InteractiveChoicePanelUiState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -113,7 +112,7 @@ fun InteractiveChoiceOverlay(
                         AppText(
                             text = state.title,
                             modifier = Modifier.weight(1f),
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
@@ -123,7 +122,7 @@ fun InteractiveChoiceOverlay(
                         if (countdown != null) {
                             AppText(
                                 text = "${(countdown / 1000L).coerceAtLeast(0L)}s",
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -174,13 +173,13 @@ private fun CoordinateModeHeader(
     ) {
         AppText(
             text = title,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
         if (remainingMs != null) {
             AppText(
                 text = "${(remainingMs / 1000L).coerceAtLeast(0L)}s",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -190,7 +189,7 @@ private fun CoordinateModeHeader(
         ) {
             AppText(
                 text = "关闭",
-                fontSize = 12.sp
+                style = MaterialTheme.typography.labelSmall
             )
         }
     }

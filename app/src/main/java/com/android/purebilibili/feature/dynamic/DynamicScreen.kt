@@ -122,18 +122,20 @@ import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
+import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-val LocalDynamicScrollChannel = compositionLocalOf<Channel<Unit>?> { null }
+val LocalDynamicScrollChannel = compositionLocalOf<Channel<DynamicScrollRequest>?> { null }
 
 /**
  *  动态页面 - 支持两种布局模式
@@ -603,29 +605,28 @@ fun DynamicScreen(
     val setBottomBarVisible = com.android.purebilibili.core.ui.LocalSetBottomBarVisible.current
     val bottomBarChromeScrollOffset = LocalHomeScrollOffset.current
 
-    suspend fun scrollDynamicFeedToTop(refreshWhenAlreadyAtTop: Boolean) {
+    suspend fun scrollDynamicFeedToTop(request: DynamicScrollRequest) {
         val state = activeListState ?: return
         val isAtTop = state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset < 50
-        if (isAtTop) {
-            if (refreshWhenAlreadyAtTop) {
-                viewModel.refresh(displayedLogicalTab)
-            }
-            return
+        val plan = resolveDynamicScrollActionPlan(request = request, isAtTop = isAtTop)
+        if (plan.shouldScrollToTop) {
+            state.animateScrollToTop(fast = true)
         }
+        if (plan.shouldRefresh) {
+            viewModel.refresh(displayedLogicalTab)
+        }
+    }
 
-        val currentIndex = state.firstVisibleItemIndex
-        val plan = resolveScrollToTopPlan(currentIndex)
-        plan.preJumpIndex?.let { preJump ->
-            if (currentIndex > preJump) {
-                state.scrollToItem(preJump)
-            }
-        }
-        state.animateScrollToItem(plan.animateTargetIndex)
+    suspend fun scrollDynamicFeedToTop(refreshWhenAlreadyAtTop: Boolean) {
+        scrollDynamicFeedToTop(
+            if (refreshWhenAlreadyAtTop) DynamicScrollRequest.SCROLL_TO_TOP_OR_REFRESH
+            else DynamicScrollRequest.SCROLL_TO_TOP
+        )
     }
 
     LaunchedEffect(dynamicScrollChannel) {
-        dynamicScrollChannel?.receiveAsFlow()?.collect {
-            scrollDynamicFeedToTop(refreshWhenAlreadyAtTop = true)
+        dynamicScrollChannel?.receiveAsFlow()?.collectLatest { request ->
+            scrollDynamicFeedToTop(request)
         }
     }
 
@@ -833,9 +834,9 @@ fun DynamicScreen(
                                         state = pagerState,
                                         enabled = true,
                                     ),
-                                key = { page -> visibleTabs[page].logicalIndex }
+                                key = { page -> resolveDynamicPagerTabKey(visibleTabs, page) }
                             ) { page ->
-                                val tab = visibleTabs[page]
+                                val tab = visibleTabs.getOrNull(page) ?: return@HorizontalPager
                                 val pageListState = requireNotNull(listStates[tab.logicalIndex])
                                 val pagePresentation = remember(
                                     state,
@@ -990,7 +991,7 @@ fun DynamicScreen(
                                 ) {
                                     AppText(
                                         text = if (sidebarOnRight) "‹" else "›",
-                                        fontSize = 24.sp
+                                        style = MaterialTheme.typography.headlineMedium
                                     )
                                 }
                             }
@@ -1028,9 +1029,9 @@ fun DynamicScreen(
                                     state = pagerState,
                                     enabled = true,
                                 ),
-                            key = { page -> visibleTabs[page].logicalIndex }
+                            key = { page -> resolveDynamicPagerTabKey(visibleTabs, page) }
                         ) { page ->
-                            val tab = visibleTabs[page]
+                            val tab = visibleTabs.getOrNull(page) ?: return@HorizontalPager
                             val pageListState = requireNotNull(listStates[tab.logicalIndex])
                             val pagePresentation = remember(
                                 state,
@@ -1220,7 +1221,7 @@ fun DynamicScreen(
                 visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
                 onClick = {
                     scope.launch {
-                        scrollDynamicFeedToTop(refreshWhenAlreadyAtTop = false)
+                        scrollDynamicFeedToTop(DynamicScrollRequest.SCROLL_TO_TOP)
                     }
                 },
                 backdrop = activeDynamicBackdrop,

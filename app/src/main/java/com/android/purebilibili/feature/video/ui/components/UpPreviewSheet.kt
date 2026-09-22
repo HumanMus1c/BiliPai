@@ -393,7 +393,7 @@ fun UpPreviewSheet(
                                     AppText(
                                         text = "暂无投稿",
                                         color = colors.supportingColor,
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                     )
                                 }
                             }
@@ -491,7 +491,7 @@ private fun UpPreviewSheetHeader(
                 AppText(
                     text = owner.name.ifBlank { "UP主" },
                     color = colors.titleColor,
-                    fontSize = 17.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     overflow = TextOverflow.Visible,
                 )
@@ -503,7 +503,7 @@ private fun UpPreviewSheetHeader(
                         likeCount = likeCount,
                     ).ifBlank { " " },
                     color = colors.supportingColor,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     overflow = TextOverflow.Visible,
                 )
             }
@@ -524,7 +524,7 @@ private fun UpPreviewSheetHeader(
                     } else {
                         colors.followContentColor
                     },
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
@@ -533,7 +533,7 @@ private fun UpPreviewSheetHeader(
             AppText(
                 text = "进入空间  >",
                 color = colors.enterSpaceColor,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
                     .clip(AppShapes.container(ContainerLevel.Field))
@@ -595,14 +595,14 @@ private fun UpPreviewVideoCard(
                 AppText(
                     text = formatUpPreviewCount(item.playCount),
                     color = Color.White,
-                    fontSize = 10.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                 )
                 if (item.durationText.isNotBlank()) {
                     AppText(
                         text = item.durationText,
                         color = Color.White,
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                     )
                 }
@@ -612,18 +612,17 @@ private fun UpPreviewVideoCard(
         AppText(
             text = item.title,
             color = colors.titleColor,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             maxLines = videoCardTitleMaxLines(),
             overflow = videoCardTitleOverflow(),
-            lineHeight = 17.sp,
         )
         if (item.createdAtSeconds > 0L) {
             Spacer(Modifier.height(2.dp))
             AppText(
                 text = formatUpPreviewRelativeDate(item.createdAtSeconds),
                 color = colors.supportingColor,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
             )
         }

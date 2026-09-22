@@ -517,7 +517,7 @@ private fun ExternalPlaylistQueueCollapsedBarContent(
         ) {
             AppText(
                 text = title,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -525,7 +525,7 @@ private fun ExternalPlaylistQueueCollapsedBarContent(
             AppText(
                 text = "${videoCount}个视频",
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.width(4.dp))

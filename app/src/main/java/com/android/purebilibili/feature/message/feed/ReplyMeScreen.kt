@@ -158,7 +158,11 @@ fun ReplyMeScreen(
                     AppIconButton(onClick = onBack) {
                         AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
-                }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                ),
             )
         }
     ) { paddingValues ->

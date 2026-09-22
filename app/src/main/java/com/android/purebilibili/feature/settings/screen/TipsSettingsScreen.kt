@@ -22,6 +22,7 @@ import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPink
 import com.android.purebilibili.core.theme.iOSTeal
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -237,19 +238,18 @@ private fun TipItem(
                 modifier = Modifier.size(20.dp),
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         Column {
             AppText(
                 text = title,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             AppText(
                 text = content,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

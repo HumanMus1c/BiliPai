@@ -372,7 +372,7 @@ internal fun AudioModeSleepTimerDialog(
                 AppText(
                     text = "选择常用时长，或输入分钟数 / 小时:分钟，例如 90、1:30。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -395,7 +395,7 @@ internal fun AudioModeSleepTimerDialog(
                             ) {
                                 AppText(
                                     text = formatAudioModeSleepTimerButtonLabel(minutes),
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = if (isSelected) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {

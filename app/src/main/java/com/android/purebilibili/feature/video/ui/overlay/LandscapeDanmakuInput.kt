@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppText
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +45,7 @@ fun LandscapeDanmakuInput(
         AppText(
             text = placeholder,
             color = Color.White.copy(alpha = 0.6f),
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Normal,
             maxLines = 1
         )
@@ -76,7 +77,7 @@ fun LandscapeQuickActionButton(
         ) {
             AppText(
                 text = emoji,
-                fontSize = 14.sp
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }

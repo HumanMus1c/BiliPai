@@ -110,7 +110,7 @@ fun AspectRatioPanel(
                     AppText(
                         text = "画面比例",
                         color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
@@ -132,8 +132,9 @@ fun AspectRatioPanel(
                             AppText(
                                 text = option.label,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                             )
                         }

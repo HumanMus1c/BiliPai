@@ -26,7 +26,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -103,7 +102,7 @@ fun BangumiDetailHeader(
                 AppText(
                     text = detail.title,
                     color = Color.White,
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2
                 )
@@ -124,7 +123,7 @@ fun BangumiDetailHeader(
                     AppText(
                         text = desc,
                         color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
                 
@@ -135,7 +134,7 @@ fun BangumiDetailHeader(
                     AppText(
                         text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}追番",
                         color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
@@ -171,7 +170,7 @@ fun RatingRow(
         AppText(
             text = " (${count}人评分)",
             color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -243,8 +242,8 @@ fun SeasonSelector(
         AppText(
             text = "相关季度",
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
         )
         
         LazyRow(
@@ -269,7 +268,7 @@ fun SeasonSelector(
                     AppText(
                         text = season.seasonTitle.ifEmpty { season.title },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = if (isCurrentSeason) {
                             MaterialTheme.colorScheme.onPrimary
                         } else {
@@ -338,7 +337,7 @@ fun EpisodeChip(
                     AppText(
                         text = episode.badge,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontSize = 9.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = badgeColors.contentColor
                     )
                 }
@@ -353,7 +352,7 @@ fun EpisodeChip(
                 AppText(
                     text = episode.title.ifEmpty { "第${episode.id}话" },
                     color = Color.White,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -362,7 +361,7 @@ fun EpisodeChip(
                     AppText(
                         text = episode.longTitle,
                         color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -417,7 +416,7 @@ fun EpisodePreviewRow(
                             )
                             AppText(
                                 text = "全部${episodes.size}集",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

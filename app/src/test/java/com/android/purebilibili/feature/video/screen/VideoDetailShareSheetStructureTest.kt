@@ -8,27 +8,22 @@ import kotlin.test.assertTrue
 class VideoDetailShareSheetStructureTest {
 
     @Test
-    fun ordinaryVideoDetailShareEntrypoints_openVideoShareSheet() {
+    fun ordinaryVideoDetailShareEntrypoints_openSystemShareChooser() {
         val source = loadVideoDetailSource()
         val phoneContentSource = loadVideoDetailPhoneContentSource()
         val overlayAdapterSource = loadVideoDetailCommonOverlayAdapterSource()
 
-        assertTrue(
-            source.contains("pendingVideoShare"),
-            "VideoDetailScreen should keep a local sheet state for ordinary video sharing"
-        )
         assertTrue(source.contains("VideoDetailCommonOverlayAdapter("))
-        assertTrue(source.contains("pendingVideoShare = pendingVideoShare"))
-        assertTrue(source.contains("onDismissShare = { pendingVideoShare = null }"))
+        assertTrue(source.contains("ShareUtils.shareVideo("))
+        assertTrue(source.contains("title = payload.title"))
+        assertTrue(source.contains("bvid = payload.bvid"))
+        assertFalse(source.contains("pendingVideoShare"))
         assertFalse(
             source.contains("VideoShareSheet("),
-            "VideoDetailScreenStateHolder should only coordinate the sheet state",
+            "VideoDetailScreenStateHolder should open the system chooser directly",
         )
-        assertTrue(
-            overlayAdapterSource.contains("pendingVideoShare?.let { payload ->") &&
-                overlayAdapterSource.contains("VideoShareSheet(payload = payload, onDismiss = onDismissShare)"),
-            "VideoDetailCommonOverlayAdapter should render and dismiss the shared video share sheet",
-        )
+        assertFalse(overlayAdapterSource.contains("VideoShareSheet("))
+        assertFalse(overlayAdapterSource.contains("pendingVideoShare"))
 
         val detailActionShare = phoneContentSource
             .substringAfter("onDownloadClick = playbackActions.openDownloadDialog")
@@ -55,14 +50,7 @@ class VideoDetailShareSheetStructureTest {
             bottomInputShare.contains("coverUrl = success.info.pic"),
             "Bottom input bar share should include the current video cover"
         )
-        assertFalse(
-            detailActionShare.contains("ShareUtils.shareVideo("),
-            "Detail action row share should not directly invoke the system chooser"
-        )
-        assertFalse(
-            bottomInputShare.contains("Intent.createChooser"),
-            "Bottom input bar share should not directly invoke the system chooser"
-        )
+        assertTrue(source.contains("ShareUtils.shareVideo("))
     }
 
     private fun loadVideoDetailSource(): String {

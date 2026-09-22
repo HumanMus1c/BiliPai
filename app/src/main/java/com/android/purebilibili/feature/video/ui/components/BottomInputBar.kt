@@ -378,7 +378,7 @@ private fun FloatingLiquidBottomInputBar(
                     AppText(
                         text = if (showActionButtons) "写评论" else "发一条友善的评论…",
                         color = inputTextColor,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -471,7 +471,7 @@ private fun BottomInputBarContentRow(
                 AppText(
                     text = "发一条友善的评论…",
                     color = inputTextColor,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -595,7 +595,7 @@ private fun IconActionButton(
             Spacer(modifier = Modifier.height(2.dp))
             AppText(
                 text = label,
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = tint
             )
         }

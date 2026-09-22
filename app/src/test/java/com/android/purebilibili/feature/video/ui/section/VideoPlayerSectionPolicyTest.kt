@@ -66,6 +66,21 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun publicEntryPoint_usesSmallStateAndActionContracts() {
+        val source = loadVideoPlayerSectionSource()
+        val publicEntry = source
+            .substringAfter("fun VideoPlayerSection(")
+            .substringBefore(") {")
+
+        assertTrue(source.contains("internal fun VideoPlayerSection("))
+        assertTrue(publicEntry.contains("state: VideoPlayerSectionState"))
+        assertTrue(publicEntry.contains("actions: VideoPlayerSectionActions"))
+        assertFalse(publicEntry.contains("playerState: VideoPlayerState"))
+        assertFalse(publicEntry.contains("onToggleFullscreen: () -> Unit"))
+        assertTrue(source.contains("private fun VideoPlayerSectionContent("))
+    }
+
+    @Test
     fun autoFullscreen_snapshotDoesNotReenterAfterFullscreenPlayerIsRecreated() {
         assertFalse(
             shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(

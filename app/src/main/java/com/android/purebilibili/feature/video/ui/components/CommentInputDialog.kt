@@ -379,10 +379,8 @@ fun CommentInputDialog(
                                     .fillMaxWidth()
                                     .fillMaxHeight() // 填满 Box
                                     .focusRequester(focusRequester),
-                                textStyle = TextStyle(
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 24.sp
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
                                 ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 decorationBox = { innerTextField ->
@@ -395,7 +393,7 @@ fun CommentInputDialog(
                                             AppText(
                                                 text = if (replyToName != null) "回复 @$replyToName: $resolvedHint" else resolvedHint,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                fontSize = 16.sp
+                                                style = MaterialTheme.typography.bodyLarge
                                             )
                                         }
                                         innerTextField()
@@ -547,7 +545,7 @@ fun CommentInputDialog(
                                     Spacer(modifier = Modifier.width(4.dp))
                                     AppText(
                                         text = "转发到动态",
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1
                                     )
@@ -598,7 +596,7 @@ fun CommentInputDialog(
                                 ) {
                                     AppText(
                                         text = "进度",
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.labelMedium,
                                         maxLines = 1
                                     )
                                 }
@@ -653,7 +651,7 @@ fun CommentInputDialog(
                                 } else {
                                     AppText(
                                         text = "发布",
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -664,7 +662,7 @@ fun CommentInputDialog(
                             AppText(
                                 text = "当前评论区暂不可评论",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 6.dp)
                             )
                         }
@@ -739,7 +737,7 @@ fun CommentInputDialog(
                                                                 ),
                                                             contentAlignment = Alignment.Center,
                                                         ) {
-                                                            AppText(kaomojis[i], fontSize = 13.sp)
+                                                            AppText(kaomojis[i], style = MaterialTheme.typography.bodySmall)
                                                         }
                                                     }
                                                 }
@@ -769,7 +767,7 @@ fun CommentInputDialog(
                                                                 insertTextAtCursor(emojis[i])
                                                             }
                                                     ) {
-                                                        AppText(emojis[i], fontSize = 24.sp)
+                                                        AppText(emojis[i], style = MaterialTheme.typography.headlineSmall)
                                                     }
                                                 }
                                             }
@@ -798,7 +796,7 @@ fun CommentInputDialog(
                                                             )
                                                             AppText(
                                                                 text = emote.text.replace("[", "").replace("]", ""),
-                                                                fontSize = 10.sp,
+                                                                style = MaterialTheme.typography.labelSmall,
                                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis

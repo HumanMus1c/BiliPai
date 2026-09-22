@@ -6,6 +6,10 @@ internal data class DynamicTabSpec(
     val logicalIndex: Int
 )
 
+internal data class DynamicPagerInvalidPageKey(
+    val page: Int
+)
+
 internal val allDynamicTabSpecs: List<DynamicTabSpec> = listOf(
     DynamicTabSpec(id = "all", title = "全部", logicalIndex = 0),
     DynamicTabSpec(id = "video", title = "投稿", logicalIndex = 1),
@@ -83,6 +87,13 @@ internal fun resolveDynamicSettledLogicalTab(
     visibleTabs: List<DynamicTabSpec>
 ): Int? {
     return visibleTabs.getOrNull(settledPage)?.logicalIndex
+}
+
+internal fun resolveDynamicPagerTabKey(
+    visibleTabs: List<DynamicTabSpec>,
+    page: Int
+): Any {
+    return visibleTabs.getOrNull(page)?.logicalIndex ?: DynamicPagerInvalidPageKey(page)
 }
 
 internal fun resolveDynamicPagerIndicatorPosition(

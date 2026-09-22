@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -112,10 +113,9 @@ private fun LegacyUserLevelBadge(
     ) {
         Text(
             text = "LV$level",
-            fontSize = 9.sp,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
-            lineHeight = 10.sp
+            color = Color.White
         )
     }
 }

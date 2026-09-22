@@ -50,6 +50,7 @@ import com.android.purebilibili.feature.audio.screen.AudioNowPlayingBarState
 import com.android.purebilibili.feature.audio.screen.ListenVideoRoute
 import com.android.purebilibili.feature.audio.screen.isAudioNowPlayingPlayerDestination
 import com.android.purebilibili.feature.audio.screen.resolveAudioNowPlayingVisible
+import com.android.purebilibili.feature.home.components.LinkedDockNowPlayingSlot
 import com.android.purebilibili.feature.home.components.LinkedDockPhase
 import com.android.purebilibili.feature.home.components.resolveLinkedDockPhaseOnAudioChange
 import com.android.purebilibili.feature.home.HomeVideoClickRequest
@@ -100,6 +101,7 @@ import com.android.purebilibili.feature.video.player.ExternalPlaylistSource
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import com.android.purebilibili.feature.video.player.PlaylistManager
 import com.android.purebilibili.feature.dynamic.DynamicScreen
+import com.android.purebilibili.feature.dynamic.DynamicScrollRequest
 import com.android.purebilibili.feature.dynamic.LocalDynamicScrollChannel
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewOverlayHost
 import com.android.purebilibili.feature.live.shouldStopLivePlaybackOnRouteDispose
@@ -606,6 +608,16 @@ fun AppNavigation(
                 splashWallpaperUri = splashWallpaperUri
             )
         }
+        val wallpaperPalette by com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore
+            .currentPalette
+            .collectAsStateWithLifecycle()
+        LaunchedEffect(globalHomeWallpaperUri) {
+            com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.loadWallpaperPalette(
+                context = context,
+                uri = globalHomeWallpaperUri,
+                scope = this,
+            )
+        }
         val backgroundColor = MaterialTheme.colorScheme.background
         val isLightBackground = remember(backgroundColor) { backgroundColor.luminance() > 0.5f }
         val isDataSaverActiveForGlobalWallpaper = remember(context) {
@@ -714,7 +726,8 @@ fun AppNavigation(
                 effectMode = effectiveHomeSettings.homeWallpaperEffectMode,
                 isDarkTheme = !isLightBackground,
                 isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
-                globalWallpaper = true
+                // Chat uses the same presence, blur and scrim treatment as HomeScreen.
+                globalWallpaper = false
             )
         }
         val bottomBarItemColors = appNavigationSettings.bottomBarItemColors
@@ -1530,7 +1543,7 @@ fun AppNavigation(
                 kotlinx.coroutines.channels.Channel.CONFLATED
             )
         }
-        val dynamicScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+        val dynamicScrollChannel = remember { kotlinx.coroutines.channels.Channel<DynamicScrollRequest>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         val historyScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         val profileScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         val favoriteScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
@@ -1561,7 +1574,7 @@ fun AppNavigation(
                     BottomNavItem.HOME -> homeScrollChannel.trySend(
                         com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP
                     )
-                    BottomNavItem.DYNAMIC -> dynamicScrollChannel.trySend(Unit)
+                    BottomNavItem.DYNAMIC -> dynamicScrollChannel.trySend(DynamicScrollRequest.SCROLL_TO_TOP_OR_REFRESH)
                     BottomNavItem.HISTORY -> historyScrollChannel.trySend(Unit)
                     BottomNavItem.PROFILE -> profileScrollChannel.trySend(Unit)
                     BottomNavItem.FAVORITE -> favoriteScrollChannel.trySend(Unit)
@@ -1783,6 +1796,8 @@ fun AppNavigation(
             LocalBottomBarVisible provides (finalBottomBarVisible && !driveBottomBarByProgress),
             LocalBottomBarContentPadding provides bottomBarContentPadding,
             LocalGlobalWallpaperBackdropVisible provides exposeGlobalHomeWallpaperChrome,
+            com.android.purebilibili.feature.home.components.cards.LocalWallpaperPalette provides
+                wallpaperPalette,
             LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
             com.android.purebilibili.core.ui.LocalUpBadgeVisibility provides
                 com.android.purebilibili.core.ui.UpBadgeVisibility(
@@ -1956,6 +1971,11 @@ fun AppNavigation(
                             onHomeDoubleTap = {
                                 homeScrollChannel.trySend(
                                     com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                )
+                            },
+                            onDynamicDoubleTap = {
+                                dynamicScrollChannel.trySend(
+                                    DynamicScrollRequest.SCROLL_TO_TOP_AND_REFRESH
                                 )
                             },
                             hazeState = if (isBottomBarBlurEnabled) mainHazeState else null,
@@ -4255,7 +4275,7 @@ fun AppNavigation(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        val dockAudioContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? =
+                        val dockAudioContent: LinkedDockNowPlayingSlot? =
                             if (showAudioNowPlayingInDock && audioNowPlayingItem != null) {
                                 { audioModifier, dockMergeProgress, iconOnlyProgress, surfaceMergeProgress,
                                     compactClick, layoutStable ->
@@ -4332,7 +4352,7 @@ fun AppNavigation(
                                 }
                             } else null
                         if (!isBottomBarFloating) {
-                            dockAudioContent?.invoke(Modifier, 0f, 0f, 0f, null, true)
+                            dockAudioContent?.invoke(Modifier, { 0f }, { 0f }, { 0f }, null, true)
                         }
                         if (isBottomBarFloating) {
                             val isBookPosture = appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book
@@ -4357,7 +4377,11 @@ fun AppNavigation(
                                             com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
                                         )
                                     },
-                                    onDynamicDoubleTap = { dynamicScrollChannel.trySend(Unit) },
+                                    onDynamicDoubleTap = {
+                                        dynamicScrollChannel.trySend(
+                                            DynamicScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                        )
+                                    },
                                     onSearchClick = { requestSearchFromBottomBar() },
                                     onSearchKeywordSubmit = submitSearchKeywordInNavigation3,
                                     searchLaunchKey = bottomBarSearchLaunchKey,
@@ -4406,7 +4430,11 @@ fun AppNavigation(
                                         com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
                                     )
                                 },
-                                onDynamicDoubleTap = { dynamicScrollChannel.trySend(Unit) },
+                                onDynamicDoubleTap = {
+                                    dynamicScrollChannel.trySend(
+                                        DynamicScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                    )
+                                },
                                 onSearchClick = { requestSearchFromBottomBar() },
                                 onSearchKeywordSubmit = submitSearchKeywordInNavigation3,
                                 searchLaunchKey = bottomBarSearchLaunchKey,

@@ -374,8 +374,7 @@ fun PortraitFullscreenOverlay(
                             AppText(
                                 text = "正在恢复播放...",
                                 color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                         }
                     }
@@ -458,8 +457,7 @@ private fun PortraitProgressControlStrip(
         AppText(
             text = timeLabel,
             color = Color.White.copy(alpha = 0.86f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
         )
         Spacer(modifier = Modifier.weight(1f))
         if (showSubtitleChip) {
@@ -524,8 +522,7 @@ private fun PortraitChromeChip(
         ) {
             AppText(
                 text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

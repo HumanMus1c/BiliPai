@@ -27,3 +27,18 @@ fun resolveHomeSideBarClickAction(
     }
     return HomeSideBarClickAction.NAVIGATE
 }
+
+/**
+ * Maps rapid successive Dynamic taps onto the dynamic double-tap scroll-to-top and refresh behavior
+ * when the navigation item only exposes a single [onClick].
+ */
+fun resolveDynamicSideBarClickAction(
+    item: BottomNavItem,
+    nowMs: Long,
+    lastDynamicClickMs: Long,
+    doubleTapWindowMs: Long = 300L
+): Boolean {
+    if (item != BottomNavItem.DYNAMIC) return false
+    return lastDynamicClickMs > 0L && nowMs - lastDynamicClickMs <= doubleTapWindowMs
+}
+

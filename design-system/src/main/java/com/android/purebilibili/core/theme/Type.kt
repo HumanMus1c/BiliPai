@@ -7,14 +7,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * BiliPai 定制字体系统
+ * 历史 iOS 风格定制字阶（已废弃）。
  * 
- * 层级说明：
- * - headline: 大标题，用于欢迎页、空状态等
- * - title: 页面/区块标题
- * - body: 正文内容
- * - label: 标签、按钮、辅助信息
+ * 请统一使用：
+ * - Material 3 标准规范：[Md3Typography]
+ * - Miuix 紧凑规范：[BiliMiuixTypography]
+ * - 业务层直接消费：MaterialTheme.typography（根据当前主题自动适配）
  */
+@Deprecated(
+    message = "BiliTypography 为历史 iOS 规格字阶，已废弃。请在 Material 3 模式下使用 Md3Typography，在 Miuix 模式下使用 BiliMiuixTypography，或统一通过 MaterialTheme.typography 消费自适应字阶。",
+    replaceWith = ReplaceWith("Md3Typography")
+)
 val BiliTypography = Typography(
     // === Headline 大标题 ===
     headlineLarge = TextStyle(

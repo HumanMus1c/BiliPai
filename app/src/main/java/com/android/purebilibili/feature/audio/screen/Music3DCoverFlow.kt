@@ -56,7 +56,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -428,10 +427,8 @@ internal fun Music3DCoverFlow(
                     AppText(
                         text = "${playingItem.title} - ${playingItem.artist.ifBlank { "未知艺术家" }}",
                         color = pillContentColor.copy(alpha = 0.95f),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)

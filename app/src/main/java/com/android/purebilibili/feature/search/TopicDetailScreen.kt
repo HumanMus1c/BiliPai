@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import coil3.imageLoader
@@ -73,7 +74,6 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.R
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.DynamicPublishTopic
@@ -504,27 +504,27 @@ private fun TopicHeaderCard(
                 modifier = Modifier.size(TOPIC_TAG_CAPSULE_SIZE_DP.dp),
                 iconSize = TOPIC_TAG_CAPSULE_ICON_SIZE_DP.dp,
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = topic?.name.orEmpty().ifBlank { "话题" },
-                    fontSize = 18.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (!topicDescription.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                     AppText(
                         text = topicDescription,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 AppText(
                     text = buildString {
                         append("浏览 ${FormatUtils.formatStat(topic?.view ?: 0)}")
@@ -533,7 +533,7 @@ private fun TopicHeaderCard(
                             append(" · $creatorName")
                         }
                     },
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
                 )
             }

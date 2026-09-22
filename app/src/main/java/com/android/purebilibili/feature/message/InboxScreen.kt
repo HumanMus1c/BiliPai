@@ -32,6 +32,8 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
@@ -51,6 +53,7 @@ import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -405,7 +408,7 @@ private fun MessageCenterShortcutCard(
                         AppText(
                             text = if (item.unreadCount > 99) "99+" else item.unreadCount.toString(),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -430,16 +433,18 @@ private fun MessageSessionCategoryRow(
     selectedCategory: MessageSessionCategory,
     onCategoryClick: (MessageSessionCategory) -> Unit
 ) {
+    val uiStyle = LocalAppUiStyle.current
+    val rowHorizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3) 0.dp else 16.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(vertical = 8.dp)
     ) {
         AppText(
             text = "私信会话",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         )
 
         val options = remember(items) {
@@ -459,7 +464,9 @@ private fun MessageSessionCategoryRow(
             selectedValue = selectedCategory,
             onSelectionChange = onCategoryClick,
             scrollable = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = rowHorizontalPadding),
         )
     }
 }
@@ -513,9 +520,8 @@ private fun MessageUnreadBadge(
         AppText(
             text = text,
             color = MaterialTheme.colorScheme.onPrimary,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 12.sp
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -604,17 +610,17 @@ fun SessionListItem(
                 )
 
                 if (session.top_ts > 0) {
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                     AppText(
                         text = "置顶",
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                                 AppShapes.container(ContainerLevel.Tag)
                             )
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                            .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = 1.dp)
                     )
                 }
 
@@ -710,14 +716,14 @@ fun SessionListItem(
 private fun MessageSmallFlag(text: String) {
     AppText(
         text = text,
-        fontSize = 10.sp,
+        style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                 AppShapes.container(ContainerLevel.Tag)
             )
-            .padding(horizontal = 4.dp, vertical = 1.dp)
+            .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = 1.dp)
     )
 }
 

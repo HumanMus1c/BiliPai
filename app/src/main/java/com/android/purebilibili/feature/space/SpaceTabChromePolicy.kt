@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.space
 
 import com.android.purebilibili.data.model.response.VideoSortOrder
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import kotlin.math.roundToInt
 
@@ -81,14 +82,16 @@ internal fun resolveSpaceContributionTabChromeSpec(
 
 internal fun resolveSpaceSecondarySwitchChromeSpec(
     items: List<SpaceSecondarySwitchItem>,
-    selectedId: String
+    selectedId: String,
+    uiStyle: AppUiStyle = AppUiStyle.MIUIX,
 ): SpaceSegmentedTabChromeSpec {
     val itemWidthDp = resolveSpaceContributionTabItemWidthDpFromTitles(items.map { it.title })
+    val horizontalPaddingDp = if (uiStyle == AppUiStyle.MATERIAL3) 0 else SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
         heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
         indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
-        horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
+        horizontalPaddingDp = horizontalPaddingDp,
         itemWidthDp = itemWidthDp,
         scrollable = items.size > 3,
         liquidGlassEffectsEnabled = true,

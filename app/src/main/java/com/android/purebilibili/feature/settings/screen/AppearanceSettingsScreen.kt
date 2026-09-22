@@ -438,7 +438,7 @@ fun AppearanceSettingsContent(
     val homeWallpaperEffectScopeOptions = remember {
         listOf(
             AppSegmentOption(HomeWallpaperEffectScope.HOME_ONLY, "仅首页"),
-            AppSegmentOption(HomeWallpaperEffectScope.GLOBAL, "全局")
+            AppSegmentOption(HomeWallpaperEffectScope.GLOBAL, "首页与聊天")
         )
     }
     val showPgcTimeline by SettingsManager
@@ -1599,7 +1599,7 @@ fun AppearanceSettingsContent(
                                     title = "壁纸作用范围",
                                     subtitle = when (homeWallpaperEffectScope) {
                                         HomeWallpaperEffectScope.HOME_ONLY -> "仅首页使用该壁纸背景效果"
-                                        HomeWallpaperEffectScope.GLOBAL -> "全局页面复用同一壁纸背景，默认背景层会半透明保护文字"
+                                        HomeWallpaperEffectScope.GLOBAL -> "首页与私信聊天复用同一壁纸背景，默认背景层会半透明保护文字"
                                     },
                                     options = homeWallpaperEffectScopeOptions,
                                     selectedValue = homeWallpaperEffectScope,

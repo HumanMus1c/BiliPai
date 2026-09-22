@@ -52,7 +52,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
 import coil3.ImageLoader
 import coil3.compose.AsyncImage

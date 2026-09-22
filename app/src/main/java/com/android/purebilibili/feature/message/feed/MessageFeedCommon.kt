@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import coil3.compose.AsyncImage
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
+import com.android.purebilibili.feature.message.messageGlassContainer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -236,22 +236,19 @@ internal fun MessageFeedCard(
     content: @Composable () -> Unit
 ) {
     val surfaceSpec = rememberContentCardSurfaceSpec()
-    AppSurface(
-        modifier = modifier,
-        shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel),
-        color = if (surfaceSpec.usesTonalContainerTreatment) {
-            AppSurfaceTokens.surfaceContainer()
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
-        },
-        border = if (surfaceSpec.usesTonalContainerTreatment) {
-            androidx.compose.foundation.BorderStroke(
-                surfaceSpec.borderWidthDp.dp,
-                AppSurfaceTokens.divider().copy(alpha = surfaceSpec.borderAlpha)
+    val shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel)
+    val defaultContainerColor = if (surfaceSpec.usesTonalContainerTreatment) {
+        AppSurfaceTokens.surfaceContainer()
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+    }
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .messageGlassContainer(
+                defaultContainerColor = defaultContainerColor,
+                shape = shape,
             )
-        } else {
-            null
-        }
     ) {
         content()
     }

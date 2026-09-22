@@ -35,7 +35,6 @@ import coil3.compose.AsyncImage
 import coil3.imageLoader
 import com.android.purebilibili.data.model.response.DrawItem
 import com.android.purebilibili.core.ui.components.AppText
-import androidx.compose.ui.unit.sp
 
 /**
  *  图片九宫格V2（支持GIF + 点击预览）

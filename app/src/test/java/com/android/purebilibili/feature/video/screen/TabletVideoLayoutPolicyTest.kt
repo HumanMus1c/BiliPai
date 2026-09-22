@@ -46,7 +46,7 @@ class TabletVideoLayoutPolicyTest {
         assertTrue(source.contains("text = if (isExpanded) \"收起\" else \"展开\""))
         assertTrue(source.contains("padding(horizontal = 16.dp, vertical = 12.dp)"))
         assertTrue(source.contains("NativeDanmakuToggleButton("))
-        assertTrue(source.contains("ownerTrailingContent = {"))
+        assertTrue(source.contains("shouldShowTabletSecondaryDanmakuActions()"))
         assertTrue(source.contains("trailingContent = ownerTrailingContent"))
     }
 

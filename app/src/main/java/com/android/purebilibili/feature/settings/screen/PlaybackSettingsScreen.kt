@@ -56,6 +56,7 @@ import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.LocalSettingsLiquidGlassEnabled
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.theme.iOSTeal
 import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSSystemGray
@@ -433,7 +434,7 @@ fun PlaybackSettingsContent(
                                     Text(
                                         text = "${(hintScale * 100f).roundToInt()}%",
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
@@ -479,7 +480,7 @@ fun PlaybackSettingsContent(
                                     Text(
                                         text = "${(hintAlpha * 100f).roundToInt()}%",
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
@@ -680,16 +681,16 @@ fun PlaybackSettingsContent(
                                     tint = warningTint,
                                     modifier = Modifier.size(22.dp)
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                                 Column(modifier = Modifier.weight(1f)) {
                                     AppText(
                                         "画中画权限未开启",
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = warningTint
                                     )
                                     AppText(
                                         "点击前往系统设置开启",
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                     )
                                 }
@@ -1066,7 +1067,7 @@ fun PlaybackSettingsContent(
                             ) {
                                 AppText(
                                     text = "省流量模式已限制为最高480P",
-                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = iOSGreen.copy(alpha = 0.8f)
                                 )
                             }
@@ -1129,14 +1130,25 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue
                         )
-
-                        //  功能说明
-                        AppPreferenceDivider()
+                    }
+                }
+            }
+            item {
+                Box(modifier = Modifier.entrance()) {
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = AppCardShape.Semantic(ContainerLevel.Dialog),
+                        colors = AppCardDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        )
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalAlignment = Alignment.Top
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppIcon(
                                 com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_info_24),
@@ -1147,9 +1159,8 @@ fun PlaybackSettingsContent(
                             Spacer(modifier = Modifier.width(10.dp))
                             AppText(
                                 "省流量模式会禁用预加载、限制视频最高480P；首页封面是否降清晰度由上方开关决定。",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                lineHeight = 16.sp
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                         }
                     }

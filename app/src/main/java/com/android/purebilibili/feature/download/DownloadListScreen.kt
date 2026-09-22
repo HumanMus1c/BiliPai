@@ -11,6 +11,7 @@ import coil3.network.httpHeaders
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -116,19 +117,16 @@ fun DownloadListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    AppText(
-                        text = "",
-                        fontSize = 48.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
                     AppText(
                         text = "暂无缓存视频",
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                     AppText(
                         text = "在视频详情页点击「缓存」按钮下载",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
@@ -186,13 +184,12 @@ fun DownloadListScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
                             text = currentDir,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            fontSize = 10.sp
                         )
                     }
                 }
@@ -254,7 +251,7 @@ private fun DownloadTaskItem(
                 ) {
                     when (task.status) {
                         DownloadStatus.QUEUED -> {
-                            AppText("排队中", color = Color.White, fontSize = 12.sp)
+                            AppText("排队中", color = Color.White, style = MaterialTheme.typography.labelMedium)
                         }
                         DownloadStatus.DOWNLOADING, DownloadStatus.MERGING -> {
                             AppCircularProgressIndicator(
@@ -265,10 +262,10 @@ private fun DownloadTaskItem(
                             )
                         }
                         DownloadStatus.PAUSED -> {
-                            AppText("已暂停", color = Color.White, fontSize = 12.sp)
+                            AppText("已暂停", color = Color.White, style = MaterialTheme.typography.labelMedium)
                         }
                         DownloadStatus.FAILED -> {
-                            AppText("失败", color = com.android.purebilibili.core.theme.iOSRed, fontSize = 12.sp)
+                            AppText("失败", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                         }
                         else -> {}
                     }
@@ -279,17 +276,17 @@ private fun DownloadTaskItem(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(4.dp)
+                    .padding(AppSpacingTokens.ExtraSmall)
                     .background(
                         Color.Black.copy(alpha = 0.7f),
                         AppShapes.container(ContainerLevel.Tag)
                     )
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
             ) {
                 AppText(
                     text = task.qualityDesc,
                     color = Color.White,
-                    fontSize = 10.sp
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -303,32 +300,32 @@ private fun DownloadTaskItem(
             AppText(
                 text = task.title,
                 fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
 
             resolveDownloadTaskSecondaryText(task)?.let { secondaryText ->
                 AppText(
                     text = secondaryText,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             }
 
             AppText(
                 text = task.ownerName,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
 
             // 状态文字
             val statusText = when (task.status) {
@@ -342,10 +339,10 @@ private fun DownloadTaskItem(
             }
             AppText(
                 text = statusText,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = when (task.status) {
                     DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.secondary
-                    DownloadStatus.FAILED -> com.android.purebilibili.core.theme.iOSRed
+                    DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.primary
                 }
             )
@@ -357,10 +354,10 @@ private fun DownloadTaskItem(
                 assetSummary.danmakuText
             )
             if (assetTexts.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 AppText(
                     text = assetTexts.joinToString(" · "),
-                    fontSize = 10.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -368,14 +365,14 @@ private fun DownloadTaskItem(
             }
 
             if (task.isComplete && !offlinePlayable) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 AppText(
                     text = if (!task.exportedFileUri.isNullOrBlank()) {
                         "已导出到自定义目录，当前列表不直接离线播放"
                     } else {
                         "本地缓存文件不可用"
                     },
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

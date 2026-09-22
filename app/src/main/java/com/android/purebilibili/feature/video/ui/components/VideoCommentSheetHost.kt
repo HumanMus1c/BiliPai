@@ -955,7 +955,7 @@ internal fun VideoCommentMainList(
                             AppText(
                                 text = "说点什么，直接评论 UP 主和大家",
                                 color = appearance.secondaryTextColor,
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                             )
                         }

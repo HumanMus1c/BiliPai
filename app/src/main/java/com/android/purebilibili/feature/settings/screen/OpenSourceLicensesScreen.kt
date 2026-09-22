@@ -23,6 +23,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppSpacingTokens
 
 /**
  *  开源许可证数据类
@@ -395,9 +396,9 @@ fun LicenseCard(
                     ) {
                         AppText(
                             text = library.license,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = 2.dp)
                         )
                     }
                     AppText(

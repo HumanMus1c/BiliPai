@@ -662,158 +662,133 @@ private const val MEDIA_SWITCH_SURFACE_RETRY_INTERVAL_MS = 750L
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-fun VideoPlayerSection(
-    playerState: VideoPlayerState,
-    uiState: VideoPlaybackUiState,
-    isFullscreen: Boolean,
-    isInPipMode: Boolean,
-    contentTopInset: Dp = 0.dp,
-    transitionEnabled: Boolean = true,
-    transitionChromeAlphaProvider: () -> Float = { 1f },
-    danmakuHostActive: Boolean = true,
-    onToggleFullscreen: () -> Unit,
-    onQualityChange: (Int) -> Unit,
-    onBack: () -> Unit,
-    onHomeClick: (() -> Unit)? = null,
-    endDrawerRequestKey: Int = 0,
-    onLandscapeCommentClick: () -> Unit = {},
-    landscapeCommentPanelVisible: Boolean = false,
-    landscapeCommentPanelOnLeft: Boolean = true,
-    onDanmakuInputClick: () -> Unit = {},
-    danmakuComposerVisible: Boolean = false,
-    onDismissDanmakuComposer: () -> Unit = {},
-    onSendDanmakuComposer: (
-        message: String,
-        color: Int,
-        mode: Int,
-        fontSize: Int,
-        attentionCommand: Boolean
-    ) -> Unit = { _, _, _, _, _ -> },
-    isSendingDanmakuComposer: Boolean = false,
-    danmakuComposerInitialText: String = "",
-    danmakuComposerInitialAttentionCommand: Boolean = false,
-    danmakuComposerInitialColor: Int = 16777215,
-    danmakuComposerInitialMode: Int = 1,
-    danmakuComposerInitialFontSize: Int = 25,
-    onDanmakuComposerDraftChange: (String, Boolean) -> Unit = { _, _ -> },
-    onDanmakuComposerSelectionChange: (Int, Int, Int) -> Unit = { _, _, _ -> },
-    // 🔗 [新增] 分享功能
-    bvid: String = "",
-    coverUrl: String = "",
-    /**
-     * Stationary list-card Coil request frozen at click. When set, player cover uses this
-     * exact URL + cache key + size — never [com.android.purebilibili.core.util.FormatUtils.fixImageUrl].
-     */
-    stationaryListCoverUrl: String = "",
-    stationaryListCoverCacheKey: String = "",
-    stationaryListCoverDecodeWidthPx: Int = 0,
-    stationaryListCoverDecodeHeightPx: Int = 0,
-    /**
-     * Shared-element key identity. Prefer route-entry bvid during in-page collection switches so
-     * SharedTransition does not rekey the live player surface into a black frame.
-     */
-    sharedElementBvid: String = "",
-    //  实验性功能：双击点赞
-    onDoubleTapLike: () -> Unit = {},
-    //  空降助手
-    sponsorSegment: com.android.purebilibili.data.model.response.SponsorSegment? = null,
-    showSponsorSkipButton: Boolean = false,
-    onSponsorSkip: () -> Unit = {},
-    onSponsorDismiss: () -> Unit = {},
-    onSponsorVote: (Int) -> Unit = {},
-    sponsorContributionState: SponsorContributionUiState = SponsorContributionUiState(),
-    onSponsorContributionMarkBoundary: () -> Unit = {},
-    onSponsorContributionCategoryChange: (String) -> Unit = {},
-    onSponsorContributionActionTypeChange: (String) -> Unit = {},
-    onSponsorContributionSubmit: () -> Unit = {},
-    onSponsorContributionCancel: () -> Unit = {},
-    //  [新增] 重载视频回调
-    onReloadVideo: () -> Unit = {},
-    //  [新增] CDN 线路切换
-    currentCdnIndex: Int = 0,
-    cdnCount: Int = 1,
-    cdnLineDiagnostics: List<com.android.purebilibili.feature.plugin.CdnLineDiagnostic> = emptyList(),
-    isCdnProbing: Boolean = false,
-    onSwitchCdn: () -> Unit = {},
-    onSwitchCdnTo: (Int) -> Unit = {},
-    onProbeCdnCandidates: () -> Unit = {},
-    
-    //  [新增] 音频模式
-    isAudioOnly: Boolean = false,
-    onAudioOnlyToggle: () -> Unit = {},
-    
-    //  [新增] 定时关闭
-    sleepTimerMinutes: Int? = null,
-    onSleepTimerChange: (Int?) -> Unit = {},
-    
-    // 🖼️ [新增] 视频预览图数据
-    videoshotData: com.android.purebilibili.data.model.response.VideoshotData? = null,
-    
-    // 📖 [新增] 视频章节数据
-    viewPoints: List<ViewPoint> = emptyList(),
-    sponsorMarkers: List<com.android.purebilibili.data.model.response.SponsorProgressMarker> = emptyList(),
-    pbpProgressData: PbpProgressData? = null,
-    onUserSeek: (Long) -> Unit = {},
-    
-    // 📱 [新增] 竖屏全屏模式
-    isVerticalVideo: Boolean = false,
-    onPortraitFullscreen: () -> Unit = {},
-    isPortraitFullscreen: Boolean = false,
-    viewportWidthDpOverride: Int? = null,
-    // 📲 [新增] 小窗模式
-    // 📲 [新增] 小窗模式
-    onPipClick: () -> Unit = {},
-    // [New] Codec & Audio Params
-    currentCodec: String = "hev1", 
-    onCodecChange: (String) -> Unit = {},
-    currentSecondCodec: String = "avc1",
-    onSecondCodecChange: (String) -> Unit = {},
-    currentAudioQuality: Int = -1,
-    onAudioQualityChange: (Int) -> Unit = {},
-    onPlaybackSpeedChange: (Float) -> Boolean = { false },
-    // [New] Audio Language
-    onAudioLangChange: (String) -> Unit = {},
-    // 👀 [新增] 在线观看人数
-    onlineCount: String = "",
-    // [New Actions]
-    onSaveCover: () -> Unit = {},
-    onDownloadAudio: () -> Unit = {},
-    // 🔁 [新增] 播放模式
-    currentPlayMode: com.android.purebilibili.feature.video.player.PlayMode = com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL,
-    onPlayModeClick: () -> Unit = {},
-
-    // [新增] 侧边栏抽屉数据与交互
-    onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = {_,_ -> },
-    relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
-    ugcSeason: com.android.purebilibili.data.model.response.UgcSeason? = null,
-    isFollowed: Boolean = false,
-    isLiked: Boolean = false,
-    isCoined: Boolean = false,
-    isFavorited: Boolean = false,
-    onToggleFollow: () -> Unit = {},
-    onToggleLike: () -> Unit = {},
-    onDislike: () -> Unit = {},
-    onCoin: () -> Unit = {},
-    onToggleFavorite: () -> Unit = {},
-    onTriple: () -> Unit = {},  // [新增] 一键三连回调
-    onPageSelect: (Int) -> Unit = {},
-    hasFavoritePlaylist: Boolean = false,
-    onFavoritePlaylistClick: () -> Unit = {},
-    forceCoverOnly: Boolean = false,
-    preserveCurrentFrameOnFullscreenChange: Boolean = false,
-    liveBackPreview: Boolean = false,
-    useTextureSurfaceForNavigation: Boolean = false,
-    predictiveBackCancelRecoveryGeneration: Int = 0,
-    allowLivePlayerSharedElement: Boolean = true,
-    sourceRouteForSharedElement: String? = null,
-    preserveSourceCardCornerDuringSharedReturn: Boolean = false,
-    suppressSubtitleOverlay: Boolean = false,
-    subtitleDisplayModePreferenceOverride: SubtitleDisplayMode? = null,
-    onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit = {},
-    onSubtitleTrackSelected: (String) -> Unit = {},
-    onLikeDanmaku: (Long) -> Unit = {},
-    onRecallDanmaku: (Long) -> Unit = {},
+internal fun VideoPlayerSection(
+    state: VideoPlayerSectionState,
+    actions: VideoPlayerSectionActions,
 ) {
+    VideoPlayerSectionContent(state = state, actions = actions)
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun VideoPlayerSectionContent(
+    state: VideoPlayerSectionState,
+    actions: VideoPlayerSectionActions,
+) {
+    val playerState = state.playerState
+    val uiState = state.uiState
+    val isFullscreen = state.isFullscreen
+    val isInPipMode = state.isInPipMode
+    val contentTopInset = state.contentTopInset
+    val transitionEnabled = state.transitionEnabled
+    val transitionChromeAlphaProvider = state.transitionChromeAlphaProvider
+    val danmakuHostActive = state.danmakuHostActive
+    val endDrawerRequestKey = state.endDrawerRequestKey
+    val landscapeCommentPanelVisible = state.landscapeCommentPanelVisible
+    val landscapeCommentPanelOnLeft = state.landscapeCommentPanelOnLeft
+    val danmakuComposerVisible = state.danmakuComposerVisible
+    val isSendingDanmakuComposer = state.isSendingDanmakuComposer
+    val danmakuComposerInitialText = state.danmakuComposerInitialText
+    val danmakuComposerInitialAttentionCommand = state.danmakuComposerInitialAttentionCommand
+    val danmakuComposerInitialColor = state.danmakuComposerInitialColor
+    val danmakuComposerInitialMode = state.danmakuComposerInitialMode
+    val danmakuComposerInitialFontSize = state.danmakuComposerInitialFontSize
+    val bvid = state.bvid
+    val coverUrl = state.coverUrl
+    val stationaryListCoverUrl = state.stationaryListCoverUrl
+    val stationaryListCoverCacheKey = state.stationaryListCoverCacheKey
+    val stationaryListCoverDecodeWidthPx = state.stationaryListCoverDecodeWidthPx
+    val stationaryListCoverDecodeHeightPx = state.stationaryListCoverDecodeHeightPx
+    val sharedElementBvid = state.sharedElementBvid
+    val sponsorSegment = state.sponsorSegment
+    val showSponsorSkipButton = state.showSponsorSkipButton
+    val sponsorContributionState = state.sponsorContributionState
+    val currentCdnIndex = state.currentCdnIndex
+    val cdnCount = state.cdnCount
+    val cdnLineDiagnostics = state.cdnLineDiagnostics
+    val isCdnProbing = state.isCdnProbing
+    val isAudioOnly = state.isAudioOnly
+    val sleepTimerMinutes = state.sleepTimerMinutes
+    val videoshotData = state.videoshotData
+    val viewPoints = state.viewPoints
+    val sponsorMarkers = state.sponsorMarkers
+    val pbpProgressData = state.pbpProgressData
+    val isVerticalVideo = state.isVerticalVideo
+    val isPortraitFullscreen = state.isPortraitFullscreen
+    val viewportWidthDpOverride = state.viewportWidthDpOverride
+    val currentCodec = state.currentCodec
+    val currentSecondCodec = state.currentSecondCodec
+    val currentAudioQuality = state.currentAudioQuality
+    val onlineCount = state.onlineCount
+    val currentPlayMode = state.currentPlayMode
+    val relatedVideos = state.relatedVideos
+    val ugcSeason = state.ugcSeason
+    val isFollowed = state.isFollowed
+    val isLiked = state.isLiked
+    val isCoined = state.isCoined
+    val isFavorited = state.isFavorited
+    val hasFavoritePlaylist = state.hasFavoritePlaylist
+    val forceCoverOnly = state.forceCoverOnly
+    val preserveCurrentFrameOnFullscreenChange = state.preserveCurrentFrameOnFullscreenChange
+    val liveBackPreview = state.liveBackPreview
+    val useTextureSurfaceForNavigation = state.useTextureSurfaceForNavigation
+    val predictiveBackCancelRecoveryGeneration = state.predictiveBackCancelRecoveryGeneration
+    val allowLivePlayerSharedElement = state.allowLivePlayerSharedElement
+    val sourceRouteForSharedElement = state.sourceRouteForSharedElement
+    val preserveSourceCardCornerDuringSharedReturn =
+        state.preserveSourceCardCornerDuringSharedReturn
+    val suppressSubtitleOverlay = state.suppressSubtitleOverlay
+    val subtitleDisplayModePreferenceOverride = state.subtitleDisplayModePreferenceOverride
+    val onToggleFullscreen = actions.onToggleFullscreen
+    val onQualityChange = actions.onQualityChange
+    val onBack = actions.onBack
+    val onHomeClick = actions.onHomeClick
+    val onLandscapeCommentClick = actions.onLandscapeCommentClick
+    val onDanmakuInputClick = actions.onDanmakuInputClick
+    val onDismissDanmakuComposer = actions.onDismissDanmakuComposer
+    val onSendDanmakuComposer = actions.onSendDanmakuComposer
+    val onDanmakuComposerDraftChange = actions.onDanmakuComposerDraftChange
+    val onDanmakuComposerSelectionChange = actions.onDanmakuComposerSelectionChange
+    val onDoubleTapLike = actions.onDoubleTapLike
+    val onSponsorSkip = actions.onSponsorSkip
+    val onSponsorDismiss = actions.onSponsorDismiss
+    val onSponsorVote = actions.onSponsorVote
+    val onSponsorContributionMarkBoundary = actions.onSponsorContributionMarkBoundary
+    val onSponsorContributionCategoryChange = actions.onSponsorContributionCategoryChange
+    val onSponsorContributionActionTypeChange = actions.onSponsorContributionActionTypeChange
+    val onSponsorContributionSubmit = actions.onSponsorContributionSubmit
+    val onSponsorContributionCancel = actions.onSponsorContributionCancel
+    val onReloadVideo = actions.onReloadVideo
+    val onSwitchCdn = actions.onSwitchCdn
+    val onSwitchCdnTo = actions.onSwitchCdnTo
+    val onProbeCdnCandidates = actions.onProbeCdnCandidates
+    val onAudioOnlyToggle = actions.onAudioOnlyToggle
+    val onSleepTimerChange = actions.onSleepTimerChange
+    val onUserSeek = actions.onUserSeek
+    val onPortraitFullscreen = actions.onPortraitFullscreen
+    val onPipClick = actions.onPipClick
+    val onCodecChange = actions.onCodecChange
+    val onSecondCodecChange = actions.onSecondCodecChange
+    val onAudioQualityChange = actions.onAudioQualityChange
+    val onPlaybackSpeedChange = actions.onPlaybackSpeedChange
+    val onAudioLangChange = actions.onAudioLangChange
+    val onSaveCover = actions.onSaveCover
+    val onDownloadAudio = actions.onDownloadAudio
+    val onPlayModeClick = actions.onPlayModeClick
+    val onRelatedVideoClick = actions.onRelatedVideoClick
+    val onToggleFollow = actions.onToggleFollow
+    val onToggleLike = actions.onToggleLike
+    val onDislike = actions.onDislike
+    val onCoin = actions.onCoin
+    val onToggleFavorite = actions.onToggleFavorite
+    val onTriple = actions.onTriple
+    val onPageSelect = actions.onPageSelect
+    val onFavoritePlaylistClick = actions.onFavoritePlaylistClick
+    val onSubtitleDisplayModePreferenceOverrideChange =
+        actions.onSubtitleDisplayModePreferenceOverrideChange
+    val onSubtitleTrackSelected = actions.onSubtitleTrackSelected
+    val onLikeDanmaku = actions.onLikeDanmaku
+    val onRecallDanmaku = actions.onRecallDanmaku
     val context = LocalContext.current
     val localDensity = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current

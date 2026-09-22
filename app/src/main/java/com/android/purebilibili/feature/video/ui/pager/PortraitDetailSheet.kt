@@ -125,8 +125,7 @@ fun PortraitDetailSheet(
                     ) {
                         AppText(
                             text = "简介",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
@@ -135,7 +134,7 @@ fun PortraitDetailSheet(
                             AppTextButton(onClick = onDanmakuToggle) {
                                 AppText(
                                     text = if (danmakuEnabled) "弹幕开" else "弹幕关",
-                                    fontSize = 13.sp
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                             AppIconButton(onClick = onDismiss) {
@@ -209,8 +208,7 @@ fun PortraitDetailSheet(
 
                             AppText(
                                 text = info.title,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
@@ -238,8 +236,7 @@ fun PortraitDetailSheet(
                                     ) {
                                         AppText(
                                             text = publishTimeRowText,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
                                         )
@@ -247,7 +244,7 @@ fun PortraitDetailSheet(
                                 } else {
                                     AppText(
                                         text = publishTimeRowText,
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
                                         modifier = Modifier.padding(bottom = 10.dp)
                                     )
@@ -279,15 +276,14 @@ fun PortraitDetailSheet(
                                 ) {
                                     AppText(
                                         text = info.owner.name,
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                                         color = if (isBlocked) Color.Red else MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
                                         modifier = Modifier.clickable { showBlockConfirmDialog = true }
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     AppText(
                                         text = "${FormatUtils.formatStat(info.stat.view.toLong())}观看 · ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕",
-                                        fontSize = 11.sp,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -296,7 +292,7 @@ fun PortraitDetailSheet(
                             // VID Info
                             AppText(
                                 text = info.bvid,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
@@ -304,8 +300,7 @@ fun PortraitDetailSheet(
                             // 简介正文
                             AppText(
                                 text = info.desc.ifEmpty { "暂无简介" },
-                                fontSize = 15.sp,
-                                lineHeight = 24.sp,
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
@@ -366,8 +361,7 @@ fun PortraitDetailSheet(
                             if (recommendations.isNotEmpty()) {
                                 AppText(
                                     text = recommendationTitle,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 10.dp)
                                 )
@@ -396,14 +390,14 @@ fun PortraitDetailSheet(
                                         ) {
                                             AppText(
                                                 text = video.title,
-                                                fontSize = 13.sp,
+                                                style = MaterialTheme.typography.bodyMedium,
                                                 maxLines = 2,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
                                             AppText(
                                                 text = "${video.owner.name} · ${FormatUtils.formatStat(video.stat.view.toLong())}播放",
-                                                fontSize = 11.sp,
+                                                style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
@@ -437,8 +431,7 @@ private fun PortraitCollectionSection(
     if (items.isEmpty()) return
     AppText(
         text = title,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(bottom = 10.dp)
     )
@@ -470,8 +463,9 @@ private fun PortraitCollectionSection(
                 ) {
                     AppText(
                         text = item.label,
-                        fontSize = 13.sp,
-                        fontWeight = if (item.selected) FontWeight.SemiBold else FontWeight.Normal,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = if (item.selected) FontWeight.SemiBold else FontWeight.Normal
+                        ),
                         color = if (item.selected) {
                             MaterialTheme.colorScheme.primary
                         } else {

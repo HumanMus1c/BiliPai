@@ -69,11 +69,10 @@ fun SpeedSelectionMenu(
             AppText(
                 text = "播放速度",
                 color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
-            // 速度选项
             // 速度选项
             var isCustomMode by remember { mutableStateOf(currentSpeed !in PlaybackSpeed.OPTIONS && currentSpeed != 1.0f) }
             
@@ -86,7 +85,7 @@ fun SpeedSelectionMenu(
                     AppText(
                         text = "自定义: ${PlaybackSpeed.formatSpeedFull(currentSpeed)}",
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
@@ -104,8 +103,8 @@ fun SpeedSelectionMenu(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        AppText("0.1x", color = Color.White.copy(0.5f), fontSize = 10.sp)
-                        AppText("8.0x", color = Color.White.copy(0.5f), fontSize = 10.sp)
+                        AppText("0.1x", color = Color.White.copy(0.5f), style = MaterialTheme.typography.labelSmall)
+                        AppText("8.0x", color = Color.White.copy(0.5f), style = MaterialTheme.typography.labelSmall)
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
@@ -168,7 +167,7 @@ fun SpeedSelectionMenu(
                         AppText(
                             text = PlaybackSpeed.formatSpeedFull(speed),
                             color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
                         )
@@ -189,7 +188,7 @@ fun SpeedSelectionMenu(
                          AppText(
                             text = "自定义倍速...",
                             color = Color.White.copy(0.9f),
-                            fontSize = 14.sp
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -216,7 +215,7 @@ fun SpeedButton(
         AppText(
             text = PlaybackSpeed.formatSpeed(currentSpeed),
             color = if (currentSpeed != 1.0f) MaterialTheme.colorScheme.primary else Color.White,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = if (currentSpeed != 1.0f) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )

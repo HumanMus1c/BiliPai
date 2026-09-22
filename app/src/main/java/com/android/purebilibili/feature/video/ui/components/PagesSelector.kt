@@ -56,7 +56,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.data.model.response.Page
 import top.yukonga.miuix.kmp.basic.DropdownImpl
@@ -156,16 +155,14 @@ fun PagesSelector(
         ) {
             AppText(
                 text = "选集",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                ),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.width(8.dp))
             AppText(
                 text = "(${pages.size})",
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -284,10 +281,8 @@ fun PagesSelector(
                 ) {
                     AppText(
                         text = "分集(${pages.size})",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -494,14 +489,14 @@ private fun PageSelectorItem(
         ) {
             AppText(
                 text = "P${page.page}",
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(6.dp))
             AppText(
                 text = page.part.ifEmpty { "第${page.page}P" },
-                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                style = MaterialTheme.typography.bodyMedium,
                 minLines = 2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

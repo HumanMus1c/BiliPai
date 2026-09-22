@@ -96,9 +96,8 @@ fun CommentFraudResultDialog(
         text = {
             AppText(
                 text = description,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 20.sp
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         confirmButton = {
@@ -154,7 +153,7 @@ fun CommentFraudDetectingBanner(
             Spacer(modifier = Modifier.width(8.dp))
             AppText(
                 text = "正在检测评论可见性…",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

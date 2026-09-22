@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -32,7 +32,7 @@ private fun AudioFormatBadge(text: String, accent: Color, background: Color, mod
         shape = AppShapes.container(ContainerLevel.Tag), border = BorderStroke(0.75.dp, accent),
     ) {
         AppText(
-            text = text, fontSize = 8.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp,
+            text = text, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
     }

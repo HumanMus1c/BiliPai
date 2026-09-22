@@ -287,7 +287,7 @@ internal fun VideoDetailFollowGroupDialog(
                         AppText(
                             text = "暂无可用分组（不勾选即为默认分组）",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
+                            style = MaterialTheme.typography.bodySmall
                         )
                     } else {
                         followGroupTags.forEach { tag ->
@@ -304,7 +304,7 @@ internal fun VideoDetailFollowGroupDialog(
                                 )
                                 AppText(
                                     text = "${tag.name} (${tag.count})",
-                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -313,7 +313,7 @@ internal fun VideoDetailFollowGroupDialog(
                     AppText(
                         text = "可多选，确定后覆盖原分组设置。",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -816,7 +816,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -841,7 +841,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                             ) {
                                 AppText(
                                     text = "无封面",
-                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
                                 )
                             }
@@ -861,7 +861,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                             text = item.owner,
                             maxLines = 1,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                     if (selected) {

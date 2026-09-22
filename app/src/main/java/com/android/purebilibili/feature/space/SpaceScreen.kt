@@ -913,7 +913,7 @@ fun SpaceScreen(
                             AppText(
                                 text = "暂无可用分组（不勾选即为默认分组）",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 13.sp
+                                style = MaterialTheme.typography.bodySmall
                             )
                         } else {
                             followGroupTags.forEach { tag ->
@@ -930,7 +930,7 @@ fun SpaceScreen(
                                     )
                                     AppText(
                                         text = "${tag.name} (${tag.count})",
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
@@ -939,7 +939,7 @@ fun SpaceScreen(
                         AppText(
                             text = "可多选，确定后覆盖原分组设置。",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -1006,13 +1006,12 @@ private fun SpacePlayedVideoLocatePrompt(
             ) {
                 AppText(
                     text = "刚刚看过",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                 )
                 AppText(
                     text = "是否定位到视频投稿",
                     modifier = Modifier.padding(top = 2.dp),
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Row(
@@ -1848,7 +1847,7 @@ private fun SpaceContent(
                                     val totalCount = state.totalVideos.takeIf { it > 0 } ?: state.videos.size
                                     AppText(
                                         text = "共${totalCount}视频",
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
@@ -1870,7 +1869,7 @@ private fun SpaceContent(
                                         )
                                         AppText(
                                             text = "播放全部",
-                                            fontSize = 13.sp,
+                                            style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -1894,7 +1893,7 @@ private fun SpaceContent(
                                             )
                                             AppText(
                                                 text = resolveSpaceVideoSortCompactLabel(state.sortOrder) + "发布",
-                                                fontSize = 13.sp,
+                                                style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
@@ -2813,8 +2812,7 @@ private fun SpaceHeaderIdentityInfo(
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .copyOnLongPress(userInfo.name, "UP主名称"),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = if (userInfo.vip.status == 1 && userInfo.vip.type == 2) {
                         Color(0xFFFB7299)
                     } else if (userInfo.vip.status == 1) {
@@ -2877,8 +2875,7 @@ private fun SpaceHeaderIdentityInfo(
                 AppText(
                     text = userInfo.sign.trim(),
                     modifier = Modifier.copyOnLongPress(userInfo.sign, "UP主简介"),
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis
@@ -2899,7 +2896,7 @@ private fun SpaceHeaderIdentityInfo(
                         AppText(
                             text = "UID: ${userInfo.mid}",
                             modifier = Modifier.copyOnLongPress(userInfo.mid.toString(), "UID"),
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -2917,7 +2914,7 @@ private fun SpaceHeaderIdentityInfo(
                         AppText(
                             text = tag.title,
                             modifier = tagModifier,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = if (hasUri) {
                                 MaterialTheme.colorScheme.secondary
                             } else {
@@ -3059,8 +3056,13 @@ private fun SpaceSecondarySwitchRow(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val spec = remember(items, selectedId) {
-        resolveSpaceSecondarySwitchChromeSpec(items = items, selectedId = selectedId)
+    val uiStyle = LocalAppUiStyle.current
+    val spec = remember(items, selectedId, uiStyle) {
+        resolveSpaceSecondarySwitchChromeSpec(
+            items = items,
+            selectedId = selectedId,
+            uiStyle = uiStyle,
+        )
     }
     Box(
         modifier = modifier
@@ -3131,14 +3133,13 @@ private fun SpaceSectionHeader(
     ) {
         AppText(
             text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.width(8.dp))
         AppText(
             text = count.toString(),
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.weight(1f))
@@ -3381,8 +3382,7 @@ private fun SpaceHomeVideoCard(
                     AppText(
                         text = badgeLabel,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -3407,10 +3407,8 @@ private fun SpaceHomeVideoCard(
             if (video.length.isNotBlank()) {
                 AppText(
                     text = video.length,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
                     color = Color.White,
-                    style = coverOverlayTextStyle,
+                    style = MaterialTheme.typography.labelSmall.merge(coverOverlayTextStyle),
                     maxLines = 1,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -3459,7 +3457,7 @@ private fun SpaceHomeVideoCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 AppText(
                     text = metadata,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     overflow = TextOverflow.Visible
                 )
@@ -3590,9 +3588,7 @@ private fun SpaceAggregateMediaCard(
         Spacer(modifier = Modifier.height(8.dp))
         AppText(
             text = item.title,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             maxLines = videoCardTitleMaxLines(),
             overflow = videoCardTitleOverflow(),
             color = MaterialTheme.colorScheme.onSurface
@@ -3632,9 +3628,7 @@ private fun SpaceAggregatePosterCard(
         Spacer(modifier = Modifier.height(8.dp))
         AppText(
             text = item.title,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             maxLines = videoCardTitleMaxLines(),
             overflow = videoCardTitleOverflow()
         )
@@ -3642,7 +3636,7 @@ private fun SpaceAggregatePosterCard(
             Spacer(modifier = Modifier.height(4.dp))
             AppText(
                 text = item.subtitle,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 overflow = TextOverflow.Visible
             )
@@ -3741,8 +3735,7 @@ private fun SpaceTopVideoCard(
     ) {
         AppText(
             text = "置顶视频",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -3762,20 +3755,18 @@ private fun SpaceTopVideoCard(
             infoContent = {
                 AppText(
                     text = video.title,
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                     maxLines = videoCardTitleMaxLines(),
                     overflow = videoCardTitleOverflow()
                 )
                 AppText(
                     text = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
                 AppText(
                     text = "${FormatUtils.formatStat(video.stat.view)}播放 · ${FormatUtils.formatStat(video.stat.like)}点赞",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -3795,14 +3786,12 @@ private fun SpaceNoticeCard(notice: String) {
     ) {
         AppText(
             text = "公告",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(modifier = Modifier.height(10.dp))
         AppText(
             text = notice,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -4056,8 +4045,7 @@ private fun SpaceArchiveListItemRow(
                     AppText(
                         text = badgeLabel,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -4091,16 +4079,14 @@ private fun SpaceArchiveListItemRow(
             AppText(
                 text = title,
                 modifier = Modifier.fillMaxWidth(),
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 maxLines = videoCardTitleMaxLines(),
                 overflow = videoCardTitleOverflow(),
                 color = MaterialTheme.colorScheme.onSurface
             )
             AppText(
                 text = if (progressState?.progressSec == -1) "$publishTime · 已看完" else publishTime,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HorizontalVideoStatRow(
@@ -4157,15 +4143,14 @@ private fun SpaceAudioListItem(
         Column(modifier = Modifier.weight(1f)) {
             AppText(
                 text = audio.title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(6.dp))
             AppText(
                 text = "${FormatUtils.formatStat(audio.play_count.toLong())}播放 · ${FormatUtils.formatDuration(audio.duration)}",
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -4208,9 +4193,9 @@ private fun SpaceArticleListItem(
             desc = remember(article.title) { DynamicDesc(text = article.title) },
             onUserClick = {},
             onBlankTap = onClick,
-            fontSize = 17.sp,
+            fontSize = MaterialTheme.typography.titleMedium.fontSize,
             fontWeight = FontWeight.SemiBold,
-            lineHeight = 24.sp,
+            lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -4241,7 +4226,7 @@ private fun SpaceArticleListItem(
         Spacer(modifier = Modifier.height(10.dp))
         AppText(
             text = buildSpaceArticleStatsText(article),
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         AppHorizontalDivider(
@@ -4274,21 +4259,20 @@ private fun SpaceFavoriteFolderRow(
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = folder.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 AppText(
                     text = "${folder.media_count} 个视频",
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             AppText(
                 text = "查看",
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -4332,16 +4316,14 @@ private fun SpaceBangumiCard(
         Spacer(modifier = Modifier.height(8.dp))
         AppText(
             text = item.title,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             maxLines = videoCardTitleMaxLines(),
             overflow = videoCardTitleOverflow()
         )
         Spacer(modifier = Modifier.height(4.dp))
         AppText(
             text = item.newEp?.indexShow?.ifBlank { item.progress }.orEmpty().ifBlank { item.evaluate },
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -4399,8 +4381,7 @@ private fun SpaceCheeseCard(
                         AppText(
                             text = item.marks.joinToString(" · "),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -4412,9 +4393,7 @@ private fun SpaceCheeseCard(
             ) {
                 AppText(
                     text = item.title,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -4422,7 +4401,7 @@ private fun SpaceCheeseCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = item.status,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -4437,7 +4416,7 @@ private fun SpaceCheeseCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = "更新于 $ctimeFormatted",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -4550,23 +4529,21 @@ private fun SpaceCollectionSummaryCard(
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 AppText(
                     text = "$total 个内容",
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
                 if (subtitle.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     AppText(
                         text = subtitle,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -4625,23 +4602,21 @@ private fun SpaceCollectionWithPreviewCard(
                 Column(modifier = Modifier.weight(1f)) {
                     AppText(
                         text = title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     AppText(
                         text = "$total 个内容",
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                     if (subtitle.isNotBlank()) {
                         Spacer(modifier = Modifier.height(6.dp))
                         AppText(
                             text = subtitle,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
@@ -4671,8 +4646,7 @@ private fun SpaceCollectionWithPreviewCard(
                             Spacer(modifier = Modifier.height(6.dp))
                             AppText(
                                 text = preview.title,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -4717,9 +4691,7 @@ private fun SpaceOfficialTag(
             Spacer(modifier = Modifier.width(4.dp))
             AppText(
                 text = badge.text,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
         }
@@ -4741,8 +4713,7 @@ private fun SpaceBadgeChip(
         AppText(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
             color = contentColor
         )
     }
@@ -4822,8 +4793,7 @@ private fun SpaceHeaderRelationActions(
                 }
                 AppText(
                     text = followLabel,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = followButtonColors.textColor,
                     maxLines = 1,
                     softWrap = false
@@ -4858,8 +4828,7 @@ private fun SpaceHeaderStat(
     ) {
         AppText(
             text = FormatUtils.formatStat(value),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -4867,7 +4836,7 @@ private fun SpaceHeaderStat(
         Spacer(modifier = Modifier.height(2.dp))
         AppText(
             text = label,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -5029,7 +4998,7 @@ private fun SpaceHeaderTitleBadge(
         Column(horizontalAlignment = Alignment.End) {
             AppText(
                 text = title.title,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -5037,8 +5006,7 @@ private fun SpaceHeaderTitleBadge(
             if (title.subTitle.isNotBlank()) {
                 AppText(
                     text = title.subTitle,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = subTitleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -5084,7 +5052,7 @@ private fun SpaceFollowedUpSection(
         Spacer(modifier = Modifier.width(6.dp))
         AppText(
             text = namesText,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -5092,7 +5060,7 @@ private fun SpaceFollowedUpSection(
         )
         AppText(
             text = suffixText,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline,
             maxLines = 1
         )
@@ -5127,8 +5095,7 @@ private fun SpaceBanBanner(
             )
             AppText(
                 text = "该账号封禁中",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
         }
@@ -5172,15 +5139,13 @@ private fun SpaceSectionEmptyState(
     ) {
         AppText(
             text = title,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(titleGap))
         AppText(
             text = subtitle,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
+            style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -5207,7 +5172,7 @@ private fun SpaceErrorSection(
     ) {
         AppText(
             text = message,
-            fontSize = 15.sp,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(actionGap))
@@ -5229,7 +5194,7 @@ private fun SpaceErrorState(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             AppText(
                 text = message,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))

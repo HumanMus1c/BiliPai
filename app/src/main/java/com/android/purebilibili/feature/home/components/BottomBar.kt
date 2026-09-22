@@ -2209,7 +2209,7 @@ fun FrostedBottomBar(
     currentItem: BottomNavItem = BottomNavItem.HOME,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
+    nowPlayingContent: LinkedDockNowPlayingSlot? = null,
     hazeState: HazeState? = null,
     isFloating: Boolean = true,
     labelMode: Int = 1,
@@ -2251,20 +2251,37 @@ fun FrostedBottomBar(
     val isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet
     val effectiveToggleSidebar = onToggleSidebar.takeUnless { forceBottomNavigation }
     var lastHomeClickMs by remember { mutableLongStateOf(0L) }
+    var lastDynamicClickMs by remember { mutableLongStateOf(0L) }
     val resolvedItemClick: (BottomNavItem) -> Unit = { item ->
         val nowMs = SystemClock.elapsedRealtime()
-        when (
-            resolveHomeSideBarClickAction(
-                item = item,
-                nowMs = nowMs,
-                lastHomeClickMs = lastHomeClickMs,
-            )
-        ) {
-            HomeSideBarClickAction.HOME_DOUBLE_TAP -> onHomeDoubleTap()
-            HomeSideBarClickAction.NAVIGATE -> onItemClick(item)
-        }
-        if (item == BottomNavItem.HOME) {
-            lastHomeClickMs = nowMs
+        val isDynamicDoubleTap = resolveDynamicSideBarClickAction(
+            item = item,
+            nowMs = nowMs,
+            lastDynamicClickMs = lastDynamicClickMs
+        )
+        if (isDynamicDoubleTap) {
+            lastDynamicClickMs = 0L
+            onDynamicDoubleTap()
+        } else {
+            when (
+                resolveHomeSideBarClickAction(
+                    item = item,
+                    nowMs = nowMs,
+                    lastHomeClickMs = lastHomeClickMs,
+                )
+            ) {
+                HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
+                    lastHomeClickMs = 0L
+                    onHomeDoubleTap()
+                }
+                HomeSideBarClickAction.NAVIGATE -> onItemClick(item)
+            }
+            if (item == BottomNavItem.HOME) {
+                lastHomeClickMs = nowMs
+            }
+            if (item == BottomNavItem.DYNAMIC) {
+                lastDynamicClickMs = nowMs
+            }
         }
     }
     ProvideBottomBarSkinMotion(uiSkinDecoration) {
@@ -2347,7 +2364,7 @@ private fun MaterialBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
+    nowPlayingContent: LinkedDockNowPlayingSlot? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -2916,7 +2933,7 @@ private fun MiuixBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
+    nowPlayingContent: LinkedDockNowPlayingSlot? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
@@ -3348,7 +3365,7 @@ private fun BiliPaiFloatingBottomBar(
     currentItem: BottomNavItem,
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
-    nowPlayingContent: (@Composable (Modifier, Float, Float, Float, (() -> Unit)?, Boolean) -> Unit)? = null,
+    nowPlayingContent: LinkedDockNowPlayingSlot? = null,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String> = emptyMap(),
     itemColorIndices: Map<String, Int> = emptyMap(),
@@ -4426,12 +4443,12 @@ private fun BiliPaiBottomBarSearchCapsule(
     val currentOnCompactClick by rememberUpdatedState(onCompactClick)
     val currentOnSubmit by rememberUpdatedState(onSubmit)
     val currentHaptic by rememberUpdatedState(haptic)
-    val fieldAlpha by animateFloatAsState(
+    val fieldAlpha = animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = bottomBarContentVisibilityMotionSpec(),
         label = "bottomBarSearchFieldAlpha"
     )
-    val iconScale by animateFloatAsState(
+    val iconScale = animateFloatAsState(
         targetValue = if (expanded) 0.92f else 1f,
         animationSpec = bottomBarContentVisibilityMotionSpec(),
         label = "bottomBarSearchIconScale"
@@ -4485,8 +4502,8 @@ private fun BiliPaiBottomBarSearchCapsule(
             },
             contentColor = contentColor,
             accentColor = accentColor,
-            iconScale = iconScale,
-            fieldAlpha = fieldAlpha,
+            iconScale = { iconScale.value },
+            fieldAlpha = { fieldAlpha.value },
             interactive = true,
             iconStyle = iconStyle
         )
@@ -4501,8 +4518,8 @@ internal fun BiliPaiBottomBarSearchVisualContent(
     onSubmit: () -> Unit,
     contentColor: Color,
     accentColor: Color,
-    iconScale: Float,
-    fieldAlpha: Float,
+    iconScale: () -> Float,
+    fieldAlpha: () -> Float,
     interactive: Boolean,
     iconStyle: SharedFloatingBottomBarIconStyle
 ) {
@@ -4544,8 +4561,9 @@ internal fun BiliPaiBottomBarSearchVisualContent(
                 modifier = Modifier
                     .size(AppSpacingTokens.ExtraLarge)
                     .graphicsLayer {
-                        scaleX = iconScale
-                        scaleY = iconScale
+                        val scale = iconScale()
+                        scaleX = scale
+                        scaleY = scale
                     }
             )
         }
@@ -4563,7 +4581,7 @@ internal fun BiliPaiBottomBarSearchVisualContent(
                     modifier = Modifier
                         .focusRequester(focusRequester)
                         .weight(1f)
-                        .alpha(fieldAlpha),
+                        .graphicsLayer { alpha = fieldAlpha() },
                     decorationBox = { innerTextField ->
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (query.isBlank()) {
@@ -4582,7 +4600,7 @@ internal fun BiliPaiBottomBarSearchVisualContent(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .alpha(fieldAlpha),
+                        .graphicsLayer { alpha = fieldAlpha() },
                     contentAlignment = Alignment.CenterStart
                 ) {
                     AppText(

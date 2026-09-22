@@ -67,8 +67,7 @@ fun EmotePanelSheet(
             ) {
                 AppText(
                     text = "表情",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -92,7 +91,7 @@ fun EmotePanelSheet(
                     AppText(
                         text = "暂无表情包",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             } else {

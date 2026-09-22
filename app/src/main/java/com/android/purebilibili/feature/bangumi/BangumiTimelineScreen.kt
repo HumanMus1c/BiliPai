@@ -259,7 +259,7 @@ private fun DayChip(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 AppText(
                     text = if (isToday) "今天" else weekDay,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                     color = when {
                         isSelected -> MaterialTheme.colorScheme.onPrimary
@@ -270,7 +270,7 @@ private fun DayChip(
                 Spacer(modifier = Modifier.height(2.dp))
                 AppText(
                     text = displayDate,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = when {
                         isSelected -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -326,7 +326,7 @@ private fun TimelineEpisodeCard(
                     ) {
                         AppText(
                             "追番",
-                            fontSize = 9.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color.White
                         )
                     }
@@ -341,7 +341,7 @@ private fun TimelineEpisodeCard(
             ) {
                 AppText(
                     text = episode.title,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -355,7 +355,7 @@ private fun TimelineEpisodeCard(
                     // 更新集数
                     AppText(
                         text = resolveTimelineEpisodeUpdateLabel(episode),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                     
@@ -364,7 +364,7 @@ private fun TimelineEpisodeCard(
                     // 更新时间
                     AppText(
                         text = episode.pubTime,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -375,7 +375,7 @@ private fun TimelineEpisodeCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = scheduleLabel,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )
                 }

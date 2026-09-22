@@ -282,7 +282,7 @@ fun AspectRatioButton(
             AppText(
                 text = currentRatio.displayName,
                 color = Color.White,
-                fontSize = 12.sp
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }

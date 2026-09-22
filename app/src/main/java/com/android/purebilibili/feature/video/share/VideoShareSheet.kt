@@ -110,9 +110,7 @@ internal fun VideoShareSheet(
             AppText(
                 text = "分享",
                 modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 18.dp),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
             )
 
             Row(
@@ -187,19 +185,18 @@ internal fun VideoShareSheet(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(56.dp)
                     .clickable(onClick = onDismiss),
                 contentAlignment = Alignment.Center
             ) {
                 AppText(
                     text = "取消",
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
             }
         }
@@ -244,8 +241,7 @@ private fun VideoShareSheetItemView(
                 AppText(
                     text = item.iconText.orEmpty(),
                     color = item.contentColor,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -253,7 +249,7 @@ private fun VideoShareSheetItemView(
         AppText(
             text = item.label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

@@ -715,8 +715,7 @@ internal fun SubReplyDetailContent(
             ) {
                 AppText(
                     text = if (effectiveConversationMode) "对话详情" else "评论详情",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = appearance.primaryTextColor
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -806,17 +805,15 @@ internal fun SubReplyDetailContent(
                                         showLoadedReplyCount = showLoadedReplyCount,
                                     )
                                 },
-                                fontSize = 14.sp,
-                                color = appearance.primaryTextColor,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = appearance.primaryTextColor
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             if (effectiveConversationMode) {
                                 AppText(
                                     text = "返回全部回复",
-                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                                     color = appearance.sortTint,
-                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier
                                         .clickable {
                                             if (isConversationMode) {
@@ -845,9 +842,8 @@ internal fun SubReplyDetailContent(
                                     )
                                     AppText(
                                         text = sortMode.label,
-                                        fontSize = 14.sp,
-                                        color = appearance.sortTint,
-                                        fontWeight = FontWeight.Medium
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = appearance.sortTint
                                     )
                                 }
                             }
@@ -957,9 +953,8 @@ internal fun SubReplyDetailContent(
                                 .clickable(onClick = onLoadMore)
                                 .padding(horizontal = 16.dp, vertical = 18.dp),
                             textAlign = TextAlign.Center,
-                            fontSize = 14.sp,
-                            color = appearance.sortTint,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = appearance.sortTint
                         )
                     }
                 }
@@ -1211,8 +1206,7 @@ private fun SubReplyDetailItem(
                         ) {
                             AppText(
                                 text = item.member.uname,
-                                fontSize = if (isRootItem) 15.sp else 14.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                style = if (isRootItem) MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold) else MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = nameColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1234,7 +1228,7 @@ private fun SubReplyDetailItem(
 
                         AppText(
                             text = metadataText,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = appearance.secondaryTextColor
                         )
                     }
@@ -1266,7 +1260,7 @@ private fun SubReplyDetailItem(
                 Spacer(modifier = Modifier.height(10.dp))
                 ReplyMessageText(
                     text = displayMessage,
-                    fontSize = if (isRootItem) 16.sp else 15.sp,
+                    fontSize = if (isRootItem) MaterialTheme.typography.bodyLarge.fontSize else MaterialTheme.typography.bodyMedium.fontSize,
                     color = appearance.primaryTextColor,
                     emoteMap = localEmoteMap,
                     content = item.content,
@@ -1361,7 +1355,7 @@ private fun SubReplyDetailItem(
                                 Spacer(modifier = Modifier.width(3.dp))
                                 AppText(
                                     text = translateLabel,
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = if (isTranslated) appearance.accentColor else appearance.actionTint
                                 )
                             }
@@ -1378,7 +1372,7 @@ private fun SubReplyDetailItem(
                         Spacer(modifier = Modifier.width(18.dp))
                         AppText(
                             text = "查看对话",
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             color = appearance.actionTint,
                             modifier = Modifier
                                 .testTag("$SUB_REPLY_DETAIL_CONVERSATION_TAG_PREFIX${item.rpid}")
@@ -1420,7 +1414,7 @@ private fun SubReplyDetailItem(
                             Spacer(modifier = Modifier.width(4.dp))
                             AppText(
                                 text = FormatUtils.formatStat(displayLikeCount.toLong()),
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = if (isLiked) appearance.accentColor else appearance.actionTint
                             )
                         }
@@ -1552,7 +1546,7 @@ private fun SubReplyTextAction(
         Spacer(modifier = Modifier.width(6.dp))
         AppText(
             text = label,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.labelMedium,
             color = appearance.actionTint
         )
     }

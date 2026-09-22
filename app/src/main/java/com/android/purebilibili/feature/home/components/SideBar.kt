@@ -87,6 +87,7 @@ fun FrostedSideBar(
     firstItemModifier: Modifier = Modifier,
     hazeState: HazeState? = null,
     onHomeDoubleTap: () -> Unit = {},
+    onDynamicDoubleTap: () -> Unit = {},
     visibleItems: List<BottomNavItem> = listOf(
         BottomNavItem.HOME,
         BottomNavItem.DYNAMIC,
@@ -114,6 +115,7 @@ fun FrostedSideBar(
                 firstItemModifier = firstItemModifier,
                 hazeState = hazeState,
                 onHomeDoubleTap = onHomeDoubleTap,
+                onDynamicDoubleTap = onDynamicDoubleTap,
                 visibleItems = visibleItems,
                 itemLabels = itemLabels,
                 uiSkinDecoration = uiSkinDecoration,
@@ -130,6 +132,7 @@ fun FrostedSideBar(
                 firstItemModifier = firstItemModifier,
                 hazeState = hazeState,
                 onHomeDoubleTap = onHomeDoubleTap,
+                onDynamicDoubleTap = onDynamicDoubleTap,
                 visibleItems = visibleItems,
                 itemLabels = itemLabels,
                 uiSkinDecoration = uiSkinDecoration,
@@ -148,6 +151,7 @@ private fun MiuixSideBar(
     firstItemModifier: Modifier,
     hazeState: HazeState?,
     onHomeDoubleTap: () -> Unit,
+    onDynamicDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
@@ -183,6 +187,7 @@ private fun MiuixSideBar(
         chromeBackground
     }
     var lastHomeClickMs by remember { mutableLongStateOf(0L) }
+    var lastDynamicClickMs by remember { mutableLongStateOf(0L) }
 
     AppPlatformNavigationRail(
         expanded = expandable,
@@ -216,26 +221,41 @@ private fun MiuixSideBar(
             }
             val onItemTap = {
                 val nowMs = SystemClock.elapsedRealtime()
-                when (
-                    resolveHomeSideBarClickAction(
-                        item = item,
-                        nowMs = nowMs,
-                        lastHomeClickMs = lastHomeClickMs
-                    )
-                ) {
-                    HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
-                        haptic(HapticType.MEDIUM)
-                        onHomeDoubleTap()
-                    }
-                    HomeSideBarClickAction.NAVIGATE -> {
-                        performHomeSideBarItemTap(
-                            haptic = haptic,
-                            onClick = { onItemClick(item) }
+                val isDynamicDoubleTap = resolveDynamicSideBarClickAction(
+                    item = item,
+                    nowMs = nowMs,
+                    lastDynamicClickMs = lastDynamicClickMs
+                )
+                if (isDynamicDoubleTap) {
+                    lastDynamicClickMs = 0L
+                    haptic(HapticType.MEDIUM)
+                    onDynamicDoubleTap()
+                } else {
+                    when (
+                        resolveHomeSideBarClickAction(
+                            item = item,
+                            nowMs = nowMs,
+                            lastHomeClickMs = lastHomeClickMs
                         )
+                    ) {
+                        HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
+                            lastHomeClickMs = 0L
+                            haptic(HapticType.MEDIUM)
+                            onHomeDoubleTap()
+                        }
+                        HomeSideBarClickAction.NAVIGATE -> {
+                            if (item == BottomNavItem.HOME) {
+                                lastHomeClickMs = nowMs
+                            }
+                            if (item == BottomNavItem.DYNAMIC) {
+                                lastDynamicClickMs = nowMs
+                            }
+                            performHomeSideBarItemTap(
+                                haptic = haptic,
+                                onClick = { onItemClick(item) }
+                            )
+                        }
                     }
-                }
-                if (item == BottomNavItem.HOME) {
-                    lastHomeClickMs = nowMs
                 }
             }
 
@@ -366,6 +386,7 @@ private fun FrostedSideBarContent(
     firstItemModifier: Modifier,
     hazeState: HazeState?,
     onHomeDoubleTap: () -> Unit,
+    onDynamicDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
     itemLabels: Map<String, String>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
@@ -374,6 +395,7 @@ private fun FrostedSideBarContent(
 ) {
     val haptic = rememberHapticFeedback()
     var lastHomeClickMs by remember { mutableLongStateOf(0L) }
+    var lastDynamicClickMs by remember { mutableLongStateOf(0L) }
     val blurIntensity = com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity()
     val backgroundAlpha = com.android.purebilibili.core.ui.blur.BlurStyles.getBackgroundAlpha(blurIntensity)
     val chromeBackground = AppSurfaceTokens.chromeBackground()
@@ -453,26 +475,41 @@ private fun FrostedSideBarContent(
                 )
                 val triggerItemClick = {
                     val nowMs = SystemClock.elapsedRealtime()
-                    when (
-                        resolveHomeSideBarClickAction(
-                            item = item,
-                            nowMs = nowMs,
-                            lastHomeClickMs = lastHomeClickMs,
-                        )
-                    ) {
-                        HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
-                            haptic(HapticType.MEDIUM)
-                            onHomeDoubleTap()
-                        }
-                        HomeSideBarClickAction.NAVIGATE -> {
-                            performHomeSideBarItemTap(
-                                haptic = haptic,
-                                onClick = { onItemClick(item) }
+                    val isDynamicDoubleTap = resolveDynamicSideBarClickAction(
+                        item = item,
+                        nowMs = nowMs,
+                        lastDynamicClickMs = lastDynamicClickMs
+                    )
+                    if (isDynamicDoubleTap) {
+                        lastDynamicClickMs = 0L
+                        haptic(HapticType.MEDIUM)
+                        onDynamicDoubleTap()
+                    } else {
+                        when (
+                            resolveHomeSideBarClickAction(
+                                item = item,
+                                nowMs = nowMs,
+                                lastHomeClickMs = lastHomeClickMs,
                             )
+                        ) {
+                            HomeSideBarClickAction.HOME_DOUBLE_TAP -> {
+                                lastHomeClickMs = 0L
+                                haptic(HapticType.MEDIUM)
+                                onHomeDoubleTap()
+                            }
+                            HomeSideBarClickAction.NAVIGATE -> {
+                                if (item == BottomNavItem.HOME) {
+                                    lastHomeClickMs = nowMs
+                                }
+                                if (item == BottomNavItem.DYNAMIC) {
+                                    lastDynamicClickMs = nowMs
+                                }
+                                performHomeSideBarItemTap(
+                                    haptic = haptic,
+                                    onClick = { onItemClick(item) }
+                                )
+                            }
                         }
-                    }
-                    if (item == BottomNavItem.HOME) {
-                        lastHomeClickMs = nowMs
                     }
                 }
 

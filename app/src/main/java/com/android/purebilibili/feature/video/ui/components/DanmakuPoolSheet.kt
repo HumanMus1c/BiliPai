@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppShapes
@@ -109,14 +108,14 @@ fun DanmakuPoolSheet(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AppText(
                         text = "弹幕列表",
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     AppText(
                         text = "共 ${danmakuList.size} 条",
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -143,7 +142,7 @@ fun DanmakuPoolSheet(
                             ) {
                                 AppText(
                                     text = mode.label,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -175,7 +174,7 @@ fun DanmakuPoolSheet(
                 placeholder = {
                     AppText(
                         text = "搜索当前已加载的弹幕...",
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
                 },
@@ -216,7 +215,7 @@ fun DanmakuPoolSheet(
                 ) {
                     AppText(
                         text = if (searchQuery.isNotEmpty()) "未找到包含「$searchQuery」的弹幕" else "暂无弹幕数据",
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -269,7 +268,7 @@ fun DanmakuPoolSheet(
             title = {
                 AppText(
                     text = "弹幕操作",
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
             },
@@ -280,7 +279,7 @@ fun DanmakuPoolSheet(
                 ) {
                     AppText(
                         text = item.text.orEmpty(),
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
@@ -303,7 +302,7 @@ fun DanmakuPoolSheet(
                         Spacer(modifier = Modifier.width(10.dp))
                         AppText(
                             text = "跳转到该时间 (${FormatUtils.formatDuration(item.showAtTime)})",
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
 
@@ -323,7 +322,7 @@ fun DanmakuPoolSheet(
                     ) {
                         AppIcon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(10.dp))
-                        AppText(text = "复制弹幕内容", fontSize = 14.sp)
+                        AppText(text = "复制弹幕内容", style = MaterialTheme.typography.bodyMedium)
                     }
 
                     // 撤回弹幕（仅自己发送的弹幕）
@@ -347,7 +346,7 @@ fun DanmakuPoolSheet(
                             Spacer(modifier = Modifier.width(10.dp))
                             AppText(
                                 text = "撤回该弹幕",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -403,7 +402,7 @@ private fun DanmakuPoolItemRow(
             ) {
                 AppText(
                     text = FormatUtils.formatDuration(item.showAtTime),
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -421,7 +420,7 @@ private fun DanmakuPoolItemRow(
                 ) {
                     AppText(
                         text = "我的",
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                     )
@@ -444,7 +443,7 @@ private fun DanmakuPoolItemRow(
             // 弹幕文本
             AppText(
                 text = item.text.orEmpty(),
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -472,7 +471,7 @@ private fun DanmakuPoolItemRow(
                     Spacer(modifier = Modifier.width(4.dp))
                     AppText(
                         text = totalLikes.toString(),
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

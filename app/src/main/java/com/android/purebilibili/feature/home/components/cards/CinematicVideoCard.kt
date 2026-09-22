@@ -458,13 +458,13 @@ fun CinematicVideoCard(
                          .background(MediaContrastPalette.Scrim.copy(alpha = 0.3f), CircleShape),
                      contentAlignment = Alignment.Center,
                  ) {
-                     AppText(
-                         text = "⋮",
-                         color = MediaContrastPalette.Foreground,
-                         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
-                         fontWeight = FontWeight.Bold,
-                         modifier = Modifier.padding(bottom = AppSpacingTokens.Micro)
-                     )
+                      AppText(
+                          text = "⋮",
+                          color = MediaContrastPalette.Foreground,
+                          style = MaterialTheme.typography.bodyMedium,
+                          fontWeight = FontWeight.Bold,
+                          modifier = Modifier.padding(bottom = AppSpacingTokens.Micro)
+                      )
                  }
              }
          }

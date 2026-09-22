@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -203,8 +204,7 @@ private fun RecallConfirmMenu(
             AppText(
                 text = "确认撤回",
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -220,21 +220,20 @@ private fun RecallConfirmMenu(
             AppText(
                 text = "撤回后不可恢复",
                 color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
             )
             Spacer(modifier = Modifier.height(8.dp))
             AppText(
                 text = "确认撤回这条弹幕？",
                 color = Color.White.copy(alpha = 0.82f),
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             AppText(
                 text = previewText,
                 color = Color.White.copy(alpha = 0.62f),
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
@@ -287,15 +286,13 @@ private fun MainMenu(
             AppText(
                 text = "弹幕内容",
                 color = Color.White.copy(0.5f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
             )
             Spacer(modifier = Modifier.height(4.dp))
             AppText(
                 text = text,
                 color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal,
+                style = MaterialTheme.typography.bodyLarge,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
@@ -396,8 +393,7 @@ private fun ReportReasonMenu(
             AppText(
                 text = "举报原因",
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -458,8 +454,7 @@ private fun MenuItem(
         AppText(
             text = label,
             color = displayColor,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Normal
+            style = MaterialTheme.typography.bodyLarge
         )
         if (icon != null) {
             AppIcon(

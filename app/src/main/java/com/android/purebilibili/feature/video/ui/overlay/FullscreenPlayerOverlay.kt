@@ -1125,7 +1125,7 @@ fun FullscreenPlayerOverlay(
                         AppText(
                             text = miniPlayerManager.currentTitle,
                             color = Color.White,
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1137,7 +1137,7 @@ fun FullscreenPlayerOverlay(
                         AppText(
                             text = currentClockText,
                             color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(end = 8.dp)
                         )
@@ -1211,7 +1211,7 @@ fun FullscreenPlayerOverlay(
                             AppText(
                                 FormatUtils.formatDuration((displayedProgressState.current / 1000).toInt()),
                                 color = Color.White,
-                                fontSize = 12.sp
+                                style = MaterialTheme.typography.labelSmall
                             )
                             
                             var isDragging by remember { mutableStateOf(false) }
@@ -1247,7 +1247,7 @@ fun FullscreenPlayerOverlay(
                                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                             )
                             
-                            AppText(FormatUtils.formatDuration((duration / 1000).toInt()), color = Color.White, fontSize = 12.sp)
+                            AppText(FormatUtils.formatDuration((duration / 1000).toInt()), color = Color.White, style = MaterialTheme.typography.labelSmall)
                         }
                         
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1585,7 +1585,7 @@ private fun GestureIndicator(
                 AppText(
                     "${FormatUtils.formatDuration(((seekTime ?: 0) / 1000).toInt())} / ${FormatUtils.formatDuration((duration / 1000).toInt())}",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1641,7 +1641,7 @@ private fun FullscreenControlButton(
         AppText(
             text = text,
             color = if (isHighlighted) MaterialTheme.colorScheme.primary else Color.White,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         )

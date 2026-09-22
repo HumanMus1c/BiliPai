@@ -113,14 +113,14 @@ fun BoxScope.TwoFingerSpeedFeedbackOverlay(
                         AppText(
                             text = cueText,
                             color = Color.White.copy(alpha = 0.76f),
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium
                         )
                     }
                     AppText(
                         text = PlaybackSpeed.formatSpeedFull(speed),
                         color = Color.White.copy(alpha = 0.98f),
-                        fontSize = 22.sp,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }

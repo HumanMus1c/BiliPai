@@ -53,6 +53,7 @@ import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.SettingsManager
@@ -893,12 +894,12 @@ fun OfflineVideoPlayerScreen(
                     )
                 }
                 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 
                 AppText(
                     text = task.episodeLabel?.takeIf { it.isNotBlank() } ?: task.title,
                     color = Color.White,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     modifier = Modifier.weight(1f)
@@ -917,7 +918,7 @@ fun OfflineVideoPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small)
             ) {
                 // 进度条
                 OfflineProgressBar(
@@ -927,15 +928,15 @@ fun OfflineVideoPlayerScreen(
                     onSeek = { seekToPosition(it) }
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
 
                 if (episodeQueue.size > 1 && currentEpisodeIndex >= 0) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 4.dp),
+                            .padding(bottom = AppSpacingTokens.ExtraSmall),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                     ) {
                         AppSurface(
                             onClick = {
@@ -956,14 +957,14 @@ fun OfflineVideoPlayerScreen(
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                AppText("上一集", color = Color.White, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                                AppText("上一集", color = Color.White, style = MaterialTheme.typography.labelMedium)
                             }
                         }
                         AppText(
                             text = "${currentEpisodeIndex + 1}/${episodeQueue.size}",
                             color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelMedium
                         )
                         AppSurface(
                             onClick = {
@@ -978,8 +979,8 @@ fun OfflineVideoPlayerScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                AppText("下一集", color = Color.White, fontSize = 12.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
+                                AppText("下一集", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                                 AppIcon(
                                     Icons.Outlined.SkipNext,
                                     contentDescription = "下一集",
@@ -1023,7 +1024,7 @@ fun OfflineVideoPlayerScreen(
                     AppText(
                         text = "${FormatUtils.formatDuration((progressState.current / 1000).toInt())} / ${FormatUtils.formatDuration((progressState.duration / 1000).toInt())}",
                         color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.labelMedium
                     )
                     
                     Spacer(modifier = Modifier.weight(1f))
