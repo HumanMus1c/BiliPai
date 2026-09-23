@@ -27,6 +27,7 @@ private enum class SettingsNavigationIconRole {
     PARTITION,
     KNOWLEDGE,
     TECH,
+    SUBSCRIPTIONS,
 }
 
 internal fun resolveSettingsNavigationPreviewMaterialSymbolResource(
@@ -50,6 +51,7 @@ internal fun resolveSettingsNavigationPreviewMaterialSymbolResource(
     "PARTITION" -> if (selected) R.drawable.ms_grid_view_fill_24 else R.drawable.ms_grid_view_24
     "KNOWLEDGE" -> if (selected) R.drawable.ms_lightbulb_fill_24 else R.drawable.ms_lightbulb_24
     "TECH" -> if (selected) R.drawable.ms_smart_toy_fill_24 else R.drawable.ms_smart_toy_24
+    "SUBSCRIPTIONS" -> R.drawable.ms_rss_feed_24
     else -> if (selected) R.drawable.ms_home_fill_24 else R.drawable.ms_home_24
 }
 
@@ -79,6 +81,7 @@ internal fun resolveSettingsNavigationPreviewIcon(
         "PARTITION" -> SettingsNavigationIconRole.PARTITION
         "KNOWLEDGE" -> SettingsNavigationIconRole.KNOWLEDGE
         "TECH" -> SettingsNavigationIconRole.TECH
+        "SUBSCRIPTIONS" -> SettingsNavigationIconRole.SUBSCRIPTIONS
         else -> SettingsNavigationIconRole.HOME
     }
 
@@ -102,6 +105,7 @@ internal fun resolveSettingsNavigationPreviewIcon(
             SettingsNavigationIconRole.PARTITION -> if (selected) MiuixIcons.Medium.GridView else MiuixIcons.GridView
             SettingsNavigationIconRole.KNOWLEDGE -> MiuixIcons.Notes
             SettingsNavigationIconRole.TECH -> MiuixIcons.MindMap
+            SettingsNavigationIconRole.SUBSCRIPTIONS -> ImageVector.vectorResource(R.drawable.ms_rss_feed_24)
         }
         AppSemanticIconFamily.MATERIAL -> ImageVector.vectorResource(
             resolveSettingsNavigationPreviewMaterialSymbolResource(tabId, selected)

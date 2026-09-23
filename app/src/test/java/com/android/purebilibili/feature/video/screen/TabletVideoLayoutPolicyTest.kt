@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.screen
 
 import java.io.File
+import com.android.purebilibili.core.store.TabletSecondaryDefaultTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,8 +10,37 @@ import kotlin.test.assertTrue
 class TabletVideoLayoutPolicyTest {
 
     @Test
-    fun secondaryPaneAlwaysDefaultsToComments() {
-        assertEquals(0, resolveTabletSecondaryDefaultTab())
+    fun secondaryPaneDefaultFindsTheRequestedTabInEitherOrder() {
+        assertEquals(
+            0,
+            resolveTabletSecondaryDefaultTabIndex(
+                tabs = listOf(TabletSecondaryTab.RELATED, TabletSecondaryTab.COMMENTS),
+                preferRelated = true,
+            ),
+        )
+        assertEquals(
+            1,
+            resolveTabletSecondaryDefaultTabIndex(
+                tabs = listOf(TabletSecondaryTab.COMMENTS, TabletSecondaryTab.RELATED),
+                preferRelated = true,
+            ),
+        )
+        assertEquals(
+            1,
+            resolveTabletSecondaryDefaultTabIndex(
+                tabs = listOf(TabletSecondaryTab.RELATED, TabletSecondaryTab.COMMENTS),
+                preferRelated = false,
+            ),
+        )
+        assertEquals(1, resolveTabletCinemaDefaultTab(TabletSecondaryDefaultTab.RELATED))
+        assertEquals(0, resolveTabletCinemaDefaultTab(TabletSecondaryDefaultTab.COMMENTS))
+        assertEquals(
+            1,
+            resolveTabletCommentTabIndex(
+                listOf(TabletSecondaryTab.RELATED, TabletSecondaryTab.COMMENTS),
+            ),
+        )
+        assertEquals(TabletSecondaryDefaultTab.RELATED, TabletSecondaryDefaultTab.fromValue(99))
         assertTrue(shouldShowTabletSecondaryDanmakuActions())
     }
 

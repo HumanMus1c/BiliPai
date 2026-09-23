@@ -11,6 +11,8 @@ import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.TextUnit
@@ -60,7 +63,10 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
-import com.android.purebilibili.core.ui.common.CopySelectionDialog
+import androidx.compose.foundation.text.selection.SelectionContainer
+import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
+import com.android.purebilibili.core.ui.common.TextSelectionPolicy
+import com.android.purebilibili.core.ui.common.detectTapWithSelectionFriendly
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
 import com.android.purebilibili.core.ui.rememberAppWarningIcon
@@ -209,15 +215,20 @@ fun DynamicCardV2(
             )
         }.orEmpty()
     }
-    val contentHasImages = content?.major?.draw?.items?.isNotEmpty() == true ||
-        content?.major?.opus?.pics?.isNotEmpty() == true
     val opus = content?.major?.opus
+    val fullOpusContentBlocks = opus?.let { currentOpus ->
+        resolveDynamicOpusPresentationBlocks(opus = currentOpus, isDetail = isDetail)
+    }.orEmpty()
+    val renderableOpusPics = remember(opus, fullOpusContentBlocks) {
+        opus?.let { currentOpus ->
+            resolveDynamicOpusPreviewPics(currentOpus, fullOpusContentBlocks)
+        }.orEmpty()
+    }
+    val contentHasImages = content?.major?.draw?.items?.let(::resolveRenderableDrawItems)?.isNotEmpty() == true ||
+        renderableOpusPics.isNotEmpty()
     val visibleDynamicDesc = content?.desc?.let { desc ->
         resolveDynamicDescForImages(desc, hasImages = contentHasImages)
     }
-    val fullOpusContentBlocks = opus?.let { opus ->
-        resolveDynamicOpusPresentationBlocks(opus = opus, isDetail = isDetail)
-    }.orEmpty()
     // A detail response can provide rich text blocks without embedding the
     // documented `opus.pics` entries in those blocks. In that case use the
     // image-grid path below so pictures are not hidden after the network
@@ -448,28 +459,18 @@ fun DynamicCardV2(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 头像
-                Box(
+                DynamicAuthorFace(
+                    faceUrl = author.face,
+                    officialType = author.official_verify?.type,
+                    vipStatus = author.vip?.status,
+                    faceSize = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small,
                     modifier = Modifier
                         .size(AppChromeSizeTokens.MinimumTouchTarget)
-                        .clip(CircleShape)
                         .semantics { contentDescription = "查看${author.name}的个人主页" }
                         .clickable(enabled = authorClickMid != null || (ugcSeason != null && ugcSeason.id > 0L && onCollectionClick != null)) {
                             onAuthorHeaderClick()
                         },
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = coil3.request.ImageRequest.Builder(LocalContext.current)
-                            .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                )
                 
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 
@@ -884,13 +885,13 @@ fun DynamicCardV2(
         }
         
         //  动态内容文字（支持@高亮 / 表情）；优先可渲染表情的 desc 或 opus summary
-        val visibleOpusSummaryDescForBody = remember(content?.major?.opus?.summary, content?.major?.opus?.pics) {
-            val opus = content?.major?.opus ?: return@remember null
-            opus.summary?.let { summary ->
+        val visibleOpusSummaryDescForBody = remember(opus?.summary, renderableOpusPics) {
+            val currentOpus = opus ?: return@remember null
+            currentOpus.summary?.let { summary ->
                 resolveDynamicOpusSummaryDescForImages(
                     text = summary.text,
                     richTextNodes = summary.rich_text_nodes,
-                    hasImages = opus.pics.isNotEmpty()
+                    hasImages = renderableOpusPics.isNotEmpty()
                 )
             }
         }
@@ -964,9 +965,21 @@ fun DynamicCardV2(
         }
         
         //  图片类型动态（支持GIF + 点击预览）。详情若已拉到完整 opus 正文，不再叠一层九宫格预览。
-        content?.major?.draw?.takeUnless { hasFullOpusDetailContent }?.let { draw ->
+        content?.major?.draw?.takeIf {
+            shouldRenderDynamicDrawGrid(
+                hasFullOpusImageContent = hasFullOpusDetailContent &&
+                    fullOpusContentBlocks.any {
+                        it is OpusContentBlock.Image ||
+                            (it is OpusContentBlock.Divider && it.pic != null)
+                    },
+                opusPics = renderableOpusPics,
+            )
+        }?.let { draw ->
             var selectedImageIndex by remember { mutableIntStateOf(-1) }
             var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+            val renderableDrawItems = remember(draw.items) {
+                resolveRenderableDrawItems(draw.items)
+            }
             val drawPreviewText = remember(author?.name, visibleDynamicDesc?.text) {
                 ImagePreviewTextContent(
                     headline = author?.name.orEmpty(),
@@ -975,7 +988,7 @@ fun DynamicCardV2(
             }
             
             DrawGridV2(
-                items = draw.items,
+                items = renderableDrawItems,
                 gifImageLoader = gifImageLoader,
                 maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
                 onImageClick = { index, rect ->
@@ -1005,7 +1018,7 @@ fun DynamicCardV2(
                             }
                         }
                     },
-                    images = draw.items.map { it.src },
+                    images = renderableDrawItems.map { it.src },
                     initialIndex = selectedImageIndex,
                     sourceRect = sourceRect,  //  [新增] 传递源位置用于展开动画
                     textContent = drawPreviewText,
@@ -1019,12 +1032,12 @@ fun DynamicCardV2(
         content?.major?.opus?.let { opus ->
             var selectedImageIndex by remember { mutableIntStateOf(-1) }
             var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-            val visibleOpusSummaryDesc = remember(opus.summary, opus.pics) {
+            val visibleOpusSummaryDesc = remember(opus.summary, renderableOpusPics) {
                 opus.summary?.let { summary ->
                     resolveDynamicOpusSummaryDescForImages(
                         text = summary.text,
                         richTextNodes = summary.rich_text_nodes,
-                        hasImages = opus.pics.isNotEmpty()
+                        hasImages = renderableOpusPics.isNotEmpty()
                     )
                 }
             }
@@ -1041,19 +1054,20 @@ fun DynamicCardV2(
             
             // 显示图片 (转换为 DrawItem 格式复用现有组件)
             if (hasFullOpusDetailContent) {
-                val previewImages = remember(opus.pics) { opus.pics.map { it.url } }
+                val previewImages = remember(renderableOpusPics) {
+                    renderableOpusPics.map { it.url }
+                }
                 // The desktop opus API documents width/height as nullable. The
                 // paragraph image can therefore have dimensions while the same
                 // URL in opus.pics does not (or vice versa). Resolve dimensions
                 // once from both payload locations so a recomposition never
                 // leaves an AsyncImage without a measurable height.
-                val opusPicDimensionsByUrl = remember(opus.pics) {
-                    opus.pics
+                val opusPicDimensionsByUrl = remember(renderableOpusPics) {
+                    renderableOpusPics
                         .filter { it.url.isNotBlank() && it.width > 0 && it.height > 0 }
                         .associateBy { it.url }
                 }
                 var fullContentSelectedImageIndex by remember { mutableIntStateOf(-1) }
-                var fullContentImageIndex = 0
                 fullOpusContentBlocks.forEach { block ->
                     when (block) {
                         is OpusContentBlock.Text -> {
@@ -1167,7 +1181,6 @@ fun DynamicCardV2(
                         is OpusContentBlock.Divider -> {
                             val dividerPic = block.pic
                             if (dividerPic != null) {
-                                fullContentImageIndex += 1
                                 val resolvedDividerPic = remember(dividerPic, opusPicDimensionsByUrl) {
                                     opusPicDimensionsByUrl[dividerPic.url]?.let { known ->
                                         if (dividerPic.width > 0 && dividerPic.height > 0) dividerPic
@@ -1204,14 +1217,13 @@ fun DynamicCardV2(
                             }
                         }
                         is OpusContentBlock.Image -> {
-                            val currentImageIndex = fullContentImageIndex
-                            fullContentImageIndex += 1
                             val resolvedPic = remember(block.pic, opusPicDimensionsByUrl) {
                                 opusPicDimensionsByUrl[block.pic.url]?.let { known ->
                                     if (block.pic.width > 0 && block.pic.height > 0) block.pic
                                     else block.pic.copy(width = known.width, height = known.height)
                                 } ?: block.pic
                             }
+                            val currentImageIndex = previewImages.indexOf(resolvedPic.url)
                             val aspectRatio = remember(resolvedPic.width, resolvedPic.height) {
                                 if (resolvedPic.width > 0 && resolvedPic.height > 0) {
                                     resolvedPic.width.toFloat() / resolvedPic.height.toFloat()
@@ -1307,8 +1319,8 @@ fun DynamicCardV2(
                         onDismiss = { fullContentSelectedImageIndex = -1 }
                     )
                 }
-            } else if (opus.pics.isNotEmpty()) {
-                val drawItems = opus.pics.map { pic ->
+            } else if (renderableOpusPics.isNotEmpty()) {
+                val drawItems = renderableOpusPics.map { pic ->
                     DrawItem(
                         src = pic.url,
                         width = pic.width,
@@ -1347,7 +1359,7 @@ fun DynamicCardV2(
                                 }
                             }
                         },
-                        images = opus.pics.map { it.url },
+                        images = renderableOpusPics.map { it.url },
                         initialIndex = selectedImageIndex,
                         sourceRect = sourceRect,  //  [新增] 传递源位置用于展开动画
                         textContent = opusPreviewText,
@@ -2004,42 +2016,37 @@ fun RichTextContent(
         val richNodeText = resolveDynamicRichTextNodeDisplayText(desc.rich_text_nodes)
         richNodeText.ifBlank { desc.text }.trim()
     }
-    var showCopySelectionDialog by remember(copyText) { mutableStateOf(false) }
+    var showTextSelectionSheet by remember(copyText) { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
-    AppText(
-        text = annotatedText,
-        inlineContent = inlineContent,
-        fontSize = fontSize,
-        fontWeight = fontWeight,
-        lineHeight = lineHeight,
-        maxLines = maxLines,
-        overflow = overflow,
-        color = textColor,
-        onTextLayout = { textLayoutResult = it },
-        modifier = modifier.pointerInput(
-            copyText,
-            annotatedText,
-            onUserClick,
-            onVoteClick,
-            onTopicClick,
-            onBlankTap,
-            onVideoClick,
-            onDynamicDetailClick,
-            onBangumiClick,
-            onArticleClick,
-            onLiveClick,
-            onMusicClick,
-            onLinkClick,
-        ) {
-            detectTapGestures(
-                onLongPress = {
-                    if (copyText.isNotEmpty()) {
-                        showCopySelectionDialog = true
-                    }
-                },
-                onTap = { offset ->
-                    val layoutResult = textLayoutResult ?: return@detectTapGestures
+    SelectionContainer {
+        AppText(
+            text = annotatedText,
+            inlineContent = inlineContent,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            lineHeight = lineHeight,
+            maxLines = maxLines,
+            overflow = overflow,
+            color = textColor,
+            onTextLayout = { textLayoutResult = it },
+            modifier = modifier.pointerInput(
+                copyText,
+                annotatedText,
+                onUserClick,
+                onVoteClick,
+                onTopicClick,
+                onBlankTap,
+                onVideoClick,
+                onDynamicDetailClick,
+                onBangumiClick,
+                onArticleClick,
+                onLiveClick,
+                onMusicClick,
+                onLinkClick,
+            ) {
+                detectTapWithSelectionFriendly { offset ->
+                    val layoutResult = textLayoutResult ?: return@detectTapWithSelectionFriendly
                     val position = layoutResult.getOffsetForPosition(offset)
                     val searchStart = maxOf(0, position - 1)
                     val searchEnd = minOf(annotatedText.length, position + 1)
@@ -2052,7 +2059,7 @@ fun RichTextContent(
                         annotation.item.toLongOrNull()
                             ?.takeIf { it > 0L }
                             ?.let(onUserClick)
-                        return@detectTapGestures
+                        return@detectTapWithSelectionFriendly
                     }
 
                     annotatedText.getStringAnnotations(
@@ -2064,7 +2071,7 @@ fun RichTextContent(
                         ?.takeIf { it > 0L }
                         ?.let { voteId ->
                             onVoteClick(voteId)
-                            return@detectTapGestures
+                            return@detectTapWithSelectionFriendly
                         }
 
                     // 带 topicId 的话题标签优先跳转话题详情页，而不是关键词搜索。
@@ -2077,7 +2084,7 @@ fun RichTextContent(
                         ?.takeIf { it > 0L }
                         ?.let { topicId ->
                             onTopicClick(topicId)
-                            return@detectTapGestures
+                            return@detectTapWithSelectionFriendly
                         }
 
                     // 无 topicId 的话题（纯 #关键词# 或链接搜索）才回落到关键词搜索。
@@ -2088,7 +2095,7 @@ fun RichTextContent(
                     ).firstOrNull()?.item?.takeIf { it.isNotBlank() }?.let { keyword ->
                         if (onTopicKeywordClick != null) {
                             onTopicKeywordClick(keyword)
-                            return@detectTapGestures
+                            return@detectTapWithSelectionFriendly
                         }
                         val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(keyword, java.nio.charset.StandardCharsets.UTF_8.name())
                         if (onLinkClick != null) {
@@ -2104,7 +2111,7 @@ fun RichTextContent(
                                 openDynamicRichTextLinkExternally(context, searchUrl, uriHandler)
                             }
                         }
-                        return@detectTapGestures
+                        return@detectTapWithSelectionFriendly
                     }
 
                     val urlAnnotation = annotatedText.getStringAnnotations(
@@ -2188,6 +2195,7 @@ fun RichTextContent(
                                 }
                                 if (handled) return@launch
                             }
+
                             if (onLinkClick != null) {
                                 onLinkClick(rawUrl)
                             } else {
@@ -2220,20 +2228,21 @@ fun RichTextContent(
                                 }
                             }
                         }
-                        return@detectTapGestures
+                        return@detectTapWithSelectionFriendly
                     }
 
                     // 非 @ / 链接：交给外层（例如转发卡片打开原动态）
                     onBlankTap?.invoke()
                 }
-            )
-        }
-    )
-    if (showCopySelectionDialog) {
-        CopySelectionDialog(
+            }
+        )
+    }
+
+    if (showTextSelectionSheet) {
+        TextSelectionBottomSheet(
             text = copyText,
             title = "选择动态内容",
-            onDismiss = { showCopySelectionDialog = false }
+            onDismiss = { showTextSelectionSheet = false }
         )
     }
 }
@@ -2266,6 +2275,40 @@ private fun openDynamicRichTextLinkExternally(
 
     if (!launchedExternally) {
         runCatching { uriHandler.openUri(url) }
+    }
+}
+
+@Composable
+private fun DynamicAuthorFace(
+    faceUrl: String,
+    officialType: Int?,
+    vipStatus: Int?,
+    faceSize: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val normalizedFace = faceUrl.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(faceSize)) {
+            AsyncImage(
+                model = coil3.request.ImageRequest.Builder(LocalContext.current)
+                    .data(normalizedFace)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+            UserAvatarCornerMarkBadge(
+                mark = resolveUserAvatarCornerMark(
+                    officialType = officialType,
+                    vipStatus = vipStatus,
+                ),
+                modifier = Modifier.align(Alignment.BottomEnd),
+                badgeSize = 14.dp,
+            )
+        }
     }
 }
 
@@ -2304,28 +2347,18 @@ fun DynamicCardCompact(
     ) {
         // 头像
         if (author != null) {
-            Box(
+            DynamicAuthorFace(
+                faceUrl = author.face,
+                officialType = author.official_verify?.type,
+                vipStatus = author.vip?.status,
+                faceSize = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium,
                 modifier = Modifier
                     .size(AppChromeSizeTokens.MinimumTouchTarget)
-                    .clip(CircleShape)
                     .semantics { contentDescription = "查看${author.name}的个人主页" }
-                    .clickable(enabled = authorClickMid != null) { 
-                        authorClickMid?.let(onUserClick) 
+                    .clickable(enabled = authorClickMid != null) {
+                        authorClickMid?.let(onUserClick)
                     },
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = coil3.request.ImageRequest.Builder(LocalContext.current)
-                        .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            )
             
             Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         }

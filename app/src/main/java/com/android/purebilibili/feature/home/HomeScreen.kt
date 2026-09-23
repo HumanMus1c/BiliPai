@@ -22,6 +22,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.*  // 🌊 瀑布流布局
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
@@ -103,7 +105,9 @@ import com.android.purebilibili.feature.home.policy.HomeFeedScrollAnchor
 import com.android.purebilibili.feature.home.policy.HomeFeedScrollAnchorSaver
 import com.android.purebilibili.feature.home.policy.captureHomeFeedScrollAnchor
 import com.android.purebilibili.feature.home.policy.quantizeHomeHeaderOffset
+import com.android.purebilibili.feature.home.policy.canRevealHomeHeaderForList
 import com.android.purebilibili.feature.home.policy.reduceHomePreScroll
+import com.android.purebilibili.feature.home.policy.resolveHomeHeaderListIndex
 import com.android.purebilibili.feature.home.policy.resolveHomeHeaderTransitionRunning
 import com.android.purebilibili.feature.home.policy.resolveHomeHeaderSettleTransition
 import com.android.purebilibili.feature.home.policy.resolveHomeEmbeddedPageTopPaddingPx
@@ -323,6 +327,9 @@ fun HomeScreen(
     var liveScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var bangumiScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var partitionScrollToTopRequestId by remember { mutableIntStateOf(0) }
+    var subscriptionScrollToTopRequestId by remember { mutableIntStateOf(0) }
+    var subscriptionArticleOpen by remember { mutableStateOf(false) }
+    val subscriptionListState = rememberLazyStaggeredGridState()
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
@@ -427,16 +434,40 @@ fun HomeScreen(
     // 顶部标签顺序和可见项交给设置页控制；默认仍是六项。
     // [Refactor] Hoist PagerState to be available for both Content and Header
     // 确保 pagerState 在所有作用域均可见，以便传给 HomeHeader
-    val topTabEntries = remember(homeTopTabSettings) {
-        resolveHomeTopTabEntries(
-            customOrderIds = homeTopTabSettings.orderIds,
-            visibleIds = homeTopTabSettings.visibleIds
+    val subscriptionRevision by com.android.purebilibili.core.plugin.feed.SubscriptionFeedStore.revision
+        .collectAsStateWithLifecycle()
+    val installedPlugins by com.android.purebilibili.core.plugin.PluginManager.pluginsFlow
+        .collectAsStateWithLifecycle()
+    val isSubscriptionPluginPersistedEnabled by com.android.purebilibili.core.plugin.PluginStore
+        .isEnabledFlow(context, com.android.purebilibili.feature.plugin.SubscriptionFeedPlugin.PLUGIN_ID)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val subscriptionFeedsEnabled = remember(
+        subscriptionRevision,
+        installedPlugins,
+        isSubscriptionPluginPersistedEnabled,
+        homeTopTabSettings,
+    ) {
+        com.android.purebilibili.core.plugin.feed.isSubscriptionPluginOrFeedEnabled(
+            context = context,
+            installedPlugins = installedPlugins,
+            isPluginPersistedEnabled = isSubscriptionPluginPersistedEnabled,
+        )
+    }
+    val topTabEntries = remember(homeTopTabSettings, subscriptionFeedsEnabled) {
+        ensureSubscriptionHomeTab(
+            entries = resolveHomeTopTabEntries(
+                customOrderIds = homeTopTabSettings.orderIds,
+                visibleIds = homeTopTabSettings.visibleIds
+            ),
+            feedsEnabled = subscriptionFeedsEnabled,
+            visibleIds = homeTopTabSettings.visibleIds,
         )
     }
     val localizedTopTabLabels = topTabEntries.map { entry ->
         when (entry) {
             is HomeTopTabEntry.Category -> stringResource(resolveHomeCategoryLabelRes(entry.category))
             HomeTopTabEntry.Partition -> resolveHomeTopTabEntryLabel(entry)
+            HomeTopTabEntry.Subscriptions -> resolveHomeTopTabEntryLabel(entry)
         }
     }
     val topTabKeys = remember(topTabEntries) { topTabEntries.map(HomeTopTabEntry::id) }
@@ -487,6 +518,7 @@ fun HomeScreen(
                     HomeTopTabScrollTarget.LIVE -> liveScrollToTopRequestId++
                     HomeTopTabScrollTarget.BANGUMI -> bangumiScrollToTopRequestId++
                     HomeTopTabScrollTarget.PARTITION -> partitionScrollToTopRequestId++
+                    HomeTopTabScrollTarget.SUBSCRIPTION -> subscriptionScrollToTopRequestId++
                     HomeTopTabScrollTarget.FEED -> {
                         val activeCategory = latestHomeScrollCategory
                         val gridState = if (activeCategory == HomeCategory.POPULAR) {
@@ -1646,6 +1678,9 @@ fun HomeScreen(
         popularSubCategory,
         activeGridState,
         homeHeaderRevealLock,
+        pagerState,
+        topTabEntries,
+        subscriptionListState,
     ) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -1655,8 +1690,19 @@ fun HomeScreen(
                 if (!shouldHandleHomeVerticalPreScroll(deltaX = available.x, deltaY = available.y)) {
                     return Offset.Zero
                 }
-                val firstItemVisible = activeGridState == null ||
-                    activeGridState.firstVisibleItemIndex == 0
+                val onSubscriptionTab = resolveHomeTopTabEntryOrNull(
+                    topTabEntries,
+                    pagerState.currentPage,
+                ) == HomeTopTabEntry.Subscriptions
+                val headerListIndex = resolveHomeHeaderListIndex(
+                    displayedEntryIsSubscription = onSubscriptionTab,
+                    categoryFirstVisibleIndex = activeGridState?.firstVisibleItemIndex ?: 0,
+                    subscriptionFirstVisibleIndex = subscriptionListState.firstVisibleItemIndex,
+                )
+                val firstItemVisible = canRevealHomeHeaderForList(
+                    firstVisibleItemIndex = headerListIndex,
+                    listMissing = !onSubscriptionTab && activeGridState == null,
+                )
                 val scrollUpdate = reduceHomePreScroll(
                     currentHeaderOffsetPx = headerOffsetHeightPx,
                     deltaY = available.y,
@@ -1682,7 +1728,7 @@ fun HomeScreen(
                 topTabsAutoCollapsedByScroll = collapseTabsOnScroll &&
                     !homeHeaderRevealLock &&
                     (
-                        (activeGridState?.firstVisibleItemIndex ?: 0) > 0 ||
+                        headerListIndex > 0 ||
                             headerOffsetHeightPx < -0.5f
                     )
                 scrollUpdate.globalScrollOffset?.let { nextOffset ->
@@ -1694,7 +1740,7 @@ fun HomeScreen(
                     null -> Unit
                 }
 
-                if ((activeGridState?.firstVisibleItemIndex ?: 0) == 0 &&
+                if (headerListIndex == 0 &&
                     headerOffsetHeightPx >= -0.5f
                 ) {
                     topTabsAutoCollapsedByScroll = false
@@ -1909,6 +1955,44 @@ fun HomeScreen(
                                         scrollToTopRequestId = partitionScrollToTopRequestId
                                     )
                                 }
+                            }
+                            HomeTopTabEntry.Subscriptions -> {
+                                com.android.purebilibili.feature.home.subscription.SubscriptionFeedPage(
+                                    contentPadding = PaddingValues(
+                                        top = listTopPadding,
+                                        bottom = homeListBottomPadding,
+                                        start = AppSpacingTokens.Large,
+                                        end = AppSpacingTokens.Large,
+                                    ),
+                                    articleContentPadding = PaddingValues(
+                                        top = statusBarHeight + AppSpacingTokens.Small,
+                                        bottom = homeListBottomPadding,
+                                        start = AppSpacingTokens.Large,
+                                        end = AppSpacingTokens.Large,
+                                    ),
+                                    scrollToTopRequestId = subscriptionScrollToTopRequestId,
+                                    listState = subscriptionListState,
+                                    gridColumns = effectiveGridColumns,
+                                    pinchEnabled = !isSingleColumnMode && homeSettings.pinchToChangeGridColumnsEnabled,
+                                    pinchBounds = pinchColumnBounds,
+                                    onColumnsChange = { newColumns ->
+                                        interactiveColumns = newColumns
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                        isPinchPillVisible = true
+                                        pinchPillDismissJob?.cancel()
+                                    },
+                                    onArticleOpenChanged = { subscriptionArticleOpen = it },
+                                    onPinchEnd = { finalColumns ->
+                                        coroutineScope.launch {
+                                            SettingsManager.setGridColumnCount(context, finalColumns)
+                                        }
+                                        pinchPillDismissJob?.cancel()
+                                        pinchPillDismissJob = coroutineScope.launch {
+                                            kotlinx.coroutines.delay(1000)
+                                            isPinchPillVisible = false
+                                        }
+                                    },
+                                )
                             }
                             is HomeTopTabEntry.Category -> {
                         val category = entry.category
@@ -2264,6 +2348,7 @@ fun HomeScreen(
                                      wallpaperEffectMode = homeSettings.homeWallpaperEffectMode,
                                      showUpBadges = homeSettings.showHomeUpBadges,
                                      showUpAvatars = settledShowHomeUpAvatars,
+                                     showPublishTime = homeSettings.showHomePublishTime,
                                      homeDurationStyle = homeSettings.homeDurationStyle,
                                      homeFeedCardStyle = homeFeedCardStyle,
                                      showFullVideoCardContent = homeSettings.showFullVideoCardContent,
@@ -2408,7 +2493,8 @@ fun HomeScreen(
         val headerOffsetProvider = remember { { headerOffsetHeightPx } }
         val videoCardClock = LocalVideoCardTransitionClock.current
         val videoCardSettleState = videoCardClock?.settleState
-        val homeHeaderChromeVisible = homeFeedOwnsVideoCardSnapshot ||
+        val homeHeaderChromeVisible = !subscriptionArticleOpen && (
+            homeFeedOwnsVideoCardSnapshot ||
             shouldShowHomeOverlayChromeDuringVideoCardTransition(
             exposure = resolveVideoCardTransitionExposure(
                 phase = videoCardClock?.phase ?: VideoCardTransitionBackgroundPhase.IDLE,
@@ -2418,6 +2504,7 @@ fun HomeScreen(
                     VideoCardTransitionSettleState.CancelRestore ||
                     videoCardClock?.gestureRestoreInProgress == true,
             ),
+            )
         )
         val appearHomeHeaderFromHidden = homeHeaderChromeVisible &&
             (

@@ -33,7 +33,9 @@ class CommentGrpcRepositoryTest {
             ProtoWire.string(2, "测试用户"),
             ProtoWire.string(4, "https://example.com/avatar.jpg"),
             ProtoWire.int64(5, 6L),
+            ProtoWire.int64(6, 1L),
             ProtoWire.int64(8, 1L),
+            ProtoWire.string(11, "https://example.com/pendant.png"),
             ProtoWire.int32(32, 1)
         )
         val url = ProtoWire.message(
@@ -111,6 +113,9 @@ class CommentGrpcRepositoryTest {
         assertEquals(1, first.action)
         assertEquals("测试用户", first.member.uname)
         assertEquals(6, first.member.levelInfo.currentLevel)
+        assertEquals(1, first.member.officialVerify.type)
+        assertEquals(1, first.member.vip?.vipStatus)
+        assertEquals("https://example.com/pendant.png", first.member.pendant?.image)
         assertEquals(true, first.replyControl?.isUpTop)
         assertEquals(true, first.replyControl?.upReply)
         assertEquals("IP属地：上海", first.replyControl?.location)

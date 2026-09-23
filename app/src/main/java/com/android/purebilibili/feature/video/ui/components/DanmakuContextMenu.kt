@@ -35,7 +35,10 @@ import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.filled.SelectAll
 import com.android.purebilibili.core.ui.common.copyPlainTextToClipboard
+import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
@@ -98,74 +101,89 @@ fun DanmakuContextMenu(
 ) {
     val context = LocalContext.current
     var currentPage by remember { mutableStateOf(DanmakuContextMenuPage.MAIN) }
+    var showTextSelectionSheet by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                ),
-            contentAlignment = Alignment.Center
+    if (showTextSelectionSheet) {
+        TextSelectionBottomSheet(
+            text = text,
+            title = "选择弹幕内容",
+            onDismiss = {
+                showTextSelectionSheet = false
+                onDismiss()
+            }
+        )
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            AnimatedContent(
-                targetState = currentPage,
-                transitionSpec = {
-                    (fadeIn() + slideInVertically { it / 2 }).togetherWith(fadeOut() + slideOutVertically { it / 2 })
-                },
-                label = "MenuTransition"
-            ) { page ->
-                when (page) {
-                    DanmakuContextMenuPage.REPORT -> ReportReasonMenu(
-                        onSelectReason = { reason ->
-                            onReport(reason)
-                            onDismiss()
-                        },
-                        onBack = { currentPage = DanmakuContextMenuPage.MAIN }
-                    )
-                    DanmakuContextMenuPage.RECALL_CONFIRM -> RecallConfirmMenu(
-                        previewText = resolveDanmakuRecallConfirmationPreview(text),
-                        onBack = { currentPage = DanmakuContextMenuPage.MAIN },
-                        onConfirm = {
-                            onRecall()
-                            onDismiss()
-                        }
-                    )
-                    DanmakuContextMenuPage.MAIN -> MainMenu(
-                        text = text,
-                        voteCount = voteCount,
-                        hasLiked = hasLiked,
-                        voteLoading = voteLoading,
-                        canVote = canVote,
-                        canRecall = canRecall,
-                        onLike = {
-                            onLike()
-                            onDismiss()
-                        },
-                        onRecall = {
-                            currentPage = DanmakuContextMenuPage.RECALL_CONFIRM
-                        },
-                        onReportClick = { currentPage = DanmakuContextMenuPage.REPORT },
-                        onCopy = {
-                            copyPlainTextToClipboard(context, text, "弹幕")
-                            onDismiss()
-                        },
-                        onBlockKeyword = {
-                            onBlockKeyword()
-                            onDismiss()
-                        },
-                        canBlockKeyword = canBlockKeyword,
-                        canBlockUser = canBlockUser,
-                        onBlockUser = {
-                            onBlockUser()
-                            onDismiss()
-                        }
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = currentPage,
+                    transitionSpec = {
+                        (fadeIn() + slideInVertically { it / 2 }).togetherWith(fadeOut() + slideOutVertically { it / 2 })
+                    },
+                    label = "MenuTransition"
+                ) { page ->
+                    when (page) {
+                        DanmakuContextMenuPage.REPORT -> ReportReasonMenu(
+                            onSelectReason = { reason ->
+                                onReport(reason)
+                                onDismiss()
+                            },
+                            onBack = { currentPage = DanmakuContextMenuPage.MAIN }
+                        )
+                        DanmakuContextMenuPage.RECALL_CONFIRM -> RecallConfirmMenu(
+                            previewText = resolveDanmakuRecallConfirmationPreview(text),
+                            onBack = { currentPage = DanmakuContextMenuPage.MAIN },
+                            onConfirm = {
+                                onRecall()
+                                onDismiss()
+                            }
+                        )
+                        DanmakuContextMenuPage.MAIN -> MainMenu(
+                            text = text,
+                            voteCount = voteCount,
+                            hasLiked = hasLiked,
+                            voteLoading = voteLoading,
+                            canVote = canVote,
+                            canRecall = canRecall,
+                            onLike = {
+                                onLike()
+                                onDismiss()
+                            },
+                            onRecall = {
+                                currentPage = DanmakuContextMenuPage.RECALL_CONFIRM
+                            },
+                            onReportClick = { currentPage = DanmakuContextMenuPage.REPORT },
+                            onCopy = {
+                                copyPlainTextToClipboard(context, text, "弹幕")
+                                onDismiss()
+                            },
+                            onSelectText = {
+                                showTextSelectionSheet = true
+                            },
+                            onBlockKeyword = {
+                                onBlockKeyword()
+                                onDismiss()
+                            },
+                            canBlockKeyword = canBlockKeyword,
+                            canBlockUser = canBlockUser,
+                            onBlockUser = {
+                                onBlockUser()
+                                onDismiss()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -263,6 +281,7 @@ private fun MainMenu(
     onRecall: () -> Unit,
     onReportClick: () -> Unit,
     onCopy: () -> Unit,
+    onSelectText: () -> Unit,
     onBlockKeyword: () -> Unit,
     canBlockKeyword: Boolean,
     canBlockUser: Boolean,
@@ -289,14 +308,16 @@ private fun MainMenu(
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
             )
             Spacer(modifier = Modifier.height(4.dp))
-            AppText(
-                text = text,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            SelectionContainer {
+                AppText(
+                    text = text,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         MenuSeparator()
@@ -317,9 +338,17 @@ private fun MainMenu(
         MenuSeparator()
         
         MenuItem(
-            label = "复制内容",
+            label = "复制全部",
             icon = Icons.Filled.ContentCopy,
             onClick = onCopy
+        )
+
+        MenuSeparator()
+
+        MenuItem(
+            label = "选择内容",
+            icon = Icons.Filled.SelectAll,
+            onClick = onSelectText
         )
 
         MenuSeparator()

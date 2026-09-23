@@ -51,6 +51,8 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.OfficialVerifyAvatarBadge
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
@@ -1265,6 +1267,15 @@ private fun FollowingUserItem(
                 OfficialVerifyAvatarBadge(
                     badge = officialBadge,
                     modifier = Modifier.align(Alignment.BottomEnd)
+                )
+            } else {
+                UserAvatarCornerMarkBadge(
+                    mark = resolveUserAvatarCornerMark(
+                        officialType = null,
+                        vipStatus = user.vip?.vipStatus,
+                    ),
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    badgeSize = 14.dp,
                 )
             }
         }

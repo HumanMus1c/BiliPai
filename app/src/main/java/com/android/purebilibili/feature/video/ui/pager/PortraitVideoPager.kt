@@ -149,6 +149,7 @@ import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.feature.video.player.PlaylistManager
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
+import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay
 import com.android.purebilibili.feature.video.danmaku.rememberIsolatedDanmakuManager
 import com.android.purebilibili.feature.video.playback.session.PlaybackSeekSessionState
 import com.android.purebilibili.feature.video.playback.session.SEEK_PLAYBACK_RECOVERY_DELAY_MS
@@ -2124,7 +2125,10 @@ private fun VideoPageItem(
         )
     }
     
-    // 如果是当前页，监听播放器进度
+    // 进度提交节流：避免每 200ms 把位置写回详情页巨型状态。
+    var lastProgressCommitBvid by remember(bvid) { mutableStateOf<String?>(null) }
+    var lastProgressCommitCid by remember(bvid) { mutableLongStateOf(0L) }
+    var lastProgressCommitPositionMs by remember(bvid) { mutableLongStateOf(-1L) }
     LaunchedEffect(isCurrentPage, exoPlayer, hasRenderedFirstFrame, isPortraitPlaybackAllowed) {
         if (isCurrentPage && isPortraitPlaybackAllowed) {
             while (true) {
@@ -2151,10 +2155,27 @@ private fun VideoPageItem(
                         buffered = exoPlayer.bufferedPosition
                     )
                     if (exoPlayer.isPlaying || effectivePosition > 0L) {
-                        onProgressUpdate(bvid, effectivePosition, snapshotCid, cover)
+                        if (shouldCommitPortraitProgressToDetailState(
+                                previousBvid = lastProgressCommitBvid,
+                                previousCid = lastProgressCommitCid,
+                                previousPositionMs = lastProgressCommitPositionMs,
+                                nextBvid = bvid,
+                                nextCid = snapshotCid,
+                                nextPositionMs = effectivePosition,
+                            )
+                        ) {
+                            lastProgressCommitBvid = bvid
+                            lastProgressCommitCid = snapshotCid
+                            lastProgressCommitPositionMs = effectivePosition
+                            onProgressUpdate(bvid, effectivePosition, snapshotCid, cover)
+                        }
                     }
                 }
-                delay(200)
+                    if (portraitOverlayVisible) {
+                        delay(200L)
+                    } else {
+                        delay(1000L)
+                    }
             }
         }
     }
@@ -2277,11 +2298,12 @@ private fun VideoPageItem(
     )
     val letterboxBarHeightDp = with(density) { letterboxBarHeightPx.toDp() }
     val letterboxAmbientFrame = remember(bvid) { mutableStateOf<ImageBitmap?>(null) }
-    val shouldCaptureLetterboxAmbient =
-        isCurrentPage &&
-            letterboxAmbientHazeEnabled &&
-            letterboxBarHeightPx > 0 &&
-            isPlayerReadyForThisVideo
+    val shouldCaptureLetterboxAmbient = shouldCapturePortraitLetterboxAmbientFrame(
+        isCurrentPage = isCurrentPage,
+        letterboxAmbientHazeEnabled = letterboxAmbientHazeEnabled,
+        letterboxBarHeightPx = letterboxBarHeightPx,
+        isPlayerReadyForThisVideo = isPlayerReadyForThisVideo,
+    )
     LaunchedEffect(
         playerViewRef,
         shouldCaptureLetterboxAmbient,
@@ -2655,7 +2677,14 @@ private fun VideoPageItem(
                             modifier = Modifier.fillMaxSize()
                         )
 
-                        if (danmakuEnabled && danmakuSurfaceMode == PortraitDanmakuSurfaceMode.VideoViewport) {
+                        if (shouldComposePortraitDanmakuOverlay(
+                                danmakuEnabled = danmakuEnabled,
+                                surfaceMode = danmakuSurfaceMode,
+                                expectedMode = PortraitDanmakuSurfaceMode.VideoViewport,
+                                isCurrentPage = isCurrentPage,
+                                isPlayerReadyForThisVideo = isPlayerReadyForThisVideo,
+                            )
+                        ) {
                             PortraitDanmakuOverlay(
                                 danmakuManager = danmakuManager,
                                 videoWidth = exoPlayer.videoSize.width,
@@ -2670,10 +2699,13 @@ private fun VideoPageItem(
         }
 
         if (
-            isCurrentPage &&
-            isPlayerReadyForThisVideo &&
-            danmakuEnabled &&
-            danmakuSurfaceMode == PortraitDanmakuSurfaceMode.Page
+            shouldComposePortraitDanmakuOverlay(
+                danmakuEnabled = danmakuEnabled,
+                surfaceMode = danmakuSurfaceMode,
+                expectedMode = PortraitDanmakuSurfaceMode.Page,
+                isCurrentPage = isCurrentPage,
+                isPlayerReadyForThisVideo = isPlayerReadyForThisVideo,
+            )
         ) {
             PortraitDanmakuOverlay(
                 danmakuManager = danmakuManager,
@@ -3714,10 +3746,13 @@ private fun PortraitDanmakuOverlay(
         factory = { ctx ->
             DanmakuRenderView(ctx).apply {
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                // 弹幕层必须 passive，否则会吞掉竖屏全屏的全部触控。
+                configureAsPassiveDanmakuOverlay()
                 danmakuManager.attachView(this)
             }
         },
         update = { view ->
+            view.configureAsPassiveDanmakuOverlay()
             val viewportTag = "$videoWidth:$videoHeight:$resizeMode:${view.width}x${view.height}"
             if (view.width > 0 && view.height > 0 && view.tag != viewportTag) {
                 view.tag = viewportTag
@@ -3771,6 +3806,35 @@ internal fun shouldLoadPortraitDanmaku(
     danmakuEnabled: Boolean
 ): Boolean {
     return settingsLoaded && cid > 0L && danmakuEnabled
+}
+
+/**
+ * Letterbox ambient capture is settings-driven and only for the active ready page.
+ * Dual-host composition must already be gone before this can run on the main thread.
+ */
+internal fun shouldCapturePortraitLetterboxAmbientFrame(
+    isCurrentPage: Boolean,
+    letterboxAmbientHazeEnabled: Boolean,
+    letterboxBarHeightPx: Int,
+    isPlayerReadyForThisVideo: Boolean,
+): Boolean {
+    return isCurrentPage &&
+        letterboxAmbientHazeEnabled &&
+        letterboxBarHeightPx > 0 &&
+        isPlayerReadyForThisVideo
+}
+
+internal fun shouldComposePortraitDanmakuOverlay(
+    danmakuEnabled: Boolean,
+    surfaceMode: PortraitDanmakuSurfaceMode,
+    expectedMode: PortraitDanmakuSurfaceMode,
+    isCurrentPage: Boolean,
+    isPlayerReadyForThisVideo: Boolean,
+): Boolean {
+    return danmakuEnabled &&
+        surfaceMode == expectedMode &&
+        isCurrentPage &&
+        isPlayerReadyForThisVideo
 }
 
 internal fun resolvePortraitDanmakuReadableFontScale(fontScale: Float): Float {

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
@@ -54,16 +55,22 @@ import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.VideoStaff
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.data.model.response.VideoTag
+import com.android.purebilibili.core.ui.common.TextSelectionPolicy
+import com.android.purebilibili.core.ui.common.detectTapWithSelectionFriendly
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.feature.video.ui.components.VideoCardSkeleton
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.draw.rotate
 import com.android.purebilibili.core.ui.common.copyOnClick
 import com.android.purebilibili.core.ui.OfficialVerifyBadge
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.components.UserUpBadge
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadgeFromRole
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoMetadataSharedTransitionMotionSpec
@@ -189,7 +196,7 @@ internal fun buildVideoDescriptionAnnotatedString(
 internal fun resolveVideoInfoInitialExpandedState(
     hasDescription: Boolean,
     hasTags: Boolean,
-    defaultExpanded: Boolean = true
+    defaultExpanded: Boolean = false
 ): Boolean = defaultExpanded && (hasDescription || hasTags)
 
 private const val BGM_DISCOVERY_LOAD_DELAY_MS = 420L
@@ -233,18 +240,21 @@ fun VideoTitleSection(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            AppText(
-                text = info.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = if (expanded) Int.MAX_VALUE else 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
+            SelectionContainer(
                 modifier = Modifier
                     .weight(1f)
                     .then(if (animateLayout) Modifier.animateContentSize() else Modifier)
-                    .copyOnLongPress(info.title, "视频标题")
-            )
+            ) {
+                AppText(
+                    text = info.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = if (expanded) Int.MAX_VALUE else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.copyOnLongPress(info.title, "视频标题")
+                )
+            }
             Spacer(Modifier.width(4.dp))
             AppIcon(
                 imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
@@ -317,10 +327,11 @@ fun VideoTitleWithDesc(
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val isMaterial3 = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
+    val horizontalPadding = if (isMaterial3) 16.dp else 12.dp
     val defaultExpanded by com.android.purebilibili.core.store.SettingsManager
         .getVideoInfoDefaultExpanded(context)
-        .collectAsStateWithLifecycle(initialValue = true
-        )
+        .collectAsStateWithLifecycle(initialValue = false)
     var expanded by remember(info.bvid, info.desc, videoTags.size, defaultExpanded) {
         mutableStateOf(
             resolveVideoInfoInitialExpandedState(
@@ -385,13 +396,15 @@ fun VideoTitleWithDesc(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { expanded = !expanded }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = horizontalPadding, vertical = if (isMaterial3) 8.dp else 6.dp)
     ) {
         // Title row (expandable)
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(role = Role.Button) { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically
         ) {
             //  共享元素过渡 - 标题
             var titleModifier = if (animateLayout) Modifier.animateContentSize() else Modifier
@@ -418,15 +431,17 @@ fun VideoTitleWithDesc(
                 }
             }
 
-            AppText(
-                text = info.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = if (expanded) Int.MAX_VALUE else 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = titleModifier.weight(1f)
-            )
+            SelectionContainer(modifier = Modifier.weight(1f)) {
+                AppText(
+                    text = info.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = if (expanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = titleModifier
+                )
+            }
 
             val rotateAngle by animateFloatAsState(
                 targetValue = if (expanded) 180f else 0f, // 展开时旋转180度
@@ -444,12 +459,12 @@ fun VideoTitleWithDesc(
             )
         }
         
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(if (isMaterial3) 6.dp else 4.dp))
         
         // Stats row
         androidx.compose.foundation.layout.FlowRow(
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isMaterial3) 10.dp else 8.dp),
             itemVerticalAlignment = Alignment.CenterVertically
         ) {
             // Stats Row split for shared element transitions
@@ -479,7 +494,7 @@ fun VideoTitleWithDesc(
                 AppText(
                     text = "${FormatUtils.formatStat(info.stat.view.toLong())}播放",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = viewsModifier
                 )
 
@@ -514,7 +529,7 @@ fun VideoTitleWithDesc(
                 AppText(
                     text = "${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = danmakuModifier
                 )
 
@@ -528,12 +543,53 @@ fun VideoTitleWithDesc(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            // [新增] 显示 BVID 并支持点击复制
+            if (publishTimeRowText.isNotBlank()) {
+                if (emphasizePublishTime) {
+                    AppSurface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
+                        shape = com.android.purebilibili.core.ui.AppShapes.container(
+                            com.android.purebilibili.core.ui.ContainerLevel.Field
+                        )
+                    ) {
+                        AppText(
+                            text = publishTimeRowText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    AppText(
+                        text = publishTimeRowText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = if (animateLayout) {
+                androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn()
+            } else {
+                androidx.compose.animation.EnterTransition.None
+            },
+            exit = if (animateLayout) {
+                androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            } else {
+                androidx.compose.animation.ExitTransition.None
+            }
+        ) {
             AppText(
                 text = info.bvid,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.copyOnClick(info.bvid, "BV号")
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.66f),
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .copyOnClick(info.bvid, "BV号")
             )
         }
 
@@ -552,33 +608,6 @@ fun VideoTitleWithDesc(
             }
         }
 
-        if (publishTimeRowText.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            if (emphasizePublishTime) {
-                AppSurface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
-                    shape = com.android.purebilibili.core.ui.AppShapes.container(
-                        com.android.purebilibili.core.ui.ContainerLevel.Field
-                    )
-                ) {
-                    AppText(
-                        text = publishTimeRowText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-            } else {
-                AppText(
-                    text = publishTimeRowText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    maxLines = 1
-                )
-            }
-        }
-
         // [新增] BGM Info Row
         if (bgmList.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
@@ -588,7 +617,7 @@ fun VideoTitleWithDesc(
                 onRelatedVideoClick = onRelatedVideoClick
             )
         }
-        
+
         //  Description - 默认隐藏，展开后显示
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded && info.desc.isNotBlank(),
@@ -615,8 +644,8 @@ fun VideoTitleWithDesc(
                 var descriptionTextLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
                 val descriptionModifier = if (onDescriptionUrlClick != null) {
                     Modifier.pointerInput(descriptionText, info.desc, onDescriptionUrlClick) {
-                        detectTapGestures { offset ->
-                            val layoutResult = descriptionTextLayout ?: return@detectTapGestures
+                        detectTapWithSelectionFriendly { offset ->
+                            val layoutResult = descriptionTextLayout ?: return@detectTapWithSelectionFriendly
                             val position = layoutResult.getOffsetForPosition(offset)
                             val searchStart = maxOf(0, position - 1)
                             val searchEnd = minOf(descriptionText.length, position + 1)
@@ -753,14 +782,11 @@ fun UpInfoSection(
 
         val avatarContent: @Composable () -> Unit = {
             if (showOwnerAvatar) {
-                var avatarModifier = Modifier
-                    .size(if (isCompact) 36.dp else 40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-
+                val avatarSize = if (isCompact) 36.dp else 40.dp
+                var sharedFaceModifier: Modifier = Modifier
                 if (metadataSharedEnabled) {
                     with(requireNotNull(sharedTransitionScope)) {
-                        avatarModifier = avatarModifier.sharedBounds(
+                        sharedFaceModifier = Modifier.sharedBounds(
                             sharedContentState = rememberSharedContentState(
                                 key = com.android.purebilibili.core.ui.transition.videoAvatarSharedElementKey(
                                     info.bvid,
@@ -779,20 +805,26 @@ fun UpInfoSection(
                         )
                     }
                 }
+                val ownerStaff = info.staff.firstOrNull { it.mid == info.owner.mid }
 
                 if (info.owner.face.isNotBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(FormatUtils.fixImageUrl(info.owner.face))
-                            .crossfade(true)
-                            .build(),
+                    OwnerDecoratedAvatar(
+                        faceUrl = info.owner.face,
+                        ownerMid = info.owner.mid,
+                        modifier = Modifier.size(avatarSize),
+                        badgeSize = if (isCompact) 12.dp else 14.dp,
+                        fallbackOfficialType = ownerStaff?.official?.type,
+                        fallbackVipStatus = ownerStaff?.vip?.status,
+                        faceModifier = sharedFaceModifier,
                         contentDescription = "UP主头像",
-                        modifier = avatarModifier,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
                     )
                 } else {
                     Box(
-                        modifier = avatarModifier,
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .then(sharedFaceModifier),
                         contentAlignment = Alignment.Center
                     ) {
                         AppIcon(
@@ -858,15 +890,17 @@ fun UpInfoSection(
                     }
                     Spacer(Modifier.width(4.dp))
                 }
-                AppText(
-                    text = info.owner.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = upNameModifier
-                )
+                SelectionContainer {
+                    AppText(
+                        text = info.owner.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = upNameModifier
+                    )
+                }
             }
         }
 
@@ -1084,18 +1118,28 @@ private fun CreatorTeamMemberChip(
             .heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(FormatUtils.fixImageUrl(member.face))
-                .crossfade(true)
-                .build(),
-            contentDescription = "${member.name} 头像",
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-        )
+        Box(modifier = Modifier.size(36.dp)) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(FormatUtils.fixImageUrl(member.face))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "${member.name} 头像",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+            UserAvatarCornerMarkBadge(
+                mark = resolveUserAvatarCornerMark(
+                    officialType = member.official.type,
+                    vipStatus = member.vip.status,
+                ),
+                modifier = Modifier.align(Alignment.BottomEnd),
+                badgeSize = 14.dp,
+            )
+        }
         Spacer(modifier = Modifier.width(8.dp))
         Column(
             modifier = Modifier.widthIn(min = 64.dp, max = 112.dp)
@@ -1152,13 +1196,15 @@ fun DescriptionSection(desc: String) {
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .animateContentSize()
         ) {
-            AppText(
-                text = desc,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
-                maxLines = if (expanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            SelectionContainer {
+                AppText(
+                    text = desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+                    maxLines = if (expanded) Int.MAX_VALUE else 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             if (desc.length > 100 || desc.lines().size > 3) {
                 Row(

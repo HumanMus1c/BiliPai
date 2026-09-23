@@ -173,6 +173,12 @@ internal fun resolveMiuixTabMinWidth(
     contentSizedItems: Boolean,
 ): Dp = if (contentSizedItems) requestedMinWidth else sharedMinWidth
 
+/**
+ * PiliPlus scrollable underlines hug the label. Material's 90dp floor, and the
+ * 48–96dp touch floors used by pill tabs, leave a wide gap between short labels.
+ */
+internal fun resolvePiliPlusScrollableUnderlineMinWidth(): Dp = 0.dp
+
 fun resolveMiuixNonGlassContentTabItemWidths(
     labelWidths: List<Dp>,
     minTabWidth: Dp,
@@ -411,11 +417,9 @@ fun <T> AppNativeTabRow(
             selectedValue = selectedValue,
             enabled = enabled,
             scrollable = effectiveScrollable,
-            minTabWidth = resolveMiuixTabMinWidth(
-                requestedMinWidth = minTabWidth,
-                sharedMinWidth = targetTabWidth,
-                contentSizedItems = useContentSizedMiuixItems || effectiveScrollable,
-            ),
+            // MD3 underlines follow PiliPlus: each tab is as wide as its label.
+            // Miuix keeps the touch/content floor above.
+            minTabWidth = resolvePiliPlusScrollableUnderlineMinWidth(),
             allowLabelOverflow = allowLabelOverflow,
             indicatorPositionProvider = indicatorPositionProvider,
             modifier = viewportBoundedModifier,

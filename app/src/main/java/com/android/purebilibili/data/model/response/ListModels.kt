@@ -176,7 +176,14 @@ data class FollowingUser(
     val sign: String = "",
     val mtime: Long = 0,
     @SerialName("official_verify")
-    val officialVerify: OfficialVerify = OfficialVerify()
+    val officialVerify: OfficialVerify = OfficialVerify(),
+    val vip: FollowingVip? = null,
+)
+
+@Serializable
+data class FollowingVip(
+    val vipType: Int = 0,
+    val vipStatus: Int = 0,
 )
 
 // --- 1. 核心通用视频模型 (UI层使用) ---

@@ -2167,7 +2167,15 @@ private fun PluginItem(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    imageVector = plugin.icon ?: com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_extension_24),
+                    imageVector = when (plugin.id) {
+                        com.android.purebilibili.feature.plugin.SubscriptionFeedPlugin.PLUGIN_ID ->
+                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(
+                                com.android.purebilibili.R.drawable.ms_rss_feed_24,
+                            )
+                        else -> plugin.icon ?: com.android.purebilibili.feature.settings.rememberMaterialSymbol(
+                            com.android.purebilibili.R.drawable.ms_extension_24,
+                        )
+                    },
                     contentDescription = null,
                     tint = iconContentColor,
                     modifier = Modifier.size(20.dp)

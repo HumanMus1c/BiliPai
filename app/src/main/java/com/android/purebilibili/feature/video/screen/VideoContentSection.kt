@@ -878,7 +878,6 @@ internal fun VideoContentSection(
             HorizontalPager(
                 state = pagerState,
                 beyondViewportPageCount = resolveVideoDetailBeyondViewportPageCount(
-                    isVideoPlaying = isVideoPlaying,
                     selectedTabIndex = pagerState.currentPage
                 ),
                 userScrollEnabled = false,
@@ -1291,7 +1290,6 @@ private fun VideoIntroTab(
     showInteractionActions: Boolean = true,
     animateVideoDetailLayout: Boolean = true,
 ) {
-    val hasPages = info.pages.size > 1
     var hiddenRelatedBvids by remember(info.bvid) { mutableStateOf(emptySet<String>()) }
     val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
         filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
@@ -1307,6 +1305,8 @@ private fun VideoIntroTab(
             VideoHeaderContent(
                 info = info,
                 videoTags = videoTags,
+                currentPageIndex = currentPageIndex,
+                onPageSelect = onPageSelect,
                 isFollowing = isFollowing,
                 isFavorited = isFavorited,
                 isLiked = isLiked,
@@ -1358,16 +1358,6 @@ private fun VideoIntroTab(
                 animateVideoDetailLayout = animateVideoDetailLayout
             )
         }
-        if (hasPages) {
-            item {
-                PagesSelector(
-                    pages = info.pages,
-                    currentPageIndex = currentPageIndex,
-                    onPageSelect = onPageSelect
-                )
-            }
-        }
-
         item {
             VideoRecommendationHeader()
         }
@@ -1785,6 +1775,8 @@ internal fun LandscapeCommentPanel(
 private fun VideoHeaderContent(
     info: ViewInfo,
     videoTags: List<VideoTag>,
+    currentPageIndex: Int,
+    onPageSelect: (Int) -> Unit,
     isFollowing: Boolean,
     isFavorited: Boolean,
     isLiked: Boolean,
@@ -1845,15 +1837,17 @@ private fun VideoHeaderContent(
         )
     val videoNoteDefaultCollapsed by com.android.purebilibili.core.store.SettingsManager
         .getVideoNoteDefaultCollapsed(context)
-        .collectAsStateWithLifecycle(initialValue = false
-        )
+        .collectAsStateWithLifecycle(initialValue = true)
+    val uiStyle = LocalAppUiStyle.current
+    val sectionSpacing = if (uiStyle == AppUiStyle.MATERIAL3) 8.dp else 4.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface) // 🎨 [修复] 与 TabBar 统一使用容器背景色，消除割裂感
             .onGloballyPositioned { coordinates ->
                 onGloballyPositioned(coordinates.size.height.toFloat())
-            }
+            },
+        verticalArrangement = Arrangement.spacedBy(sectionSpacing)
     ) {
         UpInfoSection(
             info = info,
@@ -1863,6 +1857,7 @@ private fun VideoHeaderContent(
             showOwnerAvatar = true,
             followerCount = ownerFollowerCount,
             videoCount = ownerVideoCount,
+            horizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3) 16.dp else 12.dp,
             transitionEnabled = transitionEnabled,  // 🔗 传递共享元素开关
             isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
             sourceRouteForSharedElement = sourceRouteForSharedElement
@@ -1887,7 +1882,46 @@ private fun VideoHeaderContent(
             onTagClick = onSearchKeywordClick
         )
 
-        // [新增] AI Summary
+        if (showInteractionActions) {
+            ActionButtonsRow(
+                info = info,
+                isFavorited = isFavorited,
+                isLiked = isLiked,
+                coinCount = coinCount,
+                downloadProgress = downloadProgress,
+                isInWatchLater = isInWatchLater,
+                onFavoriteClick = onFavoriteClick,
+                onLikeClick = onLikeClick,
+                onCoinClick = onCoinClick,
+                onTripleClick = onTripleClick,
+                onCommentClick = onCommentClick,
+                onDownloadClick = onDownloadClick,
+                onWatchLaterClick = onWatchLaterClick,
+                onFavoriteLongClick = onFavoriteLongClick,
+                onShareClick = onShareClick,
+                showCommentAction = false,
+            )
+        }
+
+        info.ugc_season?.let { season ->
+            CollectionRow(
+                ugcSeason = season,
+                currentBvid = info.bvid,
+                currentCid = info.cid,
+                isPlaying = isVideoPlaying,
+                onClick = onOpenCollectionSheet
+            )
+        }
+
+        if (info.pages.size > 1) {
+            PagesSelector(
+                pages = info.pages,
+                currentPageIndex = currentPageIndex,
+                onPageSelect = onPageSelect
+            )
+        }
+
+        // Keep auxiliary video tools below the primary engagement actions and episode selectors.
         if (shouldShowAiSummaryEntry(
                 aiSummary = aiSummary,
                 isAiSummaryEntryEnabled = videoAiSummaryEntryEnabled
@@ -1921,36 +1955,6 @@ private fun VideoHeaderContent(
             )
         }
 
-        if (showInteractionActions) {
-            ActionButtonsRow(
-                info = info,
-                isFavorited = isFavorited,
-                isLiked = isLiked,
-                coinCount = coinCount,
-                downloadProgress = downloadProgress,
-                isInWatchLater = isInWatchLater,
-                onFavoriteClick = onFavoriteClick,
-                onLikeClick = onLikeClick,
-                onCoinClick = onCoinClick,
-                onTripleClick = onTripleClick,
-                onCommentClick = onCommentClick,
-                onDownloadClick = onDownloadClick,
-                onWatchLaterClick = onWatchLaterClick,
-                onFavoriteLongClick = onFavoriteLongClick,
-                onShareClick = onShareClick,
-                showCommentAction = false,
-            )
-        }
-
-        info.ugc_season?.let { season ->
-            CollectionRow(
-                ugcSeason = season,
-                currentBvid = info.bvid,
-                currentCid = info.cid,
-                isPlaying = isVideoPlaying,
-                onClick = onOpenCollectionSheet
-            )
-        }
     }
 
 }
@@ -2092,18 +2096,29 @@ private fun VideoContentTabBar(
  */
 @Composable
 private fun VideoRecommendationHeader() {
-    Row(
-        modifier = Modifier
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp) // 优化：减少底部间距，使视频卡片更紧凑
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AppText(
-            text = "相关推荐",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+    val isMaterial3 = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
+    val horizontalPadding = if (isMaterial3) 16.dp else 12.dp
+    Column(modifier = Modifier.fillMaxWidth()) {
+        AppHorizontalDivider(
+            modifier = Modifier.padding(horizontal = horizontalPadding),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
         )
+        Row(
+            modifier = Modifier.padding(
+                start = horizontalPadding,
+                end = horizontalPadding,
+                top = if (isMaterial3) 16.dp else 12.dp,
+                bottom = 6.dp,
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppText(
+                text = "相关推荐",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 

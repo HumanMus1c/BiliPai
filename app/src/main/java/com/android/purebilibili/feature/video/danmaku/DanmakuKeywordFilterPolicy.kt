@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.StringReader
+import java.util.concurrent.ConcurrentHashMap
 import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 import org.xml.sax.InputSource
@@ -395,8 +396,28 @@ fun appendDanmakuUserHashBlockRule(
     return appendDanmakuBlockRule(rawRules = rawRules, rule = normalizedUserHash)
 }
 
+/**
+ * Block-rule matching is a hot path (live overlay + full-list rebuild). Cache compiled
+ * matchers so repeated `Matcher.find` does not re-enter regex compilation on the main thread.
+ * [computeIfAbsent] cannot store null, so wrap "invalid rule" in a non-null holder.
+ */
+private class CachedDanmakuBlockRuleMatcher(
+    val matcher: DanmakuBlockRuleMatcher?
+)
+
+private val DANMAKU_BLOCK_RULE_MATCHER_CACHE =
+    ConcurrentHashMap<String, CachedDanmakuBlockRuleMatcher>()
+
 private fun resolveDanmakuBlockRuleMatcher(rule: String): DanmakuBlockRuleMatcher? {
     val normalized = rule.trim()
+    if (normalized.isEmpty()) return null
+    return DANMAKU_BLOCK_RULE_MATCHER_CACHE
+        .computeIfAbsent(normalized) { CachedDanmakuBlockRuleMatcher(compileDanmakuBlockRuleMatcher(it)) }
+        .matcher
+}
+
+private fun compileDanmakuBlockRuleMatcher(normalizedRule: String): DanmakuBlockRuleMatcher? {
+    val normalized = normalizedRule.trim()
     if (normalized.isEmpty()) return null
 
     val normalizedUserHashRule = normalizeDanmakuUserHashRule(normalized)

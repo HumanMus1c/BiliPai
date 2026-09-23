@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.screen
 
 import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
+import com.android.purebilibili.core.store.TabletSecondaryDefaultTab
 import com.android.purebilibili.core.util.AppFoldPosture
 import androidx.compose.ui.graphics.Color
 
@@ -102,7 +103,19 @@ fun resolveTabletVideoLayoutPolicy(
     }
 }
 
-internal fun resolveTabletSecondaryDefaultTab(): Int = 0
+internal fun resolveTabletSecondaryDefaultTabIndex(
+    tabs: List<TabletSecondaryTab>,
+    preferRelated: Boolean,
+): Int {
+    val preferredTab = if (preferRelated) TabletSecondaryTab.RELATED else TabletSecondaryTab.COMMENTS
+    return tabs.indexOf(preferredTab).takeIf { it >= 0 } ?: 0
+}
+
+internal fun resolveTabletCommentTabIndex(tabs: List<TabletSecondaryTab>): Int =
+    tabs.indexOf(TabletSecondaryTab.COMMENTS)
+
+internal fun resolveTabletCinemaDefaultTab(tab: TabletSecondaryDefaultTab): Int =
+    if (tab == TabletSecondaryDefaultTab.RELATED) 1 else 0
 
 /** Always-visible 发弹幕 / toggle next to 评论, matching the phone content tab bar. */
 internal fun shouldShowTabletSecondaryDanmakuActions(): Boolean = true

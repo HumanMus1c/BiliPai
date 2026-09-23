@@ -79,14 +79,18 @@ import com.android.purebilibili.feature.dynamic.components.ImageDecodeTarget
 import com.android.purebilibili.feature.dynamic.components.resolveCommentImageOriginalSizeLabel
 import com.android.purebilibili.feature.dynamic.components.resolveImageDecodeSize
 import androidx.compose.ui.layout.ContentScale
-import com.android.purebilibili.core.ui.common.CopySelectionDialog
+import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
+import com.android.purebilibili.core.ui.common.TextSelectionPolicy
+import com.android.purebilibili.core.ui.common.detectTapWithSelectionFriendly
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.OfficialVerifyBadge
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeSpec
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeTone
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -278,11 +282,9 @@ internal fun collectRenderableEmoteKeys(
 }
 
 internal fun shouldEnableRichCommentSelection(
-    hasRenderableEmotes: Boolean,
-    hasInteractiveAnnotations: Boolean
-): Boolean {
-    return !hasRenderableEmotes && !hasInteractiveAnnotations
-}
+    hasRenderableEmotes: Boolean = false,
+    hasInteractiveAnnotations: Boolean = false
+): Boolean = true
 
 // 纯 Text 标签渲染成本低；滚动/播放期间保持稳定显示，对齐底栏 dragFloor 不因 motion 切换可见性。
 @Suppress("UNUSED_PARAMETER")
@@ -1353,7 +1355,7 @@ fun ReplyItemView(
     }
 
     if (showFreeCopyDialog) {
-        CopySelectionDialog(
+        TextSelectionBottomSheet(
             text = copyText,
             title = "选择评论内容",
             onDismiss = { showFreeCopyDialog = false }
@@ -1966,13 +1968,13 @@ private fun ReplyVideoReferenceText(
         )
     }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var showCopySelectionDialog by remember(copyText) { mutableStateOf(false) }
+    var showTextSelectionSheet by remember(copyText) { mutableStateOf(false) }
     val modifier = if (onUrlClick != null) {
         Modifier.pointerInput(annotatedString, url) {
             detectTapGestures(
                 onLongPress = {
                     if (copyText.isNotEmpty()) {
-                        showCopySelectionDialog = true
+                        showTextSelectionSheet = true
                     }
                 },
                 onTap = { offset ->
@@ -2004,11 +2006,11 @@ private fun ReplyVideoReferenceText(
         modifier = modifier
     )
 
-    if (showCopySelectionDialog) {
-        CopySelectionDialog(
+    if (showTextSelectionSheet) {
+        TextSelectionBottomSheet(
             text = copyText,
             title = "选择评论内容",
-            onDismiss = { showCopySelectionDialog = false }
+            onDismiss = { showTextSelectionSheet = false }
         )
     }
 }
@@ -2152,86 +2154,71 @@ fun RichCommentText(
         )
     }
     val copyText = remember(text) { text.trim() }
-    var showCopySelectionDialog by remember(copyText) { mutableStateOf(false) }
+    var showTextSelectionSheet by remember(copyText) { mutableStateOf(false) }
 
     val content: @Composable () -> Unit = {
         //  使用 Text + pointerInput 实现带表情的可点击文本
         var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-        val textModifier = when {
-            hasTapHandler -> Modifier.pointerInput(annotatedString, text, onPlainTextClick) {
-                detectTapGestures(
-                    onLongPress = {
-                        if (copyText.isNotEmpty()) {
-                            showCopySelectionDialog = true
+        val textModifier = if (hasTapHandler) {
+            Modifier.pointerInput(annotatedString, text, onPlainTextClick) {
+                detectTapWithSelectionFriendly { offset ->
+                    textLayoutResult?.let { layoutResult ->
+                        val position = layoutResult.getOffsetForPosition(offset)
+                        val searchStart = maxOf(0, position - 1)
+                        val searchEnd = minOf(annotatedString.length, position + 1)
+
+                        annotatedString.getStringAnnotations(
+                            tag = COMMENT_URL_TAG,
+                            start = searchStart,
+                            end = searchEnd
+                        ).firstOrNull()?.let { annotation ->
+                            onUrlClick?.invoke(annotation.item)
+                            return@detectTapWithSelectionFriendly
                         }
-                    },
-                    onTap = { offset ->
-                        textLayoutResult?.let { layoutResult ->
-                            val position = layoutResult.getOffsetForPosition(offset)
-                            val searchStart = maxOf(0, position - 1)
-                            val searchEnd = minOf(annotatedString.length, position + 1)
 
-                            annotatedString.getStringAnnotations(
-                                tag = COMMENT_URL_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            ).firstOrNull()?.let { annotation ->
-                                onUrlClick?.invoke(annotation.item)
-                                return@detectTapGestures
-                            }
-
-                            annotatedString.getStringAnnotations(
-                                tag = COMMENT_USER_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            ).firstOrNull()?.let { annotation ->
-                                annotation.item.toLongOrNull()?.let { onUserClick?.invoke(it) }
-                                return@detectTapGestures
-                            }
-
-                            annotatedString.getStringAnnotations(
-                                tag = COMMENT_TOPIC_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            ).firstOrNull()?.let { annotation ->
-                                onTopicClick?.invoke(annotation.item)
-                                return@detectTapGestures
-                            }
-
-                            annotatedString.getStringAnnotations(
-                                tag = COMMENT_VOTE_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            ).firstOrNull()?.let { annotation ->
-                                annotation.item.toLongOrNull()?.let { onVoteClick?.invoke(it) }
-                                return@detectTapGestures
-                            }
-
-                            annotatedString.getStringAnnotations(
-                                tag = COMMENT_TIMESTAMP_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            )
-                            .firstOrNull()?.let { annotation ->
-                                val secondsValue = annotation.item.toLongOrNull() ?: 0L
-                                onTimestampClick?.invoke(secondsValue * 1000)
-                                return@detectTapGestures
-                            }
+                        annotatedString.getStringAnnotations(
+                            tag = COMMENT_USER_TAG,
+                            start = searchStart,
+                            end = searchEnd
+                        ).firstOrNull()?.let { annotation ->
+                            annotation.item.toLongOrNull()?.let { onUserClick?.invoke(it) }
+                            return@detectTapWithSelectionFriendly
                         }
-                        onPlainTextClick?.invoke()
-                    }
-                )
-            }
-            !selectionEnabled -> Modifier.pointerInput(copyText) {
-                detectTapGestures(
-                    onLongPress = {
-                        if (copyText.isNotEmpty()) {
-                            showCopySelectionDialog = true
+
+                        annotatedString.getStringAnnotations(
+                            tag = COMMENT_TOPIC_TAG,
+                            start = searchStart,
+                            end = searchEnd
+                        ).firstOrNull()?.let { annotation ->
+                            onTopicClick?.invoke(annotation.item)
+                            return@detectTapWithSelectionFriendly
+                        }
+
+                        annotatedString.getStringAnnotations(
+                            tag = COMMENT_VOTE_TAG,
+                            start = searchStart,
+                            end = searchEnd
+                        ).firstOrNull()?.let { annotation ->
+                            annotation.item.toLongOrNull()?.let { onVoteClick?.invoke(it) }
+                            return@detectTapWithSelectionFriendly
+                        }
+
+                        annotatedString.getStringAnnotations(
+                            tag = COMMENT_TIMESTAMP_TAG,
+                            start = searchStart,
+                            end = searchEnd
+                        )
+                        .firstOrNull()?.let { annotation ->
+                            val secondsValue = annotation.item.toLongOrNull() ?: 0L
+                            onTimestampClick?.invoke(secondsValue * 1000)
+                            return@detectTapWithSelectionFriendly
                         }
                     }
-                )
+                    onPlainTextClick?.invoke()
+                }
             }
-            else -> Modifier
+        } else {
+            Modifier
         }
 
         AppText(
@@ -2246,19 +2233,15 @@ fun RichCommentText(
         )
     }
 
-    if (selectionEnabled) {
-        SelectionContainer {
-            content()
-        }
-    } else {
+    SelectionContainer {
         content()
     }
 
-    if (showCopySelectionDialog) {
-        CopySelectionDialog(
+    if (showTextSelectionSheet) {
+        TextSelectionBottomSheet(
             text = copyText,
             title = "选择评论内容",
-            onDismiss = { showCopySelectionDialog = false }
+            onDismiss = { showTextSelectionSheet = false }
         )
     }
 }
@@ -2460,6 +2443,14 @@ internal fun ReplyMemberAvatar(
                 modifier = Modifier.fillMaxSize()
             )
         }
+        UserAvatarCornerMarkBadge(
+            mark = resolveUserAvatarCornerMark(
+                officialType = member.officialVerify.type,
+                vipStatus = member.vip?.vipStatus,
+            ),
+            modifier = Modifier.align(Alignment.BottomEnd),
+            badgeSize = 14.dp,
+        )
     }
 }
 

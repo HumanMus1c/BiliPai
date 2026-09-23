@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -424,16 +426,26 @@ private fun CommentSearchResultRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(FormatUtils.fixImageUrl(item.member.avatar))
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = item.member.uname,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape),
-                    )
+                    Box(modifier = Modifier.size(24.dp)) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(FormatUtils.fixImageUrl(item.member.avatar))
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = item.member.uname,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                        )
+                        UserAvatarCornerMarkBadge(
+                            mark = resolveUserAvatarCornerMark(
+                                officialType = item.member.officialVerify.type,
+                                vipStatus = item.member.vip?.vipStatus,
+                            ),
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            badgeSize = 10.dp,
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     AppText(
                         text = highlightQuery(item.member.uname, searchQuery, primaryColor),

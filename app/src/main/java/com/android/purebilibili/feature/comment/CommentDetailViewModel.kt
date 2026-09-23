@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.comment
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.purebilibili.data.model.CommentFraudStatus
+import com.android.purebilibili.data.repository.CommentFraudRepository
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
@@ -19,6 +21,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+data class CommentDetailFraudResult(
+    val rpid: Long,
+    val status: CommentFraudStatus
+)
 
 class CommentDetailViewModel : ViewModel() {
     private val _subReplyState = MutableStateFlow(SubReplyUiState())
@@ -38,6 +45,42 @@ class CommentDetailViewModel : ViewModel() {
 
     private val _isSending = MutableStateFlow(false)
     val isSending = _isSending.asStateFlow()
+
+    private val _fraudResult = MutableStateFlow<CommentDetailFraudResult?>(null)
+    val fraudResult = _fraudResult.asStateFlow()
+    private var fraudCheckJob: Job? = null
+
+    fun checkCommentFraud(reply: ReplyItem) {
+        val oid = currentOid
+        if (currentType != 1 || oid <= 0L || reply.rpid <= 0L) return
+        fraudCheckJob?.cancel()
+        _fraudResult.value = null
+        fraudCheckJob = viewModelScope.launch {
+            CommentRepository.checkCommentStatus(
+                aid = oid,
+                rpid = reply.rpid,
+                rootId = reply.root,
+                hasPictures = !reply.content.pictures.isNullOrEmpty(),
+                sentAtSeconds = reply.ctime,
+                waitMs = 0L
+            ).onSuccess { status ->
+                CommentFraudRepository.saveRecord(
+                    rpid = reply.rpid,
+                    oid = oid,
+                    type = 1,
+                    root = reply.root,
+                    message = reply.content.message,
+                    status = status,
+                    initialStatus = null
+                )
+                _fraudResult.value = CommentDetailFraudResult(reply.rpid, status)
+            }
+        }
+    }
+
+    fun dismissFraudResult() {
+        _fraudResult.value = null
+    }
 
     private var currentOid: Long = 0L
     private var currentType: Int = 1

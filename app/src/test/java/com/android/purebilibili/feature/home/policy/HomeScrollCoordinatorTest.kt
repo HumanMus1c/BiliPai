@@ -216,6 +216,27 @@ class HomeScrollCoordinatorTest {
     }
 
     @Test
+    fun subscriptionTab_usesItsOwnListPositionForHeaderReveal() {
+        assertEquals(
+            4,
+            resolveHomeHeaderListIndex(
+                displayedEntryIsSubscription = true,
+                categoryFirstVisibleIndex = 0,
+                subscriptionFirstVisibleIndex = 4,
+            ),
+        )
+        assertEquals(false, canRevealHomeHeaderForList(firstVisibleItemIndex = 4, listMissing = false))
+        assertEquals(
+            0,
+            resolveHomeHeaderListIndex(
+                displayedEntryIsSubscription = false,
+                categoryFirstVisibleIndex = 0,
+                subscriptionFirstVisibleIndex = 4,
+            ),
+        )
+    }
+
+    @Test
     fun showAtTopOnly_keepsHeaderHiddenOnReverseScrollAwayFromTop() {
         val result = reduceHomePreScroll(
             currentHeaderOffsetPx = -120f,

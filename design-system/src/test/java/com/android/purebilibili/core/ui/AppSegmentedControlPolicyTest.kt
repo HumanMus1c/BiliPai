@@ -10,6 +10,7 @@ import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColo
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
 import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
 import com.android.purebilibili.core.ui.components.resolveMiuixTabMinWidth
+import com.android.purebilibili.core.ui.components.resolvePiliPlusScrollableUnderlineMinWidth
 import com.android.purebilibili.core.ui.components.resolveMiuixNonGlassContentTabItemWidths
 import com.android.purebilibili.core.ui.components.shouldEqualizeMiuixNonGlassTabItems
 import com.android.purebilibili.core.ui.components.shouldStretchMiuixNonGlassTabRowToTrack
@@ -159,10 +160,13 @@ class AppSegmentedControlPolicyTest {
         )
         assertEquals(sharedWidth, resolveMiuixTabMinWidth(48.dp, sharedWidth, false))
         assertEquals(72.dp, resolveMiuixTabMinWidth(72.dp, sharedWidth, true))
+        assertEquals(0.dp, resolvePiliPlusScrollableUnderlineMinWidth())
         val source = loadSource("src/main/java/com/android/purebilibili/core/ui/components/AppSegmentedControl.kt")
-        val materialRenderer = source.substringAfter("AppSegmentedRenderer.MATERIAL3 -> AppMaterial3TabRow(")
-        assertTrue(materialRenderer.contains("minTabWidth = resolveMiuixTabMinWidth("))
-        assertTrue(materialRenderer.contains("contentSizedItems = useContentSizedMiuixItems || effectiveScrollable"))
+        val materialRenderer = source
+            .substringAfter("AppSegmentedRenderer.MATERIAL3 -> AppMaterial3TabRow(")
+            .substringBefore("AppSegmentedRenderer.MIUIX -> AppMiuixTabRow(")
+        assertTrue(materialRenderer.contains("minTabWidth = resolvePiliPlusScrollableUnderlineMinWidth()"))
+        assertFalse(materialRenderer.contains("resolveMiuixTabMinWidth("))
         val renderer = source.substringAfter("AppSegmentedRenderer.MIUIX -> AppMiuixTabRow(")
         assertTrue(renderer.contains("minTabWidth = resolveMiuixTabMinWidth("))
         assertTrue(renderer.contains("contentSizedItems = useContentSizedMiuixItems"))

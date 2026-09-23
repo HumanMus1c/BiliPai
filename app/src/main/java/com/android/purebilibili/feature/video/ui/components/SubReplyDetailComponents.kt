@@ -81,7 +81,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Size
-import com.android.purebilibili.core.ui.common.CopySelectionDialog
+import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberStoragePermissionState
 import com.android.purebilibili.data.model.response.ReplyItem
@@ -760,8 +760,8 @@ internal fun SubReplyDetailContent(
                             onDeleteClick = if (currentMid > 0 && rootReply.mid == currentMid) {
                                 { onDeleteComment?.invoke(rootReply.rpid) }
                             } else null,
-                            onCheckFraudClick = if (currentMid > 0 && rootReply.mid == currentMid) {
-                                { onCheckCommentFraud?.invoke(rootReply) }
+                            onCheckFraudClick = if (onCheckCommentFraud != null && currentMid > 0 && rootReply.mid == currentMid) {
+                                { onCheckCommentFraud.invoke(rootReply) }
                             } else null,
                             onLikeClick = { onCommentLike?.invoke(rootReply.rpid) },
                             onHateClick = { onCommentHate?.invoke(rootReply.rpid) },
@@ -882,8 +882,8 @@ internal fun SubReplyDetailContent(
                             } else {
                                 null
                             },
-                            onCheckFraudClick = if (currentMid > 0 && item.mid == currentMid) {
-                                { onCheckCommentFraud?.invoke(item) }
+                            onCheckFraudClick = if (onCheckCommentFraud != null && currentMid > 0 && item.mid == currentMid) {
+                                { onCheckCommentFraud.invoke(item) }
                             } else null,
                             onLikeClick = { onCommentLike?.invoke(item.rpid) },
                             onHateClick = { onCommentHate?.invoke(item.rpid) },
@@ -1147,7 +1147,7 @@ private fun SubReplyDetailItem(
     }
 
     if (showFreeCopyDialog) {
-        CopySelectionDialog(
+        TextSelectionBottomSheet(
             text = copyText,
             title = "选择评论内容",
             onDismiss = { showFreeCopyDialog = false }

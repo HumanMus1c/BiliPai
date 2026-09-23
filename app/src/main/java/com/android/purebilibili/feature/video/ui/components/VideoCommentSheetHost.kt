@@ -850,6 +850,7 @@ fun VideoCommentSheetHost(
                                         currentMid = commentState.currentMid,
                                         onDissolveStart = { rpid -> commentViewModel.startSubDissolve(rpid) },
                                         onDeleteComment = { rpid -> commentViewModel.deleteSubComment(rpid) },
+                                        onCheckCommentFraud = commentViewModel::checkCommentFraud,
                                         onCommentLike = commentViewModel::likeComment,
                                         onCommentHate = commentViewModel::hateComment,
                                         onReportComment = commentViewModel::reportComment,

@@ -298,6 +298,7 @@ private val PluginCapability.label: String
         PluginCapability.NETWORK -> "网络访问"
         PluginCapability.PLUGIN_STORAGE -> "插件存储"
         PluginCapability.EXTERNAL_MEDIA_PLAYBACK -> "外部媒体播放"
+        PluginCapability.FEED_SOURCE -> "订阅源"
     }
 
 private val PluginCapability.description: String
@@ -313,4 +314,5 @@ private val PluginCapability.description: String
         PluginCapability.NETWORK -> "访问网络获取远程数据或服务"
         PluginCapability.PLUGIN_STORAGE -> "读写插件自己的本地配置或缓存"
         PluginCapability.EXTERNAL_MEDIA_PLAYBACK -> "播放插件返回的外部媒体链接"
+        PluginCapability.FEED_SOURCE -> "声明 RSS 或 Atom 订阅地址，由应用解析并在首页展示"
     }

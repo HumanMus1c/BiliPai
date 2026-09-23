@@ -42,6 +42,7 @@ private enum class HomeNavigationIconRole {
     PARTITION,
     KNOWLEDGE,
     TECH,
+    SUBSCRIPTIONS,
 }
 
 internal enum class HomeNavigationIconSource {
@@ -67,6 +68,7 @@ private fun resolveHomeNavigationIconRole(tabId: String): HomeNavigationIconRole
     "PARTITION" -> HomeNavigationIconRole.PARTITION
     "KNOWLEDGE" -> HomeNavigationIconRole.KNOWLEDGE
     "TECH" -> HomeNavigationIconRole.TECH
+    "SUBSCRIPTIONS" -> HomeNavigationIconRole.SUBSCRIPTIONS
     else -> HomeNavigationIconRole.HOME
 }
 
@@ -109,6 +111,7 @@ private fun resolveMiuixHomeNavigationIcon(
         val filledResource = when (role) {
             HomeNavigationIconRole.HOME -> R.drawable.ms_home_fill_24
             HomeNavigationIconRole.HISTORY -> R.drawable.ms_history_fill_24
+            HomeNavigationIconRole.SUBSCRIPTIONS -> R.drawable.ms_rss_feed_24
             else -> null
         }
         if (filledResource != null) return ImageVector.vectorResource(filledResource)
@@ -134,5 +137,6 @@ private fun resolveMiuixHomeNavigationIcon(
         HomeNavigationIconRole.PARTITION -> MiuixIcons.Light.GridView
         HomeNavigationIconRole.KNOWLEDGE -> MiuixIcons.Light.Notes
         HomeNavigationIconRole.TECH -> MiuixIcons.Light.Theme
+        HomeNavigationIconRole.SUBSCRIPTIONS -> ImageVector.vectorResource(R.drawable.ms_rss_feed_24)
     }
 }

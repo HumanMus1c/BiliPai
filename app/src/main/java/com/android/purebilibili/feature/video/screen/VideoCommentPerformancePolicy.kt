@@ -1,13 +1,12 @@
 package com.android.purebilibili.feature.video.screen
 
 internal fun resolveVideoDetailBeyondViewportPageCount(
-    isVideoPlaying: Boolean,
     selectedTabIndex: Int = 0
-): Int = when {
-    isVideoPlaying -> 0
-    // 停在评论 Tab 时不必保活简介页，减少双 LazyColumn 同存。
-    selectedTabIndex == 1 -> 0
-    else -> 1
+): Int = if (selectedTabIndex == 1) {
+    // 评论页已经可见时不保活简介页；简介页时提前组合评论页，避免横滑后才创建排序栏。
+    0
+} else {
+    1
 }
 
 internal fun shouldLoadMoreVideoComments(

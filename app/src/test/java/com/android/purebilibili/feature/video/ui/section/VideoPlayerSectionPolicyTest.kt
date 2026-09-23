@@ -16,6 +16,85 @@ import kotlin.test.assertTrue
 class VideoPlayerSectionPolicyTest {
 
     @Test
+    fun inlineAmbientCapture_stopsWhenPortraitFullscreenOwnsPlayback() {
+        assertTrue(
+            shouldCaptureInlineStatusBarAmbientFrame(
+                contentTopInsetPx = 48f,
+                isFullscreen = false,
+                isPortraitFullscreen = false,
+                isInPipMode = false,
+                hostLifecycleStarted = true,
+                statusBarHazeEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldCaptureInlineStatusBarAmbientFrame(
+                contentTopInsetPx = 48f,
+                isFullscreen = false,
+                isPortraitFullscreen = true,
+                isInPipMode = false,
+                hostLifecycleStarted = true,
+                statusBarHazeEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldCaptureInlineStatusBarAmbientFrame(
+                contentTopInsetPx = 0f,
+                isFullscreen = false,
+                isPortraitFullscreen = false,
+                isInPipMode = false,
+                hostLifecycleStarted = true,
+                statusBarHazeEnabled = true,
+            )
+        )
+    }
+
+    @Test
+    fun inlinePlayerGestures_disabledWhilePortraitFullscreenOwnsTouch() {
+        assertTrue(shouldEnableInlinePlayerGestures(isPortraitFullscreen = false))
+        assertFalse(shouldEnableInlinePlayerGestures(isPortraitFullscreen = true))
+    }
+
+    @Test
+    fun inlineDanmakuHostEffects_stoppedDuringPortraitFullscreen() {
+        assertTrue(
+            shouldRunVideoPlayerDanmakuHostEffects(
+                danmakuHostActive = true,
+                hostLifecycleStarted = true,
+                isPortraitFullscreen = false,
+            )
+        )
+        assertFalse(
+            shouldRunVideoPlayerDanmakuHostEffects(
+                danmakuHostActive = true,
+                hostLifecycleStarted = true,
+                isPortraitFullscreen = true,
+            )
+        )
+    }
+
+    @Test
+    fun videoPlayerSection_gatesGesturesAndAmbientOnPortraitFullscreen() {
+        val source = loadVideoPlayerSectionSource()
+
+        assertTrue(source.contains("shouldEnableInlinePlayerGestures(isPortraitFullscreen)"))
+        assertTrue(source.contains("shouldCaptureInlineStatusBarAmbientFrame("))
+        assertTrue(source.contains("isPortraitFullscreen = isPortraitFullscreen"))
+    }
+
+    @Test
+    fun portraitDanmakuOverlay_configuresPassiveTouchSoComposeReceivesGestures() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/pager/PortraitVideoPager.kt"
+        ).readText()
+
+        val overlayBlock = source.substringAfter("private fun PortraitDanmakuOverlay(")
+            .substringBefore("internal fun resolvePortraitPagerRepeatMode")
+        assertTrue(overlayBlock.contains("configureAsPassiveDanmakuOverlay()"))
+        assertTrue(source.contains("import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay"))
+    }
+
+    @Test
     fun progressPolling_stopsWhenPlayerChromeAndSeekInteractionsAreIdle() {
         assertFalse(
             shouldPollVideoPlayerProgress(

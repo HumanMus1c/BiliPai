@@ -209,12 +209,24 @@ internal fun mergePortraitRecommendationAppendItems(
         .filter { it.bvid.isNotBlank() }
         .toMutableList()
 
+    val signatureCache = HashMap<String, PortraitRecommendationSignature>()
+    fun signatureOf(video: RelatedVideo): PortraitRecommendationSignature {
+        return signatureCache.getOrPut(video.bvid) { buildPortraitRecommendationSignature(video) }
+    }
+    fun isSimilar(left: RelatedVideo, right: RelatedVideo): Boolean {
+        if (left.bvid == right.bvid) return true
+        return arePortraitRecommendationSignaturesSimilar(
+            firstSignature = signatureOf(left),
+            secondSignature = signatureOf(right),
+        )
+    }
+
     return fetchedRecommendations.fold(mutableListOf<RelatedVideo>()) { appended, candidate ->
         val canAppend = candidate.bvid.isNotBlank() &&
             candidate.bvid != currentBvid &&
             candidate.bvid !in existingBvids &&
             appended.none { it.bvid == candidate.bvid } &&
-            accepted.none { existing -> arePortraitRecommendationsContentSimilar(existing, candidate) } &&
+            accepted.none { existing -> isSimilar(existing, candidate) } &&
             !violatesPortraitRecentOwnerDiversity(
                 acceptedRecommendations = accepted,
                 candidate = candidate
@@ -275,9 +287,22 @@ internal fun shufflePortraitRecommendations(
         .distinctBy { it.bvid }
         .shuffled(Random(seed))
 
+    // Pairwise title matching is quadratic; build each signature once per list pass.
+    val signatureCache = HashMap<String, PortraitRecommendationSignature>(shuffled.size)
+    fun signatureOf(video: RelatedVideo): PortraitRecommendationSignature {
+        return signatureCache.getOrPut(video.bvid) { buildPortraitRecommendationSignature(video) }
+    }
+    fun isSimilar(left: RelatedVideo, right: RelatedVideo): Boolean {
+        if (left.bvid == right.bvid) return true
+        return arePortraitRecommendationSignaturesSimilar(
+            firstSignature = signatureOf(left),
+            secondSignature = signatureOf(right),
+        )
+    }
+
     val deduplicated = mutableListOf<RelatedVideo>()
     shuffled.forEach { candidate ->
-        if (deduplicated.none { existing -> arePortraitRecommendationsContentSimilar(existing, candidate) }) {
+        if (deduplicated.none { existing -> isSimilar(existing, candidate) }) {
             deduplicated += candidate
         }
     }
@@ -291,11 +316,11 @@ internal fun shufflePortraitRecommendations(
             ?: precedingOwnerMid.takeIf { arranged.isEmpty() && it > 0L }
         val candidateIndex = remaining.indexOfFirst { candidate ->
             val candidateOwnerMid = candidate.owner.mid
-            (last == null || !arePortraitRecommendationsContentSimilar(last, candidate)) &&
+            (last == null || !isSimilar(last, candidate)) &&
                 (previousOwnerMid == null || candidateOwnerMid <= 0L || candidateOwnerMid != previousOwnerMid)
         }.takeIf { it >= 0 }
             ?: remaining.indexOfFirst { candidate ->
-                last == null || !arePortraitRecommendationsContentSimilar(last, candidate)
+                last == null || !isSimilar(last, candidate)
             }.takeIf { it >= 0 }
             ?: 0
 
@@ -373,8 +398,16 @@ internal fun arePortraitRecommendationsContentSimilar(
     if (first.bvid.isBlank() || second.bvid.isBlank()) return false
     if (first.bvid == second.bvid) return true
 
-    val firstSignature = buildPortraitRecommendationSignature(first)
-    val secondSignature = buildPortraitRecommendationSignature(second)
+    return arePortraitRecommendationSignaturesSimilar(
+        firstSignature = buildPortraitRecommendationSignature(first),
+        secondSignature = buildPortraitRecommendationSignature(second),
+    )
+}
+
+private fun arePortraitRecommendationSignaturesSimilar(
+    firstSignature: PortraitRecommendationSignature,
+    secondSignature: PortraitRecommendationSignature
+): Boolean {
 
     if (
         firstSignature.normalizedTitle.isNotBlank() &&
@@ -420,11 +453,19 @@ private fun buildPortraitRecommendationSignature(
     )
 }
 
+// Title similarity is O(n^2) during portrait shuffle. Compile regex once so the
+// main thread does not rebuild Matcher/ICU state for every pair comparison.
+private val PORTRAIT_TITLE_BRACKET_PATTERN = Regex("[\\[{（(【].*?[\\]})）)】]")
+private val PORTRAIT_TITLE_NON_WORD_PATTERN = Regex("[^\\u4e00-\\u9fa5a-z0-9]+")
+private val PORTRAIT_TITLE_WHITESPACE_PATTERN = Regex("\\s+")
+private val PORTRAIT_TITLE_ZH_TOKEN_PATTERN = Regex("[\\u4e00-\\u9fa5]{2,6}")
+private val PORTRAIT_TITLE_EN_TOKEN_PATTERN = Regex("[a-z0-9]{3,}")
+
 private fun normalizePortraitRecommendationTitle(title: String): String {
     return title.lowercase()
-        .replace(Regex("[\\[{（(【].*?[\\]})）)】]"), " ")
-        .replace(Regex("[^\\u4e00-\\u9fa5a-z0-9]+"), " ")
-        .replace(Regex("\\s+"), " ")
+        .replace(PORTRAIT_TITLE_BRACKET_PATTERN, " ")
+        .replace(PORTRAIT_TITLE_NON_WORD_PATTERN, " ")
+        .replace(PORTRAIT_TITLE_WHITESPACE_PATTERN, " ")
         .trim()
 }
 
@@ -439,14 +480,14 @@ private fun extractPortraitRecommendationKeywords(title: String): Set<String> {
     val normalized = normalizePortraitRecommendationTitle(title)
     if (normalized.isBlank()) return emptySet()
 
-    val zhTokens = Regex("[\\u4e00-\\u9fa5]{2,6}")
+    val zhTokens = PORTRAIT_TITLE_ZH_TOKEN_PATTERN
         .findAll(normalized)
         .map { it.value }
         .filter { it !in PORTRAIT_RECOMMENDATION_STOP_WORDS }
         .take(6)
         .toList()
 
-    val enTokens = Regex("[a-z0-9]{3,}")
+    val enTokens = PORTRAIT_TITLE_EN_TOKEN_PATTERN
         .findAll(normalized)
         .map { it.value }
         .take(4)

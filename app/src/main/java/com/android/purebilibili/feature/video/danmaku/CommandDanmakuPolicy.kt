@@ -32,6 +32,30 @@ data class VoteOption(
     val score: Int? = null
 )
 
+/**
+ * The grade endpoint accepts the five even score values 2..10. Keep these slots
+ * independent from the order (or labels) supplied by a command payload.
+ */
+internal val GRADE_STAR_SCORES = listOf(2, 4, 6, 8, 10)
+
+/**
+ * Maps raw grade options to the five visible stars without inventing values.
+ *
+ * A star is enabled only when the payload contains the corresponding legal
+ * score. Duplicate scores keep the first original option so submission still
+ * carries the server-provided id/label.
+ */
+internal fun resolveGradeStarOptions(options: List<VoteOption>): List<VoteOption?> {
+    val firstOptionByScore = mutableMapOf<Int, VoteOption>()
+    options.forEach { option ->
+        val score = option.score
+        if (score != null && score in GRADE_STAR_SCORES && score !in firstOptionByScore) {
+            firstOptionByScore[score] = option
+        }
+    }
+    return GRADE_STAR_SCORES.map { score -> firstOptionByScore[score] }
+}
+
 data class CommandDanmakuItem(
     val id: String,
     val type: CommandDanmakuType,

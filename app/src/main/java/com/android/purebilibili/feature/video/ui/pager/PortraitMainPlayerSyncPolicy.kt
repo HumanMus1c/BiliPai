@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.ui.pager
 
+import kotlin.math.abs
+
 internal data class PortraitExitRestoreTarget(
     val bvid: String,
     val cid: Long
@@ -32,6 +34,29 @@ internal fun resolvePortraitInitialPlayingBvid(
 
 internal fun shouldMirrorPortraitProgressToMainPlayer(useSharedPlayer: Boolean): Boolean {
     return !useSharedPlayer
+}
+
+/**
+ * Portrait progress polls every few hundred ms. Committing each tick into the giant
+ * VideoDetailScreenStateHolder invalidates composition continuously and can ANR the
+ * main thread while the standalone pager owns playback.
+ *
+ * Identity changes always commit. Position commits only after a meaningful delta so
+ * exit/back still receive a fresh enough snapshot without thrashing composition.
+ */
+internal fun shouldCommitPortraitProgressToDetailState(
+    previousBvid: String?,
+    previousCid: Long,
+    previousPositionMs: Long,
+    nextBvid: String,
+    nextCid: Long,
+    nextPositionMs: Long,
+    positionCommitThresholdMs: Long = 1_000L,
+): Boolean {
+    if (!nextBvid.isNullOrBlank() && nextBvid != previousBvid) return true
+    if (nextCid > 0L && nextCid != previousCid) return true
+    if (previousPositionMs < 0L) return true
+    return abs(nextPositionMs - previousPositionMs) >= positionCommitThresholdMs
 }
 
 internal fun shouldExitPortraitForExternalNavigation(isPortraitFullscreen: Boolean): Boolean {

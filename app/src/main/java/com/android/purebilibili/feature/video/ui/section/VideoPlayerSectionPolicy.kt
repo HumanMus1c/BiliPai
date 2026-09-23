@@ -515,6 +515,30 @@ internal fun resolveVerticalGestureMode(
     }
 }
 
+/** Inline ambient capture stops while portrait fullscreen owns playback. */
+internal fun shouldCaptureInlineStatusBarAmbientFrame(
+    contentTopInsetPx: Float,
+    isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
+    isInPipMode: Boolean,
+    hostLifecycleStarted: Boolean,
+    statusBarHazeEnabled: Boolean,
+): Boolean {
+    return contentTopInsetPx > 0f &&
+        !isFullscreen &&
+        !isPortraitFullscreen &&
+        !isInPipMode &&
+        hostLifecycleStarted &&
+        statusBarHazeEnabled
+}
+
+/** Inline player gestures yield touch to PortraitVideoPager during portrait fullscreen. */
+internal fun shouldEnableInlinePlayerGestures(
+    isPortraitFullscreen: Boolean,
+): Boolean {
+    return !isPortraitFullscreen
+}
+
 internal fun shouldShowDanmakuLayers(
     isInPipMode: Boolean,
     danmakuEnabled: Boolean,

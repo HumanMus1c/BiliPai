@@ -20,7 +20,9 @@ data class BiliPaiJsModule(
     val title: String,
     val description: String = "",
     val functionName: String,
-    val params: List<BiliPaiJsParam> = emptyList()
+    val params: List<BiliPaiJsParam> = emptyList(),
+    /** `feed` 时宿主自己请求并解析 RSS/Atom，不调用 [functionName]。 */
+    val kind: String = ""
 )
 
 @Serializable

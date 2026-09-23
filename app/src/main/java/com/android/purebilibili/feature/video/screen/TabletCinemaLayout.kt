@@ -206,6 +206,9 @@ internal fun TabletCinemaLayout(
     liveSurfaceCardTransitionEnabled: Boolean = true,
 ) {
     val appContext = LocalContext.current
+    val secondaryDefaultTab by SettingsManager
+        .getTabletSecondaryDefaultTab(appContext)
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.TabletSecondaryDefaultTab.RELATED)
     val foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture
     val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset, foldPosture) {
         resolveTabletCinemaLayoutPolicy(
@@ -224,8 +227,8 @@ internal fun TabletCinemaLayout(
         runCatching { TabletSideCurtainState.valueOf(curtainStateName) }
             .getOrDefault(resolveInitialCurtainState(configuration.screenWidthDp))
     }
-    var selectedTab by rememberSaveable(bvid) {
-        mutableIntStateOf(resolveTabletSecondaryDefaultTab())
+    var selectedTab by rememberSaveable(bvid, secondaryDefaultTab) {
+        mutableIntStateOf(resolveTabletCinemaDefaultTab(secondaryDefaultTab))
     }
     val curtainPagerState = rememberPagerState(
         initialPage = selectedTab,

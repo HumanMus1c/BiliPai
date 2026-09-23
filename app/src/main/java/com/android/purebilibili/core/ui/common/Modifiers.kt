@@ -77,52 +77,16 @@ fun rememberClipboardCopyHandler(): (String, String?) -> Unit {
 }
 
 /**
- * 长按复制。避免 [detectTapGestures] 吞掉父级 Surface/clickable 的单击。
- *
- * - 手指在超时前抬起：不复制
- * - 手指位移超过 touchSlop：取消，避免列表滑动误复制
- * - [longPressTimeoutMillis] 可抬高阈值；默认不低于系统值
+ * 文本长按划选修饰符。
+ * 全局已由 [ProvideAppTextSelectionHost] 与 [androidx.compose.foundation.text.selection.SelectionContainer]
+ * 统一接管原生水滴游标原地划选及实时悬浮工具条。
+ * 此处保留方法签名以兼容各业务组件与架构测试规范，不再挂载拦截性 pointerInput，完全放行手势给原生划选。
  */
 fun Modifier.copyOnLongPress(
     text: String,
     label: String? = null,
     longPressTimeoutMillis: Long? = null,
-): Modifier = composed {
-    val copyToClipboard = rememberClipboardCopyHandler()
-    if (text.isBlank()) return@composed this
-
-    pointerInput(text, label, longPressTimeoutMillis) {
-        val timeoutMs = resolveLongPressCopyTimeoutMs(
-            systemLongPressTimeoutMs = viewConfiguration.longPressTimeoutMillis,
-            explicitTimeoutMs = longPressTimeoutMillis,
-        )
-        val slopPx = viewConfiguration.touchSlop
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val downPosition = down.position
-            val longPressTriggered = withTimeoutOrNull(timeoutMs) {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Main)
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                        ?: return@withTimeoutOrNull false
-                    if (hasExceededLongPressCopySlop(downPosition, change.position, slopPx)) {
-                        return@withTimeoutOrNull false
-                    }
-                    if (!change.pressed) {
-                        return@withTimeoutOrNull false
-                    }
-                }
-                @Suppress("UNREACHABLE_CODE")
-                false
-            }
-            // null = 超时且期间未超 slop、未抬起 → 触发长按复制
-            if (longPressTriggered == null) {
-                copyToClipboard(text, label)
-                waitForUpOrCancellation()
-            }
-        }
-    }
-}
+): Modifier = this
 
 /**
  * 单击复制文本修饰符

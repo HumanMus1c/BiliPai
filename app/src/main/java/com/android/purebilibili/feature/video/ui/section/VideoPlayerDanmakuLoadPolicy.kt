@@ -44,4 +44,5 @@ fun resolveVideoPlayerDanmakuEngineSyncAction(
 fun shouldRunVideoPlayerDanmakuHostEffects(
     danmakuHostActive: Boolean,
     hostLifecycleStarted: Boolean,
-): Boolean = danmakuHostActive && hostLifecycleStarted
+    isPortraitFullscreen: Boolean = false,
+): Boolean = danmakuHostActive && hostLifecycleStarted && !isPortraitFullscreen

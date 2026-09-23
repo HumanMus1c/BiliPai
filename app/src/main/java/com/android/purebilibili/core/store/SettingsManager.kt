@@ -679,6 +679,7 @@ data class HomeSettings(
     val homeWallpaperEffectScope: HomeWallpaperEffectScope = HomeWallpaperEffectScope.HOME_ONLY,
     val showHomeUpBadges: Boolean = false, // 首页和相关推荐 UP 主标识显示(默认关闭,设置后全局生效)
     val showHomeUpAvatars: Boolean = false, // 首页视频卡片 UP 主头像显示(默认关闭,设置后全局生效)
+    val showHomePublishTime: Boolean = true, // 首页视频卡片发布时间（默认显示，可关闭）
     val showFullVideoCardContent: Boolean = false, // 视频卡片标题完整展示(默认关闭,设置后全局生效)
     val videoCardLongPressActionEnabled: Boolean = false, // 长按视频卡片快捷操作与预览（默认关闭）
     val homeCardDynamicTintEnabled: Boolean = true, // 卡片毛玻璃与动态取色
@@ -926,6 +927,16 @@ enum class TabletCommentPanelWidthPreset(
     }
 }
 
+enum class TabletSecondaryDefaultTab(val value: Int, val label: String) {
+    COMMENTS(0, "评论"),
+    RELATED(1, "推荐");
+
+    companion object {
+        fun fromValue(value: Int): TabletSecondaryDefaultTab =
+            entries.find { it.value == value } ?: RELATED
+    }
+}
+
 internal fun normalizeDanmakuFullscreenPanelWidthMode(
     mode: DanmakuPanelWidthMode
 ): DanmakuPanelWidthMode = DanmakuPanelWidthMode.THIRD
@@ -938,12 +949,12 @@ enum class DanmakuSettingsScope(
     PORTRAIT(
         keyPrefix = "portrait",
         badgeLabel = "竖屏专用",
-        subtitle = "当前修改仅作用于竖屏观看"
+        subtitle = "开关、字号和区域与横屏同步，其余样式独立"
     ),
     LANDSCAPE(
         keyPrefix = "landscape",
         badgeLabel = "横屏专用",
-        subtitle = "当前修改仅作用于横屏观看"
+        subtitle = "开关、字号和区域与竖屏同步，其余样式独立"
     )
 }
 
@@ -1552,6 +1563,7 @@ object SettingsManager {
     private val KEY_HOME_WALLPAPER_EFFECT_SCOPE = intPreferencesKey("home_wallpaper_effect_scope")
     private val KEY_HOME_UP_BADGES_VISIBLE = booleanPreferencesKey("home_up_badges_visible")
     private val KEY_HOME_UP_AVATARS_VISIBLE = booleanPreferencesKey("home_up_avatars_visible")
+    private val KEY_HOME_PUBLISH_TIME_VISIBLE = booleanPreferencesKey("home_publish_time_visible")
     private val KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE =
         booleanPreferencesKey("full_video_card_content_visible")
     private val KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED =
@@ -1766,6 +1778,7 @@ object SettingsManager {
             ),
             showHomeUpBadges = preferences[KEY_HOME_UP_BADGES_VISIBLE] ?: false,
             showHomeUpAvatars = preferences[KEY_HOME_UP_AVATARS_VISIBLE] ?: false,
+            showHomePublishTime = preferences[KEY_HOME_PUBLISH_TIME_VISIBLE] ?: true,
             showFullVideoCardContent = preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false,
             videoCardLongPressActionEnabled = preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] ?: false,
             homeCardDynamicTintEnabled = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: true,
@@ -3306,6 +3319,15 @@ object SettingsManager {
         }
     }
 
+    fun getHomePublishTimeVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_HOME_PUBLISH_TIME_VISIBLE] ?: true }
+
+    suspend fun setHomePublishTimeVisible(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_PUBLISH_TIME_VISIBLE] = value
+        }
+    }
+
     fun getFullVideoCardContentVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false }
 
@@ -4251,7 +4273,12 @@ object SettingsManager {
     private fun buildScopedDanmakuKeyName(
         scope: DanmakuSettingsScope,
         suffix: String
-    ): String = "danmaku_${scope.keyPrefix}_$suffix"
+    ): String {
+        // Keep the existing fullscreen values authoritative across playback modes.
+        val shared = suffix == "enabled" || suffix == "font_scale" || suffix == "area"
+        val prefix = if (shared) DanmakuSettingsScope.LANDSCAPE.keyPrefix else scope.keyPrefix
+        return "danmaku_${prefix}_$suffix"
+    }
     
     private val KEY_DANMAKU_ENABLED = booleanPreferencesKey("danmaku_enabled")
     private val KEY_DANMAKU_OPACITY = floatPreferencesKey("danmaku_opacity")
@@ -4314,6 +4341,26 @@ object SettingsManager {
         floatPreferencesKey(buildScopedDanmakuKeyName(scope, "line_height"))
     private fun keyDanmakuScrollDurationSeconds(scope: DanmakuSettingsScope) =
         floatPreferencesKey(buildScopedDanmakuKeyName(scope, "scroll_duration_seconds"))
+    private fun keyDanmakuLegacyPortraitEnabled() =
+        booleanPreferencesKey("danmaku_portrait_enabled")
+    private fun keyDanmakuLegacyPortraitFontScale() =
+        floatPreferencesKey("danmaku_portrait_font_scale")
+    private fun keyDanmakuLegacyPortraitArea() =
+        floatPreferencesKey("danmaku_portrait_area")
+
+    private fun <T> readSharedDanmakuPreference(
+        preferences: Preferences,
+        scopeKey: Preferences.Key<T>,
+        legacyPortraitKey: Preferences.Key<T>,
+        legacyKey: Preferences.Key<T>,
+        defaultValue: T
+    ): T {
+        return preferences[scopeKey]
+            ?: preferences[legacyPortraitKey]
+            ?: preferences[legacyKey]
+            ?: defaultValue
+    }
+
     private fun keyDanmakuStaticDurationSeconds(scope: DanmakuSettingsScope) =
         floatPreferencesKey(buildScopedDanmakuKeyName(scope, "static_duration_seconds"))
     private fun keyDanmakuScrollFixedVelocity(scope: DanmakuSettingsScope) =
@@ -4363,9 +4410,10 @@ object SettingsManager {
             defaultValue = ""
         )
         return DanmakuSettings(
-            enabled = readScopedDanmakuPreference(
+            enabled = readSharedDanmakuPreference(
                 preferences = preferences,
                 scopeKey = keyDanmakuEnabled(scope),
+                legacyPortraitKey = keyDanmakuLegacyPortraitEnabled(),
                 legacyKey = KEY_DANMAKU_ENABLED,
                 defaultValue = true
             ),
@@ -4378,9 +4426,10 @@ object SettingsManager {
                 )
             ),
             fontScale = normalizeDanmakuFontScale(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuFontScale(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitFontScale(),
                     legacyKey = KEY_DANMAKU_FONT_SCALE,
                     defaultValue = DEFAULT_DANMAKU_FONT_SCALE
                 )
@@ -4392,9 +4441,10 @@ object SettingsManager {
                 defaultValue = DEFAULT_DANMAKU_SPEED
             ),
             displayArea = normalizeDanmakuDisplayArea(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuArea(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitArea(),
                     legacyKey = KEY_DANMAKU_AREA,
                     defaultValue = DEFAULT_DANMAKU_AREA
                 )
@@ -4551,9 +4601,10 @@ object SettingsManager {
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
     ): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences ->
-            readScopedDanmakuPreference(
+            readSharedDanmakuPreference(
                 preferences = preferences,
                 scopeKey = keyDanmakuEnabled(scope),
+                legacyPortraitKey = keyDanmakuLegacyPortraitEnabled(),
                 legacyKey = KEY_DANMAKU_ENABLED,
                 defaultValue = true
             )
@@ -4602,9 +4653,10 @@ object SettingsManager {
     ): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
             normalizeDanmakuFontScale(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuFontScale(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitFontScale(),
                     legacyKey = KEY_DANMAKU_FONT_SCALE,
                     defaultValue = DEFAULT_DANMAKU_FONT_SCALE
                 )
@@ -4652,9 +4704,10 @@ object SettingsManager {
     ): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
             normalizeDanmakuDisplayArea(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuArea(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitArea(),
                     legacyKey = KEY_DANMAKU_AREA,
                     defaultValue = DEFAULT_DANMAKU_AREA
                 )
@@ -6162,7 +6215,7 @@ object SettingsManager {
     }
 
     fun getVideoNoteDefaultCollapsed(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_VIDEO_NOTE_DEFAULT_COLLAPSED] ?: false }
+        .map { preferences -> preferences[KEY_VIDEO_NOTE_DEFAULT_COLLAPSED] ?: true }
 
     suspend fun setVideoNoteDefaultCollapsed(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
@@ -6176,11 +6229,11 @@ object SettingsManager {
 
     fun getVideoNoteDefaultCollapsedSync(context: Context): Boolean {
         return context.getSharedPreferences(VIDEO_NOTE_CACHE_PREFS, Context.MODE_PRIVATE)
-            .getBoolean(CACHE_KEY_VIDEO_NOTE_DEFAULT_COLLAPSED, false)
+            .getBoolean(CACHE_KEY_VIDEO_NOTE_DEFAULT_COLLAPSED, true)
     }
 
     fun getVideoInfoDefaultExpanded(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_VIDEO_INFO_DEFAULT_EXPANDED] ?: true }
+        .map { preferences -> preferences[KEY_VIDEO_INFO_DEFAULT_EXPANDED] ?: false }
 
     suspend fun setVideoInfoDefaultExpanded(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
@@ -6487,6 +6540,7 @@ object SettingsManager {
         booleanPreferencesKey("portrait_letterbox_ambient_haze")
     private val KEY_TABLET_COMMENT_PANEL_WIDTH_PRESET =
         intPreferencesKey("tablet_comment_panel_width_preset")
+    private val KEY_TABLET_SECONDARY_DEFAULT_TAB = intPreferencesKey("tablet_secondary_default_tab")
     private val KEY_AUTO_ENTER_FULLSCREEN = booleanPreferencesKey("auto_enter_fullscreen")
     private val KEY_AUTO_EXIT_FULLSCREEN = booleanPreferencesKey("auto_exit_fullscreen")
     private val KEY_AUTO_EXIT_FULLSCREEN_MODE = intPreferencesKey("auto_exit_fullscreen_mode")
@@ -6722,6 +6776,23 @@ object SettingsManager {
     ) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_TABLET_COMMENT_PANEL_WIDTH_PRESET] = preset.value
+        }
+    }
+
+    fun getTabletSecondaryDefaultTab(context: Context): Flow<TabletSecondaryDefaultTab> =
+        context.settingsDataStore.data
+            .map { preferences ->
+                TabletSecondaryDefaultTab.fromValue(
+                    preferences[KEY_TABLET_SECONDARY_DEFAULT_TAB] ?: TabletSecondaryDefaultTab.RELATED.value
+                )
+            }
+
+    suspend fun setTabletSecondaryDefaultTab(
+        context: Context,
+        tab: TabletSecondaryDefaultTab,
+    ) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_TABLET_SECONDARY_DEFAULT_TAB] = tab.value
         }
     }
 
@@ -7523,6 +7594,7 @@ object SettingsManager {
             IntShareablePreferenceDefinition(KEY_HOME_WALLPAPER_EFFECT_MODE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_AVATARS_VISIBLE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_HOME_PUBLISH_TIME_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
@@ -7586,6 +7658,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_HORIZONTAL_ADAPTATION, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_HIDE_VIDEO_PAGE_STATUS_BAR, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_TABLET_COMMENT_PANEL_WIDTH_PRESET, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(KEY_TABLET_SECONDARY_DEFAULT_TAB, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_SHOW_ONLINE_COUNT, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT, SettingsShareSection.PLAYBACK),
 

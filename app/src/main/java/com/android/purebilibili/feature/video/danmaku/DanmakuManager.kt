@@ -1044,15 +1044,27 @@ class DanmakuManager private constructor(
         }
     }
 
+    private var viewport: DanmakuViewport? = null
+
+    /** The player host supplies the same geometry to the engine and Compose overlays. */
+    fun updateViewport(value: DanmakuViewport) {
+        if (viewport == value) return
+        viewport = value
+        val view = danmakuView ?: return
+        // A pending layout will apply this configuration in attachView's resize path.
+        if (view.width == value.widthPx && view.height == value.heightPx) {
+            applyConfigToController("resize")
+        }
+    }
+
     /**
      * 应用弹幕配置到 Controller，并同步倍速基准
-     *  [修复] fontScale/displayArea 改变时重新设置数据，让新配置生效
+     * 样式与视口更新保留时间线；源数据变化才重新同步。
      */
     private fun applyConfigToController(reason: String) {
         controller?.let { ctrl ->
-            val viewWidth = danmakuView?.width ?: 0
-            val viewHeight = danmakuView?.height ?: 0
-            baseRenderConfig = config.resolveRenderConfig(viewWidth, viewHeight)
+            val currentViewport = viewport ?: return
+            baseRenderConfig = config.resolveRenderConfig(currentViewport)
 
             // 记录设置后的基准时间，供倍速同步使用
             originalMoveTime = baseRenderConfig.scrollDurationMs
@@ -1062,17 +1074,19 @@ class DanmakuManager private constructor(
             originalBottomShowTimeMax = baseRenderConfig.pinnedDurationMs
             applyPlaybackSpeedToController(ctrl)
 
-            //  [关键修复] fontScale/displayArea/viewHeight 改变时，需要重新设置弹幕数据
-            // 因为引擎的 config.text.size 只对新弹幕生效，已显示的弹幕不会更新
-            if (reason == "fontScale" || reason == "fontWeight" || reason == "displayArea" || reason == "batch" || reason == "resize" || reason == "merge_changed" || reason == "filter_changed" || reason == "smart_occlusion_toggle" || reason == "strokeWidth" || reason == "lineHeight" || reason == "staticDuration" || reason == "scrollDuration" || reason == "scrollFixedVelocity" || reason == "staticDanmakuToScroll" || reason == "massiveMode") {
-                // 如果是合并状态改变，需要重新计算 cachedList
-                if (reason == "merge_changed" || reason == "filter_changed" || reason == "staticDanmakuToScroll") {
-                    buildDanmakuCacheFromSource()?.let { commitDanmakuCacheRebuild(it, reason) }
-                }
-            
-                cachedDanmakuList?.let { list ->
+            // Geometry/style updates remeasure retained items in the engine, including paused frames.
+            // Only a changed source list needs a timeline replacement.
+            // 正则屏蔽在整表扫描上非常重，禁止在主线程同步 rebuild（ANR）。
+            if (reason == "merge_changed" || reason == "filter_changed" || reason == "staticDanmakuToScroll") {
+                val rebuildReason = reason
+                scope.launch {
+                    val rebuild = withContext(Dispatchers.Default) {
+                        buildDanmakuCacheFromSource()
+                    } ?: return@launch
+                    if (!commitDanmakuCacheRebuild(rebuild, rebuildReason)) return@launch
+                    val list = cachedDanmakuList ?: return@launch
                     val currentPos = player?.currentPosition ?: 0L
-                    Log.w(TAG, " Re-applying danmaku data after $reason change at ${currentPos}ms")
+                    Log.w(TAG, " Re-applying danmaku data after $rebuildReason change at ${currentPos}ms")
                     resyncDanmakuTimeline(
                         list = list,
                         positionMs = currentPos,
@@ -1080,7 +1094,7 @@ class DanmakuManager private constructor(
                             isPlaying = player?.isPlaying == true,
                             playWhenReady = player?.playWhenReady == true
                         ),
-                        reason = "config:$reason"
+                        reason = "config:$rebuildReason"
                     )
                 }
             } else {

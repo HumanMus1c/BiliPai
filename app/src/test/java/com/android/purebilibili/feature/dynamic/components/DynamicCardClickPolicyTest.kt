@@ -6,6 +6,8 @@ import com.android.purebilibili.data.model.response.DynamicContentModule
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicMajor
 import com.android.purebilibili.data.model.response.DynamicModules
+import com.android.purebilibili.data.model.response.DrawMajor
+import com.android.purebilibili.data.model.response.DrawItem
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusLinkCard
 import com.android.purebilibili.data.model.response.OpusMajor
@@ -16,6 +18,76 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class DynamicCardClickPolicyTest {
+
+    @Test
+    fun renderableDynamicImages_dropBlankAndDuplicateUrls() {
+        val drawItems = resolveRenderableDrawItems(
+            listOf(
+                DrawItem(src = " "),
+                DrawItem(src = "https://i0.hdslb.com/one.jpg"),
+                DrawItem(src = "http://i0.hdslb.com/one.jpg"),
+            )
+        )
+        val opusPics = resolveRenderableOpusPics(
+            listOf(
+                OpusPic(url = ""),
+                OpusPic(url = " https://i0.hdslb.com/one.jpg "),
+                OpusPic(url = "http://i0.hdslb.com/one.jpg"),
+            )
+        )
+
+        assertEquals(listOf("https://i0.hdslb.com/one.jpg"), drawItems.map { it.src })
+        assertEquals(listOf("https://i0.hdslb.com/one.jpg"), opusPics.map { it.url })
+    }
+
+    @Test
+    fun drawGridUsesOpusPicturesAsCanonicalSourceWhenAvailable() {
+        assertEquals(
+            false,
+            shouldRenderDynamicDrawGrid(
+                hasFullOpusImageContent = false,
+                opusPics = listOf(OpusPic(url = "https://i0.hdslb.com/one.jpg")),
+            ),
+        )
+        assertEquals(
+            true,
+            shouldRenderDynamicDrawGrid(
+                hasFullOpusImageContent = false,
+                opusPics = listOf(OpusPic(url = " ")),
+            ),
+        )
+    }
+
+    @Test
+    fun mediaPreviewUsesTheSameFilteredOpusImagesAsTheRenderedGrid() {
+        val item = DynamicItem(
+            id_str = "single-picture-dynamic",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        draw = DrawMajor(items = listOf(DrawItem(src = "https://i0.hdslb.com/duplicate.jpg"))),
+                        opus = OpusMajor(
+                            pics = listOf(
+                                OpusPic(url = " "),
+                                OpusPic(url = "https://i0.hdslb.com/one.jpg"),
+                                OpusPic(url = "http://i0.hdslb.com/one.jpg"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val action = resolveDynamicCardMediaAction(item, clickedIndex = 0)
+
+        assertEquals(
+            DynamicCardMediaAction.PreviewImages(
+                images = listOf("https://i0.hdslb.com/one.jpg"),
+                initialIndex = 0,
+            ),
+            action,
+        )
+    }
 
     @Test
     fun resolveDynamicCardPrimaryAction_prefersVideoWhenArchiveBvidExists() {
@@ -396,6 +468,49 @@ class DynamicCardClickPolicyTest {
     }
 
     @Test
+    fun resolveDynamicOpusPresentationBlocks_dropsBlankAndDuplicateImageBlocks() {
+        val image = OpusPic(url = "https://i0.hdslb.com/one.jpg")
+        val blocks = listOf(
+            OpusContentBlock.Image(OpusPic(url = " ")),
+            OpusContentBlock.Image(image),
+            OpusContentBlock.Divider(image.copy(url = "http://i0.hdslb.com/one.jpg")),
+        )
+
+        assertEquals(
+            listOf(
+                OpusContentBlock.Image(image),
+                OpusContentBlock.Divider(pic = null),
+            ),
+            resolveDynamicOpusPresentationBlocks(
+                opus = OpusMajor(contentBlocks = blocks),
+                isDetail = true,
+            ),
+        )
+    }
+
+    @Test
+    fun detailPreviewUsesTheSameValidImagesAsRenderedBodyBlocks() {
+        val opus = OpusMajor(
+            pics = listOf(
+                OpusPic(url = "https://i0.hdslb.com/stale-feed-image.jpg"),
+                OpusPic(url = " "),
+            ),
+            contentBlocks = listOf(
+                OpusContentBlock.Text("正文"),
+                OpusContentBlock.Image(OpusPic(url = " https://i0.hdslb.com/body-image.jpg ")),
+                OpusContentBlock.Divider(OpusPic(url = "http://i0.hdslb.com/body-image.jpg")),
+            ),
+        )
+        val blocks = resolveDynamicOpusPresentationBlocks(opus = opus, isDetail = true)
+
+        assertEquals(
+            listOf("https://i0.hdslb.com/body-image.jpg"),
+            resolveDynamicOpusPreviewPics(opus, blocks).map { it.url },
+        )
+        assertTrue(shouldRenderDynamicOpusBlocksAsFullBody(opus, blocks))
+    }
+
+    @Test
     fun shouldRenderDynamicOpusBlocksAsFullBody_usesGridForStandalonePics() {
         val textBlock = OpusContentBlock.Text("完整正文")
         val opusWithStandalonePic = OpusMajor(
@@ -595,4 +710,3 @@ class DynamicCardClickPolicyTest {
         assertEquals(260882L, resolveDynamicAuthorClickMid(item))
     }
 }
-

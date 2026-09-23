@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -80,6 +82,9 @@ import top.yukonga.miuix.kmp.nav.core.NavCornerClipMode
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
+import top.yukonga.miuix.kmp.nav.transition.NavMotion
+import top.yukonga.miuix.kmp.nav.transition.NavSettleSpec
+import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition
 
 internal class BiliPaiProgrammaticBackDispatcher {
     private var callback: (() -> Unit)? = null
@@ -108,6 +113,7 @@ internal fun BiliPaiNavDisplayHost(
     reduceMotion: Boolean = false,
     videoSharedTransitionDurationMillis: Int,
     videoCardClock: VideoCardTransitionClock,
+    officialSharedBoundsController: OfficialVideoSharedBoundsController? = null,
     predictiveBackAnimationStyle: BiliPaiPredictiveBackAnimationStyle =
         BiliPaiPredictiveBackAnimationStyle.MIUIX,
     predictiveBackExitDirection: BiliPaiPredictiveBackExitDirection =
@@ -157,6 +163,8 @@ internal fun BiliPaiNavDisplayHost(
             ?.let { it.width > 1f && it.height > 1f } == true,
     )
     val cardMorphAvailable = cardMorphMode != BiliPaiVideoCardMorphMode.NONE
+    val officialStaticSessionActive = officialSharedBoundsController?.session?.sourceKey
+        ?.let { it == sourceMetadata.sourceKey } == true
     var relatedReturnRestorePending by remember { mutableStateOf(false) }
     var relatedReturnTransitionObserved by remember { mutableStateOf(false) }
     val style = if (reduceMotion) {
@@ -171,12 +179,17 @@ internal fun BiliPaiNavDisplayHost(
         videoReturnAnimated,
         sourceMetadata.sourceRoute,
         restorePreviousVideoSourceOnDetailReturn,
+        officialStaticSessionActive,
+        officialSharedBoundsController,
     ) {
         {
             val leavingKey = backStack.lastOrNull()
             if (leavingKey is BiliPaiNavKey.VideoDetail) {
                 latestPrepareReturn()
                 if (cardMorphAvailable) {
+                    if (officialStaticSessionActive) {
+                        officialSharedBoundsController?.beginReturning()
+                    }
                     videoCardClock.beginReturning(sourceMetadata.sourceRoute, videoCardClock.depthProgress())
                 }
             }
@@ -262,6 +275,27 @@ internal fun BiliPaiNavDisplayHost(
     )
     val navCornerRadius = rememberDeviceCornerRadius(defaultRadius = 0.dp)
     val effectiveDeviceCornerDp = if (navCornerRadius > 0.dp) navCornerRadius else 32.dp
+    val officialStaticTransition = remember(
+        videoCardTransitionProgress,
+        videoSharedTransitionDurationMillis,
+    ) {
+        val duration = videoSharedTransitionDurationMillis.coerceAtLeast(1)
+        videoCardTransitionProgress.observe(
+            navGraphicsTransition(
+                opaqueDepth = 2f,
+                motion = NavMotion(
+                    programmatic = NavSettleSpec.Tween(duration, LinearEasing),
+                    commit = NavSettleSpec.Tween(duration, LinearEasing),
+                    cancel = NavSettleSpec.Tween(duration, LinearEasing),
+                ),
+                scrim = { 0f },
+            ) {
+                // The shared bounds surface covers the retained page. A second navigation alpha
+                // makes the whole destination translucent underneath that moving surface.
+                alpha = 1f
+            },
+        )
+    }
     val videoCardTransition = remember(
         cardMorphAvailable,
         sourceMetadata.sourceBounds,
@@ -273,8 +307,12 @@ internal fun BiliPaiNavDisplayHost(
         videoCardContentScale,
         videoSharedReturnGestureFollowEnabled,
         effectiveDeviceCornerDp,
+        officialStaticSessionActive,
+        officialStaticTransition,
     ) {
-        if (cardMorphAvailable) {
+        if (cardMorphAvailable && officialStaticSessionActive) {
+            officialStaticTransition
+        } else if (cardMorphAvailable) {
             miuixVideoCardNavTransition(
                 sourceBounds = sourceMetadata.sourceBounds,
                 sourceCornerDp = sourceMetadata.sourceCornerDp,
@@ -326,6 +364,29 @@ internal fun BiliPaiNavDisplayHost(
         )
         onDispose { videoCardClock.bindNavigationDriver(null) }
     }
+    LaunchedEffect(
+        officialSharedBoundsController,
+        videoCardTransitionProgress,
+        currentKey,
+        sourceMetadata.sourceKey,
+    ) {
+        val controller = officialSharedBoundsController ?: return@LaunchedEffect
+        snapshotFlow {
+            Triple(
+                videoCardTransitionProgress.depthOrNull(),
+                videoCardTransitionProgress.settleStateOrNull(),
+                videoCardTransitionProgress.isGestureInProgress(),
+            )
+        }.collect { (depth, settle, gesture) ->
+            val ownsVideoEntry = currentKey is BiliPaiNavKey.VideoDetail &&
+                controller.session?.sourceKey == sourceMetadata.sourceKey
+            if (depth != null && (ownsVideoEntry || controller.phase ==
+                    OfficialVideoSharedBoundsController.Phase.Returning)
+            ) {
+                controller.onNavigationFrame(depth, settle, gesture)
+            }
+        }
+    }
     var previousStack by remember { mutableStateOf(stackSnapshot) }
     LaunchedEffect(stackSnapshot, cardMorphAvailable) {
         val previous = previousStack
@@ -355,6 +416,13 @@ internal fun BiliPaiNavDisplayHost(
         // Coarse states only: no frame-rate composition reads or competing fallback jobs.
         snapshotFlow { videoCardTransitionProgress.settleStateOrNull() }.collect { state ->
             if (state != null) {
+                if (state == VideoCardTransitionSettleState.Idle) {
+                    officialSharedBoundsController?.onNavigationFrame(
+                        depth = 0f,
+                        settle = state,
+                        gestureInProgress = false,
+                    )
+                }
                 videoCardClock.followNavigationDriver(state, videoCardTransitionProgress.releaseVelocity())
                 if (state == VideoCardTransitionSettleState.Idle) {
                     // LiveNavTransitionScope reads the shared navigation presentation even after
@@ -371,7 +439,8 @@ internal fun BiliPaiNavDisplayHost(
 
     val videoCardSnapshotHandle = rememberVideoCardTransitionSnapshotHandle()
     val transitionMotionTier = if (reduceMotion) MotionTier.Reduced else MotionTier.Normal
-    val effectiveRealtimeBlurEnabled = videoTransitionRealtimeBlurEnabled || miuixTransitionBlurEnabled
+    val effectiveRealtimeBlurEnabled = videoTransitionRealtimeBlurEnabled ||
+        (miuixTransitionBlurEnabled && !officialStaticSessionActive)
     val videoCardProgressProvider = remember(
         cardMorphAvailable,
         videoCardClock,
@@ -415,6 +484,8 @@ internal fun BiliPaiNavDisplayHost(
         derivedStateOf {
             when (videoCardTransitionProgress.settleStateOrNull()) {
                 VideoCardTransitionSettleState.AutoReturn -> VideoCardTransitionExposure.Returning
+                VideoCardTransitionSettleState.CancelRestore -> VideoCardTransitionExposure.Restoring
+                VideoCardTransitionSettleState.InteractiveSeek -> VideoCardTransitionExposure.BackPreview
                 VideoCardTransitionSettleState.Idle,
                 VideoCardTransitionSettleState.Held,
                 null -> VideoCardTransitionExposure.Idle
@@ -511,7 +582,7 @@ internal fun BiliPaiNavDisplayHost(
         sourceMetadata.sourceChromeSnapshot,
     ) {
         MiuixVideoCardTransitionState(
-            enabled = cardMorphAvailable,
+            enabled = cardMorphAvailable && !officialStaticSessionActive,
             motionSpec = heroMotion,
             progressProvider = videoCardProgressProvider,
             isGestureInProgressProvider = videoCardGestureProvider,
@@ -681,11 +752,30 @@ internal fun BiliPaiNavDisplayHost(
                         LocalClickToPlayEnabled provides clickToPlayEnabled,
                         LocalDynamicImagePreviewTextVisible provides dynamicImagePreviewTextVisible,
                         LocalSharedTransitionEnabled provides cardTransitionEnabled,
+                        LocalOfficialVideoCoverTransitionActive provides
+                            (key is BiliPaiNavKey.VideoDetail &&
+                                officialSharedBoundsController?.phase != null &&
+                                officialSharedBoundsController?.session?.bvid == key.bvid),
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize().then(
                                 if (opaqueVideoChild) {
                                     Modifier.background(AppSurfaceTokens.groupedListContainer().copy(alpha = 1f))
+                                } else Modifier
+                            ).then(
+                                if (key is BiliPaiNavKey.VideoDetail &&
+                                    officialSharedBoundsController != null
+                                ) {
+                                    Modifier.graphicsLayer {
+                                        val ownsStaticTransition =
+                                            officialSharedBoundsController.phase != null &&
+                                            officialSharedBoundsController.session?.bvid == key.bvid
+                                        alpha = if (ownsStaticTransition) {
+                                            // Reveal the actual detail behind the fading card snapshot.
+                                            ((officialSharedBoundsController.progress - 0.05f) / 0.5f)
+                                                .coerceIn(0f, 1f)
+                                        } else 1f
+                                    }
                                 } else Modifier
                             ),
                         ) {

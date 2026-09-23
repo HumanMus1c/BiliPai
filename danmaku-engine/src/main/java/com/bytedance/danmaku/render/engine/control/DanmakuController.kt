@@ -167,6 +167,13 @@ class DanmakuController(private var mDanmakuView: View): ConfigChangeListener, I
         }
     }
 
+    /** Update retained data without clearing active lines or advancing the paused media clock. */
+    fun remeasureData(update: (DanmakuData) -> Unit) {
+        mDataManager.getData().forEach(update)
+        mRenderEngine.typesetting(mDataManager.queryPlayTime(), false, true)
+        mDanmakuView.postInvalidateCompat()
+    }
+
     /**
      * If you change the configs of Danmakus when paused, please invalidate the view.
      */
@@ -208,7 +215,7 @@ class DanmakuController(private var mDanmakuView: View): ConfigChangeListener, I
     override fun onConfigChanged(type: Int) {
         when (type) {
             DanmakuConfig.TYPE_COMMON_PLAY_SPEED -> mDataManager.onPlaySpeedChanged()
-            DanmakuConfig.TYPE_TEXT_SIZE -> mRenderEngine.typesetting(mDataManager.queryPlayTime(), mIsPlaying, true)
+            DanmakuConfig.TYPE_TEXT_SIZE -> mRenderEngine.typesetting(mDataManager.queryPlayTime(), false, true)
             DanmakuConfig.TYPE_COMMON_ALPHA -> mDanmakuView.alpha = config.common.alpha / 255f
             DanmakuConfig.TYPE_COMMON_TOP_CENTER_VISIBLE_CHANGE -> {
                 if (!config.common.topVisible) {
@@ -226,6 +233,8 @@ class DanmakuController(private var mDanmakuView: View): ConfigChangeListener, I
 
     internal fun onLayoutSizeChanged(width: Int, height: Int) {
         mRenderEngine.onLayoutSizeChanged(width, height)
+        mRenderEngine.typesetting(mDataManager.queryPlayTime(), false, true)
+        mDanmakuView.postInvalidateCompat()
     }
 
     internal fun draw(view: View, canvas: Canvas) {

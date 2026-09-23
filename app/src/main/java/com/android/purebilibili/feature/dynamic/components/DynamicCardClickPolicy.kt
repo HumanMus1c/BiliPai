@@ -11,6 +11,7 @@ import com.android.purebilibili.data.model.response.LiveRcmdMajor
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusLinkCard
 import com.android.purebilibili.data.model.response.OpusMajor
+import com.android.purebilibili.data.model.response.OpusPic
 import com.android.purebilibili.data.model.response.UgcSeasonMajor
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.feature.dynamic.model.LiveContentInfo
@@ -141,11 +142,75 @@ internal fun resolveArticleCoverDrawItems(article: ArticleMajor): List<DrawItem>
     }
 }
 
+internal fun resolveRenderableDrawItems(items: List<DrawItem>): List<DrawItem> =
+    items.mapNotNull { item ->
+        val source = item.src.trim()
+        source.takeIf(String::isNotEmpty)?.let { item.copy(src = it) }
+    }.distinctBy { normalizeDynamicImageIdentity(it.src) }
+
+internal fun resolveRenderableOpusPics(pics: List<OpusPic>): List<OpusPic> =
+    pics.mapNotNull { pic ->
+        val url = pic.url.trim()
+        url.takeIf(String::isNotEmpty)?.let { pic.copy(url = it) }
+    }.distinctBy { normalizeDynamicImageIdentity(it.url) }
+
+internal fun resolveDynamicOpusPreviewPics(
+    opus: OpusMajor,
+    presentationBlocks: List<OpusContentBlock>,
+): List<OpusPic> {
+    val bodyPics = presentationBlocks.mapNotNull { block ->
+        when (block) {
+            is OpusContentBlock.Image -> block.pic
+            is OpusContentBlock.Divider -> block.pic
+            else -> null
+        }
+    }
+    return if (shouldRenderDynamicOpusBlocksAsFullBody(opus, presentationBlocks) && bodyPics.isNotEmpty()) {
+        resolveRenderableOpusPics(bodyPics)
+    } else {
+        resolveRenderableOpusPics(opus.pics)
+    }
+}
+
+internal fun shouldRenderDynamicDrawGrid(
+    hasFullOpusImageContent: Boolean,
+    opusPics: List<OpusPic>,
+): Boolean = !hasFullOpusImageContent && resolveRenderableOpusPics(opusPics).isEmpty()
+
+private fun normalizeDynamicImageIdentity(rawUrl: String): String = when {
+    rawUrl.startsWith("http://", ignoreCase = true) -> "https://${rawUrl.substringAfter("://")}"
+    rawUrl.startsWith("//") -> "https:$rawUrl"
+    else -> rawUrl
+}
+
 internal fun resolveDynamicOpusPresentationBlocks(
     opus: OpusMajor,
     isDetail: Boolean
 ): List<OpusContentBlock> {
-    return if (isDetail) opus.contentBlocks else emptyList()
+    if (!isDetail) return emptyList()
+    val renderedImageIds = mutableSetOf<String>()
+    fun keepImage(pic: OpusPic): OpusPic? {
+        val url = pic.url.trim()
+        if (url.isEmpty()) return null
+        if (!renderedImageIds.add(normalizeDynamicImageIdentity(url))) return null
+        return pic.copy(url = url)
+    }
+    return buildList {
+        opus.contentBlocks.forEach { block ->
+            when (block) {
+                is OpusContentBlock.Image -> keepImage(block.pic)?.let { add(block.copy(pic = it)) }
+                is OpusContentBlock.Divider -> {
+                    val dividerPic = block.pic
+                    if (dividerPic == null) {
+                        add(block)
+                    } else {
+                        add(block.copy(pic = keepImage(dividerPic)))
+                    }
+                }
+                else -> add(block)
+            }
+        }
+    }
 }
 
 internal fun shouldRenderDynamicOpusBlocksAsFullBody(
@@ -153,7 +218,9 @@ internal fun shouldRenderDynamicOpusBlocksAsFullBody(
     presentationBlocks: List<OpusContentBlock>,
 ): Boolean {
     return presentationBlocks.isNotEmpty() &&
-        (presentationBlocks.any { it is OpusContentBlock.Image } || opus.pics.isEmpty())
+        (presentationBlocks.any {
+            it is OpusContentBlock.Image || (it is OpusContentBlock.Divider && it.pic != null)
+        } || opus.pics.isEmpty())
 }
 
 internal fun resolveDynamicOpusPreviewImageLimit(isDetail: Boolean): Int? {
@@ -292,9 +359,11 @@ internal fun resolveDynamicCardMediaAction(
             DynamicCardMediaAction.None
         }
     }
+    val opusImages = major.opus?.let { resolveRenderableOpusPics(it.pics) }.orEmpty()
+    val drawImages = major.draw?.let { resolveRenderableDrawItems(it.items) }.orEmpty()
     val images = when {
-        major.draw != null && major.draw.items.isNotEmpty() -> major.draw.items.map { it.src }
-        major.opus != null && major.opus.pics.isNotEmpty() -> major.opus.pics.map { it.url }
+        opusImages.isNotEmpty() -> opusImages.map { it.url }
+        drawImages.isNotEmpty() -> drawImages.map { it.src }
         major.article != null -> resolveArticleCoverUrls(major.article)
         else -> emptyList()
     }
@@ -401,4 +470,3 @@ internal fun resolveDynamicHeadlineTitle(
     return opus?.title?.trim()?.takeIf { it.isNotEmpty() }
         ?: article?.title?.trim()?.takeIf { it.isNotEmpty() }
 }
-

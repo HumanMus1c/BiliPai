@@ -13,7 +13,9 @@ import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixNavigationDrawerI
 import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixSnackbar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.ColumnScope
@@ -57,7 +59,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.ModalNavigationDrawer
@@ -67,6 +68,7 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Tab
@@ -77,15 +79,22 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -111,6 +120,19 @@ private val PiliPlusIndicatorAccelerate = Easing { fraction ->
 internal data class ElasticTabIndicatorBounds(
     val leftDp: Float,
     val widthDp: Float,
+)
+
+/** Tab geometry for the underline. Material's [TabPosition] constructor is internal. */
+internal data class AppTabSlot(
+    val left: Dp,
+    val width: Dp,
+    val contentWidth: Dp,
+)
+
+internal fun TabPosition.toAppTabSlot(): AppTabSlot = AppTabSlot(
+    left = left,
+    width = width,
+    contentWidth = contentWidth,
 )
 
 private fun resolveNonGlassButtonInsideMargin(
@@ -167,17 +189,17 @@ internal fun resolveElasticTabIndicatorBounds(
 @Composable
 private fun AppElasticTabIndicator(
     selectedTabIndex: Int,
-    tabPositions: List<TabPosition>,
+    tabSlots: List<AppTabSlot>,
     matchContentSize: Boolean,
     primary: Boolean,
     indicatorPositionProvider: (() -> Float)? = null,
 ) {
-    if (tabPositions.isEmpty()) return
+    if (tabSlots.isEmpty()) return
     val followPosition = indicatorPositionProvider?.invoke()
-    val safeIndex = selectedTabIndex.coerceIn(tabPositions.indices)
+    val safeIndex = selectedTabIndex.coerceIn(tabSlots.indices)
     val previousIndex = remember { mutableIntStateOf(selectedTabIndex) }
     val movingRight = remember(safeIndex) { safeIndex >= previousIndex.intValue }
-    val target = tabPositions[safeIndex]
+    val target = tabSlots[safeIndex]
     val targetWidth = if (matchContentSize) target.contentWidth else target.width
     val targetLeft = target.left + (target.width - targetWidth) / 2f
     val targetRight = targetLeft + targetWidth
@@ -205,9 +227,9 @@ private fun AppElasticTabIndicator(
     if (followPosition != null) {
         val bounds = resolveElasticTabIndicatorBounds(
             position = followPosition,
-            tabLeftsDp = tabPositions.map { it.left.value },
-            tabWidthsDp = tabPositions.map { it.width.value },
-            contentWidthsDp = tabPositions.map { it.contentWidth.value },
+            tabLeftsDp = tabSlots.map { it.left.value },
+            tabWidthsDp = tabSlots.map { it.width.value },
+            contentWidthsDp = tabSlots.map { it.contentWidth.value },
             matchContentSize = matchContentSize,
         )
         left = bounds.leftDp.dp
@@ -281,7 +303,140 @@ fun AppSnackbarHost(
     )
 }
 
-@Suppress("DEPRECATION")
+private val MaterialTabHorizontalTextPadding = 16.dp
+
+private enum class AppTabRowSlot { Tabs, Divider, Indicator }
+
+internal data class ContentSizedTabAnchor(
+    val index: Int,
+    val leftPx: Int,
+    val widthPx: Int,
+)
+
+/** Centers a variable-width tab in the scrollable underline rail. */
+internal fun resolveContentSizedTabScrollOffsetPx(
+    tabLeftPx: Int,
+    tabWidthPx: Int,
+    viewportWidthPx: Int,
+    maxScrollPx: Int,
+): Int {
+    if (tabWidthPx <= 0 || viewportWidthPx <= 0) return 0
+    val leadingSpacePx = (viewportWidthPx - tabWidthPx).coerceAtLeast(0) / 2
+    return (tabLeftPx - leadingSpacePx).coerceIn(0, maxScrollPx.coerceAtLeast(0))
+}
+
+@Composable
+private fun AppElasticScrollableTabRow(
+    selectedTabIndex: Int,
+    modifier: Modifier,
+    containerColor: Color,
+    contentColor: Color,
+    edgePadding: Dp,
+    minTabWidth: Dp,
+    scrollState: ScrollState,
+    indicator: @Composable (tabSlots: List<AppTabSlot>) -> Unit,
+    divider: @Composable () -> Unit,
+    tabs: @Composable () -> Unit,
+) {
+    // Plain holder: writing snapshot state during measure detaches nodes while
+    // RectManager is still placing them (LayoutNode not found in RectList).
+    val anchorHolder = remember {
+        object { var value = ContentSizedTabAnchor(selectedTabIndex, 0, 0) }
+    }
+    LaunchedEffect(selectedTabIndex, scrollState) {
+        withFrameNanos { }
+        snapshotFlow { scrollState.maxValue to scrollState.viewportSize }
+            .collectLatest { (maxScrollPx, viewportWidthPx) ->
+                val anchor = anchorHolder.value
+                val target = resolveContentSizedTabScrollOffsetPx(
+                    tabLeftPx = anchor.leftPx,
+                    tabWidthPx = anchor.widthPx,
+                    viewportWidthPx = viewportWidthPx,
+                    maxScrollPx = maxScrollPx,
+                )
+                if (scrollState.value != target) {
+                    scrollState.scrollTo(target)
+                }
+            }
+    }
+    Surface(modifier = modifier, color = containerColor, contentColor = contentColor) {
+        SubcomposeLayout(
+            Modifier
+                .fillMaxWidth()
+                .wrapContentSize(Alignment.CenterStart)
+                .horizontalScroll(scrollState)
+                .selectableGroup()
+                .clipToBounds()
+        ) { constraints ->
+            val paddingPx = edgePadding.roundToPx()
+            val minTabWidthPx = minTabWidth.roundToPx()
+            val tabMeasurables = subcompose(AppTabRowSlot.Tabs, tabs)
+            val layoutHeight = tabMeasurables.maxOfOrNull {
+                it.maxIntrinsicHeight(Constraints.Infinity)
+            } ?: 0
+            val tabConstraints = constraints.copy(
+                minWidth = minTabWidthPx,
+                minHeight = layoutHeight,
+                maxHeight = layoutHeight,
+            )
+            val tabPlaceables = tabMeasurables.map { it.measure(tabConstraints) }
+            val tabSlots = mutableListOf<AppTabSlot>()
+            var left = edgePadding
+            var layoutWidth = paddingPx * 2
+            tabPlaceables.forEachIndexed { index, placeable ->
+                val measurable = tabMeasurables[index]
+                var contentWidth = minOf(
+                    measurable.maxIntrinsicWidth(placeable.height),
+                    placeable.width,
+                ).toDp()
+                contentWidth -= MaterialTabHorizontalTextPadding * 2
+                if (contentWidth < 0.dp) contentWidth = 0.dp
+                tabSlots += AppTabSlot(
+                    left = left,
+                    width = placeable.width.toDp(),
+                    contentWidth = contentWidth,
+                )
+                left += placeable.width.toDp()
+                layoutWidth += placeable.width
+            }
+            val safeIndex = selectedTabIndex.coerceIn(0, (tabSlots.size - 1).coerceAtLeast(0))
+            val selected = tabSlots.getOrNull(safeIndex)
+            anchorHolder.value = ContentSizedTabAnchor(
+                index = safeIndex,
+                leftPx = selected?.left?.roundToPx() ?: 0,
+                widthPx = selected?.width?.roundToPx() ?: 0,
+            )
+            val dividerPlaceables = subcompose(AppTabRowSlot.Divider, divider).map { measurable ->
+                measurable.measure(
+                    constraints.copy(
+                        minWidth = layoutWidth,
+                        maxWidth = layoutWidth,
+                        minHeight = 0,
+                    )
+                )
+            }
+            val indicatorPlaceables = subcompose(AppTabRowSlot.Indicator) {
+                indicator(tabSlots)
+            }.map { measurable ->
+                measurable.measure(Constraints.fixed(layoutWidth.coerceAtLeast(0), layoutHeight.coerceAtLeast(0)))
+            }
+            layout(layoutWidth, layoutHeight) {
+                var placeLeft = paddingPx
+                tabPlaceables.forEach { placeable ->
+                    placeable.placeRelative(placeLeft, 0)
+                    placeLeft += placeable.width
+                }
+                dividerPlaceables.forEach { placeable ->
+                    placeable.placeRelative(0, layoutHeight - placeable.height)
+                }
+                indicatorPlaceables.forEach { placeable ->
+                    placeable.placeRelative(0, 0)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun AppScrollableTabRow(
     selectedTabIndex: Int,
@@ -289,25 +444,27 @@ fun AppScrollableTabRow(
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = TabRowDefaults.primaryContentColor,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
+    minTabWidth: Dp = resolvePiliPlusScrollableUnderlineMinWidth(),
     indicatorPositionProvider: (() -> Float)? = null,
-    indicator: @Composable (tabPositions: List<TabPosition>) -> Unit = @Composable { tabPositions ->
-        AppElasticTabIndicator(
-            selectedTabIndex = selectedTabIndex,
-            tabPositions = tabPositions,
-            matchContentSize = true,
-            primary = false,
-            indicatorPositionProvider = indicatorPositionProvider,
-        )
-    },
     divider: @Composable () -> Unit = {},
     tabs: @Composable () -> Unit,
-) = ScrollableTabRow(
+) = AppElasticScrollableTabRow(
     selectedTabIndex = selectedTabIndex,
     modifier = modifier,
     containerColor = containerColor,
     contentColor = contentColor,
     edgePadding = edgePadding,
-    indicator = indicator,
+    minTabWidth = minTabWidth,
+    scrollState = rememberScrollState(),
+    indicator = { tabSlots ->
+        AppElasticTabIndicator(
+            selectedTabIndex = selectedTabIndex,
+            tabSlots = tabSlots,
+            matchContentSize = true,
+            primary = false,
+            indicatorPositionProvider = indicatorPositionProvider,
+        )
+    },
     divider = divider,
     tabs = tabs,
 )
@@ -1014,7 +1171,7 @@ fun AppPrimaryTabRow(
         indicator = { tabPositions ->
             AppElasticTabIndicator(
                 selectedTabIndex = selectedTabIndex,
-                tabPositions = tabPositions,
+                tabSlots = tabPositions.map { it.toAppTabSlot() },
                 matchContentSize = true,
                 primary = true,
                 indicatorPositionProvider = indicatorPositionProvider,
@@ -1033,21 +1190,22 @@ fun AppPrimaryScrollableTabRow(
     containerColor: Color = TabRowDefaults.primaryContainerColor,
     contentColor: Color = TabRowDefaults.primaryContentColor,
     edgePadding: Dp = TabRowDefaults.ScrollableTabRowEdgeStartPadding,
-    minTabWidth: Dp = TabRowDefaults.ScrollableTabRowMinTabWidth,
+    minTabWidth: Dp = resolvePiliPlusScrollableUnderlineMinWidth(),
     indicatorPositionProvider: (() -> Float)? = null,
     tabs: @Composable () -> Unit,
 ) {
-    @Suppress("DEPRECATION")
-    ScrollableTabRow(
+    AppElasticScrollableTabRow(
         selectedTabIndex = selectedTabIndex,
         modifier = modifier,
         containerColor = containerColor,
         contentColor = contentColor,
         edgePadding = edgePadding,
-        indicator = { tabPositions ->
+        minTabWidth = minTabWidth,
+        scrollState = scrollState,
+        indicator = { tabSlots ->
             AppElasticTabIndicator(
                 selectedTabIndex = selectedTabIndex,
-                tabPositions = tabPositions,
+                tabSlots = tabSlots,
                 matchContentSize = true,
                 primary = true,
                 indicatorPositionProvider = indicatorPositionProvider,

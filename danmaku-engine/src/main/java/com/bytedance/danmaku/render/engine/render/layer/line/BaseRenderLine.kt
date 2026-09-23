@@ -54,6 +54,10 @@ abstract class BaseRenderLine(private val mController: DanmakuController,
     var y: Float = 0F
 
     override fun onLayoutChanged(width: Float, height: Float, x: Float, y: Float) {
+        if (this.width > 0f && width != this.width) {
+            val widthRatio = width / this.width
+            mDrawingItems.forEach { item -> item.x *= widthRatio }
+        }
         this.width = width
         this.height = height
         this.x = x

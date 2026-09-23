@@ -47,6 +47,7 @@ class HomeSettingsStoreParityTest {
         assertEquals(HomeWallpaperEffectScope.HOME_ONLY, result.homeWallpaperEffectScope)
         assertTrue(result.showHomeUpBadges)
         assertTrue(result.showHomeUpAvatars)
+        assertTrue(result.showHomePublishTime)
         assertEquals(HomeDurationStyle.OUTSIDE_COVER, result.homeDurationStyle)
     }
 

@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.comment
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
@@ -28,6 +30,10 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.store.TokenManager
+import com.android.purebilibili.data.model.CommentFraudStatus
+import com.android.purebilibili.data.repository.resolveCommentFraudLightMessage
+import com.android.purebilibili.data.repository.shouldShowCommentFraudResultDialog
+import com.android.purebilibili.feature.video.ui.components.CommentFraudResultDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.message.feed.MessageFeedError
@@ -54,6 +60,28 @@ fun CommentDetailScreen(
     val showCommentInput by viewModel.showCommentInput.collectAsStateWithLifecycle()
     val replyingTo by viewModel.replyingTo.collectAsStateWithLifecycle()
     val isSending by viewModel.isSending.collectAsStateWithLifecycle()
+    val fraudResult by viewModel.fraudResult.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(fraudResult) {
+        val result = fraudResult ?: return@LaunchedEffect
+        resolveCommentFraudLightMessage(result.status)?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.dismissFraudResult()
+        }
+    }
+
+    fraudResult?.let { result ->
+        if (shouldShowCommentFraudResultDialog(result.status)) {
+            CommentFraudResultDialog(
+                status = result.status,
+                onDismiss = viewModel::dismissFraudResult,
+                onDeleteComment = if (result.status == CommentFraudStatus.SHADOW_BANNED) {
+                    { viewModel.startDissolve(result.rpid) }
+                } else null
+            )
+        }
+    }
 
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
@@ -157,6 +185,7 @@ fun CommentDetailScreen(
                         currentMid = currentMid,
                         onDissolveStart = viewModel::startDissolve,
                         onDeleteComment = viewModel::deleteComment,
+                        onCheckCommentFraud = if (type == 1) viewModel::checkCommentFraud else null,
                         onCommentLike = viewModel::likeComment,
                         onCommentHate = viewModel::hateComment,
                         likedComments = likedComments,

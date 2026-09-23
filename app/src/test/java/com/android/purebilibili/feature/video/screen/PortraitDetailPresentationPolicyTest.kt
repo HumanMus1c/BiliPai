@@ -80,6 +80,59 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
+    fun standalonePortraitPager_suppressesPhoneDetailBodyToAvoidDualPlayerHosts() {
+        assertTrue(
+            shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+                portraitExperienceEnabled = true,
+                isPortraitFullscreen = true,
+                hasPlayableState = true,
+            )
+        )
+        assertFalse(
+            shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+                portraitExperienceEnabled = true,
+                isPortraitFullscreen = false,
+                hasPlayableState = true,
+            )
+        )
+        assertFalse(
+            shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+                portraitExperienceEnabled = false,
+                isPortraitFullscreen = true,
+                hasPlayableState = true,
+            )
+        )
+        assertFalse(
+            shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+                portraitExperienceEnabled = true,
+                isPortraitFullscreen = true,
+                hasPlayableState = false,
+            )
+        )
+    }
+
+    @Test
+    fun stateHolder_suppressesDetailBodyWhenStandalonePortraitPagerIsShown() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
+        ).readText()
+
+        assertTrue(source.contains("shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager"))
+        assertTrue(source.contains("if (!suppressPhoneDetailBodyForDirectPortrait && !isPortraitFullscreen)"))
+        assertTrue(source.contains("shouldCommitPortraitProgressToDetailState("))
+    }
+
+    @Test
+    fun inlineHost_exitsCompositionWhenPortraitFullscreenOwnsPlayback() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailPlayerTransitionHost.kt"
+        ).readText()
+
+        assertTrue(source.contains("if (isPortraitFullscreen) {"))
+        assertTrue(source.contains("PortraitInlineVideoPlayerHost("))
+    }
+
+    @Test
     fun standalonePortraitPager_showsWhenPortraitFullscreenRequestedEvenInInlineMode() {
         assertTrue(
             shouldShowStandalonePortraitPager(
@@ -130,6 +183,34 @@ class PortraitDetailPresentationPolicyTest {
         assertEquals(532.48f, spec.heightDp, absoluteTolerance = 0.01f)
         assertTrue(spec.heightDp < spec.widthDp)
         assertTrue(spec.heightDp < 1024f * 0.6f)
+    }
+
+    @Test
+    fun inlinePortraitPlayerLayout_capsCompactFoldableCoverForScrollableComments() {
+        val expanded = resolvePortraitInlinePlayerLayoutSpec(
+            screenWidthDp = 672f,
+            screenHeightDp = 460f,
+            isCollapsed = false,
+            isFoldableCoverWindow = true,
+        )
+        val collapsed = resolvePortraitInlinePlayerLayoutSpec(
+            screenWidthDp = 672f,
+            screenHeightDp = 460f,
+            isCollapsed = true,
+            isFoldableCoverWindow = true,
+        )
+
+        assertEquals(230f, expanded.heightDp, absoluteTolerance = 0.01f)
+        assertEquals(230f, collapsed.heightDp, absoluteTolerance = 0.01f)
+        assertTrue(expanded.heightDp < 460f)
+
+        val portraitWindowExpanded = resolvePortraitInlinePlayerLayoutSpec(
+            screenWidthDp = 412f,
+            screenHeightDp = 915f,
+            isCollapsed = false,
+            isFoldableCoverWindow = true,
+        )
+        assertEquals(594.75f, portraitWindowExpanded.heightDp, absoluteTolerance = 0.01f)
     }
 
     @Test

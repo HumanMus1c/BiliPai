@@ -1239,10 +1239,10 @@ private fun PlaybackInteractionSettingsSection(
         .collectAsStateWithLifecycle(initialValue = true)
     val videoNoteDefaultCollapsed by com.android.purebilibili.core.store.SettingsManager
         .getVideoNoteDefaultCollapsed(context)
-        .collectAsStateWithLifecycle(initialValue = false)
+        .collectAsStateWithLifecycle(initialValue = true)
     val videoInfoDefaultExpanded by com.android.purebilibili.core.store.SettingsManager
         .getVideoInfoDefaultExpanded(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+        .collectAsStateWithLifecycle(initialValue = false)
     val commentFraudDetectionEnabled by com.android.purebilibili.core.store.SettingsManager
         .getCommentFraudDetectionEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -2188,6 +2188,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
         val tabletCommentPanelWidthPreset by com.android.purebilibili.core.store.SettingsManager
             .getTabletCommentPanelWidthPreset(context)
             .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.TabletCommentPanelWidthPreset.STANDARD)
+        val tabletSecondaryDefaultTab by com.android.purebilibili.core.store.SettingsManager
+            .getTabletSecondaryDefaultTab(context)
+            .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.TabletSecondaryDefaultTab.RELATED)
         val fullscreenMode by com.android.purebilibili.core.store.SettingsManager
             .getFullscreenMode(context)
             .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.FullscreenMode.AUTO)
@@ -2279,6 +2282,19 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager
                         .setTabletCommentPanelWidthPreset(context, preset)
+                }
+            }
+        )
+        AppPreferenceDivider()
+        SettingsSingleChoicePreference(
+            title = "大屏右侧默认显示：${tabletSecondaryDefaultTab.label}",
+            subtitle = "控制大屏视频详情右侧首次打开时显示推荐还是评论",
+            options = resolveTabletSecondaryDefaultTabOptions(),
+            selectedValue = tabletSecondaryDefaultTab,
+            onSelectionChange = { tab ->
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setTabletSecondaryDefaultTab(context, tab)
                 }
             }
         )

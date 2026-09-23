@@ -8,14 +8,12 @@ import kotlin.test.assertTrue
 class CopySelectionDialogStructureTest {
 
     @Test
-    fun copySelectionDialogUsesAppAlertChrome() {
+    fun copySelectionDialogUpgradesToTextSelectionBottomSheet() {
         val source = File(
             "src/main/java/com/android/purebilibili/core/ui/common/CopySelectionDialog.kt"
         ).readText()
-        assertTrue(source.contains("AppAlertDialog("))
-        assertTrue(source.contains("AppTextButton("))
-        assertTrue(source.contains("AppText("))
-        assertFalse(source.contains("androidx.compose.material3.AlertDialog"))
-        assertFalse(source.contains("TextButton("))
+        assertTrue(source.contains("TextSelectionBottomSheet("))
+        assertFalse(source.contains("AppAlertDialog("))
+        assertFalse(source.contains("heightIn(max = 280.dp)"))
     }
 }

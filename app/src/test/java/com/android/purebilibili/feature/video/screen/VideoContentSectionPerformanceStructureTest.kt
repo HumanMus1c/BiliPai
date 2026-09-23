@@ -43,7 +43,6 @@ class VideoContentSectionPerformanceStructureTest {
         )
 
         assertTrue(source.contains("beyondViewportPageCount = resolveVideoDetailBeyondViewportPageCount("))
-        assertTrue(source.contains("isVideoPlaying = isVideoPlaying,"))
         assertTrue(source.contains("selectedTabIndex = pagerState.currentPage"))
     }
 

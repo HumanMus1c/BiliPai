@@ -200,6 +200,10 @@ internal fun PortraitInlineVideoPlayerHost(
     residentCoverSource: VideoDetailResidentCoverSource? = null,
 ) {
     val successState = uiState as? VideoPlaybackUiState.Success
+    // 竖屏全屏由 PortraitVideoPager 接管播放面；内联 section 不得再合成。
+    if (isPortraitFullscreen) {
+        return
+    }
 
     Box(
         modifier = modifier

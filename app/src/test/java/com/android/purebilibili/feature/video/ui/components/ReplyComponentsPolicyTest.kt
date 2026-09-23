@@ -621,20 +621,20 @@ class ReplyComponentsPolicyTest {
     }
 
     @Test
-    fun `shouldEnableRichCommentSelection disables expensive mixed mode`() {
-        assertFalse(
+    fun `shouldEnableRichCommentSelection enables in-place selection mode`() {
+        assertTrue(
             shouldEnableRichCommentSelection(
                 hasRenderableEmotes = true,
                 hasInteractiveAnnotations = true
             )
         )
-        assertFalse(
+        assertTrue(
             shouldEnableRichCommentSelection(
                 hasRenderableEmotes = true,
                 hasInteractiveAnnotations = false
             )
         )
-        assertFalse(
+        assertTrue(
             shouldEnableRichCommentSelection(
                 hasRenderableEmotes = false,
                 hasInteractiveAnnotations = true
@@ -948,6 +948,11 @@ class ReplyComponentsPolicyTest {
         assertTrue(
             avatarSource.indexOf("fillMaxSize(faceFraction)") <
                 avatarSource.indexOf("contentDescription = \"Avatar pendant\"")
+        )
+        assertTrue(avatarSource.contains("UserAvatarCornerMarkBadge("))
+        assertTrue(
+            avatarSource.indexOf("contentDescription = \"Avatar pendant\"") <
+                avatarSource.indexOf("UserAvatarCornerMarkBadge(")
         )
     }
 

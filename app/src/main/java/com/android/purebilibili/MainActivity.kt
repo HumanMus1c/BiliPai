@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import com.android.purebilibili.core.ui.common.ProvideAppTextSelectionHost
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -1487,6 +1488,7 @@ open class MainActivity : AppCompatActivity() {
                     widthSizeClass = windowSizeClass.widthSizeClass
                 ) {
                 ProvideUnifiedBlurIntensity {
+                ProvideAppTextSelectionHost {
                     //  📐 [平板适配] 提供全局 WindowSizeClass
                     CompositionLocalProvider(
                         LocalDensity provides effectiveDensity,
@@ -2209,6 +2211,7 @@ open class MainActivity : AppCompatActivity() {
                     }
 
                     }
+                }
                 }
                 }
                 }

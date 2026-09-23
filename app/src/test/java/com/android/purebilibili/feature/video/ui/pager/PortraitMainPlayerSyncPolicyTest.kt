@@ -281,4 +281,66 @@ class PortraitMainPlayerSyncPolicyTest {
             )
         )
     }
+
+    @Test
+    fun portraitProgressCommit_commitsOnIdentityChange() {
+        assertTrue(
+            shouldCommitPortraitProgressToDetailState(
+                previousBvid = "BV1",
+                previousCid = 1L,
+                previousPositionMs = 1_000L,
+                nextBvid = "BV2",
+                nextCid = 1L,
+                nextPositionMs = 1_000L,
+            )
+        )
+        assertTrue(
+            shouldCommitPortraitProgressToDetailState(
+                previousBvid = "BV1",
+                previousCid = 1L,
+                previousPositionMs = 1_000L,
+                nextBvid = "BV1",
+                nextCid = 2L,
+                nextPositionMs = 1_000L,
+            )
+        )
+    }
+
+    @Test
+    fun portraitProgressCommit_throttlesSameIdentitySmallPositionDeltas() {
+        assertFalse(
+            shouldCommitPortraitProgressToDetailState(
+                previousBvid = "BV1",
+                previousCid = 11L,
+                previousPositionMs = 10_000L,
+                nextBvid = "BV1",
+                nextCid = 11L,
+                nextPositionMs = 10_400L,
+            )
+        )
+        assertTrue(
+            shouldCommitPortraitProgressToDetailState(
+                previousBvid = "BV1",
+                previousCid = 11L,
+                previousPositionMs = 10_000L,
+                nextBvid = "BV1",
+                nextCid = 11L,
+                nextPositionMs = 11_200L,
+            )
+        )
+    }
+
+    @Test
+    fun portraitProgressCommit_alwaysCommitsFirstObservation() {
+        assertTrue(
+            shouldCommitPortraitProgressToDetailState(
+                previousBvid = null,
+                previousCid = 0L,
+                previousPositionMs = -1L,
+                nextBvid = "BV1",
+                nextCid = 11L,
+                nextPositionMs = 0L,
+            )
+        )
+    }
 }

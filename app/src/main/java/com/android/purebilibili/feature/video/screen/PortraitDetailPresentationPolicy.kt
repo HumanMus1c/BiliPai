@@ -110,6 +110,20 @@ internal fun shouldSuppressPhoneDetailBodyForDirectPortraitEntry(
     return directPortraitEntry && isPortraitFullscreen
 }
 
+/**
+ * Standalone portrait pager covers the phone detail body. Suppress that body so inline
+ * VideoPlayerSection does not dual-host the shared player under the pager.
+ */
+internal fun shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+    portraitExperienceEnabled: Boolean,
+    isPortraitFullscreen: Boolean,
+    hasPlayableState: Boolean,
+): Boolean {
+    return portraitExperienceEnabled &&
+        isPortraitFullscreen &&
+        hasPlayableState
+}
+
 internal fun resolvePortraitFullscreenButtonAction(
     useOfficialInlinePortraitDetailExperience: Boolean
 ): PortraitFullscreenButtonAction {
@@ -203,10 +217,16 @@ internal fun resolvePiliPlusCollapsedPlayerViewportHeightDp(
 internal fun resolvePortraitInlinePlayerLayoutSpec(
     screenWidthDp: Float,
     screenHeightDp: Float,
-    isCollapsed: Boolean
+    isCollapsed: Boolean,
+    isFoldableCoverWindow: Boolean = false,
 ): PortraitInlinePlayerLayoutSpec {
     val width = screenWidthDp
-    val collapsedHeight = screenWidthDp * 9f / 16f
+    val standardCollapsedHeight = screenWidthDp * 9f / 16f
+    val collapsedHeight = if (isFoldableCoverWindow && screenHeightDp > 0f) {
+        min(standardCollapsedHeight, screenHeightDp * FOLDABLE_COVER_COMPACT_PLAYER_HEIGHT_FRACTION)
+    } else {
+        standardCollapsedHeight
+    }
     if (isCollapsed) {
         return PortraitInlinePlayerLayoutSpec(
             widthDp = width,
@@ -223,9 +243,18 @@ internal fun resolvePortraitInlinePlayerLayoutSpec(
     } else {
         max(longestSide * 0.65f, shortestSide)
     }
+    val coverExpandedHeightLimit = if (
+        isFoldableCoverWindow &&
+        screenHeightDp > 0f &&
+        screenHeightDp < FOLDABLE_COVER_COMPACT_HEIGHT_MAX_DP
+    ) {
+        screenHeightDp * FOLDABLE_COVER_COMPACT_PLAYER_HEIGHT_FRACTION
+    } else {
+        Float.POSITIVE_INFINITY
+    }
     return PortraitInlinePlayerLayoutSpec(
         widthDp = width,
-        heightDp = expandedHeight
+        heightDp = min(expandedHeight, coverExpandedHeightLimit)
     )
 }
 

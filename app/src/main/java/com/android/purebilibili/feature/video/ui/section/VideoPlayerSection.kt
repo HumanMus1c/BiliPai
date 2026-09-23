@@ -1339,11 +1339,14 @@ private fun VideoPlayerSectionContent(
         .collectAsStateWithLifecycle(
             initialValue = SettingsManager.getHideVideoPageStatusBarSync(context),
         )
-    val shouldCaptureStatusBarAmbientFrame = contentTopInset.value > 0f &&
-        !isFullscreen &&
-        !isInPipMode &&
-        hostLifecycleStarted &&
-        statusBarHazeEnabled
+    val shouldCaptureStatusBarAmbientFrame = shouldCaptureInlineStatusBarAmbientFrame(
+        contentTopInsetPx = contentTopInset.value,
+        isFullscreen = isFullscreen,
+        isPortraitFullscreen = isPortraitFullscreen,
+        isInPipMode = isInPipMode,
+        hostLifecycleStarted = hostLifecycleStarted,
+        statusBarHazeEnabled = statusBarHazeEnabled,
+    )
     LaunchedEffect(
         playerViewRef,
         shouldCaptureStatusBarAmbientFrame,
@@ -2099,8 +2102,12 @@ private fun VideoPlayerSectionContent(
                 isFullscreen,
                 isInPipMode,
                 isScreenLocked,
-                twoFingerSpeedMode
+                twoFingerSpeedMode,
+                isPortraitFullscreen,
             ) {
+                if (!shouldEnableInlinePlayerGestures(isPortraitFullscreen)) {
+                    return@pointerInput
+                }
                 try {
                     awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -2243,6 +2250,9 @@ private fun VideoPlayerSectionContent(
                 gestureSeekFallbackDurationMs,
                 isPortraitFullscreen
             ) {
+                if (!shouldEnableInlinePlayerGestures(isPortraitFullscreen)) {
+                    return@pointerInput
+                }
                 if (!isInPipMode) {
                     detectDragGestures(
                         onDragStart = { offset ->
@@ -2679,8 +2689,12 @@ private fun VideoPlayerSectionContent(
                 scale,
                 isMultiTouchActive,
                 isFullscreen,
-                longPressSpeedLockEnabled
+                longPressSpeedLockEnabled,
+                isPortraitFullscreen,
             ) {
+                if (!shouldEnableInlinePlayerGestures(isPortraitFullscreen)) {
+                    return@pointerInput
+                }
                 detectDragGesturesAfterLongPress(
                     onDragStart = { startOffset ->
                         startLongPressSpeedGesture(startOffset)
@@ -2765,8 +2779,12 @@ private fun VideoPlayerSectionContent(
                 seekForwardSeconds,
                 seekBackwardSeconds,
                 doubleTapSeekEnabled,
-                isScreenLocked
+                isScreenLocked,
+                isPortraitFullscreen,
             ) {
+                if (!shouldEnableInlinePlayerGestures(isPortraitFullscreen)) {
+                    return@pointerInput
+                }
                 detectTapGestures(
                     onTap = { 
                         // 🔒 锁定时点击只显示解锁按钮
@@ -2997,6 +3015,7 @@ private fun VideoPlayerSectionContent(
         val runDanmakuHostEffects = shouldRunVideoPlayerDanmakuHostEffects(
             danmakuHostActive = danmakuHostActive,
             hostLifecycleStarted = hostLifecycleStarted,
+            isPortraitFullscreen = isPortraitFullscreen,
         )
         LaunchedEffect(cid, aid, danmakuEnabled, runDanmakuHostEffects) {
             // 相关推荐 push 会让新旧详情页在转场期间同时处于 STARTED。旧页不得再次
@@ -4225,6 +4244,14 @@ private fun VideoPlayerSectionContent(
         pipNoDanmakuEnabled = pipNoDanmakuEnabled,
         hostLifecycleStarted = hostLifecycleStarted
     )
+        val advancedDanmakuList by danmakuManager.advancedDanmakuFlow.collectAsStateWithLifecycle()
+        val commandDanmakuList by danmakuManager.commandDanmakuFlow.collectAsStateWithLifecycle()
+        val commandState = com.android.purebilibili.feature.video.ui.overlay.rememberCommandDanmakuOverlayState(
+            bvid to (uiState as? VideoPlaybackUiState.Success)?.info?.cid
+        )
+        val visibleCommandDanmakuList = remember(commandDanmakuList, danmakuHideInteractiveCommands) {
+            filterVisibleCommandDanmakuItems(commandDanmakuList, danmakuHideInteractiveCommands)
+        }
         if (shouldShowDanmakuLayer) {
             //  计算状态栏高度
             val statusBarHeightPx = remember(context) {
@@ -4288,9 +4315,14 @@ private fun VideoPlayerSectionContent(
                         )
                     }
                 }
+                DanmakuViewportHost(danmakuSurfaceModifier) { viewport ->
                 AndroidView(
                     factory = { ctx ->
                         DanmakuRenderView(ctx).apply {
+                            danmakuManager.updateViewport(viewport)
+                            addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                                if (view.width > 0 && view.height > 0) danmakuManager.attachView(this)
+                            }
                             setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             configureAsPassiveDanmakuOverlay()
                             danmakuManager.attachView(this)
@@ -4300,6 +4332,7 @@ private fun VideoPlayerSectionContent(
                         }
                     },
                     update = { view ->
+                        danmakuManager.updateViewport(viewport)
                         //  [关键] 横竖屏切换后视图尺寸变化时，重新 attachView 确保弹幕正确显示
                         Logger.d("VideoPlayerSection") {
                             "DanmakuView update: size=${view.width}x${view.height}, isFullscreen=$isFullscreen"
@@ -4318,20 +4351,10 @@ private fun VideoPlayerSectionContent(
                         // 相关推荐跳转后旧页面销毁不能清掉新页面已接管的 view/controller。
                         danmakuManager.detachView(view)
                     },
-                    modifier = danmakuSurfaceModifier
+                    modifier = Modifier.fillMaxSize()
                 )
-            }
-        }
-
-        // 3. 高级弹幕层 (Mode 7) - 覆盖在标准弹幕上方
-        val advancedDanmakuList by danmakuManager.advancedDanmakuFlow.collectAsStateWithLifecycle()
-
-        if (shouldShowDanmakuLayer && advancedDanmakuList.isNotEmpty()) {
-             Box(
-                modifier = playerContentModifier
-                    .clipToBounds()
-            ) {
                 com.android.purebilibili.feature.video.ui.overlay.AdvancedDanmakuOverlay(
+                    viewport = viewport,
                     danmakuList = advancedDanmakuList,
                     player = playerState.player,
                     opacity = danmakuOpacity,
@@ -4339,22 +4362,10 @@ private fun VideoPlayerSectionContent(
                     fontWeight = danmakuFontWeight,
                     modifier = Modifier.fillMaxSize()
                 )
-            }
-        }
-
-        val commandDanmakuList by danmakuManager.commandDanmakuFlow.collectAsStateWithLifecycle()
-        val visibleCommandDanmakuList = remember(commandDanmakuList, danmakuHideInteractiveCommands) {
-            filterVisibleCommandDanmakuItems(
-                items = commandDanmakuList,
-                hideInteractiveCommands = danmakuHideInteractiveCommands
-            )
-        }
-        if (shouldShowDanmakuLayer && visibleCommandDanmakuList.isNotEmpty()) {
-            Box(
-                modifier = playerContentModifier
-                    .clipToBounds()
-            ) {
                 com.android.purebilibili.feature.video.ui.overlay.CommandDanmakuOverlay(
+                    viewport = viewport,
+                    state = commandState,
+                    fontScale = danmakuFontScale,
                     items = visibleCommandDanmakuList,
                     player = playerState.player,
                     onFollowClick = onToggleFollow,
@@ -4383,6 +4394,7 @@ private fun VideoPlayerSectionContent(
                     isFollowing = isFollowed,
                     modifier = Modifier.fillMaxSize()
                 )
+            }
             }
         }
 

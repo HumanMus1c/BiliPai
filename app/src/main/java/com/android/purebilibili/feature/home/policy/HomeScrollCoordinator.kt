@@ -91,6 +91,25 @@ internal fun resolveHomeHeaderTransitionRunning(
     return isFeedScrolling || isPagerScrolling || isHeaderSettleAnimating
 }
 
+internal fun resolveHomeHeaderListIndex(
+    displayedEntryIsSubscription: Boolean,
+    categoryFirstVisibleIndex: Int,
+    subscriptionFirstVisibleIndex: Int,
+): Int {
+    return if (displayedEntryIsSubscription) {
+        subscriptionFirstVisibleIndex
+    } else {
+        categoryFirstVisibleIndex
+    }
+}
+
+internal fun canRevealHomeHeaderForList(
+    firstVisibleItemIndex: Int,
+    listMissing: Boolean,
+): Boolean {
+    return listMissing || firstVisibleItemIndex == 0
+}
+
 internal fun shouldExpandHomeHeaderForSettledPage(
     currentHeaderOffsetPx: Float,
     firstVisibleItemIndex: Int,

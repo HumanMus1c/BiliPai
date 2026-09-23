@@ -165,4 +165,80 @@ class HomeTopCategoryPolicyTest {
         assertEquals(R.string.home_category_live, resolveHomeCategoryLabelRes(HomeCategory.LIVE))
         assertEquals(R.string.home_category_game, resolveHomeCategoryLabelRes(HomeCategory.GAME))
     }
+
+    @Test
+    fun `ensureSubscriptionHomeTab retains custom ordered subscription when enabled`() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Subscriptions,
+            HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+        )
+
+        val result = ensureSubscriptionHomeTab(
+            entries = entries,
+            feedsEnabled = true,
+            visibleIds = setOf("RECOMMEND", "SUBSCRIPTIONS", "FOLLOW")
+        )
+
+        assertEquals(entries, result)
+    }
+
+    @Test
+    fun `ensureSubscriptionHomeTab strips subscription when feeds disabled`() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Subscriptions,
+            HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+        )
+
+        val result = ensureSubscriptionHomeTab(
+            entries = entries,
+            feedsEnabled = false,
+            visibleIds = setOf("RECOMMEND", "SUBSCRIPTIONS", "FOLLOW")
+        )
+
+        assertEquals(
+            listOf(
+                HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+                HomeTopTabEntry.Category(HomeCategory.FOLLOW)
+            ),
+            result
+        )
+    }
+
+    @Test
+    fun `ensureSubscriptionHomeTab appends subscription on legacy default when enabled`() {
+        val entries = resolveHomeTopTabEntries()
+
+        val result = ensureSubscriptionHomeTab(
+            entries = entries,
+            feedsEnabled = true,
+            visibleIds = null
+        )
+
+        assertEquals(entries + HomeTopTabEntry.Subscriptions, result)
+    }
+
+    @Test
+    fun `ensureSubscriptionHomeTab strips subscription if custom visibleIds excludes it`() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Subscriptions,
+            HomeTopTabEntry.Category(HomeCategory.LIVE)
+        )
+
+        val result = ensureSubscriptionHomeTab(
+            entries = entries,
+            feedsEnabled = true,
+            visibleIds = setOf("RECOMMEND", "LIVE")
+        )
+
+        assertEquals(
+            listOf(
+                HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+                HomeTopTabEntry.Category(HomeCategory.LIVE)
+            ),
+            result
+        )
+    }
 }

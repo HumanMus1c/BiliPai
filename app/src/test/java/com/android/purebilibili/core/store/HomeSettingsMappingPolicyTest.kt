@@ -77,6 +77,7 @@ class HomeSettingsMappingPolicyTest {
         assertFalse(result.lowQualityHomeCoverInDataSaver)
         assertTrue(result.showHomeUpBadges)
         assertTrue(result.showHomeUpAvatars)
+        assertTrue(result.showHomePublishTime)
         assertFalse(result.easterEggEnabled)
         assertFalse(result.crashTrackingConsentShown)
     }
@@ -127,6 +128,7 @@ class HomeSettingsMappingPolicyTest {
             booleanPreferencesKey("low_quality_home_cover_in_data_saver") to true,
             booleanPreferencesKey("home_up_badges_visible") to false,
             booleanPreferencesKey("home_up_avatars_visible") to false,
+            booleanPreferencesKey("home_publish_time_visible") to false,
             booleanPreferencesKey("easter_egg_enabled") to true,
             booleanPreferencesKey("crash_tracking_consent_shown") to true
         )
@@ -181,6 +183,7 @@ class HomeSettingsMappingPolicyTest {
         assertTrue(result.lowQualityHomeCoverInDataSaver)
         assertFalse(result.showHomeUpBadges)
         assertFalse(result.showHomeUpAvatars)
+        assertFalse(result.showHomePublishTime)
         assertTrue(result.easterEggEnabled)
         assertTrue(result.crashTrackingConsentShown)
     }

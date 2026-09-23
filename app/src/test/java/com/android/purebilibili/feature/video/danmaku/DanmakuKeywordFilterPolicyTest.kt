@@ -176,6 +176,27 @@ class DanmakuKeywordFilterPolicyTest {
     }
 
     @Test
+    fun compileDanmakuBlockRules_reusesCompiledMatchersForSameRule() {
+        val rules = listOf("剧透", "regex:\\d{4}年", "/哈{3,}/")
+        val first = compileDanmakuBlockRules(rules)
+        val second = compileDanmakuBlockRules(rules)
+
+        assertEquals(first.map { it::class }, second.map { it::class })
+        assertEquals(3, first.size)
+        assertTrue(first[0].matches("这段有剧透注意"))
+        assertTrue(first[1].matches("2026年新番"))
+        assertTrue(first[2].matches("哈哈哈哈"))
+    }
+
+    @Test
+    fun shouldBlockDanmakuByRules_repeatedCallsKeepSemantics() {
+        val rules = listOf("剧透", "regex:第\\d+集")
+        assertTrue(shouldBlockDanmakuByRules("第24集剧透", rules))
+        assertTrue(shouldBlockDanmakuByRules("第24集剧透", rules))
+        assertFalse(shouldBlockDanmakuByRules("纯路人弹幕", rules))
+    }
+
+    @Test
     fun partitionDanmakuBlockRules_groupsRulesForManagerTabs() {
         val grouped = partitionDanmakuBlockRules(
             listOf("剧透", "regex:第\\d+集", "uid:abc123", "hash:XYZ", "哈哈")

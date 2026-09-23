@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home
 
 const val HOME_TOP_PARTITION_TAB_ID = "PARTITION"
+const val HOME_TOP_SUBSCRIPTION_TAB_ID = "SUBSCRIPTIONS"
 
 sealed interface HomeTopTabEntry {
     val id: String
@@ -12,7 +13,13 @@ sealed interface HomeTopTabEntry {
     data object Partition : HomeTopTabEntry {
         override val id: String = HOME_TOP_PARTITION_TAB_ID
     }
+
+    data object Subscriptions : HomeTopTabEntry {
+        override val id: String = HOME_TOP_SUBSCRIPTION_TAB_ID
+    }
 }
+
+private val LEGACY_DEFAULT_HOME_TOP_TAB_IDS = setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME")
 
 private val DEFAULT_HOME_TOP_CATEGORIES = listOf(
     HomeCategory.RECOMMEND,
@@ -41,6 +48,7 @@ fun resolveHomeTopTabId(category: HomeCategory): String = category.name
 private fun resolveHomeTopEntryById(id: String): HomeTopTabEntry? {
     val normalized = id.trim().uppercase()
     if (normalized == HOME_TOP_PARTITION_TAB_ID) return HomeTopTabEntry.Partition
+    if (normalized == HOME_TOP_SUBSCRIPTION_TAB_ID) return HomeTopTabEntry.Subscriptions
     return resolveHomeTopCategoryById(normalized)?.let(HomeTopTabEntry::Category)
 }
 
@@ -81,7 +89,7 @@ fun resolveHomeTopTabEntries(
         .orEmpty()
 
     val customizableEntries = HOME_TOP_CUSTOMIZABLE_CATEGORIES
-        .map(HomeTopTabEntry::Category) + HomeTopTabEntry.Partition
+        .map(HomeTopTabEntry::Category) + HomeTopTabEntry.Partition + HomeTopTabEntry.Subscriptions
 
     val ordered = linkedSetOf<HomeTopTabEntry>()
     resolvedOrder.forEach { entry ->
@@ -174,13 +182,34 @@ fun resolveHomeTopTabEntryKey(
     return when (val entry = resolveHomeTopTabEntryOrNull(entries, index)) {
         is HomeTopTabEntry.Category -> entry.category.ordinal
         HomeTopTabEntry.Partition -> HomeCategory.entries.size
-        null -> HomeCategory.entries.size + index + 1
+        HomeTopTabEntry.Subscriptions -> HomeCategory.entries.size + 1
+        null -> HomeCategory.entries.size + index + 2
     }
+}
+
+fun ensureSubscriptionHomeTab(
+    entries: List<HomeTopTabEntry>,
+    feedsEnabled: Boolean,
+    visibleIds: Set<String>?,
+): List<HomeTopTabEntry> {
+    if (!feedsEnabled) {
+        return entries.filterNot { it == HomeTopTabEntry.Subscriptions }
+    }
+    val visible = visibleIds?.map { it.trim().uppercase() }?.filter { it.isNotBlank() }?.toSet()
+    val legacyDefault = visible == null || visible == LEGACY_DEFAULT_HOME_TOP_TAB_IDS
+    if (visible != null && !legacyDefault && HOME_TOP_SUBSCRIPTION_TAB_ID !in visible) {
+        return entries.filterNot { it == HomeTopTabEntry.Subscriptions }
+    }
+    if (entries.any { it == HomeTopTabEntry.Subscriptions }) {
+        return entries
+    }
+    return entries + HomeTopTabEntry.Subscriptions
 }
 
 fun resolveHomeTopTabEntryLabel(entry: HomeTopTabEntry): String {
     return when (entry) {
         is HomeTopTabEntry.Category -> entry.category.label
         HomeTopTabEntry.Partition -> "分区"
+        HomeTopTabEntry.Subscriptions -> "订阅"
     }
 }

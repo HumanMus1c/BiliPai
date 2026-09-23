@@ -118,15 +118,15 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 380
-        versionName = "0.2.3-beta.45"
+        versionCode = 384
+        versionName = "0.2.3-beta.46"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
 
-        // 👇👇👇 指定打包的 CPU 架构（64 位 only）👇👇👇
+        // 指定打包的 CPU 架构（64 位 only）
         ndk {
             // arm64-v8a: modern 64-bit devices
             abiFilters += listOf("arm64-v8a")

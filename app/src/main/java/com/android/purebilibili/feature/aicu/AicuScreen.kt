@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -262,7 +263,11 @@ internal fun AicuScreen(
         AppAlertDialog(
             onDismissRequest = { showInformation = false },
             title = { AppText("使用说明") },
-            text = { AppText(AICU_DISCLAIMER_TEXT, modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) },
+            text = {
+                SelectionContainer {
+                    AppText(AICU_DISCLAIMER_TEXT, modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()))
+                }
+            },
             confirmButton = { AppTextButton(onClick = { showInformation = false }, modifier = Modifier.heightIn(min = 48.dp)) { AppText("关闭") } },
         )
     }
@@ -414,7 +419,9 @@ private fun AicuDisclaimerDialog(seconds: Int, saving: Boolean, error: String?, 
         title = { AppText("第三方查询免责声明") },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                AppText(AICU_DISCLAIMER_TEXT)
+                SelectionContainer {
+                    AppText(AICU_DISCLAIMER_TEXT)
+                }
                 error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
             }
         },

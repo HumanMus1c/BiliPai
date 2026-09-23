@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.metrics.performance.JankStats
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppThemeConfig
+import com.android.purebilibili.core.ui.common.ProvideAppTextSelectionHost
 import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.ProvideAppThemeConfig
 import com.android.purebilibili.core.ui.blur.BlurIntensity
@@ -237,6 +238,7 @@ class VideoActivity : ComponentActivity() {
                 ProvideAppThemeConfig(config = appThemeConfig) {
                 ProvideRuntimeVisualGuard(widthSizeClass = windowWidthSizeClass) {
                 com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity {
+                ProvideAppTextSelectionHost {
                 CompositionLocalProvider(
                     com.android.purebilibili.feature.aicu.LocalAicuNavigation provides { uid: Long? ->
                         startActivity(android.content.Intent(this@VideoActivity, com.android.purebilibili.MainActivity::class.java).apply {
@@ -270,6 +272,7 @@ class VideoActivity : ComponentActivity() {
                 }
                 }
                 }
+            }
             }
         }
     }

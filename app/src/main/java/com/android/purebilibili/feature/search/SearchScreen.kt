@@ -151,6 +151,8 @@ import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
 import com.android.purebilibili.core.ui.OfficialVerifyAvatarBadge
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
@@ -3939,6 +3941,15 @@ internal fun UpSearchResultCard(
                     OfficialVerifyAvatarBadge(
                         badge = verifyBadge,
                         modifier = Modifier.align(Alignment.BottomEnd)
+                    )
+                } else {
+                    UserAvatarCornerMarkBadge(
+                        mark = resolveUserAvatarCornerMark(
+                            officialType = null,
+                            vipStatus = cleanedItem.vip?.status,
+                        ),
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                        badgeSize = 14.dp,
                     )
                 }
             }

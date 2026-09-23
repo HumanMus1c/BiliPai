@@ -193,16 +193,13 @@ fun UpInfoSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(FormatUtils.fixImageUrl(info.owner.face))
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
-            modifier = Modifier
-                .size(36.dp)  //  紧凑布局：稍微缩小头像
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+        com.android.purebilibili.feature.video.ui.section.OwnerDecoratedAvatar(
+            faceUrl = info.owner.face,
+            ownerMid = info.owner.mid,
+            modifier = Modifier.size(36.dp),
+            badgeSize = 12.dp,
+            fallbackOfficialType = info.staff.firstOrNull { it.mid == info.owner.mid }?.official?.type,
+            fallbackVipStatus = info.staff.firstOrNull { it.mid == info.owner.mid }?.vip?.status,
         )
         
         Spacer(Modifier.width(10.dp))

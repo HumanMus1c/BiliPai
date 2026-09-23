@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CommandDanmakuPolicyTest {
 
@@ -156,6 +157,36 @@ class CommandDanmakuPolicyTest {
         assertEquals(2, item.voteOptions.size)
         assertEquals(2, item.voteOptions[0].score)
         assertEquals(4, item.voteOptions[1].score)
+    }
+
+    @Test
+    fun `grade star mapping follows legal scores instead of payload order`() {
+        val firstTwo = VoteOption(id = "two", label = "two", score = 2)
+        val duplicateTwo = VoteOption(id = "duplicate-two", label = "duplicate", score = 2)
+        val six = VoteOption(id = "six", label = "six", score = 6)
+        val ten = VoteOption(id = "ten", label = "ten", score = 10)
+        val invalid = VoteOption(id = "three", label = "three", score = 3)
+
+        val stars = resolveGradeStarOptions(
+            listOf(ten, invalid, six, duplicateTwo, firstTwo)
+        )
+
+        assertEquals(listOf(2, null, 6, null, 10), stars.map { it?.score })
+        assertEquals(listOf("duplicate-two", null, "six", null, "ten"), stars.map { it?.id })
+    }
+
+    @Test
+    fun `grade star mapping disables missing and out of range scores`() {
+        val stars = resolveGradeStarOptions(
+            listOf(
+                VoteOption(id = "one", label = "one", score = 1),
+                VoteOption(id = "odd", label = "odd", score = 7),
+                VoteOption(id = "high", label = "high", score = 12),
+                VoteOption(id = "negative", label = "negative", score = -2)
+            )
+        )
+
+        assertTrue(stars.all { it == null })
     }
 
     @Test

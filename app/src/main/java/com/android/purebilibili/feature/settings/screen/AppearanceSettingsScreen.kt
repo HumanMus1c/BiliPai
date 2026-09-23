@@ -450,6 +450,9 @@ fun AppearanceSettingsContent(
     val homeUpAvatarsVisible by SettingsManager
         .getHomeUpAvatarsVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val homePublishTimeVisible by SettingsManager
+        .getHomePublishTimeVisible(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val fullVideoCardContentVisible by SettingsManager
         .getFullVideoCardContentVisible(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -1372,7 +1375,7 @@ fun AppearanceSettingsContent(
                             subtitle = if (fullVideoCardContentVisible) {
                                 "完整显示视频标题，卡片高度可能不同"
                             } else {
-                                "标题最多显示两行；发布时间等卡片信息始终完整显示"
+                                "标题最多显示两行；播放、弹幕等卡片信息始终完整显示"
                             },
                             checked = fullVideoCardContentVisible,
                             onCheckedChange = {
@@ -1429,6 +1432,24 @@ fun AppearanceSettingsContent(
                                     SettingsManager.setHomeDurationStyle(context, it)
                                 }
                             }
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TIME_STATUS),
+                            title = "发布时间",
+                            subtitle = if (homePublishTimeVisible) {
+                                "首页视频卡片显示发布时间"
+                            } else {
+                                "首页视频卡片不显示发布时间"
+                            },
+                            checked = homePublishTimeVisible,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setHomePublishTimeVisible(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSPurple
                         )
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))

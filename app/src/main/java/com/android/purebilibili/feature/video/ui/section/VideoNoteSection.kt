@@ -78,10 +78,11 @@ fun VideoNoteCard(
     onDeleteClick: () -> Unit,
     onShareClick: (VideoNoteEditorDocument) -> Unit,
     onPublicNoteClick: (Long, String) -> Unit,
-    defaultCollapsed: Boolean = false,
+    defaultCollapsed: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val hasUnsavedDraft = hasUnsavedVideoNoteDraft(noteState)
+    val isMaterial3 = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
     val primaryActionLabel = resolveVideoNotePrimaryActionLabel(noteState)
     var userExpanded by remember(defaultCollapsed) { mutableStateOf(!defaultCollapsed) }
     val showBody = shouldShowVideoNoteBody(
@@ -97,11 +98,11 @@ fun VideoNoteCard(
     AppContentCard(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = if (isMaterial3) 16.dp else 12.dp, vertical = 6.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 16.dp,
-            vertical = 14.dp,
+            horizontal = if (isMaterial3) 16.dp else 12.dp,
+            vertical = if (isMaterial3) 14.dp else 10.dp,
         ),
     ) {
         // Header: icon + title/subtitle | primary action
@@ -121,7 +122,7 @@ fun VideoNoteCard(
                     text = resolveNoteSubtitle(noteState, isLoggedIn),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = if (defaultCollapsed) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

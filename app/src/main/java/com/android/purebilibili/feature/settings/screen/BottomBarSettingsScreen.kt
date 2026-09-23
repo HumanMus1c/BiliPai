@@ -126,7 +126,8 @@ internal fun resolveAllTopTabs(
     TopTabConfig("GAME", "游戏", resolveTopTabIcon("GAME", iconFamily)),
     TopTabConfig("PARTITION", "分区", resolveTopTabIcon("PARTITION", iconFamily)),
     TopTabConfig("KNOWLEDGE", "知识", resolveTopTabIcon("KNOWLEDGE", iconFamily)),
-    TopTabConfig("TECH", "科技", resolveTopTabIcon("TECH", iconFamily))
+    TopTabConfig("TECH", "科技", resolveTopTabIcon("TECH", iconFamily)),
+    TopTabConfig("SUBSCRIPTIONS", "订阅", resolveTopTabIcon("SUBSCRIPTIONS", iconFamily))
 )
 
 /**

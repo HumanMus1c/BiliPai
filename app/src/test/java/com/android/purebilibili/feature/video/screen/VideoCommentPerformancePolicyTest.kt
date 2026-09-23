@@ -8,15 +8,13 @@ import kotlin.test.assertTrue
 class VideoCommentPerformancePolicyTest {
 
     @Test
-    fun `video detail should avoid preloading adjacent page while video is playing`() {
-        assertEquals(0, resolveVideoDetailBeyondViewportPageCount(isVideoPlaying = true))
-        assertEquals(1, resolveVideoDetailBeyondViewportPageCount(isVideoPlaying = false))
+    fun `video detail preloads comments while intro is visible`() {
+        assertEquals(1, resolveVideoDetailBeyondViewportPageCount(selectedTabIndex = 0))
     }
 
     @Test
     fun `video detail should avoid preloading intro tab while comment tab is visible`() {
-        assertEquals(0, resolveVideoDetailBeyondViewportPageCount(isVideoPlaying = false, selectedTabIndex = 1))
-        assertEquals(1, resolveVideoDetailBeyondViewportPageCount(isVideoPlaying = false, selectedTabIndex = 0))
+        assertEquals(0, resolveVideoDetailBeyondViewportPageCount(selectedTabIndex = 1))
     }
 
     @Test

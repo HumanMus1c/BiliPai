@@ -30,6 +30,7 @@ import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.shouldShowScrollToTop
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -155,7 +156,9 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.recoverableBlurEnabled
 import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
+import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppNativeTabRow
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -2693,23 +2696,15 @@ private fun SpaceHeader(
                                     .size(14.dp)
                             )
                         }
-                    } else if (userInfo.official.type >= 0) {
-                        AppSurface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 2.dp),
-                            shape = CircleShape,
-                            color = if (userInfo.official.type == 0) Color(0xFFFFCC00) else Color(0xFF23ADE5)
-                        ) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Bolt,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier
-                                    .padding(3.dp)
-                                    .size(14.dp)
-                            )
-                        }
+                    } else {
+                        UserAvatarCornerMarkBadge(
+                            mark = resolveUserAvatarCornerMark(
+                                officialType = userInfo.official.type,
+                                vipStatus = userInfo.vip.status,
+                            ),
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            badgeSize = 20.dp,
+                        )
                     }
                 }
 
@@ -2801,7 +2796,8 @@ private fun SpaceHeaderIdentityInfo(
     modifier: Modifier = Modifier,
 ) {
     // 信息区：名字 + 等级 + VIP 标识。
-    Column(modifier = modifier) {
+    SelectionContainer {
+        Column(modifier = modifier) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -2936,6 +2932,7 @@ private fun SpaceHeaderIdentityInfo(
                 Spacer(modifier = Modifier.height(8.dp))
                 SpaceBanBanner()
             }
+        }
     }
 }
 

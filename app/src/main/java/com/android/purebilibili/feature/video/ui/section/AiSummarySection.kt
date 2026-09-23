@@ -67,12 +67,13 @@ fun AiSummaryCard(
     }
     var expanded by remember { mutableStateOf(false) }
     val useMiuix = LocalAppUiStyle.current == AppUiStyle.MIUIX
+    val horizontalPadding = if (useMiuix) 12.dp else 16.dp
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     AppContentCard(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = horizontalPadding, vertical = 6.dp)
             // The Miuix expansion owns its height animation; do not animate it twice.
             .then(if (useMiuix) Modifier else Modifier.animateContentSize()),
         containerColor = containerColor,

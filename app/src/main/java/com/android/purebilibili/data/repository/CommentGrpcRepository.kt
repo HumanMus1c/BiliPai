@@ -12,7 +12,9 @@ import com.android.purebilibili.data.model.response.ReplyControl
 import com.android.purebilibili.data.model.response.ReplyCursor
 import com.android.purebilibili.data.model.response.ReplyData
 import com.android.purebilibili.data.model.response.ReplyEmote
+import com.android.purebilibili.data.model.response.OfficialVerify
 import com.android.purebilibili.data.model.response.ReplyFansDetail
+import com.android.purebilibili.data.model.response.ReplySailingPendant
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.ReplyLevelInfo
 import com.android.purebilibili.data.model.response.ReplyPage
@@ -457,6 +459,8 @@ internal object CommentGrpcRepository {
         var level = 0
         var vipType = 0
         var vipStatus = 0
+        var officialVerifyType: Int? = null
+        var garbPendantImage = ""
         var garbCardImage = ""
         var garbCardImageWithFocus = ""
         var garbCardNumber = ""
@@ -472,8 +476,10 @@ internal object CommentGrpcRepository {
                 2 -> name = ProtoWire.stringValue(field)
                 4 -> face = ProtoWire.stringValue(field)
                 5 -> level = field.varint.toInt()
+                6 -> officialVerifyType = field.varint.toInt()
                 7 -> vipType = field.varint.toInt()
                 8 -> vipStatus = field.varint.toInt()
+                11 -> garbPendantImage = ProtoWire.stringValue(field)
                 12 -> garbCardImage = ProtoWire.stringValue(field)
                 13 -> garbCardImageWithFocus = ProtoWire.stringValue(field)
                 15 -> garbCardNumber = ProtoWire.stringValue(field)
@@ -492,6 +498,10 @@ internal object CommentGrpcRepository {
             isSeniorMember = isSeniorMember,
             levelInfo = ReplyLevelInfo(currentLevel = level),
             vip = ReplyVipInfo(vipType = vipType, vipStatus = vipStatus),
+            officialVerify = OfficialVerify(type = officialVerifyType ?: -1),
+            pendant = garbPendantImage.takeIf { it.isNotBlank() }?.let {
+                ReplySailingPendant(image = it)
+            },
             fansDetail = if (fansMedalName.isNotBlank() && fansMedalLevel > 0) {
                 ReplyFansDetail(uid = mid, medalName = fansMedalName, level = fansMedalLevel)
             } else {

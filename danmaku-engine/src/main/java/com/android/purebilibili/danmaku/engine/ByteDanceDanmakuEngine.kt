@@ -42,8 +42,12 @@ internal class ByteDanceDanmakuEngine(
         controller.addRenderLayer(ReverseScrollLayer())
     }
 
+    private var configApplied = false
+
     override fun updateConfig(config: DanmakuRenderConfig) {
         if (closed) return
+        if (configApplied && currentConfig == config) return
+        configApplied = true
         currentConfig = config
         controller.config.apply {
             common.alpha = config.alpha
@@ -54,9 +58,12 @@ internal class ByteDanceDanmakuEngine(
             text.strokeColor = config.strokeColor
             scroll.moveTime = config.scrollDurationMs
             scroll.lineHeight = config.lineHeightPx
+            scroll.lineMargin = config.lineMarginPx
+            scroll.itemMargin = 24f * config.viewportScale
             scroll.lineCount = config.lineCount
             scroll.marginTop = config.topMarginPx
             top.lineHeight = config.lineHeightPx
+            top.lineMargin = config.lineMarginPx
             // The display-area setting is a total vertical budget. Splitting the
             // line count into top and bottom layers made a 1/4 selection occupy
             // roughly half the viewport (top + bottom each got half the budget).
@@ -67,11 +74,26 @@ internal class ByteDanceDanmakuEngine(
             top.showTimeMin = config.pinnedDurationMs
             top.showTimeMax = config.pinnedDurationMs
             bottom.lineHeight = config.lineHeightPx
+            bottom.lineMargin = config.lineMarginPx
             bottom.lineCount = if (config.lineCount <= 4) 0 else (config.lineCount / 2).coerceAtLeast(1)
             bottom.marginBottom = config.bottomMarginPx
             bottom.showTimeMin = config.pinnedDurationMs
             bottom.showTimeMax = config.pinnedDurationMs
             mask.enable = config.maskEnabled
+        }
+        controller.remeasureData { data ->
+            when (data) {
+                is EngineTextData -> {
+                    val item = data.sourceItem
+                    data.textSize = item.textSize?.times(config.viewportScale)
+                        ?: (config.textSizePx * item.textSizeScale)
+                    data.textStrokeWidth = item.textStrokeWidth?.times(config.viewportScale)
+                }
+                is EngineBitmapData -> {
+                    data.width = data.sourceItem.bitmapWidth * config.viewportScale
+                    data.height = data.sourceItem.bitmapHeight * config.viewportScale
+                }
+            }
         }
     }
 
@@ -244,18 +266,18 @@ internal class ByteDanceDanmakuEngine(
         val sourceData = if (item.bitmap != null) {
             EngineBitmapData(item).apply {
                 bitmap = item.bitmap
-                width = item.bitmapWidth
-                height = item.bitmapHeight
+                width = item.bitmapWidth * currentConfig.viewportScale
+                height = item.bitmapHeight * currentConfig.viewportScale
             }
         } else {
             EngineTextData(item).apply {
                 text = item.text
-                textSize = item.textSize ?: item.textSizeScale
+                textSize = item.textSize?.times(currentConfig.viewportScale) ?: item.textSizeScale
                     .takeUnless { it == 1f }
                     ?.let { scale -> currentConfig.textSizePx * scale }
                 textColor = item.textColor
                 typeface = item.typeface
-                textStrokeWidth = item.textStrokeWidth
+                textStrokeWidth = item.textStrokeWidth?.times(currentConfig.viewportScale)
                 textStrokeColor = item.textStrokeColor
                 includeFontPadding = item.includeFontPadding
                 hasUnderline = item.hasUnderline

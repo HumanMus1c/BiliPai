@@ -621,6 +621,18 @@ class PortraitPagerSwitchPolicyTest {
     }
 
     @Test
+    fun portraitRecommendationSimilarity_usesHoistedTitleRegexAndCachedSignatures() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/pager/PortraitPagerSwitchPolicy.kt"
+        ).readText()
+
+        assertTrue(source.contains("private val PORTRAIT_TITLE_BRACKET_PATTERN"))
+        assertTrue(source.contains("private val PORTRAIT_TITLE_ZH_TOKEN_PATTERN"))
+        assertTrue(source.contains("signatureCache.getOrPut"))
+        assertFalse(source.contains("val zhTokens = Regex("))
+    }
+
+    @Test
     fun shufflePortraitRecommendations_deduplicatesBlankAndRepeatedBvids() {
         val shuffled = shufflePortraitRecommendations(
             seed = 7,

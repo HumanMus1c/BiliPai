@@ -17,9 +17,26 @@ class VideoInfoDisplayPolicyTest {
 
     @Test
     fun videoInfoInitialExpanded_whenDescriptionOrTagsExist() {
-        assertTrue(resolveVideoInfoInitialExpandedState(hasDescription = true, hasTags = false))
-        assertTrue(resolveVideoInfoInitialExpandedState(hasDescription = false, hasTags = true))
+        assertTrue(
+            resolveVideoInfoInitialExpandedState(
+                hasDescription = true,
+                hasTags = false,
+                defaultExpanded = true
+            )
+        )
+        assertTrue(
+            resolveVideoInfoInitialExpandedState(
+                hasDescription = false,
+                hasTags = true,
+                defaultExpanded = true
+            )
+        )
         assertFalse(resolveVideoInfoInitialExpandedState(hasDescription = false, hasTags = false))
+    }
+
+    @Test
+    fun videoInfoInitialExpanded_defaultsToCollapsedWhenPreferenceIsUnset() {
+        assertFalse(resolveVideoInfoInitialExpandedState(hasDescription = true, hasTags = true))
     }
 
     @Test

@@ -43,6 +43,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Button
 import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppRadioButton
 import com.android.purebilibili.core.ui.components.AppText
@@ -68,6 +70,8 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.ImageLoader
@@ -1229,6 +1233,31 @@ fun DynamicScreen(
                     .align(Alignment.BottomEnd)
                     .padding(end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, bottom = dynamicListBottomPadding + AppSpacingTokens.Medium),
             )
+            AnimatedVisibility(
+                visible = oldContentDividerIndex >= 0,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
+                        bottom = dynamicListBottomPadding + AppSpacingTokens.Medium + 76.dp,
+                    ),
+                enter = fadeIn() + scaleIn(initialScale = 0.92f),
+                exit = fadeOut() + scaleOut(targetScale = 0.92f),
+            ) {
+                Button(
+                    onClick = {
+                        val gridIndex = resolveDynamicRefreshDividerGridIndex(oldContentDividerIndex)
+                        if (gridIndex >= 0) {
+                            scope.launch { activeListState?.animateScrollToItem(gridIndex) }
+                        }
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    AppText("定位上次刷新")
+                }
+            }
         }
     }
 
@@ -1724,26 +1753,34 @@ private fun DynamicEmptyState(
 
 @Composable
 private fun OldContentDivider(label: String) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        tonalElevation = 1.dp,
     ) {
-        AppHorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-        AppText(
-            text = label,
-            modifier = Modifier.padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            fontSize = MaterialTheme.typography.labelSmall.fontSize
-        )
-        AppHorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppText(
+                text = "上次刷新到这里",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            AppText(
+                text = label,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

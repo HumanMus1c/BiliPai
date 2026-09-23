@@ -19,11 +19,13 @@ enum class HomeTopTabScrollTarget {
     LIVE,
     BANGUMI,
     PARTITION,
+    SUBSCRIPTION,
 }
 
 fun resolveHomeTopTabScrollTarget(entry: HomeTopTabEntry?): HomeTopTabScrollTarget {
     return when (entry) {
         HomeTopTabEntry.Partition -> HomeTopTabScrollTarget.PARTITION
+        HomeTopTabEntry.Subscriptions -> HomeTopTabScrollTarget.SUBSCRIPTION
         is HomeTopTabEntry.Category -> when {
             shouldEmbedLivePageInHomeTopTab(entry.category) -> HomeTopTabScrollTarget.LIVE
             shouldEmbedBangumiPageInHomeTopTab(entry.category) -> HomeTopTabScrollTarget.BANGUMI

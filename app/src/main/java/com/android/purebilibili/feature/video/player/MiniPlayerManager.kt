@@ -1229,6 +1229,13 @@ class MiniPlayerManager private constructor(private val context: Context) :
         com.android.purebilibili.core.util.Logger.d(TAG, " 缓存 UI 状态: ${state.info.title}")
     }
 
+    fun updateCachedVideoTags(bvid: String, tags: List<com.android.purebilibili.data.model.response.VideoTag>) {
+        val cached = cachedUiState ?: return
+        if (cached.info.bvid == bvid) {
+            cachedUiState = cached.copy(videoTags = tags)
+        }
+    }
+
     /**
      * 同步由详情 ViewModel 在后台完成的换集结果。
      *

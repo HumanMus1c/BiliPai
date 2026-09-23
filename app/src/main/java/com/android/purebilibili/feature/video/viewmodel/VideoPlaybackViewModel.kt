@@ -3071,6 +3071,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
         if (keepLoadedUi) {
             Logger.w("VideoReturnTrace", "keep Success UI for ${playbackRequest.bvid}")
+            // 小横条可能缓存了标签请求完成前的详情；快速恢复不会执行完整的后加载计划。
+            if (currentSuccess.videoTags.isEmpty()) {
+                loadVideoTags(playbackRequest.bvid)
+            }
             currentBvid = playbackRequest.bvid
             if (currentCid <= 0L && currentSuccess.info.cid > 0L) {
                 currentCid = currentSuccess.info.cid
@@ -3137,6 +3141,9 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
         if (!playbackRequest.force && isPlayerPlayingSameVideo && isUiLoaded) {
             Logger.d("PlayerVM", "🎯 ${playbackRequest.bvid} already playing healthy + UI loaded, skip reload")
+            if (currentSuccess.videoTags.isEmpty()) {
+                loadVideoTags(playbackRequest.bvid)
+            }
             // 补全 ViewModel 状态：currentBvid 可能为空，需要同步
             if (currentBvid.isEmpty()) {
                 currentBvid = playbackRequest.bvid
@@ -5434,10 +5441,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 val response = com.android.purebilibili.core.network.NetworkModule.api.getVideoTags(bvid)
                 if (response.code == 0 && response.data != null) {
                     _uiState.update { current ->
-                        if (current is VideoPlaybackUiState.Success) {
+                        if (current is VideoPlaybackUiState.Success && current.info.bvid == bvid) {
                             current.copy(videoTags = response.data)
                         } else current
                     }
+                    MiniPlayerManager.getInstance(getApplication<Application>()).updateCachedVideoTags(bvid, response.data)
                     Logger.d("PlayerVM", "🏷️ Loaded ${response.data.size} video tags")
                 }
             } catch (e: Exception) {

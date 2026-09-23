@@ -404,6 +404,7 @@ data class SearchUpItem(
     val videos: Int = 0, // 视频数
     val level: Int = 0, // 等级
     val official_verify: SearchOfficialVerify? = null,
+    val vip: SearchUpVip? = null,
     val is_senior_member: Int = 0 // 是否硬核会员
 ) {
     fun cleanupFields(): SearchUpItem {
@@ -414,6 +415,12 @@ data class SearchUpItem(
         )
     }
 }
+
+@Serializable
+data class SearchUpVip(
+    val type: Int = 0,
+    val status: Int = 0,
+)
 
 @Serializable
 data class SearchTopicResponse(

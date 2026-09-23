@@ -633,4 +633,101 @@ class PortraitVideoPagerPolicyTest {
         assertTrue(holderSource.contains("useTextureSurfaceForNavigation = useTextureSurfaceForNavigation"))
         assertTrue(holderSource.contains("resolveNavigationLiveSurfaceTextureEnabled("))
     }
+
+    @Test
+    fun letterboxAmbientCapture_requiresCurrentReadyPageAndSettings() {
+        assertTrue(
+            shouldCapturePortraitLetterboxAmbientFrame(
+                isCurrentPage = true,
+                letterboxAmbientHazeEnabled = true,
+                letterboxBarHeightPx = 40,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldCapturePortraitLetterboxAmbientFrame(
+                isCurrentPage = false,
+                letterboxAmbientHazeEnabled = true,
+                letterboxBarHeightPx = 40,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldCapturePortraitLetterboxAmbientFrame(
+                isCurrentPage = true,
+                letterboxAmbientHazeEnabled = false,
+                letterboxBarHeightPx = 40,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldCapturePortraitLetterboxAmbientFrame(
+                isCurrentPage = true,
+                letterboxAmbientHazeEnabled = true,
+                letterboxBarHeightPx = 0,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldCapturePortraitLetterboxAmbientFrame(
+                isCurrentPage = true,
+                letterboxAmbientHazeEnabled = true,
+                letterboxBarHeightPx = 40,
+                isPlayerReadyForThisVideo = false,
+            )
+        )
+    }
+
+    @Test
+    fun portraitDanmakuOverlay_composesOnlyForActiveMatchingSurface() {
+        assertTrue(
+            shouldComposePortraitDanmakuOverlay(
+                danmakuEnabled = true,
+                surfaceMode = PortraitDanmakuSurfaceMode.Page,
+                expectedMode = PortraitDanmakuSurfaceMode.Page,
+                isCurrentPage = true,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldComposePortraitDanmakuOverlay(
+                danmakuEnabled = true,
+                surfaceMode = PortraitDanmakuSurfaceMode.VideoViewport,
+                expectedMode = PortraitDanmakuSurfaceMode.Page,
+                isCurrentPage = true,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldComposePortraitDanmakuOverlay(
+                danmakuEnabled = false,
+                surfaceMode = PortraitDanmakuSurfaceMode.Page,
+                expectedMode = PortraitDanmakuSurfaceMode.Page,
+                isCurrentPage = true,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+        assertFalse(
+            shouldComposePortraitDanmakuOverlay(
+                danmakuEnabled = true,
+                surfaceMode = PortraitDanmakuSurfaceMode.Page,
+                expectedMode = PortraitDanmakuSurfaceMode.Page,
+                isCurrentPage = false,
+                isPlayerReadyForThisVideo = true,
+            )
+        )
+    }
+
+    @Test
+    fun portraitPager_sourcesUseThrottledProgressAndLetterboxPolicies() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/pager/PortraitVideoPager.kt"
+        ).readText()
+
+        assertTrue(source.contains("shouldCommitPortraitProgressToDetailState("))
+        assertTrue(source.contains("shouldCapturePortraitLetterboxAmbientFrame("))
+        assertTrue(source.contains("shouldComposePortraitDanmakuOverlay("))
+        assertFalse(source.contains("if (false && danmakuEnabled"))
+        assertFalse(source.contains("val shouldCaptureLetterboxAmbient = false &&"))
+    }
 }

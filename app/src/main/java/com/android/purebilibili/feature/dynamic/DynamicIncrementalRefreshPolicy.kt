@@ -71,6 +71,16 @@ internal fun resolveOldContentDividerIndex(
     return if (dividerIndex > 0) dividerIndex else -1
 }
 
+/** FeedVerticalStaggeredGrid adds a full-line chrome inset before data items. */
+internal fun resolveDynamicRefreshDividerGridIndex(
+    dividerDataIndex: Int,
+    leadingGridItemCount: Int = 1,
+): Int = if (dividerDataIndex < 0) {
+    -1
+} else {
+    dividerDataIndex + leadingGridItemCount.coerceAtLeast(0)
+}
+
 internal fun shouldReloadFollowings(
     nowMs: Long,
     lastLoadMs: Long,

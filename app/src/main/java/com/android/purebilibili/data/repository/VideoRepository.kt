@@ -149,13 +149,17 @@ data class SubtitleCueCacheStats(
 
 data class CreatorCardStats(
     val followerCount: Int,
-    val videoCount: Int
+    val videoCount: Int,
+    val vipStatus: Int = 0,
+    val officialType: Int = -1,
+    val pendantImage: String = "",
 )
 
 object VideoRepository {
     private val api = NetworkModule.api
     private val buvidApi = NetworkModule.buvidApi
     private val subtitleCueCache = ConcurrentHashMap<String, List<SubtitleCue>>()
+    private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()
     private val verticalVideoCache = ConcurrentHashMap<String, Boolean>()
 
     private val QUALITY_CHAIN = listOf(120, 116, 112, 80, 74, 64, 32, 16)
@@ -1127,16 +1131,20 @@ object VideoRepository {
 
     suspend fun getCreatorCardStats(mid: Long): Result<CreatorCardStats> = withContext(Dispatchers.IO) {
         if (mid <= 0L) return@withContext Result.failure(IllegalArgumentException("Invalid mid"))
+        creatorCardStatsCache[mid]?.let { return@withContext Result.success(it) }
         try {
             val response = api.getUserCard(mid = mid, photo = false)
             val data = response.data
             if (response.code == 0 && data != null) {
-                Result.success(
-                    CreatorCardStats(
-                        followerCount = data.follower.coerceAtLeast(0),
-                        videoCount = data.archive_count.coerceAtLeast(0)
-                    )
+                val stats = CreatorCardStats(
+                    followerCount = data.follower.coerceAtLeast(0),
+                    videoCount = data.archive_count.coerceAtLeast(0),
+                    vipStatus = data.card?.vip?.status ?: 0,
+                    officialType = data.card?.Official?.type ?: -1,
+                    pendantImage = data.card?.pendant?.image.orEmpty(),
                 )
+                creatorCardStatsCache[mid] = stats
+                Result.success(stats)
             } else {
                 Result.failure(Exception(response.message.ifBlank { "UP主信息加载失败(${response.code})" }))
             }

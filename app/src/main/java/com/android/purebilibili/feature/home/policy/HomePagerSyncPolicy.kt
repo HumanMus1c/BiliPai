@@ -111,6 +111,7 @@ internal fun resolveHomeInitialTopTabPage(
     val displayedEntry = topTabEntries[safeDisplayedIndex]
     if (
         displayedEntry == HomeTopTabEntry.Partition ||
+        displayedEntry == HomeTopTabEntry.Subscriptions ||
         displayedEntry == HomeTopTabEntry.Category(currentCategory)
     ) {
         return safeDisplayedIndex
@@ -126,6 +127,7 @@ internal fun shouldTreatInitialHomePagerPageAsSyncedWithState(
     currentCategory: HomeCategory
 ): Boolean {
     return initialEntry == HomeTopTabEntry.Partition ||
+        initialEntry == HomeTopTabEntry.Subscriptions ||
         initialEntry == HomeTopTabEntry.Category(currentCategory)
 }
 
@@ -138,6 +140,7 @@ internal fun resolveHomePagerTargetPage(
     if (topTabEntries.isEmpty()) return -1
     val targetEntry = when {
         retainedEntry == HomeTopTabEntry.Partition -> HomeTopTabEntry.Partition
+        retainedEntry == HomeTopTabEntry.Subscriptions -> HomeTopTabEntry.Subscriptions
         else -> HomeTopTabEntry.Category(currentCategory)
     }
     val targetIndex = topTabEntries.indexOf(targetEntry)

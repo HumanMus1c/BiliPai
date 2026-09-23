@@ -123,6 +123,7 @@ import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.navigation3.LocalOfficialVideoCoverTransitionActive
 import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.setWindowNavigationBarColor
 import com.android.purebilibili.core.ui.setWindowStatusBarColor
@@ -1173,7 +1174,7 @@ internal fun VideoDetailScreenStateHolder(
         .collectAsStateWithLifecycle(initialValue = true, lifecycle = lifecycleOwner.lifecycle)
     val videoNoteDefaultCollapsed by com.android.purebilibili.core.store.SettingsManager
         .getVideoNoteDefaultCollapsed(context)
-        .collectAsStateWithLifecycle(initialValue = false, lifecycle = lifecycleOwner.lifecycle)
+        .collectAsStateWithLifecycle(initialValue = true, lifecycle = lifecycleOwner.lifecycle)
     val preferredCommentSortMode = remember(commentDefaultSortMode) {
         CommentSortMode.fromApiMode(commentDefaultSortMode)
     }
@@ -1539,6 +1540,7 @@ internal fun VideoDetailScreenStateHolder(
     val detailChildTransitionEnabled = transitionState.detailChildTransitionEnabled
     val coverSharedBoundsActive = transitionState.coverSharedBoundsActive
     val sharedBoundsActive = transitionState.sharedBoundsActive
+    val officialCoverTransitionActive = LocalOfficialVideoCoverTransitionActive.current
     val routeSheetFrameProvider = transitionState.routeSheetFrameProvider
     val detailShellShape = remember(sharedTransitionSourceCornerDp) {
         RoundedCornerShape(sharedTransitionSourceCornerDp.dp)
@@ -2025,7 +2027,7 @@ internal fun VideoDetailScreenStateHolder(
     // 全量 Success 但无首帧 / 强制封面 UI 时禁止 LIVE，避免黑壳缩回。
     val hasRenderableLiveFrameForReturn = shouldTreatLiveSurfaceRenderableForReturnMorph(
         hasRenderedFirstFrame = hasRenderedFirstFrameForReturn,
-        forceCoverUi = forceCoverOnlyForReturn,
+        forceCoverUi = forceCoverOnlyForReturn || officialCoverTransitionActive,
     )
     val returnPlaybackIntent = resolveVideoDetailReturnPlaybackIntent(
         entryPlaybackIntent = videoSharedPlaybackIntent,
@@ -2084,6 +2086,8 @@ internal fun VideoDetailScreenStateHolder(
         forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
         isCommittedCardReturn = isCommittedCardReturn,
     )
+    val forceCoverOnlyForStaticSharedBounds =
+        forceCoverOnlyForLiveSafeReturn || officialCoverTransitionActive
     val videoCardTransitionDensity = LocalDensity.current
     val videoCardDetailChromeAlphaProvider = remember(
         videoCardDepthBackgroundState,
@@ -2689,10 +2693,16 @@ internal fun VideoDetailScreenStateHolder(
         !useOfficialInlinePortraitDetailExperience
     // Direct morph: hide phone intro/comment body under the full-bleed shell so only
     // card→fullscreen motion + entry cover / portrait pager are visible.
-    val suppressPhoneDetailBodyForDirectPortrait = shouldSuppressPhoneDetailBodyForDirectPortraitEntry(
-        directPortraitEntry = directPortraitEntryFromRoute,
-        isPortraitFullscreen = isPortraitFullscreen
-    )
+    val suppressPhoneDetailBodyForDirectPortrait =
+        shouldSuppressPhoneDetailBodyForDirectPortraitEntry(
+            directPortraitEntry = directPortraitEntryFromRoute,
+            isPortraitFullscreen = isPortraitFullscreen
+        ) || shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager(
+            portraitExperienceEnabled = portraitExperienceEnabled,
+            isPortraitFullscreen = isPortraitFullscreen,
+            hasPlayableState = uiState is VideoPlaybackUiState.Success ||
+                uiState is VideoPlaybackUiState.Loading,
+        )
     val isCurrentRouteVideoLoaded = remember(uiState, currentBvid) {
         val success = uiState as? VideoPlaybackUiState.Success
         success?.info?.bvid == currentBvid
@@ -3260,7 +3270,9 @@ internal fun VideoDetailScreenStateHolder(
         .collectAsStateWithLifecycle(initialValue = 25)
     val continuousPlayerUnitState = remember { mutableFloatStateOf(1f) }
     val continuousPlayerRenderer = rememberUpdatedState<@Composable (ContinuousPlayerHostLayout) -> Unit> { layout ->
-        PortraitInlineVideoPlayerHost(
+        // 竖屏全屏 pager 接管共享播放器后，内联 host 必须退出 composition。
+        if (!suppressPhoneDetailBodyForDirectPortrait && !isPortraitFullscreen) {
+            PortraitInlineVideoPlayerHost(
             modifier = layout.modifier,
             animatedViewportWidth = layout.viewportWidth,
             contentTopInset = layout.contentTopInset,
@@ -3301,7 +3313,7 @@ internal fun VideoDetailScreenStateHolder(
                 presentationState.markNavigatingToAudioMode()
                 onNavigateToAudioMode()
             },
-            forceCoverOnly = forceCoverOnlyForLiveSafeReturn ||
+            forceCoverOnly = forceCoverOnlyForStaticSharedBounds ||
                 shouldForceBackPreviewPlayerCover(
                     keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
                     bindLivePlayerForBackPreview = bindLivePlayerForBackPreview,
@@ -3370,6 +3382,7 @@ internal fun VideoDetailScreenStateHolder(
                 landscapeCommentPanelOnLeft = landscapeCommentPanelOnLeft,
             ),
         )
+        }
     }
     val continuousPlayerContent = remember {
         movableContentOf<ContinuousPlayerHostLayout> { layout ->
@@ -3523,7 +3536,7 @@ internal fun VideoDetailScreenStateHolder(
                         hasFavoritePlaylist = isExternalPlaylist &&
                             externalPlaylistSource == ExternalPlaylistSource.FAVORITE &&
                             playlistItems.size > 1,
-                        forceCoverOnly = forceCoverOnlyForLiveSafeReturn,
+                        forceCoverOnly = forceCoverOnlyForStaticSharedBounds,
                         preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
                         useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
                         predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
@@ -3797,7 +3810,7 @@ internal fun VideoDetailScreenStateHolder(
                                 onPlayModeClick = {
                                     com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode()
                                 },
-                                forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
+                                forceCoverOnlyOnReturn = forceCoverOnlyForStaticSharedBounds,
                                 predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                                 liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
                                 paneControlsEnabled = isTransitionFinished,
@@ -3870,7 +3883,7 @@ internal fun VideoDetailScreenStateHolder(
                             // 🔁 [新增] 播放模式
                             currentPlayMode = currentPlayMode,
                             onPlayModeClick = { com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode() },
-                            forceCoverOnlyOnReturn = forceCoverOnlyForLiveSafeReturn,
+                            forceCoverOnlyOnReturn = forceCoverOnlyForStaticSharedBounds,
                             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                             liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
                             paneControlsEnabled = isTransitionFinished,
@@ -3961,11 +3974,16 @@ internal fun VideoDetailScreenStateHolder(
                             )
 
                         // 📏 [Collapsing Player] 上滑隐藏播放器逻辑
-                        val expandedPortraitInlineSpec = remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+                        val expandedPortraitInlineSpec = remember(
+                            configuration.screenWidthDp,
+                            configuration.screenHeightDp,
+                            displayContext.isFoldableCoverWindow,
+                        ) {
                             resolvePortraitInlinePlayerLayoutSpec(
                                 screenWidthDp = configuration.screenWidthDp.toFloat(),
                                 screenHeightDp = configuration.screenHeightDp.toFloat(),
-                                isCollapsed = false
+                                isCollapsed = false,
+                                isFoldableCoverWindow = displayContext.isFoldableCoverWindow,
                             )
                         }
                         val collapsedPortraitInlineSpec = remember(
@@ -3973,11 +3991,13 @@ internal fun VideoDetailScreenStateHolder(
                             configuration.screenHeightDp,
                             portraitPlayerCollapseMode,
                             isPlaybackPaused,
+                            displayContext.isFoldableCoverWindow,
                         ) {
                             val standardSpec = resolvePortraitInlinePlayerLayoutSpec(
                                 screenWidthDp = configuration.screenWidthDp.toFloat(),
                                 screenHeightDp = configuration.screenHeightDp.toFloat(),
-                                isCollapsed = true
+                                isCollapsed = true,
+                                isFoldableCoverWindow = displayContext.isFoldableCoverWindow,
                             )
                             standardSpec.copy(
                                 heightDp = resolvePiliPlusCollapsedPlayerViewportHeightDp(
@@ -5140,18 +5160,31 @@ internal fun VideoDetailScreenStateHolder(
                 }
             },
             onProgressUpdate = { updatedBvid, positionMs, updatedCid, updatedCoverUrl ->
-                portraitPendingSelectionBvid = updatedBvid
-                portraitSyncSnapshotBvid = updatedBvid
-                portraitSyncSnapshotCid = updatedCid
-                portraitSyncSnapshotPositionMs = positionMs.coerceAtLeast(0L)
-                // 竖屏滑到第 N 个视频时冻结其封面，切回横屏时勿回落到路由首个视频封面。
-                if (updatedCoverUrl.isNotBlank()) {
-                    pendingInPageSwitchCoverUrl = updatedCoverUrl
-                }
-                if (shouldMirrorPortraitProgressToMainPlayer) {
-                    hasPendingPortraitSync = true
-                    if (tryApplyPortraitProgressSync(updatedBvid, portraitSyncSnapshotPositionMs)) {
-                        hasPendingPortraitSync = false
+                // 竖屏轮询很密；只有身份变化或进度跨过阈值时才写回巨型详情页状态，
+                // 避免每 200ms 重组 VideoDetailScreenStateHolder 把主线程打到 ANR。
+                val shouldCommit = com.android.purebilibili.feature.video.ui.pager
+                    .shouldCommitPortraitProgressToDetailState(
+                        previousBvid = portraitSyncSnapshotBvid,
+                        previousCid = portraitSyncSnapshotCid,
+                        previousPositionMs = portraitSyncSnapshotPositionMs,
+                        nextBvid = updatedBvid,
+                        nextCid = updatedCid,
+                        nextPositionMs = positionMs,
+                    )
+                if (shouldCommit) {
+                    portraitPendingSelectionBvid = updatedBvid
+                    portraitSyncSnapshotBvid = updatedBvid
+                    portraitSyncSnapshotCid = updatedCid
+                    portraitSyncSnapshotPositionMs = positionMs.coerceAtLeast(0L)
+                    // 竖屏滑到第 N 个视频时冻结其封面，切回横屏时勿回落到路由首个视频封面。
+                    if (updatedCoverUrl.isNotBlank()) {
+                        pendingInPageSwitchCoverUrl = updatedCoverUrl
+                    }
+                    if (shouldMirrorPortraitProgressToMainPlayer) {
+                        hasPendingPortraitSync = true
+                        if (tryApplyPortraitProgressSync(updatedBvid, portraitSyncSnapshotPositionMs)) {
+                            hasPendingPortraitSync = false
+                        }
                     }
                 }
             },

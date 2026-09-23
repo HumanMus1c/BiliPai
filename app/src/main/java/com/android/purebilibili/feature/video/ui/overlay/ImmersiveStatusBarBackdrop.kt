@@ -24,7 +24,7 @@ import com.android.purebilibili.core.ui.blur.unifiedBlur
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 
-internal const val VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS = 600L
+internal const val VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS = 1500L
 internal const val VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX = 96
 internal const val VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX = 54
 

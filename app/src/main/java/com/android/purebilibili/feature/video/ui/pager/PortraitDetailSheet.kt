@@ -256,19 +256,18 @@ fun PortraitDetailSheet(
                                 modifier = Modifier.padding(bottom = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                AsyncImage(
-                                    model = info.owner.face,
-                                    contentDescription = "${info.owner.name} 头像",
+                                com.android.purebilibili.feature.video.ui.section.OwnerDecoratedAvatar(
+                                    faceUrl = info.owner.face,
+                                    ownerMid = info.owner.mid,
                                     modifier = Modifier
                                         .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Gray.copy(alpha = 0.2f))
                                         .clickable {
                                             if (info.owner.mid > 0L) {
                                                 onAuthorClick(info.owner.mid)
                                             }
                                         },
-                                    contentScale = ContentScale.Crop
+                                    badgeSize = 12.dp,
+                                    contentDescription = "${info.owner.name} 头像",
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(

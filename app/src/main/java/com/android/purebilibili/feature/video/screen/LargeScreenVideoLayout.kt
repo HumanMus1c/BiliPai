@@ -101,7 +101,7 @@ internal fun LargeScreenVideoLayout(
     paneControlsEnabled: Boolean = true,
     videoAiSummaryEntryEnabled: Boolean = true,
     videoNoteEnabled: Boolean = true,
-    videoNoteDefaultCollapsed: Boolean = false,
+    videoNoteDefaultCollapsed: Boolean = true,
     playerContent: (@Composable (Modifier) -> Unit)? = null,
 ) {
     val pageColor = AppSurfaceTokens.chromeBackground()
