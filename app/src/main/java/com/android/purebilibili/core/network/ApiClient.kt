@@ -6,6 +6,7 @@ import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.network.policy.HomeFeedAnonymizerRuntime
 import com.android.purebilibili.core.network.policy.resolveHardcodedDnsFallback
 import com.android.purebilibili.core.network.policy.resolveHomeFeedCookieAnonymizerDecision
+import com.android.purebilibili.core.network.policy.shouldStripMergedAppFeedCookies
 import com.android.purebilibili.core.network.policy.shouldEnableTrustAllCertificates
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.store.AccountSessionStore
@@ -36,6 +37,12 @@ import javax.net.ssl.X509TrustManager
 internal const val BANGUMI_PLAY_URL_PATH = "pgc/player/web/v2/playurl"
 internal const val BANGUMI_PLAY_URL_LEGACY_PATH = "pgc/player/web/playurl"
 internal const val FORCE_COOKIE_HEADER = "X-BiliPai-Force-Cookie"
+
+//  合并模式 App 半边身份头取值 — 对齐 PiliNara 原版 app 端点请求头
+//  (原版 fp_local/fp_remote 使用同一组固定值, session_id 为固定占位)
+private const val MERGED_APP_FEED_FP =
+    "1111111111111111111111111111111111111111111111111111111111111111"
+private const val MERGED_APP_FEED_SESSION_ID = "11111111"
 
 internal fun applyForcedCookieHeader(request: okhttp3.Request): okhttp3.Request {
     val forcedCookie = request.header(FORCE_COOKIE_HEADER) ?: return request
@@ -71,6 +78,20 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
             com.android.purebilibili.core.util.Logger.d(
                 "CookieJar",
                 " 初见推荐匿名化首页推荐请求: ${url.encodedPath}, clearCookieHeader=true"
+            )
+            return emptyList()
+        }
+
+        //  合并模式 App 半边: 对齐 PiliNara 原版(app 端点不注入 cookie, 由身份头 + access_key + 签名承担)
+        if (shouldStripMergedAppFeedCookies(
+                host = url.host,
+                encodedPath = url.encodedPath,
+                mobiApp = url.queryParameter("mobi_app")
+            )
+        ) {
+            com.android.purebilibili.core.util.Logger.d(
+                "CookieJar",
+                " 合并模式 App 半边匿名取流: ${url.encodedPath}, clearCookieHeader=true"
             )
             return emptyList()
         }
@@ -3074,6 +3095,16 @@ object NetworkModule {
                         .header("env", "prod")
                         .header("app-key", "android64")
                         .header("x-bili-aurora-zone", "sh001")
+                }
+                if (isHdFeedRequest) {
+                    //  合并模式 App 半边: 补齐 PiliNara 原版 app 端点身份头
+                    //  (该端点由 CookieJar 剥离 cookie, 身份完全由此处请求头承担)
+                    builder
+                        .header("fp_local", MERGED_APP_FEED_FP)
+                        .header("fp_remote", MERGED_APP_FEED_FP)
+                        .header("session_id", MERGED_APP_FEED_SESSION_ID)
+                        .header("x-bili-aurora-eid", "")
+                        .header("x-bili-aurora-zone", "")
                 }
                 if (androidHdLoginAppKeyHeader != null) {
                     // Match PiliPlus LoginHttp.headers exactly for Passport App requests.

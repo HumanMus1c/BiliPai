@@ -30,6 +30,7 @@ import com.android.purebilibili.core.store.navigation.parseBottomBarItemLabels
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.store.player.defaultAudioQualityPreferenceKey
 import com.android.purebilibili.core.theme.AppFontSizePreset
+import com.android.purebilibili.core.ui.components.AppTagChipSize
 import com.android.purebilibili.core.theme.AppUiScalePreset
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.AppUiStyle
@@ -1432,6 +1433,7 @@ object SettingsManager {
     private val KEY_DYNAMIC_TAB_VISIBLE_TABS = stringPreferencesKey("dynamic_tab_visible_tabs")
     private val KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE =
         booleanPreferencesKey("dynamic_image_preview_text_visible")
+    private val KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT = intPreferencesKey("dynamic_detail_image_layout")
     private val KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE =
         booleanPreferencesKey("dynamic_all_tab_horizontal_user_list_visible")
     private val KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL =
@@ -1513,6 +1515,8 @@ object SettingsManager {
     private val KEY_BLUR_INTENSITY = stringPreferencesKey("blur_intensity")
     //  [合并] 首页展示模式 (0=Grid, 1=Story, 2=Glass)
     private val KEY_DISPLAY_MODE = intPreferencesKey("display_mode")
+    // 屏幕显示模式：0 表示交还系统自动选择，其余值对应 Display.Mode.modeId。
+    private val KEY_SCREEN_DISPLAY_MODE_ID = intPreferencesKey("screen_display_mode_id")
     //  [新增] 网格列数 (0=Auto)
     private val KEY_GRID_COLUMN_COUNT = intPreferencesKey("grid_column_count")
     private val KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED =
@@ -1633,6 +1637,7 @@ object SettingsManager {
     private val KEY_VIDEO_NOTE_ENABLED = booleanPreferencesKey("video_note_enabled")
     private val KEY_VIDEO_NOTE_DEFAULT_COLLAPSED = booleanPreferencesKey("video_note_default_collapsed")
     private val KEY_VIDEO_INFO_DEFAULT_EXPANDED = booleanPreferencesKey("video_info_default_expanded")
+    private val KEY_VIDEO_TAG_SIZE_PRESET = intPreferencesKey("video_tag_size_preset")
     private val KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED =
         booleanPreferencesKey("video_detail_chrome_scroll_hide_enabled")
     private const val VIDEO_NOTE_CACHE_PREFS = "video_note_settings"
@@ -2964,6 +2969,15 @@ object SettingsManager {
         }
     }
 
+    fun getScreenDisplayModeId(context: Context): Flow<Int> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SCREEN_DISPLAY_MODE_ID] ?: 0 }
+
+    suspend fun setScreenDisplayModeId(context: Context, modeId: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SCREEN_DISPLAY_MODE_ID] = modeId.coerceAtLeast(0)
+        }
+    }
+
     //  [新增] --- 网格列数 ---
     fun getGridColumnCount(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_GRID_COLUMN_COUNT] ?: 0 }
@@ -3690,6 +3704,32 @@ object SettingsManager {
     suspend fun setDynamicImagePreviewTextVisible(context: Context, visible: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE] = visible
+        }
+    }
+
+    /**
+     *  动态详情图文图片展示
+     * - 0: 展开大图（默认，按正文段落整宽展开）
+     * - 1: 缩略图（九宫格，便于更快看到评论）
+     */
+    enum class DynamicDetailImageLayout(val value: Int, val label: String) {
+        EXPANDED(0, "展开大图"),
+        THUMBNAIL(1, "缩略图");
+
+        companion object {
+            fun fromValue(value: Int): DynamicDetailImageLayout =
+                entries.find { it.value == value } ?: EXPANDED
+        }
+    }
+
+    fun getDynamicDetailImageLayout(context: Context): Flow<DynamicDetailImageLayout> =
+        context.settingsDataStore.data.map { prefs ->
+            DynamicDetailImageLayout.fromValue(prefs[KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT] ?: 0)
+        }
+
+    suspend fun setDynamicDetailImageLayout(context: Context, layout: DynamicDetailImageLayout) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT] = layout.value
         }
     }
 
@@ -6241,6 +6281,17 @@ object SettingsManager {
         }
     }
 
+    fun getVideoTagSizePreset(context: Context): Flow<AppTagChipSize> = context.settingsDataStore.data
+        .map { preferences ->
+            AppTagChipSize.fromValue(preferences[KEY_VIDEO_TAG_SIZE_PRESET] ?: AppTagChipSize.STANDARD.value)
+        }
+
+    suspend fun setVideoTagSizePreset(context: Context, size: AppTagChipSize) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_VIDEO_TAG_SIZE_PRESET] = size.value
+        }
+    }
+
     fun getVideoDetailChromeScrollHideEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED] ?: false
@@ -7623,6 +7674,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_NOTE_DEFAULT_COLLAPSED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_VIDEO_INFO_DEFAULT_EXPANDED, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(KEY_VIDEO_TAG_SIZE_PRESET, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(
                 KEY_VIDEO_DETAIL_CHROME_SCROLL_HIDE_ENABLED,
                 SettingsShareSection.PLAYBACK,

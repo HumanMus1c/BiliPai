@@ -31,7 +31,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
-import com.android.purebilibili.core.ui.transition.rememberNativeVideoCardSnapshotController
 import com.android.purebilibili.core.util.CardPositionManager
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -119,10 +118,6 @@ internal fun AudioNowPlayingBar(
 
     val barCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
-        key = state.bvid,
-        sourceRouteOverride = sourceRoute,
-    )
 
     val handleExpand = {
         if (onCompactClick != null) {
@@ -158,12 +153,8 @@ internal fun AudioNowPlayingBar(
                             danmakuText = "",
                             durationText = "",
                             followed = false,
-                            coverUrl = state.coverUrl,
-                            coverCacheKey = state.coverUrl,
                         )
                     )
-                    nativeCardSnapshot.capture()
-                    nativeCardSnapshot.freezeToBitmap()
                 }
             }
             onExpand()
@@ -210,7 +201,6 @@ internal fun AudioNowPlayingBar(
             .onGloballyPositioned { coordinates ->
                 barCoordsRef[0] = coordinates
             }
-            .then(nativeCardSnapshot.modifier)
             .graphicsLayer {
                 // The transition host owns the source pixels during return; do not
                 // start a second settle animation when the real bar is revealed.

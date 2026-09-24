@@ -163,14 +163,13 @@ internal class NativeVideoCardSnapshotController(
 internal fun rememberNativeVideoCardSnapshotController(
     key: Any,
     enabled: Boolean = true,
-    sourceRouteOverride: String? = null,
 ): NativeVideoCardSnapshotController {
     val layer = rememberNativeVideoCardLayer()
     val coverOverlayLayer = rememberNativeVideoCardLayer()
     val captureScope = rememberCoroutineScope()
     val freezeState = remember(key) { mutableStateOf(false) }
     val bvid = (key as? String).orEmpty()
-    val sourceRoute = sourceRouteOverride ?: LocalVideoCardSharedElementSourceRoute.current
+    val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     return NativeVideoCardSnapshotController(
         modifier = Modifier.recordNativeVideoCardLayer(
             layer = layer,

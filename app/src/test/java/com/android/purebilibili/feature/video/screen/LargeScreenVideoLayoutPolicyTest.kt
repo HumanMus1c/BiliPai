@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.core.store.TabletSecondaryDefaultTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -8,13 +9,29 @@ import kotlin.test.assertTrue
 class LargeScreenVideoLayoutPolicyTest {
 
     @Test
-    fun landscapeLayoutHidesIntroRelatedAndPutsRelatedTabFirst() {
+    fun landscapeLayoutHidesIntroRelatedAndHonorsConfiguredDefaultTab() {
         assertFalse(resolveShowRelatedInIntro(LargeScreenVideoLayoutMode.Landscape))
         assertTrue(resolveShowRelatedInIntro(LargeScreenVideoLayoutMode.AlmostSquare))
         assertTrue(resolveIncludeRelatedTabInSecondary(LargeScreenVideoLayoutMode.Landscape))
         assertFalse(resolveIncludeRelatedTabInSecondary(LargeScreenVideoLayoutMode.AlmostSquare))
-        assertTrue(resolveRelatedTabFirstInSecondary(LargeScreenVideoLayoutMode.Landscape))
-        assertFalse(resolveRelatedTabFirstInSecondary(LargeScreenVideoLayoutMode.AlmostSquare))
+        assertTrue(
+            resolveRelatedTabFirstInSecondary(
+                LargeScreenVideoLayoutMode.Landscape,
+                TabletSecondaryDefaultTab.RELATED,
+            ),
+        )
+        assertFalse(
+            resolveRelatedTabFirstInSecondary(
+                LargeScreenVideoLayoutMode.Landscape,
+                TabletSecondaryDefaultTab.COMMENTS,
+            ),
+        )
+        assertFalse(
+            resolveRelatedTabFirstInSecondary(
+                LargeScreenVideoLayoutMode.AlmostSquare,
+                TabletSecondaryDefaultTab.RELATED,
+            ),
+        )
         val source = java.io.File(
             "app/src/main/java/com/android/purebilibili/feature/video/screen/LargeScreenVideoLayout.kt"
         ).takeIf { it.exists() } ?: java.io.File(
@@ -22,7 +39,7 @@ class LargeScreenVideoLayoutPolicyTest {
         )
         val text = source.readText()
         assertTrue(text.contains("includeRelatedTab = resolveIncludeRelatedTabInSecondary(metrics.mode)"))
-        assertTrue(text.contains("relatedTabFirst = resolveRelatedTabFirstInSecondary(metrics.mode)"))
+        assertTrue(text.contains("defaultTab = secondaryDefaultTab"))
         assertTrue(text.contains("includeOwnerUploadsTab = true"))
         assertTrue(text.contains("showRelatedVideos = showRelatedInIntro"))
         assertTrue(text.contains("LargeScreenVideoLayoutMode.AlmostSquare"))

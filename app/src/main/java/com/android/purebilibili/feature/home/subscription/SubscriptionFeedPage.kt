@@ -23,12 +23,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as lazyListItems
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -48,6 +48,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -83,8 +85,13 @@ import com.android.purebilibili.core.plugin.feed.FeedBlock
 import com.android.purebilibili.core.plugin.feed.FeedInline
 import com.android.purebilibili.core.plugin.feed.ParsedFeedItem
 import com.android.purebilibili.core.plugin.feed.FeedSource
+import com.android.purebilibili.core.plugin.feed.FeedReadingStore
+import com.android.purebilibili.core.plugin.feed.SubscriptionFeedStore
+import com.android.purebilibili.core.plugin.feed.feedItemKey
+import com.android.purebilibili.core.plugin.feed.mergeCachedFeedItems
 import com.android.purebilibili.core.plugin.feed.cleanFeedSummary
 import com.android.purebilibili.core.plugin.feed.feedBodyNeedsRemoteFetch
+import com.android.purebilibili.core.plugin.feed.isHttpFeedUrl
 import com.android.purebilibili.core.plugin.feed.fetchArticleHtml
 import com.android.purebilibili.core.plugin.feed.loadEnabledFeedSources
 import com.android.purebilibili.core.plugin.feed.loadFeedSources
@@ -123,8 +130,13 @@ fun SubscriptionFeedPage(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val subscriptionRevision by SubscriptionFeedStore.revision.collectAsStateWithLifecycle()
     var sources by remember { mutableStateOf<List<FeedSource>>(emptyList()) }
     var items by remember { mutableStateOf<List<ParsedFeedItem>>(emptyList()) }
+    var readKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var cachedBodies by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var unreadOnly by remember { mutableStateOf(false) }
+    var loadErrors by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedSourceId by remember { mutableStateOf<String?>(null) }
     var opened by remember { mutableStateOf<ParsedFeedItem?>(null) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -190,23 +202,38 @@ fun SubscriptionFeedPage(
     LaunchedEffect(scrollToTopRequestId) {
         if (scrollToTopRequestId > 0) listState.animateScrollToItem(0)
     }
-    LaunchedEffect(reloadToken) {
+    LaunchedEffect(reloadToken, subscriptionRevision) {
         loading = true
-        val loadedSources = loadEnabledFeedSources(context)
+        loadErrors = emptyList()
+        val loadedSources = withContext(Dispatchers.IO) { loadEnabledFeedSources(context) }
         sources = loadedSources
+        if (selectedSourceId != null && loadedSources.none { it.id == selectedSourceId }) {
+            selectedSourceId = null
+        }
+        val cache = FeedReadingStore.load(context)
+        readKeys = cache.readKeys.toSet()
+        cachedBodies = cache.fullBodies
+        val enabledIds = loadedSources.map { it.id }.toSet()
+        items = mergeCachedFeedItems(cache.items, emptyList(), enabledIds)
         val snapshot = loadFeedSources(loadedSources) { update ->
             val preserveOrder = listState.firstVisibleItemIndex > 0 ||
                 listState.firstVisibleItemScrollOffset > 0
-            items = stabilizeFeedOrder(items, update.items, preserveOrder)
+            val merged = mergeCachedFeedItems(cache.items, update.items, enabledIds)
+            items = stabilizeFeedOrder(items, merged, preserveOrder)
+            loadErrors = update.errors
         }
-        items = snapshot.items
+        val merged = mergeCachedFeedItems(cache.items, snapshot.items, enabledIds)
+        val preserveOrder = listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        items = stabilizeFeedOrder(items, merged, preserveOrder)
+        loadErrors = snapshot.errors
+        runCatching { FeedReadingStore.saveItems(context, merged) }
+            .onFailure { loadErrors = loadErrors + "本地缓存保存失败" }
         loading = false
     }
 
-    val visibleItems = if (selectedSourceId == null) {
-        items
-    } else {
-        items.filter { it.sourceId == selectedSourceId }
+    val visibleItems = items.filter { item ->
+        (selectedSourceId == null || item.sourceId == selectedSourceId) &&
+            (!unreadOnly || feedItemKey(item) !in readKeys || feedItemKey(item) == opened?.let(::feedItemKey))
     }
     SharedTransitionLayout(modifier = modifier.fillMaxSize()) {
         val transition = rememberTransition(transitionState, label = "subscription-article")
@@ -221,6 +248,24 @@ fun SubscriptionFeedPage(
                 SubscriptionArticleScreen(
                     item = article,
                     contentPadding = articleContentPadding,
+                    cachedBody = cachedBodies[feedItemKey(article)],
+                    isRead = feedItemKey(article) in readKeys,
+                    onReadChange = { read ->
+                        val key = feedItemKey(article)
+                        readKeys = if (read) readKeys + key else readKeys - key
+                        scope.launch {
+                            runCatching { FeedReadingStore.setRead(context, key, read) }
+                                .onFailure { loadErrors = loadErrors + "阅读状态保存失败" }
+                        }
+                    },
+                    onFullBody = { body ->
+                        val key = feedItemKey(article)
+                        cachedBodies = cachedBodies + (key to body)
+                        scope.launch {
+                            runCatching { FeedReadingStore.saveFullBody(context, key, body) }
+                                .onFailure { loadErrors = loadErrors + "正文缓存保存失败" }
+                        }
+                    },
                     onBack = {
                         scope.launch {
                             transitionState.animateTo(
@@ -242,11 +287,21 @@ fun SubscriptionFeedPage(
                     sources = sources,
                     visibleItems = visibleItems,
                     loading = loading,
+                    errors = loadErrors,
+                    unreadOnly = unreadOnly,
+                    onUnreadOnlyChange = { unreadOnly = it },
+                    readKeys = readKeys,
                     selectedSourceId = selectedSourceId,
                     onSelectSource = { selectedSourceId = it },
                     onRefresh = { reloadToken += 1 },
                     onOpen = { item ->
                         opened = item
+                        val key = feedItemKey(item)
+                        readKeys = readKeys + key
+                        scope.launch {
+                            runCatching { FeedReadingStore.setRead(context, key, true) }
+                                .onFailure { loadErrors = loadErrors + "阅读状态保存失败" }
+                        }
                         scope.launch {
                             transitionState.animateTo(
                                 targetState = item,
@@ -282,6 +337,10 @@ private fun SubscriptionFeedGrid(
     sources: List<FeedSource>,
     visibleItems: List<ParsedFeedItem>,
     loading: Boolean,
+    errors: List<String>,
+    unreadOnly: Boolean,
+    onUnreadOnlyChange: (Boolean) -> Unit,
+    readKeys: Set<String>,
     selectedSourceId: String?,
     onSelectSource: (String?) -> Unit,
     onRefresh: () -> Unit,
@@ -321,6 +380,10 @@ private fun SubscriptionFeedGrid(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AppAssistChip(onClick = { onSelectSource(null) }, label = { AppText("全部") })
+                AppAssistChip(
+                    onClick = { onUnreadOnlyChange(!unreadOnly) },
+                    label = { AppText(if (unreadOnly) "✓ 只看未读" else "只看未读") },
+                )
                 sources.forEach { source ->
                     AppAssistChip(
                         onClick = { onSelectSource(source.id) },
@@ -337,9 +400,25 @@ private fun SubscriptionFeedGrid(
                 AppText("还没有订阅。到插件中心打开「订阅」，添加 RSS 或 Atom 地址。")
             }
         }
+        if (errors.isNotEmpty()) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                AppText(
+                    text = errors.take(2).joinToString("；"),
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        if (sources.isNotEmpty() && visibleItems.isEmpty() && !loading) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                AppText(if (unreadOnly) "没有未读文章" else "暂无文章，下拉后可刷新订阅。")
+            }
+        }
         items(visibleItems, key = { "${it.sourceId}:${it.id}" }) { item ->
             SubscriptionFeedCard(
                 item = item,
+                isRead = feedItemKey(item) in readKeys,
                 onClick = { onOpen(item) },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
@@ -353,6 +432,7 @@ private fun SubscriptionFeedGrid(
 @Composable
 private fun SubscriptionFeedCard(
     item: ParsedFeedItem,
+    isRead: Boolean,
     onClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -387,7 +467,7 @@ private fun SubscriptionFeedCard(
                 AppText(
                     text = item.title.ifBlank { item.link },
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = if (isRead) FontWeight.Normal else FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -425,6 +505,10 @@ private fun FeedCoverImage(
 private fun SubscriptionArticleScreen(
     item: ParsedFeedItem,
     contentPadding: PaddingValues,
+    cachedBody: String?,
+    isRead: Boolean,
+    onReadChange: (Boolean) -> Unit,
+    onFullBody: (String) -> Unit,
     onBack: () -> Unit,
     onOpenImages: (List<String>, Int) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -432,20 +516,32 @@ private fun SubscriptionArticleScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var articleHtml by remember(item.id, item.link) { mutableStateOf(item.htmlContent.ifBlank { item.summary }) }
-    var loadingBody by remember(item.id, item.link) { mutableStateOf(feedBodyNeedsRemoteFetch(item)) }
-    var bodyError by remember(item.id, item.link) { mutableStateOf<String?>(null) }
-    LaunchedEffect(item.id, item.link) {
-        if (!feedBodyNeedsRemoteFetch(item)) return@LaunchedEffect
+    var articleHtml by remember(item.sourceId, item.id, item.link) {
+        mutableStateOf(cachedBody ?: item.htmlContent.ifBlank { item.summary })
+    }
+    var loadingBody by remember(item.sourceId, item.id, item.link) { mutableStateOf(false) }
+    var bodyError by remember(item.sourceId, item.id, item.link) { mutableStateOf<String?>(null) }
+    var retryToken by remember(item.sourceId, item.id, item.link) { mutableIntStateOf(0) }
+    LaunchedEffect(item.sourceId, item.id, item.link, retryToken) {
+        if (cachedBody != null || !feedBodyNeedsRemoteFetch(item)) return@LaunchedEffect
         loadingBody = true
         bodyError = null
         fetchArticleHtml(item.link)
-            .onSuccess { articleHtml = it }
-            .onFailure { bodyError = it.message }
+            .onSuccess { fetched ->
+                if (com.android.purebilibili.core.plugin.feed.feedPlainText(fetched).length >
+                    com.android.purebilibili.core.plugin.feed.feedPlainText(articleHtml).length
+                ) {
+                    articleHtml = fetched
+                    onFullBody(fetched)
+                } else {
+                    bodyError = "原文没有更多正文，已保留订阅内容"
+                }
+            }
+            .onFailure { bodyError = it.message ?: "暂时无法读取原文" }
         loadingBody = false
     }
     val blocks = remember(articleHtml) {
-        parseFeedHtml(articleHtml).ifEmpty {
+        parseFeedHtml(articleHtml, item.link).ifEmpty {
             listOf(FeedBlock.Paragraph(listOf(FeedInline.Text(cleanFeedSummary(item.summary).ifBlank { item.title }))))
         }
     }
@@ -480,6 +576,12 @@ private fun SubscriptionArticleScreen(
                     },
                     actions = {
                         AppTextButton(
+                            onClick = { onReadChange(!isRead) },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            AppText(if (isRead) "标未读" else "标已读")
+                        }
+                        AppTextButton(
                             onClick = {
                                 copyFeedText(context, feedBlocksPlainText(blocks).ifBlank { item.title })
                             },
@@ -487,7 +589,7 @@ private fun SubscriptionArticleScreen(
                         ) {
                             AppText("复制")
                         }
-                        if (item.link.isNotBlank()) {
+                        if (isHttpFeedUrl(item.link)) {
                             AppTextButton(
                                 onClick = {
                                     runCatching {
@@ -511,9 +613,14 @@ private fun SubscriptionArticleScreen(
                     end = contentPadding.calculateEndPadding(layoutDirection),
                     bottom = contentPadding.calculateBottomPadding(),
                 ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 item {
+                    Column(
+                        modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                     AppText(item.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     AppText(
                         text = listOf(item.sourceTitle, item.author, formatFeedAge(item.publishedEpochSec))
@@ -521,12 +628,16 @@ private fun SubscriptionArticleScreen(
                             .joinToString(" · "),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (loadingBody) {
-                        AppText("正在读取正文", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (loadingBody) AppText("正在补全正文，当前内容仍可阅读", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    bodyError?.let { error ->
+                        AppText(error, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppTextButton(onClick = { retryToken += 1 }) { AppText("重试读取全文") }
                     }
-                    bodyError?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
+                    }
                 }
                 lazyListItems(blocks) { block ->
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
                     when (block) {
                         is FeedBlock.Heading -> SelectionContainer {
                             FeedInlineText(
@@ -547,7 +658,14 @@ private fun SubscriptionArticleScreen(
                             )
                         }
                         is FeedBlock.Code -> SelectionContainer {
-                            AppText(block.text, fontWeight = FontWeight.Medium)
+                            AppText(
+                                block.text,
+                                modifier = Modifier.fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                                    .horizontalScroll(rememberScrollState())
+                                    .padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                         is FeedBlock.Image -> FeedArticleImage(
                             url = block.url,
@@ -573,6 +691,16 @@ private fun SubscriptionArticleScreen(
                                 }
                             }
                         }
+                        is FeedBlock.EmbeddedLink -> AppTextButton(
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(block.url)))
+                                }
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) { AppText(block.title) }
+                    }
+                    }
                     }
                 }
                 item { Spacer(Modifier.height(28.dp)) }
@@ -614,7 +742,7 @@ private fun FeedInlineText(
     Text(
         text = annotated,
         modifier = modifier,
-        style = style,
+        style = style.copy(lineHeight = style.fontSize * 1.55f),
         color = MaterialTheme.colorScheme.onSurface,
     )
 }
@@ -623,12 +751,13 @@ private fun FeedInlineText(
 private fun FeedArticleImage(
     url: String,
     alt: String,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     var failed by remember(url) { mutableStateOf(false) }
     if (failed) {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .height(120.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium),
@@ -640,7 +769,7 @@ private fun FeedArticleImage(
         AsyncImage(
             model = url,
             contentDescription = alt.ifBlank { "查看图片" },
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .heightIn(max = 420.dp)
                 .clip(MaterialTheme.shapes.medium)
@@ -666,6 +795,7 @@ private fun feedBlocksPlainText(blocks: List<FeedBlock>): String {
                 "${index + 1}. ${inlinePlainText(line)}"
             }.joinToString("\n")
             is FeedBlock.Image -> block.alt
+            is FeedBlock.EmbeddedLink -> "${block.title} ${block.url}"
         }
     }.trim()
 }
