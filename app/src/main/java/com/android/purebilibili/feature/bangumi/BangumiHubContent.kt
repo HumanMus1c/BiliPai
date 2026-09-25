@@ -83,6 +83,7 @@ import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppRefreshIcon
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.data.model.response.BangumiItem
 import com.android.purebilibili.data.model.response.BangumiSearchItem
 import com.android.purebilibili.data.model.response.FollowBangumiItem
@@ -153,7 +154,7 @@ internal fun BangumiHubContent(
             BangumiHubPage.SEARCH -> searchGridState
         }
         if (target.firstVisibleItemIndex > 0 || target.firstVisibleItemScrollOffset > 0) {
-            target.animateScrollToItem(0)
+            target.animateScrollToTop()
         }
     }
     when (state.page) {

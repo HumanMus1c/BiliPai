@@ -57,7 +57,13 @@ object BiliPaiPopupSurfaceRenderer : AppPopupSurfaceRenderer {
         ) { liquidChromeActive ->
             Surface(
                 shape = shape,
-                color = if (liquidChromeActive) Color.Transparent else containerColor,
+                // A sheet covers far more text and imagery than the floating dock. Keep the
+                // refracting shell, but give its content a stable tonal layer for legibility.
+                color = if (liquidChromeActive) {
+                    containerColor.copy(alpha = containerColor.alpha * 0.76f)
+                } else {
+                    containerColor
+                },
                 contentColor = contentColor,
                 tonalElevation = if (liquidChromeActive) 0.dp else tonalElevation,
                 content = content,

@@ -30,6 +30,7 @@ fun AppLiquidAwareSearchField(
     focusRequester: FocusRequester? = null,
     interactionSource: MutableInteractionSource? = null,
     backdrop: Backdrop? = null,
+    liquidContentContainerColor: Color = Color.Transparent,
     isScrollInProgressProvider: () -> Boolean = { false },
     leadingIconHorizontalOffset: Dp = 0.dp,
 ) {
@@ -55,7 +56,11 @@ fun AppLiquidAwareSearchField(
             focusRequester = focusRequester,
             interactionSource = interactionSource,
             leadingIconHorizontalOffset = leadingIconHorizontalOffset,
-            containerColor = if (liquidChromeActive) Color.Transparent else Color.Unspecified,
+            containerColor = if (liquidChromeActive) {
+                liquidContentContainerColor
+            } else {
+                Color.Unspecified
+            },
             shapeOverride = CircleShape.takeIf { liquidChromeActive },
             heightOverride = if (liquidChromeActive) {
                 AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp

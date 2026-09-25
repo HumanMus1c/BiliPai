@@ -75,9 +75,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.NAVIGATION,
         title = "导航与标签",
-        subtitle = "底栏、顶部标签、平板侧边栏与底栏项目顺序",
+        subtitle = "底栏、顶部标签、搜索分类栏、平板侧边栏与项目顺序",
         section = "设置",
-        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "全局顶栏显示", "首页顶栏显示", "列表顶部栏", "历史记录顶部栏", "稍后再看顶部栏", "仅回顶显示", "始终显示", "首页顶栏收起", "顶栏收起", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
+        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "全局顶栏显示", "首页顶栏显示", "列表顶部栏", "历史记录顶部栏", "稍后再看顶部栏", "仅回顶显示", "始终显示", "首页顶栏收起", "顶栏收起", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索", "搜索分类", "搜索分类顺序")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK_QUALITY,
@@ -96,9 +96,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.INTERACTION_COMMENT,
         title = "互动与评论",
-        subtitle = "评论发送检测、评论装扮、AI 总结、双击点赞、视频简介与笔记",
+        subtitle = "评论发送检测、评论装扮、AI 总结、双击点赞、收藏点按、视频简介与笔记",
         section = "设置",
-        aliases = listOf("互动", "评论", "楼中楼", "评论楼中楼", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "ai总结", "视频总结", "双击点赞", "视频简介", "简介默认展开", "视频笔记", "显示视频笔记", "默认折叠视频笔记", "笔记折叠", "视频标签", "视频标签大小", "标签大小", "标签紧凑", "标签更小", "tag")
+        aliases = listOf("互动", "评论", "楼中楼", "评论楼中楼", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "ai总结", "视频总结", "双击点赞", "收藏", "收藏夹", "快速收藏", "点按收藏", "收藏点按", "默认收藏夹", "视频简介", "简介默认展开", "视频笔记", "显示视频笔记", "默认折叠视频笔记", "笔记折叠", "视频标签", "视频标签大小", "标签大小", "标签紧凑", "标签更小", "tag")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.DATA_BACKUP,
@@ -189,6 +189,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "播放速度",
             "倍速",
             "默认播放速度",
+            "倍速列表",
+            "长按倍速",
+            "长按临时加速",
             "记忆上次播放速度",
             "续播",
             "续播弹窗",
@@ -590,9 +593,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "播放速度",
-        subtitle = "默认播放速度、记忆上次播放速度",
+        subtitle = "编辑播放器倍速列表、默认速度和长按临时加速",
         section = "播放设置",
-        aliases = listOf("播放速度", "倍速", "默认播放速度", "记忆上次播放速度"),
+        aliases = listOf("播放速度", "倍速", "倍速列表", "默认播放速度", "长按倍速", "长按临时加速", "记忆上次播放速度"),
         focusId = SettingsSearchFocusIds.PLAYBACK_SPEED
     ),
     SettingsSearchEntry(
@@ -708,6 +711,24 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "右上角消息"
         ),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_TOP_TABS
+    ),
+    SettingsSearchEntry(
+        target = SettingsSearchTarget.BOTTOM_BAR,
+        title = "搜索分类栏顺序",
+        subtitle = "调整搜索结果页顶部分类标签的显示顺序",
+        section = "导航设置",
+        aliases = listOf(
+            "搜索分类",
+            "搜索分类栏",
+            "搜索分类顺序",
+            "分类顺序",
+            "搜索标签顺序",
+            "搜索Tab",
+            "搜索Tab顺序",
+            "UP主分类",
+            "搜索结果分类",
+        ),
+        focusId = SettingsSearchFocusIds.BOTTOM_BAR_SEARCH_TABS
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,

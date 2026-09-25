@@ -153,6 +153,7 @@ internal fun AudioNowPlayingBar(
                             danmakuText = "",
                             durationText = "",
                             followed = false,
+                            isNowPlayingBar = true,
                         )
                     )
                 }

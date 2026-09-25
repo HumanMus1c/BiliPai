@@ -110,6 +110,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -242,6 +243,7 @@ internal data class PortraitVideoInteractionUiState(
 )
 
 internal enum class PortraitFavoriteAction {
+    ToggleFavorite,
     OpenFavoriteFolders
 }
 
@@ -291,6 +293,9 @@ fun PortraitVideoPager(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val favoriteQuickSaveDefaultFolder by com.android.purebilibili.core.store.FavoriteInteractionSettingsStore
+        .getQuickSaveDefaultFolder(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val activity = remember(context) { context.findActivity() }
     val window = activity?.window
     val insetsController = remember(window, view) {
@@ -1590,6 +1595,7 @@ fun PortraitVideoPager(
                 viewModel = viewModel,
                 commentViewModel = commentViewModel,
                 engagementState = engagementState,
+                favoriteQuickSaveDefaultFolder = favoriteQuickSaveDefaultFolder,
                 onToggleFollow = engagementViewModel::toggleFollow,
                 onToggleLike = engagementViewModel::toggleLike,
                 onTripleAction = engagementViewModel::doTripleAction,
@@ -1718,6 +1724,7 @@ private fun VideoPageItem(
     viewModel: VideoPlaybackViewModel,
     commentViewModel: VideoCommentViewModel,
     engagementState: VideoEngagementUiState,
+    favoriteQuickSaveDefaultFolder: Boolean,
     onToggleFollow: (Long?, Boolean?) -> Unit,
     onToggleLike: (Long?, String?, Boolean?, ((Boolean) -> Unit)?) -> Unit,
     onTripleAction: (Long?, String?, Boolean?, Int?, Boolean?, ((TripleActionResult) -> Unit)?) -> Unit,
@@ -2305,6 +2312,7 @@ private fun VideoPageItem(
         isPlayerReadyForThisVideo = isPlayerReadyForThisVideo,
     )
     LaunchedEffect(
+        lifecycleOwner,
         playerViewRef,
         shouldCaptureLetterboxAmbient,
         isPlaying,
@@ -2315,16 +2323,18 @@ private fun VideoPageItem(
             return@LaunchedEffect
         }
         val playerView = playerViewRef ?: return@LaunchedEffect
-        while (isActive) {
-            if (playerView.isAttachedToWindow && playerView.width > 0 && playerView.height > 0) {
-                letterboxAmbientFrame.value = captureVideoAmbientFrame(
-                    playerView = playerView,
-                    targetWidth = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX,
-                    targetHeight = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX,
-                )?.asImageBitmap()
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                if (playerView.isAttachedToWindow && playerView.width > 0 && playerView.height > 0) {
+                    letterboxAmbientFrame.value = captureVideoAmbientFrame(
+                        playerView = playerView,
+                        targetWidth = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX,
+                        targetHeight = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX,
+                    )?.asImageBitmap()
+                }
+                if (!isPlaying) break
+                delay(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS)
             }
-            if (!isPlaying) break
-            delay(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS)
         }
     }
 
@@ -3247,11 +3257,35 @@ private fun VideoPageItem(
             },
             onFavoriteClick = {
                 if (canHandlePortraitInteraction) {
-                    when (resolvePortraitFavoriteAction()) {
+                    when (
+                        resolvePortraitFavoriteAction(
+                            isLongPress = false,
+                            quickSaveDefaultFolder = favoriteQuickSaveDefaultFolder,
+                        )
+                    ) {
+                        PortraitFavoriteAction.ToggleFavorite -> {
+                            val currentFavoriteState = resolvedInteractionState.isFavorited
+                            val currentFavoriteCount = resolvedInteractionState.favoriteCount
+                            viewModel.toggleFavorite()
+                            val nextFavorited = !currentFavoriteState
+                            val nextFavoriteCount = (
+                                currentFavoriteCount +
+                                    if (nextFavorited) 1 else -1
+                                ).coerceAtLeast(0)
+                            portraitInteractionOverride = portraitInteractionOverride.copy(
+                                isFavorited = nextFavorited,
+                                favoriteCount = nextFavoriteCount
+                            )
+                        }
                         PortraitFavoriteAction.OpenFavoriteFolders -> {
                             viewModel.showFavoriteFolderDialog(activeAid)
                         }
                     }
+                }
+            },
+            onFavoriteLongClick = {
+                if (canHandlePortraitInteraction) {
+                    viewModel.showFavoriteFolderDialog(activeAid)
                 }
             },
             onCommentClick = { showCommentSheet = true },
@@ -3689,8 +3723,15 @@ internal fun resolvePortraitOverlayVisibilityAfterTap(currentlyVisible: Boolean)
     return !currentlyVisible
 }
 
-internal fun resolvePortraitFavoriteAction(): PortraitFavoriteAction {
-    return PortraitFavoriteAction.OpenFavoriteFolders
+internal fun resolvePortraitFavoriteAction(
+    isLongPress: Boolean,
+    quickSaveDefaultFolder: Boolean,
+): PortraitFavoriteAction {
+    return when {
+        isLongPress -> PortraitFavoriteAction.OpenFavoriteFolders
+        quickSaveDefaultFolder -> PortraitFavoriteAction.ToggleFavorite
+        else -> PortraitFavoriteAction.OpenFavoriteFolders
+    }
 }
 
 internal fun resolvePortraitVideoInteractionUiState(
@@ -3700,7 +3741,7 @@ internal fun resolvePortraitVideoInteractionUiState(
     localOverride: PortraitVideoInteractionOverride? = null
 ): PortraitVideoInteractionUiState {
     val currentSharedState = sharedState?.takeIf { it.info.bvid == targetBvid }
-    return if (currentSharedState != null) {
+    val base = if (currentSharedState != null) {
         PortraitVideoInteractionUiState(
             isLiked = currentSharedState.isLiked,
             isFavorited = currentSharedState.isFavorited,
@@ -3709,12 +3750,21 @@ internal fun resolvePortraitVideoInteractionUiState(
         )
     } else {
         PortraitVideoInteractionUiState(
-            isLiked = localOverride?.isLiked ?: false,
-            isFavorited = localOverride?.isFavorited ?: false,
-            likeCount = localOverride?.likeCount ?: fallbackStat.like,
-            favoriteCount = localOverride?.favoriteCount ?: fallbackStat.favorite
+            isLiked = false,
+            isFavorited = false,
+            likeCount = fallbackStat.like,
+            favoriteCount = fallbackStat.favorite
         )
     }
+    if (localOverride == null) {
+        return base
+    }
+    return PortraitVideoInteractionUiState(
+        isLiked = localOverride.isLiked ?: base.isLiked,
+        isFavorited = localOverride.isFavorited ?: base.isFavorited,
+        likeCount = localOverride.likeCount ?: base.likeCount,
+        favoriteCount = localOverride.favoriteCount ?: base.favoriteCount
+    )
 }
 
 internal fun resolvePortraitTripleActionOverride(

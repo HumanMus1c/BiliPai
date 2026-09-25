@@ -156,6 +156,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -445,6 +447,7 @@ private fun BoxScope.VideoSubtitleOverlayHost(
         val success = uiState as? VideoPlaybackUiState.Success ?: return@remember false
         success.subtitlePrimaryCues.isNotEmpty() || success.subtitleSecondaryCues.isNotEmpty()
     }
+    val subtitleLifecycle = LocalLifecycleOwner.current.lifecycle
     // Keep the fast playback-position read inside this restart scope so the player, video
     // surface and danmaku hosts are not recomposed on every subtitle tick.
     val subtitlePositionMs by produceState(
@@ -453,14 +456,17 @@ private fun BoxScope.VideoSubtitleOverlayHost(
         subtitlePollingIdentity,
         subtitleFeatureEnabled,
         hasSubtitleCues,
+        subtitleLifecycle,
     ) {
         value = player.currentPosition.coerceAtLeast(0L)
         if (!subtitleFeatureEnabled || !hasSubtitleCues) {
             return@produceState
         }
-        while (isActive) {
-            value = player.currentPosition.coerceAtLeast(0L)
-            delay(if (player.isPlaying) 120L else 1500L)
+        subtitleLifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                value = player.currentPosition.coerceAtLeast(0L)
+                delay(if (player.isPlaying) 120L else 1500L)
+            }
         }
     }
     val subtitlePrimaryRawText = remember(
@@ -902,6 +908,12 @@ private fun VideoPlayerSectionContent(
             lifecycle = lifecycleOwner.lifecycle
         )
 
+    val playbackSpeedOptions by SettingsManager
+        .getPlaybackSpeedOptions(context)
+        .collectAsStateWithLifecycle(
+            initialValue = emptyList(),
+            lifecycle = lifecycleOwner.lifecycle
+        )
     val playerInteractionSettings by com.android.purebilibili.core.store.SettingsManager
         .getPlayerInteractionSettings(context)
         .collectAsStateWithLifecycle(
@@ -1348,6 +1360,7 @@ private fun VideoPlayerSectionContent(
         statusBarHazeEnabled = statusBarHazeEnabled,
     )
     LaunchedEffect(
+        lifecycleOwner,
         playerViewRef,
         shouldCaptureStatusBarAmbientFrame,
         observedIsPlaying,
@@ -1358,16 +1371,18 @@ private fun VideoPlayerSectionContent(
             return@LaunchedEffect
         }
         val playerView = playerViewRef ?: return@LaunchedEffect
-        while (isActive) {
-            if (playerView.isAttachedToWindow && playerView.width > 0 && playerView.height > 0) {
-                statusBarAmbientFrame.value = captureVideoAmbientFrame(
-                    playerView = playerView,
-                    targetWidth = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX,
-                    targetHeight = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX,
-                )?.asImageBitmap()
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                if (playerView.isAttachedToWindow && playerView.width > 0 && playerView.height > 0) {
+                    statusBarAmbientFrame.value = captureVideoAmbientFrame(
+                        playerView = playerView,
+                        targetWidth = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX,
+                        targetHeight = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX,
+                    )?.asImageBitmap()
+                }
+                if (!observedIsPlaying) break
+                delay(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS)
             }
-            if (!observedIsPlaying) break
-            delay(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS)
         }
     }
 
@@ -1517,23 +1532,25 @@ private fun VideoPlayerSectionContent(
 
     val latestShowControls = rememberUpdatedState(showControls)
     val latestGestureVisible = rememberUpdatedState(isGestureVisible)
-    LaunchedEffect(playerState.player, bvid, currentSeekSessionCid) {
-        while (isActive) {
-            val currentSession = sharedSeekSession
-            val shouldPollProgress = shouldPollVideoPlayerProgress(
-                controlsVisible = latestShowControls.value,
-                gestureVisible = latestGestureVisible.value,
-                isSliderMoving = currentSession.isSliderMoving,
-                hasPendingSeek = currentSession.pendingSeekPositionMs != null
-            )
-            if (shouldPollProgress) {
-                sharedSeekSession = syncPlaybackSeekSession(
-                    state = currentSession,
-                    playbackPositionMs = playerState.player.currentPosition.coerceAtLeast(0L),
-                    hasPlaybackResumedAfterPendingSeek = playerState.player.isPlaying
+    LaunchedEffect(playerState.player, bvid, currentSeekSessionCid, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                val currentSession = sharedSeekSession
+                val shouldPollProgress = shouldPollVideoPlayerProgress(
+                    controlsVisible = latestShowControls.value,
+                    gestureVisible = latestGestureVisible.value,
+                    isSliderMoving = currentSession.isSliderMoving,
+                    hasPendingSeek = currentSession.pendingSeekPositionMs != null
                 )
+                if (shouldPollProgress) {
+                    sharedSeekSession = syncPlaybackSeekSession(
+                        state = currentSession,
+                        playbackPositionMs = playerState.player.currentPosition.coerceAtLeast(0L),
+                        hasPlaybackResumedAfterPendingSeek = playerState.player.isPlaying
+                    )
+                }
+                delay(200)
             }
-            delay(200)
         }
     }
 
@@ -2103,6 +2120,7 @@ private fun VideoPlayerSectionContent(
                 isInPipMode,
                 isScreenLocked,
                 twoFingerSpeedMode,
+                playbackSpeedOptions,
                 isPortraitFullscreen,
             ) {
                 if (!shouldEnableInlinePlayerGestures(isPortraitFullscreen)) {
@@ -2175,7 +2193,8 @@ private fun VideoPlayerSectionContent(
                                 totalDragX = totalPanX,
                                 totalDragY = totalPanY,
                                 containerWidthPx = size.width.toFloat(),
-                                containerHeightPx = size.height.toFloat()
+                                containerHeightPx = size.height.toFloat(),
+                                supportedSpeeds = playbackSpeedOptions
                             )
                             val effectiveSpeed = resolveEffectivePlaybackSpeed(
                                 requestedSpeed = resolvedSpeed,
@@ -5342,6 +5361,8 @@ private fun VideoPlayerSectionContent(
                 bvid = bvid,
                 cid = uiState.info.cid,
                 videoOwnerName = uiState.info.owner.name,
+                videoSharePlayCountText = com.android.purebilibili.core.util.FormatUtils
+                    .formatStat(uiState.info.stat.view.toLong()),
                 videoOwnerFace = uiState.info.owner.face,
                 videoDuration = uiState.videoDurationMs,
                 videoTitle = uiState.info.title,

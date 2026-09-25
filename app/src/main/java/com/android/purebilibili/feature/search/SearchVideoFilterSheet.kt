@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.BottomSheetHost
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -64,6 +65,7 @@ import com.android.purebilibili.core.ui.resolveBottomSheetHost
 import com.android.purebilibili.data.repository.SearchDuration
 import com.android.purebilibili.data.repository.SearchOrder
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.layout.BottomSheetDefaults
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -303,6 +305,12 @@ private fun SearchVideoFilterSheetHost(
         OverlayBottomSheet(
             show = true,
             title = "筛选",
+            // Miuix owns this sheet's surface, so the app popup renderer cannot tint it.
+            backgroundColor = if (LocalAppThemeConfig.current.liquidGlassEnabled) {
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f)
+            } else {
+                BottomSheetDefaults.backgroundColor()
+            },
             onDismissRequest = onDismiss,
             content = sheetContent
         )
@@ -469,6 +477,7 @@ private fun SearchFilterSelectableChip(
     modifier: Modifier = Modifier,
     center: Boolean = false
 ) {
+    val glassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
     AppFilterChip(
         selected = selected,
         onClick = onClick,
@@ -485,7 +494,9 @@ private fun SearchFilterSelectableChip(
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             selectedLabelColor = MaterialTheme.colorScheme.onSurface,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = if (glassEnabled) 0.88f else 0.55f
+            ),
             labelColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
         border = FilterChipDefaults.filterChipBorder(

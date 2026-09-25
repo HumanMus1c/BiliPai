@@ -97,8 +97,8 @@ internal fun LinkedBottomDock(
         }
     }
     LaunchedEffect(hasAudio, dockPhase) {
-        if (dockPhase == null && !hasAudio && internalPhase == LinkedDockPhase.Playback) {
-            internalPhase = LinkedDockPhase.Expanded
+        if (dockPhase == null) {
+            internalPhase = resolveLinkedDockPhaseOnAudioChange(internalPhase, hasAudio)
         }
     }
     var query by remember { mutableStateOf("") }
@@ -108,7 +108,7 @@ internal fun LinkedBottomDock(
     val currentPhase by rememberUpdatedState(phase)
     val scrolling by rememberUpdatedState(isFeedScrollInProgress)
     val threshold = with(LocalDensity.current) { 24.dp.toPx() }
-    LaunchedEffect(currentItem, hasAudio, scroll, threshold, isTopLevelDestination) {
+    LaunchedEffect(currentItem, hasAudio, searchEnabled, scroll, threshold, isTopLevelDestination) {
         if (currentItem != BottomNavItem.HOME) return@LaunchedEffect
         var previous = scroll.floatValue
         var accumulated = 0f
@@ -122,8 +122,8 @@ internal fun LinkedBottomDock(
                 if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
                     updatePhase(LinkedDockPhase.Expanded)
                     accumulated = 0f
-                } else if (hasAudio && accumulated >= threshold) {
-                    updatePhase(LinkedDockPhase.Playback)
+                } else if ((hasAudio || searchEnabled) && accumulated >= threshold) {
+                    updatePhase(if (hasAudio) LinkedDockPhase.Playback else LinkedDockPhase.Compact)
                     accumulated = 0f
                 }
             }
@@ -142,6 +142,7 @@ internal fun LinkedBottomDock(
         keyboardController?.hide()
         updatePhase(LinkedDockPhase.Expanded)
     }
+    var phaseBeforeSearch by remember { mutableStateOf(LinkedDockPhase.Expanded) }
     val backEnabled = shouldEnableLinkedDockBackHandler(
         phase = phase,
         isTopLevelDestination = isTopLevelDestination,
@@ -149,7 +150,7 @@ internal fun LinkedBottomDock(
     BackHandler(enabled = backEnabled) {
         focusManager.clearFocus()
         keyboardController?.hide()
-        updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio))
+        updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio, phaseBeforeSearch))
     }
     val reduceMotion = rememberSystemReduceMotion()
     val transition = updateTransition(targetState = phase, label = "linkedBottomDock")
@@ -164,7 +165,7 @@ internal fun LinkedBottomDock(
             if (reduceMotion) snap() else iosMorphTween(LINKED_DOCK_SEARCH_DURATION_MILLIS)
         },
         label = "dockSearch",
-    ) { if (it == LinkedDockPhase.Search) 1f else 0f }
+    ) { if (it == LinkedDockPhase.Search || it == LinkedDockPhase.Compact) 1f else 0f }
     val imeSettled = WindowInsets.ime
         .getBottom(LocalDensity.current) == 0
     val nowPlayingLayoutStable = !transition.isRunning && imeSettled
@@ -267,12 +268,13 @@ internal fun LinkedBottomDock(
                                 .clip(shape)
                                 .then(
                                     if (phase != LinkedDockPhase.Search) Modifier.clickable(role = Role.Button) {
+                                        phaseBeforeSearch = phase
                                         updatePhase(LinkedDockPhase.Search)
                                     } else Modifier
                                 )
                         ) {
                             BiliPaiBottomBarSearchVisualContent(
-                                expanded = phase == LinkedDockPhase.Search,
+                                expanded = phase == LinkedDockPhase.Search || phase == LinkedDockPhase.Compact,
                                 query = query,
                                 onQueryChange = { query = it },
                                 onSubmit = {
@@ -283,7 +285,7 @@ internal fun LinkedBottomDock(
                                 accentColor = accentColor,
                                 iconScale = identityIconScaleProvider,
                                 fieldAlpha = searchProgressProvider,
-                                interactive = true,
+                                interactive = phase == LinkedDockPhase.Search,
                                 iconStyle = iconStyle,
                             )
                         }

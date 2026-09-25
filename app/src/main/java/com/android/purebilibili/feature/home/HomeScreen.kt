@@ -348,6 +348,9 @@ fun HomeScreen(
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
+    var pendingVideoShare by remember {
+        mutableStateOf<com.android.purebilibili.feature.video.share.VideoSharePayload?>(null)
+    }
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.emphasizedSpec<Float>()
     val globalScrollOffset = LocalHomeScrollOffset.current
@@ -555,7 +558,9 @@ fun HomeScreen(
 
                         if (!isAtTop) {
                             val listState = requireNotNull(gridState)
-                            listState.animateScrollToTop(fast = true)
+                            listState.animateScrollToTop(
+                                fast = request != HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH,
+                            )
                         }
                         val shouldRefresh = request == HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH ||
                             (request == HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH && isAtTop)
@@ -2634,7 +2639,7 @@ fun HomeScreen(
             onStatusBarDoubleTap = {
                 coroutineScope.launch {
                     withHomeScrollToTopLock {
-                        activeGridState?.animateScrollToTop(fast = true)
+                        activeGridState?.animateScrollToTop()
                     }
                 }
             },
@@ -2772,6 +2777,11 @@ fun HomeScreen(
             }
         }
 
+        com.android.purebilibili.feature.video.share.VideoShareSheetHost(
+            payload = pendingVideoShare,
+            onDismiss = { pendingVideoShare = null },
+        )
+
         // [Feature] Video Preview Overlay with Animation
         androidx.compose.animation.AnimatedVisibility(
             visible = targetVideoItemState.value != null,
@@ -2831,15 +2841,11 @@ fun HomeScreen(
                     }
                 },
                 onShare = {
-                   val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, "【${item.title}】 https://www.bilibili.com/video/${item.bvid}")
-                    }
-                    val chooser = android.content.Intent.createChooser(shareIntent, "分享视频")
-                    if (context !is android.app.Activity) {
-                        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(chooser)
+                    pendingVideoShare = com.android.purebilibili.feature.video.share.buildVideoSharePayload(
+                        title = item.title,
+                        bvid = item.bvid,
+                        coverUrl = item.pic,
+                    )
                     targetVideoItemState.value = null
                 },
                 onNotInterested = {

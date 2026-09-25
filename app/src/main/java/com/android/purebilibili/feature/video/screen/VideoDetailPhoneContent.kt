@@ -25,6 +25,9 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +42,9 @@ import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.data.model.response.BgmInfo
+import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.share.VideoSharePayload
+import com.android.purebilibili.feature.video.share.VideoShareSheet
 import com.android.purebilibili.feature.video.share.buildVideoSharePayload
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -103,13 +108,12 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     isVideoPlaying: Boolean,
     onSelectedTabChange: (Int) -> Unit,
     onIntroScrollThresholdChange: (Boolean) -> Unit,
-    openFavoriteFolders: (VideoFavoriteEntryPoint) -> Unit,
+    openFavoriteFolders: (VideoFavoriteEntryPoint, isLongPress: Boolean) -> Unit,
     navigateToUserSpaceFromVideo: (Long) -> Unit,
     navigateToRelatedVideo: (String, android.os.Bundle?) -> Unit,
     openCommentUrl: (String) -> Unit,
     onSearchKeywordClick: (String) -> Unit,
     onOpenBilibiliLink: ((String) -> Unit)?,
-    onShareVideo: (VideoSharePayload) -> Unit,
     externalPlaylistQueueTitle: String,
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit,
@@ -117,6 +121,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val danmakuManager = rememberDanmakuManager(success.info.bvid)
+    var pendingVideoShare by remember { mutableStateOf<VideoSharePayload?>(null) }
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
     key(success.info.bvid) {
@@ -281,7 +286,9 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 ),
                                 primaryActions = VideoContentPrimaryActions(
                                     onFollowClick = engagementActions.toggleFollow,
-                                    onFavoriteClick = { openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow) },
+                                    onFavoriteClick = {
+                                        openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow, false)
+                                    },
                                     onLikeClick = engagementActions.toggleLike,
                                     onCoinClick = engagementActions.openCoinDialog,
                                     onTripleClick = engagementActions.doTripleAction,
@@ -291,11 +298,13 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     onDownloadClick = playbackActions.openDownloadDialog,
                                     onWatchLaterClick = engagementActions.toggleWatchLater,
                                     onShareClick = {
-                                        onShareVideo(buildVideoSharePayload(
+                                        pendingVideoShare = buildVideoSharePayload(
                                             title = success.info.title,
                                             bvid = success.info.bvid,
                                             coverUrl = success.info.pic,
-                                        ))
+                                            upName = success.info.owner.name,
+                                            playCountText = FormatUtils.formatStat(success.info.stat.view.toLong()),
+                                        )
                                     },
                                     onTimestampClick = { positionMs -> seekPlayerFromUserAction(playerState.player, positionMs) },
                                     onDanmakuSendClick = {
@@ -314,7 +323,9 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                             )
                                         }
                                     },
-                                    onFavoriteLongClick = playbackActions.showFavoriteFolderDialog,
+                                    onFavoriteLongClick = {
+                                        openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow, true)
+                                    },
                                     onBgmClick = onBgmClick,
                                 ),
                                 commentActions = VideoContentCommentActions(
@@ -367,16 +378,19 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 isCoined = engagementState.coinCount > 0,
                                 onLikeClick = engagementActions.toggleLike,
                                 onFavoriteClick = {
-                                    openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar)
+                                    openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar, false)
+                                },
+                                onFavoriteLongClick = {
+                                    openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar, true)
                                 },
                                 onCoinClick = engagementActions.openCoinDialog,
                                 onShareClick = {
-                                    onShareVideo(
-                                        buildVideoSharePayload(
-                                            title = success.info.title,
-                                            bvid = success.info.bvid,
-                                            coverUrl = success.info.pic
-                                        )
+                                    pendingVideoShare = buildVideoSharePayload(
+                                        title = success.info.title,
+                                        bvid = success.info.bvid,
+                                        coverUrl = success.info.pic,
+                                        upName = success.info.owner.name,
+                                        playCountText = FormatUtils.formatStat(success.info.stat.view.toLong()),
                                     )
                                 },
                                 onCommentClick = {
@@ -431,6 +445,13 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                         }
                     }
                 }
+            }
+
+            pendingVideoShare?.let { sharePayload ->
+                VideoShareSheet(
+                    payload = sharePayload,
+                    onDismiss = { pendingVideoShare = null },
+                )
             }
         }
     }

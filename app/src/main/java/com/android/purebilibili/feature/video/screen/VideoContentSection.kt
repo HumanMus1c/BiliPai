@@ -1017,7 +1017,9 @@ internal fun VideoContentSection(
         if (immersiveVideoContentChromeEnabled) {
             // 顶部标签与评论标题/排序共用同一张渐进模糊材质，避免两个独立渐变
             // 在相邻边界重新起算而形成断层。
-            val commentChromeHeight = if (pagerState.currentPage == 1) 46.dp else 0.dp
+            val commentChromeHeight = if (
+                pagerState.currentPage == 1 || pagerState.isScrollInProgress
+            ) 46.dp else 0.dp
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1094,34 +1096,28 @@ internal fun VideoContentSection(
             )
         }
 
-        if (
-            pagerState.currentPage == 1 &&
-            !pagerState.isScrollInProgress &&
-            (liquidGlassEnabled || immersiveVideoContentChromeEnabled)
-        ) {
+        // Keep the glass dock outside the backdrop capture subtree to avoid recursive RenderNode
+        // sampling, while translating it with the comment page's actual pager position.
+        if (liquidGlassEnabled || immersiveVideoContentChromeEnabled) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = tabBarVisibleHeightDp)
-                    .heightIn(min = 46.dp),
+                    .heightIn(min = 46.dp)
+                    .graphicsLayer {
+                        translationX = pagerState.getOffsetDistanceInPages(1) * size.width
+                    },
             ) {
-                if (immersiveVideoContentChromeEnabled) {
-                    AnimatedVisibility(
-                        visible = commentListAtTop,
-                        enter = fadeIn(animationSpec = tween(durationMillis = 120)),
-                        exit = fadeOut(animationSpec = tween(durationMillis = 90)),
+                if (immersiveVideoContentChromeEnabled && commentListAtTop) {
+                    CommentListHeader(
+                        count = replyCount,
+                        title = "${sortMode.label}评论",
                         modifier = Modifier.align(Alignment.TopStart),
-                    ) {
-                        CommentListHeader(
-                            count = replyCount,
-                            title = "${sortMode.label}评论",
-                        )
-                    }
+                    )
                 }
                 CommentSortFilterBar(
                     sortMode = sortMode,
                     onSortModeChange = onSortModeChange,
-                    // Keep sorting attached to the viewport chrome while the comment list moves.
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = 6.dp, end = 16.dp)

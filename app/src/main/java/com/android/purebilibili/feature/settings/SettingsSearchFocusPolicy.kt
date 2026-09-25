@@ -25,6 +25,7 @@ object SettingsSearchFocusIds {
     const val BOTTOM_BAR_START = "bottom_bar_start"
     const val BOTTOM_BAR_DISPLAY = "bottom_bar_display"
     const val BOTTOM_BAR_TOP_TABS = "bottom_bar_top_tabs"
+    const val BOTTOM_BAR_SEARCH_TABS = "bottom_bar_search_tabs"
     const val BOTTOM_BAR_TABLET = "bottom_bar_tablet"
     const val BOTTOM_BAR_CURRENT = "bottom_bar_current"
     const val BOTTOM_BAR_AVAILABLE = "bottom_bar_available"
@@ -108,9 +109,10 @@ internal fun resolveBottomBarSettingsScrollIndex(
         SettingsSearchFocusIds.BOTTOM_BAR_BEHAVIOR -> 1
         SettingsSearchFocusIds.BOTTOM_BAR_DISPLAY -> 3
         SettingsSearchFocusIds.BOTTOM_BAR_TOP_TABS -> 5
-        SettingsSearchFocusIds.BOTTOM_BAR_TABLET -> 7
-        SettingsSearchFocusIds.BOTTOM_BAR_CURRENT -> 9
-        SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE -> 11
+        SettingsSearchFocusIds.BOTTOM_BAR_SEARCH_TABS -> 7
+        SettingsSearchFocusIds.BOTTOM_BAR_TABLET -> 9
+        SettingsSearchFocusIds.BOTTOM_BAR_CURRENT -> 11
+        SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE -> 13
         else -> null
     }
 }

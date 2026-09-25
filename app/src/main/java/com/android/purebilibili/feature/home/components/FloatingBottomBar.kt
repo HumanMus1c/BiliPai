@@ -324,8 +324,12 @@ internal fun shouldAnimateIndicatorToSelectedIndex(
     indicatorTarget: Float,
     selectedIndex: Int,
     ownedTargetIndex: Int?,
+    hasExternalPagerFollow: Boolean = false,
 ): Boolean {
     if (isDragging || isPagerScrolling) return false
+    // Continuous external pager follow already owns the pill. A second discrete spring on top of
+    // it is what makes multi-page tab switches look stepped.
+    if (hasExternalPagerFollow && ownedTargetIndex == null) return false
     if (abs(indicatorTarget - selectedIndex.toFloat()) <= 0.001f) return false
     if (ownedTargetIndex != null && ownedTargetIndex != selectedIndex) return false
     return true
@@ -763,6 +767,8 @@ fun FloatingBottomBar(
                         indicatorTarget = dampedDragAnimation.targetValue,
                         selectedIndex = index,
                         ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
+                        hasExternalPagerFollow = externalPagerMotionEffectsEnabled &&
+                            indicatorPositionLatest != null,
                     )
                 ) {
                     // Tap selection keeps the same enlarge/move/shrink process as the home dock.

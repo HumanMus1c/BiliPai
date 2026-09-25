@@ -107,6 +107,7 @@ fun PortraitFullscreenOverlay(
     onLikeLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     
@@ -236,6 +237,7 @@ fun PortraitFullscreenOverlay(
                     onLikeLongClick = onLikeLongClick,
                     onCoinClick = onCoinClick,
                     onFavoriteClick = onFavoriteClick,
+                    onFavoriteLongClick = onFavoriteLongClick,
                     onCommentClick = onCommentClick,
                     onShareClick = onShareClick,
                     modifier = Modifier

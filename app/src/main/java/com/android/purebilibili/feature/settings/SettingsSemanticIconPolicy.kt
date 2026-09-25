@@ -109,6 +109,7 @@ internal enum class SettingsIconRole {
     AI_SUMMARY,
     VIDEO_NOTE,
     LIKE_INTERACTION,
+    FAVORITE_TAP_MODE,
     VIDEO_DESCRIPTION,
     FULLSCREEN_ORIENTATION,
     HORIZONTAL_ADAPTATION,
@@ -307,6 +308,7 @@ internal fun resolveSettingsMaterialSymbolResource(role: SettingsIconRole): Int 
     SettingsIconRole.AI_SUMMARY -> R.drawable.ms_smart_toy_24
     SettingsIconRole.VIDEO_NOTE -> R.drawable.ms_edit_note_24
     SettingsIconRole.LIKE_INTERACTION -> R.drawable.ms_thumb_up_off_alt_24
+    SettingsIconRole.FAVORITE_TAP_MODE -> R.drawable.ms_collections_bookmark_24
     SettingsIconRole.VIDEO_DESCRIPTION -> R.drawable.ms_subject_24
     SettingsIconRole.FULLSCREEN_ORIENTATION -> R.drawable.ms_screen_rotation_24
     SettingsIconRole.HORIZONTAL_ADAPTATION -> R.drawable.ms_aspect_ratio_24
@@ -576,6 +578,7 @@ internal fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVect
     SettingsIconRole.AI_SUMMARY -> MiuixIcons.MindMap
     SettingsIconRole.VIDEO_NOTE -> MiuixIcons.NotesFill
     SettingsIconRole.LIKE_INTERACTION -> MiuixIcons.FavoritesFill
+    SettingsIconRole.FAVORITE_TAP_MODE -> MiuixIcons.FavoritesFill
     SettingsIconRole.VIDEO_DESCRIPTION -> MiuixIcons.ConvertFile
     SettingsIconRole.FULLSCREEN_ORIENTATION -> MiuixIcons.RotateLeft
     SettingsIconRole.HORIZONTAL_ADAPTATION -> MiuixIcons.HorizontalSplit

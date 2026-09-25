@@ -43,6 +43,9 @@ import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
 import com.android.purebilibili.core.store.HomeTopRightAction
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.data.model.response.SearchType
+import com.android.purebilibili.feature.search.defaultSearchFilterTabOrder
+import com.android.purebilibili.feature.search.resolveSearchFilterTabs
 import com.android.purebilibili.core.theme.BottomBarColors  //  统一底栏颜色配置
 import com.android.purebilibili.core.theme.BottomBarColorPalette  //  调色板
 import com.android.purebilibili.core.theme.BottomBarColorNames  //  颜色名称
@@ -192,6 +195,8 @@ fun BottomBarSettingsContent(
     val visibleTabs by SettingsManager.getBottomBarVisibleTabs(context).collectAsStateWithLifecycle(initialValue = setOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE"))
     val topTabOrder by SettingsManager.getTopTabOrder(context).collectAsStateWithLifecycle(initialValue = defaultTopTabIds)
     val topTabVisible by SettingsManager.getTopTabVisibleTabs(context).collectAsStateWithLifecycle(initialValue = defaultTopTabIds.toSet())
+    val searchFilterTabOrder by SettingsManager.getSearchFilterTabOrder(context)
+        .collectAsStateWithLifecycle(initialValue = defaultSearchFilterTabOrder.map { it.value })
     val hideTopTabs by SettingsManager.getHideTopTabs(context)
         .collectAsStateWithLifecycle(initialValue = false)
     val topTabLabelMode by SettingsManager.getTopTabLabelMode(context)
@@ -238,6 +243,9 @@ fun BottomBarSettingsContent(
                 .take(SettingsManager.MAX_TOP_TABS)
                 .toSet()
         )
+    }
+    var localSearchFilterTabOrder by remember(searchFilterTabOrder) {
+        mutableStateOf(resolveSearchFilterTabs(searchFilterTabOrder))
     }
     
     // [新增] 监听顺序变化并保存
@@ -298,6 +306,28 @@ fun BottomBarSettingsContent(
         localTopTabOrder = mutable
         saveTopTabConfig()
     }
+
+    fun saveSearchFilterTabOrder() {
+        scope.launch {
+            SettingsManager.setSearchFilterTabOrder(
+                context,
+                localSearchFilterTabOrder.map { it.value }
+            )
+        }
+    }
+
+    fun moveSearchFilterTab(type: SearchType, direction: Int) {
+        val from = localSearchFilterTabOrder.indexOf(type)
+        if (from < 0) return
+        val to = (from + direction).coerceIn(0, localSearchFilterTabOrder.lastIndex)
+        if (to == from) return
+
+        val mutable = localSearchFilterTabOrder.toMutableList()
+        val item = mutable.removeAt(from)
+        mutable.add(to, item)
+        localSearchFilterTabOrder = mutable
+        saveSearchFilterTabOrder()
+    }
     
     //  [新增] 保存颜色配置
     fun saveItemColor(itemId: String, colorIndex: Int) {
@@ -318,7 +348,7 @@ fun BottomBarSettingsContent(
             item {
                 Box(modifier = Modifier.entrance()) {
                     AppText(
-                        text = "集中管理底部导航、首页顶部标签和平板侧边栏。底栏项目最少 2 个，最多 5 个。",
+                        text = "集中管理底部导航、首页顶部标签、搜索分类栏和平板侧边栏。底栏项目最少 2 个，最多 5 个。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -638,6 +668,72 @@ fun BottomBarSettingsContent(
                 }
             }
 
+            // 搜索分类栏
+            item {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceSectionTitle("搜索分类栏")
+                }
+            }
+
+            item {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceGroup {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            AppText(
+                                text = "调整搜索结果页顶部分类标签的顺序，常用分类可以提前显示。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            AppText(
+                                text = "分类顺序（上下按钮可排序）",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            localSearchFilterTabOrder.forEachIndexed { index, type ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(AppShapes.container(ContainerLevel.Card))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AppText(
+                                        text = type.displayName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    AppIconButton(
+                                        onClick = { moveSearchFilterTab(type, -1) },
+                                        enabled = index > 0
+                                    ) {
+                                        AppIcon(
+                                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_up_24),
+                                            contentDescription = "上移",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    AppIconButton(
+                                        onClick = { moveSearchFilterTab(type, 1) },
+                                        enabled = index < localSearchFilterTabOrder.lastIndex
+                                    ) {
+                                        AppIcon(
+                                            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_down_24),
+                                            contentDescription = "下移",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // 平板导航
             item {
                 Box(modifier = Modifier.entrance()) {
@@ -780,8 +876,10 @@ fun BottomBarSettingsContent(
                                 localVisibleTabs = setOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE")
                                 localTopTabOrder = defaultTopTabIds
                                 localTopTabVisible = defaultTopTabIds.toSet()
+                                localSearchFilterTabOrder = defaultSearchFilterTabOrder
                                 saveConfig()
                                 saveTopTabConfig()
+                                saveSearchFilterTabOrder()
                                 scope.launch {
                                     // 重置为设备类型默认：平板开侧栏，手机开底栏
                                     SettingsManager.setTabletUseSidebar(context, isLargeScreenCapable)

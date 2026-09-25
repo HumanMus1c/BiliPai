@@ -120,6 +120,7 @@ internal fun BangumiPlayerOverlayHost(
         bvid = bvid,
         cid = cid,
         videoOwnerName = title,
+        videoSharePlayCountText = "",
         videoDuration = player.duration.coerceAtLeast(0L),
         videoTitle = subtitle.ifBlank { title },
         currentAid = aid,

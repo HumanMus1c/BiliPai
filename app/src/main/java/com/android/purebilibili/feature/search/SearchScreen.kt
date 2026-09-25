@@ -468,18 +468,27 @@ internal enum class SearchFilterControl {
     PHOTO_CATEGORY
 }
 
-internal fun resolveSearchFilterTabs(): List<SearchType> {
-    return listOf(
-        SearchType.VIDEO,
-        SearchType.BANGUMI,
-        SearchType.MEDIA_FT,
-        SearchType.LIVE,
-        SearchType.LIVE_USER,
-        SearchType.UP,
-        SearchType.ARTICLE,
-        SearchType.TOPIC,
-        SearchType.PHOTO
-    )
+internal val defaultSearchFilterTabOrder: List<SearchType> = listOf(
+    SearchType.VIDEO,
+    SearchType.BANGUMI,
+    SearchType.MEDIA_FT,
+    SearchType.LIVE,
+    SearchType.LIVE_USER,
+    SearchType.UP,
+    SearchType.ARTICLE,
+    SearchType.TOPIC,
+    SearchType.PHOTO
+)
+
+internal fun resolveSearchFilterTabs(
+    savedOrder: List<String> = emptyList()
+): List<SearchType> {
+    val knownByValue = SearchType.entries.associateBy(SearchType::value)
+    val ordered = savedOrder.mapNotNull(knownByValue::get).distinct()
+    val remaining = (defaultSearchFilterTabOrder + SearchType.entries)
+        .distinct()
+        .filterNot(ordered::contains)
+    return ordered + remaining
 }
 
 internal fun resolveSearchDefaultPlaceholder(): String {
@@ -758,7 +767,14 @@ fun SearchScreen(
     }.collectAsStateWithLifecycle(initialValue = true)
     val displayedSearchHint = state.defaultSearchHint.takeIf { searchHintEnabled }.orEmpty()
     val scope = rememberCoroutineScope()
-    val searchTabs = remember { resolveSearchFilterTabs() }
+    val savedSearchFilterTabOrder by SettingsManager
+        .getSearchFilterTabOrder(context)
+        .collectAsStateWithLifecycle(
+            initialValue = defaultSearchFilterTabOrder.map { it.value }
+        )
+    val searchTabs = remember(savedSearchFilterTabOrder) {
+        resolveSearchFilterTabs(savedSearchFilterTabOrder)
+    }
     val searchPagerState = rememberPagerState(
         initialPage = resolveSearchPagerPageForType(state.searchType, searchTabs),
         pageCount = { searchTabs.size }
@@ -1081,7 +1097,13 @@ fun SearchScreen(
 
     LaunchedEffect(state.searchType, searchTabs) {
         val targetPage = resolveSearchPagerPageForType(state.searchType, searchTabs)
-        if (!searchPagerState.isScrollInProgress && searchPagerState.currentPage != targetPage) {
+        // Hard-settle only when the pager is fully idle. Mid-flight corrections would snap the
+        // tab indicator while animatePagerSelection is still gliding.
+        if (
+            !searchPagerState.isScrollInProgress &&
+            kotlin.math.abs(searchPagerState.currentPageOffsetFraction) <= 0.001f &&
+            searchPagerState.currentPage != targetPage
+        ) {
             searchPagerState.scrollToPage(targetPage)
         }
     }
@@ -3134,6 +3156,15 @@ private fun SearchResultTypeTabRow(
             itemWidthPx = itemWidthPx,
             viewportWidthPx = viewportWidthPx,
             contentPaddingPx = containerHorizontalPaddingPx,
+            // Glide with the indicator (page + fraction) while the pager is moving; settle when idle.
+            focusPosition = {
+                if (useScrollableRail) {
+                    pagerState.currentPage + pagerState.currentPageOffsetFraction
+                } else {
+                    0f
+                }
+            },
+            continuousFollow = { useScrollableRail && pagerState.isScrollInProgress },
         )
 
         BottomBarLiquidSegmentedControl(
@@ -3157,7 +3188,9 @@ private fun SearchResultTypeTabRow(
             isScrollInProgressProvider = { pagerState.isScrollInProgress },
             externalPagerMotionEffectsEnabled = true,
             onIndicatorPositionChanged = { position ->
-                if (useScrollableRail) {
+                // Continuous pager motion is owned by KeepScrollableTabSelectionVisible lock-step.
+                // Edge-follow remains only for idle indicator nudges so the two never fight.
+                if (useScrollableRail && !pagerState.isScrollInProgress) {
                     scrollState.dispatchRawDelta(
                         resolveSearchTypeTabDragScrollDeltaPx(
                             indicatorPosition = position,

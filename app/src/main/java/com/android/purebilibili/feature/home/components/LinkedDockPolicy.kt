@@ -2,7 +2,7 @@ package com.android.purebilibili.feature.home.components
 
 import kotlin.math.roundToInt
 
-enum class LinkedDockPhase { Expanded, Playback, Search }
+enum class LinkedDockPhase { Expanded, Playback, Compact, Search }
 
 /** Search owns the first tap on the compact artwork target. */
 internal fun shouldExpandPlaybackFromSearch(
@@ -17,19 +17,19 @@ internal fun accumulateDockScroll(previous: Float, delta: Float): Float =
 internal fun resolveLinkedDockRestingPhase(
     collapseRequested: Boolean,
     hasAudio: Boolean,
-): LinkedDockPhase = if (collapseRequested && hasAudio) {
-    LinkedDockPhase.Playback
-} else {
-    LinkedDockPhase.Expanded
+): LinkedDockPhase = when {
+    !collapseRequested -> LinkedDockPhase.Expanded
+    hasAudio -> LinkedDockPhase.Playback
+    else -> LinkedDockPhase.Compact
 }
 
 fun resolveLinkedDockPhaseOnAudioChange(
     currentPhase: LinkedDockPhase,
     hasAudio: Boolean,
-): LinkedDockPhase = if (!hasAudio && currentPhase == LinkedDockPhase.Playback) {
-    LinkedDockPhase.Expanded
-} else {
-    currentPhase
+): LinkedDockPhase = when {
+    !hasAudio && currentPhase == LinkedDockPhase.Playback -> LinkedDockPhase.Compact
+    hasAudio && currentPhase == LinkedDockPhase.Compact -> LinkedDockPhase.Playback
+    else -> currentPhase
 }
 
 fun resolveLinkedDockInitialPhase(
@@ -55,11 +55,8 @@ fun shouldEnableLinkedDockBackHandler(
 
 fun resolveLinkedDockPhaseOnSearchDismiss(
     hasAudio: Boolean,
-): LinkedDockPhase = if (hasAudio) {
-    LinkedDockPhase.Playback
-} else {
-    LinkedDockPhase.Expanded
-}
+    previousPhase: LinkedDockPhase = if (hasAudio) LinkedDockPhase.Playback else LinkedDockPhase.Expanded,
+): LinkedDockPhase = resolveLinkedDockPhaseOnAudioChange(previousPhase, hasAudio)
 
 internal data class LinkedDockGeometry(
     val searchWidth: Int,

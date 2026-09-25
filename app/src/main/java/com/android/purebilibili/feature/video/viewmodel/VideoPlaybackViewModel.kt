@@ -4336,10 +4336,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     
     fun toggleFavorite() {
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
+        val targetAid = current.info.aid
+        val currentlyFavorited = current.isFavorited
         viewModelScope.launch {
             interactionUseCase.toggleFavorite(
-                aid = current.info.aid,
-                currentlyFavorited = current.isFavorited,
+                aid = targetAid,
+                currentlyFavorited = currentlyFavorited,
                 bvid = current.info.bvid
             ).onSuccess { favorited ->
                 _uiState.update { state ->
@@ -4363,6 +4365,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     lastSavedFavoriteFolderIds = emptySet()
                     _favoriteSelectedFolderIds.value = emptySet()
                 }
+                favoriteFolderSaveEventVersion += 1L
+                _favoriteFolderSaveEvent.value = FavoriteFolderSaveEvent(
+                    aid = targetAid,
+                    isFavorited = favorited,
+                    version = favoriteFolderSaveEventVersion
+                )
                 toast(if (favorited) "已收藏" else "已取消收藏")
             }.onFailure { e ->
                 toast(e.message ?: "收藏操作失败")

@@ -29,6 +29,8 @@ import com.android.purebilibili.core.store.navigation.miuixPredictiveBackMaxProg
 import com.android.purebilibili.core.store.navigation.parseBottomBarItemLabels
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.store.player.defaultAudioQualityPreferenceKey
+import com.android.purebilibili.core.store.player.longPressSpeedPreferenceKey
+import com.android.purebilibili.core.store.player.playbackSpeedOptionsPreferenceKey
 import com.android.purebilibili.core.theme.AppFontSizePreset
 import com.android.purebilibili.core.ui.components.AppTagChipSize
 import com.android.purebilibili.core.theme.AppUiScalePreset
@@ -1376,8 +1378,6 @@ object SettingsManager {
     private val KEY_DOUBLE_TAP_SEEK_ENABLED = booleanPreferencesKey("double_tap_seek_enabled")
     private val KEY_SEEK_FORWARD_SECONDS = intPreferencesKey("seek_forward_seconds")
     private val KEY_SEEK_BACKWARD_SECONDS = intPreferencesKey("seek_backward_seconds")
-    //  [新增] 长按倍速 (默认 2.0x)
-    private val KEY_LONG_PRESS_SPEED = floatPreferencesKey("long_press_speed")
     private val KEY_LONG_PRESS_SPEED_HINT_CLOSE_ENABLED =
         booleanPreferencesKey("long_press_speed_hint_close_enabled")
     private val KEY_LONG_PRESS_SPEED_HINT_HIDDEN =
@@ -1430,6 +1430,8 @@ object SettingsManager {
     //  [新增] 顶部标签自定义 - 顺序和可见性
     private val KEY_TOP_TAB_ORDER = stringPreferencesKey("top_tab_order")
     private val KEY_TOP_TAB_VISIBLE_TABS = stringPreferencesKey("top_tab_visible_tabs")
+    //  搜索结果页分类栏顺序（SearchType.value 逗号分隔）
+    private val KEY_SEARCH_FILTER_TAB_ORDER = stringPreferencesKey("search_filter_tab_order")
     private val KEY_DYNAMIC_TAB_VISIBLE_TABS = stringPreferencesKey("dynamic_tab_visible_tabs")
     private val KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE =
         booleanPreferencesKey("dynamic_image_preview_text_visible")
@@ -1476,6 +1478,8 @@ object SettingsManager {
     }
 
     private const val DEFAULT_TOP_TAB_ORDER = "RECOMMEND,FOLLOW,POPULAR,LIVE,GAME"
+    private const val DEFAULT_SEARCH_FILTER_TAB_ORDER =
+        "video,media_bangumi,media_ft,live_room,live_user,bili_user,article,topic,photo"
     private const val DEFAULT_TOP_TAB_VISIBLE = "RECOMMEND,FOLLOW,POPULAR,LIVE,GAME"
     /** 首页顶部 dock 标签数量上限。 */
     const val MAX_TOP_TABS = 5
@@ -1873,7 +1877,7 @@ object SettingsManager {
                 preferences[KEY_SUBTITLE_AUTO_PREFERENCE] ?: SubtitleAutoPreference.OFF.ordinal
             ) { SubtitleAutoPreference.OFF },
             longPressSpeed = normalizeLongPressSpeed(
-                preferences[KEY_LONG_PRESS_SPEED] ?: DEFAULT_LONG_PRESS_SPEED
+                preferences[longPressSpeedPreferenceKey] ?: DEFAULT_LONG_PRESS_SPEED
             ),
             longPressSpeedLockEnabled = preferences[KEY_LONG_PRESS_SPEED_LOCK_ENABLED] ?: false,
             longPressSpeedLockHintShown = preferences[KEY_LONG_PRESS_SPEED_LOCK_HINT_SHOWN] ?: false,
@@ -2677,14 +2681,11 @@ object SettingsManager {
         }
     }
 
-    //  [新增] --- 长按倍速 (默认 2.0x) ---
-    fun getLongPressSpeed(context: Context): Flow<Float> = context.settingsDataStore.data
-        .map { preferences -> normalizeLongPressSpeed(preferences[KEY_LONG_PRESS_SPEED] ?: DEFAULT_LONG_PRESS_SPEED) }
+    fun getLongPressSpeed(context: Context): Flow<Float> =
+        PlayerSettingsStore.getLongPressSpeed(context)
 
     suspend fun setLongPressSpeed(context: Context, speed: Float) {
-        context.settingsDataStore.edit { preferences -> 
-            preferences[KEY_LONG_PRESS_SPEED] = normalizeLongPressSpeed(speed)
-        }
+        PlayerSettingsStore.setLongPressSpeed(context, speed)
     }
 
     fun getLongPressSpeedLockEnabled(context: Context): Flow<Boolean> =
@@ -2898,7 +2899,18 @@ object SettingsManager {
             .getBoolean(CACHE_KEY_HI_RES_LONG_PRESS_HINT_SHOWN, false)
     }
 
-    //  [新增] --- 默认播放速度 / 记忆上次速度 ---
+    //  播放器菜单、双指调速与默认速度共用倍速列表；长按速度独立设置
+    fun getPlaybackSpeedOptions(context: Context): Flow<List<Float>> =
+        PlayerSettingsStore.getPlaybackSpeedOptions(context)
+
+    suspend fun addPlaybackSpeedOption(context: Context, speed: Float) {
+        PlayerSettingsStore.addPlaybackSpeedOption(context, speed)
+    }
+
+    suspend fun removePlaybackSpeedOption(context: Context, speed: Float) {
+        PlayerSettingsStore.removePlaybackSpeedOption(context, speed)
+    }
+
     fun getDefaultPlaybackSpeed(context: Context): Flow<Float> =
         PlayerSettingsStore.getDefaultPlaybackSpeed(context)
 
@@ -3682,6 +3694,19 @@ object SettingsManager {
     suspend fun setTopTabVisibleTabs(context: Context, tabs: Set<String>) {
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_TOP_TAB_VISIBLE_TABS] = tabs.joinToString(",")
+        }
+    }
+
+    //  搜索结果页分类栏顺序
+    fun getSearchFilterTabOrder(context: Context): Flow<List<String>> =
+        context.settingsDataStore.data.map { prefs ->
+            val orderString = prefs[KEY_SEARCH_FILTER_TAB_ORDER] ?: DEFAULT_SEARCH_FILTER_TAB_ORDER
+            orderString.split(",").filter { it.isNotBlank() }
+        }
+
+    suspend fun setSearchFilterTabOrder(context: Context, order: List<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_SEARCH_FILTER_TAB_ORDER] = order.joinToString(",")
         }
     }
 
@@ -7657,6 +7682,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_HW_DECODE, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_BG_PLAY, SettingsShareSection.PLAYBACK),
             FloatShareablePreferenceDefinition(KEY_DEFAULT_PLAYBACK_SPEED, SettingsShareSection.PLAYBACK),
+            StringShareablePreferenceDefinition(playbackSpeedOptionsPreferenceKey, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_REMEMBER_LAST_PLAYBACK_SPEED, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_COMMENT_DEFAULT_SORT_MODE, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_COMMENT_FRAUD_DETECTION_ENABLED, SettingsShareSection.PLAYBACK),
@@ -7725,7 +7751,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_DOUBLE_TAP_SEEK_ENABLED, SettingsShareSection.GESTURE),
             IntShareablePreferenceDefinition(KEY_SEEK_FORWARD_SECONDS, SettingsShareSection.GESTURE),
             IntShareablePreferenceDefinition(KEY_SEEK_BACKWARD_SECONDS, SettingsShareSection.GESTURE),
-            FloatShareablePreferenceDefinition(KEY_LONG_PRESS_SPEED, SettingsShareSection.GESTURE),
+            FloatShareablePreferenceDefinition(longPressSpeedPreferenceKey, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_LONG_PRESS_SPEED_LOCK_ENABLED, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_LONG_PRESS_SPEED_HINT_HIDDEN, SettingsShareSection.GESTURE),
             FloatShareablePreferenceDefinition(
@@ -7957,16 +7983,32 @@ object SettingsManager {
         val definitionsByKey = shareableSettingDefinitions.associateBy { it.entryDefinition.storageKey }
         val appliedKeys = mutableListOf<String>()
         val skippedKeys = mutableListOf<String>()
+        val playbackSpeedKeys = setOf(
+            KEY_DEFAULT_PLAYBACK_SPEED.name,
+            KEY_REMEMBER_LAST_PLAYBACK_SPEED.name,
+            longPressSpeedPreferenceKey.name,
+            playbackSpeedOptionsPreferenceKey.name
+        )
+        var playbackSpeedChanged = false
 
-        context.settingsDataStore.edit { preferences ->
+        val updated = context.settingsDataStore.edit { preferences ->
             settings.forEach { (key, value) ->
                 val definition = definitionsByKey[key]
                 when {
                     definition == null -> skippedKeys += key
-                    definition.write(preferences, value) -> appliedKeys += key
+                    definition.write(preferences, value) -> {
+                        appliedKeys += key
+                        if (key in playbackSpeedKeys) playbackSpeedChanged = true
+                    }
                     else -> skippedKeys += key
                 }
             }
+            if (playbackSpeedChanged) {
+                PlayerSettingsStore.reconcilePlaybackSpeedSelections(preferences)
+            }
+        }
+        if (playbackSpeedChanged) {
+            PlayerSettingsStore.syncPlaybackSpeedCache(context, updated)
         }
 
         return SettingsShareApplyResult(

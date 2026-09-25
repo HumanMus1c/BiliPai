@@ -70,6 +70,14 @@ internal fun resolveAudioModeTrackTitle(
         ?: videoTitle
 }
 
+/** 对外分享用视频标题，避免分 P 名/曲目 override 顶掉真实标题。 */
+internal fun resolveAudioModeShareTitle(
+    videoTitle: String,
+    displayTitle: String,
+): String {
+    return videoTitle.trim().ifBlank { displayTitle.trim() }
+}
+
 internal data class AudioModeLyricMetadata(
     val title: String,
     val artist: String
@@ -253,6 +261,9 @@ internal fun AudioModeMusicPlayer(
             selectedAudioQuality = successState.selectedAudioQuality
         )
     }
+    val favoriteQuickSaveDefaultFolder by com.android.purebilibili.core.store.FavoriteInteractionSettingsStore
+        .getQuickSaveDefaultFolder(LocalContext.current)
+        .collectAsStateWithLifecycle(initialValue = false)
 
     val subtitleLyrics = remember(
         successState.subtitlePrimaryCues,
@@ -368,7 +379,18 @@ internal fun AudioModeMusicPlayer(
         },
         onCommentsClick = { showComments = true },
         isFavorited = engagementState.isFavorited,
-        onFavoriteClick = { engagementViewModel.toggleFavorite() },
+        onFavoriteClick = {
+            when (
+                resolveVideoFavoriteAction(
+                    entryPoint = VideoFavoriteEntryPoint.AudioMode,
+                    isLongPress = false,
+                    quickSaveDefaultFolder = favoriteQuickSaveDefaultFolder,
+                )
+            ) {
+                VideoFavoriteAction.ToggleFavorite -> engagementViewModel.toggleFavorite()
+                VideoFavoriteAction.OpenFavoriteFolders -> viewModel.showFavoriteFolderDialog()
+            }
+        },
         onDownloadClick = { viewModel.downloadAudio(context) },
         onShareClick = { showShare = true },
         onSpeedClick = { showSpeedMenu = true },
@@ -453,9 +475,16 @@ internal fun AudioModeMusicPlayer(
     if (showShare) {
         VideoShareSheet(
             payload = buildVideoSharePayload(
-                title = displayTitle,
+                title = resolveAudioModeShareTitle(
+                    videoTitle = info.title,
+                    displayTitle = displayTitle,
+                ),
                 bvid = info.bvid,
-                coverUrl = coverUrl
+                coverUrl = coverUrl,
+                upName = info.owner.name,
+                playCountText = com.android.purebilibili.core.util.FormatUtils.formatStat(
+                    info.stat.view.toLong()
+                ),
             ),
             onDismiss = { showShare = false }
         )

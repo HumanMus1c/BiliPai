@@ -36,7 +36,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-private const val ADAPTIVE_READABILITY_SAMPLE_INTERVAL_MILLIS = 500L
+private const val ADAPTIVE_READABILITY_SAMPLE_INTERVAL_MILLIS = 1500L
 private const val ADAPTIVE_READABILITY_INITIAL_DELAY_MILLIS = 350L
 private const val ADAPTIVE_READABILITY_SAMPLE_WIDTH = 24
 private const val ADAPTIVE_READABILITY_SAMPLE_HEIGHT = 8

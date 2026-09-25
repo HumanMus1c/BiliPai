@@ -176,12 +176,20 @@ fun <T> AppLiquidAwareTabRow(
             }
             val contentOverflows = totalContentWidthPx > viewportWidthPx
             val dragFollowEdgePaddingPx = with(density) { AppSpacingTokens.Medium.toPx() }
+            val pagerPositionProvider = indicatorPositionProvider
+            val pagerMotionActiveProvider = isScrollInProgressProvider
             KeepScrollableTabSelectionVisible(
                 scrollState = scrollState,
                 selectedIndex = selectedIndex,
                 itemWidthPx = itemWidthPx,
                 viewportWidthPx = viewportWidthPx,
                 contentPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() },
+                focusPosition = {
+                    pagerPositionProvider?.invoke() ?: selectedIndex.toFloat()
+                },
+                continuousFollow = {
+                    pagerPositionProvider != null && pagerMotionActiveProvider()
+                },
             )
             BottomBarLiquidSegmentedControl(
                 items = options.map { it.label },
@@ -203,18 +211,23 @@ fun <T> AppLiquidAwareTabRow(
                 preferInlineContentStyle = preferInlineContentStyle,
                 indicatorPositionProvider = indicatorPositionProvider,
                 onIndicatorPositionChanged = { position ->
-                    scrollState.dispatchRawDelta(
-                        resolveScrollableTabIndicatorFollowDeltaPx(
-                            indicatorPosition = position,
-                            itemWidthPx = itemWidthPx,
-                            viewportWidthPx = viewportWidthPx,
-                            currentScrollPx = scrollState.value.toFloat(),
-                            contentPaddingPx = with(density) {
-                                AppSpacingTokens.ExtraSmall.toPx()
-                            },
-                            edgePaddingPx = dragFollowEdgePaddingPx,
+                    // During pager motion the shared scroll helper lock-steps the rail
+                    // with the continuous indicator position. Keep edge-follow for idle
+                    // indicator nudges so two scroll owners never compete.
+                    if (pagerPositionProvider == null || !pagerMotionActiveProvider()) {
+                        scrollState.dispatchRawDelta(
+                            resolveScrollableTabIndicatorFollowDeltaPx(
+                                indicatorPosition = position,
+                                itemWidthPx = itemWidthPx,
+                                viewportWidthPx = viewportWidthPx,
+                                currentScrollPx = scrollState.value.toFloat(),
+                                contentPaddingPx = with(density) {
+                                    AppSpacingTokens.ExtraSmall.toPx()
+                                },
+                                edgePaddingPx = dragFollowEdgePaddingPx,
+                            )
                         )
-                    )
+                    }
                 },
                 isScrollInProgressProvider = isScrollInProgressProvider,
                 externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,

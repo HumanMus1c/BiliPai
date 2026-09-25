@@ -52,9 +52,27 @@ class LinkedDockPolicyTest {
     }
 
     @Test
-    fun dockStaysExpandedWithoutAudioOrCollapseRequest() {
+    fun compactSearchDockKeepsHomeAndSearchOnOneRowWithoutAudio() {
+        val geometry = resolveLinkedDockGeometry(
+            width = 336,
+            button = 56,
+            barHeight = 64,
+            gap = 8,
+            hasAudio = false,
+            searchEnabled = true,
+            mergeProgress = 1f,
+            searchProgress = 1f,
+        )
+        assertEquals(272, geometry.searchWidth)
+        assertEquals(0, geometry.audioWidth)
+        assertEquals(0, geometry.top)
+        assertEquals(64, geometry.height)
+    }
+
+    @Test
+    fun dockCompactsWithoutAudioWhenSearchIsPresent() {
         assertEquals(
-            LinkedDockPhase.Expanded,
+            LinkedDockPhase.Compact,
             resolveLinkedDockRestingPhase(collapseRequested = true, hasAudio = false),
         )
         assertEquals(
@@ -64,10 +82,14 @@ class LinkedDockPolicyTest {
     }
 
     @Test
-    fun audioChangeFallsBackFromPlaybackToExpandedWhenAudioStops() {
+    fun audioChangePreservesCompactDockWhenPlaybackStops() {
         assertEquals(
-            LinkedDockPhase.Expanded,
+            LinkedDockPhase.Compact,
             resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Playback, hasAudio = false),
+        )
+        assertEquals(
+            LinkedDockPhase.Playback,
+            resolveLinkedDockPhaseOnAudioChange(LinkedDockPhase.Compact, hasAudio = true),
         )
         assertEquals(
             LinkedDockPhase.Playback,
@@ -104,7 +126,7 @@ class LinkedDockPolicyTest {
             ),
         )
         assertEquals(
-            LinkedDockPhase.Expanded,
+            LinkedDockPhase.Compact,
             resolveLinkedDockInitialPhase(
                 currentItem = BottomNavItem.HOME,
                 collapseRequested = false,
@@ -225,6 +247,13 @@ class LinkedDockPolicyTest {
     fun searchDismissRestoresPlaybackIfAudioActiveElseExpanded() {
         assertEquals(LinkedDockPhase.Playback, resolveLinkedDockPhaseOnSearchDismiss(hasAudio = true))
         assertEquals(LinkedDockPhase.Expanded, resolveLinkedDockPhaseOnSearchDismiss(hasAudio = false))
+        assertEquals(
+            LinkedDockPhase.Compact,
+            resolveLinkedDockPhaseOnSearchDismiss(
+                hasAudio = false,
+                previousPhase = LinkedDockPhase.Compact,
+            ),
+        )
     }
 
     @Test

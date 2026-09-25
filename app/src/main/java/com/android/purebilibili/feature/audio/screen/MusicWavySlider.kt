@@ -13,7 +13,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -42,21 +41,21 @@ internal fun MusicWavySlider(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val amplitudePx by animateFloatAsState(
+    val amplitudePx = animateFloatAsState(
         targetValue = if (wavy) with(density) { MUSIC_WAVY_AMPLITUDE_DP.dp.toPx() } else 0f,
         label = "music-wavy-amplitude"
     )
-    val infinite = rememberInfiniteTransition(label = "music-wavy-phase")
-    val animatedPhase by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "music-wavy-phase-value"
-    )
-    val phase = if (wavy) animatedPhase else 0f
+    val animatedPhase = if (wavy) {
+        rememberInfiniteTransition(label = "music-wavy-phase").animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1400, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "music-wavy-phase-value"
+        )
+    } else null
     val wavelengthPx = with(density) { MUSIC_WAVY_WAVELENGTH_DP.dp.toPx() }
     val strokePx = with(density) { MUSIC_WAVY_STROKE_DP.dp.toPx() }
     val thumbRadiusPx = with(density) { MUSIC_WAVY_THUMB_DP.dp.toPx() / 2f }
@@ -92,6 +91,8 @@ internal fun MusicWavySlider(
                 }
             }
     ) {
+        val phase = animatedPhase?.value ?: 0f
+        val amplitude = amplitudePx.value
         val fraction = resolveMusicProgressFraction(value, valueRange.start, valueRange.endInclusive)
         val progressX = size.width * fraction
         val centerY = size.height / 2f
@@ -101,7 +102,7 @@ internal fun MusicWavySlider(
         var x = 0f
         var started = false
         while (x <= progressX) {
-            val y = centerY + sin((x / wavelengthPx) * 2f * PI.toFloat() + phase) * amplitudePx
+            val y = centerY + sin((x / wavelengthPx) * 2f * PI.toFloat() + phase) * amplitude
             if (!started) {
                 activePath.moveTo(x, y)
                 started = true

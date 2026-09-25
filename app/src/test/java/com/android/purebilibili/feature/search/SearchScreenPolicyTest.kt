@@ -169,6 +169,59 @@ class SearchScreenPolicyTest {
     }
 
     @Test
+    fun searchFilterTabs_applyCustomSavedOrder() {
+        val reordered = resolveSearchFilterTabs(
+            listOf(
+                SearchType.VIDEO.value,
+                SearchType.UP.value,
+                SearchType.LIVE.value,
+            )
+        )
+
+        assertEquals(
+            listOf(
+                SearchType.VIDEO,
+                SearchType.UP,
+                SearchType.LIVE,
+                SearchType.BANGUMI,
+                SearchType.MEDIA_FT,
+                SearchType.LIVE_USER,
+                SearchType.ARTICLE,
+                SearchType.TOPIC,
+                SearchType.PHOTO,
+            ),
+            reordered
+        )
+    }
+
+    @Test
+    fun searchFilterTabs_ignoreUnknownAndDuplicateSavedValues() {
+        val reordered = resolveSearchFilterTabs(
+            listOf(
+                "unknown",
+                SearchType.UP.value,
+                SearchType.UP.value,
+                SearchType.VIDEO.value,
+            )
+        )
+
+        assertEquals(
+            listOf(
+                SearchType.UP,
+                SearchType.VIDEO,
+                SearchType.BANGUMI,
+                SearchType.MEDIA_FT,
+                SearchType.LIVE,
+                SearchType.LIVE_USER,
+                SearchType.ARTICLE,
+                SearchType.TOPIC,
+                SearchType.PHOTO,
+            ),
+            reordered
+        )
+    }
+
+    @Test
     fun searchFilterControls_matchCurrentSearchType() {
         assertEquals(
             listOf(
@@ -459,6 +512,8 @@ class SearchScreenPolicyTest {
         assertTrue(typeTabRowBody.contains(".liquidDockViewport()"))
         assertTrue(typeTabRowBody.contains(".horizontalScroll(scrollState)"))
         assertTrue(typeTabRowBody.contains("KeepScrollableTabSelectionVisible("))
+        assertTrue(typeTabRowBody.contains("focusPosition = {"))
+        assertTrue(typeTabRowBody.contains("continuousFollow = { useScrollableRail && pagerState.isScrollInProgress }"))
         assertTrue(typeTabRowBody.contains("onIndicatorPositionChanged = { position ->"))
         assertTrue(typeTabRowBody.contains("resolveSearchTypeTabDragScrollDeltaPx("))
         assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))

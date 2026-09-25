@@ -5,8 +5,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -135,6 +137,7 @@ fun BottomInputBar(
     isCoined: Boolean,
     onLikeClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -210,6 +213,7 @@ fun BottomInputBar(
                     isCoined = isCoined,
                     onLikeClick = onLikeClick,
                     onFavoriteClick = onFavoriteClick,
+                    onFavoriteLongClick = onFavoriteLongClick,
                     onCoinClick = onCoinClick,
                     onShareClick = onShareClick,
                     onCommentClick = onCommentClick,
@@ -226,6 +230,7 @@ fun BottomInputBar(
                     isCoined = isCoined,
                     onLikeClick = onLikeClick,
                     onFavoriteClick = onFavoriteClick,
+                    onFavoriteLongClick = onFavoriteLongClick,
                     onCoinClick = onCoinClick,
                     onShareClick = onShareClick,
                     onCommentClick = onCommentClick,
@@ -246,6 +251,7 @@ private fun DockedSolidBottomInputBar(
     isCoined: Boolean,
     onLikeClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -292,6 +298,7 @@ private fun DockedSolidBottomInputBar(
             isCoined = isCoined,
             onLikeClick = onLikeClick,
             onFavoriteClick = onFavoriteClick,
+            onFavoriteLongClick = onFavoriteLongClick,
             onCoinClick = onCoinClick,
             onShareClick = onShareClick,
             onCommentClick = onCommentClick,
@@ -309,6 +316,7 @@ private fun FloatingLiquidBottomInputBar(
     isCoined: Boolean,
     onLikeClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -414,6 +422,7 @@ private fun FloatingLiquidBottomInputBar(
                         isCoined = isCoined,
                         onLikeClick = onLikeClick,
                         onFavoriteClick = onFavoriteClick,
+                        onFavoriteLongClick = onFavoriteLongClick,
                         onCoinClick = onCoinClick,
                         onShareClick = onShareClick,
                     )
@@ -433,6 +442,7 @@ private fun BottomInputBarContentRow(
     isCoined: Boolean,
     onLikeClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -492,6 +502,7 @@ private fun BottomInputBarContentRow(
                 isCoined = isCoined,
                 onLikeClick = onLikeClick,
                 onFavoriteClick = onFavoriteClick,
+                onFavoriteLongClick = onFavoriteLongClick,
                 onCoinClick = onCoinClick,
                 onShareClick = onShareClick
             )
@@ -516,6 +527,7 @@ private fun BottomInputBarActionButtons(
     isCoined: Boolean,
     onLikeClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onShareClick: () -> Unit,
 ) {
@@ -551,6 +563,7 @@ private fun BottomInputBarActionButtons(
             label = "收藏",
             tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             onClick = onFavoriteClick,
+            onLongClick = onFavoriteLongClick,
             itemSize = itemSize,
             iconSize = iconSize,
             showLabel = false
@@ -567,6 +580,7 @@ private fun BottomInputBarActionButtons(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun IconActionButton(
     icon: ImageVector,
@@ -575,14 +589,25 @@ private fun IconActionButton(
     onClick: () -> Unit,
     itemSize: Dp,
     iconSize: Dp,
-    showLabel: Boolean = false
+    showLabel: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .sizeIn(minWidth = itemSize, minHeight = itemSize)
-            .clickable(role = Role.Button, onClick = onClick)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        role = Role.Button,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                }
+            )
             .padding(4.dp)
     ) {
         AppIcon(

@@ -41,6 +41,8 @@ import com.android.purebilibili.core.store.DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED
+import com.android.purebilibili.core.store.DEFAULT_LONG_PRESS_SPEED
+import com.android.purebilibili.core.store.DEFAULT_PLAYBACK_SPEED_OPTIONS
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_ALPHA_MAX
 import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_ALPHA_MIN
@@ -177,6 +179,12 @@ fun PlaybackSettingsContent(
     val qualitySwitchFailureDialogOnceEnabled by SettingsManager
         .getQualitySwitchFailureDialogOnceEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED)
+    val playbackSpeedOptions by SettingsManager
+        .getPlaybackSpeedOptions(context)
+        .collectAsStateWithLifecycle(initialValue = DEFAULT_PLAYBACK_SPEED_OPTIONS)
+    val longPressSpeed by SettingsManager
+        .getLongPressSpeed(context)
+        .collectAsStateWithLifecycle(initialValue = DEFAULT_LONG_PRESS_SPEED)
     val defaultPlaybackSpeed by com.android.purebilibili.core.store.SettingsManager
         .getDefaultPlaybackSpeed(context).collectAsStateWithLifecycle(initialValue = 1.0f)
     val rememberLastPlaybackSpeed by com.android.purebilibili.core.store.SettingsManager
@@ -505,16 +513,44 @@ fun PlaybackSettingsContent(
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            DefaultPlaybackSpeedPreferenceControl(
+                            PlaybackSpeedOptionsPreferenceControl(
+                                options = playbackSpeedOptions,
+                                defaultSpeed = defaultPlaybackSpeed,
+                                onAddSpeed = { speed ->
+                                    scope.launch {
+                                        SettingsManager.addPlaybackSpeedOption(context, speed)
+                                    }
+                                },
+                                onRemoveSpeed = { speed ->
+                                    scope.launch {
+                                        SettingsManager.removePlaybackSpeedOption(context, speed)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            AppPreferenceDivider()
+                            PlaybackSpeedPreferenceControl(
                                 currentSpeed = defaultPlaybackSpeed,
+                                options = playbackSpeedOptions,
                                 onSpeedChange = { speed ->
                                     scope.launch {
-                                        com.android.purebilibili.core.store.SettingsManager
-                                            .setDefaultPlaybackSpeed(context, speed)
+                                        SettingsManager.setDefaultPlaybackSpeed(context, speed)
                                     }
                                 },
                                 title = "默认播放速度",
                                 subtitle = "新视频默认使用此速度；开启“记忆上次速度”后以后者为准",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            AppPreferenceDivider()
+                            LongPressSpeedPreferenceControl(
+                                currentSpeed = longPressSpeed,
+                                onSpeedChange = { speed ->
+                                    scope.launch {
+                                        SettingsManager.setLongPressSpeed(context, speed)
+                                    }
+                                },
+                                title = "长按临时加速",
+                                subtitle = "按住视频时使用此速度；点按倍速数值可输入",
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -1541,6 +1577,27 @@ private fun PlaybackInteractionSettingsSection(
                 com.android.purebilibili.core.util.AnalyticsHelper.logSettingChange("double_tap_like", it.toString())
             },
             iconTint = com.android.purebilibili.core.theme.iOSPink
+        )
+        AppPreferenceDivider()
+        val favoriteQuickSaveDefaultFolder by com.android.purebilibili.core.store.FavoriteInteractionSettingsStore
+            .getQuickSaveDefaultFolder(context)
+            .collectAsStateWithLifecycle(initialValue = false)
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.FAVORITE_TAP_MODE),
+            title = "点按收藏进默认收藏夹",
+            subtitle = if (favoriteQuickSaveDefaultFolder) {
+                "点按直接收藏到默认收藏夹，长按可选择收藏夹"
+            } else {
+                "点按打开收藏夹选择"
+            },
+            checked = favoriteQuickSaveDefaultFolder,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.FavoriteInteractionSettingsStore
+                        .setQuickSaveDefaultFolder(context, it)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSYellow
         )
         AppPreferenceDivider()
         AppSwitchPreference(

@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.rememberModalBottomSheetState
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -45,10 +48,29 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppNativeSegmentedControl
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.core.ui.common.copyPlainTextToClipboard
 import kotlinx.coroutines.launch
+
+@Composable
+internal fun VideoShareSheetHost(
+    payload: VideoSharePayload?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    payload?.let { sharePayload ->
+        VideoShareSheet(
+            payload = sharePayload,
+            onDismiss = onDismiss,
+            modifier = modifier,
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,9 +81,17 @@ internal fun VideoShareSheet(
 ) {
     val context = LocalContext.current
     val shareScope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var sharingTarget by remember { mutableStateOf<VideoShareTarget?>(null) }
+    var shareStyle by remember { mutableStateOf(VideoShareStyle.LINK) }
     val neutralIconBackground = MaterialTheme.colorScheme.surfaceContainerHighest
     val neutralIconContent = MaterialTheme.colorScheme.onSurface
+    val styleOptions = remember {
+        listOf(
+            AppSegmentOption(VideoShareStyle.LINK, "链接"),
+            AppSegmentOption(VideoShareStyle.CARD, "卡片"),
+        )
+    }
     val items = listOf(
         VideoShareSheetItem(
             target = VideoShareTarget.WECHAT,
@@ -100,6 +130,7 @@ internal fun VideoShareSheet(
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        sheetState = sheetState,
         dragHandle = null
     ) {
         Column(
@@ -109,10 +140,39 @@ internal fun VideoShareSheet(
         ) {
             AppText(
                 text = "分享",
-                modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 18.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 14.dp),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
             )
 
+            val segmentModifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth()
+            if (LocalAppThemeConfig.current.liquidGlassEnabled) {
+                BottomBarLiquidSegmentedControl(
+                    items = styleOptions.map { it.label },
+                    selectedIndex = shareStyle.ordinal,
+                    onSelected = { shareStyle = VideoShareStyle.entries[it] },
+                    modifier = segmentModifier,
+                    forceEqualWidth = true,
+                )
+            } else {
+                AppNativeSegmentedControl(
+                    options = styleOptions,
+                    selectedValue = shareStyle,
+                    modifier = segmentModifier,
+                    onSelectionChange = { shareStyle = it },
+                )
+            }
+            AppText(
+                text = if (shareStyle == VideoShareStyle.CARD) {
+                    "以封面卡片图分享，并附上标题与二维码"
+                } else {
+                    "以标题 + 链接分享，方便直接打开"
+                },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -130,52 +190,55 @@ internal fun VideoShareSheet(
                                     val packageName = item.target.packageName ?: return@VideoShareSheetItemView
                                     if (sharingTarget != null) return@VideoShareSheetItemView
                                     sharingTarget = item.target
-                                    copyPlainTextToClipboard(context, payload.url, "视频链接")
-                                    Toast.makeText(context, "链接已复制，正在准备视频封面", Toast.LENGTH_SHORT).show()
                                     shareScope.launch {
-                                        val coverFile = prepareVideoShareCoverFile(context, payload)
-                                        if (coverFile == null && payload.coverUrl.isNotBlank()) {
-                                            Toast.makeText(
-                                                context,
-                                                "封面加载失败，已改用链接分享",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                        try {
+                                            val shareMedia = prepareVideoShareMedia(
+                                                context = context,
+                                                payload = payload,
+                                                style = shareStyle,
+                                                progressMessage = "正在生成分享卡片",
+                                            )
+                                            hideVideoShareSheet(sheetState)
+                                            context.startTargetedVideoShare(
+                                                payload = payload,
+                                                packageName = packageName,
+                                                appName = item.label,
+                                                shareMedia = shareMedia,
+                                            )
+                                        } finally {
+                                            sharingTarget = null
+                                            onDismiss()
                                         }
-                                        context.startTargetedVideoShare(
-                                            payload = payload,
-                                            packageName = packageName,
-                                            appName = item.label,
-                                            coverFile = coverFile,
-                                            onSuccess = onDismiss
-                                        )
-                                        sharingTarget = null
                                     }
                                 }
                                 VideoShareTarget.COPY_LINK -> {
                                     copyPlainTextToClipboard(context, payload.url, "视频链接")
                                     Toast.makeText(context, "已复制链接", Toast.LENGTH_SHORT).show()
-                                    onDismiss()
+                                    shareScope.launch {
+                                        hideVideoShareSheet(sheetState)
+                                        onDismiss()
+                                    }
                                 }
                                 VideoShareTarget.MORE -> {
                                     if (sharingTarget != null) return@VideoShareSheetItemView
                                     sharingTarget = item.target
-                                    copyPlainTextToClipboard(context, payload.url, "视频链接")
-                                    Toast.makeText(context, "链接已复制，正在准备视频封面", Toast.LENGTH_SHORT).show()
                                     shareScope.launch {
-                                        val coverFile = prepareVideoShareCoverFile(context, payload)
-                                        if (coverFile == null && payload.coverUrl.isNotBlank()) {
-                                            Toast.makeText(
-                                                context,
-                                                "封面加载失败，已改用链接分享",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                        try {
+                                            val shareMedia = prepareVideoShareMedia(
+                                                context = context,
+                                                payload = payload,
+                                                style = shareStyle,
+                                                progressMessage = "正在生成分享卡片",
+                                            )
+                                            hideVideoShareSheet(sheetState)
+                                            context.startMoreVideoShare(
+                                                payload = payload,
+                                                shareMedia = shareMedia,
+                                            )
+                                        } finally {
+                                            sharingTarget = null
+                                            onDismiss()
                                         }
-                                        context.startMoreVideoShare(
-                                            payload = payload,
-                                            coverFile = coverFile,
-                                            onSuccess = onDismiss
-                                        )
-                                        sharingTarget = null
                                     }
                                 }
                             }
@@ -190,7 +253,12 @@ internal fun VideoShareSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .clickable(onClick = onDismiss),
+                    .clickable {
+                        shareScope.launch {
+                            hideVideoShareSheet(sheetState)
+                            onDismiss()
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 AppText(
@@ -218,6 +286,16 @@ private fun VideoShareSheetItemView(
     item: VideoShareSheetItem,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val appIcon = remember(context, item.target) {
+        item.target.packageName?.let { packageName ->
+            try {
+                context.packageManager.getApplicationIcon(packageName)
+            } catch (_: PackageManager.NameNotFoundException) {
+                null
+            }
+        }
+    }
     Column(
         modifier = Modifier.width(72.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -230,7 +308,15 @@ private fun VideoShareSheetItemView(
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            if (item.iconVector != null) {
+            if (appIcon != null) {
+                AndroidView(
+                    factory = { viewContext -> ImageView(viewContext).apply {
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                    } },
+                    update = { it.setImageDrawable(appIcon) },
+                    modifier = Modifier.size(58.dp),
+                )
+            } else if (item.iconVector != null) {
                 AppIcon(
                     imageVector = item.iconVector,
                     contentDescription = item.label,
@@ -256,27 +342,68 @@ private fun VideoShareSheetItemView(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+private suspend fun hideVideoShareSheet(
+    sheetState: androidx.compose.material3.SheetState
+) {
+    runCatching {
+        if (sheetState.isVisible) {
+            sheetState.hide()
+        }
+    }
+}
+
+/**
+ * 按分享形态准备媒体：链接模式不附图；卡片模式合成卡片图，失败时回退空（走链接）。
+ */
+private suspend fun prepareVideoShareMedia(
+    context: Context,
+    payload: VideoSharePayload,
+    style: VideoShareStyle,
+    progressMessage: String,
+): VideoShareCoverFile? {
+    return when (style) {
+        VideoShareStyle.LINK -> null
+        VideoShareStyle.CARD -> {
+            Toast.makeText(context, progressMessage, Toast.LENGTH_SHORT).show()
+            val cardFile = prepareVideoShareCardFile(context, payload)
+            if (cardFile == null) {
+                Toast.makeText(context, "卡片生成失败，已改用链接分享", Toast.LENGTH_SHORT).show()
+            }
+            cardFile
+        }
+    }
+}
+
 private fun Context.startTargetedVideoShare(
     payload: VideoSharePayload,
     packageName: String,
     appName: String,
-    coverFile: VideoShareCoverFile?,
-    onSuccess: () -> Unit
+    shareMedia: VideoShareCoverFile?,
 ) {
     try {
-        val intent = if (coverFile != null) {
+        val mimeType = shareMedia?.mimeType ?: "text/plain"
+        val activityClassName = resolveShareActivityClassName(
+            packageName = packageName,
+            mimeType = mimeType,
+        )
+        val intent = if (shareMedia != null) {
             buildVideoCoverShareIntent(
                 payload = payload,
-                coverUri = coverFile.uri,
-                mimeType = coverFile.mimeType,
+                coverUri = shareMedia.uri,
+                mimeType = shareMedia.mimeType,
                 packageName = packageName,
+                activityClassName = activityClassName,
                 contentResolver = contentResolver
             )
         } else {
-            buildTargetedShareIntent(payload, packageName)
+            buildTargetedShareIntent(
+                payload = payload,
+                packageName = packageName,
+                activityClassName = activityClassName,
+            )
         }
         startActivityWithTaskFlag(intent)
-        onSuccess()
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(this, "未安装$appName", Toast.LENGTH_SHORT).show()
     } catch (_: Exception) {
@@ -286,26 +413,24 @@ private fun Context.startTargetedVideoShare(
 
 private fun Context.startMoreVideoShare(
     payload: VideoSharePayload,
-    coverFile: VideoShareCoverFile?,
-    onSuccess: () -> Unit
+    shareMedia: VideoShareCoverFile?,
 ) {
     try {
-        val sendIntent = if (coverFile != null) {
+        val sendIntent = if (shareMedia != null) {
             buildVideoCoverShareIntent(
                 payload = payload,
-                coverUri = coverFile.uri,
-                mimeType = coverFile.mimeType,
+                coverUri = shareMedia.uri,
+                mimeType = shareMedia.mimeType,
                 contentResolver = contentResolver
             )
         } else {
             buildVideoShareIntent(payload)
         }
-        val chooser = Intent.createChooser(sendIntent, "分享视频到")
-        if (coverFile != null) {
+        val chooser = Intent.createChooser(sendIntent, resolveVideoShareChooserTitle(payload))
+        if (shareMedia != null) {
             chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivityWithTaskFlag(chooser)
-        onSuccess()
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(this, "无法打开分享面板", Toast.LENGTH_SHORT).show()
     } catch (_: Exception) {
@@ -318,4 +443,27 @@ private fun Context.startActivityWithTaskFlag(intent: Intent) {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     startActivity(intent)
+}
+
+/**
+ * 锁定「发给好友 / 选一个聊天」入口，避免同包多 Activity 触发系统 Resolver。
+ */
+private fun Context.resolveShareActivityClassName(
+    packageName: String,
+    mimeType: String,
+): String? {
+    val query = Intent(Intent.ACTION_SEND).apply {
+        type = mimeType
+        setPackage(packageName)
+    }
+    val resolveInfos = packageManager.queryIntentActivities(query, 0)
+    if (resolveInfos.isEmpty()) return null
+    val candidates = resolveInfos.map { info ->
+        ShareActivityCandidate(
+            packageName = info.activityInfo.packageName,
+            className = info.activityInfo.name,
+            label = info.loadLabel(packageManager).toString(),
+        )
+    }
+    return resolvePreferredShareActivity(candidates)?.className
 }

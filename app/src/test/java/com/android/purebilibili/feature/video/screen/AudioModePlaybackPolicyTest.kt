@@ -9,6 +9,28 @@ import kotlin.test.assertTrue
 class AudioModePlaybackPolicyTest {
 
     @Test
+    fun `share title prefers real video title over display title`() {
+        assertEquals(
+            "何同学 一镜到底",
+            resolveAudioModeShareTitle(
+                videoTitle = "何同学 一镜到底",
+                displayTitle = "iPhone 18发布2（b站换源）",
+            )
+        )
+    }
+
+    @Test
+    fun `share title falls back to display title when video title is blank`() {
+        assertEquals(
+            "分P标题",
+            resolveAudioModeShareTitle(
+                videoTitle = "  ",
+                displayTitle = " 分P标题 ",
+            )
+        )
+    }
+
+    @Test
     fun `play button pauses when player is already playing`() {
         assertEquals(
             AudioModePlayPauseAction.PAUSE,

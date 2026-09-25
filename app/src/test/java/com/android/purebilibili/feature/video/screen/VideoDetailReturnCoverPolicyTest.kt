@@ -14,6 +14,79 @@ import java.io.File
 class VideoDetailReturnCoverPolicyTest {
 
     @Test
+    fun loadingDetailRevealsFrozenCardEarlyOnlyOnReturn() {
+        assertEquals(
+            1f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+                detailContentLoading = true,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+                detailContentLoading = true,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+                detailContentLoading = true,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun nowPlayingBarRevealsItsChromeDuringReturnWithoutChangingOpening() {
+        assertEquals(
+            1f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                isNowPlayingBar = true,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailFlyingSourceChromeAlpha(
+                morphDepthProgress = 0.7f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                isNowPlayingBar = true,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
     fun flyingSourceChromeOwnsClickFrameAndReturnLandingFrame() {
         assertEquals(
             1f,

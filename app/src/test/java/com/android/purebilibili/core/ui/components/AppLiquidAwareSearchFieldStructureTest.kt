@@ -18,6 +18,7 @@ class AppLiquidAwareSearchFieldStructureTest {
         assertTrue(source.contains("shellLensIntensity = resolveFloatingDockGeometryScale("))
         assertTrue(source.contains("BottomBarMatchedSegmentedControlHeightDp.dp"))
         assertTrue(source.contains("containerColor = if (liquidChromeActive)"))
+        assertTrue(source.contains("liquidContentContainerColor"))
         assertTrue(source.contains("heightOverride = if (liquidChromeActive)"))
         assertTrue(source.contains("leadingIconHorizontalOffset: Dp = 0.dp"))
         assertTrue(source.contains("leadingIconHorizontalOffset = leadingIconHorizontalOffset"))
@@ -31,6 +32,7 @@ class AppLiquidAwareSearchFieldStructureTest {
 
         assertTrue(source.contains("AppLiquidAwareSearchField("))
         assertTrue(source.contains("leadingIconHorizontalOffset = 8.dp"))
+        assertTrue(source.contains("liquidContentContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)"))
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("items = listOf(\"全部评论\", \"只看UP主\")"))
         assertTrue(source.contains("items = CommentSearchSortMode.entries.map"))

@@ -86,6 +86,7 @@ fun PortraitInteractionBar(
     onLikeLongClick: () -> Unit = {},
     onCoinClick: () -> Unit = {},
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -198,7 +199,8 @@ fun PortraitInteractionBar(
             isActive = isFavorited,
             activeColor = MaterialTheme.colorScheme.primary,
             layoutPolicy = layoutPolicy,
-            onClick = onFavoriteClick
+            onClick = onFavoriteClick,
+            onLongClick = onFavoriteLongClick,
         )
         
         // 分享

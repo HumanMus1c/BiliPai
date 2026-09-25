@@ -100,6 +100,9 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionS
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
 import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
+import com.android.purebilibili.feature.video.share.VideoSharePayload
+import com.android.purebilibili.feature.video.share.VideoShareSheetHost
+import com.android.purebilibili.feature.video.share.buildVideoSharePayload
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.ViewPoint
@@ -219,6 +222,20 @@ internal fun TabletCinemaLayout(
     }
     val success = uiState as? VideoPlaybackUiState.Success
     val danmakuChrome = rememberTabletDanmakuChromeState(bvid)
+    var pendingVideoShare by remember { mutableStateOf<VideoSharePayload?>(null) }
+    val openVideoShareSheet: () -> Unit = {
+        val info = (uiState as? VideoPlaybackUiState.Success)?.info
+        if (info != null) {
+            pendingVideoShare = buildVideoSharePayload(
+                title = info.title,
+                bvid = info.bvid,
+                coverUrl = info.pic,
+                upName = info.owner.name,
+                playCountText = com.android.purebilibili.core.util.FormatUtils
+                    .formatStat(info.stat.view.toLong()),
+            )
+        }
+    }
     val initialCurtainState = remember(configuration.screenWidthDp) {
         resolveInitialCurtainState(configuration.screenWidthDp).name
     }
@@ -264,6 +281,10 @@ internal fun TabletCinemaLayout(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceContainer)
     ) {
+        VideoShareSheetHost(
+            payload = pendingVideoShare,
+            onDismiss = { pendingVideoShare = null },
+        )
         val padding = PaddingValues(
             top = max(WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), policy.horizontalPaddingDp.dp),
             bottom = max(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(), policy.horizontalPaddingDp.dp)
@@ -334,7 +355,8 @@ internal fun TabletCinemaLayout(
                         onDanmakuToggle = danmakuChrome.onToggle,
                         onFollowClick = engagementActions.toggleFollow,
                         onUpClick = onUpClick,
-                        onFavoriteClick = engagementActions.toggleFavorite,
+                        onFavoriteClick = { engagementActions.onFavoriteAction(false) },
+                        onFavoriteLongClick = { engagementActions.onFavoriteAction(true) },
                         onLikeClick = engagementActions.toggleLike,
                         onCoinClick = engagementActions.openCoinDialog,
                         onTripleClick = engagementActions.doTripleAction,
@@ -359,7 +381,8 @@ internal fun TabletCinemaLayout(
                         onVideoNoteTimestampClick = playbackActions.seekTo,
                         onSaveVideoNote = playbackActions.saveVideoNote,
                         onDeleteVideoNote = playbackActions.deleteVideoNote,
-                        onRetryVideoNote = playbackActions.retryVideoNote
+                        onRetryVideoNote = playbackActions.retryVideoNote,
+                        onShareVideo = openVideoShareSheet
                     )
                 } else {
                     AppSurface(
@@ -409,7 +432,8 @@ internal fun TabletCinemaLayout(
                 showUpBadge = showUpBadge,
                 showIdentityDecorations = commentMemberDecorationsEnabled,
                 onSearchKeywordClick = onSearchKeywordClick,
-                onOpenBilibiliLink = onOpenBilibiliLink
+                onOpenBilibiliLink = onOpenBilibiliLink,
+                onShareVideo = openVideoShareSheet
             )
         }
     }
@@ -575,7 +599,7 @@ private fun CinemaStagePlayer(
                     onToggleLike = engagementActions.toggleLike,
                     onDislike = playbackActions.markVideoNotInterested,
                     onCoin = engagementActions.openCoinDialog,
-                    onToggleFavorite = engagementActions.toggleFavorite,
+                    onToggleFavorite = { engagementActions.onFavoriteAction(false) },
                     onTriple = engagementActions.doTripleAction,
                     onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
                     onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
@@ -607,6 +631,7 @@ private fun CinemaMetaPanel(
     onFollowClick: () -> Unit,
     onUpClick: (Long) -> Unit,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onLikeClick: () -> Unit,
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
@@ -628,7 +653,8 @@ private fun CinemaMetaPanel(
     onVideoNoteTimestampClick: (Long) -> Unit,
     onSaveVideoNote: (VideoNoteEditorDocument) -> Unit,
     onDeleteVideoNote: () -> Unit,
-    onRetryVideoNote: () -> Unit
+    onRetryVideoNote: () -> Unit,
+    onShareVideo: () -> Unit
 ) {
     val context = LocalContext.current
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -731,12 +757,14 @@ private fun CinemaMetaPanel(
                                                 downloadProgress = downloadProgress,
                                                 context = context,
                                                 onFavoriteClick = onFavoriteClick,
+                                                onFavoriteLongClick = onFavoriteLongClick,
                                                 onLikeClick = onLikeClick,
                                                 onCoinClick = onCoinClick,
                                                 onTripleClick = onTripleClick,
                                                 onDownloadClick = onDownloadClick,
                                                 onWatchLaterClick = onWatchLaterClick,
                                                 onOpenComments = onOpenComments,
+                                                onShareClick = onShareVideo,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -759,12 +787,14 @@ private fun CinemaMetaPanel(
                                                 downloadProgress = downloadProgress,
                                                 context = context,
                                                 onFavoriteClick = onFavoriteClick,
+                                                onFavoriteLongClick = onFavoriteLongClick,
                                                 onLikeClick = onLikeClick,
                                                 onCoinClick = onCoinClick,
                                                 onTripleClick = onTripleClick,
                                                 onDownloadClick = onDownloadClick,
                                                 onWatchLaterClick = onWatchLaterClick,
                                                 onOpenComments = onOpenComments,
+                                                onShareClick = onShareVideo,
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         }
@@ -784,6 +814,7 @@ private fun CinemaMetaPanel(
                                 onDownloadClick = onDownloadClick,
                                 onWatchLaterClick = onWatchLaterClick,
                                 onOpenComments = onOpenComments,
+                                onShareClick = onShareVideo,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -862,12 +893,14 @@ private fun CinemaMetaActions(
     downloadProgress: Float,
     context: android.content.Context,
     onFavoriteClick: () -> Unit,
+    onFavoriteLongClick: () -> Unit = {},
     onLikeClick: () -> Unit,
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onWatchLaterClick: () -> Unit,
     onOpenComments: () -> Unit,
+    onShareClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ActionButtonsRow(
@@ -878,19 +911,14 @@ private fun CinemaMetaActions(
         downloadProgress = downloadProgress,
         isInWatchLater = engagement.isInWatchLater,
         onFavoriteClick = onFavoriteClick,
+        onFavoriteLongClick = onFavoriteLongClick,
         onLikeClick = onLikeClick,
         onCoinClick = onCoinClick,
         onTripleClick = onTripleClick,
         onDownloadClick = onDownloadClick,
         onWatchLaterClick = onWatchLaterClick,
         onCommentClick = onOpenComments,
-        onShareClick = {
-            ShareUtils.shareVideo(
-                context,
-                success.info.title,
-                success.info.bvid
-            )
-        },
+        onShareClick = onShareClick,
         showCommentAction = false,
         modifier = modifier
     )
@@ -1023,7 +1051,8 @@ private fun CinemaSideCurtain(
     showUpBadge: Boolean,
     showIdentityDecorations: Boolean,
     onSearchKeywordClick: (String) -> Unit,
-    onOpenBilibiliLink: ((String) -> Unit)?
+    onOpenBilibiliLink: ((String) -> Unit)?,
+    onShareVideo: () -> Unit = {}
 ) {
     val transition = updateTransition(targetState = state, label = "SideCurtainAnimation")
     LaunchedEffect(subReplyState.visible) {
@@ -1159,7 +1188,8 @@ private fun CinemaSideCurtain(
                                             onRelatedVideoClick = onRelatedVideoClick,
                                             showIdentityDecorations = showIdentityDecorations,
                                             onSearchKeywordClick = onSearchKeywordClick,
-                                            onOpenBilibiliLink = onOpenBilibiliLink
+                                            onOpenBilibiliLink = onOpenBilibiliLink,
+                                            onShareVideo = onShareVideo
                                         )
                                     }
 
@@ -1196,7 +1226,8 @@ private fun CinemaCommentsPane(
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     showIdentityDecorations: Boolean,
     onSearchKeywordClick: (String) -> Unit,
-    onOpenBilibiliLink: ((String) -> Unit)?
+    onOpenBilibiliLink: ((String) -> Unit)?,
+    onShareVideo: () -> Unit = {}
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val listState = rememberLazyListState()
@@ -1407,11 +1438,10 @@ private fun CinemaCommentsPane(
                 isFavorited = engagementState.isFavorited,
                 isCoined = engagementState.coinCount > 0,
                 onLikeClick = engagementActions.toggleLike,
-                onFavoriteClick = engagementActions.toggleFavorite,
+                onFavoriteClick = { engagementActions.onFavoriteAction(false) },
+                onFavoriteLongClick = { engagementActions.onFavoriteAction(true) },
                 onCoinClick = engagementActions.openCoinDialog,
-                onShareClick = {
-                    ShareUtils.shareVideo(context, success.info.title, success.info.bvid)
-                },
+                onShareClick = onShareVideo,
                 onCommentClick = playbackActions.openRootCommentComposer,
                 backdrop = commentChromeBackdrop,
                 isScrollInProgressProvider = { listState.isScrollInProgress },

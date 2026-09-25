@@ -203,15 +203,12 @@ fun AppModalBottomSheet(
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     presentationProgress: Float = 1f,
     dismissOnBackPress: Boolean = true,
-    dragHandle: @Composable (() -> Unit)? = null,
+    // Reserve the former handle space without drawing a line; ModalBottomSheet owns swipe gestures.
+    dragHandle: @Composable (() -> Unit)? = { Spacer(Modifier.height(24.dp)) },
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val resolvedDragHandle = dragHandle ?: when (uiStyle) {
-        AppUiStyle.MIUIX -> { { AppBottomSheetDragHandle() } }
-        AppUiStyle.MATERIAL3 -> { { BottomSheetDefaults.DragHandle() } }
-    }
     val miuixNonGlass = isMiuixNonGlassEnabled()
     val configuration = LocalConfiguration.current
     val layoutSpec = remember(configuration.screenWidthDp, miuixNonGlass) {
@@ -301,8 +298,15 @@ fun AppModalBottomSheet(
                 contentColor = contentColor,
                 tonalElevation = tonalElevation,
             ) {
-                Column {
-                    resolvedDragHandle()
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (dragHandle != null) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            dragHandle()
+                        }
+                    }
                     content()
                 }
             }

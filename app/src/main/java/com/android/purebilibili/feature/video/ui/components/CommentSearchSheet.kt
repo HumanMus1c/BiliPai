@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +65,7 @@ import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.blur.LocalFloatingChromeBackdrop
 import com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.ReplyItem
@@ -147,17 +149,20 @@ fun CommentSearchSheet(
     val liquidGlassEnabled = liquidGlassEffectsEnabled
         ?: LocalAppThemeConfig.current.liquidGlassEnabled
     val glassActive = liquidGlassEnabled && !isLowBlurBudgetForced()
-    AppModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        modifier = modifier,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
+    // The sheet and its controls must sample the same comment layer behind this modal.
+    val sheetBackdrop = miuixBackdrop ?: LocalFloatingChromeBackdrop.current
+    CompositionLocalProvider(LocalFloatingChromeBackdrop provides sheetBackdrop) {
+        AppModalBottomSheet(
+            onDismissRequest = onDismiss,
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = modifier,
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp)
+            ) {
                 // 顶栏：标题 + 关闭按钮
                 Row(
                     modifier = Modifier
@@ -204,7 +209,10 @@ fun CommentSearchSheet(
                         .padding(vertical = 6.dp),
                     placeholder = "搜索本视频评论内容或作者昵称...",
                     onClear = { searchQuery = "" },
-                    backdrop = miuixBackdrop,
+                    backdrop = sheetBackdrop,
+                    // The input captures the video layer for refraction; protect its text from
+                    // the sampled comments, independently of the sheet surface behind it.
+                    liquidContentContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
                     leadingIconHorizontalOffset = 8.dp,
                 )
 
@@ -220,7 +228,7 @@ fun CommentSearchSheet(
                                 items = listOf("全部评论", "只看UP主"),
                                 selectedIndex = if (onlyUp) 1 else 0,
                                 onSelected = { onlyUp = it == 1 },
-                                miuixBackdrop = miuixBackdrop,
+                                miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -230,7 +238,7 @@ fun CommentSearchSheet(
                                 onSelected = { index ->
                                     CommentSearchSortMode.entries.getOrNull(index)?.let { sortMode = it }
                                 },
-                                miuixBackdrop = miuixBackdrop,
+                                miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -244,7 +252,7 @@ fun CommentSearchSheet(
                                 items = listOf("全部评论", "只看UP主"),
                                 selectedIndex = if (onlyUp) 1 else 0,
                                 onSelected = { onlyUp = it == 1 },
-                                miuixBackdrop = miuixBackdrop,
+                                miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.weight(1.3f),
                             )
@@ -254,7 +262,7 @@ fun CommentSearchSheet(
                                 onSelected = { index ->
                                     CommentSearchSortMode.entries.getOrNull(index)?.let { sortMode = it }
                                 },
-                                miuixBackdrop = miuixBackdrop,
+                                miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.weight(1f),
                             )
@@ -330,7 +338,7 @@ fun CommentSearchSheet(
                                 entry = entry,
                                 searchQuery = searchQuery,
                                 isUp = entry.reply.member.mid == upMid.toString(),
-                                miuixBackdrop = miuixBackdrop,
+                                miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 onClick = {
                                     onDismiss()
@@ -349,6 +357,7 @@ fun CommentSearchSheet(
                     }
                 }
             }
+        }
     }
 }
 

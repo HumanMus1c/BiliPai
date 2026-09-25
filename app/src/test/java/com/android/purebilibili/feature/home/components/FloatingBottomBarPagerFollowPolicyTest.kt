@@ -239,4 +239,38 @@ class FloatingBottomBarPagerFollowPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `external pager follow suppresses the discrete settle spring`() {
+        assertFalse(
+            shouldAnimateIndicatorToSelectedIndex(
+                isDragging = false,
+                isPagerScrolling = false,
+                indicatorTarget = 1f,
+                selectedIndex = 2,
+                ownedTargetIndex = null,
+                hasExternalPagerFollow = true,
+            ),
+        )
+        assertTrue(
+            shouldAnimateIndicatorToSelectedIndex(
+                isDragging = false,
+                isPagerScrolling = false,
+                indicatorTarget = 1f,
+                selectedIndex = 2,
+                ownedTargetIndex = null,
+                hasExternalPagerFollow = false,
+            ),
+        )
+        assertFalse(
+            shouldAnimateIndicatorToSelectedIndex(
+                isDragging = false,
+                isPagerScrolling = false,
+                indicatorTarget = 1f,
+                selectedIndex = 2,
+                ownedTargetIndex = 1,
+                hasExternalPagerFollow = true,
+            ),
+        )
+    }
 }
