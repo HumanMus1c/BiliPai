@@ -125,7 +125,8 @@ internal fun resolvePublishTimeRowText(
         )
         "发布时间 $relativeText  ·  $preciseText"
     } else {
-        "发布于 $relativeText"
+        // PiliPlus 直接展示格式化时间，不加“发布于”前缀
+        relativeText
     }
 }
 

@@ -23,6 +23,7 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -270,6 +271,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     videoNoteState = success.videoNoteState,
                                 ),
                                 presentationState = VideoContentPresentationState(
+                                    sponsorVideoLabel = success.sponsorVideoLabel,
                                     danmakuEnabled = danmakuEnabledForDetail,
                                     transitionEnabled = transitionEnabled,
                                     isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
@@ -370,9 +372,24 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             )
                         }
 
-                        if (showFrozenCommentBar) {
+                        // 底栏可见度跟随翻页进度:滑动过程中连续淡入淡出,而不是过半时瞬间弹出。
+                        val commentBarProgress by remember {
+                            derivedStateOf {
+                                resolveVideoDetailCommentBarProgress(
+                                    pagerPosition = videoContentPagerState.currentPage +
+                                        videoContentPagerState.currentPageOffsetFraction,
+                                    commentTabIndex = VIDEO_CONTENT_COMMENT_TAB_INDEX,
+                                )
+                            }
+                        }
+                        if (showFrozenCommentBar || commentBarProgress > 0f) {
                             BottomInputBar(
-                                modifier = Modifier.align(Alignment.BottomCenter),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .graphicsLayer {
+                                        alpha = commentBarProgress
+                                        translationY = (1f - commentBarProgress) * 32f
+                                    },
                                 isLiked = engagementState.isLiked,
                                 isFavorited = engagementState.isFavorited,
                                 isCoined = engagementState.coinCount > 0,

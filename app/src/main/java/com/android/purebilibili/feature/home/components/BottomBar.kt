@@ -87,6 +87,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.drawWithContent
@@ -2243,6 +2244,7 @@ fun FrostedBottomBar(
     linkedDockPhase: LinkedDockPhase? = null,
     onLinkedDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
+    animateNowPlayingPresence: Boolean = true,
 ) {
     val foldPosture = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.posture
     val forceBottomNavigation = foldPosture == com.android.purebilibili.core.util.AppFoldPosture.Tabletop
@@ -2318,6 +2320,7 @@ fun FrostedBottomBar(
                 linkedDockPhase = linkedDockPhase,
                 onLinkedDockPhaseChange = onLinkedDockPhaseChange,
                 isTopLevelDestination = isTopLevelDestination,
+                animateNowPlayingPresence = animateNowPlayingPresence,
                 )
             },
             platformContent = { policy ->
@@ -2353,6 +2356,7 @@ fun FrostedBottomBar(
                 linkedDockPhase = linkedDockPhase,
                 onLinkedDockPhaseChange = onLinkedDockPhaseChange,
                 isTopLevelDestination = isTopLevelDestination,
+                animateNowPlayingPresence = animateNowPlayingPresence,
                 )
             },
         )
@@ -2392,6 +2396,7 @@ private fun MaterialBottomBar(
     linkedDockPhase: LinkedDockPhase? = null,
     onLinkedDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
+    animateNowPlayingPresence: Boolean = true,
 ) {
     val haptic = rememberHapticFeedback()
     val normalizedLabelMode = normalizeBottomBarLabelMode(labelMode)
@@ -2507,6 +2512,7 @@ private fun MaterialBottomBar(
                 dockPhase = linkedDockPhase,
                 onDockPhaseChange = onLinkedDockPhaseChange,
                 isTopLevelDestination = isTopLevelDestination,
+                animateNowPlayingPresence = animateNowPlayingPresence,
                 modifier = modifier,
                 navigationContent = {
                     OfficialMd3FloatingToolbarContent(
@@ -2595,6 +2601,7 @@ private fun MaterialBottomBar(
             linkedDockPhase = linkedDockPhase,
             onLinkedDockPhaseChange = onLinkedDockPhaseChange,
             isTopLevelDestination = isTopLevelDestination,
+            animateNowPlayingPresence = animateNowPlayingPresence,
         )
         return
     }
@@ -2961,6 +2968,7 @@ private fun MiuixBottomBar(
     linkedDockPhase: LinkedDockPhase? = null,
     onLinkedDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
+    animateNowPlayingPresence: Boolean = true,
 ) {
     val haptic = rememberHapticFeedback()
     val normalizedLabelMode = normalizeBottomBarLabelMode(labelMode)
@@ -3071,6 +3079,7 @@ private fun MiuixBottomBar(
             linkedDockPhase = linkedDockPhase,
             onLinkedDockPhaseChange = onLinkedDockPhaseChange,
             isTopLevelDestination = isTopLevelDestination,
+            animateNowPlayingPresence = animateNowPlayingPresence,
         )
         return
     }
@@ -3405,7 +3414,8 @@ private fun BiliPaiFloatingBottomBar(
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
     linkedDockPhase: LinkedDockPhase? = null,
     onLinkedDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
-    isTopLevelDestination: Boolean = true
+    isTopLevelDestination: Boolean = true,
+    animateNowPlayingPresence: Boolean = true,
 ) {
     if (bottomBarSearchEnabled || nowPlayingContent != null) {
         LinkedBottomDock(
@@ -3415,6 +3425,7 @@ private fun BiliPaiFloatingBottomBar(
             dockPhase = linkedDockPhase,
             onDockPhaseChange = onLinkedDockPhaseChange,
             isTopLevelDestination = isTopLevelDestination,
+            animateNowPlayingPresence = animateNowPlayingPresence,
             searchEnabled = bottomBarSearchEnabled,
             isFeedScrollInProgress = isFeedScrollInProgress,
             collapseRequested = collapseLinkedDock,
@@ -3649,6 +3660,11 @@ private fun BiliPaiFloatingBottomBarChrome(
         shouldAutoExpand = shouldAutoExpandSearch,
         expansionOverride = searchExpansionOverride
     )
+    LaunchedEffect(effectiveSearchExpanded) {
+        if (!effectiveSearchExpanded) {
+            searchQuery = ""
+        }
+    }
     LaunchedEffect(
         currentItem,
         searchEnabled,
@@ -4058,6 +4074,7 @@ private fun BiliPaiFloatingBottomBarChrome(
                     },
                     onSubmit = {
                         val keyword = searchQuery.trim()
+                        searchQuery = ""
                         if (keyword.isEmpty()) {
                             onSearchClick()
                         } else {
@@ -4186,9 +4203,11 @@ private fun ColumnScope.FloatingBottomBarTabVisual(
             fontSize = resolveFloatingDockLabelFontSize(
                 showIcon = showIcon,
                 showText = showText,
+                fontScale = LocalDensity.current.fontScale,
             ),
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier.bottomBarSkinLabelScrim(
                 color = labelScrimColor,
@@ -4741,11 +4760,16 @@ private fun RowScope.AndroidNativeBottomBarItem(
                 AppText(
                     text = label,
                     color = contentColor,
-                    fontSize = resolveBottomBarSkinDockLabelFontSize(),
-                    lineHeight = resolveBottomBarSkinDockLabelLineHeight(),
+                    fontSize = resolveBottomBarSkinDockLabelFontSize(
+                        fontScale = LocalDensity.current.fontScale
+                    ),
+                    lineHeight = resolveBottomBarSkinDockLabelLineHeight(
+                        fontScale = LocalDensity.current.fontScale
+                    ),
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .bottomBarSkinLabelScrim(
@@ -4821,17 +4845,22 @@ private fun RowScope.AndroidNativeBottomBarItem(
                     text = label,
                     color = contentColor,
                     fontSize = if (shouldUseSkinItemLayout) {
-                        resolveBottomBarSkinDockLabelFontSize()
+                        resolveBottomBarSkinDockLabelFontSize(
+                            fontScale = LocalDensity.current.fontScale
+                        )
                     } else {
                         MaterialTheme.typography.labelSmall.fontSize
                     },
                     lineHeight = if (shouldUseSkinItemLayout) {
-                        resolveBottomBarSkinDockLabelLineHeight()
+                        resolveBottomBarSkinDockLabelLineHeight(
+                            fontScale = LocalDensity.current.fontScale
+                        )
                     } else {
                         MaterialTheme.typography.labelMedium.lineHeight
                     },
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.bottomBarSkinLabelScrim(
                         color = labelScrimColor,
                         alpha = if (skinIconPath != null) labelScrimAlpha else 0f

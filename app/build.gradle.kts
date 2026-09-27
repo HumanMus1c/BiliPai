@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     // AGP 9+ provides built-in Kotlin; do not apply org.jetbrains.kotlin.android
+    // Baseline profile 插件（AGP 9 兼容线 1.5.0+），提供 :app:generateBaselineProfile 任务
+    alias(libs.plugins.androidx.baselineprofile)
     // Compose 编译器插件
     id("org.jetbrains.kotlin.plugin.compose")
     // JSON 序列化插件
@@ -118,8 +120,8 @@ android {
         targetSdk = 37
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 394
-        versionName = "0.2.3-alpha.4"
+        versionCode = 397
+        versionName = "0.2.3-alpha.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -363,6 +365,10 @@ dependencies {
     implementation(project(":plugin-sdk"))
     implementation(project(":design-system"))
     implementation(project(":danmaku-engine"))
+
+    // Baseline profile 生成模块：generateBaselineProfile 时在真机/托管设备上跑
+    // :baselineprofile 的宏基准并把产物合并进 release/dev 变体。
+    baselineProfile(project(":baselineprofile"))
 
     // --- 1. Compose UI ---
     // Material3 1.5.0-alpha25 is built against Compose 1.12.0-beta01. Use the

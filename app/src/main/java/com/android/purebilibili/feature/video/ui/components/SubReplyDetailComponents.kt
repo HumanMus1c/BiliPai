@@ -87,6 +87,7 @@ import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.repository.BlockedUpRelationSource
 import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
@@ -414,7 +415,7 @@ internal fun VideoInlineSubReplyDetailContent(
     onDismiss: () -> Unit,
     onRootCommentClick: () -> Unit,
     onTimestampClick: ((Long) -> Unit)?,
-    onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)?,
+    onImagePreview: ((List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit)?,
     onReplyClick: (ReplyItem) -> Unit,
     onConversationClick: (ReplyItem) -> Unit,
     onConversationBack: () -> Unit,
@@ -494,7 +495,7 @@ internal fun SubReplyDetailContent(
     onTimestampClick: ((Long) -> Unit)? = null,
     upMid: Long = 0,
     showUpFlag: Boolean = false,
-    onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)? = null,
+    onImagePreview: ((List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit)? = null,
     onReplyClick: ((ReplyItem) -> Unit)? = null,
     onConversationClick: ((ReplyItem) -> Unit)? = null,
     onConversationBack: (() -> Unit)? = null,
@@ -972,7 +973,7 @@ private fun SubReplyDetailItem(
     emoteMap: Map<String, String>,
     showUpFlag: Boolean,
     onTimestampClick: ((Long) -> Unit)?,
-    onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)?,
+    onImagePreview: ((List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit)?,
     onReplyClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
     onCheckFraudClick: (() -> Unit)? = null,

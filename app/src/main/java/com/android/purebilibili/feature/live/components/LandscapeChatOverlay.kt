@@ -39,15 +39,16 @@ fun LandscapeChatOverlay(
     modifier: Modifier = Modifier
 ) {
     val visualSpec = remember { resolveLandscapeLiveChatVisualSpec() }
-    val messages = remember { mutableStateListOf<LiveDanmakuItem>() }
+    val messages = remember { mutableStateListOf<KeyedLiveChatMessage>() }
+    val chatMessageSeq = remember { mutableLongStateOf(0L) }
     val listState = rememberLazyListState()
-    
+
     LaunchedEffect(danmakuFlow) {
         danmakuFlow.collect { item ->
             // 确保列表操作在主线程执行 (Compose 状态修改必须在主线程)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 try {
-                    messages.add(item)
+                    messages.add(KeyedLiveChatMessage(++chatMessageSeq.longValue, item))
                     if (messages.size > 50) messages.removeAt(0) // 横屏模式只保留最近50条
                     if (!listState.isScrollInProgress && messages.isNotEmpty()) {
                         listState.animateScrollToItem((messages.size - 1).coerceAtLeast(0))
@@ -92,8 +93,8 @@ fun LandscapeChatOverlay(
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
             reverseLayout = false // 正常方向，新消息在底部
         ) {
-            items(messages) { item ->
-                LandscapeChatItem(item, visualSpec)
+            items(messages, key = { it.seq }, contentType = { "live_chat" }) { keyed ->
+                LandscapeChatItem(keyed.item, visualSpec)
             }
         }
     }

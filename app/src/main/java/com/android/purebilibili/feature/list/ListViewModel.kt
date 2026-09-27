@@ -140,8 +140,8 @@ class LikedVideosViewModel(
 
 class LikedVideosViewModelFactory(
     private val application: Application,
-    private val targetMid: Long,
-    private val ownerName: String,
+    private val targetMid: Long? = null,
+    private val ownerName: String? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

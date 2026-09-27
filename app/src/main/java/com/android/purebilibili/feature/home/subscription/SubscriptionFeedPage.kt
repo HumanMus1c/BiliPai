@@ -69,7 +69,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -111,6 +115,9 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
+import com.android.purebilibili.feature.dynamic.components.imagePreviewSourceBounds
+import com.android.purebilibili.feature.dynamic.components.rememberImagePreviewSourceRect
 import com.android.purebilibili.feature.home.homeFeedPinchZoom
 import java.time.Instant
 import java.time.ZoneId
@@ -142,8 +149,10 @@ fun SubscriptionFeedPage(
     var opened by remember { mutableStateOf<ParsedFeedItem?>(null) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewIndex by remember { mutableIntStateOf(0) }
+    var previewSourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var loading by remember { mutableStateOf(false) }
 
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val transitionState = remember { SeekableTransitionState<ParsedFeedItem?>(null) }
     val isArticleOpen = opened != null || transitionState.currentState != null || transitionState.targetState != null
@@ -276,9 +285,10 @@ fun SubscriptionFeedPage(
                             opened = null
                         }
                     },
-                    onOpenImages = { images, index ->
+                    onOpenImages = { images, index, rect ->
                         previewImages = images
                         previewIndex = index
+                        previewSourceRect = rect
                     },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this,
@@ -327,6 +337,12 @@ fun SubscriptionFeedPage(
         ImagePreviewDialog(
             images = previewImages,
             initialIndex = previewIndex.coerceIn(0, previewImages.lastIndex),
+            sourceRect = previewSourceRect,
+            // FeedArticleImage 用 MaterialTheme.shapes.medium 裁角，回位圆角保持一致
+            sourceCornerRadiusDp = with(density) {
+                (MaterialTheme.shapes.medium as? CornerBasedShape)?.topStart
+                    ?.toPx(Size.Unspecified, this)?.toDp()?.value
+            } ?: 12f,
             onDismiss = { previewImages = emptyList() },
         )
     }
@@ -511,7 +527,7 @@ private fun SubscriptionArticleScreen(
     onReadChange: (Boolean) -> Unit,
     onFullBody: (String) -> Unit,
     onBack: () -> Unit,
-    onOpenImages: (List<String>, Int) -> Unit,
+    onOpenImages: (List<String>, Int, androidx.compose.ui.geometry.Rect?) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
@@ -671,9 +687,9 @@ private fun SubscriptionArticleScreen(
                         is FeedBlock.Image -> FeedArticleImage(
                             url = block.url,
                             alt = block.alt,
-                            onClick = {
+                            onClick = { rect ->
                                 val index = imageUrls.indexOf(block.url).coerceAtLeast(0)
-                                onOpenImages(imageUrls, index)
+                                onOpenImages(imageUrls, index, rect)
                             },
                         )
                         is FeedBlock.BulletList -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -753,9 +769,11 @@ private fun FeedArticleImage(
     url: String,
     alt: String,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+    onClick: (androidx.compose.ui.geometry.Rect?) -> Unit,
 ) {
     var failed by remember(url) { mutableStateOf(false) }
+    val sourceRect = rememberImagePreviewSourceRect()
+    val sourceHidden = isImagePreviewSourceHidden(sourceRect.value)
     if (failed) {
         Box(
             modifier = modifier
@@ -774,7 +792,9 @@ private fun FeedArticleImage(
                 .fillMaxWidth()
                 .heightIn(max = 420.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .clickable(onClick = onClick),
+                .alpha(if (sourceHidden) 0f else 1f)
+                .imagePreviewSourceBounds(sourceRect)
+                .clickable(enabled = !sourceHidden) { onClick(sourceRect.value) },
             contentScale = ContentScale.Fit,
             onError = { failed = true },
         )

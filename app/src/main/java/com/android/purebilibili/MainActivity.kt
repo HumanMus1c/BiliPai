@@ -177,6 +177,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.net.URI
 import java.net.URLEncoder
@@ -867,6 +868,9 @@ open class MainActivity : AppCompatActivity() {
     private var hasCompletedInitialResume = false
     private var splashFlyoutEnabledAtCreate = false
     private var splashExitCallbackTriggered = false
+
+    /** TTFD 是否已上报（只上报一次）。 */
+    private var ttfdReported = false
     private var systemInDarkThemeSnapshot by mutableStateOf(false)
     private var runtimeJankStats: JankStats? = null
     private val runtimeVisualGuardSession = Any()
@@ -1333,6 +1337,7 @@ open class MainActivity : AppCompatActivity() {
             val colorSpec = appThemeSettings.colorSpec
             val themeColorIndex = appThemeSettings.themeColorIndex
             val appFontSizePreset = appThemeSettings.appFontSizePreset
+            val appFontWeightPreset = appThemeSettings.appFontWeightPreset
             val appFontFileName = appThemeSettings.appFontFileName
             val appUiScalePreset = appThemeSettings.appUiScalePreset
             val appDpiOverridePercent = appThemeSettings.appDpiOverridePercent
@@ -1483,6 +1488,7 @@ open class MainActivity : AppCompatActivity() {
                 colorStyle = colorStyle,
                 colorSpec = colorSpec,
                 fontSizePreset = appFontSizePreset,
+                appFontWeightPreset = appFontWeightPreset,
                 appFontFileName = appFontFileName,
                 appIconStyle = appThemeSettings.appIconStyle,
                 appListItemStyle = appThemeSettings.appListItemStyle,
@@ -2283,9 +2289,25 @@ open class MainActivity : AppCompatActivity() {
         super.onStop()
     }
 
+    /**
+     * 📈 向系统上报 TTFD：以首屏（首页）数据就绪为准，最多等 5 秒兜底。
+     * 供 Perfetto trace、宏基准 TTFD 断言与 Play Vitals 启动指标使用；只在首次 resume 后上报一次。
+     */
+    private fun maybeReportFullyDrawn() {
+        if (ttfdReported) return
+        ttfdReported = true
+        lifecycleScope.launch {
+            withTimeoutOrNull(5_000L) {
+                while (!VideoRepository.isHomeDataReady()) delay(50)
+            }
+            runCatching { reportFullyDrawn() }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (startupRecoveryRedirected) return
+        maybeReportFullyDrawn()
         refreshAndroid17HandoffAvailability()
         refreshSystemThemeSnapshot(reason = "resume")
         miniPlayerManager.clearUserLeaveHint()

@@ -752,7 +752,7 @@ fun PluginsContent(
                                 )
                                 AppText(
                                     text = if (isJsPreviewLoading) {
-                                        "正在预览 JS 插件..."
+                                        "正在预览 JS 插件…"
                                     } else {
                                         "支持链接或本地 .js，预览 manifest 和权限后安装"
                                     },
@@ -869,7 +869,7 @@ fun PluginsContent(
                             )
                             AppText(
                                 text = if (isKotlinPackageLoading) {
-                                    "正在读取 .bpplugin..."
+                                    "正在读取 .bpplugin…"
                                 } else {
                                     "选择 .bpplugin，展示 SHA-256、签名状态和敏感能力"
                                 },
@@ -1055,7 +1055,7 @@ fun PluginsContent(
                                 )
                                 AppText(
                                     text = if (isUiSkinPackageLoading) {
-                                        "正在读取 .bpskin..."
+                                        "正在读取 .bpskin…"
                                     } else {
                                         "选择 .bpskin、主题目录 ZIP 或装扮 _package.zip，只保存资源和启用记录"
                                     },
@@ -1295,7 +1295,7 @@ fun PluginsContent(
                         ) {
                             AppCircularProgressIndicator(modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            AppText("正在预览...")
+                            AppText("正在预览…")
                         }
                     }
                 }
@@ -1373,7 +1373,7 @@ fun PluginsContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             AppCircularProgressIndicator(modifier = Modifier.size(18.dp))
-                            AppText("正在安装...", style = MaterialTheme.typography.bodySmall)
+                            AppText("正在安装…", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -1459,7 +1459,7 @@ fun PluginsContent(
                         ) {
                             AppCircularProgressIndicator(modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            AppText("正在安装...")
+                            AppText("正在安装…")
                         }
                     }
                     if (isPreviewLoading) {
@@ -1471,7 +1471,7 @@ fun PluginsContent(
                         ) {
                             AppCircularProgressIndicator(modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            AppText("正在加载插件信息...")
+                            AppText("正在加载插件信息…")
                         }
                     }
                 }
@@ -1512,7 +1512,7 @@ fun PluginsContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     AppCircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    AppText("正在加载插件信息...")
+                    AppText("正在加载插件信息…")
                 }
             }
         )
@@ -1574,7 +1574,7 @@ fun PluginsContent(
                             ) {
                                 AppCircularProgressIndicator(modifier = Modifier.size(18.dp))
                                 AppText(
-                                    text = "正在安装...",
+                                    text = "正在安装…",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }

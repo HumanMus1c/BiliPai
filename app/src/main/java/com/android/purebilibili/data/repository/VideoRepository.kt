@@ -252,6 +252,8 @@ object VideoRepository {
     }
     
     private suspend fun ensureBuvid3FromSpi() {
+        // 会话备份为异步恢复，先等它完成再判断 buvid 是否缺失，避免启动窗口内多打一次 SPI。
+        TokenManager.awaitRestore()
         if (buvidInitialized) return
         try {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Fetching buvid3 from SPI API...")
@@ -807,6 +809,8 @@ object VideoRepository {
     private suspend fun fetchMergedMobileFeed(idx: Int): Result<List<VideoItem>> {
         try {
             // app 取流依赖 buvid 会话, 缺失时先通过 SPI 获取
+            // 先等会话备份异步恢复完成，避免启动窗口内误判 buvid 缺失而多打一次 SPI。
+            TokenManager.awaitRestore()
             if (TokenManager.buvid3Cache.isNullOrEmpty()) {
                 ensureBuvid3FromSpi()
             }

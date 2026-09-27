@@ -1058,6 +1058,15 @@ internal fun shouldEnablePortraitExperience(): Boolean {
     return true
 }
 
+/**
+ * 评论底栏随翻页进度的可见度:Pager 位置距评论页每近一页,可见度线性上升。
+ * 用于把布尔门控的二值弹出替换为跟手的淡入淡出(滑到一半即可见一半)。
+ */
+internal fun resolveVideoDetailCommentBarProgress(
+    pagerPosition: Float,
+    commentTabIndex: Int,
+): Float = (1f - kotlin.math.abs(pagerPosition - commentTabIndex)).coerceIn(0f, 1f)
+
 internal fun shouldShowVideoDetailBottomInteractionBar(
     useTabletLayout: Boolean,
     selectedTabIndex: Int,

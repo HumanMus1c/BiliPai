@@ -327,7 +327,7 @@ private fun AicuCategoryTabs(category: AicuCategory, liquidEnabled: Boolean, onS
                 tapPressRefractionEnabled = true,
             )
         } else {
-            AppNativeTabRow(options, category, onSelectionChange = onSelect, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            AppNativeTabRow(options, category, onSelectionChange = onSelect, indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 scrollable = maxWidth < 360.dp || fontScale > 1.3f, allowLabelOverflow = true, minTabWidth = 96.dp)
         }
     }

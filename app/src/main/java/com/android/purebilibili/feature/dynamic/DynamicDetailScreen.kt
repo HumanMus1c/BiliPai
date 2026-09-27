@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.dynamic
 
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import android.graphics.RenderEffect as AndroidRenderEffect
@@ -89,6 +91,7 @@ import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentC
 import com.android.purebilibili.feature.dynamic.components.DynamicInlineCommentHeader
 import com.android.purebilibili.feature.dynamic.components.DynamicSubReplyPreviewHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.dynamicInlineCommentItems
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
@@ -167,7 +170,7 @@ fun DynamicDetailScreen(
     val gifImageLoader = context.imageLoader
     val defaultDetailImageLayout by SettingsManager.getDynamicDetailImageLayout(context)
         .collectAsStateWithLifecycle(
-            initialValue = SettingsManager.DynamicDetailImageLayout.EXPANDED
+            initialValue = SettingsManager.peekDynamicDetailImageLayout(context)
         )
     var detailImageLayoutOverrideName by rememberSaveable(dynamicId) { mutableStateOf<String?>(null) }
     val effectiveDetailImageLayout = remember(
@@ -201,7 +204,7 @@ fun DynamicDetailScreen(
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
+    var previewSourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     AppScaffold(
         blurContentReady = uiState !is DynamicDetailUiState.Loading,
@@ -692,7 +695,9 @@ fun DynamicDetailScreen(
                     ImagePreviewDialog(
                         images = previewImages,
                         initialIndex = previewInitialIndex,
-                        sourceRect = previewSourceRect,
+                        sourceRect = previewSourceRect?.rect,
+                        sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
+                            ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                         textContent = previewTextContent,
                         onDismiss = {
                             showImagePreview = false

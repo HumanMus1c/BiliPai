@@ -79,7 +79,6 @@ import com.android.purebilibili.feature.video.ui.section.VideoTitleWithDesc
 import com.android.purebilibili.feature.video.ui.section.UpInfoSection
 import com.android.purebilibili.feature.video.ui.section.ActionButtonsRow
 import com.android.purebilibili.feature.video.ui.section.resolveDisplayBgmList
-import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.ui.section.resolveVideoDetailMotionBudget
 import com.android.purebilibili.feature.video.ui.section.shouldAnimateVideoDetailLayout
 import com.android.purebilibili.feature.video.ui.components.NativeDanmakuToggleButton
@@ -106,17 +105,17 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.data.model.response.AiSummaryData
-import com.android.purebilibili.feature.video.ui.section.AiSummaryCard
-import com.android.purebilibili.feature.video.ui.section.AiSummaryPromptCard
-import com.android.purebilibili.feature.video.ui.section.VideoNoteCard
+import com.android.purebilibili.feature.video.ui.section.AiSummarySheet
+import com.android.purebilibili.feature.video.ui.section.VideoSupplementStatsActions
+import com.android.purebilibili.feature.video.ui.section.VideoNoteListSheet
 import com.android.purebilibili.feature.video.ui.section.VideoNoteDeleteConfirmDialog
 import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.VideoNoteUiState
 import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
-import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
@@ -454,6 +453,7 @@ internal class VideoContentNoteState(
 )
 
 internal class VideoContentPresentationState(
+    val sponsorVideoLabel: String,
     val danmakuEnabled: Boolean,
     val transitionEnabled: Boolean,
     val isQuickReturnLimitedForSharedElements: Boolean,
@@ -574,6 +574,7 @@ internal fun VideoContentSection(
     val isQuickReturnLimitedForSharedElements = presentationState.isQuickReturnLimitedForSharedElements
     val sourceRouteForSharedElement = presentationState.sourceRouteForSharedElement
     val isPlayerCollapsed = presentationState.isPlayerCollapsed
+    val sponsorVideoLabel = presentationState.sponsorVideoLabel
     val onlineCount = presentationState.onlineCount
     val showOnlineCount = presentationState.showOnlineCount
     val ownerFollowerCount = presentationState.ownerFollowerCount
@@ -679,11 +680,13 @@ internal fun VideoContentSection(
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var sourceRect by remember { mutableStateOf<Rect?>(null) }
+    var sourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     
     // 合集展开状态
     var showCollectionSheet by remember { mutableStateOf(false) }
+    var showAiSummarySheet by remember { mutableStateOf(false) }
+    var showNoteListSheet by remember { mutableStateOf(false) }
     var confirmDeleteNote by remember { mutableStateOf(false) }
     val onShareVideoNote: (VideoNoteEditorDocument, Boolean) -> Unit = { document, isDraft ->
         ShareUtils.shareText(
@@ -940,16 +943,11 @@ internal fun VideoContentSection(
                         ownerVideoCount = ownerVideoCount,
                         showUpBadge = showUpBadge,
                         onFavoriteLongClick = onFavoriteLongClick,
+                        sponsorVideoLabel = sponsorVideoLabel,
                         aiSummary = aiSummary,
                         aiSummaryPrompt = aiSummaryPrompt,
-                        onRetryAiSummary = onRetryAiSummary,
-                        onCreateNoteDraftFromAiSummary = onCreateNoteDraftFromAiSummary,
-                        videoNoteState = videoNoteState,
-                        onOpenVideoNoteEditor = onOpenVideoNoteEditor,
-                        onRetryVideoNote = onRetryVideoNote,
-                        onDeleteVideoNoteClick = { confirmDeleteNote = true },
-                        onShareVideoNote = { document -> onShareVideoNote(document, false) },
-                        onPublicVideoNoteClick = onPublicVideoNoteClick,
+                        onShowAiSummarySheet = { showAiSummarySheet = true },
+                        onShowNoteListSheet = { showNoteListSheet = true },
                         bgmInfo = bgmInfo,
                         bgmInfoList = bgmInfoList,
                         onlineCount = onlineCount,
@@ -1160,7 +1158,9 @@ internal fun VideoContentSection(
             ImagePreviewDialog(
                 images = previewImages,
                 initialIndex = previewInitialIndex,
-                sourceRect = sourceRect,
+                sourceRect = sourceRect?.rect,
+                sourceCornerRadiusDp = sourceRect?.cornerRadiusDp
+                    ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                 textContent = previewTextContent,
                 onDismiss = {
                     showImagePreview = false
@@ -1187,6 +1187,37 @@ internal fun VideoContentSection(
             }
         }
 
+
+        AiSummarySheet(
+            visible = showAiSummarySheet,
+            aiSummary = aiSummary,
+            promptState = aiSummaryPrompt,
+            onDismiss = { showAiSummarySheet = false },
+            onTimestampClick = onTimestampClick,
+            onRetry = onRetryAiSummary,
+            onCreateNoteDraft = {
+                showAiSummarySheet = false
+                onCreateNoteDraftFromAiSummary()
+            }
+        )
+
+        VideoNoteListSheet(
+            visible = showNoteListSheet,
+            noteState = videoNoteState,
+            isLoggedIn = isLoggedIn,
+            onDismiss = { showNoteListSheet = false },
+            onCreateOrEditClick = {
+                showNoteListSheet = false
+                onOpenVideoNoteEditor()
+            },
+            onRetryClick = onRetryVideoNote,
+            onDeleteClick = {
+                showNoteListSheet = false
+                confirmDeleteNote = true
+            },
+            onShareClick = { document -> onShareVideoNote(document, false) },
+            onPublicNoteClick = onPublicVideoNoteClick
+        )
 
         VideoNoteEditorSheet(
             noteState = videoNoteState,
@@ -1269,18 +1300,13 @@ private fun VideoIntroTab(
     onFavoriteLongClick: () -> Unit = {},
     aiSummary: AiSummaryData? = null,
     aiSummaryPrompt: com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState? = null,
-    onRetryAiSummary: () -> Unit = {},
-    onCreateNoteDraftFromAiSummary: () -> Unit = {},
-    videoNoteState: VideoNoteUiState = VideoNoteUiState(),
-    onOpenVideoNoteEditor: () -> Unit = {},
-    onRetryVideoNote: () -> Unit = {},
-    onDeleteVideoNoteClick: () -> Unit = {},
-    onShareVideoNote: (VideoNoteEditorDocument) -> Unit = {},
-    onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
+    onShowAiSummarySheet: () -> Unit = {},
+    onShowNoteListSheet: () -> Unit = {},
     bgmInfo: BgmInfo? = null,
     bgmInfoList: List<BgmInfo> = emptyList(),
     onTimestampClick: ((Long) -> Unit)? = null,
     onBgmClick: (BgmInfo) -> Unit = {},
+    sponsorVideoLabel: String = "",
     onlineCount: String = "",
     showOnlineCount: Boolean = true,
     showInteractionActions: Boolean = true,
@@ -1330,16 +1356,11 @@ private fun VideoIntroTab(
                 ownerFollowerCount = ownerFollowerCount,
                 ownerVideoCount = ownerVideoCount,
                 onFavoriteLongClick = onFavoriteLongClick,
+                sponsorVideoLabel = sponsorVideoLabel,
                 aiSummary = aiSummary,
                 aiSummaryPrompt = aiSummaryPrompt,
-                onRetryAiSummary = onRetryAiSummary,
-                onCreateNoteDraftFromAiSummary = onCreateNoteDraftFromAiSummary,
-                videoNoteState = videoNoteState,
-                onOpenVideoNoteEditor = onOpenVideoNoteEditor,
-                onRetryVideoNote = onRetryVideoNote,
-                onDeleteVideoNoteClick = onDeleteVideoNoteClick,
-                onShareVideoNote = onShareVideoNote,
-                onPublicVideoNoteClick = onPublicVideoNoteClick,
+                onShowAiSummarySheet = onShowAiSummarySheet,
+                onShowNoteListSheet = onShowNoteListSheet,
                 bgmInfo = bgmInfo,
                 bgmInfoList = bgmInfoList,
                 relatedVideos = relatedVideos,
@@ -1412,7 +1433,7 @@ internal fun VideoCommentTab(
     onSubReplyClick: (ReplyItem, Long) -> Unit,
     onCommentReplyClick: (ReplyItem) -> Unit,
     onLoadMoreReplies: () -> Unit,
-    onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
+    onImagePreview: (List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit,
     onTimestampClick: ((Long) -> Unit)?,
     contentPadding: PaddingValues,
     // [新增] 参数
@@ -1630,12 +1651,12 @@ internal fun LandscapeCommentPanel(
     onSwitchSide: () -> Unit,
     isOnLeft: Boolean,
     drawerWidth: Dp,
-    threadContent: (@Composable ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit) -> Unit)? = null,
+    threadContent: (@Composable ((List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var previewImages by remember { mutableStateOf(emptyList<String>()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
+    var previewSourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     var showImagePreview by remember { mutableStateOf(false) }
     var showCommentSearchSheet by remember { mutableStateOf(false) }
@@ -1747,7 +1768,9 @@ internal fun LandscapeCommentPanel(
         ImagePreviewDialog(
             images = previewImages,
             initialIndex = previewInitialIndex,
-            sourceRect = previewSourceRect,
+            sourceRect = previewSourceRect?.rect,
+            sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
+                ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
             onDismiss = { showImagePreview = false },
         )
@@ -1801,14 +1824,8 @@ private fun VideoHeaderContent(
     onFavoriteLongClick: () -> Unit = {},
     aiSummary: AiSummaryData? = null,
     aiSummaryPrompt: com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState? = null,
-    onRetryAiSummary: () -> Unit = {},
-    onCreateNoteDraftFromAiSummary: () -> Unit = {},
-    videoNoteState: VideoNoteUiState = VideoNoteUiState(),
-    onOpenVideoNoteEditor: () -> Unit = {},
-    onRetryVideoNote: () -> Unit = {},
-    onDeleteVideoNoteClick: () -> Unit = {},
-    onShareVideoNote: (VideoNoteEditorDocument) -> Unit = {},
-    onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
+    onShowAiSummarySheet: () -> Unit = {},
+    onShowNoteListSheet: () -> Unit = {},
     bgmInfo: BgmInfo? = null,
     bgmInfoList: List<BgmInfo> = emptyList(),
     relatedVideos: List<RelatedVideo> = emptyList(),
@@ -1817,6 +1834,7 @@ private fun VideoHeaderContent(
     onDescriptionUrlClick: ((String) -> Unit)? = null,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
     onSearchKeywordClick: (String) -> Unit = {},
+    sponsorVideoLabel: String = "",
     onlineCount: String = "",
     showOnlineCount: Boolean = true,
     showInteractionActions: Boolean = true,
@@ -1831,11 +1849,8 @@ private fun VideoHeaderContent(
         .getVideoNoteEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true
         )
-    val videoNoteDefaultCollapsed by com.android.purebilibili.core.store.SettingsManager
-        .getVideoNoteDefaultCollapsed(context)
-        .collectAsStateWithLifecycle(initialValue = true)
     val uiStyle = LocalAppUiStyle.current
-    val sectionSpacing = if (uiStyle == AppUiStyle.MATERIAL3) 8.dp else 4.dp
+    val sectionSpacing = if (uiStyle == AppUiStyle.MATERIAL3) 6.dp else 4.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1862,9 +1877,19 @@ private fun VideoHeaderContent(
         VideoTitleWithDesc(
             info = info,
             videoTags = videoTags,
+            sponsorLabel = sponsorVideoLabel,
             transitionEnabled = transitionEnabled,  // 🔗 传递共享元素开关
             isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
             sourceRouteForSharedElement = sourceRouteForSharedElement,
+            trailingStatsContent = {
+                // PiliPlus 式：信息行右端的 AI 总结 / 视频笔记小图标，内容在底部抽屉展示
+                VideoSupplementStatsActions(
+                    showAiSummary = videoAiSummaryEntryEnabled,
+                    showNote = videoNoteEnabled,
+                    onAiSummaryClick = onShowAiSummarySheet,
+                    onNoteClick = onShowNoteListSheet,
+                )
+            },
             bgmList = resolveDisplayBgmList(
                 bgmInfo = bgmInfo,
                 bgmInfoList = bgmInfoList
@@ -1914,40 +1939,6 @@ private fun VideoHeaderContent(
                 pages = info.pages,
                 currentPageIndex = currentPageIndex,
                 onPageSelect = onPageSelect
-            )
-        }
-
-        // Keep auxiliary video tools below the primary engagement actions and episode selectors.
-        if (shouldShowAiSummaryEntry(
-                aiSummary = aiSummary,
-                isAiSummaryEntryEnabled = videoAiSummaryEntryEnabled
-            )
-        ) {
-            AiSummaryCard(
-                aiSummary = aiSummary,
-                onTimestampClick = onTimestampClick,
-                onCreateNoteDraftClick = onCreateNoteDraftFromAiSummary,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        } else if (videoAiSummaryEntryEnabled && aiSummaryPrompt != null) {
-            AiSummaryPromptCard(
-                promptState = aiSummaryPrompt,
-                onActionClick = onRetryAiSummary,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-
-        if (shouldShowVideoNoteCard(videoNoteEnabled)) {
-            VideoNoteCard(
-                noteState = videoNoteState,
-                isLoggedIn = isLoggedIn,
-                onCreateOrEditClick = onOpenVideoNoteEditor,
-                onRetryClick = onRetryVideoNote,
-                onDeleteClick = onDeleteVideoNoteClick,
-                onShareClick = onShareVideoNote,
-                onPublicNoteClick = onPublicVideoNoteClick,
-                defaultCollapsed = videoNoteDefaultCollapsed,
-                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
 
@@ -2095,23 +2086,19 @@ private fun VideoRecommendationHeader() {
     val isMaterial3 = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
     val horizontalPadding = if (isMaterial3) 16.dp else 12.dp
     Column(modifier = Modifier.fillMaxWidth()) {
-        AppHorizontalDivider(
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-        )
         Row(
             modifier = Modifier.padding(
                 start = horizontalPadding,
                 end = horizontalPadding,
-                top = if (isMaterial3) 16.dp else 12.dp,
-                bottom = 6.dp,
+                top = if (isMaterial3) 8.dp else 6.dp,
+                bottom = 4.dp,
             ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppText(
                 text = "相关推荐",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }

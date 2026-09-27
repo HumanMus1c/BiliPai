@@ -56,6 +56,7 @@ import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.components.*
@@ -64,15 +65,13 @@ import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.VideoNoteUiState
 import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
-import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import com.android.purebilibili.feature.video.ui.section.ActionButtonsRow
-import com.android.purebilibili.feature.video.ui.section.AiSummaryCard
-import com.android.purebilibili.feature.video.ui.section.AiSummaryPromptCard
-import com.android.purebilibili.feature.video.ui.section.VideoNoteCard
+import com.android.purebilibili.feature.video.ui.section.AiSummarySheet
+import com.android.purebilibili.feature.video.ui.section.VideoNoteListSheet
+import com.android.purebilibili.feature.video.ui.section.VideoSupplementStatsActions
 import com.android.purebilibili.feature.video.ui.section.VideoNoteDeleteConfirmDialog
 import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.ui.section.resolveDisplayBgmList
-import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.ui.section.UpInfoSection
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSectionActions
@@ -678,6 +677,7 @@ internal fun TabletVideoInfoPane(
         onWatchLaterClick = engagementActions.toggleWatchLater,
         onRelatedVideoClick = onRelatedVideoClick,
         onOpenBilibiliLink = onOpenBilibiliLink,
+        sponsorVideoLabel = success.sponsorVideoLabel,
         aiSummary = success.aiSummary,
         aiSummaryPrompt = success.aiSummaryPrompt,
         videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
@@ -796,7 +796,7 @@ internal fun TabletSecondaryContent(
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var sourceRect by remember { mutableStateOf<Rect?>(null) }
+    var sourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -869,7 +869,9 @@ internal fun TabletSecondaryContent(
         ImagePreviewDialog(
             images = previewImages,
             initialIndex = previewInitialIndex,
-            sourceRect = sourceRect,
+            sourceRect = sourceRect?.rect,
+            sourceCornerRadiusDp = sourceRect?.cornerRadiusDp
+                ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
             onDismiss = {
                 showImagePreview = false
@@ -1398,6 +1400,7 @@ private fun ScrollableVideoInfoSection(
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     onSearchKeywordClick: (String) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)?,
+    sponsorVideoLabel: String = "",
     aiSummary: AiSummaryData? = null,
     aiSummaryPrompt: AiSummaryPromptState? = null,
     videoAiSummaryEntryEnabled: Boolean = true,
@@ -1440,6 +1443,8 @@ private fun ScrollableVideoInfoSection(
     LaunchedEffect(info.bvid) {
         entranceVisible = true
     }
+    var showAiSummarySheet by remember(info.bvid) { mutableStateOf(false) }
+    var showNoteListSheet by remember(info.bvid) { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier,
@@ -1455,6 +1460,15 @@ private fun ScrollableVideoInfoSection(
                 VideoTitleWithDesc(
                     info = info,
                     videoTags = videoTags,
+                    sponsorLabel = sponsorVideoLabel,
+                    trailingStatsContent = {
+                        VideoSupplementStatsActions(
+                            showAiSummary = videoAiSummaryEntryEnabled,
+                            showNote = videoNoteEnabled,
+                            onAiSummaryClick = { showAiSummarySheet = true },
+                            onNoteClick = { showNoteListSheet = true },
+                        )
+                    },
                     bgmList = resolveDisplayBgmList(
                         bgmInfo = bgmInfo,
                         bgmInfoList = bgmInfoList
@@ -1517,64 +1531,6 @@ private fun ScrollableVideoInfoSection(
             }
         }
 
-        // 4. AI 视频总结
-        if (shouldShowAiSummaryEntry(
-                aiSummary = aiSummary,
-                isAiSummaryEntryEnabled = videoAiSummaryEntryEnabled
-            )
-        ) {
-            item {
-                TabletVideoInfoStaggeredItem(
-                    visible = entranceVisible,
-                    index = 3,
-                    spec = entranceSpec,
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    AiSummaryCard(
-                        aiSummary = aiSummary,
-                        onTimestampClick = onTimestampClick,
-                        onCreateNoteDraftClick = onCreateNoteDraftFromAiSummary,
-                    )
-                }
-            }
-        } else if (videoAiSummaryEntryEnabled && aiSummaryPrompt != null) {
-            item {
-                TabletVideoInfoStaggeredItem(
-                    visible = entranceVisible,
-                    index = 3,
-                    spec = entranceSpec,
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    AiSummaryPromptCard(
-                        promptState = aiSummaryPrompt,
-                        onActionClick = onRetryAiSummary,
-                    )
-                }
-            }
-        }
-
-        // 5. 视频笔记
-        if (shouldShowVideoNoteCard(videoNoteEnabled)) {
-            item {
-                TabletVideoInfoStaggeredItem(
-                    visible = entranceVisible,
-                    index = 4,
-                    spec = entranceSpec,
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    VideoNoteCard(
-                        noteState = videoNoteState,
-                        isLoggedIn = isLoggedIn,
-                        onCreateOrEditClick = onOpenVideoNoteEditor,
-                        onRetryClick = onRetryVideoNote,
-                        onDeleteClick = onDeleteVideoNoteClick,
-                        onShareClick = onShareVideoNote,
-                        onPublicNoteClick = onPublicVideoNoteClick,
-                        defaultCollapsed = videoNoteDefaultCollapsed,
-                    )
-                }
-            }
-        }
 
         // 6. 分P选择器（合集已移到右侧内容栏）
         item {
@@ -1587,6 +1543,7 @@ private fun ScrollableVideoInfoSection(
                 )
             }
         }
+
 
         // 6. 更多推荐 (水平滚动)。大屏右栏已有相关推荐 Tab 时不再重复。
         if (showRelatedVideos && relatedVideos.isNotEmpty()) {
@@ -1696,6 +1653,37 @@ private fun ScrollableVideoInfoSection(
         }
         }
     }
+
+    AiSummarySheet(
+        visible = showAiSummarySheet,
+        aiSummary = aiSummary,
+        promptState = aiSummaryPrompt,
+        onDismiss = { showAiSummarySheet = false },
+        onTimestampClick = onTimestampClick,
+        onRetry = onRetryAiSummary,
+        onCreateNoteDraft = {
+            showAiSummarySheet = false
+            onCreateNoteDraftFromAiSummary()
+        }
+    )
+
+    VideoNoteListSheet(
+        visible = showNoteListSheet,
+        noteState = videoNoteState,
+        isLoggedIn = isLoggedIn,
+        onDismiss = { showNoteListSheet = false },
+        onCreateOrEditClick = {
+            showNoteListSheet = false
+            onOpenVideoNoteEditor()
+        },
+        onRetryClick = onRetryVideoNote,
+        onDeleteClick = {
+            showNoteListSheet = false
+            onDeleteVideoNoteClick()
+        },
+        onShareClick = onShareVideoNote,
+        onPublicNoteClick = onPublicVideoNoteClick
+    )
 }
 
 @Composable

@@ -102,6 +102,10 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
             cookieStore[url.host]?.let { cookies.addAll(it) }
         }
 
+        // 会话备份改为异步恢复后，网络线程在此等到恢复完成（通常为 0 等待），
+        // 避免启动窗口内的请求被当成匿名请求发出。
+        TokenManager.awaitRestore()
+
         var buvid3 = TokenManager.buvid3Cache
         if (buvid3.isNullOrEmpty()) {
             buvid3 = UUID.randomUUID().toString() + "infoc"
@@ -2927,7 +2931,7 @@ object NetworkModule {
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            //  [性能优化] HTTP 磁盘缓存 - 10MB，减少重复请求
+            //  [性能优化] HTTP 磁盘缓存 - 32MB，减少重复请求
             .cache(okhttp3.Cache(
                 directory = java.io.File(appContext?.cacheDir ?: java.io.File("/tmp"), "okhttp_cache"),
                 maxSize = resolveApiHttpCacheBudgetBytes()
@@ -3182,6 +3186,12 @@ object NetworkModule {
             .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
+            //  风控降级流量与主客户端访问同一批 B 站 API，装一份独立 HTTP 缓存
+            //  （目录独立，okhttp3.Cache 不能被两个客户端共享同一实例）
+            .cache(okhttp3.Cache(
+                directory = java.io.File(appContext?.cacheDir ?: java.io.File("/tmp"), "okhttp_cache_guest"),
+                maxSize = resolveApiHttpCacheBudgetBytes() / 2
+            ))
             //  CookieJar 使用全新的 buvid3，不复用可能被污染的 buvid3Cache
             .cookieJar(object : okhttp3.CookieJar {
                 // 为 guest 模式生成独立的 buvid3，避免复用被风控的 buvid3

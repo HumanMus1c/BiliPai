@@ -63,6 +63,7 @@ import com.android.purebilibili.feature.plugin.SponsorBlockPlugin
 import com.android.purebilibili.feature.plugin.dlna.DlnaCastPlugin
 import com.android.purebilibili.feature.plugin.googlecast.GoogleCastPlugin
 import com.android.purebilibili.feature.plugin.TodayWatchPlugin
+import com.android.purebilibili.feature.settings.share.SettingsShareService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -165,9 +166,13 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
         //  [关键] 必须在 super.onCreate() 之前设置！
         // 这样系统在初始化时就能读取到正确的夜间模式配置
         // 新用户默认设置必须先于主题读取应用，避免首屏短暂显示旧默认值。
-        runBlocking(Dispatchers.IO) {
-            com.android.purebilibili.feature.settings.share.SettingsShareService(this@PureApplication)
-                .applyBundledDefaultIfNeeded()
+        // 仅首次运行（标记缺失）才同步等待应用内置默认值；其余启动只做一次标记
+        // 读取，不再 parked 主线程等待 IO 派发。
+        if (!SettingsShareService.hasBundledDefaultMarker(this)) {
+            runBlocking(Dispatchers.IO) {
+                SettingsShareService(this@PureApplication)
+                    .applyBundledDefaultIfNeeded()
+            }
         }
         applyThemePreference()
         

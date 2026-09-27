@@ -414,7 +414,7 @@ private fun SkinCatalogPreviewDialog(
                 if (loading) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppCircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        AppText("正在下载并生成真实预览...", style = MaterialTheme.typography.bodySmall)
+                        AppText("正在下载并生成真实预览…", style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (error != null) {
                     AppText(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -444,7 +444,7 @@ private fun SkinCatalogPreviewDialog(
                     onClick = onInstall,
                     enabled = !loading && !installing && previewData != null && error == null
                 ) {
-                    AppText(if (installing) "导入中..." else "下载并导入")
+                    AppText(if (installing) "导入中…" else "下载并导入")
                 }
             }
         },

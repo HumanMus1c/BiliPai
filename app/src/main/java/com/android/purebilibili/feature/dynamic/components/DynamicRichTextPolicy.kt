@@ -336,22 +336,25 @@ internal fun resolveDynamicDescForImages(
     desc: DynamicDesc,
     hasImages: Boolean
 ): DynamicDesc {
-    if (!hasImages) return desc
-    return desc.copy(
-        text = stripDynamicImagePlaceholders(desc.text),
-        rich_text_nodes = desc.rich_text_nodes.filterNot { node ->
-            isDynamicStandaloneImagePlaceholder(resolveDynamicRichTextNodeToken(node))
-        }.map { node ->
-            node.copy(
-                text = stripDynamicImagePlaceholders(node.text),
-                orig_text = stripDynamicImagePlaceholders(node.orig_text)
-            )
-        }.filterNot { node ->
-            resolveDynamicRichTextNodeToken(node).isBlank() &&
-                node.emoji == null &&
-                node.jump_url.isNullOrBlank() &&
-                node.rid.isNullOrBlank()
-        }
+    val edgeNormalized = normalizeDynamicDescEdges(desc)
+    if (!hasImages) return edgeNormalized
+    return normalizeDynamicDescEdges(
+        edgeNormalized.copy(
+            text = stripDynamicImagePlaceholders(edgeNormalized.text),
+            rich_text_nodes = edgeNormalized.rich_text_nodes.filterNot { node ->
+                isDynamicStandaloneImagePlaceholder(resolveDynamicRichTextNodeToken(node))
+            }.map { node ->
+                node.copy(
+                    text = stripDynamicImagePlaceholders(node.text),
+                    orig_text = stripDynamicImagePlaceholders(node.orig_text)
+                )
+            }.filterNot { node ->
+                resolveDynamicRichTextNodeToken(node).isBlank() &&
+                    node.emoji == null &&
+                    node.jump_url.isNullOrBlank() &&
+                    node.rid.isNullOrBlank()
+            }
+        )
     )
 }
 
@@ -402,6 +405,38 @@ internal fun shouldRenderDynamicRichText(desc: DynamicDesc?): Boolean {
 
 private fun isDynamicStandaloneImagePlaceholder(text: String): Boolean {
     return text.trim() in DYNAMIC_IMAGE_PLACEHOLDERS
+}
+
+/**
+ * 去掉正文首尾的空白行/空格。列表 summary 常带尾部换行，会在文末多撑出一行，
+ * 使 seed 帧的「文字→图片」间距大于完整详情，网络回来后突然收紧。
+ */
+internal fun normalizeDynamicBodyText(text: String): String {
+    if (text.isEmpty()) return text
+    return text.trimEnd('\n', '\r', ' ', '\t').trimStart('\n', '\r')
+}
+
+internal fun normalizeDynamicDescEdges(desc: DynamicDesc): DynamicDesc {
+    val normalizedText = normalizeDynamicBodyText(desc.text)
+    val nodes = desc.rich_text_nodes
+    if (nodes.isEmpty()) {
+        return if (normalizedText == desc.text) desc else desc.copy(text = normalizedText)
+    }
+    val normalizedNodes = nodes.mapIndexed { index, node ->
+        var text = node.text
+        var origText = node.orig_text
+        if (index == 0) {
+            text = text.trimStart('\n', '\r')
+            origText = origText.trimStart('\n', '\r')
+        }
+        if (index == nodes.lastIndex) {
+            text = normalizeDynamicBodyText(text)
+            origText = normalizeDynamicBodyText(origText)
+        }
+        if (text == node.text && origText == node.orig_text) node
+        else node.copy(text = text, orig_text = origText)
+    }
+    return desc.copy(text = normalizedText, rich_text_nodes = normalizedNodes)
 }
 
 private fun stripDynamicImagePlaceholders(text: String): String {

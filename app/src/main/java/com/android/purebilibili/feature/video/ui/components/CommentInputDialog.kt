@@ -6,6 +6,7 @@ import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -684,6 +685,7 @@ fun CommentInputDialog(
                             ) {
                                 // 顶部标签栏 (可滚动)
                                 AppThemeAdaptiveTabRow(
+indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                                     options = buildList {
                                         add(AppSegmentOption(0, "颜文字"))
                                         add(AppSegmentOption(1, "Emoji"))

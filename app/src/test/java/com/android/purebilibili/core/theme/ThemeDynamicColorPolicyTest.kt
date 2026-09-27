@@ -237,12 +237,12 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `color spec preference defaults to spec 2021 and rejects invalid values`() {
-        assertEquals(ColorSpec.SpecVersion.SPEC_2021, resolveColorSpecPreference(null))
-        assertEquals(ColorSpec.SpecVersion.SPEC_2021, resolveColorSpecPreference("not-a-spec"))
+    fun `color spec preference defaults to spec 2025 and rejects invalid values`() {
+        assertEquals(ColorSpec.SpecVersion.SPEC_2025, resolveColorSpecPreference(null))
+        assertEquals(ColorSpec.SpecVersion.SPEC_2025, resolveColorSpecPreference("not-a-spec"))
         assertEquals(
-            ColorSpec.SpecVersion.SPEC_2025,
-            resolveColorSpecPreference(ColorSpec.SpecVersion.SPEC_2025.name)
+            ColorSpec.SpecVersion.SPEC_2021,
+            resolveColorSpecPreference(ColorSpec.SpecVersion.SPEC_2021.name)
         )
     }
 
@@ -269,14 +269,24 @@ class ThemeDynamicColorPolicyTest {
         assertEquals(Color.Black, result.surface)
         assertEquals(Color(0xFF050505), result.surfaceVariant)
         assertEquals(Color(0xFF090909), result.surfaceContainer)
+        // 容器层五级 + Bright/Dim 也必须压进 AMOLED 暗部阶梯,避免纯黑底上突兀的亮灰层。
+        assertEquals(Color.Black, result.surfaceContainerLowest)
+        assertEquals(Color(0xFF050505), result.surfaceContainerLow)
+        assertEquals(Color(0xFF121212), result.surfaceContainerHigh)
+        assertEquals(Color(0xFF1A1A1A), result.surfaceContainerHighest)
+        assertEquals(Color(0xFF0D0D0D), result.surfaceBright)
+        assertEquals(Color.Black, result.surfaceDim)
     }
 
     @Test
-    fun `static md3 light scheme derives distinct secondary and tertiary roles from source color`() {
-        val scheme = createStaticMd3ColorScheme(
-            primaryColor = Color(0xFF6750A4),
+    fun `custom seed md3 light scheme derives distinct secondary and tertiary roles from source color`() {
+        val scheme = createBiliPaiStyleColorScheme(
+            seedColor = Color(0xFF6750A4),
             darkTheme = false,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
         assertNotEquals(scheme.primary, scheme.secondary)
@@ -359,16 +369,22 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `static md3 surfaces should respond to different source colors instead of staying fixed`() {
-        val blueScheme = createStaticMd3ColorScheme(
-            primaryColor = Color(0xFF007AFF),
+    fun `custom seed md3 surfaces should respond to different source colors instead of staying fixed`() {
+        val blueScheme = createBiliPaiStyleColorScheme(
+            seedColor = Color(0xFF007AFF),
             darkTheme = false,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
-        val orangeScheme = createStaticMd3ColorScheme(
-            primaryColor = Color(0xFFFF5722),
+        val orangeScheme = createBiliPaiStyleColorScheme(
+            seedColor = Color(0xFFFF5722),
             darkTheme = false,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
         assertNotEquals(blueScheme.background, orangeScheme.background)
@@ -377,11 +393,14 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `static md3 dark scheme keeps readable accents and source tinted surfaces`() {
-        val scheme = createStaticMd3ColorScheme(
-            primaryColor = Color(0xFF34C759),
+    fun `custom seed md3 dark scheme keeps readable accents and source tinted surfaces`() {
+        val scheme = createBiliPaiStyleColorScheme(
+            seedColor = Color(0xFF34C759),
             darkTheme = true,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
         assertNotEquals(scheme.primary, scheme.secondary)
@@ -394,17 +413,23 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `static md3 dark scheme preserves selected theme color as primary`() {
+    fun `custom seed dark scheme keeps theme identity via surfaceTint instead of raw primary`() {
         val selectedThemeColor = Color(0xFF007AFF)
 
-        val scheme = createStaticMd3ColorScheme(
-            primaryColor = selectedThemeColor,
+        val scheme = createBiliPaiStyleColorScheme(
+            seedColor = selectedThemeColor,
             darkTheme = true,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
-        assertEquals(selectedThemeColor, scheme.primary)
+        // 原始种子色不再强塞进 primary(避免亮色种子产生黑 onPrimary),
+        // 品牌一致性由 surfaceTint 承载,控制色使用 HCT 映射后的可读角色。
+        assertEquals(selectedThemeColor, scheme.surfaceTint)
         assertTrue(calculateContrastRatio(scheme.onPrimary, scheme.primary) >= 4.5f)
+        assertTrue(calculateContrastRatio(scheme.primary, scheme.surface) >= 3f)
     }
 
     @Test
@@ -427,10 +452,13 @@ class ThemeDynamicColorPolicyTest {
             darkTheme = true,
             amoledDarkTheme = false
         )
-        val md3Scheme = createStaticMd3ColorScheme(
-            primaryColor = Color(0xFF34C759),
+        val md3Scheme = createBiliPaiStyleColorScheme(
+            seedColor = Color(0xFF34C759),
             darkTheme = true,
-            amoledDarkTheme = false
+            amoledDarkTheme = false,
+            // 生产默认值（Theme.kt）；签名新增必填参数后此处按默认行为补齐。
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
         assertNotEquals(md3Scheme.background, iosScheme.background)

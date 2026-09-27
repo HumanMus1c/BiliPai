@@ -26,6 +26,10 @@ class LiveTokenAdoptionStructureTest {
         val sharedCard = File(liveRoot, "LiveRoomCard.kt").readText()
         assertTrue(sharedCard.contains("data class LiveRoomCardUiModel"))
         assertTrue(sharedCard.contains("internal fun LiveRoomCard("))
+        assertTrue(
+            sharedCard.contains("fontFeatureSettings = AppTypographyTokens.TabularNumerals"),
+            "直播观看数必须启用等宽数字",
+        )
         listOf("LiveListScreen.kt", "LiveFollowingScreen.kt", "LiveAreaDetailScreen.kt", "LiveSearchScreen.kt")
             .forEach { fileName ->
                 assertTrue(File(liveRoot, fileName).readText().contains("LiveRoomCard("))

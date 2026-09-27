@@ -117,6 +117,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
@@ -161,6 +163,7 @@ import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppNativeTabRow
+import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.MiuixNonGlassTabItemWidthMode
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
@@ -229,6 +232,9 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCardPresentati
 import com.android.purebilibili.feature.dynamic.components.RichTextContent
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
+import com.android.purebilibili.feature.dynamic.components.imagePreviewSourceBounds
+import com.android.purebilibili.feature.dynamic.components.rememberImagePreviewSourceRect
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
@@ -287,6 +293,8 @@ fun SpaceScreen(
 
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showTopPhotoPreview by remember(mid) { mutableStateOf(false) }
+    var topPhotoSourceRect by remember(mid) { mutableStateOf<Rect?>(null) }
+    var avatarSourceRect by remember(mid) { mutableStateOf<Rect?>(null) }
     var showAvatarPreview by remember(mid) { mutableStateOf(false) }
     var repostDynamicId by remember { mutableStateOf<String?>(null) }
     val spaceThemeConfig = LocalAppThemeConfig.current
@@ -719,8 +727,14 @@ fun SpaceScreen(
                             },
                             onFollowingClick = { onFollowingClick(state.userInfo.mid) },
                             onFansClick = { onFansClick(state.userInfo.mid) },
-                            onTopPhotoClick = { showTopPhotoPreview = true },
-                            onAvatarClick = { showAvatarPreview = true },
+                            onTopPhotoClick = { rect ->
+                                topPhotoSourceRect = rect
+                                showTopPhotoPreview = true
+                            },
+                            onAvatarClick = { rect ->
+                                avatarSourceRect = rect
+                                showAvatarPreview = true
+                            },
                             dynamicCardItems = dynamicCardItems,
                             likedDynamics = likedDynamics,
                             likeOverrides = dynamicLikeOverrides,
@@ -799,14 +813,28 @@ fun SpaceScreen(
         }
     }
 
+    // 与 SpaceHeader 同规则解析夜间封面，保证回位落在用户看到的同一张图上
+    val spaceHeaderIsDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
     val previewUrl = normalizeSpaceTopPhotoUrl(
-        currentSuccessState?.userInfo?.topPhoto.orEmpty()
+        if (spaceHeaderIsDarkTheme) {
+            currentSuccessState?.userInfo?.nightTopPhoto.takeUnless { it.isNullOrBlank() }
+                ?: currentSuccessState?.userInfo?.topPhoto.orEmpty()
+        } else {
+            currentSuccessState?.userInfo?.topPhoto.orEmpty()
+        }
     )
     val avatarPreviewUrl = currentSuccessState?.userInfo?.face.orEmpty()
+    val density = LocalDensity.current
+    val avatarCornerDp = avatarSourceRect?.let { rect ->
+        with(density) { (minOf(rect.width, rect.height) / 2f).toDp().value }
+    } ?: 40f
     if (showTopPhotoPreview && shouldEnableSpaceTopPhotoPreview(previewUrl)) {
         ImagePreviewDialog(
             images = listOf(previewUrl),
             initialIndex = 0,
+            sourceRect = topPhotoSourceRect,
+            // hero 封面全出血无圆角
+            sourceCornerRadiusDp = 0f,
             onDismiss = { showTopPhotoPreview = false }
         )
     }
@@ -814,6 +842,9 @@ fun SpaceScreen(
         ImagePreviewDialog(
             images = listOf(avatarPreviewUrl),
             initialIndex = 0,
+            sourceRect = avatarSourceRect,
+            // 头像源是圆形，回位圆角取短边一半
+            sourceCornerRadiusDp = avatarCornerDp,
             onDismiss = { showAvatarPreview = false }
         )
     }
@@ -1079,8 +1110,8 @@ private fun SpaceContent(
     onMessageClick: () -> Unit,
     onFollowingClick: () -> Unit,
     onFansClick: () -> Unit,
-    onTopPhotoClick: () -> Unit,
-    onAvatarClick: () -> Unit,
+    onTopPhotoClick: (Rect?) -> Unit,
+    onAvatarClick: (Rect?) -> Unit,
     dynamicCardItems: List<com.android.purebilibili.data.model.response.DynamicItem>,
     likedDynamics: Set<String>,
     likeOverrides: Map<String, Boolean>,
@@ -2506,8 +2537,8 @@ private fun SpaceHeader(
     onMessageClick: () -> Unit,
     onFollowingClick: () -> Unit,
     onFansClick: () -> Unit,
-    onTopPhotoClick: () -> Unit,
-    onAvatarClick: () -> Unit,
+    onTopPhotoClick: (Rect?) -> Unit,
+    onAvatarClick: (Rect?) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
@@ -2592,9 +2623,13 @@ private fun SpaceHeader(
             modifier = Modifier.fillMaxWidth()
         ) {
             // 背景 hero（突破内边距全宽延伸至屏幕顶端，按标准比例完整呈现）
+            val topPhotoRect = rememberImagePreviewSourceRect()
+            val topPhotoHidden = isImagePreviewSourceHidden(topPhotoRect.value)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imagePreviewSourceBounds(topPhotoRect)
+                    .alpha(if (topPhotoHidden) 0f else 1f)
                     .layout { measurable, constraints ->
                         val horizontalInsetPx = outerPadding.coerceAtLeast(0.dp).roundToPx()
                         val topInsetPx = chromeTopInset.coerceAtLeast(0.dp).roundToPx()
@@ -2616,7 +2651,7 @@ private fun SpaceHeader(
                     .align(Alignment.TopCenter)
                     .clickable(
                         enabled = shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty(),
-                        onClick = onTopPhotoClick
+                        onClick = { onTopPhotoClick(topPhotoRect.value) }
                     )
             ) {
                 SpaceHeaderBanner(
@@ -2659,10 +2694,14 @@ private fun SpaceHeader(
                     Modifier
                 }
 
+                val avatarRect = rememberImagePreviewSourceRect()
+                val avatarHidden = isImagePreviewSourceHidden(avatarRect.value)
                 Box(
                     modifier = Modifier
                         .size(avatarSize)
-                        .clickable(enabled = avatarPreviewEnabled, onClick = onAvatarClick)
+                        .imagePreviewSourceBounds(avatarRect)
+                        .alpha(if (avatarHidden) 0f else 1f)
+                        .clickable(enabled = avatarPreviewEnabled && !avatarHidden) { onAvatarClick(avatarRect.value) }
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
@@ -3073,6 +3112,7 @@ private fun SpaceSecondarySwitchRow(
             modifier = Modifier.fillMaxWidth(),
             scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
             minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
+            indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
             compactMiuixWhenTwoOptions = false,
             // Let the shared renderer size each Miuix item from its own label;
             // long labels remain fully visible inside the horizontal rail.

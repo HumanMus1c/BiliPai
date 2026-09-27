@@ -274,7 +274,7 @@ fun DynamicCommentSheet(
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewInitialIndex by remember { mutableIntStateOf(0) }
-    var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
+    var previewSourceRect by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
     val sortModeLabels = remember(sortModes) { sortModes.map { it.label } }
@@ -283,7 +283,9 @@ fun DynamicCommentSheet(
         ImagePreviewDialog(
             images = previewImages,
             initialIndex = previewInitialIndex,
-            sourceRect = previewSourceRect,
+            sourceRect = previewSourceRect?.rect,
+            sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
+                ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
             onDismiss = {
                 showImagePreview = false
@@ -757,7 +759,7 @@ fun LazyListScope.dynamicInlineCommentItems(
     onToggleTop: (ReplyItem) -> Unit = {},
     onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
-    onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
+    onImagePreview: (List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit,
 ) {
     when {
         isLoading && comments.isEmpty() -> item(key = "dynamic_inline_comment_skeleton") {
@@ -1003,7 +1005,7 @@ private fun CommentItem(
     onToggleTop: (ReplyItem) -> Unit = {},
     onReport: (ReplyItem, Int) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit,
-    onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
+    onImagePreview: (List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit,
     subReplyState: SubReplyUiState = SubReplyUiState(),
     modifier: Modifier = Modifier,
 ) {
@@ -1382,6 +1384,11 @@ private fun CommentItem(
     }
 }
 
+// 评论时间组合期热路径：共享 formatter，避免每行新建 SimpleDateFormat。
+// 仅主线程（Compose 组合）调用，不涉及 SimpleDateFormat 的线程安全问题。
+private val commentDayFormatter =
+    java.text.SimpleDateFormat("MM-dd", java.util.Locale.CHINA)
+
 /**
  * 格式化时间戳
  */
@@ -1393,10 +1400,6 @@ private fun formatTime(timestamp: Long): String {
         diff < 3600 -> "${diff / 60}分钟前"
         diff < 86400 -> "${diff / 3600}小时前"
         diff < 604800 -> "${diff / 86400}天前"
-        else -> {
-            val date = java.text.SimpleDateFormat("MM-dd", java.util.Locale.CHINA)
-                .format(java.util.Date(timestamp * 1000))
-            date
-        }
+        else -> commentDayFormatter.format(java.util.Date(timestamp * 1000))
     }
 }

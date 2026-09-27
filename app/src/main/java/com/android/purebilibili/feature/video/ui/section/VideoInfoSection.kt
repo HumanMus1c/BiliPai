@@ -309,6 +309,47 @@ fun VideoTitleSection(
  */
 
 
+/**
+ * PiliPlus 风格的标题前缀徽标：盾牌+播放角标图标 + 类别文案（如“赞助/恰饭”）。
+ */
+@Composable
+fun VideoDetailSponsorLabelChip(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.Surface(
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Shield,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+                AppIcon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(9.dp)
+                )
+            }
+            AppText(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                lineHeight = MaterialTheme.typography.labelSmall.fontSize,
+                maxLines = 1
+            )
+        }
+    }
+}
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun VideoTitleWithDesc(
@@ -324,7 +365,11 @@ fun VideoTitleWithDesc(
     onDescriptionUrlClick: ((String) -> Unit)? = null,
     onBgmClick: (BgmInfo) -> Unit = {},
     onTagClick: (String) -> Unit = {},
-    onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> }
+    onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
+    // PiliPlus 式标题前缀徽标（赞助/恰饭等），空串不展示
+    sponsorLabel: String = "",
+    // 信息行末尾的紧凑入口插槽（AI 总结 / 视频笔记图标）
+    trailingStatsContent: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
     val isMaterial3 = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
@@ -353,6 +398,10 @@ fun VideoTitleWithDesc(
             partitionName = info.tname,
             title = info.title
         )
+    }
+    // PiliPlus 同款：信息行直接展示完整 yyyy-MM-dd HH:mm
+    val fullPublishTimeText = remember(info.pubdate) {
+        FormatUtils.formatPrecisePublishTime(timestampSeconds = info.pubdate)
     }
     val onlineCountText = remember(showOnlineCount, onlineCount) {
         resolveVideoDetailOnlineCountText(
@@ -396,15 +445,14 @@ fun VideoTitleWithDesc(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = horizontalPadding, vertical = if (isMaterial3) 8.dp else 6.dp)
+            .padding(horizontal = horizontalPadding, vertical = if (isMaterial3) 4.dp else 3.dp)
     ) {
-        // Title row (expandable)
+        // Title row (expandable); top-aligned so the sponsor badge lines up with the first title line
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 48.dp)
                 .clickable(role = Role.Button) { expanded = !expanded },
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             //  共享元素过渡 - 标题
             var titleModifier = if (animateLayout) Modifier.animateContentSize() else Modifier
@@ -431,6 +479,12 @@ fun VideoTitleWithDesc(
                 }
             }
 
+            if (sponsorLabel.isNotBlank()) {
+                VideoDetailSponsorLabelChip(
+                    label = sponsorLabel,
+                    modifier = Modifier.padding(end = 6.dp, top = 2.dp)
+                )
+            }
             SelectionContainer(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = info.title,
@@ -453,18 +507,21 @@ fun VideoTitleWithDesc(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
+                    .align(Alignment.CenterVertically)
                     .rotate(rotateAngle)
                     .size(20.dp)
                     .padding(4.dp)
             )
         }
         
-        Spacer(Modifier.height(if (isMaterial3) 6.dp else 4.dp))
+        Spacer(Modifier.height(if (isMaterial3) 4.dp else 3.dp))
         
         // Stats row
+        Row(verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.foundation.layout.FlowRow(
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (isMaterial3) 10.dp else 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             itemVerticalAlignment = Alignment.CenterVertically
         ) {
             // Stats Row split for shared element transitions
@@ -491,18 +548,22 @@ fun VideoTitleWithDesc(
                         )
                     }
                 }
-                AppText(
-                    text = "${FormatUtils.formatStat(info.stat.view.toLong())}播放",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = viewsModifier
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = viewsModifier) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.PlayCircleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    AppText(
+                        text = FormatUtils.formatStat(info.stat.view.toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                AppText(
-                    text = "  •  ",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
+                Spacer(Modifier.width(10.dp))
 
                 // Danmaku
                 var danmakuModifier = Modifier.wrapContentSize()
@@ -526,12 +587,20 @@ fun VideoTitleWithDesc(
                         )
                     }
                 }
-                AppText(
-                    text = "${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = danmakuModifier
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = danmakuModifier) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.Subtitles,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    AppText(
+                        text = FormatUtils.formatStat(info.stat.danmaku.toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
             }
             if (onlineCountText.isNotBlank()) {
@@ -561,13 +630,15 @@ fun VideoTitleWithDesc(
                     }
                 } else {
                     AppText(
-                        text = publishTimeRowText,
+                        text = fullPublishTimeText.ifBlank { publishTimeRowText },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
             }
+        }
+        trailingStatsContent?.invoke()
         }
 
         androidx.compose.animation.AnimatedVisibility(
@@ -610,7 +681,7 @@ fun VideoTitleWithDesc(
 
         // [新增] BGM Info Row
         if (bgmList.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             InlineBgmSection(
                 bgmList = bgmList,
                 onBgmClick = onBgmClick,
@@ -792,7 +863,7 @@ fun UpInfoSection(
 
         val avatarContent: @Composable () -> Unit = {
             if (showOwnerAvatar) {
-                val avatarSize = if (isCompact) 36.dp else 40.dp
+                val avatarSize = if (isCompact) 32.dp else 35.dp
                 var sharedFaceModifier: Modifier = Modifier
                 if (metadataSharedEnabled) {
                     with(requireNotNull(sharedTransitionScope)) {
@@ -822,7 +893,7 @@ fun UpInfoSection(
                         faceUrl = info.owner.face,
                         ownerMid = info.owner.mid,
                         modifier = Modifier.size(avatarSize),
-                        badgeSize = if (isCompact) 12.dp else 14.dp,
+                        badgeSize = if (isCompact) 11.dp else 12.dp,
                         fallbackOfficialType = ownerStaff?.official?.type,
                         fallbackVipStatus = ownerStaff?.vip?.status,
                         faceModifier = sharedFaceModifier,
@@ -915,7 +986,7 @@ fun UpInfoSection(
         }
 
         val followButtonContent: @Composable () -> Unit = {
-            var followActionModifier = Modifier.heightIn(min = if (isCompact) 28.dp else 32.dp)
+            var followActionModifier = Modifier.heightIn(min = if (isCompact) 26.dp else 28.dp)
             if (metadataSharedEnabled) {
                 with(requireNotNull(sharedTransitionScope)) {
                     followActionModifier = followActionModifier.sharedBounds(
@@ -1018,7 +1089,7 @@ fun UpInfoSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onUpClick(info.owner.mid) }
-                        .padding(horizontal = horizontalPadding, vertical = 8.dp),
+                        .padding(horizontal = horizontalPadding, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     avatarContent()
@@ -1266,12 +1337,18 @@ private fun InlineBgmSection(
                 append(bgmList.size)
                 append("首音乐")
             }
+            // PiliPlus 式单行：艺人内联，避免双行卡片
+            val actor = leadSong.actor.takeIf { it.isNotBlank() && bgmList.size == 1 }
+            if (actor != null) {
+                append(" · ")
+                append(actor)
+            }
         }
     }
 
     BgmInfoRow(
         title = headerText,
-        subtitle = leadSong.actor.takeIf { it.isNotBlank() && bgmList.size == 1 },
+        subtitle = null,
         showIndicator = false,
         onClick = {
             showSheet = true
@@ -1317,16 +1394,16 @@ fun BgmInfoRow(
             .clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppIcon(
                 imageVector = Icons.Outlined.MusicNote,
                 contentDescription = "BGM",
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(14.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = title,

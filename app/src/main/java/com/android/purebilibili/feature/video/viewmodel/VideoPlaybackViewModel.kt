@@ -624,7 +624,9 @@ sealed class VideoPlaybackUiState {
         val subtitlePrimaryCues: List<SubtitleCue> = emptyList(),
         val subtitleSecondaryCues: List<SubtitleCue> = emptyList(),
         val ownerFollowerCount: Int? = null,
-        val ownerVideoCount: Int? = null
+        val ownerVideoCount: Int? = null,
+        // SponsorBlock 空降片段生成的标题徽标（如“赞助/恰饭”），空串表示不展示
+        val sponsorVideoLabel: String = ""
     ) : VideoPlaybackUiState() {
         val cdnCount: Int get() = allVideoUrls.size.coerceAtLeast(1)
         val currentCdnLabel: String get() = "线路${currentCdnIndex + 1}"
@@ -1364,6 +1366,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     
     // State
     private val _uiState = MutableStateFlow<VideoPlaybackUiState>(VideoPlaybackUiState.Loading.Initial)
+
+    private fun updateSponsorVideoLabel(segments: List<com.android.purebilibili.data.model.response.SponsorSegment>) {
+        val label = segments.resolveSponsorVideoLabel()
+        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
+        if (current.sponsorVideoLabel == label) return
+        _uiState.value = current.copy(sponsorVideoLabel = label)
+    }
     val uiState = _uiState.asStateFlow()
 
     private val _subjectSnapshot = MutableStateFlow<VideoSubjectSnapshot?>(null)
@@ -7743,6 +7752,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                                         plugin.onVideoLoad(loadedBvid, loadedCid)
                                         if (plugin is com.android.purebilibili.feature.plugin.SponsorBlockPlugin) {
                                             _sponsorProgressMarkers.value = plugin.getProgressMarkers()
+                                            updateSponsorVideoLabel(plugin.getSegments())
                                         }
                                     } catch (e: Exception) {
                                         Logger.e("PlayerVM", "Plugin ${plugin.name} onVideoLoad failed", e)

@@ -73,6 +73,13 @@ import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
+ * 聊天列表项包装：附带单调递增序号作为 LazyColumn 的稳定 key。
+ * [LiveDanmakuItem] 是 data class 且无唯一消息 id，不能用内容相等性做 key（重复消息会撞 key），
+ * 因此在入列表时分配序号；头部截断只影响被移除的那一条，其余行的身份保持不变。
+ */
+internal class KeyedLiveChatMessage(val seq: Long, val item: LiveDanmakuItem)
+
+/**
  * 直播聊天区域组件
  * 包含：
  * 1. 聊天列表 (LazyColumn)
@@ -99,7 +106,10 @@ fun LiveChatSection(
     val palette = rememberLiveChromePalette()
     val chatVisualSpec = remember { resolveLiveChatInputVisualSpec() }
     val darkOverlay = isOverlay && palette.isDark
-    val messages = remember { mutableStateListOf<LiveDanmakuItem>() }
+    val messages = remember { mutableStateListOf<KeyedLiveChatMessage>() }
+    // 单调递增序号：作为 LazyColumn 稳定 key，头部截断(removeAt(0))只影响被移除的那一条，
+    // 不会把所有可见行的位置身份整体平移；也避免 remember 状态按位置串扰。
+    val chatMessageSeq = remember { mutableLongStateOf(0L) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var isAnyMenuOpen by remember { mutableStateOf(false) }
@@ -110,14 +120,14 @@ fun LiveChatSection(
             messages.isNotEmpty() && lastVisible < messages.lastIndex - 1
         }
     }
-    
+
     LaunchedEffect(danmakuFlow) {
         danmakuFlow.collect { item ->
             // 确保列表操作在主线程执行 (Compose 状态修改必须在主线程)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 try {
                     val shouldAutoScroll = !listState.isScrollInProgress && !isAwayFromBottom && !isAnyMenuOpen
-                    messages.add(item)
+                    messages.add(KeyedLiveChatMessage(++chatMessageSeq.longValue, item))
                     if (messages.size > 200) messages.removeAt(0)
                     // 节流平滑滚动（通知 LaunchedEffect 批处理）
                     if (shouldAutoScroll) {
@@ -210,9 +220,9 @@ fun LiveChatSection(
                     alignment = Alignment.Bottom
                 )
             ) {
-                items(messages) { item ->
+                items(messages, key = { it.seq }, contentType = { "live_chat" }) { keyed ->
                     ChatMessageItem(
-                        item = item,
+                        item = keyed.item,
                         isOverlay = isOverlay,
                         onUserClick = onUserClick,
                         onAtUser = onAtUser,

@@ -79,9 +79,36 @@ class DynamicRichTextPolicyTest {
         assertNotNull(resolved)
         assertEquals("正文", resolved.text)
         val richNodeText = resolved.rich_text_nodes.joinToString(separator = "") { it.text }
-        assertEquals("正文\n", richNodeText)
+        assertEquals("正文", richNodeText)
         assertFalse(richNodeText.contains("[图片]"))
         assertTrue(shouldRenderDynamicRichText(resolved))
+    }
+
+    @Test
+    fun normalizeDynamicBodyText_trimsEdgeNewlinesOnly() {
+        assertEquals("正文", normalizeDynamicBodyText("正文\n\n"))
+        assertEquals("正文", normalizeDynamicBodyText("\n正文"))
+        assertEquals("第一行\n\n第二行", normalizeDynamicBodyText("第一行\n\n第二行"))
+    }
+
+    @Test
+    fun resolveDynamicDescForImages_trimsTrailingNewlinesEvenWithoutPlaceholders() {
+        val resolved = resolveDynamicDescForImages(
+            desc = DynamicDesc(
+                text = "「芙蓉」篇\n\n",
+                rich_text_nodes = listOf(
+                    RichTextNode(type = "TEXT", text = "「芙蓉」篇\n"),
+                    RichTextNode(type = "TEXT", text = "\n"),
+                )
+            ),
+            hasImages = true
+        )
+
+        assertEquals("「芙蓉」篇", resolved.text)
+        assertEquals(
+            "「芙蓉」篇",
+            resolved.rich_text_nodes.joinToString(separator = "") { it.text }.trimEnd()
+        )
     }
 
     @Test

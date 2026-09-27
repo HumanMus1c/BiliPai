@@ -174,7 +174,7 @@ fun ActionButtonsRow(
     Row(
         modifier = modifier
             .animateContentSize()
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -182,7 +182,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             TripleProgressActionButton(
@@ -229,7 +229,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             TripleProgressActionButton(
@@ -247,7 +247,7 @@ fun ActionButtonsRow(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 56.dp),
+                    .heightIn(min = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
                 BiliActionButton(
@@ -265,7 +265,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             TripleProgressActionButton(
@@ -284,7 +284,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             BiliActionButton(
@@ -301,7 +301,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             BiliActionButton(
@@ -325,7 +325,7 @@ fun ActionButtonsRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 56.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             BiliActionButton(
@@ -386,7 +386,7 @@ private fun TripleProgressActionButton(
         verticalArrangement = Arrangement.Center,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = 48.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -714,7 +714,7 @@ private fun BiliActionButton(
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = 48.dp)
             .graphicsLayer {
                 scaleX = scale * pulseScale
                 scaleY = scale * pulseScale

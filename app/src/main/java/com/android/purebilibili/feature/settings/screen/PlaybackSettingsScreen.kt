@@ -2344,6 +2344,19 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
         AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.CAST_BUTTON),
+            title = "紧凑播放器控件",
+            subtitle = "隐藏顶栏分享，收紧按钮间距与黑色遮罩；分享仍可在「更多」中使用",
+            checked = playerControlVisibility.compactPlayerChrome,
+            onCheckedChange = {
+                scope.launch {
+                    SettingsManager.setCompactPlayerChrome(context, it)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSBlue
+        )
+        AppPreferenceDivider()
         SettingsSingleChoicePreference(
             title = "平板评论区宽度：${tabletCommentPanelWidthPreset.label}",
             subtitle = if (horizontalAdaptationEnabled) {

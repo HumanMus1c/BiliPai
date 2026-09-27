@@ -158,6 +158,19 @@ private data class ImagePreviewOverlayRequest(
     val onDismiss: () -> Unit
 )
 
+/**
+ * 源缩略图在图片预览打开期间应隐藏，否则飞出的图片会与原位卡片重影；
+ * overlay request 在回位动画结束后才清空，因此卡片等「飞回落地」才恢复。
+ * 匹配规则：捕获的 bounds 中心落在 request.sourceRect 外扩 8px 范围内。
+ */
+@Composable
+fun isImagePreviewSourceHidden(bounds: androidx.compose.ui.geometry.Rect?): Boolean {
+    if (bounds == null) return false
+    val request by ImagePreviewOverlayController.request.collectAsStateWithLifecycle()
+    val sourceRect = request?.sourceRect ?: return false
+    return sourceRect.inflate(8f).contains(bounds.center)
+}
+
 private object ImagePreviewOverlayController {
     private val _request = MutableStateFlow<ImagePreviewOverlayRequest?>(null)
     val request = _request.asStateFlow()
@@ -497,10 +510,21 @@ private fun ImagePreviewOverlayContent(
                 (AppSpacingTokens.Large + AppSpacingTokens.Micro).toPx()
             }
             
-            val rawProgress = if (!isDismissing && backProgress > 0f) {
-                1f - backProgress
-            } else {
-                animateTrigger.value
+            // 手势 scrub 期间画面由 backProgress 驱动；transitionState 离开 InProgress 的
+            // 瞬间 backProgress 归零而 animateTrigger 仍为 1f，若直接回落会让画面先跳回
+            // 全屏再重新飞出（双重回弹）。记住最后一帧 scrub 值，在此过渡窗口内保持。
+            var lastScrubRawProgress by remember { mutableFloatStateOf(1f) }
+            var backRecovering by remember { mutableStateOf(false) }
+            SideEffect {
+                if (backProgress > 0f) {
+                    lastScrubRawProgress = 1f - backProgress
+                }
+            }
+            val rawProgress = when {
+                isDismissing || backRecovering -> animateTrigger.value
+                backProgress > 0f -> 1f - backProgress
+                lastScrubRawProgress < 1f -> lastScrubRawProgress
+                else -> animateTrigger.value
             }
             val verticalDragFrame = resolveImagePreviewVerticalDragFrame(
                 dragOffsetYPx = verticalDismissOffsetYPx,
@@ -596,19 +620,22 @@ private fun ImagePreviewOverlayContent(
                 isBackEnabled = !isDismissing,
                 onBackCancelled = {
                     scope.launch {
+                        backRecovering = true
                         val dismissMotion = imagePreviewDismissMotion()
-                        animateTrigger.snapTo(rawProgress)
+                        animateTrigger.snapTo(lastScrubRawProgress)
                         animateTrigger.animateTo(
                             targetValue = 1f,
                             animationSpec = emphasizedEnterTween(
                                 durationMillis = dismissMotion.cancelRecoverDurationMillis
                             ),
                         )
+                        lastScrubRawProgress = 1f
+                        backRecovering = false
                     }
                 },
                 onBackCompleted = {
                     scope.launch {
-                        animateTrigger.snapTo(rawProgress)
+                        animateTrigger.snapTo(lastScrubRawProgress)
                         triggerDismiss()
                     }
                 },
@@ -655,8 +682,9 @@ private fun ImagePreviewOverlayContent(
                         width = with(density) { dismissRectFrame.rect.width.toDp() },
                         height = with(density) { dismissRectFrame.rect.height.toDp() }
                     )
-                    .clip(RoundedCornerShape(presentedCornerRadiusDp.dp))
                     .graphicsLayer {
+                        shape = RoundedCornerShape(presentedCornerRadiusDp.dp)
+                        clip = true
                         alpha = visualFrame.contentAlpha
                         renderEffect = blurEffectCache.resolve(visualFrame.blurRadiusPx)
                     }
@@ -664,8 +692,9 @@ private fun ImagePreviewOverlayContent(
                 Modifier
                     .offset(x = currentLeft, y = currentTop)
                     .size(width = currentWidth, height = currentHeight)
-                    .clip(RoundedCornerShape(presentedCornerRadiusDp.dp))
                     .graphicsLayer {
+                        shape = RoundedCornerShape(presentedCornerRadiusDp.dp)
+                        clip = true
                         alpha = visualFrame.contentAlpha
                         renderEffect = blurEffectCache.resolve(visualFrame.blurRadiusPx)
                         if (!shouldUseRectAnim) {
@@ -1955,11 +1984,18 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
                     return@withContext false
                 }
                 
-                val inputStream = connection.inputStream
-                val bytes = inputStream.readBytes()
-                inputStream.close()
+                // 先把下载流落到临时文件，再分发给保存目标，避免整块字节驻留 Java 堆。
+                val tempFile = File.createTempFile("bilipai_save_", ".bin", context.cacheDir)
+                try {
+                    connection.inputStream.use { input ->
+                        tempFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+                    }
+                } catch (e: Exception) {
+                    tempFile.delete()
+                    throw e
+                }
                 connection.disconnect()
-                
+
                 // 生成文件名
                 val extension = when {
                     isGif -> "gif"
@@ -1973,11 +2009,15 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
                 }
                 val fileName = "BiliPai_${System.currentTimeMillis()}.$extension"
 
-                if (saveBytesToCustomImageSaveDirectory(context, bytes, fileName, mimeType)) {
+                val savedToCustomDirectory = tempFile.inputStream().use { input ->
+                    saveStreamToCustomImageSaveDirectory(context, input, fileName, mimeType)
+                }
+                if (savedToCustomDirectory) {
+                    tempFile.delete()
                     Log.d("ImagePreview", "Image saved to custom directory: $fileName")
                     return@withContext true
                 }
-                
+
                 // 使用 MediaStore 保存
                 val contentValues = ContentValues().apply {
                     put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
@@ -1987,15 +2027,20 @@ suspend fun saveImageToGallery(context: android.content.Context, imageUrl: Strin
                         put(MediaStore.Images.Media.IS_PENDING, 1)
                     }
                 }
-                
+
                 val uri = context.contentResolver.insert(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     contentValues
-                ) ?: return@withContext false
-                
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(bytes)
+                )
+                if (uri == null) {
+                    tempFile.delete()
+                    return@withContext false
                 }
+
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    tempFile.inputStream().use { input -> input.copyTo(outputStream, 64 * 1024) }
+                }
+                tempFile.delete()
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     contentValues.clear()
@@ -2124,7 +2169,7 @@ suspend fun saveMotionPhotoToGallery(
 ): Boolean {
     return withContext(Dispatchers.IO) {
         try {
-            // 1. 下载实况视频 MP4 数据
+            // 1. 下载实况视频 MP4 数据——直接落盘临时文件，避免把上百 MB 视频整体读进 Java 堆
             val videoConn = java.net.URL(videoUrl).openConnection() as java.net.HttpURLConnection
             videoConn.setRequestProperty("Referer", "https://www.bilibili.com/")
             videoConn.setRequestProperty("User-Agent", BROWSER_USER_AGENT)
@@ -2133,8 +2178,24 @@ suspend fun saveMotionPhotoToGallery(
                 Log.e("ImagePreview", "Failed to download live video: ${videoConn.responseCode}")
                 return@withContext false
             }
-            val videoBytes = videoConn.inputStream.use { it.readBytes() }
-            videoConn.disconnect()
+            val tempVideoFile = File.createTempFile("motion_photo_video_", ".mp4", context.cacheDir)
+            var videoSize = 0L
+            try {
+                videoConn.inputStream.use { input ->
+                    tempVideoFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+                }
+                videoSize = tempVideoFile.length()
+                if (videoSize <= 0L) {
+                    tempVideoFile.delete()
+                    Log.e("ImagePreview", "Live video download produced an empty file")
+                    return@withContext false
+                }
+            } catch (e: Exception) {
+                tempVideoFile.delete()
+                throw e
+            } finally {
+                videoConn.disconnect()
+            }
 
             // 2. 下载并转码静态图片为标准 JPEG
             val imageConn = java.net.URL(normalizeImageUrl(imageUrl)).openConnection() as java.net.HttpURLConnection
@@ -2142,12 +2203,17 @@ suspend fun saveMotionPhotoToGallery(
             imageConn.setRequestProperty("User-Agent", BROWSER_USER_AGENT)
             imageConn.connect()
             if (imageConn.responseCode !in 200..299) {
+                imageConn.disconnect()
+                tempVideoFile.delete()
                 Log.e("ImagePreview", "Failed to download image: ${imageConn.responseCode}")
                 return@withContext false
             }
             val bitmap = imageConn.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
             imageConn.disconnect()
-            if (bitmap == null) return@withContext false
+            if (bitmap == null) {
+                tempVideoFile.delete()
+                return@withContext false
+            }
 
             val rawJpegStream = java.io.ByteArrayOutputStream()
             bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, rawJpegStream)
@@ -2175,7 +2241,7 @@ suspend fun saveMotionPhotoToGallery(
             }
 
             // 4. 构建 Google / Android 官方 Motion Photo 1.0 标准 XMP 元数据（兼容 MicroVideo、小米 MiCamera 与新版 Container 规范）
-            val videoSize = videoBytes.size
+            // videoSize 已在下载落盘时确定（XMP 的 MicroVideoOffset / Container Length 用）
             val xmpString = """
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.1.0-jc003">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -2269,19 +2335,31 @@ suspend fun saveMotionPhotoToGallery(
                 offset += 2 + segLen
             }
 
-            // 7. 组装 Motion Photo：JPEG头部 + APP1 XMP + JPEG剩余数据与EOI + MP4视频数据
-            val motionPhotoStream = java.io.ByteArrayOutputStream(jpegWithExif.size + app1Segment.size + videoBytes.size)
-            motionPhotoStream.write(jpegWithExif, 0, insertPos)
-            motionPhotoStream.write(app1Segment)
-            motionPhotoStream.write(jpegWithExif, insertPos, jpegWithExif.size - insertPos)
-            motionPhotoStream.write(videoBytes)
-            val finalBytes = motionPhotoStream.toByteArray()
+            // 7. 组装 Motion Photo：JPEG头部 + APP1 XMP + JPEG剩余数据与EOI；
+            //    MP4 视频数据不再进堆，写输出时从临时文件流式追加。
+            val jpegSegmentBytes = java.io.ByteArrayOutputStream(jpegWithExif.size + app1Segment.size).apply {
+                write(jpegWithExif, 0, insertPos)
+                write(app1Segment)
+                write(jpegWithExif, insertPos, jpegWithExif.size - insertPos)
+            }.toByteArray()
 
             // 8. 保存到相册
             val fileName = "BiliPai_Live_${System.currentTimeMillis()}.jpg"
 
-            // 8.1 优先检查是否配置了自定义 SAF 保存目录
-            if (saveBytesToCustomImageSaveDirectory(context, finalBytes, fileName, "image/jpeg")) {
+            // 8.1 优先检查是否配置了自定义 SAF 保存目录（JPEG 段 + 视频流顺序拼接，不进堆）
+            val motionPhotoCombinedStream = java.io.SequenceInputStream(
+                java.util.Collections.enumeration(
+                    listOf(
+                        jpegSegmentBytes.inputStream(),
+                        tempVideoFile.inputStream()
+                    )
+                )
+            )
+            val savedToCustomDirectory = motionPhotoCombinedStream.use { input ->
+                saveStreamToCustomImageSaveDirectory(context, input, fileName, "image/jpeg")
+            }
+            if (savedToCustomDirectory) {
+                tempVideoFile.delete()
                 Log.d("ImagePreview", "Motion photo saved to custom directory: $fileName")
                 return@withContext true
             }
@@ -2344,17 +2422,24 @@ suspend fun saveMotionPhotoToGallery(
                 }
             }
 
-            val uri = insertedUri ?: return@withContext false
+            val uri = insertedUri ?: run {
+                tempVideoFile.delete()
+                return@withContext false
+            }
 
             val writeSuccess = runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(finalBytes)
+                    outputStream.write(jpegSegmentBytes)
+                    tempVideoFile.inputStream().use { videoInput ->
+                        videoInput.copyTo(outputStream, 64 * 1024)
+                    }
                     outputStream.flush()
                 }
                 true
             }.getOrDefault(false)
 
             if (!writeSuccess) {
+                tempVideoFile.delete()
                 try { context.contentResolver.delete(uri, null, null) } catch (_: Exception) {}
                 return@withContext false
             }
@@ -2396,7 +2481,8 @@ suspend fun saveMotionPhotoToGallery(
                 Log.w("ImagePreview", "MediaScanner scanFile failed", e)
             }
 
-            Log.d("ImagePreview", "Motion photo saved successfully: $fileName, size: ${finalBytes.size}")
+            tempVideoFile.delete()
+            Log.d("ImagePreview", "Motion photo saved successfully: $fileName, size: ${jpegSegmentBytes.size + videoSize}")
             true
         } catch (e: Exception) {
             Log.e("ImagePreview", "Error saving motion photo", e)
@@ -2425,11 +2511,6 @@ suspend fun saveLivePhotoVideoToGallery(context: android.content.Context, videoU
                 return@withContext false
             }
 
-            val inputStream = connection.inputStream
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-            connection.disconnect()
-
             val fileName = "BiliPai_Live_${System.currentTimeMillis()}.mp4"
             val mimeType = "video/mp4"
 
@@ -2445,11 +2526,19 @@ suspend fun saveLivePhotoVideoToGallery(context: android.content.Context, videoU
             val uri = context.contentResolver.insert(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 contentValues
-            ) ?: return@withContext false
-
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(bytes)
+            ) ?: run {
+                connection.inputStream.close()
+                connection.disconnect()
+                return@withContext false
             }
+
+            // 视频直接从下载流写入 MediaStore，避免把整段 MP4 读进 Java 堆。
+            connection.inputStream.use { input ->
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    input.copyTo(outputStream, 64 * 1024)
+                }
+            }
+            connection.disconnect()
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 contentValues.clear()
