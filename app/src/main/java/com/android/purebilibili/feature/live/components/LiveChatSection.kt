@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
 import com.android.purebilibili.feature.live.LiveDanmakuItem
+import com.android.purebilibili.feature.live.LiveChatMessage
 import com.android.purebilibili.feature.live.rememberLiveChromePalette
 import com.android.purebilibili.feature.live.resolveLiveBiliPaiChatBubbleTokens
 import com.android.purebilibili.feature.live.resolveLiveBiliPaiRoomColorTokens
@@ -56,7 +57,6 @@ import com.android.purebilibili.feature.live.resolveLiveSuperChatColor
 import com.android.purebilibili.feature.live.shouldRenderLiveDanmaku
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Send
-import kotlinx.coroutines.flow.SharedFlow
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -73,13 +73,6 @@ import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
- * 聊天列表项包装：附带单调递增序号作为 LazyColumn 的稳定 key。
- * [LiveDanmakuItem] 是 data class 且无唯一消息 id，不能用内容相等性做 key（重复消息会撞 key），
- * 因此在入列表时分配序号；头部截断只影响被移除的那一条，其余行的身份保持不变。
- */
-internal class KeyedLiveChatMessage(val seq: Long, val item: LiveDanmakuItem)
-
-/**
  * 直播聊天区域组件
  * 包含：
  * 1. 聊天列表 (LazyColumn)
@@ -87,7 +80,7 @@ internal class KeyedLiveChatMessage(val seq: Long, val item: LiveDanmakuItem)
  */
 @Composable
 fun LiveChatSection(
-    danmakuFlow: SharedFlow<LiveDanmakuItem>,
+    messages: List<LiveChatMessage>,
     onSendDanmaku: (String) -> Unit,
     headerTitle: String = "实时互动",
     supportingText: String = "发送弹幕和主播互动",
@@ -101,15 +94,12 @@ fun LiveChatSection(
     onAtUser: (LiveDanmakuItem) -> Unit = {},
     onBlockUser: (LiveDanmakuItem) -> Unit = {},
     onReportDanmaku: (LiveDanmakuItem) -> Unit = {},
+    showInputBar: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val palette = rememberLiveChromePalette()
     val chatVisualSpec = remember { resolveLiveChatInputVisualSpec() }
     val darkOverlay = isOverlay && palette.isDark
-    val messages = remember { mutableStateListOf<KeyedLiveChatMessage>() }
-    // 单调递增序号：作为 LazyColumn 稳定 key，头部截断(removeAt(0))只影响被移除的那一条，
-    // 不会把所有可见行的位置身份整体平移；也避免 remember 状态按位置串扰。
-    val chatMessageSeq = remember { mutableLongStateOf(0L) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var isAnyMenuOpen by remember { mutableStateOf(false) }
@@ -121,23 +111,9 @@ fun LiveChatSection(
         }
     }
 
-    LaunchedEffect(danmakuFlow) {
-        danmakuFlow.collect { item ->
-            // 确保列表操作在主线程执行 (Compose 状态修改必须在主线程)
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                try {
-                    val shouldAutoScroll = !listState.isScrollInProgress && !isAwayFromBottom && !isAnyMenuOpen
-                    messages.add(KeyedLiveChatMessage(++chatMessageSeq.longValue, item))
-                    if (messages.size > 200) messages.removeAt(0)
-                    // 节流平滑滚动（通知 LaunchedEffect 批处理）
-                    if (shouldAutoScroll) {
-                        pendingScroll = true
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("LiveChatSection", "❌ Message add error: ${e.message}")
-                }
-            }
-        }
+    LaunchedEffect(messages.lastOrNull()?.sequence) {
+        val shouldAutoScroll = !listState.isScrollInProgress && !isAwayFromBottom && !isAnyMenuOpen
+        if (shouldAutoScroll && messages.isNotEmpty()) pendingScroll = true
     }
 
     // 节流平滑滚动（300ms 批处理，对齐 PiliPlus 节流设计，防止瞬时密集弹幕引起的持续动画打断与掉帧）
@@ -220,9 +196,9 @@ fun LiveChatSection(
                     alignment = Alignment.Bottom
                 )
             ) {
-                items(messages, key = { it.seq }, contentType = { "live_chat" }) { keyed ->
+                items(messages, key = { it.sequence }, contentType = { "live_chat" }) { entry ->
                     ChatMessageItem(
-                        item = keyed.item,
+                        item = entry.item,
                         isOverlay = isOverlay,
                         onUserClick = onUserClick,
                         onAtUser = onAtUser,
@@ -277,14 +253,16 @@ fun LiveChatSection(
         }
         
         // 2. 底部输入栏
-        ChatInputBar(
-            isOverlay = isOverlay,
-            isDanmakuEnabled = isDanmakuEnabled,
-            onToggleDanmaku = onToggleDanmaku,
-            onLike = onLike,
-            onOpenEmote = onOpenEmote,
-            onSend = onSendDanmaku
-        )
+        if (showInputBar) {
+            LiveChatInputBar(
+                isOverlay = isOverlay,
+                isDanmakuEnabled = isDanmakuEnabled,
+                onToggleDanmaku = onToggleDanmaku,
+                onLike = onLike,
+                onOpenEmote = onOpenEmote,
+                onSend = onSendDanmaku
+            )
+        }
     }
 }
 
@@ -645,7 +623,7 @@ private fun UserLevelBadge(level: Int) {
 }
 
 @Composable
-private fun ChatInputBar(
+internal fun LiveChatInputBar(
     isOverlay: Boolean,
     isDanmakuEnabled: Boolean,
     onToggleDanmaku: () -> Unit,

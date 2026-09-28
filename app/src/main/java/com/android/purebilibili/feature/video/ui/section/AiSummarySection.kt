@@ -43,6 +43,8 @@ import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import top.yukonga.miuix.kmp.anim.folmeSpring
+import com.android.purebilibili.core.ui.motion.folmeExpandEnterTransition
+import com.android.purebilibili.core.ui.motion.folmeExpandExitTransition
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
@@ -130,22 +132,8 @@ fun AiSummaryCard(
 
         AnimatedVisibility(
             visible = expanded,
-            enter = if (useMiuix) {
-                expandVertically(
-                    animationSpec = folmeSpring(damping = 1f, response = 0.35f),
-                    expandFrom = Alignment.Top
-                ) + fadeIn(animationSpec = folmeSpring(damping = 1f, response = 0.25f))
-            } else {
-                fadeIn() + expandVertically()
-            },
-            exit = if (useMiuix) {
-                shrinkVertically(
-                    animationSpec = folmeSpring(damping = 1f, response = 0.35f),
-                    shrinkTowards = Alignment.Top
-                ) + fadeOut(animationSpec = folmeSpring(damping = 1f, response = 0.25f))
-            } else {
-                fadeOut() + shrinkVertically()
-            }
+            enter = folmeExpandEnterTransition(useMiuix),
+            exit = folmeExpandExitTransition(useMiuix)
         ) {
             Column(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)

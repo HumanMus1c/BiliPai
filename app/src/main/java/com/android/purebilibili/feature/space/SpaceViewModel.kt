@@ -42,6 +42,9 @@ sealed class SpaceUiState {
         val userInfo: SpaceUserInfo,
         val relationStat: RelationStatData? = null,
         val upStat: UpStatData? = null,
+        // 头部充电/大航海摘要（App 端 /x/v2/space，失败时为 null，行不显示）
+        val chargeGroup: SpaceSupporterGroup? = null,
+        val guardGroup: SpaceSupporterGroup? = null,
         val videos: List<SpaceVideoItem> = emptyList(),
         val totalVideos: Int = 0,
         val isLoadingMore: Boolean = false,
@@ -621,6 +624,7 @@ class SpaceViewModel(
                 val seasonsSeriesDeferred = async { fetchSeasonsSeriesList(mid) }
                 val createdFavoriteFoldersDeferred = async { fetchCreatedFavoriteFolders(mid) }
                 val collectedFavoriteFoldersDeferred = async { fetchCollectedFavoriteFolders(mid) }
+                val supportersDeferred = async { fetchSpaceSupporters(mid) }
 
                 val seasonsSeriesResult = seasonsSeriesDeferred.await()
                 val seasons = seasonsSeriesResult?.items_lists?.seasons_list ?: emptyList()
@@ -687,12 +691,47 @@ class SpaceViewModel(
                 } else {
                     _uiState.value = updatedSupplementalState
                 }
+                applySpaceSupporters(mid, requestGeneration, supportersDeferred.await())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 android.util.Log.e("SpaceVM", "loadSpaceSupplemental error: ${e.message}", e)
             }
         }
+    }
+
+    private suspend fun fetchSpaceSupporters(mid: Long): Pair<SpaceSupporterGroup?, SpaceSupporterGroup?> {
+        return runCatching {
+            val params = mapOf(
+                "vmid" to mid.toString(),
+                "build" to "8430300",
+                "mobi_app" to "android",
+                "platform" to "android",
+                "channel" to "master",
+                "s_locale" to "zh_CN",
+                "c_locale" to "zh_CN",
+                "appkey" to com.android.purebilibili.core.network.AppSignUtils.ANDROID_APP_KEY,
+                "ts" to com.android.purebilibili.core.network.AppSignUtils.getTimestamp().toString(),
+            )
+            val response = spaceApi.getAppSpaceSupporters(
+                com.android.purebilibili.core.network.AppSignUtils.signForAndroidApi(params)
+            )
+            if (response.code != 0) return@runCatching null to null
+            resolveSpaceSupporterGroups(response.data)
+        }.onFailure {
+            android.util.Log.d("SpaceVM", "fetchSpaceSupporters failed: ${it.message}")
+        }.getOrDefault(null to null)
+    }
+
+    private fun applySpaceSupporters(
+        mid: Long,
+        requestGeneration: Long,
+        groups: Pair<SpaceSupporterGroup?, SpaceSupporterGroup?>,
+    ) {
+        if (groups.first == null && groups.second == null) return
+        if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) return
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        _uiState.value = current.copy(chargeGroup = groups.first, guardGroup = groups.second)
     }
 
     fun selectMainTab(tab: Int) {

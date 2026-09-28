@@ -10,6 +10,7 @@ import com.materialkolor.dynamicColorScheme
 import com.materialkolor.dynamiccolor.ColorSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -157,25 +158,17 @@ class ThemeColorSchemeCompletenessTest {
 
     @Test
     fun `materialkolor dynamic scheme generates all roles for light and dark`() {
-        val light = alignStaticColorSchemeWithThemePrimary(
-            scheme = dynamicColorScheme(
-                seedColor = seed,
-                isDark = false,
-                style = PaletteStyle.TonalSpot,
-                specVersion = ColorSpec.SpecVersion.SPEC_2021,
-            ),
-            themePrimaryColor = seed,
-            darkTheme = false,
+        val light = dynamicColorScheme(
+            seedColor = seed,
+            isDark = false,
+            style = PaletteStyle.TonalSpot,
+            specVersion = ColorSpec.SpecVersion.SPEC_2021,
         )
-        val dark = alignStaticColorSchemeWithThemePrimary(
-            scheme = dynamicColorScheme(
-                seedColor = seed,
-                isDark = true,
-                style = PaletteStyle.TonalSpot,
-                specVersion = ColorSpec.SpecVersion.SPEC_2021,
-            ),
-            themePrimaryColor = seed,
-            darkTheme = true,
+        val dark = dynamicColorScheme(
+            seedColor = seed,
+            isDark = true,
+            style = PaletteStyle.TonalSpot,
+            specVersion = ColorSpec.SpecVersion.SPEC_2021,
         )
 
         assertAllRolesExplicit(light, lightBaseline, "materialkolor light", expectedError = light.roles().filter { it.first.startsWith("error") }.map { it.second })
@@ -184,8 +177,8 @@ class ThemeColorSchemeCompletenessTest {
         assertSurfaceContainerOrdered(dark, "materialkolor dark")
         assertEquals(Color.Black, light.scrim)
         assertEquals(Color.Black, dark.scrim)
-        // align 后 surfaceTint 与种子色 primary 一致
-        assertEquals(seed, light.surfaceTint)
-        assertEquals(seed, dark.surfaceTint)
+        // surfaceTint 保持 materialkolor 原生调和值，不再被原始种子 hex 覆盖
+        assertNotEquals(seed, light.surfaceTint)
+        assertNotEquals(seed, dark.surfaceTint)
     }
 }

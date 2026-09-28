@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.video.ui.section
 
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.motion.folmeExpandEnterTransition
+import com.android.purebilibili.core.ui.motion.folmeExpandExitTransition
 import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.animateContentSize
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,6 +104,10 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+
+private val useMiuixSpring: Boolean
+    @Composable get() = com.android.purebilibili.core.theme.LocalAppUiStyle.current ==
+        com.android.purebilibili.core.theme.AppUiStyle.MIUIX
 
 internal const val VIDEO_DESCRIPTION_URL_TAG = "VIDEO_DESCRIPTION_URL"
 private val VIDEO_DESCRIPTION_URL_PATTERN =
@@ -202,6 +209,8 @@ internal fun resolveVideoInfoInitialExpandedState(
 private const val BGM_DISCOVERY_LOAD_DELAY_MS = 420L
 private const val BGM_RECOMMEND_PAGE_SIZE = 5
 private const val BGM_RECOMMEND_ROW_START_INDEX = 4
+/** 悬浮音频播放条的高度余量，避免底部面板内容被遮挡。 */
+private const val AUDIO_NOW_PLAYING_BAR_CLEARANCE_DP = 64
 private val BGM_DETAIL_CARD_HEIGHT = 168.dp
 
 /**
@@ -644,12 +653,12 @@ fun VideoTitleWithDesc(
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded,
             enter = if (animateLayout) {
-                androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn()
+                folmeExpandEnterTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.EnterTransition.None
             },
             exit = if (animateLayout) {
-                androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+                folmeExpandExitTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.ExitTransition.None
             }
@@ -693,12 +702,12 @@ fun VideoTitleWithDesc(
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded && info.desc.isNotBlank(),
             enter = if (animateLayout) {
-                androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn()
+                folmeExpandEnterTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.EnterTransition.None
             },
             exit = if (animateLayout) {
-                androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+                folmeExpandExitTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.ExitTransition.None
             }
@@ -750,12 +759,12 @@ fun VideoTitleWithDesc(
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded && videoTags.isNotEmpty(),
             enter = if (animateLayout) {
-                androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn()
+                folmeExpandEnterTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.EnterTransition.None
             },
             exit = if (animateLayout) {
-                androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+                folmeExpandExitTransition(useMiuixSpring)
             } else {
                 androidx.compose.animation.ExitTransition.None
             }
@@ -1543,7 +1552,12 @@ private fun BgmSelectionSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.68f),
-            contentPadding = PaddingValues(bottom = 20.dp)
+            // 底部额外预留系统导航栏与悬浮播放条的高度，
+            // 避免「使用该音乐的视频」最后一张卡片被遮挡。
+            contentPadding = PaddingValues(
+                bottom = 20.dp + WindowInsets.navigationBars.asPaddingValues()
+                    .calculateBottomPadding() + AUDIO_NOW_PLAYING_BAR_CLEARANCE_DP.dp
+            )
         ) {
             item {
                 Row(

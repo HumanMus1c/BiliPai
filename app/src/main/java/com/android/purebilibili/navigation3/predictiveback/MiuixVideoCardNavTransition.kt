@@ -387,7 +387,13 @@ internal class MiuixVideoCardTransitionProgress {
             NavRole.Incoming,
             NavRole.Outgoing,
             -> topScope = scope
-            NavRole.Top -> if (topScope == null || topScope?.role == NavRole.Covered) {
+            // At rest, pop supplies a new scope whose isRemoving flag is true while depth
+            // is still zero. Keeping the old Top scope would classify the subsequent negative
+            // depth as Incoming for the whole return. Do retain a moving scope when the lower
+            // page becomes Top at landing, until its outgoing driver has reported Idle.
+            NavRole.Top -> if (topScope == null ||
+                topScope?.role == NavRole.Top || topScope?.role == NavRole.Covered
+            ) {
                 topScope = scope
             }
             NavRole.Covered -> Unit

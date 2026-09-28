@@ -120,10 +120,12 @@ import com.android.purebilibili.feature.anime4k.Anime4KBypassReason
 import com.android.purebilibili.feature.anime4k.Anime4KPreset
 import com.android.purebilibili.feature.anime4k.DEFAULT_FSR_SHARPNESS
 
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -2984,8 +2986,12 @@ indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                     // 3. 列表内容
                     Box(modifier = Modifier.weight(1f)) {
                         if (selectedTab == 0) {
-                            // 推荐视频列表
+                            // 推荐视频列表（滚动位置跨抽屉开关保留）
+                            val relatedListState = rememberSaveable(
+                                saver = LazyListState.Saver
+                            ) { LazyListState() }
                             LazyColumn(
+                                state = relatedListState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(layoutPolicy.listContentPaddingDp.dp),
                                 verticalArrangement = Arrangement.spacedBy(layoutPolicy.listItemSpacingDp.dp)

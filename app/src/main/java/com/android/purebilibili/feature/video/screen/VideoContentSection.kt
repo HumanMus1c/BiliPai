@@ -1251,7 +1251,6 @@ internal fun VideoContentSection(
                 },
                 onDismiss = { showCommentSearchSheet = false },
                 miuixBackdrop = videoContentMiuixBackdrop,
-                liquidGlassEffectsEnabled = liquidGlassEnabled,
             )
         }
     }

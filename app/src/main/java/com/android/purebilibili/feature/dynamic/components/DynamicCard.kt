@@ -31,6 +31,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.components.AppWindowActionMenu
@@ -147,6 +152,10 @@ data class DynamicCardPresentation(
     val forwardCountDelta: Int = 0,
     val detailImageLayout: DynamicDetailImageLayout = DynamicDetailImageLayout.EXPANDED,
 )
+
+/** Feed 卡正文折叠参数：超过该长度折叠到 6 行，用「展开更多」进详情。 */
+private const val DYNAMIC_FEED_TEXT_FOLD_THRESHOLD = 108
+private const val DYNAMIC_FEED_TEXT_MAX_LINES = 6
 
 /**
  * 动态卡片 V2。将导航、交互和展示状态分组，避免 Compose/R8 处理超大参数签名。
@@ -487,11 +496,31 @@ fun DynamicCardV2(
                             onAuthorHeaderClick()
                         }
                     )
-                    AppText(
-                        authorTimeText,
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppText(
+                            authorTimeText,
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
+                        )
+                        if (author.pub_action.isNotBlank()) {
+                            AppText(
+                                " · ${author.pub_action}",
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
+                            )
+                        }
+                        // 粉丝装扮牌（作者行时间旁的小徽章）
+                        author.decorate?.card_url?.takeIf { it.isNotBlank() }?.let { badgeUrl ->
+                            AsyncImage(
+                                model = badgeUrl,
+                                contentDescription = author.decorate?.name,
+                                modifier = Modifier
+                                    .padding(start = AppSpacingTokens.ExtraSmall)
+                                    .height(14.dp),
+                                contentScale = ContentScale.FillHeight
+                            )
+                        }
+                    }
                 }
                 
                 //  置顶标（module_tag：B 站固定返回 "置顶"，对齐 BiliPai 作者区头部样式）
@@ -916,29 +945,95 @@ fun DynamicCardV2(
         }
         if (!hasFullOpusDetailContent) preferredBodyDesc?.let { desc ->
             if (shouldRenderDynamicRichText(desc)) {
+                // Feed 卡长文折叠：超过 6 行只显示部分正文，用「展开更多」打开详情。
+                // 详情页全文展示，不折叠。
+                val foldBodyText = !isDetail &&
+                    (desc.text.length > DYNAMIC_FEED_TEXT_FOLD_THRESHOLD)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = AppSpacingTokens.Medium),
                 ) {
-                    RichTextContent(
-                        desc = desc,
-                        onUserClick = onUserClick,
-                        onTopicClick = onTopicClick,
-                        onTopicKeywordClick = onTopicKeywordClick,
-                        onVoteClick = { voteId -> pendingVoteId = voteId },
-                        onVideoClick = onVideoClick,
-                        onDynamicDetailClick = openDynamicDetail,
-                        onBangumiClick = onBangumiClick,
-                        onArticleClick = onArticleClick,
-                        onLiveClick = onLiveClick,
-                        onMusicClick = onMusicClick,
-                        extraEmoteUrlMap = dynamicCardEmoteMap,
-                    )
+                    Column {
+                        RichTextContent(
+                            desc = desc,
+                            onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
+                            onTopicKeywordClick = onTopicKeywordClick,
+                            onVoteClick = { voteId -> pendingVoteId = voteId },
+                            onVideoClick = onVideoClick,
+                            onDynamicDetailClick = openDynamicDetail,
+                            onBangumiClick = onBangumiClick,
+                            onArticleClick = onArticleClick,
+                            onLiveClick = onLiveClick,
+                            onMusicClick = onMusicClick,
+                            maxLines = if (foldBodyText) DYNAMIC_FEED_TEXT_MAX_LINES else Int.MAX_VALUE,
+                            overflow = if (foldBodyText) TextOverflow.Ellipsis else TextOverflow.Clip,
+                            extraEmoteUrlMap = dynamicCardEmoteMap,
+                        )
+                        if (foldBodyText && openDynamicDetail != null) {
+                            AppText(
+                                text = "展开更多",
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .padding(top = AppSpacingTokens.ExtraSmall)
+                                    .clip(AppShapes.container(ContainerLevel.Chip))
+                                    .clickable(onClick = { openDynamicDetail?.invoke(item.id_str) })
+                                    .padding(vertical = AppSpacingTokens.Micro),
+                            )
+                        }
+                    }
                 }
             }
         }
         
+        //  互动条：UP 主觉得很赞 / 相关评论提示
+        val interactionItems = item.modules.module_interaction?.items.orEmpty()
+        if (interactionItems.isNotEmpty()) {
+            val interactionBarColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = AppSpacingTokens.ExtraSmall, bottom = AppSpacingTokens.Medium)
+                    .drawBehind {
+                        val strokeWidth = 1.5.dp.toPx()
+                        drawLine(
+                            color = interactionBarColor,
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                    .padding(start = AppSpacingTokens.Small),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
+            ) {
+                interactionItems.forEach { interactionItem ->
+                    val desc = interactionItem.desc ?: return@forEach
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppIcon(
+                            imageVector = if (interactionItem.type == 1) {
+                                Icons.Outlined.ChatBubbleOutline
+                            } else {
+                                Icons.Outlined.ThumbUp
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                        RichTextContent(
+                            desc = desc,
+                            onUserClick = onUserClick,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                            lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
+                            extraEmoteUrlMap = dynamicCardEmoteMap,
+                        )
+                    }
+                }
+            }
+        }
+
         //  视频类型动态 - 大图预览
         content?.major?.archive?.let { archive ->
             val playableBvid = resolveArchivePlayableBvid(archive)
@@ -1893,17 +1988,81 @@ private fun DynamicAdditionalCard(
     onActionClick: (() -> Unit)?,
     onClick: () -> Unit
 ) {
-    DynamicNativeLinkCard(
-        title = model.title,
-        subtitle = model.subtitle,
-        cover = model.cover,
-        kindLabel = model.kindLabel,
-        actionLabel = model.actionLabel,
-        enabled = model.enabled,
-        actionEnabled = !model.reserveButtonDisabled && !actionLoading,
-        onActionClick = onActionClick,
-        onClick = onClick,
-    )
+    Column {
+        DynamicNativeLinkCard(
+            title = model.title,
+            subtitle = model.subtitle,
+            cover = model.cover,
+            kindLabel = model.kindLabel,
+            actionLabel = model.actionLabel,
+            enabled = model.enabled,
+            actionEnabled = !model.reserveButtonDisabled && !actionLoading,
+            onActionClick = onActionClick,
+            onClick = onClick,
+        )
+        // 赛事比分行：左队 标志+名称 | 比分/阶段 | 右队 名称+标志
+        if (model.matchTeams.size == 2) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.Small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val left = model.matchTeams[0]
+                val right = model.matchTeams[1]
+                AsyncImage(
+                    model = left.logoUrl.takeIf { it.isNotBlank() },
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp).clip(CircleShape),
+                    contentScale = ContentScale.Fit
+                )
+                AppText(
+                    text = left.name,
+                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = AppSpacingTokens.ExtraSmall)
+                )
+                AppText(
+                    text = left.score.ifBlank { model.matchCenterLabel }.ifBlank { "VS" },
+                    fontSize = MaterialTheme.typography.titleSmall.fontSize,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                AppText(
+                    text = right.name,
+                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = AppSpacingTokens.ExtraSmall)
+                )
+                AsyncImage(
+                    model = right.logoUrl.takeIf { it.isNotBlank() },
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp).clip(CircleShape),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            if (model.matchTeams[0].score.isNotBlank() && model.matchCenterLabel.isNotBlank()) {
+                AppText(
+                    text = model.matchCenterLabel,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = AppSpacingTokens.Small)
+                )
+            }
+        }
+    }
 }
 
 @Composable

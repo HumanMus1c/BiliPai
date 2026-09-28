@@ -230,6 +230,30 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data class UpowerRank(
+        val mid: Long,
+        val name: String = "",
+        val count: Long = 0L,
+    ) : BiliPaiNavKey {
+        override val routeBase: String = "upower_rank"
+        companion object : BiliPaiNavKey {
+            override val routeBase: String = "upower_rank"
+        }
+    }
+
+    @Serializable
+    data class MemberGuard(
+        val mid: Long,
+        val name: String = "",
+        val count: Long = 0L,
+    ) : BiliPaiNavKey {
+        override val routeBase: String = "member_guard"
+        companion object : BiliPaiNavKey {
+            override val routeBase: String = "member_guard"
+        }
+    }
+
+    @Serializable
     data object DownloadList : BiliPaiNavKey {
         override val routeBase: String = "download_list"
     }

@@ -1241,7 +1241,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         episode: BangumiEpisode
     ) {
         bangumiHeartbeatJob?.cancel()
-        val bvid = episode.bvid.takeIf { it.isNotBlank() } ?: return
+        // 部分番剧集没有 bvid，历史/进度上报仍应进行（epid/sid 维度）
+        val bvid = episode.bvid
         bangumiHeartbeatJob = viewModelScope.launch {
             while (isActive) {
                 reportBangumiPlaybackHeartbeat(detail, episode, bvid)
@@ -1252,12 +1253,11 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
 
     private fun flushBangumiPlaybackHeartbeat() {
         val currentState = _uiState.value as? BangumiPlayerState.Success ?: return
-        val bvid = currentState.currentEpisode.bvid.takeIf { it.isNotBlank() } ?: return
         viewModelScope.launch {
             reportBangumiPlaybackHeartbeat(
                 detail = currentState.seasonDetail,
                 episode = currentState.currentEpisode,
-                bvid = bvid,
+                bvid = currentState.currentEpisode.bvid,
                 requirePlaying = false
             )
         }
@@ -1270,18 +1270,22 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         requirePlaying: Boolean = true
     ) {
         val currentPositionMs = getPlayerCurrentPosition()
-        progressManager?.savePosition(
-            bvid = bvid,
-            cid = episode.cid,
-            positionMs = currentPositionMs,
-            durationMs = getPlayerDuration()
-        )
+        if (bvid.isNotBlank()) {
+            progressManager?.savePosition(
+                bvid = bvid,
+                cid = episode.cid,
+                positionMs = currentPositionMs,
+                durationMs = getPlayerDuration()
+            )
+        }
         val isPlaying = if (requirePlaying) exoPlayer?.isPlaying == true else true
         if (!shouldSendBangumiPlaybackHeartbeat(
                 isPlaying = isPlaying,
                 bvid = bvid,
                 cid = episode.cid,
-                currentPositionMs = currentPositionMs
+                currentPositionMs = currentPositionMs,
+                epid = episode.id,
+                sid = detail.seasonId
             )
         ) {
             return

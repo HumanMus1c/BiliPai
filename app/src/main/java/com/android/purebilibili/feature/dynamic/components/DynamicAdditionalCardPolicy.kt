@@ -21,6 +21,14 @@ internal data class DynamicAdditionalCardModel(
     val reserveDescriptionPrefix: String = "",
     val reserveActionJumpUrl: String = "",
     val reserveDescriptionJumpUrl: String = "",
+    val matchCenterLabel: String = "",
+    val matchTeams: List<DynamicAdditionalCardTeam> = emptyList()
+)
+
+data class DynamicAdditionalCardTeam(
+    val name: String,
+    val logoUrl: String,
+    val score: String = ""
 )
 
 data class DynamicReserveAction(
@@ -109,12 +117,22 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
             )
         }
         "ADDITIONAL_TYPE_MATCH" -> additional.match?.takeIf { it.title.isNotBlank() }?.let {
+            val info = it.matchInfo
             DynamicAdditionalCardModel(
                 title = it.title,
                 subtitle = it.sub_title,
                 cover = "",
                 jumpUrl = it.jump_url,
-                kindLabel = "赛事"
+                kindLabel = "赛事",
+                matchCenterLabel = listOfNotNull(
+                    info?.centerTop?.filter(String::isNotBlank)?.joinToString(" "),
+                    info?.centerBottom.takeIf { bottom -> !bottom.isNullOrBlank() }
+                ).filter(String::isNotBlank).joinToString(" · "),
+                matchTeams = listOfNotNull(info?.leftTeam, info?.rightTeam)
+                    .filter { team -> team.name.isNotBlank() || team.pic.isNotBlank() }
+                    .map { team ->
+                        DynamicAdditionalCardTeam(name = team.name, logoUrl = team.pic, score = team.score)
+                    }
             )
         }
         "ADDITIONAL_TYPE_UPOWER_LOTTERY" -> additional.upower_lottery

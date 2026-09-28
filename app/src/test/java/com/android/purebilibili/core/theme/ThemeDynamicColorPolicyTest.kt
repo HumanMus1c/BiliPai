@@ -299,73 +299,22 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `static palette keeps MaterialKolor primary roles and only tints with seed`() {
-        val selectedThemeColor = Color(0xFF007AFF)
-        val generatedScheme = lightColorScheme(
-            primary = Color(0xFF005BBC),
-            onPrimary = Color.White,
-            primaryContainer = Color(0xFFD6E3FF),
-            onPrimaryContainer = Color(0xFF001B3E),
-            background = Color(0xFFF8FBFF),
-            surface = Color(0xFFFFFBFE),
-        )
+    fun `custom seed scheme does not stamp raw seed into surfaceTint`() {
+        val brightSeed = Color(0xFF007AFF)
 
-        val scheme = alignStaticColorSchemeWithThemePrimary(
-            scheme = generatedScheme,
-            themePrimaryColor = selectedThemeColor,
-            darkTheme = false
-        )
-
-        // Do not overwrite HCT-mapped control roles with the raw seed hex.
-        assertEquals(generatedScheme.primary, scheme.primary)
-        assertEquals(generatedScheme.onPrimary, scheme.onPrimary)
-        assertEquals(generatedScheme.primaryContainer, scheme.primaryContainer)
-        assertEquals(selectedThemeColor, scheme.surfaceTint)
-    }
-
-    @Test
-    fun `static palette does not force neon bright seed as light primary`() {
-        val neonOrange = Color(0xFFFF6A00)
-        val generatedScheme = lightColorScheme(
-            primary = Color(0xFFA33B00),
-            onPrimary = Color.White,
-            primaryContainer = Color(0xFFFFDBCB),
-            onPrimaryContainer = Color(0xFF3A1600),
-            surface = Color.White,
-            background = Color.White,
-        )
-
-        val scheme = alignStaticColorSchemeWithThemePrimary(
-            scheme = generatedScheme,
-            themePrimaryColor = neonOrange,
+        val scheme = createBiliPaiStyleColorScheme(
+            seedColor = brightSeed,
             darkTheme = false,
+            amoledDarkTheme = false,
+            paletteStyle = PaletteStyle.TonalSpot,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
         )
 
-        assertEquals(generatedScheme.primary, scheme.primary)
-        assertEquals(generatedScheme.primaryContainer, scheme.primaryContainer)
-        assertEquals(neonOrange, scheme.surfaceTint)
-        assertTrue(calculateContrastRatio(scheme.onPrimary, scheme.primary) >= 4.5f)
-    }
-
-    @Test
-    fun `static palette falls back from a source primary that cannot identify controls`() {
-        val lowContrastGreen = Color(0xFF34C759)
-        val generatedScheme = lightColorScheme(
-            primary = Color(0xFF006E2C),
-            surface = Color.White,
-            background = Color.White,
-        )
-
-        val scheme = alignStaticColorSchemeWithThemePrimary(
-            scheme = generatedScheme,
-            themePrimaryColor = lowContrastGreen,
-            darkTheme = false,
-        )
-
-        // Seed is not forced; MaterialKolor primary is preserved.
-        assertEquals(generatedScheme.primary, scheme.primary)
-        assertEquals(lowContrastGreen, scheme.surfaceTint)
-        assertTrue(calculateContrastRatio(scheme.primary, scheme.surface) >= 3f)
+        // tonal elevation 表面会混合 surfaceTint；未调和的原始种子 hex 一旦进入
+        // surfaceTint，弹窗等表面就会被染成过饱和色，因此必须保持 materialkolor
+        // 原生调和值。
+        assertNotEquals(brightSeed, scheme.surfaceTint)
+        assertNotEquals(scheme.primaryContainer, scheme.tertiaryContainer)
     }
 
     @Test

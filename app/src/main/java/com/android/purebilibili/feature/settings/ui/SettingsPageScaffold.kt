@@ -68,6 +68,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 internal val LocalSettingsTopContentPadding = staticCompositionLocalOf { 0.dp }
 
+/** 设置页滚动内容的 layer backdrop，供顶部搜索框等液态玻璃 chrome 折射列表内容。 */
+internal val LocalSettingsPageBackdrop = staticCompositionLocalOf<top.yukonga.miuix.kmp.blur.Backdrop?> { null }
+
 @Composable
 internal fun settingsScrollContentPadding(
     extraTop: androidx.compose.ui.unit.Dp = 0.dp,
@@ -188,6 +191,7 @@ internal fun SettingsPageScaffold(
         } else {
             AppPreferenceGroupPresentation.FLAT
         },
+        LocalSettingsPageBackdrop provides backdrop,
     ) {
         AppScaffold(
             modifier = modifier.appTopBarNestedScroll(collapseBehavior),

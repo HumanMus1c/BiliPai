@@ -799,13 +799,40 @@ fun WatchLaterScreen(
     }
 
     // 与推荐页共用滚动偏移与「列表正在滑」信号，驱动底栏搜索胶囊展开/收起。
+    val setBottomBarVisible = com.android.purebilibili.core.ui.LocalSetBottomBarVisible.current
     val bottomBarChromeScrollOffset = com.android.purebilibili.feature.home.LocalHomeScrollOffset.current
     val globalFeedScrollInProgress = com.android.purebilibili.feature.home.LocalHomeFeedScrollInProgress.current
-    val continuousScrollOffsetConnection = remember(bottomBarChromeScrollOffset) {
-        com.android.purebilibili.feature.home.createContinuousScrollOffsetConnection(
-            offsetState = bottomBarChromeScrollOffset
+    val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.AppNavigationSettings())
+    val shouldAutoHideBottomBar = com.android.purebilibili.core.ui.shouldAutoHideBottomBarOnScroll(
+        visibilityMode = appNavigationSettings.bottomBarVisibilityMode,
+    )
+    val liveWatchLaterBottomPadding = com.android.purebilibili.core.ui.LocalBottomBarContentPadding.current
+    val isBottomBarVisibleForPadding = com.android.purebilibili.core.ui.LocalBottomBarVisible.current
+    val watchLaterBottomPadding = com.android.purebilibili.core.ui.rememberStickyBottomBarContentPadding(
+        autoHideEnabled = shouldAutoHideBottomBar,
+        liveBottomPadding = liveWatchLaterBottomPadding,
+        isBottomBarVisible = isBottomBarVisibleForPadding,
+    )
+    val bottomBarScrollHideConnection =
+        com.android.purebilibili.core.ui.rememberBottomBarScrollHideConnection(
+            chromeScrollOffset = bottomBarChromeScrollOffset,
+            autoHideEnabled = shouldAutoHideBottomBar,
+            isAtTop = {
+                gridState.firstVisibleItemIndex == 0 &&
+                    gridState.firstVisibleItemScrollOffset <
+                    com.android.purebilibili.core.ui.BottomBarScrollHideTopRevealPx
+            },
+            isActivePage = isCurrentPage,
+            onVisibilityIntent = { intent ->
+                when (intent) {
+                    com.android.purebilibili.core.ui.BottomBarScrollHideIntent.SHOW ->
+                        setBottomBarVisible(true)
+                    com.android.purebilibili.core.ui.BottomBarScrollHideIntent.HIDE ->
+                        setBottomBarVisible(false)
+                }
+            },
         )
-    }
     val isListScrollInProgress by remember(gridState) {
         derivedStateOf { gridState.isScrollInProgress }
     }
@@ -824,6 +851,18 @@ fun WatchLaterScreen(
                 globalFeedScrollInProgress.value = false
                 bottomBarChromeScrollOffset.value = 0f
             }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            setBottomBarVisible(true)
+            bottomBarChromeScrollOffset.value = 0f
+        }
+    }
+    LaunchedEffect(shouldAutoHideBottomBar) {
+        if (!shouldAutoHideBottomBar) {
+            setBottomBarVisible(true)
+            bottomBarChromeScrollOffset.value = 0f
         }
     }
 
@@ -851,7 +890,7 @@ fun WatchLaterScreen(
 
     AppScaffold(
         modifier = Modifier
-            .nestedScroll(continuousScrollOffsetConnection)
+            .nestedScroll(bottomBarScrollHideConnection)
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             // 使用 Box 包裹实现毛玻璃背景
@@ -1102,7 +1141,7 @@ fun WatchLaterScreen(
         },
         containerColor = AppSurfaceTokens.groupedListContainer()
     ) { padding ->
-        val bottomContentPadding = LocalBottomBarContentPadding.current
+        val bottomContentPadding = watchLaterBottomPadding
         Box(
             modifier = Modifier
                 .fillMaxSize()

@@ -149,7 +149,7 @@ class LiveRoomLayoutPolicyTest {
     @Test
     fun `overlaying live layouts expose chat toggle`() {
         assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.PortraitVerticalOverlay))
-        assertFalse(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeSplit))
+        assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeSplit))
         assertTrue(shouldShowLiveChatToggle(LiveRoomLayoutMode.LandscapeOverlay))
         assertFalse(shouldShowLiveChatToggle(LiveRoomLayoutMode.PortraitPanel))
     }
@@ -167,7 +167,8 @@ class LiveRoomLayoutPolicyTest {
                 isInteractionPanelVisible = true
             )
         )
-        assertTrue(
+        // 分栏聊天列跟随用户开关：默认收起，避免退出全屏后自动弹出
+        assertFalse(
             shouldShowLiveSplitChatPanel(
                 layoutMode = LiveRoomLayoutMode.LandscapeSplit,
                 isInteractionPanelVisible = false

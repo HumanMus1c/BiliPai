@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -56,6 +58,7 @@ internal fun FavoriteFolderCardList(
     onFolderClick: (FavFolder) -> Unit,
     onSubscribedClick: () -> Unit,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     if (folders.isEmpty() && subscribedFoldersCount == 0) {
         val message = if (searchQuery.isNotBlank()) "没有找到相关收藏夹" else "暂无收藏夹"
@@ -71,6 +74,7 @@ internal fun FavoriteFolderCardList(
     }
 
     LazyColumn(
+        state = listState,
         modifier = modifier
             .responsiveContentWidth(resolveCommonListSingleColumnMaxWidth())
             .fillMaxSize(),

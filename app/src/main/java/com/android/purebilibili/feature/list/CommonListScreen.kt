@@ -414,11 +414,11 @@ fun CommonListScreen(
     // [Feature] BottomBar Scroll Hiding for CommonListScreen (History/Favorite)
     val setBottomBarVisible = com.android.purebilibili.core.ui.LocalSetBottomBarVisible.current
     val bottomBarChromeScrollOffset = LocalHomeScrollOffset.current
-    val continuousScrollOffsetConnection = remember(bottomBarChromeScrollOffset) {
-        com.android.purebilibili.feature.home.createContinuousScrollOffsetConnection(
-            offsetState = bottomBarChromeScrollOffset
-        )
-    }
+    val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.AppNavigationSettings())
+    val shouldAutoHideBottomBar = com.android.purebilibili.core.ui.shouldAutoHideBottomBarOnScroll(
+        visibilityMode = appNavigationSettings.bottomBarVisibilityMode,
+    )
 
     // 监听列表滚动实现底栏自动隐藏/显示
     var lastFirstVisibleItem by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -561,21 +561,35 @@ fun CommonListScreen(
         }
     }
 
-    val commonListBottomPadding = LocalBottomBarContentPadding.current
+    val favoriteCategoryGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val liveCommonListBottomPadding = LocalBottomBarContentPadding.current
+    val isBottomBarVisibleForPadding = com.android.purebilibili.core.ui.LocalBottomBarVisible.current
+    val commonListBottomPadding = com.android.purebilibili.core.ui.rememberStickyBottomBarContentPadding(
+        autoHideEnabled = shouldAutoHideBottomBar,
+        liveBottomPadding = liveCommonListBottomPadding,
+        isBottomBarVisible = isBottomBarVisibleForPadding,
+    )
     val activeCommonListScrollState = remember(
         favoriteViewModel,
         favoriteSection,
         isSubscribedBrowse,
+        isSearchDestination,
         historyViewModel,
         historyPagerState.currentPage,
         primaryGridState,
         subscribedFolderListState,
         favoriteFolderListState,
+        favoriteCategoryGridState,
         historyPagerGridStates.size
     ) {
         {
             when {
+                favoriteViewModel != null && isSearchDestination ->
+                    CommonListScrollState.Grid(primaryGridState)
+                favoriteViewModel != null && favoriteSection != FavoriteSection.VIDEO ->
+                    CommonListScrollState.Grid(favoriteCategoryGridState)
                 isSubscribedBrowse -> CommonListScrollState.List(subscribedFolderListState)
+                // 视频 Tab 是收藏夹卡片列表；不要再跟已废弃的 HorizontalPager 网格状态。
                 favoriteViewModel != null -> CommonListScrollState.List(favoriteFolderListState)
                 historyViewModel != null -> {
                     historyPagerGridStates[historyPagerState.currentPage]?.let(CommonListScrollState::Grid)
@@ -602,7 +616,6 @@ fun CommonListScreen(
             .collect { (firstVisibleItem, scrollOffset) ->
                 val listCollapseMode = homeSettings.commonListHeaderCollapseMode
                 if (firstVisibleItem == 0 && scrollOffset < 100) {
-                    setBottomBarVisible(true)
                     commonListTabsVisible =
                         listCollapseMode != CommonListHeaderCollapseMode.ALWAYS_VISIBLE
                 } else {
@@ -615,13 +628,6 @@ fun CommonListScreen(
                         firstVisibleItem < lastFirstVisibleItem -> true
                         firstVisibleItem > lastFirstVisibleItem -> false
                         else -> scrollOffset < lastScrollOffset - 50
-                    }
-
-                    if (isScrollingDown) {
-                        setBottomBarVisible(false)
-                    }
-                    if (isScrollingUp) {
-                        setBottomBarVisible(true)
                     }
                     when (listCollapseMode) {
                         CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY -> commonListTabsVisible = false
@@ -807,6 +813,39 @@ fun CommonListScreen(
             }
         }
     }
+    val bottomBarScrollHideConnection =
+        com.android.purebilibili.core.ui.rememberBottomBarScrollHideConnection(
+            chromeScrollOffset = bottomBarChromeScrollOffset,
+            autoHideEnabled = shouldAutoHideBottomBar,
+            isAtTop = {
+                when (val scrollState = activeCommonListScrollState()) {
+                    is CommonListScrollState.Grid ->
+                        scrollState.state.firstVisibleItemIndex == 0 &&
+                            scrollState.state.firstVisibleItemScrollOffset <
+                            com.android.purebilibili.core.ui.BottomBarScrollHideTopRevealPx
+                    is CommonListScrollState.List ->
+                        scrollState.state.firstVisibleItemIndex == 0 &&
+                            scrollState.state.firstVisibleItemScrollOffset <
+                            com.android.purebilibili.core.ui.BottomBarScrollHideTopRevealPx
+                }
+            },
+            isActivePage = isCurrentPage,
+            onVisibilityIntent = { intent ->
+                when (intent) {
+                    com.android.purebilibili.core.ui.BottomBarScrollHideIntent.SHOW ->
+                        setBottomBarVisible(true)
+                    com.android.purebilibili.core.ui.BottomBarScrollHideIntent.HIDE ->
+                        setBottomBarVisible(false)
+                }
+            },
+        )
+    LaunchedEffect(shouldAutoHideBottomBar) {
+        if (!shouldAutoHideBottomBar) {
+            setBottomBarVisible(true)
+            bottomBarChromeScrollOffset.value = 0f
+        }
+    }
+
     val isCommonListScrollInProgress by remember(activeCommonListScrollState) {
         derivedStateOf {
             when (val scrollState = activeCommonListScrollState()) {
@@ -1081,7 +1120,7 @@ fun CommonListScreen(
 
     AppScaffold(
         modifier = Modifier
-            .nestedScroll(continuousScrollOffsetConnection)
+            .nestedScroll(bottomBarScrollHideConnection)
             .nestedScroll(commonListHeaderScrollConnection)
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = if (globalWallpaperVisible) {
@@ -1160,6 +1199,7 @@ fun CommonListScreen(
                         onTopicClick = onFavoriteTopicClick,
                         onWebClick = onFavoriteWebClick,
                         onCheeseClick = onFavoriteCheeseClick,
+                        gridState = favoriteCategoryGridState,
                     )
                 } else if (isSubscribedBrowse) {
                     val favoriteVm = requireNotNull(favoriteViewModel)
@@ -1198,6 +1238,7 @@ fun CommonListScreen(
                         searchQuery = searchQuery,
                         padding = PaddingValues(top = headerHeightDp, bottom = commonListBottomPadding),
                         transitionEnabled = favoriteCollectionSharedTransitionEnabled,
+                        listState = favoriteFolderListState,
                         onFolderClick = { folder ->
                             onFavoriteFolderClick?.invoke(
                                 resolveFavoriteFolderMediaId(folder),

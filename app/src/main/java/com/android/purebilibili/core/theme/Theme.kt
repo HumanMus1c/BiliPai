@@ -73,7 +73,8 @@ private fun createDarkColorScheme(primaryColor: Color) = darkColorScheme(
     onSurfaceVariant = TextSecondaryDark,
     surfaceContainer = DarkSurfaceElevated, // iOS System Gray 5 (Dark)
     outline = iOSSystemGray3Dark,
-    outlineVariant = iOSSystemGray4Dark
+    outlineVariant = iOSSystemGray4Dark,
+    surfaceTint = Color.Transparent
 )
 
 private fun createAmoledDarkColorScheme(primaryColor: Color) = darkColorScheme(
@@ -91,7 +92,8 @@ private fun createAmoledDarkColorScheme(primaryColor: Color) = darkColorScheme(
     onSurfaceVariant = TextSecondaryDark,
     surfaceContainer = Color(0xFF090909),
     outline = Color(0xFF262626),
-    outlineVariant = Color(0xFF1A1A1A)
+    outlineVariant = Color(0xFF1A1A1A),
+    surfaceTint = Color.Transparent
 )
 
 internal fun resolveEffectiveDynamicColorEnabled(
@@ -531,32 +533,13 @@ private fun createLightColorScheme(primaryColor: Color) = lightColorScheme(
     onSurfaceVariant = TextSecondary,
     surfaceContainer = iOSSystemGray5, // iOS System Gray 5 (Light)
     outline = iOSSystemGray3,
-    outlineVariant = iOSSystemGray4
+    outlineVariant = iOSSystemGray4,
+    surfaceTint = Color.Transparent
 )
 
 // 保留默认配色作为后备 (使用 iOS 系统蓝)
 private val DarkColorScheme = createDarkColorScheme(iOSSystemBlue)
 private val LightColorScheme = createLightColorScheme(iOSSystemBlue)
-
-/**
- * Align a MaterialKolor-generated scheme with the user-picked seed.
- *
- * Official wallpaper MD3 keeps HCT tone-mapped roles (Switch / FilterChip / buttons).
- * Custom seed previously forced the raw hex into [ColorScheme.primary], which made
- * bright seeds produce black onPrimary and neon tracks in light mode — while wallpaper
- * dynamic color (no force-align) looked correct.
- *
- * MaterialKolor already maps [themePrimaryColor] into proper primary / onPrimary /
- * primaryContainer roles. Only stamp the seed onto [ColorScheme.surfaceTint] so brand
- * identity remains without breaking control colors.
- */
-internal fun alignStaticColorSchemeWithThemePrimary(
-    scheme: ColorScheme,
-    themePrimaryColor: Color,
-    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean
-): ColorScheme {
-    return scheme.copy(surfaceTint = themePrimaryColor)
-}
 
 @Composable
 @Suppress("DEPRECATION") // Broadcast is retained as an OEM fallback for wallpaper palette delivery.
@@ -657,7 +640,9 @@ internal fun createMiuixAlignedColorScheme(
                 surfaceContainerHigh = Color(0xFF1A1A1A),
                 surfaceContainerHighest = Color(0xFF242424),
                 outline = Color(0xFF48484A),
-                outlineVariant = Color(0xFF262626)
+                outlineVariant = Color(0xFF262626),
+                // 显式透明：tonal elevation 表面不得被未调和的种子 primary 染色
+                surfaceTint = Color.Transparent
             )
         } else {
             darkColorScheme(
@@ -677,7 +662,8 @@ internal fun createMiuixAlignedColorScheme(
                 surfaceContainerHigh = Color(0xFF2C2C2E),
                 surfaceContainerHighest = Color(0xFF383838),
                 outline = Color(0xFF48484A),
-                outlineVariant = Color(0xFF3A3A3C)
+                outlineVariant = Color(0xFF3A3A3C),
+                surfaceTint = Color.Transparent
             )
         }
     } else {
@@ -698,7 +684,8 @@ internal fun createMiuixAlignedColorScheme(
             surfaceContainerHigh = Color(0xFFE8E8E8),
             surfaceContainerHighest = Color(0xFFE5E5EA),
             outline = Color(0xFFD1D1D6),
-            outlineVariant = Color(0xFFE5E5EA)
+            outlineVariant = Color(0xFFE5E5EA),
+            surfaceTint = Color.Transparent
         )
     }
 }
@@ -743,7 +730,15 @@ internal fun createBiliPaiStyleColorScheme(
 ): ColorScheme {
     // AndroidX already returns the user's final wallpaper-derived light/dark scheme.
     // Re-generating it from resolved roles changes the palette selected in system settings.
-    if (dynamicBaseScheme != null) return dynamicBaseScheme
+    if (dynamicBaseScheme != null) {
+        // Wallpaper dynamic colors supply accents, but their surface roles must not
+        // replace the globally selected AMOLED black surfaces.
+        return if (darkTheme && amoledDarkTheme) {
+            applyAmoledSurfaceOverrides(dynamicBaseScheme)
+        } else {
+            dynamicBaseScheme
+        }
+    }
 
     if (uiStyle == AppUiStyle.MIUIX) {
         return createMiuixAlignedColorScheme(
@@ -762,11 +757,10 @@ internal fun createBiliPaiStyleColorScheme(
     )
 
     val readableScheme = enforceDynamicTextContrast(scheme)
-    return alignStaticColorSchemeWithThemePrimary(
-        scheme = readableScheme,
-        themePrimaryColor = seedColor,
-        darkTheme = darkTheme
-    )
+    // 不再把原始种子 hex 盖进 surfaceTint：tonal elevation 表面（弹窗、菜单等）
+    // 会把 surfaceTint 混入容器色，未调和的亮种子会将其染成过饱和色。保留
+    // materialkolor 原生调和的 surfaceTint，与壁纸取色路径行为一致。
+    return readableScheme
 }
 
 @Composable

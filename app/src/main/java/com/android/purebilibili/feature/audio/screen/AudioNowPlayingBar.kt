@@ -68,6 +68,8 @@ import coil3.compose.AsyncImage
 import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.LocalLiquidGlassRenderConfig
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
+import com.android.purebilibili.feature.home.components.resolveBiliPaiBottomBarShellColor
+import com.android.purebilibili.feature.home.components.resolveBottomBarDarkTheme
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import kotlin.math.abs
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
@@ -176,8 +178,15 @@ internal fun AudioNowPlayingBar(
         glassEnabled = glassEnabled
     )
     val shape = resolveSharedBottomBarCapsuleShape()
-    val containerColor = AppSurfaceTokens.surfaceContainer()
     val glassActive = glassEnabled && miuixBackdrop != null
+    val containerColor = resolveBiliPaiBottomBarShellColor(
+        containerColor = AppSurfaceTokens.surfaceContainer(),
+        liquidGlassEnabled = glassEnabled,
+        darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background()),
+        liquidGlassTuning = liquidGlassTuning,
+    )
+    // 迷你条封面旋转：播放时逐帧失效是预期开销（封面独占 graphicsLayer，
+    // 不会连带模糊外壳层重绘）；暂停后 while 循环退出，帧率自然回落。
     val coverRotationDegrees = rememberMusicArtworkRotationDegrees(
         active = shouldRotateMusicArtwork(
             isPlaying = state.isPlaying,

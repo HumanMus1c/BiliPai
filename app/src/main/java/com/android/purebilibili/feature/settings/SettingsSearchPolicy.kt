@@ -600,10 +600,10 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
-        title = "后台播放 / 画中画 / 小窗",
-        subtitle = "设置离开播放页后停止、后台继续或进入小窗",
+        title = "后台播放 / 画中画 / 小窗 / 歌词界面",
+        subtitle = "设置离开播放页后停止、后台继续、进入小窗，以及听视频默认歌词界面",
         section = settingsDestinationCopy(SettingsSearchTarget.PLAYBACK).title,
-        aliases = listOf("后台播放", "画中画", "pip", "小窗", "小窗画中画", "音频焦点", "自动进入画中画", "离开播放页后停止", "视频小横条", "听视频小横条", "听视频横条", "当前视频条", "点击小横条", "小横条跳转详情", "小横条跳转听视频", "now playing"),
+        aliases = listOf("后台播放", "画中画", "pip", "小窗", "小窗画中画", "音频焦点", "自动进入画中画", "离开播放页后停止", "视频小横条", "听视频小横条", "听视频横条", "当前视频条", "点击小横条", "小横条跳转详情", "小横条跳转听视频", "now playing", "歌词界面", "听视频歌词", "沉浸歌词", "沉浸式歌词", "经典歌词", "逐字歌词", "逐字", "halcyon", "歌词样式"),
         focusId = SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER
     ),
     SettingsSearchEntry(

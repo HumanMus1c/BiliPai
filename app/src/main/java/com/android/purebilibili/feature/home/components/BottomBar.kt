@@ -36,6 +36,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi // [新增]
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -2299,7 +2301,7 @@ fun FrostedBottomBar(
                 itemLabels = itemLabels,
                 onToggleSidebar = effectiveToggleSidebar,
                 dynamicUnreadCount = dynamicUnreadCount,
-                isFloating = isFloating,
+                isFloating = isFloating || uiSkinDecoration.usesIllustratedNavigation(isTablet),
                 isTablet = isTablet,
                 labelMode = labelMode,
                 blurEnabled = hazeState != null,
@@ -2333,7 +2335,7 @@ fun FrostedBottomBar(
                 itemLabels = itemLabels,
                 onToggleSidebar = effectiveToggleSidebar,
                 dynamicUnreadCount = dynamicUnreadCount,
-                isFloating = isFloating,
+                isFloating = isFloating || uiSkinDecoration.usesIllustratedNavigation(isTablet),
                 isTablet = isTablet,
                 labelMode = labelMode,
                 blurEnabled = hazeState != null,
@@ -2477,7 +2479,7 @@ private fun MaterialBottomBar(
     )
 
     if (
-        shouldUseOfficialMd3FloatingToolbar(
+        !uiSkinDecoration.usesIllustratedNavigation(isTablet) && shouldUseOfficialMd3FloatingToolbar(
             isFloating = isFloating,
             liquidGlassEnabled = glassEnabled,
         )
@@ -3226,6 +3228,105 @@ private fun MiuixBottomBar(
     }
 }
 
+/** Resource-only skin presentation; navigation and playback remain owned by the host. */
+@Composable
+internal fun IllustratedSkinBottomBar(
+    decoration: BottomBarUiSkinDecoration,
+    currentItem: BottomNavItem,
+    visibleItems: List<BottomNavItem>,
+    onItemClick: (BottomNavItem) -> Unit,
+    modifier: Modifier = Modifier,
+    itemLabels: Map<String, String> = emptyMap(),
+    dynamicUnreadCount: Int = 0,
+    showIcon: Boolean = true,
+    showText: Boolean = true,
+    includeNavigationInset: Boolean = true,
+) {
+    val colors = resolveBottomBarSkinContentColors(
+        selectedColor = decoration.bottomSelectedTint.takeUnless { it == Color.Unspecified }
+            ?: MaterialTheme.colorScheme.primary,
+        unselectedColor = decoration.bottomUnselectedTint.takeUnless { it == Color.Unspecified }
+            ?: MaterialTheme.colorScheme.onSurface,
+        skinTrimTint = decoration.bottomTrimTint,
+    )
+    BoxWithConstraints(modifier = modifier) {
+        val iconSize = resolveIllustratedSkinIconSize(maxWidth / visibleItems.size.coerceAtLeast(1))
+        DockedBottomBarSkinContainer(
+            decoration = decoration,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (includeNavigationInset) Modifier.navigationBarsPadding() else Modifier)
+                    .height(resolveBottomBarSkinDockHeight())
+                    .selectableGroup(),
+            ) {
+                visibleItems.forEach { item ->
+                    val selected = item == currentItem
+                    val label = resolveBottomNavItemLabel(item, itemLabels)
+                    val contentColor = if (selected) colors.selectedColor else colors.unselectedColor
+                    val iconPath = decoration.illustratedIconPathFor(item, selected)
+                    val badge = formatBottomBarDynamicReminderBadge(
+                        if (shouldShowBottomBarDynamicReminderBadge(item, dynamicUnreadCount)) {
+                            dynamicUnreadCount
+                        } else 0
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .selectable(selected = selected, role = Role.Tab, onClick = { onItemClick(item) }),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (showIcon) {
+                            BottomBarReminderBadgeAnchor(
+                                badgeText = badge,
+                                modifier = Modifier
+                                    .align(if (showText) Alignment.TopCenter else Alignment.Center)
+                                    .offset(y = if (showText) (-10).dp else 0.dp),
+                            ) {
+                                if (iconPath != null) {
+                                    BottomBarSkinIcon(
+                                        iconPath = iconPath,
+                                        contentDescription = if (showText) null else label,
+                                        selected = selected,
+                                        size = iconSize,
+                                    )
+                                } else {
+                                    AppIcon(
+                                        imageVector = resolveSharedBottomBarIcon(
+                                            item, selected, SharedFloatingBottomBarIconStyle.MIUIX
+                                        ),
+                                        contentDescription = if (showText) null else label,
+                                        tint = contentColor,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                }
+                            }
+                        }
+                        if (showText) {
+                            AppText(
+                                text = label,
+                                color = contentColor,
+                                fontSize = resolveBottomBarSkinDockLabelFontSize(LocalDensity.current.fontScale),
+                                lineHeight = resolveBottomBarSkinDockLabelLineHeight(LocalDensity.current.fontScale),
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .align(if (showIcon) Alignment.BottomCenter else Alignment.Center)
+                                    .padding(bottom = 4.dp)
+                                    .bottomBarSkinLabelScrim(colors.labelScrimColor, colors.labelScrimAlpha),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun DockedBottomBarSkinContainer(
     decoration: BottomBarUiSkinDecoration?,
@@ -3572,6 +3673,23 @@ private fun BiliPaiFloatingBottomBarChrome(
     isPagerScrollInProgressProvider: () -> Boolean = { false },
     uiSkinDecoration: BottomBarUiSkinDecoration? = null
 ) {
+    if (uiSkinDecoration.usesIllustratedNavigation(isTablet) && uiSkinDecoration != null) {
+        IllustratedSkinBottomBar(
+            decoration = uiSkinDecoration,
+            currentItem = currentItem,
+            visibleItems = visibleItems,
+            itemLabels = itemLabels,
+            dynamicUnreadCount = dynamicUnreadCount,
+            showIcon = showIcon,
+            showText = showText,
+            includeNavigationInset = !embeddedDock,
+            onItemClick = { item ->
+                performMaterialBottomBarTap(haptic = haptic, onClick = { onItemClick(item) })
+            },
+            modifier = modifier,
+        )
+        return
+    }
     // BiliPai 对齐：材质/动效由 FloatingBottomBar 三层结构承担；
     // 本函数仅编排 BiliPai 特性（search / skin / badge / tablet sidebar）。
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())

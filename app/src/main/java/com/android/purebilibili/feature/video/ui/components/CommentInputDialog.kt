@@ -24,6 +24,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import com.android.purebilibili.core.util.PickMultipleGalleryVisualMedia
+import com.android.purebilibili.core.plugin.skin.LocalUiSkinState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,6 +77,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import java.io.File
 import com.android.purebilibili.core.ui.motion.resolveCommentVerticalContentRevealMotionSpec
 import com.android.purebilibili.core.ui.motion.verticalContentRevealEnterTransition
 import com.android.purebilibili.core.ui.motion.verticalContentRevealExitTransition
@@ -206,6 +208,15 @@ fun CommentInputDialog(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val isTablet = LocalWindowSizeClass.current.isTablet
+    val uiSkinState = LocalUiSkinState.current
+    val activeUiSkin = uiSkinState.activeSkin
+    val skinEmojiImages = if (uiSkinState.enabled && activeUiSkin != null) {
+        activeUiSkin.manifest.assets.emojiImages.mapNotNull { (name, path) ->
+            activeUiSkin.assetFilePath(path)?.let { name to it }
+        }.toMap()
+    } else {
+        emptyMap()
+    }
     val layoutPolicy = remember(isLandscape, isTablet) {
         resolveCommentInputDialogLayoutPolicy(
             isLandscape = isLandscape,
@@ -692,6 +703,9 @@ indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                                         emotePackages.forEachIndexed { index, pkg ->
                                             add(AppSegmentOption(index + 2, pkg.text))
                                         }
+                                        if (skinEmojiImages.isNotEmpty()) {
+                                            add(AppSegmentOption(emotePackages.size + 2, "皮肤"))
+                                        }
                                     },
                                     selectedValue = currentTab,
                                     onSelectionChange = { currentTab = it },
@@ -770,6 +784,41 @@ indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                                                             }
                                                     ) {
                                                         AppText(emojis[i], style = MaterialTheme.typography.headlineSmall)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        emotePackages.size + 2 -> { // 皮肤表情
+                                            // when(currentTab) 的分支必须是常量；空列表时留白，
+                                            // 与原本「布尔条件不命中落入 else」的空态一致。
+                                            if (skinEmojiImages.isNotEmpty()) {
+                                                val emotes = skinEmojiImages.toList()
+                                                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                                                    columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(60.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                ) {
+                                                    items(emotes.size, key = { emotes[it].first }) { index ->
+                                                        val (emoteText, imagePath) = emotes[index]
+                                                        Column(
+                                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                                            modifier = Modifier.clickable {
+                                                                insertTextAtCursor(emoteText)
+                                                            },
+                                                        ) {
+                                                            AsyncImage(
+                                                                model = File(imagePath),
+                                                                contentDescription = emoteText,
+                                                                modifier = Modifier.size(50.dp),
+                                                            )
+                                                            AppText(
+                                                                text = emoteText.removePrefix("[").removeSuffix("]"),
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis,
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }

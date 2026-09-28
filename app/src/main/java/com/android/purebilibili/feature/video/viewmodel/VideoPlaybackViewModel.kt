@@ -8440,6 +8440,9 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         } ?: return
         val indexRange = parseCdnByteRange(track.segmentBase?.indexRange) ?: return
         val context = appContext ?: return
+        // 蜂窝网络下不做后台整段预取：跳看的视频每跳一次就会预取一批新分段，
+        // 是「流量机制太激进」反馈的主要来源。正常播放的随播缓存不受影响。
+        if (!NetworkUtils.isWifi(context)) return
         val candidates = current.allVideoUrls.ifEmpty { listOf(current.playUrl) }
             .filter { it.isNotBlank() }
         if (candidates.isEmpty()) return

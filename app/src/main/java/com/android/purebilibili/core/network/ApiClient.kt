@@ -746,6 +746,16 @@ interface BilibiliApi {
         @retrofit2.http.Field("csrf_token") csrfToken: String
     ): SimpleApiResponse
 
+    //  进房上报（登录态，写入直播观看历史；对齐 PiliPlus roomEntryAction）
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("https://api.live.bilibili.com/xlive/web-room/v1/index/roomEntryAction")
+    suspend fun reportLiveRoomEntry(
+        @retrofit2.http.Field("room_id") roomId: Long,
+        @retrofit2.http.Field("platform") platform: String = "pc",
+        @retrofit2.http.Field("csrf") csrf: String,
+        @retrofit2.http.Field("csrf_token") csrfToken: String
+    ): SimpleApiResponse
+
     //  [新增] 获取直播弹幕表情
     @GET("https://api.live.bilibili.com/xlive/web-ucenter/v2/emoticon/GetEmoticons")
     suspend fun getLiveEmoticons(
@@ -1997,6 +2007,18 @@ interface SpaceApi {
     // 获取用户详细信息 (需要 WBI 签名)
     @GET("x/space/wbi/acc/info")
     suspend fun getSpaceInfo(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceInfoResponse
+
+    // App 端空间接口，仅用于头部充电（elec）/大航海（guard）摘要（需 appkey 签名）
+    @GET("https://app.bilibili.com/x/v2/space")
+    suspend fun getAppSpaceSupporters(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceSupportersResponse
+
+    // 充电排行（网页端接口）
+    @GET("x/upower/up/member/rank/v2")
+    suspend fun getUpowerRank(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceUpowerRankResponse
+
+    // 大航海/舰队列表（直播域名）
+    @GET("https://api.live.bilibili.com/xlive/app-ucenter/v1/guard/MainGuardCardAll")
+    suspend fun getMemberGuard(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceMemberGuardResponse
 
     @GET("x/space/wbi/acc/info")
     suspend fun getSpaceInfoRaw(@QueryMap params: Map<String, String>): okhttp3.ResponseBody

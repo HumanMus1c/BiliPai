@@ -22,6 +22,7 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.live.LiveDanmakuItem
+import com.android.purebilibili.feature.live.LiveChatMessage
 import com.android.purebilibili.feature.live.LiveStatusPalette
 import com.android.purebilibili.feature.live.resolveLandscapeLiveChatVisualSpec
 import com.android.purebilibili.feature.live.resolveLiveMedalColor
@@ -39,7 +40,7 @@ fun LandscapeChatOverlay(
     modifier: Modifier = Modifier
 ) {
     val visualSpec = remember { resolveLandscapeLiveChatVisualSpec() }
-    val messages = remember { mutableStateListOf<KeyedLiveChatMessage>() }
+    val messages = remember { mutableStateListOf<LiveChatMessage>() }
     val chatMessageSeq = remember { mutableLongStateOf(0L) }
     val listState = rememberLazyListState()
 
@@ -48,7 +49,7 @@ fun LandscapeChatOverlay(
             // 确保列表操作在主线程执行 (Compose 状态修改必须在主线程)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 try {
-                    messages.add(KeyedLiveChatMessage(++chatMessageSeq.longValue, item))
+                    messages.add(LiveChatMessage(++chatMessageSeq.longValue, item))
                     if (messages.size > 50) messages.removeAt(0) // 横屏模式只保留最近50条
                     if (!listState.isScrollInProgress && messages.isNotEmpty()) {
                         listState.animateScrollToItem((messages.size - 1).coerceAtLeast(0))
@@ -93,7 +94,7 @@ fun LandscapeChatOverlay(
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
             reverseLayout = false // 正常方向，新消息在底部
         ) {
-            items(messages, key = { it.seq }, contentType = { "live_chat" }) { keyed ->
+            items(messages, key = { it.sequence }, contentType = { "live_chat" }) { keyed ->
                 LandscapeChatItem(keyed.item, visualSpec)
             }
         }

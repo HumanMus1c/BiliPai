@@ -17,6 +17,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -49,9 +50,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -110,6 +113,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
@@ -264,6 +268,8 @@ fun SpaceScreen(
     onMessageClick: (Long, String, String) -> Unit = { _, _, _ -> },
     onFollowingClick: (Long) -> Unit = {},
     onFansClick: (Long) -> Unit = {},
+    onUpowerRankClick: ((Long, String, Long) -> Unit)? = null,
+    onMemberGuardClick: ((Long, String, Long) -> Unit)? = null,
     viewModel: SpaceViewModel = viewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -703,6 +709,7 @@ fun SpaceScreen(
                             onCategorySelected = viewModel::selectCategory,
                             onSelectSortOrder = viewModel::selectSortOrder,
                             contributionVideoLayoutMode = contributionVideoLayoutMode,
+                            onPlayAllVideos = playAllSpaceVideos,
                             onLoadMoreVideos = viewModel::loadMoreVideos,
                             onLoadHome = viewModel::loadSpaceHome,
                             onLoadDynamic = { viewModel.loadSpaceDynamic(refresh = true) },
@@ -727,6 +734,10 @@ fun SpaceScreen(
                             },
                             onFollowingClick = { onFollowingClick(state.userInfo.mid) },
                             onFansClick = { onFansClick(state.userInfo.mid) },
+                            onUpowerRankClick = onUpowerRankClick
+                                ?: { m, _, _ -> onWebClick("https://space.bilibili.com/$m/upower/rank", "充电排行") },
+                            onMemberGuardClick = onMemberGuardClick
+                                ?: { m, _, _ -> onWebClick("https://space.bilibili.com/$m", "大航海") },
                             onTopPhotoClick = { rect ->
                                 topPhotoSourceRect = rect
                                 showTopPhotoPreview = true
@@ -852,8 +863,8 @@ fun SpaceScreen(
     repostDynamicId?.let { dynamicId ->
         RepostDialog(
             onDismiss = { repostDynamicId = null },
-            onRepost = { content: String, onComplete: (Boolean) -> Unit ->
-                dynamicInteractionViewModel.repostDynamic(dynamicId, content) { success, message ->
+            onRepost = { content: String, alsoComment: Boolean, onComplete: (Boolean) -> Unit ->
+                dynamicInteractionViewModel.repostDynamic(dynamicId, content, alsoComment) { success, message ->
                     android.widget.Toast.makeText(
                         context,
                         message,
@@ -1089,6 +1100,7 @@ private fun SpaceContent(
     onCategorySelected: (Int) -> Unit,
     onSelectSortOrder: (VideoSortOrder) -> Unit = {},
     contributionVideoLayoutMode: SpaceContributionVideoLayoutMode,
+    onPlayAllVideos: () -> Unit = {},
     onLoadMoreVideos: () -> Unit,
     onLoadHome: () -> Unit,
     onLoadDynamic: () -> Unit,
@@ -1110,6 +1122,8 @@ private fun SpaceContent(
     onMessageClick: () -> Unit,
     onFollowingClick: () -> Unit,
     onFansClick: () -> Unit,
+    onUpowerRankClick: (Long, String, Long) -> Unit = { _, _, _ -> },
+    onMemberGuardClick: (Long, String, Long) -> Unit = { _, _, _ -> },
     onTopPhotoClick: (Rect?) -> Unit,
     onAvatarClick: (Rect?) -> Unit,
     dynamicCardItems: List<com.android.purebilibili.data.model.response.DynamicItem>,
@@ -1325,6 +1339,8 @@ private fun SpaceContent(
             .then(modifier)
     ) {
         val density = LocalDensity.current
+        // 吸顶 Tab 行的实际高度，用于把投稿悬浮工具条定位在它正下方。
+        var pinnedTabsHeightPx by remember { mutableStateOf(0) }
         // [重构] 折叠进度：header 是 index 0，滚动偏移驱动 header 内容上移淡出（视差折叠）。
         // 折叠范围用 dp 换算，避免固定像素在不同 density 下曲线不一致
         val headerCollapseRangePx = with(density) { 320.dp.toPx() }
@@ -1335,6 +1351,18 @@ private fun SpaceContent(
                 } else {
                     (gridState.firstVisibleItemScrollOffset.toFloat() / headerCollapseRangePx)
                         .coerceIn(0f, 1f)
+                }
+            }
+        }
+
+        // 背景图视差（对齐 PiliPlus DynamicFlexibleSpaceBar 的 1/4 速率）：
+        // 把头部 item 的原始滚动位移交给 SpaceHeader，在图片向上溢出的余量内做 translationY。
+        val bannerScrollOffsetPx = remember {
+            derivedStateOf {
+                if (gridState.firstVisibleItemIndex > 0) {
+                    Float.MAX_VALUE
+                } else {
+                    gridState.firstVisibleItemScrollOffset.toFloat()
                 }
             }
         }
@@ -1416,6 +1444,12 @@ private fun SpaceContent(
                     relationStat = state.headerState.relationStat ?: state.relationStat,
                     upStat = state.headerState.upStat ?: state.upStat,
                     collapseFraction = headerCollapseFraction.value,
+                    bannerScrollOffsetPx = bannerScrollOffsetPx.value,
+                    chargeGroup = state.chargeGroup,
+                    guardGroup = state.guardGroup,
+                    onWebClick = onWebClick,
+                    onUpowerRankClick = onUpowerRankClick,
+                    onMemberGuardClick = onMemberGuardClick,
                     onFollowClick = onFollowClick,
                     onMessageClick = onMessageClick,
                     onFollowingClick = onFollowingClick,
@@ -1431,13 +1465,27 @@ private fun SpaceContent(
                 )
             }
 
-            item(key = "space_tabs", span = { GridItemSpan(maxLineSpan) }) {
-                SpaceContentTabs(
-                    state = state,
-                    onMainTabSelected = onMainTabSelected,
-                    onContributionTabSelected = onContributionTabSelected,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            // Tab 栏吸顶（对齐 PiliPlus 的 pinned TabBar）：头部滚走后固定在顶栏下方，
+            // 长列表里切换 Tab 不必先滚回顶部。
+            // Grid 版 stickyHeader 自动占满整行 span（foundation 内部即 maxLineSpan）。
+            stickyHeader(key = "space_tabs") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                        .onSizeChanged { pinnedTabsHeightPx = it.height }
+                ) {
+                    SpaceContentTabs(
+                        state = state,
+                        onMainTabSelected = onMainTabSelected,
+                        onContributionTabSelected = onContributionTabSelected,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
             val showSearch = selectedMainTab == SpaceMainTab.DYNAMIC ||
@@ -1872,81 +1920,12 @@ private fun SpaceContent(
                     SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO -> {
                         if (state.videos.isNotEmpty() || state.totalVideos > 0) {
                             item(key = "space_video_summary_bar", span = { GridItemSpan(maxLineSpan) }) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val totalCount = state.totalVideos.takeIf { it > 0 } ?: state.videos.size
-                                    AppText(
-                                        text = "共${totalCount}视频",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .clickable {
-                                                state.videos.firstOrNull()?.let { playVideoFromSpace(it.bvid) }
-                                            }
-                                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        AppIcon(
-                                            imageVector = Icons.Outlined.PlayCircleOutline,
-                                            contentDescription = "播放全部",
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        AppText(
-                                            text = "播放全部",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.weight(1f))
-
-                                    var sortMenuExpanded by remember { mutableStateOf(false) }
-                                    Box {
-                                        Row(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .clickable { sortMenuExpanded = true }
-                                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            AppIcon(
-                                                imageVector = Icons.AutoMirrored.Outlined.Sort,
-                                                contentDescription = "排序",
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            AppText(
-                                                text = resolveSpaceVideoSortCompactLabel(state.sortOrder) + "发布",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        DropdownMenu(
-                                            expanded = sortMenuExpanded,
-                                            onDismissRequest = { sortMenuExpanded = false }
-                                        ) {
-                                            VideoSortOrder.entries.forEach { order ->
-                                                DropdownMenuItem(
-                                                    text = { AppText(order.displayName) },
-                                                    onClick = {
-                                                        onSelectSortOrder(order)
-                                                        sortMenuExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                SpaceContributionVideoSummaryBar(
+                                    totalCount = state.totalVideos.takeIf { it > 0 } ?: state.videos.size,
+                                    currentOrder = state.sortOrder,
+                                    onSelectSortOrder = onSelectSortOrder,
+                                    onPlayAll = onPlayAllVideos,
+                                )
                             }
                         }
 
@@ -2515,6 +2494,47 @@ private fun SpaceContent(
         }
     }
 
+        // 投稿视频悬浮工具条（对齐 PiliPlus 的 SliverFloatingHeaderWidget）：
+        // 统计条随内容滚走后，在吸顶 Tab 行正下方悬浮同一组操作。
+        val isContributionVideoTab = selectedMainTab == SpaceMainTab.CONTRIBUTION &&
+            selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
+        val isContributionSummaryScrolledAway by remember {
+            derivedStateOf {
+                gridState.firstVisibleItemIndex > 2 ||
+                    (gridState.firstVisibleItemIndex == 2 && gridState.firstVisibleItemScrollOffset > 0)
+            }
+        }
+        if (isContributionVideoTab && !state.isSearchMode &&
+            (state.videos.isNotEmpty() || state.totalVideos > 0)
+        ) {
+            val pinnedTabsTopPadding = chromeTopInset + with(density) { pinnedTabsHeightPx.toDp() }
+            AnimatedVisibility(
+                visible = isContributionSummaryScrolledAway,
+                enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { -it / 2 },
+                exit = fadeOut(tween(140)),
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = pinnedTabsTopPadding, start = 12.dp, end = 12.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(
+                                MaterialTheme.colorScheme.surface
+                            ).copy(alpha = 0.94f)
+                        )
+                ) {
+                    SpaceContributionVideoSummaryBar(
+                        totalCount = state.totalVideos.takeIf { it > 0 } ?: state.videos.size,
+                        currentOrder = state.sortOrder,
+                        onSelectSortOrder = onSelectSortOrder,
+                        onPlayAll = onPlayAllVideos,
+                    )
+                }
+            }
+        }
+
         // [新增] 双指缩放切换网格列数 HUD 胶囊 (自适应 MD3 / MIUIX)
         GridPinchColumnHudPill(
             visible = isPinchPillVisible,
@@ -2533,10 +2553,16 @@ private fun SpaceHeader(
     relationStat: RelationStatData?,
     upStat: UpStatData?,
     collapseFraction: Float,
+    bannerScrollOffsetPx: Float = 0f,
+    chargeGroup: SpaceSupporterGroup? = null,
+    guardGroup: SpaceSupporterGroup? = null,
+    onWebClick: (String, String) -> Unit = { _, _ -> },
     onFollowClick: () -> Unit,
     onMessageClick: () -> Unit,
     onFollowingClick: () -> Unit,
     onFansClick: () -> Unit,
+    onUpowerRankClick: (Long, String, Long) -> Unit = { _, _, _ -> },
+    onMemberGuardClick: (Long, String, Long) -> Unit = { _, _, _ -> },
     onTopPhotoClick: (Rect?) -> Unit,
     onAvatarClick: (Rect?) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
@@ -2557,6 +2583,21 @@ private fun SpaceHeader(
     val avatarPreviewEnabled = userInfo.face.isNotBlank()
     val isOwner = userInfo.mid > 0L &&
         userInfo.mid == com.android.purebilibili.core.store.TokenManager.midCache
+    val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
+    val uiSkinState = com.android.purebilibili.core.plugin.skin.LocalUiSkinState.current
+    val activeProfileSkin = uiSkinState.activeSkin?.takeIf {
+        uiSkinState.enabled &&
+            isOwner &&
+            com.android.purebilibili.core.plugin.skin.UiSkinSurface.PROFILE in it.manifest.surfaces
+    }
+    val skinSpaceBackgroundPaths = activeProfileSkin?.manifest?.assets?.spaceBackgrounds.orEmpty()
+        .mapNotNull { background ->
+            val preferLandscape = windowSizeClass.widthDp > windowSizeClass.heightDp
+            activeProfileSkin?.assetFilePath(
+                if (preferLandscape) background.landscape ?: background.portrait
+                else background.portrait ?: background.landscape
+            )
+        }
     val followLabel = resolveSpaceFollowActionLabel(
         isOwner = isOwner,
         relationStatus = userInfo.relationStatus,
@@ -2590,8 +2631,6 @@ private fun SpaceHeader(
     val avatarSize = 80.dp
     val avatarBannerOverlap = 20.dp
     val actionsTopMargin = 5.dp
-    val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
-
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // The hero is rendered beyond the grid's content padding. Use that exact rendered
         // width for both the banner height and avatar anchor so a wide window cannot create
@@ -2613,6 +2652,14 @@ private fun SpaceHeader(
         val bannerTotalHeightDp = bannerMetrics.heightDp.dp
         val heroHeight = bannerMetrics.heroHeightDp.dp
         val avatarTopPadding = (heroHeight - avatarBannerOverlap).coerceAtLeast(0.dp)
+        // 视差余量 = 背景图向上溢出窗口的量（chromeTopInset）。平移钳在该范围内，
+        // 图片永远不会滑出窗口顶部露底；效果为背景以约 1/4 速率跟随滚动。
+        val bannerParallaxTranslationPx = with(LocalDensity.current) {
+            val maxTranslationPx = chromeTopInset.coerceAtLeast(0.dp).roundToPx().toFloat()
+            (bannerScrollOffsetPx * 0.75f).coerceIn(0f, maxTranslationPx)
+        }
+        // 头部内容（头像/统计/按钮/信息区）随滚动渐隐，对齐 PiliPlus 的 _FlexibleSpaceHeaderOpacity。
+        val headerContentAlpha = 1f - collapseFraction
 
         Column(
             modifier = Modifier
@@ -2628,6 +2675,8 @@ private fun SpaceHeader(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // graphicsLayer 置于 bounds 修饰符之前，让预览回位框把视差位移算进去。
+                    .graphicsLayer { translationY = bannerParallaxTranslationPx }
                     .imagePreviewSourceBounds(topPhotoRect)
                     .alpha(if (topPhotoHidden) 0f else 1f)
                     .layout { measurable, constraints ->
@@ -2650,13 +2699,15 @@ private fun SpaceHeader(
                     }
                     .align(Alignment.TopCenter)
                     .clickable(
-                        enabled = shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty(),
+                        enabled = skinSpaceBackgroundPaths.isEmpty() &&
+                            (shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty()),
                         onClick = { onTopPhotoClick(topPhotoRect.value) }
                     )
             ) {
                 SpaceHeaderBanner(
                     topImages = userInfo.topImages,
                     fallbackTopPhotoUrl = topPhotoUrl,
+                    skinBackgroundPaths = skinSpaceBackgroundPaths,
                     isDarkTheme = isDarkTheme,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -2679,6 +2730,7 @@ private fun SpaceHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .graphicsLayer { alpha = headerContentAlpha }
                     .padding(top = avatarTopPadding, start = 4.dp, end = 0.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -2756,6 +2808,7 @@ private fun SpaceHeader(
                         onLiveClick = onLiveClick,
                         modifier = Modifier
                             .weight(1f)
+                            .graphicsLayer { alpha = headerContentAlpha }
                             .padding(top = avatarBannerOverlap),
                     )
                     Spacer(modifier = Modifier.width(24.dp))
@@ -2820,9 +2873,26 @@ private fun SpaceHeader(
                 onLiveClick = onLiveClick,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .graphicsLayer { alpha = headerContentAlpha }
                     .padding(start = 4.dp, end = 0.dp, top = 10.dp, bottom = 8.dp),
             )
         }
+
+        // 充电/大航海统计行（对齐 PiliPlus _buildChargeAndGuard）
+        SpaceChargeGuardRow(
+            chargeGroup = chargeGroup,
+            guardGroup = guardGroup,
+            onUpowerRankClick = {
+                onUpowerRankClick(userInfo.mid, userInfo.name, chargeGroup?.count ?: 0L)
+            },
+            onMemberGuardClick = {
+                onMemberGuardClick(userInfo.mid, userInfo.name, guardGroup?.count ?: 0L)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { alpha = headerContentAlpha }
+                .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
+        )
         }
     }
 }
@@ -3152,6 +3222,166 @@ private fun SpaceMainTabRow(
                 .fillMaxWidth()
                 .padding(horizontal = spec.horizontalPaddingDp.dp),
         )
+    }
+}
+
+@Composable
+private fun SpaceContributionVideoSummaryBar(
+    totalCount: Int,
+    currentOrder: VideoSortOrder,
+    onSelectSortOrder: (VideoSortOrder) -> Unit,
+    onPlayAll: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AppText(
+            text = "共${totalCount}视频",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable(onClick = onPlayAll)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            AppIcon(
+                imageVector = Icons.Outlined.PlayCircleOutline,
+                contentDescription = "播放全部",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AppText(
+                text = "播放全部",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+
+        var sortMenuExpanded by remember { mutableStateOf(false) }
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { sortMenuExpanded = true }
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Outlined.Sort,
+                    contentDescription = "排序",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AppText(
+                    text = resolveSpaceVideoSortCompactLabel(currentOrder) + "发布",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            DropdownMenu(
+                expanded = sortMenuExpanded,
+                onDismissRequest = { sortMenuExpanded = false }
+            ) {
+                VideoSortOrder.entries.forEach { order ->
+                    DropdownMenuItem(
+                        text = { AppText(order.displayName) },
+                        onClick = {
+                            onSelectSortOrder(order)
+                            sortMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceChargeGuardRow(
+    chargeGroup: SpaceSupporterGroup?,
+    guardGroup: SpaceSupporterGroup?,
+    onUpowerRankClick: () -> Unit,
+    onMemberGuardClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (chargeGroup == null && guardGroup == null) return
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        chargeGroup?.let { group ->
+            Row(
+                modifier = Modifier.clickable(onClick = onUpowerRankClick),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                SpaceSupporterAvatarStack(avatarUrls = group.avatarUrls)
+                AppText(
+                    text = "${FormatUtils.formatStat(group.count)}人为TA充电",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+        guardGroup?.let { group ->
+            Row(
+                modifier = Modifier.clickable(onClick = onMemberGuardClick),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                SpaceSupporterAvatarStack(avatarUrls = group.avatarUrls)
+                AppText(
+                    text = "${FormatUtils.formatStat(group.count)}人加入大航海",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceSupporterAvatarStack(avatarUrls: List<String>) {
+    val context = LocalContext.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        avatarUrls.take(3).forEachIndexed { index, url ->
+            Box(
+                modifier = Modifier
+                    .offset(x = (-6 * index).dp)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(FormatUtils.buildSizedImageUrl(url, width = 72, height = 72))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
     }
 }
 
@@ -3690,125 +3920,20 @@ private fun SpaceTopVideoCard(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val screenWidthPx = remember(configuration.screenWidthDp, density) {
-        with(density) { configuration.screenWidthDp.dp.toPx() }
-    }
-    val screenHeightPx = remember(configuration.screenHeightDp, density) {
-        with(density) { configuration.screenHeightDp.dp.toPx() }
-    }
-    val densityValue = density.density
-    val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
-    val nativeCardSnapshot = rememberNativeVideoCardSnapshotController(
-        sharedTransitionKey ?: video.pic,
-    )
-    var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val stationaryCoverUrl = remember(video.pic) {
-        FormatUtils.buildSizedImageUrl(video.pic, width = 560, height = 352)
-    }
-    val stationaryCoverRequest = remember(stationaryCoverUrl) {
-        ImageRequest.Builder(context)
-            .data(stationaryCoverUrl)
-            .crossfade(false)
-            .memoryCacheKey(stationaryCoverUrl)
-            .diskCacheKey(stationaryCoverUrl)
-            .build()
-    }
-    val coverShape = AppShapes.mediaCover()
-    val cardCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value.roundToInt()
-    val coverModifier = Modifier.spaceVideoCoverSharedBounds(
+    // 与单列投稿同款横向视频卡：封面时长角标 + "置顶" badge，不再卡片套卡片
+    SpaceArchiveListItemRow(
+        title = video.title,
+        cover = video.pic,
+        duration = FormatUtils.formatDuration(video.duration),
+        publishTime = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
+        play = video.stat.view,
+        secondaryCount = video.stat.danmaku,
+        badgeLabel = "置顶",
+        onClick = onClick,
         sharedTransitionKey = sharedTransitionKey,
-        coverShape = coverShape,
         sharedTransitionScope = sharedTransitionScope,
-        animatedVisibilityScope = animatedVisibilityScope
+        animatedVisibilityScope = animatedVisibilityScope,
     )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(AppShapes.container(ContainerLevel.Card))
-            .then(nativeCardSnapshot.modifier)
-            .background(AppSurfaceTokens.cardContainer())
-            .onGloballyPositioned { coordinates ->
-                cardBounds = coordinates.boundsInRoot()
-            }
-            .clickable {
-                cardBounds?.let { bounds ->
-                    CardPositionManager.recordVideoCardPosition(
-                        bvid = sharedTransitionKey.orEmpty(),
-                        sourceRoute = sourceRoute,
-                        bounds = bounds,
-                        screenWidth = screenWidthPx,
-                        screenHeight = screenHeightPx,
-                        density = densityValue,
-                        sourceCornerDp = cardCornerRadiusDp,
-                        coverBounds = coverBounds,
-                        sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
-                        sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
-                            title = video.title,
-                            ownerName = "",
-                            ownerFaceUrl = "",
-                            viewText = FormatUtils.formatStat(video.stat.view),
-                            danmakuText = FormatUtils.formatStat(video.stat.danmaku),
-                            durationText = FormatUtils.formatDuration(video.duration),
-                            infoPresentation = com.android.purebilibili.core.ui.transition
-                                .resolveVideoCardSourceInfoPresentation(
-                                    publishTimeText = "",
-                                    showStatsInInfo = true,
-                                ),
-                            coverUrl = stationaryCoverUrl,
-                            coverCacheKey = stationaryCoverUrl,
-                        ).withMeasuredCoverDecodeSize(coverBounds),
-                    )
-                    nativeCardSnapshot.capture()
-                }
-                onClick()
-            }
-            .padding(14.dp)
-    ) {
-        AppText(
-            text = "置顶视频",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        HorizontalVideoCardFrame(
-            coverModifier = coverModifier
-                    .onGloballyPositioned { coordinates ->
-                        coverBounds = coordinates.boundsInRoot()
-                    },
-            coverContent = {
-                AsyncImage(
-                    model = stationaryCoverRequest,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            },
-            infoContent = {
-                AppText(
-                    text = video.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    maxLines = videoCardTitleMaxLines(),
-                    overflow = videoCardTitleOverflow()
-                )
-                AppText(
-                    text = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                AppText(
-                    text = "${FormatUtils.formatStat(video.stat.view)}播放 · ${FormatUtils.formatStat(video.stat.like)}点赞",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-        )
-    }
 }
 
 @Composable
@@ -4895,11 +5020,41 @@ private fun SpaceHeaderMetricDivider() {
 private fun SpaceHeaderBanner(
     topImages: List<com.android.purebilibili.data.model.response.SpaceTopImageItem>,
     fallbackTopPhotoUrl: String,
+    skinBackgroundPaths: List<String> = emptyList(),
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    if (topImages.size > 1) {
+    // 与 PiliPlus 一致：所有背景图统一做亮/暗色调色，保证顶栏与头像在任意封面上可读。
+    val bannerColorFilter = resolveSpaceBannerColorFilter(isLight = !isDarkTheme)
+    if (skinBackgroundPaths.isNotEmpty()) {
+        val pagerState = rememberPagerState { skinBackgroundPaths.size }
+        Box(modifier = modifier) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(skinBackgroundPaths[page])
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            if (skinBackgroundPaths.size > 1) {
+                AppLinearProgressIndicator(
+                    progress = { (pagerState.currentPage + 1f) / skinBackgroundPaths.size },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.5.dp)
+                        .align(Alignment.BottomCenter),
+                    color = Color.White,
+                    trackColor = Color(0x669E9E9E),
+                )
+            }
+        }
+    } else if (topImages.size > 1) {
         val pagerState = rememberPagerState { topImages.size }
         Box(modifier = modifier) {
             HorizontalPager(
@@ -4916,6 +5071,7 @@ private fun SpaceHeaderBanner(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     alignment = alignment,
+                    colorFilter = bannerColorFilter,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -4952,6 +5108,7 @@ private fun SpaceHeaderBanner(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alignment = alignment,
+                colorFilter = bannerColorFilter,
                 modifier = Modifier.fillMaxSize()
             )
             if (item.title != null && item.title.title.isNotBlank()) {
@@ -4964,10 +5121,6 @@ private fun SpaceHeaderBanner(
             }
         }
     } else if (fallbackTopPhotoUrl.isNotBlank()) {
-        val colorFilter = resolveSpaceBannerColorFilter(
-            isLight = !isDarkTheme,
-            hasFilter = true
-        )
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(fallbackTopPhotoUrl)
@@ -4976,7 +5129,7 @@ private fun SpaceHeaderBanner(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             alignment = Alignment.Center,
-            colorFilter = colorFilter,
+            colorFilter = bannerColorFilter,
             modifier = modifier
         )
     } else {

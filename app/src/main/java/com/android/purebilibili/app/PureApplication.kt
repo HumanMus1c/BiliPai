@@ -101,7 +101,7 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     //  Coil 图片加载器 - 优化内存和磁盘缓存
     override fun newImageLoader(context: android.content.Context): ImageLoader {
         val memoryCachePercent = PureApplicationRuntimeConfig.resolveImageMemoryCachePercent()
-        val diskCacheBytes = 150L * 1024 * 1024
+        val diskCacheBytes = 100L * 1024 * 1024
         return ImageLoader.Builder(this)
             .components {
                 // 共享网络客户端及 DNS 策略，保留 HTTP 缓存头语义。

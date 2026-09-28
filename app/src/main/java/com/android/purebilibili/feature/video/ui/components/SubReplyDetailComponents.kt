@@ -1056,7 +1056,7 @@ private fun SubReplyDetailItem(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val copyToClipboard = rememberClipboardCopyHandler()
-    val blockedUpRepository = remember(context) { BlockedUpRepository(context) }
+    val blockedUpRepository = remember { BlockedUpRepository.getInstance(context) }
     var showActionSheet by remember(item.rpid) { mutableStateOf(false) }
     var showFreeCopyDialog by remember(item.rpid) { mutableStateOf(false) }
     var showReportDialog by remember(item.rpid) { mutableStateOf(false) }

@@ -1858,6 +1858,15 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
      *  转发动态
      */
     fun repostDynamic(dynamicId: String, content: String = "", onResult: (Boolean, String) -> Unit) {
+        repostDynamic(dynamicId = dynamicId, content = content, alsoComment = false, onResult = onResult)
+    }
+
+    fun repostDynamic(
+        dynamicId: String,
+        content: String = "",
+        alsoComment: Boolean = false,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 if (dynamicId.isBlank()) {
@@ -1887,13 +1896,35 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                             dynamicId = dynamicId
                         ).toImmutableList()
                     )
-                    onResult(true, "转发成功")
+                    var message = "转发成功"
+                    if (alsoComment && content.isNotBlank()) {
+                        val commentOk = postSourceDynamicComment(dynamicId, content)
+                        message = if (commentOk) "转发成功，已同步评论" else "转发成功，评论同步失败"
+                    }
+                    onResult(true, message)
                 } else {
                     onResult(false, response.message.ifBlank { "转发失败" })
                 }
             } catch (e: Exception) {
                 onResult(false, e.message ?: "网络错误")
             }
+        }
+    }
+
+    /** 转发时同步在原动态下发一条评论，失败不阻塞转发结果。 */
+    private suspend fun postSourceDynamicComment(dynamicId: String, message: String): Boolean {
+        return try {
+            val item = findDynamicById(dynamicId) ?: return false
+            val target = resolveDynamicCommentTargets(item).firstOrNull() ?: return false
+            CommentRepository.addCommentForSubject(
+                oid = target.oid,
+                type = target.type,
+                message = message,
+                root = 0L,
+                parent = 0L
+            ).isSuccess
+        } catch (_: Exception) {
+            false
         }
     }
 

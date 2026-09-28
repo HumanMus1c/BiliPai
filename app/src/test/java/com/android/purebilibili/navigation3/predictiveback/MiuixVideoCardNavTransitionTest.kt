@@ -28,6 +28,44 @@ import androidx.compose.ui.unit.LayoutDirection
 
 class MiuixVideoCardNavTransitionTest {
     @Test
+    fun settledEntryRebindsRemovingScopeBeforeReturnStarts() {
+        var depth = -.5f
+        fun scope(removing: Boolean, lowerPage: Boolean = false) = object : NavTransitionScope {
+            override val relativeDepth get() = if (lowerPage) depth + 1f else depth
+            override val role get() = when {
+                relativeDepth > 0f -> NavRole.Covered
+                relativeDepth == 0f -> NavRole.Top
+                removing -> NavRole.Outgoing
+                else -> NavRole.Incoming
+            }
+            override val change = if (removing) NavChange.Pop else NavChange.Push
+            override val layoutSize = IntSize(1080, 2400)
+            override val layoutDirection = LayoutDirection.Ltr
+            override val density = Density(3f)
+            override val gesture: NavGesture? = null
+            override val settle: NavSettle? = null
+        }
+        val progress = MiuixVideoCardTransitionProgress()
+        progress.bind(scope(removing = false))
+        assertEquals(VideoCardTransitionSettleState.AutoEnter, progress.settleStateOrNull())
+        depth = 0f
+        assertEquals(VideoCardTransitionSettleState.Held, progress.settleStateOrNull())
+
+        // Miuix captures isRemoving in a fresh scope before its driver leaves depth zero.
+        progress.bind(scope(removing = true))
+        depth = -.4f
+        progress.bind(scope(removing = false, lowerPage = true))
+        assertEquals(VideoCardTransitionSettleState.AutoReturn, progress.settleStateOrNull())
+        assertEquals(.6f, progress.depthOrNull())
+
+        // The source reaches Top in the final frame; it must not steal exit completion.
+        depth = -1f
+        progress.bind(scope(removing = false, lowerPage = true))
+        assertEquals(VideoCardTransitionSettleState.Idle, progress.settleStateOrNull())
+        assertEquals(0f, progress.depthOrNull())
+    }
+
+    @Test
     fun heroNavMotionUsesDurationTokensAndVelocityCapableReleaseSpecs() {
         val spec = resolveVideoHeroMotionSpec(360)
         val entering = resolveVideoHeroNavMotion(spec, false)

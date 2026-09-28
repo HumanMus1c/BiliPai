@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -169,6 +172,7 @@ internal data class SettingsRootCategoryActions(
     val onDynamicTopBarCollapseOnScrollChange: (Boolean) -> Unit,
     val onDynamicFeedLayoutModeChange: (com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode) -> Unit,
     val onDynamicTabVisibilityChange: (String) -> Unit,
+    val onDynamicTabOrderChange: (List<String>) -> Unit,
     val onHomeRefreshCountChange: (Int) -> Unit
 )
 
@@ -209,6 +213,7 @@ internal data class SettingsRootCategoryState(
     val dynamicTopBarCollapseOnScroll: Boolean,
     val dynamicFeedLayoutMode: com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode,
     val dynamicVisibleTabIds: Set<String>,
+    val dynamicTabOrder: List<String>,
     val homeRefreshCount: Int
 )
 
@@ -476,6 +481,8 @@ internal fun SettingsRootCategoryContent(
                             onDynamicFeedLayoutModeChange = actions.onDynamicFeedLayoutModeChange,
                             dynamicVisibleTabIds = state.dynamicVisibleTabIds,
                             onDynamicTabVisibilityChange = actions.onDynamicTabVisibilityChange,
+                            dynamicTabOrder = state.dynamicTabOrder,
+                            onDynamicTabOrderChange = actions.onDynamicTabOrderChange,
                             homeRefreshCount = state.homeRefreshCount,
                             onHomeRefreshCountChange = actions.onHomeRefreshCountChange,
                         )
@@ -687,6 +694,8 @@ internal fun SettingsRootCategoryContent(
                             onDynamicFeedLayoutModeChange = actions.onDynamicFeedLayoutModeChange,
                             dynamicVisibleTabIds = state.dynamicVisibleTabIds,
                             onDynamicTabVisibilityChange = actions.onDynamicTabVisibilityChange,
+                            dynamicTabOrder = state.dynamicTabOrder,
+                            onDynamicTabOrderChange = actions.onDynamicTabOrderChange,
                             homeRefreshCount = state.homeRefreshCount,
                             onHomeRefreshCountChange = actions.onHomeRefreshCountChange
                         )
@@ -1002,6 +1011,8 @@ fun FeedApiSection(
     onDynamicFeedLayoutModeChange: (com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode) -> Unit,
     dynamicVisibleTabIds: Set<String>,
     onDynamicTabVisibilityChange: (String) -> Unit,
+    dynamicTabOrder: List<String>,
+    onDynamicTabOrderChange: (List<String>) -> Unit,
     homeRefreshCount: Int,
     onHomeRefreshCountChange: (Int) -> Unit
 ) {
@@ -1097,6 +1108,8 @@ fun FeedApiSection(
             icon = visibilityIcon,
             visibleTabIds = dynamicVisibleTabIds,
             onTabVisibilityChange = onDynamicTabVisibilityChange,
+            tabOrder = dynamicTabOrder,
+            onTabOrderChange = onDynamicTabOrderChange,
             iconTint = siblingTints[7]
         )
         SettingsAdaptiveDivider()
@@ -1119,6 +1132,8 @@ private fun FeedDynamicTabVisibilityItem(
     icon: ImageVector,
     visibleTabIds: Set<String>,
     onTabVisibilityChange: (String) -> Unit,
+    tabOrder: List<String>,
+    onTabOrderChange: (List<String>) -> Unit,
     iconTint: Color
 ) {
     val listCapabilities = rememberAdaptiveListVisualCapabilities()
@@ -1167,7 +1182,15 @@ private fun FeedDynamicTabVisibilityItem(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        allDynamicTabSpecs.forEachIndexed { index, tab ->
+        val orderedTabs = remember(tabOrder) {
+            allDynamicTabSpecs.sortedWith(
+                compareBy(
+                    { spec -> tabOrder.indexOf(spec.id).takeIf { it >= 0 } ?: tabOrder.size },
+                    { it.logicalIndex }
+                )
+            )
+        }
+        orderedTabs.forEachIndexed { index, tab ->
             val checked = tab.id in visibleTabIds
             val enabled = shouldAllowDynamicTabVisibilityToggleOff(
                 currentVisibleTabIds = visibleTabIds,
@@ -1179,7 +1202,42 @@ private fun FeedDynamicTabVisibilityItem(
                 onCheckedChange = { onTabVisibilityChange(tab.id) },
                 enabled = enabled
             )
-            if (index != allDynamicTabSpecs.lastIndex) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    enabled = index > 0,
+                    onClick = {
+                        val newOrder = orderedTabs.map { it.id }.toMutableList()
+                        val target = newOrder[index - 1]
+                        newOrder[index - 1] = newOrder[index]
+                        newOrder[index] = target
+                        onTabOrderChange(newOrder)
+                    }
+                ) {
+                    AppIcon(
+                        androidx.compose.material.icons.Icons.Default.KeyboardArrowUp,
+                        contentDescription = "上移${tab.title}"
+                    )
+                }
+                IconButton(
+                    enabled = index < orderedTabs.lastIndex,
+                    onClick = {
+                        val newOrder = orderedTabs.map { it.id }.toMutableList()
+                        val target = newOrder[index + 1]
+                        newOrder[index + 1] = newOrder[index]
+                        newOrder[index] = target
+                        onTabOrderChange(newOrder)
+                    }
+                ) {
+                    AppIcon(
+                        androidx.compose.material.icons.Icons.Default.KeyboardArrowDown,
+                        contentDescription = "下移${tab.title}"
+                    )
+                }
+            }
+            if (index != orderedTabs.lastIndex) {
                 SettingsAdaptiveDivider()
             }
         }

@@ -222,6 +222,7 @@ fun SkinCatalogScreen(
 
         Column(modifier = Modifier.fillMaxSize()) {
             AppLiquidAwareSearchField(
+                backdrop = com.android.purebilibili.feature.settings.ui.LocalSettingsPageBackdrop.current,
                 query = state.searchQuery,
                 onQueryChange = stateHolder::setSearchQuery,
                 placeholder = "搜索装扮名称",
@@ -342,6 +343,20 @@ private fun SkinCatalogCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                if (entry.officialExample) {
+                    AppSurface(
+                        shape = AppShapes.container(ContainerLevel.Chip),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
+                    ) {
+                        AppText(
+                            text = "官方示例",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 // 颜色色块预览（右上角）
                 Row(
                     modifier = Modifier
@@ -421,12 +436,13 @@ private fun SkinCatalogPreviewDialog(
                 } else if (previewData != null) {
                     UiSkinCompositionPreview(data = previewData)
                     AppText(
-                        text = "预览按真实底栏尺寸渲染（dock 高 64dp、图标 32dp），含液态玻璃叠加。",
+                        text = "完整装扮使用通栏插画和大图标；实际显示会随导航布局调整。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     AppText(
-                        text = "素材来自 B 站官方付费/限定主题存档，仅供本地私用，不得作为社区包分发。",
+                        text = entry.licenseNote
+                            ?: "素材来自 B 站官方付费/限定主题存档，仅供本地私用，不得作为社区包分发。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

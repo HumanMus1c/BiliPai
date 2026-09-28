@@ -305,7 +305,7 @@ fun AppModalBottomSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     AppPopupSurface(
-                        type = AppPopupSurfaceType.SHEET,
+                        type = AppPopupSurfaceType.DIALOG,
                         modifier = Modifier
                             .widthIn(max = layoutSpec.maxWidthDp.dp)
                             .heightIn(

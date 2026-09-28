@@ -343,28 +343,63 @@ private fun ArticleDetailContent(
         itemsIndexed(article.blocks, key = { index, _ -> index }) { index, block ->
             when (block) {
                 is ArticleContentBlock.Heading -> {
-                    AppText(
-                        text = block.text,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (block.spans.isEmpty()) {
+                        AppText(
+                            text = block.text,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else {
+                        AppText(
+                            text = buildArticleAnnotatedString(
+                                spans = block.spans,
+                                defaultColor = MaterialTheme.colorScheme.onSurface,
+                                baseFontSize = MaterialTheme.typography.titleLarge.fontSize
+                            ),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 is ArticleContentBlock.Paragraph -> {
-                    AppText(
-                        text = block.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    if (block.spans.isEmpty()) {
+                        AppText(
+                            text = block.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else {
+                        AppText(
+                            text = buildArticleAnnotatedString(
+                                spans = block.spans,
+                                defaultColor = MaterialTheme.colorScheme.onSurface,
+                                baseFontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            ),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                 }
 
                 is ArticleContentBlock.Quote -> {
-                    AppText(
-                        text = block.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 12.dp)
-                    )
+                    if (block.spans.isEmpty()) {
+                        AppText(
+                            text = block.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    } else {
+                        AppText(
+                            text = buildArticleAnnotatedString(
+                                spans = block.spans,
+                                defaultColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                baseFontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            ),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
                 }
 
                 is ArticleContentBlock.ListBlock -> {

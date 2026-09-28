@@ -379,21 +379,14 @@ internal fun resolveDynamicCardPrimaryAction(item: DynamicItem): DynamicCardPrim
     }
 
     major?.article?.let { article ->
-            when (val target = BilibiliNavigationTargetParser.parse(article.jump_url)) {
-                is BilibiliNavigationTarget.Dynamic -> {
-                    return DynamicCardPrimaryAction.OpenDynamicDetail(target.dynamicId)
-                }
-                is BilibiliNavigationTarget.Article -> {
-                    return DynamicCardPrimaryAction.OpenArticle(
-                        articleId = target.articleId,
-                        title = article.title.ifBlank { article.desc }
-                    )
-                }
-                else -> Unit
-            }
-            if (article.id > 0L) {
+            // 专栏卡片统一打开专栏渲染器。新专栏的 jump_url 常是 /opus/ 链接，
+            // 不能据此把专栏当图文动态打开详情页。
+            val jumpTarget = BilibiliNavigationTargetParser.parse(article.jump_url)
+            val articleId = (jumpTarget as? BilibiliNavigationTarget.Article)?.articleId
+                ?: article.id
+            if (articleId > 0L) {
                 return DynamicCardPrimaryAction.OpenArticle(
-                    articleId = article.id,
+                    articleId = articleId,
                     title = article.title.ifBlank { article.desc }
                 )
             }

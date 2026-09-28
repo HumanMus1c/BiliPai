@@ -154,6 +154,8 @@ fun SettingsScreen(
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.DEFAULT_HOME_REFRESH_COUNT)
     val dynamicVisibleTabIds by SettingsManager.getDynamicTabVisibleTabs(context)
         .collectAsStateWithLifecycle(initialValue = defaultDynamicTabVisibleIds)
+    val dynamicTabOrder by SettingsManager.getDynamicTabOrder(context)
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     val dynamicImagePreviewTextVisible by SettingsManager.getDynamicImagePreviewTextVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
     val dynamicDetailImageLayout by SettingsManager.getDynamicDetailImageLayout(context)
@@ -869,6 +871,12 @@ fun SettingsScreen(
                             )
                         }
                     },
+                    dynamicTabOrder = dynamicTabOrder,
+                    onDynamicTabOrderChange = { order ->
+                        scope.launch {
+                            SettingsManager.setDynamicTabOrder(context, order)
+                        }
+                    },
                     homeRefreshCount = homeRefreshCount,
                     onHomeRefreshCountChange = { count ->
                         scope.launch {
@@ -998,6 +1006,8 @@ private fun MobileSettingsNavLayout(
     onDynamicFeedLayoutModeChange: (com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode) -> Unit,
     dynamicVisibleTabIds: Set<String>,
     onDynamicTabVisibilityChange: (String) -> Unit,
+    dynamicTabOrder: List<String>,
+    onDynamicTabOrderChange: (List<String>) -> Unit,
     homeRefreshCount: Int,
     onHomeRefreshCountChange: (Int) -> Unit,
 ) {
@@ -1065,6 +1075,7 @@ private fun MobileSettingsNavLayout(
         onDynamicTopBarCollapseOnScrollChange = onDynamicTopBarCollapseOnScrollChange,
         onDynamicFeedLayoutModeChange = onDynamicFeedLayoutModeChange,
         onDynamicTabVisibilityChange = onDynamicTabVisibilityChange,
+        onDynamicTabOrderChange = onDynamicTabOrderChange,
         onHomeRefreshCountChange = onHomeRefreshCountChange,
     )
     val rootCategoryState = SettingsRootCategoryState(
@@ -1104,6 +1115,7 @@ private fun MobileSettingsNavLayout(
         dynamicTopBarCollapseOnScroll = dynamicTopBarCollapseOnScroll,
         dynamicFeedLayoutMode = dynamicFeedLayoutMode,
         dynamicVisibleTabIds = dynamicVisibleTabIds,
+        dynamicTabOrder = dynamicTabOrder,
         homeRefreshCount = homeRefreshCount,
     )
 

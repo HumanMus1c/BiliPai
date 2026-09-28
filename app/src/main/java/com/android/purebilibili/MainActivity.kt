@@ -1723,10 +1723,14 @@ open class MainActivity : AppCompatActivity() {
                             )
                         }
                     }
-                    //  小窗播放器覆盖层 (非 PiP 模式下显示)
-                    if (playbackOverlayState.showMiniPlayerOverlay) {
+                    //  小窗播放器覆盖层 (非 PiP 模式下显示；PIP 期间保持挂载但内容
+                    //  为空占位，避免退出 PIP 时重放飞入动画)
+                    if (playbackOverlayState.showMiniPlayerOverlay ||
+                        playbackOverlayState.showDedicatedPipPlayer
+                    ) {
                         MiniPlayerOverlay(
                             miniPlayerManager = miniPlayerManager,
+                            suppressContentForPip = playbackOverlayState.showDedicatedPipPlayer,
                             onPictureInPictureClick = if (
                                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                                 miniPlayerManager.shouldEnterPip()
@@ -2396,6 +2400,10 @@ open class MainActivity : AppCompatActivity() {
                             player = miniPlayerManager.player
                         )
                     )
+                    // 从小窗当前位置无缝收缩进 PIP，而不是从全屏默认收缩
+                    .apply {
+                        miniPlayerManager.miniPlayerSourceBoundsPx?.let { setSourceRectHint(it) }
+                    }
                 
                 // Android 12+: 启用自动进入和无缝调整
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -2433,6 +2441,7 @@ open class MainActivity : AppCompatActivity() {
                     )
                 )
                 .apply {
+                    miniPlayerManager.miniPlayerSourceBoundsPx?.let { setSourceRectHint(it) }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         setSeamlessResizeEnabled(true)
                     }

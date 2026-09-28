@@ -2570,7 +2570,17 @@ fun AppNavigation(
                             },
                             onBangumiClick = { seasonId, epId ->
                                 if (seasonId > 0L || epId > 0L) {
-                                    pushNavigation3Route(ScreenRoutes.BangumiDetail.createRoute(seasonId, epId))
+                                    if (epId > 0L) {
+                                        // 动态里的番剧卡带集数信息，直接播放该集
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.BangumiPlayer(
+                                                seasonId = seasonId,
+                                                epId = epId
+                                            )
+                                        )
+                                    } else {
+                                        pushNavigation3Route(ScreenRoutes.BangumiDetail.createRoute(seasonId, epId))
+                                    }
                                 }
                             },
                             onArticleClick = { articleId, title ->
@@ -2739,9 +2749,19 @@ fun AppNavigation(
                                     onVideoClick = { bvid -> navigateToVideoInNavigation3(bvid, 0L, "") },
                                     onBangumiClick = { seasonId, epId ->
                                         if (seasonId > 0L || epId > 0L) {
-                                            pushNavigation3Key(
-                                                BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
-                                            )
+                                            if (epId > 0L) {
+                                                // 动态里的番剧卡带集数信息，直接播放该集
+                                                pushNavigation3Key(
+                                                    BiliPaiNavKey.BangumiPlayer(
+                                                        seasonId = seasonId,
+                                                        epId = epId
+                                                    )
+                                                )
+                                            } else {
+                                                pushNavigation3Key(
+                                                    BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
+                                                )
+                                            }
                                         }
                                     },
                                     onUserClick = { mid -> pushNavigation3Key(BiliPaiNavKey.Space(mid)) },
@@ -2835,9 +2855,19 @@ fun AppNavigation(
                                 onVideoClick = { bvid -> navigateToVideoInNavigation3(bvid, 0L, "") },
                                 onBangumiClick = { seasonId, epId ->
                                     if (seasonId > 0L || epId > 0L) {
-                                        pushNavigation3Key(
-                                            BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
-                                        )
+                                        if (epId > 0L) {
+                                            // 动态里的番剧卡带集数信息，直接播放该集
+                                            pushNavigation3Key(
+                                                BiliPaiNavKey.BangumiPlayer(
+                                                    seasonId = seasonId,
+                                                    epId = epId
+                                                )
+                                            )
+                                        } else {
+                                            pushNavigation3Key(
+                                                BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
+                                            )
+                                        }
                                     }
                                 },
                                 onBangumiMoreClick = { navigateFromProfile(ScreenRoutes.Bangumi.createRoute(1)) },
@@ -3339,6 +3369,26 @@ fun AppNavigation(
                                 val followingKey = key as BiliPaiNavKey.Following
                                 com.android.purebilibili.feature.following.FollowingListScreen(
                                     mid = followingKey.mid,
+                                    onBack = { performSystemBackAction() },
+                                    onUserClick = { userMid -> pushNavigation3Key(BiliPaiNavKey.Space(userMid)) }
+                                )
+                            }
+                        BiliPaiNavEntryContentRole.UPOWER_RANK -> {
+                                val upowerRankKey = key as BiliPaiNavKey.UpowerRank
+                                com.android.purebilibili.feature.space.SpaceUpowerRankScreen(
+                                    mid = upowerRankKey.mid,
+                                    name = upowerRankKey.name,
+                                    count = upowerRankKey.count,
+                                    onBack = { performSystemBackAction() },
+                                    onUserClick = { userMid -> pushNavigation3Key(BiliPaiNavKey.Space(userMid)) }
+                                )
+                            }
+                        BiliPaiNavEntryContentRole.MEMBER_GUARD -> {
+                                val memberGuardKey = key as BiliPaiNavKey.MemberGuard
+                                com.android.purebilibili.feature.space.SpaceMemberGuardScreen(
+                                    mid = memberGuardKey.mid,
+                                    name = memberGuardKey.name,
+                                    count = memberGuardKey.count,
                                     onBack = { performSystemBackAction() },
                                     onUserClick = { userMid -> pushNavigation3Key(BiliPaiNavKey.Space(userMid)) }
                                 )
@@ -3966,6 +4016,24 @@ fun AppNavigation(
                                             BiliPaiNavKey.Web(
                                                 url = "https://space.bilibili.com/$fansMid/fans/fans",
                                                 title = "粉丝"
+                                            )
+                                        )
+                                    },
+                                    onUpowerRankClick = { upMid, upName, upCount ->
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.UpowerRank(
+                                                mid = upMid,
+                                                name = upName,
+                                                count = upCount
+                                            )
+                                        )
+                                    },
+                                    onMemberGuardClick = { guardMid, guardName, guardCount ->
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.MemberGuard(
+                                                mid = guardMid,
+                                                name = guardName,
+                                                count = guardCount
                                             )
                                         )
                                     },

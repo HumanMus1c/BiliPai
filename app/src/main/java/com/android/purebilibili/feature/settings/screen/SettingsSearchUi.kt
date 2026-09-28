@@ -23,7 +23,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppPreference
 import com.android.purebilibili.core.ui.components.AppPreferenceDivider
 import com.android.purebilibili.core.ui.components.AppPreferenceGroup
-import com.android.purebilibili.core.ui.components.AppSearchEntry
 import com.android.purebilibili.core.ui.components.AppLiquidAwareSearchField
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.rememberAdaptiveListVisualCapabilities
@@ -42,6 +41,7 @@ internal fun SettingsSearchBarSection(
         onQueryChange = onQueryChange,
         onSearch = onSearch,
         placeholder = placeholder,
+        backdrop = com.android.purebilibili.feature.settings.ui.LocalSettingsPageBackdrop.current,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }
@@ -53,9 +53,10 @@ internal fun SettingsHomeSearchEntry(
 ) {
     val visualSpec = resolveSettingsVisualSpec()
     val placeholder = stringResource(R.string.settings_search_placeholder)
-    AppSearchEntry(
+    com.android.purebilibili.core.ui.components.AppLiquidAwareSearchEntry(
         onClick = onClick,
         placeholder = placeholder,
+        backdrop = com.android.purebilibili.feature.settings.ui.LocalSettingsPageBackdrop.current,
         modifier = modifier
             .padding(
                 horizontal = visualSpec.screenHorizontalPadding,

@@ -1216,7 +1216,6 @@ internal fun TabletSecondaryContent(
                                 },
                                 onDismiss = { showCommentSearchSheet = false },
                                 miuixBackdrop = commentChromeBackdrop,
-                                liquidGlassEffectsEnabled = LocalAppThemeConfig.current.liquidGlassEnabled,
                             )
                         }
 

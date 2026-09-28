@@ -95,6 +95,16 @@ class LiveTokenAdoptionStructureTest {
     }
 
     @Test
+    fun live_area_detail_reserves_top_chrome_space_for_grid_and_skeleton() {
+        val source = File(liveRoot, "LiveAreaDetailScreen.kt").readText()
+
+        assertTrue(source.contains(
+            "val topContentPadding = innerPadding.calculateTopPadding() + AppSpacingTokens.Small"
+        ))
+        assertTrue(source.split("top = topContentPadding").size - 1 == 2)
+    }
+
+    @Test
     fun live_search_footer_spans_the_full_adaptive_grid() {
         val source = File(liveRoot, "LiveSearchScreen.kt").readText()
 

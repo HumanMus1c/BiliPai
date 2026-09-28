@@ -1,25 +1,17 @@
 package com.android.purebilibili.feature.dynamic
 
 import com.android.purebilibili.core.store.SettingsManager
-import kotlin.math.abs
-import kotlin.math.sign
+import com.android.purebilibili.core.ui.BottomBarScrollHideIntent
+import com.android.purebilibili.core.ui.BottomBarScrollHideState
+import com.android.purebilibili.core.ui.BottomBarScrollHideTopRevealPx
+import com.android.purebilibili.core.ui.reduceBottomBarScrollHideDelta
+import com.android.purebilibili.core.ui.shouldAutoHideBottomBarOnScroll
 
-internal const val DynamicBottomBarTopRevealPx = 100
-internal const val DynamicBottomBarScrollDirectionThresholdPx = 48f
+internal val DynamicBottomBarTopRevealPx = BottomBarScrollHideTopRevealPx
 
-internal data class DynamicBottomBarScrollState(
-    val accumulatedY: Float = 0f,
-)
+internal typealias DynamicBottomBarScrollState = BottomBarScrollHideState
 
-internal enum class DynamicBottomBarScrollIntent {
-    SHOW,
-    HIDE,
-}
-
-internal data class DynamicBottomBarScrollUpdate(
-    val state: DynamicBottomBarScrollState,
-    val intent: DynamicBottomBarScrollIntent?,
-)
+internal typealias DynamicBottomBarScrollIntent = BottomBarScrollHideIntent
 
 /**
  * 向下浏览时隐藏：由子页面用滚动增量驱动，瀑布流/列表一并生效。
@@ -27,7 +19,7 @@ internal data class DynamicBottomBarScrollUpdate(
 internal fun shouldAutoCollapseDynamicBottomBar(
     visibilityMode: SettingsManager.BottomBarVisibilityMode,
 ): Boolean {
-    return visibilityMode == SettingsManager.BottomBarVisibilityMode.SCROLL_HIDE
+    return shouldAutoHideBottomBarOnScroll(visibilityMode)
 }
 
 /**
@@ -41,41 +33,12 @@ internal fun reduceDynamicBottomBarScrollDelta(
     previousState: DynamicBottomBarScrollState,
     deltaY: Float,
     isAtTop: Boolean,
-    thresholdPx: Float = DynamicBottomBarScrollDirectionThresholdPx,
-): DynamicBottomBarScrollUpdate {
-    if (isAtTop) {
-        return DynamicBottomBarScrollUpdate(
-            state = DynamicBottomBarScrollState(accumulatedY = 0f),
-            intent = DynamicBottomBarScrollIntent.SHOW,
-        )
-    }
-    if (deltaY == 0f) {
-        return DynamicBottomBarScrollUpdate(state = previousState, intent = null)
-    }
-
-    val previousAccumulated = previousState.accumulatedY
-    val accumulated = if (
-        previousAccumulated == 0f || sign(previousAccumulated) == sign(deltaY)
-    ) {
-        previousAccumulated + deltaY
-    } else {
-        // 方向反转后重新累计，避免一次反向抖动立刻翻转显隐。
-        deltaY
-    }
-
-    val safeThreshold = abs(thresholdPx)
-    return when {
-        accumulated <= -safeThreshold -> DynamicBottomBarScrollUpdate(
-            state = DynamicBottomBarScrollState(accumulatedY = 0f),
-            intent = DynamicBottomBarScrollIntent.HIDE,
-        )
-        accumulated >= safeThreshold -> DynamicBottomBarScrollUpdate(
-            state = DynamicBottomBarScrollState(accumulatedY = 0f),
-            intent = DynamicBottomBarScrollIntent.SHOW,
-        )
-        else -> DynamicBottomBarScrollUpdate(
-            state = DynamicBottomBarScrollState(accumulatedY = accumulated),
-            intent = null,
-        )
-    }
+    thresholdPx: Float = com.android.purebilibili.core.ui.BottomBarScrollHideDirectionThresholdPx,
+): com.android.purebilibili.core.ui.BottomBarScrollHideUpdate {
+    return reduceBottomBarScrollHideDelta(
+        previousState = previousState,
+        deltaY = deltaY,
+        isAtTop = isAtTop,
+        thresholdPx = thresholdPx,
+    )
 }
