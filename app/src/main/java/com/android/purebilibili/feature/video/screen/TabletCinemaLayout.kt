@@ -357,6 +357,7 @@ internal fun TabletCinemaLayout(
                         onFavoriteClick = { engagementActions.onFavoriteAction(false) },
                         onFavoriteLongClick = { engagementActions.onFavoriteAction(true) },
                         onLikeClick = engagementActions.toggleLike,
+                        onDislikeClick = engagementActions.toggleDislike,
                         onCoinClick = engagementActions.openCoinDialog,
                         onTripleClick = engagementActions.doTripleAction,
                         onDownloadClick = playbackActions.openDownloadDialog,
@@ -632,6 +633,7 @@ private fun CinemaMetaPanel(
     onFavoriteClick: () -> Unit,
     onFavoriteLongClick: () -> Unit = {},
     onLikeClick: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onDownloadClick: () -> Unit,
@@ -758,6 +760,7 @@ private fun CinemaMetaPanel(
                                                 onFavoriteClick = onFavoriteClick,
                                                 onFavoriteLongClick = onFavoriteLongClick,
                                                 onLikeClick = onLikeClick,
+                                                onDislikeClick = onDislikeClick,
                                                 onCoinClick = onCoinClick,
                                                 onTripleClick = onTripleClick,
                                                 onDownloadClick = onDownloadClick,
@@ -788,6 +791,7 @@ private fun CinemaMetaPanel(
                                                 onFavoriteClick = onFavoriteClick,
                                                 onFavoriteLongClick = onFavoriteLongClick,
                                                 onLikeClick = onLikeClick,
+                                                onDislikeClick = onDislikeClick,
                                                 onCoinClick = onCoinClick,
                                                 onTripleClick = onTripleClick,
                                                 onDownloadClick = onDownloadClick,
@@ -808,6 +812,7 @@ private fun CinemaMetaPanel(
                                 context = context,
                                 onFavoriteClick = onFavoriteClick,
                                 onLikeClick = onLikeClick,
+                                onDislikeClick = onDislikeClick,
                                 onCoinClick = onCoinClick,
                                 onTripleClick = onTripleClick,
                                 onDownloadClick = onDownloadClick,
@@ -894,6 +899,7 @@ private fun CinemaMetaActions(
     onFavoriteClick: () -> Unit,
     onFavoriteLongClick: () -> Unit = {},
     onLikeClick: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onDownloadClick: () -> Unit,
@@ -906,12 +912,14 @@ private fun CinemaMetaActions(
         info = success.info,
         isFavorited = engagement.isFavorited,
         isLiked = engagement.isLiked,
+        isDisliked = engagement.isDisliked,
         coinCount = engagement.coinCount,
         downloadProgress = downloadProgress,
         isInWatchLater = engagement.isInWatchLater,
         onFavoriteClick = onFavoriteClick,
         onFavoriteLongClick = onFavoriteLongClick,
         onLikeClick = onLikeClick,
+        onDislikeClick = onDislikeClick,
         onCoinClick = onCoinClick,
         onTripleClick = onTripleClick,
         onDownloadClick = onDownloadClick,
@@ -1296,6 +1304,7 @@ private fun CinemaCommentsPane(
             images = previewImages,
             initialIndex = previewInitialIndex,
             sourceRect = sourceRect?.rect,
+            sourceRects = sourceRect?.galleryRects.orEmpty(),
             sourceCornerRadiusDp = sourceRect?.cornerRadiusDp
                 ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
@@ -1362,6 +1371,14 @@ private fun CinemaCommentsPane(
                     .layerBackdrop(commentChromeBackdrop),
                 contentPadding = PaddingValues(bottom = 112.dp)
             ) {
+            commentState.voteCard?.let { card ->
+                item(key = "curtain_vote_${card.voteId}") {
+                    com.android.purebilibili.feature.video.ui.components.VideoCommentVoteCard(
+                        card = card,
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    )
+                }
+            }
             items(
                 items = commentState.replies,
                 key = { "curtain_reply_${it.rpid}" },

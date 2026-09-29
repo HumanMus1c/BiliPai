@@ -466,15 +466,35 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
     ) {
         com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "🎬 fetchPlayUrl: epId=${episode.id}, cid=${episode.cid}, aid=${episode.aid}")
         val isCourse = detail.seasonType == 10
-        val playUrlResult = BangumiRepository.getBangumiPlayUrl(
+        var requestedQn = resolveBangumiInitialQuality()
+        var playUrlResult = BangumiRepository.getBangumiPlayUrl(
             epId = episode.id,
-            qn = resolveBangumiInitialQuality(),
+            qn = requestedQn,
             cid = episode.cid,
             bvid = episode.bvid,
             seasonId = detail.seasonId,
             aid = episode.aid,
             isCourse = isCourse
         )
+        // 高码率档（VIP 1080P 高码率/4K 等）可能下发 Widevine 加密流，而 B 站
+        // license 接口未公开、本地无法解密（PiliPlus 同样不解密，靠低档拿清晰流）。
+        // 拿到 is_drm 响应时直接预判降档到蓝光，避免黑屏报错后再回退。
+        if (playUrlResult.getOrNull()?.isDrm == true && requestedQn > 80) {
+            com.android.purebilibili.core.util.Logger.w(
+                "BangumiPlayerVM",
+                "🔒 qn=$requestedQn returned DRM stream, refetching with qn=80"
+            )
+            requestedQn = 80
+            playUrlResult = BangumiRepository.getBangumiPlayUrl(
+                epId = episode.id,
+                qn = requestedQn,
+                cid = episode.cid,
+                bvid = episode.bvid,
+                seasonId = detail.seasonId,
+                aid = episode.aid,
+                isCourse = isCourse
+            )
+        }
         
         playUrlResult.onSuccess { playData ->
             com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "📡 PlayUrl success: quality=${playData.quality}, hasDash=${playData.dash != null}, hasDurl=${!playData.durl.isNullOrEmpty()}")
@@ -835,6 +855,24 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
     /**
      * 切换清晰度
      */
+    /**
+     * DRM 加密流（课程高码率档常见）当前播放器不支持解密。对齐 PiliPlus 的实际表现：
+     * 低档清晰度（qn=80 蓝光）下发的是未加密流，因此收到 DRM 错误时自动降档重试一次。
+     */
+    fun handlePlaybackDrmError() {
+        val currentState = _uiState.value as? BangumiPlayerState.Success ?: return
+        if (currentState.quality > 80) {
+            viewModelScope.launch {
+                _toastEvent.send("当前清晰度受版权保护，已切换为蓝光")
+                changeQuality(80)
+            }
+        } else {
+            viewModelScope.launch {
+                _toastEvent.send("该内容受版权保护，暂时无法播放")
+            }
+        }
+    }
+
     fun changeQuality(qualityId: Int) {
         val currentState = _uiState.value as? BangumiPlayerState.Success ?: return
         val currentPos = getPlayerCurrentPosition()

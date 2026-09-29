@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-09-28 · Current build: 0.2.3-alpha.7 · Latest documented release: v0.2.3-alpha.7</sub>
+  <sub>Last updated: 2026-09-28 · Current source build: 0.2.3-alpha.9 · Latest documented release: v0.2.3-alpha.9</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.7-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.9-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,13 +452,13 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-alpha.7 · 2026-09-28)
+### Current source build (v0.2.3-alpha.9 · 2026-09-28)
 
-- Current source build: `0.2.3-alpha.7` / `versionCode 400`.
-- Immersive lyrics, lyric language switching, play history, startup resume, and resumable external playlist import are available in the audio player.
-- Live interactions and video playback in split-screen/freeform windows have been improved, alongside feed, article, and collection flows.
-- Fixed bottom-bar scroll behavior, collection cover loading, and added haptic feedback for player controls.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete alpha.6 onward notes.
+- Current source build: `0.2.3-alpha.9` / `versionCode 405`.
+- Live reservation reminders, a home feed refresh shortcut, and a video-detail comment-count setting are available.
+- Comment dislikes, image-preview return targets, video-card return animations, and dynamic mention highlighting have been fixed.
+- Space pagination and audio hydration, creator-announcement copying, and listening-video background transitions have been improved.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete alpha.9 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---

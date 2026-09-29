@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -59,7 +60,6 @@ import com.android.purebilibili.data.model.response.VideoStaff
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.data.model.response.VideoTag
 import com.android.purebilibili.core.ui.common.TextSelectionPolicy
-import com.android.purebilibili.core.ui.common.detectTapWithSelectionFriendly
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.feature.video.ui.components.VideoCardSkeleton
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -119,7 +119,8 @@ private val VIDEO_DESCRIPTION_TOPIC_PATTERN =
 
 internal fun buildVideoDescriptionAnnotatedString(
     desc: String,
-    urlColor: Color
+    urlColor: Color,
+    linkListener: androidx.compose.ui.text.LinkInteractionListener? = null
 ): AnnotatedString {
     data class LinkMatch(
         val range: IntRange,
@@ -175,11 +176,17 @@ internal fun buildVideoDescriptionAnnotatedString(
             if (lastIndex < match.range.first) {
                 append(desc.substring(lastIndex, match.range.first))
             }
-            pushStringAnnotation(tag = VIDEO_DESCRIPTION_URL_TAG, annotation = match.annotation)
-            withStyle(SpanStyle(color = urlColor, textDecoration = TextDecoration.Underline)) {
-                append(match.displayText)
+            withLink(
+                androidx.compose.ui.text.LinkAnnotation.Clickable(
+                    tag = match.annotation,
+                    styles = null,
+                    linkInteractionListener = linkListener,
+                )
+            ) {
+                withStyle(SpanStyle(color = urlColor, textDecoration = TextDecoration.Underline)) {
+                    append(match.displayText)
+                }
             }
-            pop()
             lastIndex = match.range.last + 1
         }
         if (lastIndex < desc.length) {
@@ -324,7 +331,8 @@ fun VideoTitleSection(
 @Composable
 fun VideoDetailSponsorLabelChip(
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxLines: Int = 1,
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier,
@@ -353,7 +361,7 @@ fun VideoDetailSponsorLabelChip(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 lineHeight = MaterialTheme.typography.labelSmall.fontSize,
-                maxLines = 1
+                maxLines = maxLines
             )
         }
     }
@@ -456,6 +464,15 @@ fun VideoTitleWithDesc(
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = horizontalPadding, vertical = if (isMaterial3) 4.dp else 3.dp)
     ) {
+        val stackSponsorLabel = sponsorLabel.isNotBlank() && shouldStackSponsorLabelAboveTitle(sponsorLabel)
+        if (stackSponsorLabel) {
+            // 长徽标独立成行，避免挤压标题
+            VideoDetailSponsorLabelChip(
+                label = sponsorLabel,
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 2,
+            )
+        }
         // Title row (expandable); top-aligned so the sponsor badge lines up with the first title line
         Row(
             modifier = Modifier
@@ -488,7 +505,7 @@ fun VideoTitleWithDesc(
                 }
             }
 
-            if (sponsorLabel.isNotBlank()) {
+            if (sponsorLabel.isNotBlank() && !stackSponsorLabel) {
                 VideoDetailSponsorLabelChip(
                     label = sponsorLabel,
                     modifier = Modifier.padding(end = 6.dp, top = 2.dp)
@@ -715,41 +732,33 @@ fun VideoTitleWithDesc(
             Column {
                 Spacer(Modifier.height(6.dp))
                 val descriptionUrlColor = MaterialTheme.colorScheme.primary
-                val descriptionText = remember(info.desc, descriptionUrlColor) {
-                    buildVideoDescriptionAnnotatedString(
-                        desc = info.desc,
-                        urlColor = descriptionUrlColor
-                    )
-                }
-                var descriptionTextLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
-                val descriptionModifier = if (onDescriptionUrlClick != null) {
-                    Modifier.pointerInput(descriptionText, info.desc, onDescriptionUrlClick) {
-                        detectTapWithSelectionFriendly { offset ->
-                            val layoutResult = descriptionTextLayout ?: return@detectTapWithSelectionFriendly
-                            val position = layoutResult.getOffsetForPosition(offset)
-                            val searchStart = maxOf(0, position - 1)
-                            val searchEnd = minOf(descriptionText.length, position + 1)
-                            descriptionText.getStringAnnotations(
-                                tag = VIDEO_DESCRIPTION_URL_TAG,
-                                start = searchStart,
-                                end = searchEnd
-                            ).firstOrNull()?.let { annotation ->
-                                onDescriptionUrlClick(annotation.item)
-                            }
+                val descriptionLinkListener = remember(onDescriptionUrlClick) {
+                    onDescriptionUrlClick?.let { handler ->
+                        androidx.compose.ui.text.LinkInteractionListener { link ->
+                            handler((link as androidx.compose.ui.text.LinkAnnotation.Clickable).tag)
                         }
                     }
+                }
+                val descriptionText = remember(info.desc, descriptionUrlColor, descriptionLinkListener) {
+                    buildVideoDescriptionAnnotatedString(
+                        desc = info.desc,
+                        urlColor = descriptionUrlColor,
+                        linkListener = descriptionLinkListener
+                    )
+                }
+                val descriptionModifier = if (animateLayout) {
+                    Modifier.animateContentSize()
                 } else {
                     Modifier
                 }
-                // [新增] 使用 SelectionContainer 支持滑动复制
+                // 原生链接分发：链接点击在 Text 内部处理，与划选（SelectionContainer）
+                // 和外层手势不再竞争，恢复无条件划选容器。
                 SelectionContainer {
                     AppText(
                         text = descriptionText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        onTextLayout = { descriptionTextLayout = it },
-                        modifier = (if (animateLayout) Modifier.animateContentSize() else Modifier)
-                            .then(descriptionModifier)
+                        modifier = descriptionModifier
                     )
                 }
             }

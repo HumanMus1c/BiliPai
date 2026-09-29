@@ -134,7 +134,7 @@ class ImagePreviewTransitionPolicyTest {
         assertEquals(0f, motion.settleTarget)
         assertEquals(300, motion.collapseDurationMillis)
         assertEquals(180, motion.cancelRecoverDurationMillis)
-        assertEquals(320, motion.openDurationMillis)
+        assertEquals(300, motion.openDurationMillis)
         assertEquals(motion.overshootTarget, motion.settleTarget)
     }
 

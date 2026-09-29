@@ -1,6 +1,10 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import com.android.purebilibili.data.model.response.DynamicAdditional
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.regex.Pattern
 
 internal data class DynamicAdditionalCardModel(
     val title: String,
@@ -19,6 +23,7 @@ internal data class DynamicAdditionalCardModel(
     val reserveCheckedLabel: String = "已预约",
     val reserveUncheckedLabel: String = "预约",
     val reserveDescriptionPrefix: String = "",
+    val reserveStartAtMillis: Long? = null,
     val reserveActionJumpUrl: String = "",
     val reserveDescriptionJumpUrl: String = "",
     val matchCenterLabel: String = "",
@@ -36,6 +41,9 @@ data class DynamicReserveAction(
     val reserveId: Long,
     val currentButtonStatus: Int,
     val reserveTotal: Long,
+    val buttonType: Int = 0,
+    val title: String = "",
+    val startAtMillis: Long? = null,
 )
 
 data class DynamicReserveResult(
@@ -93,6 +101,10 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
                 reserveCheckedLabel = it.button?.check?.text.orEmpty().ifBlank { "已预约" },
                 reserveUncheckedLabel = it.button?.uncheck?.text.orEmpty().ifBlank { "预约" },
                 reserveDescriptionPrefix = it.desc1?.text.orEmpty(),
+                reserveStartAtMillis = resolveLiveReserveStartAtMillis(
+                    listOfNotNull(it.desc1?.text, it.desc2?.text, it.desc3?.text)
+                        .joinToString(" "),
+                ),
                 reserveActionJumpUrl = it.button?.jump_url.orEmpty(),
                 reserveDescriptionJumpUrl = it.desc3?.jump_url.orEmpty(),
             )
@@ -152,3 +164,33 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
         else -> null
     }
 }
+
+private val liveReserveMonthDayTimePattern = Pattern.compile(
+    "(?<!\\d)(\\d{1,2})[-/月](\\d{1,2})日?\\s+(\\d{1,2}):(\\d{2})(?!\\d)",
+)
+
+/** Parses the month/day and time shown in Bilibili's reserve-card description. */
+internal fun resolveLiveReserveStartAtMillis(
+    text: String,
+    nowMillis: Long = System.currentTimeMillis(),
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): Long? {
+    val matcher = liveReserveMonthDayTimePattern.matcher(text)
+    if (!matcher.find()) return null
+    val month = matcher.group(1)?.toIntOrNull() ?: return null
+    val day = matcher.group(2)?.toIntOrNull() ?: return null
+    val hour = matcher.group(3)?.toIntOrNull() ?: return null
+    val minute = matcher.group(4)?.toIntOrNull() ?: return null
+    val now = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zoneId)
+    return runCatching {
+        var candidate = LocalDateTime.of(now.year, month, day, hour, minute)
+        if (!candidate.isAfter(now)) candidate = candidate.plusYears(1)
+        candidate.atZone(zoneId).toInstant().toEpochMilli()
+    }.getOrNull()
+}
+
+internal fun resolveLiveReserveNotificationTime(
+    startAtMillis: Long,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): String = DateTimeFormatter.ofPattern("M月d日 HH:mm")
+    .format(java.time.Instant.ofEpochMilli(startAtMillis).atZone(zoneId))

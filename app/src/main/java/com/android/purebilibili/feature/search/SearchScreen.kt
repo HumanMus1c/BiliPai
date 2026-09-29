@@ -1,6 +1,7 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
 
+import com.android.purebilibili.core.util.HtmlEntityUtils
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.components.resolveVideoListColumns
 import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
@@ -613,11 +614,7 @@ internal fun resolveSearchHighlightedTextSegments(rawTitle: String): List<Search
 }
 
 private fun decodeSearchHighlightedText(raw: String): String {
-    return raw.replace(Regex("<.*?>"), "")
-        .replace("&quot;", "\"")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
+    return HtmlEntityUtils.unescape(raw.replace(Regex("<.*?>"), ""))
 }
 
 internal data class SearchTypeTabLayoutSpec(

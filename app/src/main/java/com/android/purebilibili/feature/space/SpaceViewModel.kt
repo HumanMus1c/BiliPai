@@ -1680,7 +1680,11 @@ class SpaceViewModel(
                 }
             }
             SpaceSubTab.AUDIO -> {
-                if (current.audios.isEmpty() && !current.isLoadingAudios) {
+                // 聚合接口只给 3 条音频预览但 totalAudios 是全量数（如 15）：
+                // 预览不足以填满时必须用 song/upper 补拉全量，否则列表与计数不符。
+                if ((current.audios.isEmpty() || current.audios.size < current.totalAudios) &&
+                    !current.isLoadingAudios
+                ) {
                     loadSpaceAudios(refresh = true)
                 }
             }
@@ -1984,10 +1988,21 @@ class SpaceViewModel(
                 
                 if (result != null && result.code == 0) {
                     val newItems = result.data?.data ?: emptyList()
-                    val allItems = if (refresh) newItems else currentState.audios + newItems
-                    val totalCount = result.data?.totalSize ?: currentState.totalAudios
-                    val hasMore = allItems.size < totalCount.coerceAtLeast(allItems.size)
-                    
+                    // 按 id 去重后追加；新页为空立即终止，防止 totalSize 虚高导致无限加载
+                    val existingIds = currentState.audios.mapTo(HashSet()) { it.id }
+                    val dedupedNew = newItems.filter { existingIds.add(it.id) }
+                    val allItems = if (refresh) dedupedNew else currentState.audios + dedupedNew
+                    val totalCount = maxOf(
+                        result.data?.totalSize ?: 0,
+                        allItems.size,
+                    )
+                    // song/upper 的 totalSize 可能缺失（coerce 成 0），此时退化为
+                    // 「整页填满则还有更多」启发式，避免只加载第一页。
+                    val hasMore = dedupedNew.isNotEmpty() && (
+                        allItems.size < totalCount ||
+                            dedupedNew.size >= SPACE_AUDIO_PAGE_SIZE_CONST
+                        )
+
                     _uiState.value = currentState.copy(
                         audios = allItems,
                         totalAudios = totalCount,
@@ -2455,3 +2470,6 @@ class SpaceViewModel(
     }
 
 }
+
+/** song/upper 接口请求页大小（ApiClient.getSpaceAudioList ps=30）。 */
+private const val SPACE_AUDIO_PAGE_SIZE_CONST = 30

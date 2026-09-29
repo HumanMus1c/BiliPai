@@ -1499,6 +1499,9 @@ fun VideoPlayerOverlay(
                         },
                         onAudioMode = onAudioOnlyToggle,
                         isAudioOnly = isAudioOnly,
+                        onNotInterested = onDislike,
+                        sleepTimerMinutes = sleepTimerMinutes,
+                        onSleepTimerChange = onSleepTimerChange,
                         //  [新增] 投屏按钮
                         onCastClick = onCastClickAction,
                         showCastButton = playerControlVisibility.showCastButton,
@@ -2464,6 +2467,9 @@ private fun PortraitTopBar(
     onShare: () -> Unit,
     onAudioMode: () -> Unit,
     isAudioOnly: Boolean,
+    onNotInterested: () -> Unit = {},
+    sleepTimerMinutes: Int? = null,
+    onSleepTimerChange: (Int?) -> Unit = {},
     viewportWidthDpOverride: Int? = null,
     // 📺 [新增] 投屏
     onCastClick: () -> Unit = {},
@@ -2606,13 +2612,22 @@ private fun PortraitTopBar(
                         onClick = { showMoreMenu = false; onSettings() },
                     )
                     AppDropdownMenuItem(
-                        text = { AppText(if (isAudioOnly) "退出听视频" else "听视频") },
-                        onClick = { showMoreMenu = false; onAudioMode() },
+                        text = { AppText(if (sleepTimerMinutes == null) "定时关闭" else "取消定时关闭（${sleepTimerMinutes}分钟）") },
+                        onClick = {
+                            showMoreMenu = false
+                            onSleepTimerChange(if (sleepTimerMinutes == null) 30 else null)
+                        },
                     )
                     AppDropdownMenuItem(
-                        text = { AppText("分享") },
-                        onClick = { showMoreMenu = false; onShare() },
+                        text = { AppText("不感兴趣") },
+                        onClick = { showMoreMenu = false; onNotInterested() },
                     )
+                    if (compactPlayerChrome) {
+                        AppDropdownMenuItem(
+                            text = { AppText("分享") },
+                            onClick = { showMoreMenu = false; onShare() },
+                        )
+                    }
                 }
             } else {
                 DropdownMenu(
@@ -2624,13 +2639,22 @@ private fun PortraitTopBar(
                         onClick = { showMoreMenu = false; onSettings() }
                     )
                     DropdownMenuItem(
-                        text = { Text(if (isAudioOnly) "退出听视频" else "听视频") },
-                        onClick = { showMoreMenu = false; onAudioMode() }
+                        text = { Text(if (sleepTimerMinutes == null) "定时关闭" else "取消定时关闭（${sleepTimerMinutes}分钟）") },
+                        onClick = {
+                            showMoreMenu = false
+                            onSleepTimerChange(if (sleepTimerMinutes == null) 30 else null)
+                        }
                     )
                     DropdownMenuItem(
-                        text = { Text("分享") },
-                        onClick = { showMoreMenu = false; onShare() }
+                        text = { Text("不感兴趣") },
+                        onClick = { showMoreMenu = false; onNotInterested() }
                     )
+                    if (compactPlayerChrome) {
+                        DropdownMenuItem(
+                            text = { Text("分享") },
+                            onClick = { showMoreMenu = false; onShare() }
+                        )
+                    }
                 }
             }
 

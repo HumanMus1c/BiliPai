@@ -43,9 +43,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.ui.text.Placeholder
@@ -68,9 +71,11 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
-import androidx.compose.foundation.text.selection.SelectionContainer
+
 import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
 import com.android.purebilibili.core.ui.common.TextSelectionPolicy
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
 import com.android.purebilibili.core.ui.common.detectTapWithSelectionFriendly
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
@@ -87,6 +92,7 @@ import com.android.purebilibili.core.ui.rememberAppHistoryIcon
 import com.android.purebilibili.core.ui.rememberAppDeleteIcon
 import com.android.purebilibili.core.ui.rememberAppLinkIcon
 import com.android.purebilibili.data.model.response.DynamicDesc
+import com.android.purebilibili.data.repository.SearchRepository
 import com.android.purebilibili.core.store.SettingsManager.DynamicDetailImageLayout
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DrawItem
@@ -1079,7 +1085,7 @@ fun DynamicCardV2(
             )
         }?.let { draw ->
             var selectedImageIndex by remember { mutableIntStateOf(-1) }
-            var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+            var sourceAnchor by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
             val renderableDrawItems = remember(draw.items) {
                 resolveRenderableDrawItems(draw.items)
             }
@@ -1094,11 +1100,11 @@ fun DynamicCardV2(
                 items = renderableDrawItems,
                 gifImageLoader = gifImageLoader,
                 maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
-                onImageClick = { index, rect ->
+                onImagePreviewClick = { index, anchor ->
                     val action = resolveDynamicCardMediaAction(item, index)
                     if (action is DynamicCardMediaAction.PreviewImages) {
                         selectedImageIndex = action.initialIndex
-                        sourceRect = rect
+                        sourceAnchor = anchor
                     }
                 }
             )
@@ -1123,7 +1129,10 @@ fun DynamicCardV2(
                     },
                     images = renderableDrawItems.map { it.src },
                     initialIndex = selectedImageIndex,
-                    sourceRect = sourceRect,  //  [新增] 传递源位置用于展开动画
+                    sourceRect = sourceAnchor?.rect,
+                    sourceRects = sourceAnchor?.galleryRects.orEmpty(),
+                    sourceCornerRadiusDp = sourceAnchor?.cornerRadiusDp
+                        ?: resolveDrawGridCornerRadiusDp().toFloat(),
                     textContent = drawPreviewText,
                     defaultTextVisible = dynamicPreviewTextVisible,
                     onDismiss = { selectedImageIndex = -1 }
@@ -1134,7 +1143,11 @@ fun DynamicCardV2(
         //  [新增] Opus 图文动态 (新版格式)
         content?.major?.opus?.let { opus ->
             var selectedImageIndex by remember { mutableIntStateOf(-1) }
-            var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+            var sourceAnchor by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
+            val opusExpandedSourceRects = remember(renderableOpusPics) {
+                mutableMapOf<Int, androidx.compose.ui.geometry.Rect>()
+            }
+            val opusExpandedImageCornerRadiusDp = AppShapes.containerCornerDp(ContainerLevel.Card).value
             val visibleOpusSummaryDesc = remember(opus.summary, renderableOpusPics) {
                 opus.summary?.let { summary ->
                     resolveDynamicOpusSummaryDescForImages(
@@ -1172,8 +1185,8 @@ fun DynamicCardV2(
                         .associateBy { it.url }
                 }
                 var fullContentSelectedImageIndex by remember { mutableIntStateOf(-1) }
-                var thumbnailSourceRect by remember {
-                    mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+                var thumbnailSourceAnchor by remember {
+                    mutableStateOf<ImagePreviewSourceAnchor?>(null)
                 }
                 val thumbnailItems = remember(renderableOpusPics) {
                     renderableOpusPics.map { pic ->
@@ -1199,9 +1212,9 @@ fun DynamicCardV2(
                             items = thumbnailItems,
                             gifImageLoader = gifImageLoader,
                             maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
-                            onImageClick = { index, rect ->
+                            onImagePreviewClick = { index, anchor ->
                                 fullContentSelectedImageIndex = index
-                                thumbnailSourceRect = rect
+                                thumbnailSourceAnchor = anchor
                             }
                         )
                         Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
@@ -1381,6 +1394,7 @@ fun DynamicCardV2(
                                     .build()
                             }
                             if (expandOpusDetailImages) {
+                                val expandedImageSourceRect = rememberImagePreviewSourceRect()
                                 AsyncImage(
                                     model = imageRequest,
                                     contentDescription = opus.title.orEmpty(),
@@ -1394,8 +1408,27 @@ fun DynamicCardV2(
                                             }
                                         )
                                         .clip(AppShapes.container(ContainerLevel.Card))
-                                        .clickable(enabled = currentImageIndex in previewImages.indices) {
+                                        .imagePreviewSourceBounds(expandedImageSourceRect)
+                                        .imagePreviewGallerySourceBounds(
+                                            target = opusExpandedSourceRects,
+                                            pageIndex = currentImageIndex,
+                                        )
+                                        .alpha(if (isImagePreviewSourceHidden(expandedImageSourceRect.value)) 0f else 1f)
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = null,
+                                            enabled = currentImageIndex in previewImages.indices,
+                                        ) {
                                             fullContentSelectedImageIndex = currentImageIndex
+                                            val anchor = expandedImageSourceRect.value?.let {
+                                                ImagePreviewSourceAnchor(
+                                                    rect = it,
+                                                    cornerRadiusDp = opusExpandedImageCornerRadiusDp,
+                                                    galleryRects = opusExpandedSourceRects.toMap(),
+                                                )
+                                            }
+                                            prepareImagePreviewSourceTransition(anchor?.rect)
+                                            thumbnailSourceAnchor = anchor
                                         },
                                     contentScale = ContentScale.FillWidth
                                 )
@@ -1444,9 +1477,9 @@ fun DynamicCardV2(
                         items = thumbnailItems,
                         gifImageLoader = gifImageLoader,
                         maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
-                        onImageClick = { index, rect ->
+                        onImagePreviewClick = { index, anchor ->
                             fullContentSelectedImageIndex = index
-                            thumbnailSourceRect = rect
+                            thumbnailSourceAnchor = anchor
                         }
                     )
                     Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
@@ -1470,7 +1503,10 @@ fun DynamicCardV2(
                         },
                         images = previewImages,
                         initialIndex = fullContentSelectedImageIndex,
-                        sourceRect = if (expandOpusDetailImages) null else thumbnailSourceRect,
+                        sourceRect = thumbnailSourceAnchor?.rect,
+                        sourceRects = thumbnailSourceAnchor?.galleryRects.orEmpty(),
+                        sourceCornerRadiusDp = thumbnailSourceAnchor?.cornerRadiusDp
+                            ?: resolveDrawGridCornerRadiusDp().toFloat(),
                         textContent = opusPreviewText,
                         defaultTextVisible = dynamicPreviewTextVisible,
                         onDismiss = { fullContentSelectedImageIndex = -1 }
@@ -1483,6 +1519,7 @@ fun DynamicCardV2(
                 )
                 if (expandOpusFallbackImages) {
                     renderableOpusPics.forEachIndexed { index, pic ->
+                        val expandedImageSourceRect = rememberImagePreviewSourceRect()
                         val aspectRatio = if (pic.width > 0 && pic.height > 0) {
                             pic.width.toFloat() / pic.height.toFloat()
                         } else {
@@ -1505,9 +1542,23 @@ fun DynamicCardV2(
                                 .fillMaxWidth()
                                 .aspectRatio(aspectRatio)
                                 .clip(AppShapes.container(ContainerLevel.Card))
-                                .clickable {
+                                .imagePreviewSourceBounds(expandedImageSourceRect)
+                                .imagePreviewGallerySourceBounds(
+                                    target = opusExpandedSourceRects,
+                                    pageIndex = index,
+                                )
+                                .alpha(if (isImagePreviewSourceHidden(expandedImageSourceRect.value)) 0f else 1f)
+                                .clickable(interactionSource = null, indication = null) {
                                     selectedImageIndex = index
-                                    sourceRect = null
+                                    val anchor = expandedImageSourceRect.value?.let {
+                                        ImagePreviewSourceAnchor(
+                                            rect = it,
+                                            cornerRadiusDp = opusExpandedImageCornerRadiusDp,
+                                            galleryRects = opusExpandedSourceRects.toMap(),
+                                        )
+                                    }
+                                    prepareImagePreviewSourceTransition(anchor?.rect)
+                                    sourceAnchor = anchor
                                 },
                             contentScale = ContentScale.FillWidth,
                         )
@@ -1526,11 +1577,11 @@ fun DynamicCardV2(
                         items = drawItems,
                         gifImageLoader = gifImageLoader,
                         maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
-                        onImageClick = { index, rect ->
+                        onImagePreviewClick = { index, anchor ->
                             val action = resolveDynamicCardMediaAction(item, index)
                             if (action is DynamicCardMediaAction.PreviewImages) {
                                 selectedImageIndex = action.initialIndex
-                                sourceRect = rect
+                                sourceAnchor = anchor
                             }
                         }
                     )
@@ -1556,7 +1607,13 @@ fun DynamicCardV2(
                         },
                         images = renderableOpusPics.map { it.url },
                         initialIndex = selectedImageIndex,
-                        sourceRect = sourceRect,
+                        sourceRect = sourceAnchor?.rect,
+                        sourceRects = sourceAnchor?.galleryRects.orEmpty(),
+                        sourceCornerRadiusDp = sourceAnchor?.cornerRadiusDp ?: if (expandOpusFallbackImages) {
+                            AppShapes.containerCornerDp(ContainerLevel.Card).value
+                        } else {
+                            resolveDrawGridCornerRadiusDp().toFloat()
+                        },
                         textContent = opusPreviewText,
                         defaultTextVisible = dynamicPreviewTextVisible,
                         onDismiss = { selectedImageIndex = -1 }
@@ -1569,7 +1626,7 @@ fun DynamicCardV2(
             val articleCovers = remember(article.covers) { resolveArticleCoverUrls(article) }
             if (articleCovers.isNotEmpty()) {
                 var selectedImageIndex by remember { mutableIntStateOf(-1) }
-                var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+                var sourceAnchor by remember { mutableStateOf<ImagePreviewSourceAnchor?>(null) }
                 val articlePreviewText = remember(author?.name, visibleDynamicDesc?.text, article.title, article.desc) {
                     val body = visibleDynamicDesc?.text
                         .takeUnless { it.isNullOrBlank() }
@@ -1584,11 +1641,11 @@ fun DynamicCardV2(
                     items = drawItems,
                     gifImageLoader = gifImageLoader,
                     maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
-                    onImageClick = { index, rect ->
+                    onImagePreviewClick = { index, anchor ->
                         when (val action = resolveDynamicCardMediaAction(item, index, isDetail = isDetail)) {
                             is DynamicCardMediaAction.PreviewImages -> {
                                 selectedImageIndex = action.initialIndex
-                                sourceRect = rect
+                                sourceAnchor = anchor
                             }
                             is DynamicCardMediaAction.OpenDynamicDetail -> {
                                 openDynamicDetail?.invoke(action.dynamicId)
@@ -1617,7 +1674,10 @@ fun DynamicCardV2(
                     },
                         images = articleCovers,
                         initialIndex = selectedImageIndex,
-                        sourceRect = sourceRect,
+                        sourceRect = sourceAnchor?.rect,
+                        sourceRects = sourceAnchor?.galleryRects.orEmpty(),
+                        sourceCornerRadiusDp = sourceAnchor?.cornerRadiusDp
+                            ?: resolveDrawGridCornerRadiusDp().toFloat(),
                         textContent = articlePreviewText,
                         defaultTextVisible = dynamicPreviewTextVisible,
                         onDismiss = { selectedImageIndex = -1 }
@@ -1824,6 +1884,9 @@ fun DynamicCardV2(
                                     reserveId = additionalCard.reserveId,
                                     currentButtonStatus = additionalCard.reserveButtonStatus,
                                     reserveTotal = additionalCard.reserveTotal,
+                                    buttonType = additionalCard.reserveButtonType,
+                                    title = additionalCard.title,
+                                    startAtMillis = additionalCard.reserveStartAtMillis,
                                 )
                             ) { result ->
                                 reserveSubmitting = false
@@ -2237,7 +2300,29 @@ fun RichTextContent(
     }
     val primaryColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
-    val richText = remember(desc, primaryColor, textColor, catalogEmoteMap, extraEmoteUrlMap) {
+    // 原生链接分发：BasicText 在 Text 内部处理 LinkAnnotation 点击，不再依赖
+    // 外层 pointerInput 查表，与划选/卡片长按不再竞争。每次组合重建 dispatch
+    // 闭包以捕获最新回调，并作为 remember key 同步重建富文本。
+    val dispatchDynamicLink: (String) -> Unit = { payload ->
+        dispatchDynamicRichTextLinkPayload(
+            payload = payload,
+            context = context,
+            uriHandler = uriHandler,
+            scope = scope,
+            onUserClick = onUserClick,
+            onVoteClick = onVoteClick,
+            onTopicClick = onTopicClick,
+            onTopicKeywordClick = onTopicKeywordClick,
+            onVideoClick = onVideoClick,
+            onDynamicDetailClick = onDynamicDetailClick,
+            onBangumiClick = onBangumiClick,
+            onArticleClick = onArticleClick,
+            onLiveClick = onLiveClick,
+            onMusicClick = onMusicClick,
+            onLinkClick = onLinkClick,
+        )
+    }
+    val richText = remember(desc, primaryColor, textColor, catalogEmoteMap, extraEmoteUrlMap, dispatchDynamicLink) {
         buildDynamicRichText(
             desc = desc,
             primaryColor = primaryColor,
@@ -2245,6 +2330,9 @@ fun RichTextContent(
             extraEmoteUrlMap = buildMap {
                 putAll(catalogEmoteMap)
                 putAll(extraEmoteUrlMap)
+            },
+            linkListener = LinkInteractionListener { link ->
+                dispatchDynamicLink((link as LinkAnnotation.Clickable).tag)
             }
         )
     }
@@ -2273,229 +2361,34 @@ fun RichTextContent(
     }
     val copyText = remember(desc.rich_text_nodes, desc.text) {
         val richNodeText = resolveDynamicRichTextNodeDisplayText(desc.rich_text_nodes)
-        richNodeText.ifBlank { desc.text }.trim()
+        desc.text.ifBlank { richNodeText }.trim()
     }
     var showTextSelectionSheet by remember(copyText) { mutableStateOf(false) }
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val haptic = LocalHapticFeedback.current
 
-    SelectionContainer {
-        AppText(
-            text = annotatedText,
-            inlineContent = inlineContent,
-            fontSize = fontSize,
-            fontWeight = fontWeight,
-            lineHeight = lineHeight,
-            maxLines = maxLines,
-            overflow = overflow,
-            color = textColor,
-            onTextLayout = { textLayoutResult = it },
-            modifier = modifier.pointerInput(
-                copyText,
-                annotatedText,
-                onUserClick,
-                onVoteClick,
-                onTopicClick,
-                onBlankTap,
-                onVideoClick,
-                onDynamicDetailClick,
-                onBangumiClick,
-                onArticleClick,
-                onLiveClick,
-                onMusicClick,
-                onLinkClick,
-            ) {
-                detectTapWithSelectionFriendly { offset ->
-                    val layoutResult = textLayoutResult ?: return@detectTapWithSelectionFriendly
-                    val position = layoutResult.getOffsetForPosition(offset)
-                    val searchStart = maxOf(0, position - 1)
-                    val searchEnd = minOf(annotatedText.length, position + 1)
-
-                    annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_USER_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()?.let { annotation ->
-                        annotation.item.toLongOrNull()
-                            ?.takeIf { it > 0L }
-                            ?.let(onUserClick)
-                        return@detectTapWithSelectionFriendly
-                    }
-
-                    annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_VOTE_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()?.item
-                        ?.toLongOrNull()
-                        ?.takeIf { it > 0L }
-                        ?.let { voteId ->
-                            onVoteClick(voteId)
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                    // 带 topicId 的话题标签优先跳转话题详情页，而不是关键词搜索。
-                    annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_TOPIC_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()?.item
-                        ?.toLongOrNull()
-                        ?.takeIf { it > 0L }
-                        ?.let { topicId ->
-                            onTopicClick(topicId)
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                    // 无 topicId 的话题（纯 #关键词# 或链接搜索）才回落到关键词搜索。
-                    annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_TOPIC_KEYWORD_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()?.item?.takeIf { it.isNotBlank() }?.let { keyword ->
-                        if (onTopicKeywordClick != null) {
-                            onTopicKeywordClick(keyword)
-                            return@detectTapWithSelectionFriendly
-                        }
-                        val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(keyword, java.nio.charset.StandardCharsets.UTF_8.name())
-                        if (onLinkClick != null) {
-                            onLinkClick(searchUrl)
-                        } else {
-                            val inAppIntent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse(searchUrl)
-                            ).setPackage(context.packageName)
-                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            val launched = runCatching { context.startActivity(inAppIntent) }.isSuccess
-                            if (!launched) {
-                                openDynamicRichTextLinkExternally(context, searchUrl, uriHandler)
-                            }
-                        }
-                        return@detectTapWithSelectionFriendly
-                    }
-
-                    val urlAnnotation = annotatedText.getStringAnnotations(
-                        tag = DYNAMIC_RICH_TEXT_URL_TAG,
-                        start = searchStart,
-                        end = searchEnd
-                    ).firstOrNull()
-
-                    if (urlAnnotation != null) {
-                        val rawUrl = urlAnnotation.item
-                        scope.launch {
-                            val target = BilibiliNavigationTargetParser.parse(rawUrl)
-                                ?: if (rawUrl.contains("b23.tv", ignoreCase = true)) {
-                                    BilibiliNavigationTargetParser.resolve(rawUrl)
-                                } else null
-                            if (target != null) {
-                                val handled = when (target) {
-                                    is BilibiliNavigationTarget.Dynamic -> {
-                                        if (onDynamicDetailClick != null) {
-                                            onDynamicDetailClick(target.dynamicId)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Video -> {
-                                        if (onVideoClick != null) {
-                                            onVideoClick(target.videoId)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Space -> {
-                                        if (target.mid > 0L) {
-                                            onUserClick(target.mid)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.BangumiSeason -> {
-                                        if (onBangumiClick != null) {
-                                            onBangumiClick(target.seasonId, target.mediaId)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.BangumiEpisode -> {
-                                        if (onBangumiClick != null) {
-                                            onBangumiClick(0L, target.epId)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Article -> {
-                                        if (onArticleClick != null) {
-                                            onArticleClick(target.articleId, "")
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Live -> {
-                                        if (onLiveClick != null) {
-                                            onLiveClick(target.roomId, "", "")
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Music -> {
-                                        val auSid = target.musicId.removePrefix("au").removePrefix("AU").toLongOrNull()
-                                        if (auSid != null && onMusicClick != null) {
-                                            onMusicClick(auSid)
-                                            true
-                                        } else false
-                                    }
-                                    is BilibiliNavigationTarget.Search -> {
-                                        if (onTopicKeywordClick != null) {
-                                            onTopicKeywordClick(target.keyword)
-                                            true
-                                        } else {
-                                            val searchUrl = "bilibili://search?keyword=" + java.net.URLEncoder.encode(target.keyword, java.nio.charset.StandardCharsets.UTF_8.name())
-                                            val inAppIntent = android.content.Intent(
-                                                android.content.Intent.ACTION_VIEW,
-                                                android.net.Uri.parse(searchUrl)
-                                            ).setPackage(context.packageName)
-                                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            runCatching { context.startActivity(inAppIntent) }.isSuccess
-                                        }
-                                    }
-                                }
-                                if (handled) return@launch
-                            }
-
-                            if (onLinkClick != null) {
-                                onLinkClick(rawUrl)
-                            } else {
-                                when (resolveDynamicRichTextOpenMode(rawUrl)) {
-                                    DynamicRichTextOpenMode.IN_APP -> {
-                                        val inAppIntent = android.content.Intent(
-                                            android.content.Intent.ACTION_VIEW,
-                                            android.net.Uri.parse(rawUrl)
-                                        ).setPackage(context.packageName)
-                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        val launchedInApp = runCatching {
-                                            context.startActivity(inAppIntent)
-                                        }.isSuccess
-                                        if (!launchedInApp) {
-                                            openDynamicRichTextLinkExternally(
-                                                context,
-                                                rawUrl,
-                                                uriHandler
-                                            )
-                                        }
-                                    }
-                                    DynamicRichTextOpenMode.EXTERNAL -> {
-                                        openDynamicRichTextLinkExternally(
-                                            context,
-                                            rawUrl,
-                                            uriHandler
-                                        )
-                                    }
-                                    null -> Unit
-                                }
-                            }
-                        }
-                        return@detectTapWithSelectionFriendly
-                    }
-
-                    // 非 @ / 链接：交给外层（例如转发卡片打开原动态）
-                    onBlankTap?.invoke()
+    // 保留 BasicText 原生链接点击；长按打开全文选择面板，轻触空白才走转发回调。
+    val textGestureModifier = Modifier.pointerInput(annotatedText, onBlankTap, copyText) {
+        detectTapWithSelectionFriendly(
+            onLongPress = {
+                if (copyText.isNotBlank()) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showTextSelectionSheet = true
                 }
-            }
+            },
+            onTap = onBlankTap?.let { callback -> { _: Offset -> callback() } },
         )
     }
+    AppText(
+        text = annotatedText,
+        inlineContent = inlineContent,
+        fontSize = fontSize,
+        fontWeight = fontWeight,
+        lineHeight = lineHeight,
+        maxLines = maxLines,
+        overflow = overflow,
+        color = textColor,
+        modifier = modifier.then(textGestureModifier)
+    )
 
     if (showTextSelectionSheet) {
         TextSelectionBottomSheet(
@@ -2503,6 +2396,200 @@ fun RichTextContent(
             title = "选择动态内容",
             onDismiss = { showTextSelectionSheet = false }
         )
+    }
+}
+
+/**
+ * 原生链接点击的集中分发：payload 由 [resolveDynamicRichTextLinkAction] 解析，
+ * 链接载荷复用旧的 BilibiliNavigationTargetParser 路由（in-app 优先，外部兜底）。
+ */
+private fun dispatchDynamicRichTextLinkPayload(
+    payload: String,
+    context: android.content.Context,
+    uriHandler: androidx.compose.ui.platform.UriHandler,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onUserClick: ((Long) -> Unit)?,
+    onVoteClick: ((Long) -> Unit)?,
+    onTopicClick: ((Long) -> Unit)?,
+    onTopicKeywordClick: ((String) -> Unit)?,
+    onVideoClick: ((String) -> Unit)?,
+    onDynamicDetailClick: ((String) -> Unit)?,
+    onBangumiClick: ((Long, Long) -> Unit)?,
+    onArticleClick: ((Long, String) -> Unit)?,
+    onLiveClick: ((Long, String, String) -> Unit)?,
+    onMusicClick: ((Long) -> Unit)?,
+    onLinkClick: ((String) -> Unit)?,
+) {
+    when (val action = resolveDynamicRichTextLinkAction(payload)) {
+        is DynamicRichTextLinkAction.User ->
+            onUserClick?.invoke(action.mid)
+        is DynamicRichTextLinkAction.UserName -> scope.launch {
+            // Missing AT IDs cannot be inferred from the display text. Resolve an exact
+            // account match on tap; ambiguous or unavailable results open user search.
+            val matches = SearchRepository.searchUp(action.name).getOrNull()
+                ?.first.orEmpty()
+                .filter { it.uname == action.name && it.mid > 0L }
+                .distinctBy { it.mid }
+            val mid = matches.singleOrNull()?.mid
+            if (mid != null && onUserClick != null) {
+                onUserClick(mid)
+            } else {
+                val searchUrl = "bilibili://search?keyword=" +
+                    java.net.URLEncoder.encode(action.name, java.nio.charset.StandardCharsets.UTF_8.name())
+                if (onTopicKeywordClick != null) {
+                    onTopicKeywordClick(action.name)
+                } else if (onLinkClick != null) {
+                    onLinkClick(searchUrl)
+                } else {
+                    val inAppIntent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(searchUrl)
+                    ).setPackage(context.packageName)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val launched = runCatching { context.startActivity(inAppIntent) }.isSuccess
+                    if (!launched) {
+                        openDynamicRichTextLinkExternally(context, searchUrl, uriHandler)
+                    }
+                }
+            }
+        }
+        is DynamicRichTextLinkAction.Vote ->
+            onVoteClick?.invoke(action.voteId)
+        is DynamicRichTextLinkAction.TopicId ->
+            onTopicClick?.invoke(action.topicId)
+        is DynamicRichTextLinkAction.TopicKeyword -> {
+            val keyword = action.keyword
+            if (onTopicKeywordClick != null) {
+                onTopicKeywordClick(keyword)
+            } else {
+                val searchUrl = "bilibili://search?keyword=" +
+                    java.net.URLEncoder.encode(keyword, java.nio.charset.StandardCharsets.UTF_8.name())
+                if (onLinkClick != null) {
+                    onLinkClick(searchUrl)
+                } else {
+                    val inAppIntent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(searchUrl)
+                    ).setPackage(context.packageName)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val launched = runCatching { context.startActivity(inAppIntent) }.isSuccess
+                    if (!launched) {
+                        openDynamicRichTextLinkExternally(context, searchUrl, uriHandler)
+                    }
+                }
+            }
+        }
+        is DynamicRichTextLinkAction.Url -> {
+            val rawUrl = action.url
+            scope.launch {
+                val target = BilibiliNavigationTargetParser.parse(rawUrl)
+                    ?: if (rawUrl.contains("b23.tv", ignoreCase = true)) {
+                        BilibiliNavigationTargetParser.resolve(rawUrl)
+                    } else null
+                if (target != null) {
+                    val handled = when (target) {
+                        is BilibiliNavigationTarget.Dynamic -> {
+                            if (onDynamicDetailClick != null) {
+                                onDynamicDetailClick(target.dynamicId)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Video -> {
+                            if (onVideoClick != null) {
+                                onVideoClick(target.videoId)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Space -> {
+                            if (target.mid > 0L) {
+                                onUserClick?.invoke(target.mid)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.BangumiSeason -> {
+                            if (onBangumiClick != null) {
+                                onBangumiClick(target.seasonId, target.mediaId)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.BangumiEpisode -> {
+                            if (onBangumiClick != null) {
+                                onBangumiClick(0L, target.epId)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Article -> {
+                            if (onArticleClick != null) {
+                                onArticleClick(target.articleId, "")
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Live -> {
+                            if (onLiveClick != null) {
+                                onLiveClick(target.roomId, "", "")
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Music -> {
+                            val auSid = target.musicId.removePrefix("au").removePrefix("AU").toLongOrNull()
+                            if (auSid != null && onMusicClick != null) {
+                                onMusicClick(auSid)
+                                true
+                            } else false
+                        }
+                        is BilibiliNavigationTarget.Search -> {
+                            if (onTopicKeywordClick != null) {
+                                onTopicKeywordClick(target.keyword)
+                                true
+                            } else {
+                                val searchUrl = "bilibili://search?keyword=" +
+                                    java.net.URLEncoder.encode(target.keyword, java.nio.charset.StandardCharsets.UTF_8.name())
+                                val inAppIntent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(searchUrl)
+                                ).setPackage(context.packageName)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                runCatching { context.startActivity(inAppIntent) }.isSuccess
+                            }
+                        }
+                    }
+                    if (handled) return@launch
+                }
+
+                if (onLinkClick != null) {
+                    onLinkClick(rawUrl)
+                } else {
+                    when (resolveDynamicRichTextOpenMode(rawUrl)) {
+                        DynamicRichTextOpenMode.IN_APP -> {
+                            val inAppIntent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(rawUrl)
+                            ).setPackage(context.packageName)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val launchedInApp = runCatching {
+                                context.startActivity(inAppIntent)
+                            }.isSuccess
+                            if (!launchedInApp) {
+                                openDynamicRichTextLinkExternally(
+                                    context,
+                                    rawUrl,
+                                    uriHandler
+                                )
+                            }
+                        }
+                        DynamicRichTextOpenMode.EXTERNAL -> {
+                            openDynamicRichTextLinkExternally(
+                                context,
+                                rawUrl,
+                                uriHandler
+                            )
+                        }
+                        null -> Unit
+                    }
+                }
+            }
+        }
+        null -> Unit
     }
 }
 

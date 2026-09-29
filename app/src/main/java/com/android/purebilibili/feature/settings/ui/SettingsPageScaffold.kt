@@ -68,9 +68,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 internal val LocalSettingsTopContentPadding = staticCompositionLocalOf { 0.dp }
 
-/** 设置页滚动内容的 layer backdrop，供顶部搜索框等液态玻璃 chrome 折射列表内容。 */
-internal val LocalSettingsPageBackdrop = staticCompositionLocalOf<top.yukonga.miuix.kmp.blur.Backdrop?> { null }
-
 @Composable
 internal fun settingsScrollContentPadding(
     extraTop: androidx.compose.ui.unit.Dp = 0.dp,
@@ -170,6 +167,8 @@ internal fun SettingsPageScaffold(
         hasBackdrop = true,
     ) && !lowBlurBudget
     val fadeActive = appThemeConfig.progressiveTopFadeEnabled && !headerBlurEnabled
+    // Keep this backdrop in the scaffold chrome. The scroll content is its source,
+    // so passing it into a search dock inside that content would create a render-layer cycle.
     val backdrop = if (progressiveBlurEnabled) rememberLayerBackdrop() else null
     val hazeState = if (
         headerBlurEnabled && !lowBlurBudget &&
@@ -191,7 +190,6 @@ internal fun SettingsPageScaffold(
         } else {
             AppPreferenceGroupPresentation.FLAT
         },
-        LocalSettingsPageBackdrop provides backdrop,
     ) {
         AppScaffold(
             modifier = modifier.appTopBarNestedScroll(collapseBehavior),

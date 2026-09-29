@@ -304,6 +304,9 @@ internal object Android17Diagnostics {
             val details = buildString {
                 append("系统记录的上次异常退出：")
                 append(reason)
+                append("；退出时间=")
+                append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+                    .format(Date(exitInfo.timestamp)))
                 append("；status=")
                 append(exitInfo.status)
                 append("；importance=")

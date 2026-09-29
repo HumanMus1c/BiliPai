@@ -712,6 +712,7 @@ fun BangumiPlayerContent(
             images = previewImages,
             initialIndex = previewIndex,
             sourceRect = previewSourceRect?.rect,
+            sourceRects = previewSourceRect?.galleryRects.orEmpty(),
             sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
                 ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,

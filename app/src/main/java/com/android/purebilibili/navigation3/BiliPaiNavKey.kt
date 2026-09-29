@@ -199,6 +199,7 @@ internal sealed interface BiliPaiNavKey : NavKey {
     data class LikedVideos(
         val mid: Long = 0L,
         val ownerName: String = "",
+        val isCoinArchive: Boolean = false,
     ) : BiliPaiNavKey {
         override val routeBase: String = "liked_videos"
 

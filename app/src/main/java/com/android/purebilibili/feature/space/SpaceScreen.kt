@@ -239,6 +239,7 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
 import com.android.purebilibili.feature.dynamic.components.imagePreviewSourceBounds
 import com.android.purebilibili.feature.dynamic.components.rememberImagePreviewSourceRect
+import com.android.purebilibili.feature.dynamic.components.prepareImagePreviewSourceTransition
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
@@ -739,10 +740,12 @@ fun SpaceScreen(
                             onMemberGuardClick = onMemberGuardClick
                                 ?: { m, _, _ -> onWebClick("https://space.bilibili.com/$m", "大航海") },
                             onTopPhotoClick = { rect ->
+                                prepareImagePreviewSourceTransition(rect)
                                 topPhotoSourceRect = rect
                                 showTopPhotoPreview = true
                             },
                             onAvatarClick = { rect ->
+                                prepareImagePreviewSourceTransition(rect)
                                 avatarSourceRect = rect
                                 showAvatarPreview = true
                             },
@@ -1332,15 +1335,21 @@ private fun SpaceContent(
         }
     }
 
+    // 吸顶 Tab 行在窗口根坐标系中的底边，用于把投稿悬浮工具条 dock 在它正下方
+    // （推算 chromeTopInset+高度会双算/漏算 chrome，导致悬浮条压到封面上）。
+    // 声明须在根 Box 之前：其 onGloballyPositioned 回调要写入这些状态。
+    var pinnedTabsRootBottomPx by remember { mutableStateOf(0f) }
+    // 网格容器在根坐标系中的顶边（悬浮条的父容器），用于换算相对 padding。
+    var gridContainerRootTopPx by remember { mutableStateOf(0f) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .responsiveContentWidth(maxWidth = adaptiveLayoutSpec.contentMaxWidthDp.dp)
             .then(modifier)
+            .onGloballyPositioned { gridContainerRootTopPx = it.boundsInRoot().top }
     ) {
         val density = LocalDensity.current
-        // 吸顶 Tab 行的实际高度，用于把投稿悬浮工具条定位在它正下方。
-        var pinnedTabsHeightPx by remember { mutableStateOf(0) }
         // [重构] 折叠进度：header 是 index 0，滚动偏移驱动 header 内容上移淡出（视差折叠）。
         // 折叠范围用 dp 换算，避免固定像素在不同 density 下曲线不一致
         val headerCollapseRangePx = with(density) { 320.dp.toPx() }
@@ -1473,11 +1482,13 @@ private fun SpaceContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
+                            // 吸顶行需要足够不透明：壁纸模式下 74% 会让「主页/动态/投稿」
+                            // 变成叠在亮封面上的幽灵文字。
                             com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(
                                 MaterialTheme.colorScheme.surface
-                            )
+                            ).let { if (it.alpha < 0.97f) it.copy(alpha = 0.97f) else it }
                         )
-                        .onSizeChanged { pinnedTabsHeightPx = it.height }
+                        .onGloballyPositioned { pinnedTabsRootBottomPx = it.boundsInRoot().bottom }
                 ) {
                     SpaceContentTabs(
                         state = state,
@@ -1600,7 +1611,16 @@ private fun SpaceContent(
                         SpaceSectionHeader(
                             title = "最近投币的视频",
                             count = state.homeCoinVideoCount.takeIf { it > 0 } ?: state.homeCoinVideos.size,
-                            actionLabel = null
+                            actionLabel = "查看全部",
+                            onActionClick = {
+                                onViewAllClick(
+                                    "coin",
+                                    0L,
+                                    state.userInfo.mid,
+                                    "最近投币的视频",
+                                    state.userInfo.name
+                                )
+                            }
                         )
                     }
                     itemsIndexed(
@@ -2507,7 +2527,10 @@ private fun SpaceContent(
         if (isContributionVideoTab && !state.isSearchMode &&
             (state.videos.isNotEmpty() || state.totalVideos > 0)
         ) {
-            val pinnedTabsTopPadding = chromeTopInset + with(density) { pinnedTabsHeightPx.toDp() }
+            // 实测 dock：吸顶 Tab 行底边（根坐标）− 父容器顶边（根坐标）。
+            val pinnedTabsTopPadding = with(density) {
+                (pinnedTabsRootBottomPx - gridContainerRootTopPx).coerceAtLeast(0f).toDp()
+            }
             AnimatedVisibility(
                 visible = isContributionSummaryScrolledAway,
                 enter = fadeIn(tween(140)) + slideInVertically(tween(180)) { -it / 2 },
@@ -2522,7 +2545,7 @@ private fun SpaceContent(
                         .background(
                             com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor(
                                 MaterialTheme.colorScheme.surface
-                            ).copy(alpha = 0.94f)
+                            ).let { if (it.alpha < 0.97f) it.copy(alpha = 0.97f) else it }
                         )
                 ) {
                     SpaceContributionVideoSummaryBar(
@@ -2699,6 +2722,8 @@ private fun SpaceHeader(
                     }
                     .align(Alignment.TopCenter)
                     .clickable(
+                        interactionSource = null,
+                        indication = null,
                         enabled = skinSpaceBackgroundPaths.isEmpty() &&
                             (shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty()),
                         onClick = { onTopPhotoClick(topPhotoRect.value) }
@@ -2753,7 +2778,11 @@ private fun SpaceHeader(
                         .size(avatarSize)
                         .imagePreviewSourceBounds(avatarRect)
                         .alpha(if (avatarHidden) 0f else 1f)
-                        .clickable(enabled = avatarPreviewEnabled && !avatarHidden) { onAvatarClick(avatarRect.value) }
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            enabled = avatarPreviewEnabled && !avatarHidden,
+                        ) { onAvatarClick(avatarRect.value) }
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
@@ -2905,8 +2934,9 @@ private fun SpaceHeaderIdentityInfo(
     modifier: Modifier = Modifier,
 ) {
     // 信息区：名字 + 等级 + VIP 标识。
-    SelectionContainer {
-        Column(modifier = modifier) {
+    // Row 的 weight 要传给 SelectionContainer 的顶层布局，不能只挂在其内部 Column。
+    SelectionContainer(modifier = modifier) {
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3951,11 +3981,13 @@ private fun SpaceNoticeCard(notice: String) {
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(modifier = Modifier.height(10.dp))
-        AppText(
-            text = notice,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        SelectionContainer {
+            AppText(
+                text = notice,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -4310,8 +4342,16 @@ private fun SpaceAudioListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(6.dp))
+            // song/upper 对他人空间的播放统计常为 0：显示「0播放」是噪音，
+            // 只有时长；有真实播放数时才带前缀。
+            val audioPlayCount =
+                (audio.statistic?.play ?: audio.play_count.toLong()).coerceAtLeast(0L)
             AppText(
-                text = "${FormatUtils.formatStat(audio.play_count.toLong())}播放 · ${FormatUtils.formatDuration(audio.duration)}",
+                text = if (audioPlayCount > 0L) {
+                    "${FormatUtils.formatStat(audioPlayCount)}播放 · ${FormatUtils.formatDuration(audio.duration)}"
+                } else {
+                    FormatUtils.formatDuration(audio.duration)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

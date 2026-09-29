@@ -47,12 +47,15 @@ fun DrawGridV2(
     items: List<DrawItem>,
     gifImageLoader: ImageLoader,
     maxDisplayImages: Int? = DYNAMIC_FEED_PREVIEW_MAX_IMAGES,
-    onImageClick: (Int, Rect?) -> Unit = { _, _ -> }  //  [修改] 图片点击回调，新增 Rect 参数
+    onImageClick: (Int, Rect?) -> Unit = { _, _ -> },
+    onImagePreviewClick: ((Int, ImagePreviewSourceAnchor?) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
 
     val context = LocalContext.current
     val defaultImageLoader = context.imageLoader
+    // Plain map: bounds update while feed cards scroll and must not invalidate the grid.
+    val galleryRects = remember(items) { mutableMapOf<Int, Rect>() }
     val totalCount = items.size  //  保存总图片数
     val displayCount = resolveDrawGridDisplayCount(
         totalImages = totalCount,
@@ -90,7 +93,9 @@ fun DrawGridV2(
                 defaultImageLoader = defaultImageLoader,
                 cornerRadius = cornerRadius,
                 scaleMode = resolveDrawGridScaleMode(displayItems.size),
-                onImageClick = onImageClick
+                galleryRects = galleryRects,
+                onImageClick = onImageClick,
+                onImagePreviewClick = onImagePreviewClick,
             )
         } else {
             var globalIndex = 0
@@ -114,7 +119,9 @@ fun DrawGridV2(
                                 defaultImageLoader = defaultImageLoader,
                                 cornerRadius = cornerRadius,
                                 scaleMode = resolveDrawGridScaleMode(displayItems.size),
-                                onImageClick = onImageClick
+                                galleryRects = galleryRects,
+                                onImageClick = onImageClick,
+                                onImagePreviewClick = onImagePreviewClick,
                             )
                         }
                         repeat(columns - row.size) {
@@ -138,7 +145,9 @@ private fun DrawGridImage(
     defaultImageLoader: ImageLoader,
     cornerRadius: androidx.compose.ui.unit.Dp,
     scaleMode: DrawGridScaleMode,
-    onImageClick: (Int, Rect?) -> Unit
+    galleryRects: MutableMap<Int, Rect>,
+    onImageClick: (Int, Rect?) -> Unit,
+    onImagePreviewClick: ((Int, ImagePreviewSourceAnchor?) -> Unit)?,
 ) {
     val context = LocalContext.current
     val imageUrl = remember(item.src) {
@@ -165,8 +174,23 @@ private fun DrawGridImage(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .onGloballyPositioned { coordinates ->
                 imageRectRef.value = coordinates.boundsInWindow()
+                galleryRects[index] = imageRectRef.value!!
             }
-            .clickable(enabled = !sourceHidden) { onImageClick(index, imageRectRef.value) },
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                enabled = !sourceHidden,
+            ) {
+                val rect = imageRectRef.value
+                val anchor = rect?.let {
+                    ImagePreviewSourceAnchor(it, cornerRadius.value, galleryRects.toMap())
+                }
+                if (onImagePreviewClick != null) {
+                    prepareImagePreviewSourceTransition(anchor?.rect)
+                }
+                onImageClick(index, rect)
+                onImagePreviewClick?.invoke(index, anchor)
+            },
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl.isNotEmpty()) {

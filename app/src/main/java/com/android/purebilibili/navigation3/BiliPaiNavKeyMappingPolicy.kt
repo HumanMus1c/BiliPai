@@ -79,7 +79,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         is BiliPaiNavKey.FavoriteSearch ->
             "favorite_search?query=${encodeRouteValue(query)}&scope=${scope.name}"
         is BiliPaiNavKey.LikedVideos -> if (mid > 0L) {
-            ScreenRoutes.LikedVideos.createRoute(mid, ownerName)
+            ScreenRoutes.LikedVideos.createRoute(mid, ownerName, isCoinArchive)
         } else {
             ScreenRoutes.LikedVideos.route
         }
@@ -229,8 +229,13 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         routeBase == ScreenRoutes.LikedVideos.route || normalized == ScreenRoutes.LikedVideos.route -> {
             val mid = query["mid"]?.toLongOrNull() ?: 0L
             val ownerName = query["ownerName"].orEmpty()
+            val isCoinArchive = query["type"].equals("coin", ignoreCase = true)
             if (mid > 0L) {
-                BiliPaiNavKey.LikedVideos(mid = mid, ownerName = ownerName)
+                BiliPaiNavKey.LikedVideos(
+                    mid = mid,
+                    ownerName = ownerName,
+                    isCoinArchive = isCoinArchive,
+                )
             } else {
                 BiliPaiNavKey.LikedVideos
             }

@@ -1352,6 +1352,16 @@ interface BilibiliApi {
     suspend fun hasLiked(
         @Query("aid") aid: Long
     ): HasLikedResponse
+
+    //  点踩/取消点踩视频（App 端点：优先 APP access_key 鉴权，同时依赖 CookieJar 注入的登录态与 csrf）
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("https://app.bilibili.com/x/v2/view/dislike")
+    suspend fun dislikeVideo(
+        @retrofit2.http.Field("aid") aid: Long,
+        @retrofit2.http.Field("dislike") dislike: Int,   // 0=点踩, 1=取消点踩
+        @retrofit2.http.Field("csrf") csrf: String,
+        @retrofit2.http.Field("access_key") accessKey: String? = null
+    ): SimpleApiResponse
     
     //  [新增] 投币
     @retrofit2.http.FormUrlEncoded
@@ -2004,6 +2014,18 @@ interface SpaceApi {
         @QueryMap params: Map<String, String>
     ): com.android.purebilibili.data.model.response.LikedVideosResponse
 
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "bili-http-engine: cronet",
+        "env: prod",
+        "app-key: android64",
+        "x-bili-aurora-zone: sh001"
+    )
+    @GET("https://app.bilibili.com/x/v2/space/coinarc")
+    suspend fun getSpaceCoinArchive(
+        @QueryMap params: Map<String, String>
+    ): com.android.purebilibili.data.model.response.LikedVideosResponse
+
     // 获取用户详细信息 (需要 WBI 签名)
     @GET("x/space/wbi/acc/info")
     suspend fun getSpaceInfo(@QueryMap params: Map<String, String>): com.android.purebilibili.data.model.response.SpaceInfoResponse
@@ -2156,6 +2178,22 @@ suspend fun SpaceApi.getSpaceLikedArchive(
     pageSize: Int = 20,
 ): com.android.purebilibili.data.model.response.LikedVideosResponse {
     return getSpaceLikedArchive(
+        buildSpaceLikedArchiveParams(
+            mid = mid,
+            page = page,
+            pageSize = pageSize,
+            accessToken = TokenManager.accessTokenCache,
+            accessTokenPlatform = TokenManager.accessTokenPlatformCache,
+        )
+    )
+}
+
+suspend fun SpaceApi.getSpaceCoinArchive(
+    mid: Long,
+    page: Int = 1,
+    pageSize: Int = 20,
+): com.android.purebilibili.data.model.response.LikedVideosResponse {
+    return getSpaceCoinArchive(
         buildSpaceLikedArchiveParams(
             mid = mid,
             page = page,

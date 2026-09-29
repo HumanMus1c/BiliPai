@@ -1,5 +1,6 @@
 package com.android.purebilibili.data.model.response
 
+import com.android.purebilibili.core.util.HtmlEntityUtils
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.KSerializer
@@ -158,12 +159,7 @@ data class SearchVideoItem(
         return VideoItem(
             id = id,
             bvid = bvid,
-            //  核心修复：使用正则表达式清洗 HTML 标签和转义字符 
-            title = title.replace(Regex("<.*?>"), "") // 去除 <em class="..."> 和 </em>
-                .replace("&quot;", "\"")      // 修复双引号转义
-                .replace("&amp;", "&")        // 修复 & 符号转义
-                .replace("&lt;", "<")         // 修复 < 符号
-                .replace("&gt;", ">"),        // 修复 > 符号
+            title = cleanSearchText(title),
             searchHighlightedTitle = title,
 
             pic = if (pic.startsWith("//")) "https:$pic" else pic,
@@ -191,12 +187,7 @@ data class SearchVideoItem(
 }
 
 internal fun cleanSearchText(raw: String): String {
-    return raw.replace(Regex("<.*?>"), "")
-        .replace("&quot;", "\"")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .trim()
+    return HtmlEntityUtils.unescape(raw.replace(Regex("<.*?>"), "")).trim()
 }
 
 internal fun normalizeSearchImageUrl(raw: String): String {

@@ -491,6 +491,9 @@ fun AppearanceSettingsContent(
     val homeUpAvatarsVisible by SettingsManager
         .getHomeUpAvatarsVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val homeRefreshTipVisible by SettingsManager
+        .getHomeRefreshTipVisible(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val homePublishTimeVisible by SettingsManager
         .getHomePublishTimeVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -502,7 +505,10 @@ fun AppearanceSettingsContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val homeCardDynamicTintEnabled by SettingsManager
         .getHomeCardDynamicTintEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val homeCardFrostedGlassEnabled by SettingsManager
+        .getHomeCardFrostedGlassEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val homeDurationStyle by SettingsManager
         .getHomeDurationStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
@@ -1566,6 +1572,24 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                            title = "上次刷新提示",
+                            subtitle = if (homeRefreshTipVisible) {
+                                "推荐流刷新后保留旧内容，并在刷新位置显示提示"
+                            } else {
+                                "关闭后刷新直接替换推荐内容，不显示刷新位置提示"
+                            },
+                            checked = homeRefreshTipVisible,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setHomeRefreshTipVisible(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_ONLINE_COUNT),
                             title = "显示观看人数",
                             subtitle = if (showOnlineCount) {
@@ -1712,11 +1736,28 @@ fun AppearanceSettingsContent(
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
-                            title = "卡片毛玻璃与动态取色",
-                            subtitle = if (homeCardDynamicTintEnabled) {
-                                "卡片底部跟随壁纸局部颜色实时磨砂；不支持时使用轻量效果"
+                            title = "卡片毛玻璃",
+                            subtitle = if (homeCardFrostedGlassEnabled) {
+                                "卡片信息区模糊背后的壁纸，支持时实时采样"
                             } else {
-                                "卡片使用传统实色底板，关闭动态色彩联动"
+                                "卡片不使用实时模糊"
+                            },
+                            checked = homeCardFrostedGlassEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    SettingsManager.setHomeCardFrostedGlassEnabled(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
+                            title = "卡片动态取色",
+                            subtitle = if (homeCardDynamicTintEnabled) {
+                                "卡片信息区跟随壁纸或封面颜色"
+                            } else {
+                                "卡片不跟随壁纸或封面变色"
                             },
                             checked = homeCardDynamicTintEnabled,
                             onCheckedChange = {

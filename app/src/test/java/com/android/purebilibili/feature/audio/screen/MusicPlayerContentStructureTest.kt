@@ -15,6 +15,10 @@ class MusicPlayerContentStructureTest {
 
         assertTrue(compactBranch.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(compactBranch.contains("resolveMusicPlayerPageTabs()"))
+        assertTrue(compactBranch.contains("onPageTap = openCoverPage"))
+        assertTrue(compactBranch.contains("showBottomControls = false"))
+        assertTrue(compactBranch.contains("playButtonSizeDp = 56"))
+        assertTrue(compactBranch.contains("LyricsImmersiveProgress(state = state)"))
         assertTrue(compactBranch.contains("height = 48.dp"))
         assertTrue(compactBranch.contains("indicatorHeight = 36.dp"))
         assertTrue(compactBranch.contains("containerVerticalPadding = 6.dp"))

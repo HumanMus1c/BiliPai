@@ -62,37 +62,3 @@ fun AppLiquidAwareSearchField(
         )
     }
 }
-
-/** Static (click-to-navigate) native search entry over the same optional liquid glass surface. */
-@Composable
-fun AppLiquidAwareSearchEntry(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "搜索",
-    backdrop: Backdrop? = null,
-    isScrollInProgressProvider: () -> Boolean = { false },
-) {
-    BottomBarMatchedReusableLiquidDock(
-        shape = CircleShape,
-        modifier = modifier,
-        backdrop = backdrop,
-        reuseEnabled = true,
-        useNeutralLiquidContainer = true,
-        drawShellLens = true,
-        shellLensIntensity = resolveFloatingDockGeometryScale(
-            AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.toFloat()
-        ),
-        isScrollInProgressProvider = isScrollInProgressProvider,
-    ) { liquidChromeActive ->
-        AppSearchEntry(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = placeholder,
-            containerColor = if (liquidChromeActive) {
-                Color.Transparent
-            } else {
-                Color.Unspecified
-            },
-        )
-    }
-}

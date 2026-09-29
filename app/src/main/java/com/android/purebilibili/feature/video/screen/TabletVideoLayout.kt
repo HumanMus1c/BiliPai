@@ -643,6 +643,7 @@ internal fun TabletVideoInfoPane(
         isFollowing = engagementState.isFollowing,
         isFavorited = engagementState.isFavorited,
         isLiked = engagementState.isLiked,
+        isDisliked = engagementState.isDisliked,
         coinCount = engagementState.coinCount,
         currentPageIndex = currentPageIndex,
         downloadProgress = downloadProgress,
@@ -669,6 +670,7 @@ internal fun TabletVideoInfoPane(
         onFavoriteClick = { engagementActions.onFavoriteAction(false) },
         onFavoriteLongClick = { engagementActions.onFavoriteAction(true) },
         onLikeClick = engagementActions.toggleLike,
+        onDislikeClick = engagementActions.toggleDislike,
         onCoinClick = engagementActions.openCoinDialog,
         onTripleClick = engagementActions.doTripleAction,
         onPageSelect = playbackActions.switchPage,
@@ -870,6 +872,7 @@ internal fun TabletSecondaryContent(
             images = previewImages,
             initialIndex = previewInitialIndex,
             sourceRect = sourceRect?.rect,
+            sourceRects = sourceRect?.galleryRects.orEmpty(),
             sourceCornerRadiusDp = sourceRect?.cornerRadiusDp
                 ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
@@ -1068,6 +1071,14 @@ internal fun TabletSecondaryContent(
                                     bottom = 104.dp,
                                 )
                             ) {
+                            commentState.voteCard?.let { card ->
+                                item(key = "tablet_vote_${card.voteId}") {
+                                    VideoCommentVoteCard(
+                                        card = card,
+                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                    )
+                                }
+                            }
                             items(
                                 items = commentState.replies,
                                 key = { "reply_${it.rpid}" },
@@ -1376,6 +1387,7 @@ private fun ScrollableVideoInfoSection(
     isFollowing: Boolean,
     isFavorited: Boolean,
     isLiked: Boolean,
+    isDisliked: Boolean = false,
     coinCount: Int,
     currentPageIndex: Int,
     downloadProgress: Float?,
@@ -1390,6 +1402,7 @@ private fun ScrollableVideoInfoSection(
     onFavoriteClick: () -> Unit,
     onFavoriteLongClick: () -> Unit = {},
     onLikeClick: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onPageSelect: (Int) -> Unit,
@@ -1512,10 +1525,12 @@ private fun ScrollableVideoInfoSection(
                 ActionButtonsRow(
                     info = info,
                     isLiked = isLiked,
+                    isDisliked = isDisliked,
                     isFavorited = isFavorited,
                     coinCount = coinCount,
                     isInWatchLater = isInWatchLater,
                     onLikeClick = onLikeClick,
+                    onDislikeClick = onDislikeClick,
                     onCoinClick = onCoinClick,
                     onFavoriteClick = onFavoriteClick,
                     onFavoriteLongClick = onFavoriteLongClick,

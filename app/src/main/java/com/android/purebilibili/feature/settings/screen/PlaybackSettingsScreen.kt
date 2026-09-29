@@ -1349,6 +1349,9 @@ private fun PlaybackInteractionSettingsSection(
     val videoInfoDefaultExpanded by com.android.purebilibili.core.store.SettingsManager
         .getVideoInfoDefaultExpanded(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val showVideoDetailCommentCount by SettingsManager
+        .getShowVideoDetailCommentCount(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val commentFraudDetectionEnabled by com.android.purebilibili.core.store.SettingsManager
         .getCommentFraudDetectionEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -1544,8 +1547,8 @@ private fun PlaybackInteractionSettingsSection(
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
         AppPreferenceDivider()
-	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_DESCRIPTION),
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_DESCRIPTION),
             title = "默认展开视频简介",
             subtitle = if (videoInfoDefaultExpanded) {
                 "进入视频页时默认展开标题、简介和标签"
@@ -1560,6 +1563,38 @@ private fun PlaybackInteractionSettingsSection(
                 }
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
+        )
+        AppPreferenceDivider()
+
+        AppListItem(
+            headlineContent = { AppText("评论 IP 属地") },
+            supportingContent = {
+                AppText("无需开启；B站返回属地时会在评论时间旁自动显示。部分评论没有属地数据。")
+            },
+            leadingContent = {
+                AppIcon(
+                    rememberMaterialSymbol(R.drawable.ms_info_24),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            },
+        )
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT),
+            title = "视频详情显示评论数",
+            subtitle = if (showVideoDetailCommentCount) {
+                "在视频详情页“评论”标签旁显示视频评论总数"
+            } else {
+                "关闭后只显示“评论”"
+            },
+            checked = showVideoDetailCommentCount,
+            onCheckedChange = { enabled ->
+                scope.launch {
+                    SettingsManager.setShowVideoDetailCommentCount(context, enabled)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSTeal,
         )
         AppPreferenceDivider()
         val videoTagSizePreset by com.android.purebilibili.core.store.SettingsManager

@@ -1,5 +1,8 @@
 package com.android.purebilibili.feature.dynamic.components
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -9,10 +12,11 @@ import kotlin.math.roundToInt
 private const val LAYOUT_PROGRESS_MIN = 0f
 private const val LAYOUT_PROGRESS_MAX = 1f
 private const val FALLBACK_START_SCALE = 0.96f
-/** 一镜到底：进出场共用 Continuity 曲线与相近时长，避免 overshoot 二次弹。 */
-private const val IMAGE_PREVIEW_OPEN_DURATION_MS = 320
+/** Match PiliPlus's HeroDialogRoute 300ms route transition. */
+private const val IMAGE_PREVIEW_OPEN_DURATION_MS = 300
 private const val IMAGE_PREVIEW_DISMISS_DURATION_MS = 300
 private const val IMAGE_PREVIEW_CANCEL_RECOVER_DURATION_MS = 180
+private const val IMAGE_PREVIEW_VERTICAL_DISMISS_FRACTION = 0.18f
 private const val IMAGE_PREVIEW_BLUR_QUANTUM_PX = 2f
 
 internal data class ImagePreviewTransitionFrame(
@@ -179,7 +183,9 @@ internal fun resolveImagePreviewVisualFrame(
     }
 
     return ImagePreviewVisualFrame(
-        contentAlpha = lerpFloat(0.9f, 1f, progress),
+        // Match PiliPlus Hero behavior: only the route backdrop fades; the shared image
+        // stays fully opaque throughout the flight, avoiding the initial dark flash.
+        contentAlpha = 1f,
         backdropAlpha = progress,
         blurRadiusPx = if (blurEnabled) {
             resolveImagePreviewBlurRadiusPx(
@@ -191,6 +197,14 @@ internal fun resolveImagePreviewVisualFrame(
         }
     )
 }
+
+/** Flutter's HeroDialogRoute fades with Curves.easeOut over 300ms. */
+internal fun imagePreviewOpenTween(): TweenSpec<Float> =
+    tween(durationMillis = IMAGE_PREVIEW_OPEN_DURATION_MS, easing = CubicBezierEasing(0f, 0f, 0.58f, 1f))
+
+/** Reverse route motion uses the matching ease-in curve when returning to the source. */
+internal fun imagePreviewCloseTween(durationMillis: Int): TweenSpec<Float> =
+    tween(durationMillis = durationMillis, easing = CubicBezierEasing(0.42f, 0f, 1f, 1f))
 
 internal fun resolveImagePreviewBlurRadiusPx(
     visualProgress: Float,
@@ -275,6 +289,22 @@ internal fun resolveImagePreviewDismissRectFrame(
     )
 }
 
+/** Source thumbnail to the full preview surface, preserving a rect flight for image clipping. */
+internal fun resolveImagePreviewOpenRect(
+    transitionProgress: Float,
+    sourceRect: Rect?,
+    previewSurfaceRect: Rect?
+): Rect? {
+    if (sourceRect == null || previewSurfaceRect == null) return null
+    val progress = transitionProgress.coerceIn(0f, 1f)
+    return Rect(
+        left = lerpFloat(sourceRect.left, previewSurfaceRect.left, progress),
+        top = lerpFloat(sourceRect.top, previewSurfaceRect.top, progress),
+        right = lerpFloat(sourceRect.right, previewSurfaceRect.right, progress),
+        bottom = lerpFloat(sourceRect.bottom, previewSurfaceRect.bottom, progress)
+    )
+}
+
 internal fun resolveImagePreviewDismissStartRect(
     previewSurfaceRect: Rect?,
     displayedImageRect: Rect?,
@@ -345,7 +375,10 @@ internal fun resolveImagePreviewVerticalDismissDecision(
     dragOffsetYPx: Float,
     containerHeightPx: Float
 ): ImagePreviewVerticalDismissDecision {
-    val threshold = maxOf(120f, containerHeightPx.coerceAtLeast(1f) * 0.14f)
+    val threshold = maxOf(
+        120f,
+        containerHeightPx.coerceAtLeast(1f) * IMAGE_PREVIEW_VERTICAL_DISMISS_FRACTION
+    )
     return if (kotlin.math.abs(dragOffsetYPx) >= threshold) {
         ImagePreviewVerticalDismissDecision.DISMISS
     } else {
@@ -354,10 +387,11 @@ internal fun resolveImagePreviewVerticalDismissDecision(
 }
 
 internal fun resolveImagePreviewDismissBackdropAlpha(
-    visualProgress: Float
+    visualProgress: Float,
+    startAlpha: Float = 1f,
 ): Float {
-    // 一镜到底：遮罩与 morph 进度线性同步，落点时立刻露底，减少「关完还黑一下」。
-    return visualProgress.coerceIn(0f, 1f)
+    // 保留下拉结束时的遮罩透明度，再与回位 morph 同步淡出，避免门槛处闪黑。
+    return startAlpha.coerceIn(0f, 1f) * visualProgress.coerceIn(0f, 1f)
 }
 
 /**

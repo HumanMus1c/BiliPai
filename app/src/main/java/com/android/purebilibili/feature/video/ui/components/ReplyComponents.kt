@@ -13,6 +13,9 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Rect
@@ -45,6 +48,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -76,6 +82,7 @@ import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
+import com.android.purebilibili.feature.dynamic.components.prepareImagePreviewSourceTransition
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextPlacement
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewCommentContext
 import com.android.purebilibili.feature.dynamic.components.ImageDecodeTarget
@@ -118,6 +125,55 @@ internal const val COMMENT_TIMESTAMP_TAG = "TIMESTAMP"
 internal const val COMMENT_USER_TAG = "USER"
 internal const val COMMENT_TOPIC_TAG = "TOPIC"
 internal const val COMMENT_VOTE_TAG = "VOTE"
+
+/** 富评论原生链接 payload 前缀：LinkAnnotation.Clickable 用单一 tag 承载「类型:载荷」。 */
+internal const val RICH_COMMENT_LINK_URL_PREFIX = "URL:"
+internal const val RICH_COMMENT_LINK_USER_PREFIX = "USER:"
+internal const val RICH_COMMENT_LINK_TOPIC_PREFIX = "TOPIC:"
+internal const val RICH_COMMENT_LINK_VOTE_PREFIX = "VOTE:"
+internal const val RICH_COMMENT_LINK_TS_PREFIX = "TS:"
+
+/** 构建原生 [LinkAnnotation.Clickable]；框架在 Text 内部处理点击，天然优先于划选/条目长按。 */
+internal fun commentLinkAnnotation(
+    payload: String,
+    listener: LinkInteractionListener?,
+): LinkAnnotation = LinkAnnotation.Clickable(
+    tag = payload,
+    styles = null,
+    linkInteractionListener = listener,
+)
+
+/** 评论富文本链接动作（纯数据，供分发与测试）。 */
+internal sealed interface RichCommentLinkAction {
+    data class Url(val url: String) : RichCommentLinkAction
+    data class User(val mid: Long) : RichCommentLinkAction
+    data class Topic(val topic: String) : RichCommentLinkAction
+    data class Vote(val voteId: Long) : RichCommentLinkAction
+    data class Timestamp(val seconds: Long) : RichCommentLinkAction
+}
+
+internal fun resolveRichCommentLinkAction(tag: String): RichCommentLinkAction? {
+    return when {
+        tag.startsWith(RICH_COMMENT_LINK_URL_PREFIX) ->
+            RichCommentLinkAction.Url(tag.removePrefix(RICH_COMMENT_LINK_URL_PREFIX))
+        tag.startsWith(RICH_COMMENT_LINK_USER_PREFIX) ->
+            tag.removePrefix(RICH_COMMENT_LINK_USER_PREFIX).toLongOrNull()
+                ?.takeIf { it > 0L }
+                ?.let(RichCommentLinkAction::User)
+        tag.startsWith(RICH_COMMENT_LINK_TOPIC_PREFIX) ->
+            tag.removePrefix(RICH_COMMENT_LINK_TOPIC_PREFIX)
+                .takeIf { it.isNotBlank() }
+                ?.let(RichCommentLinkAction::Topic)
+        tag.startsWith(RICH_COMMENT_LINK_VOTE_PREFIX) ->
+            tag.removePrefix(RICH_COMMENT_LINK_VOTE_PREFIX).toLongOrNull()
+                ?.takeIf { it > 0L }
+                ?.let(RichCommentLinkAction::Vote)
+        tag.startsWith(RICH_COMMENT_LINK_TS_PREFIX) ->
+            tag.removePrefix(RICH_COMMENT_LINK_TS_PREFIX).toLongOrNull()
+                ?.let(RichCommentLinkAction::Timestamp)
+        else -> null
+    }
+}
 internal val COMMENT_TIMESTAMP_PATTERN =
     """(?<!\d)(\d{1,2})\s*[:：]\s*(\d{2})(?:\s*[:：]\s*(\d{2}))?(?!\d)""".toRegex()
 internal val COMMENT_URL_PATTERN =
@@ -294,10 +350,17 @@ internal fun collectRenderableEmoteKeys(
         .toSet()
 }
 
+/**
+ * 是否挂载 SelectionContainer。
+ *
+ * 有可交互注解（@/链接/话题/投票/时间戳）时必须关闭划选：SelectionContainer
+ * 在存在选区（长按复制后）会消费后续点击来清除选区，把注解点击静默吞掉；
+ * 长按复制走条目级操作面板，不依赖划选容器。
+ */
 internal fun shouldEnableRichCommentSelection(
     hasRenderableEmotes: Boolean = false,
     hasInteractiveAnnotations: Boolean = false
-): Boolean = true
+): Boolean = !hasInteractiveAnnotations
 
 // 纯 Text 标签渲染成本低；滚动/播放期间保持稳定显示，对齐底栏 dragFloor 不因 motion 切换可见性。
 @Suppress("UNUSED_PARAMETER")
@@ -688,7 +751,8 @@ internal fun buildRichCommentAnnotatedString(
     maxTimestampSeconds: Long? = null,
     color: Color = Color.Unspecified,
     timestampColor: Color = Color.Unspecified,
-    urlColor: Color = Color.Unspecified
+    urlColor: Color = Color.Unspecified,
+    linkListener: LinkInteractionListener? = null
 ): AnnotatedString {
     return buildAnnotatedString {
         if (prefix != null) {
@@ -696,11 +760,16 @@ internal fun buildRichCommentAnnotatedString(
         }
         leadingReferences.forEach { reference ->
             if (reference.navigationUrl.isNotBlank()) {
-                pushStringAnnotation(tag = COMMENT_URL_TAG, annotation = reference.navigationUrl)
-                withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
-                    append(reference.label)
+                withLink(
+                    commentLinkAnnotation(
+                        payload = RICH_COMMENT_LINK_URL_PREFIX + reference.navigationUrl,
+                        listener = linkListener,
+                    )
+                ) {
+                    withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
+                        append(reference.label)
+                    }
                 }
-                pop()
             }
         }
 
@@ -849,48 +918,73 @@ internal fun buildRichCommentAnnotatedString(
                     }
 
                     "timestamp" -> {
-                        pushStringAnnotation(tag = COMMENT_TIMESTAMP_TAG, annotation = matchInfo.seconds.toString())
-                        withStyle(SpanStyle(color = timestampColor, fontWeight = FontWeight.Medium)) {
-                            append(matchInfo.value)
+                        withLink(
+                            commentLinkAnnotation(
+                                payload = RICH_COMMENT_LINK_TS_PREFIX + matchInfo.seconds,
+                                listener = linkListener,
+                            )
+                        ) {
+                            withStyle(SpanStyle(color = timestampColor, fontWeight = FontWeight.Medium)) {
+                                append(matchInfo.value)
+                            }
                         }
-                        pop()
                     }
 
                     "user" -> {
-                        pushStringAnnotation(tag = COMMENT_USER_TAG, annotation = matchInfo.annotation)
-                        withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
-                            append(matchInfo.value)
+                        withLink(
+                            commentLinkAnnotation(
+                                payload = RICH_COMMENT_LINK_USER_PREFIX + matchInfo.annotation,
+                                listener = linkListener,
+                            )
+                        ) {
+                            withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
+                                append(matchInfo.value)
+                            }
                         }
-                        pop()
                     }
 
                     "topic" -> {
-                        pushStringAnnotation(tag = COMMENT_TOPIC_TAG, annotation = matchInfo.annotation)
-                        withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
-                            append(matchInfo.value)
+                        withLink(
+                            commentLinkAnnotation(
+                                payload = RICH_COMMENT_LINK_TOPIC_PREFIX + matchInfo.annotation,
+                                listener = linkListener,
+                            )
+                        ) {
+                            withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
+                                append(matchInfo.value)
+                            }
                         }
-                        pop()
                     }
 
                     "vote" -> {
-                        pushStringAnnotation(tag = COMMENT_VOTE_TAG, annotation = matchInfo.annotation)
-                        withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
-                            append(matchInfo.displayText)
+                        withLink(
+                            commentLinkAnnotation(
+                                payload = RICH_COMMENT_LINK_VOTE_PREFIX + matchInfo.annotation,
+                                listener = linkListener,
+                            )
+                        ) {
+                            withStyle(SpanStyle(color = urlColor, fontWeight = FontWeight.Medium)) {
+                                append(matchInfo.displayText)
+                            }
                         }
-                        pop()
                     }
 
                     "url",
                     "rich_url",
                     "video" -> {
-                        pushStringAnnotation(tag = COMMENT_URL_TAG, annotation = matchInfo.annotation)
-                        withStyle(SpanStyle(color = urlColor, textDecoration = TextDecoration.Underline)) {
-                            if (matchInfo.inlineContentId != null) {
-                                appendInlineContent(id = matchInfo.inlineContentId, alternateText = " ")
+                        withLink(
+                            commentLinkAnnotation(
+                                payload = RICH_COMMENT_LINK_URL_PREFIX + matchInfo.annotation,
+                                listener = linkListener,
+                            )
+                        ) {
+                            withStyle(SpanStyle(color = urlColor, textDecoration = TextDecoration.Underline)) {
+                                if (matchInfo.inlineContentId != null) {
+                                    appendInlineContent(id = matchInfo.inlineContentId, alternateText = " ")
+                                }
+                                append(matchInfo.displayText)
                             }
-                            append(matchInfo.displayText)
                         }
-                        pop()
                     }
                 }
                 lastIndex = matchInfo.range.last + 1
@@ -1271,6 +1365,15 @@ fun ReplyItemView(
     val canTranslate = item.replyControl?.translationSwitch == 2
     var translatedMessage by remember(item.rpid) { mutableStateOf<String?>(null) }
     var isTranslating by remember(item.rpid) { mutableStateOf(false) }
+    // [新增] 点踩折叠：已点踩的评论正文收起为一行，点击展开；取消点踩自动恢复
+    var hatedBodyExpanded by remember(item.rpid, isHated) { mutableStateOf(false) }
+    val collapseHatedBody = isHated && !hatedBodyExpanded
+    var hatePromptHandled by remember(item.rpid) { mutableStateOf(false) }
+    // 与仓库既有回弹手感一致（bouncyClickable 等使用的同组弹簧参数）
+    val hateCollapseSpring: SpringSpec<androidx.compose.ui.unit.IntSize> = spring(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
     val displayMessage = remember(translatedMessage, item.content.message) {
         translatedMessage ?: item.content.message
     }
@@ -1321,6 +1424,8 @@ fun ReplyItemView(
         }
     }
 
+    var confirmBlockUser by remember(item.rpid) { mutableStateOf(false) }
+
     if (showActionSheet) {
         ReplyActionSheet(
             queryAuthorUid = replyMemberMid,
@@ -1350,7 +1455,7 @@ fun ReplyItemView(
                 onReplyClick?.invoke() ?: onSubClick(item, 0L)
             },
             onBlockUser = {
-                blockReplyUser()
+                confirmBlockUser = true
             },
             onReport = {
                 showReportDialog = true
@@ -1383,6 +1488,24 @@ fun ReplyItemView(
             showReportDialog = false
         }
     )
+
+    if (confirmBlockUser) {
+        com.android.purebilibili.core.ui.AppAlertDialog(
+            onDismissRequest = { confirmBlockUser = false },
+            title = { AppText("拉黑该用户？") },
+            text = { AppText("拉黑「${item.member.uname}」后将不再显示 TA 的评论和动态，可在设置中解除。") },
+            confirmButton = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
+                    confirmBlockUser = false
+                    hatePromptHandled = true
+                    blockReplyUser()
+                }) { AppText("确认拉黑") }
+            },
+            dismissButton = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = { confirmBlockUser = false }) { AppText("取消") }
+            },
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -1502,8 +1625,42 @@ fun ReplyItemView(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .animateContentSize(animationSpec = hateCollapseSpring)
                         .padding(start = startPadding)
                 ) {
+                    if (collapseHatedBody) {
+                        AppText(
+                            text = "已点踩的评论 · 点击展开",
+                            fontSize = VideoCommentTypographyTokens.body,
+                            color = appearance.secondaryTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { hatedBodyExpanded = true }
+                                .padding(vertical = 2.dp)
+                        )
+                        if (!hatePromptHandled) {
+                            Row(
+                                modifier = Modifier.padding(top = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                ReplyTextAction(
+                                    label = "屏蔽该用户",
+                                    appearance = appearance,
+                                    onClick = { confirmBlockUser = true }
+                                )
+                                ReplyTextAction(
+                                    label = "举报",
+                                    appearance = appearance,
+                                    onClick = {
+                                        hatePromptHandled = true
+                                        showReportDialog = true
+                                    }
+                                )
+                            }
+                        }
+                    } else {
                     ReplyMessageText(
                         text = displayMessage,
                         fontSize = VideoCommentTypographyTokens.body,
@@ -1544,6 +1701,7 @@ fun ReplyItemView(
                                 )
                             }
                         )
+                    }
                     }
 
                     // Footer Actions
@@ -2057,6 +2215,22 @@ fun RichCommentText(
     val renderableEmoteKeys = remember(text, emoteMap) {
         collectRenderableEmoteKeys(text, emoteMap)
     }
+    // 原生链接分发：BasicText 在 Text 内部处理 LinkAnnotation 点击，
+    // 长按/划选/条目点击不再与 @、链接竞争。
+    val linkListener = remember(onUrlClick, onUserClick, onTopicClick, onVoteClick, onTimestampClick) {
+        LinkInteractionListener { link ->
+            when (val action = resolveRichCommentLinkAction((link as LinkAnnotation.Clickable).tag)) {
+                is RichCommentLinkAction.Url -> onUrlClick?.invoke(action.url)
+                is RichCommentLinkAction.User -> onUserClick?.invoke(action.mid)
+                is RichCommentLinkAction.Topic -> onTopicClick?.invoke(action.topic)
+                is RichCommentLinkAction.Vote -> onVoteClick?.invoke(action.voteId)
+                is RichCommentLinkAction.Timestamp ->
+                    onTimestampClick?.invoke(action.seconds * 1000)
+                null -> Unit
+            }
+        }
+    }
+
     
     val annotatedString = remember(
         text,
@@ -2085,7 +2259,8 @@ fun RichCommentText(
             maxTimestampSeconds = maxTimestampMs?.let { it / 1000L },
             color = color,
             timestampColor = timestampColor,
-            urlColor = urlColor
+            urlColor = urlColor,
+            linkListener = linkListener
         )
     }
 
@@ -2170,64 +2345,12 @@ fun RichCommentText(
     var showTextSelectionSheet by remember(copyText) { mutableStateOf(false) }
 
     val content: @Composable () -> Unit = {
-        //  使用 Text + pointerInput 实现带表情的可点击文本
-        var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-        val textModifier = if (hasTapHandler) {
-            Modifier.pointerInput(annotatedString, text, onPlainTextClick) {
-                detectTapWithSelectionFriendly { offset ->
-                    textLayoutResult?.let { layoutResult ->
-                        val position = layoutResult.getOffsetForPosition(offset)
-                        val searchStart = maxOf(0, position - 1)
-                        val searchEnd = minOf(annotatedString.length, position + 1)
-
-                        annotatedString.getStringAnnotations(
-                            tag = COMMENT_URL_TAG,
-                            start = searchStart,
-                            end = searchEnd
-                        ).firstOrNull()?.let { annotation ->
-                            onUrlClick?.invoke(annotation.item)
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                        annotatedString.getStringAnnotations(
-                            tag = COMMENT_USER_TAG,
-                            start = searchStart,
-                            end = searchEnd
-                        ).firstOrNull()?.let { annotation ->
-                            annotation.item.toLongOrNull()?.let { onUserClick?.invoke(it) }
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                        annotatedString.getStringAnnotations(
-                            tag = COMMENT_TOPIC_TAG,
-                            start = searchStart,
-                            end = searchEnd
-                        ).firstOrNull()?.let { annotation ->
-                            onTopicClick?.invoke(annotation.item)
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                        annotatedString.getStringAnnotations(
-                            tag = COMMENT_VOTE_TAG,
-                            start = searchStart,
-                            end = searchEnd
-                        ).firstOrNull()?.let { annotation ->
-                            annotation.item.toLongOrNull()?.let { onVoteClick?.invoke(it) }
-                            return@detectTapWithSelectionFriendly
-                        }
-
-                        annotatedString.getStringAnnotations(
-                            tag = COMMENT_TIMESTAMP_TAG,
-                            start = searchStart,
-                            end = searchEnd
-                        )
-                        .firstOrNull()?.let { annotation ->
-                            val secondsValue = annotation.item.toLongOrNull() ?: 0L
-                            onTimestampClick?.invoke(secondsValue * 1000)
-                            return@detectTapWithSelectionFriendly
-                        }
-                    }
-                    onPlainTextClick?.invoke()
+        // 纯文本兜底点击（如点空白处打开线程）。@/链接点击由 BasicText 内部的
+        // 原生链接手势消费 up 事件，这里的检测器收不到，不会双重触发。
+        val textModifier = if (onPlainTextClick != null) {
+            Modifier.pointerInput(annotatedString, onPlainTextClick) {
+                detectTapWithSelectionFriendly { _ ->
+                    onPlainTextClick.invoke()
                 }
             }
         } else {
@@ -2241,12 +2364,15 @@ fun RichCommentText(
             color = color,
             lineHeight = (fontSize.value * 1.5).sp,
             maxLines = maxLines,
-            onTextLayout = { textLayoutResult = it },
             modifier = textModifier
         )
     }
 
-    SelectionContainer {
+    if (selectionEnabled) {
+        SelectionContainer {
+            content()
+        }
+    } else {
         content()
     }
 
@@ -2606,7 +2732,7 @@ internal fun ReplySpecialLabelChip(text: String) {
 }
 
 @Composable
-private fun ReplyTextAction(
+internal fun ReplyTextAction(
     label: String,
     appearance: VideoCommentAppearance,
     onClick: () -> Unit
@@ -2780,6 +2906,7 @@ fun CommentPictures(
             url
         }
     }
+    val galleryRects = remember(imageUrls) { mutableMapOf<Int, Rect>() }
     val context = LocalContext.current
     val totalCount = pictures.size  //  [优化] 保存总图片数用于角标显示
     // 单图 Card / 九宫格 Field 的真实圆角不同，捕获时构造锚点供回位 morph 使用
@@ -2820,18 +2947,35 @@ fun CommentPictures(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .onGloballyPositioned { coordinates ->
                         imageRect = coordinates.boundsInWindow()
+                        imageRect?.let { galleryRects[0] = it }
                     }
-                    .clickable(enabled = !sourceHidden) {
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        enabled = !sourceHidden,
+                    ) {
+                        val anchor = imageRect?.let {
+                            ImagePreviewSourceAnchor(
+                                it,
+                                singleImageCornerDp,
+                                galleryRects = galleryRects.toMap()
+                            )
+                        }
+                        prepareImagePreviewSourceTransition(anchor?.rect)
                         onImageClick(
                             imageUrls,
                             0,
-                            imageRect?.let { ImagePreviewSourceAnchor(it, singleImageCornerDp) }
+                            anchor
                         )
                     }
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(imageUrls[0])
+                        // Preview uses this exact URL as its placeholder cache key. Keep
+                        // the thumbnail cache identity independent of its decode size so
+                        // the hero flight can paint the already-visible source immediately.
+                        .memoryCacheKey(imageUrls[0])
                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
                         .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
                         .crossfade(true)
@@ -2868,12 +3012,25 @@ fun CommentPictures(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .onGloballyPositioned { coordinates ->
                                         imageRect = coordinates.boundsInWindow()
+                                        imageRect?.let { galleryRects[globalIndex] = it }
                                     }
-                                    .clickable(enabled = !sourceHidden) {
+                                    .clickable(
+                                        interactionSource = null,
+                                        indication = null,
+                                        enabled = !sourceHidden,
+                                    ) {
+                                        val anchor = imageRect?.let {
+                                            ImagePreviewSourceAnchor(
+                                                it,
+                                                gridImageCornerDp,
+                                                galleryRects = galleryRects.toMap()
+                                            )
+                                        }
+                                        prepareImagePreviewSourceTransition(anchor?.rect)
                                         onImageClick(
                                             imageUrls,
                                             globalIndex,
-                                            imageRect?.let { ImagePreviewSourceAnchor(it, gridImageCornerDp) }
+                                            anchor
                                         )
                                     },
                                 contentAlignment = Alignment.Center
@@ -2881,6 +3038,10 @@ fun CommentPictures(
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
                                         .data(imageUrls[globalIndex])
+                                        // Match ImagePreviewDialog's placeholder key; the
+                                        // thumbnail and fullscreen requests use different
+                                        // decode sizes but must share the source image entry.
+                                        .memoryCacheKey(imageUrls[globalIndex])
                                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
                                         .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
                                         .crossfade(true)

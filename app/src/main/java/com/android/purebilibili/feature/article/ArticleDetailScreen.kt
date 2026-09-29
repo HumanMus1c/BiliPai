@@ -55,6 +55,7 @@ import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.repository.ArticleDetailUiModel
 import com.android.purebilibili.data.repository.ArticleRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.feature.dynamic.components.prepareImagePreviewSourceTransition
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.appDesktopFocusableItemVisuals
@@ -72,6 +73,7 @@ private data class ArticleImagePreviewRequest(
     val images: List<String>,
     val initialIndex: Int,
     val sourceRect: Rect?,
+    val sourceRects: Map<Int, Rect>,
     val sourceCornerRadiusDp: Float
 )
 
@@ -218,6 +220,16 @@ private fun ArticleDetailContent(
     val bodyImageSourceRects = remember(article.blocks) {
         mutableStateMapOf<Int, Rect>()
     }
+    fun currentPreviewSourceRects(): Map<Int, Rect> = buildMap {
+        if (hasBannerImage) bannerSourceRect?.let { put(0, it) }
+        var pageIndex = bodyImageIndexOffset
+        article.blocks.forEachIndexed { blockIndex, block ->
+            if (block is ArticleContentBlock.Image) {
+                bodyImageSourceRects[blockIndex]?.let { put(pageIndex, it) }
+                pageIndex++
+            }
+        }
+    }
     var imagePreviewRequest by remember(article.bannerUrl, article.blocks) {
         mutableStateOf<ArticleImagePreviewRequest?>(null)
     }
@@ -227,11 +239,17 @@ private fun ArticleDetailContent(
         .onGloballyPositioned { coordinates ->
             bannerSourceRect = coordinates.boundsInWindow()
         }
-        .clickable(enabled = previewImages.isNotEmpty()) {
+        .clickable(
+            interactionSource = null,
+            indication = null,
+            enabled = previewImages.isNotEmpty(),
+        ) {
+            prepareImagePreviewSourceTransition(bannerSourceRect)
             imagePreviewRequest = ArticleImagePreviewRequest(
                 images = previewImages,
                 initialIndex = 0,
                 sourceRect = bannerSourceRect,
+                sourceRects = currentPreviewSourceRects(),
                 sourceCornerRadiusDp = ARTICLE_BANNER_CORNER_RADIUS_DP
             )
         }
@@ -453,15 +471,17 @@ private fun ArticleDetailContent(
                             .onGloballyPositioned { coordinates ->
                                 bodyImageSourceRects[index] = coordinates.boundsInWindow()
                             }
-                            .clickable {
+                            .clickable(interactionSource = null, indication = null) {
                                 val payload = resolveArticleImagePreviewPayload(
                                     blocks = article.blocks,
                                     tappedBlockIndex = index
                                 ) ?: return@clickable
+                                prepareImagePreviewSourceTransition(bodyImageSourceRects[index])
                                 imagePreviewRequest = ArticleImagePreviewRequest(
                                     images = previewImages,
                                     initialIndex = payload.initialIndex + bodyImageIndexOffset,
                                     sourceRect = bodyImageSourceRects[index],
+                                    sourceRects = currentPreviewSourceRects(),
                                     sourceCornerRadiusDp = ARTICLE_BODY_IMAGE_CORNER_RADIUS_DP
                                 )
                             },
@@ -477,6 +497,7 @@ private fun ArticleDetailContent(
             images = request.images,
             initialIndex = request.initialIndex,
             sourceRect = request.sourceRect,
+            sourceRects = request.sourceRects,
             sourceCornerRadiusDp = request.sourceCornerRadiusDp,
             onDismiss = { imagePreviewRequest = null }
         )

@@ -665,6 +665,7 @@ data class HomeSettings(
     val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
     val homeHeroCarouselEnabled: Boolean = true,
     val homeHeroCarouselAutoplayEnabled: Boolean = false,
+    val homeRefreshTipVisible: Boolean = true, // 推荐流刷新后在旧内容分界处显示提示
     val cardAnimationEnabled: Boolean = false,    //  卡片进场动画（默认关闭）
     val cardTransitionEnabled: Boolean = true,    //  卡片过渡动画（默认开启）
     val videoSharedTransitionSpeed: VideoSharedTransitionSpeed = VideoSharedTransitionSpeed.STANDARD,
@@ -690,7 +691,8 @@ data class HomeSettings(
     val showHomePublishTime: Boolean = true, // 首页视频卡片发布时间（默认显示，可关闭）
     val showFullVideoCardContent: Boolean = false, // 视频卡片标题完整展示(默认关闭,设置后全局生效)
     val videoCardLongPressActionEnabled: Boolean = false, // 长按视频卡片快捷操作与预览（默认关闭）
-    val homeCardDynamicTintEnabled: Boolean = true, // 卡片毛玻璃与动态取色
+    val homeCardDynamicTintEnabled: Boolean = false, // 卡片动态取色
+    val homeCardFrostedGlassEnabled: Boolean = false, // 卡片毛玻璃
     val homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     val easterEggEnabled: Boolean = false, // 下拉刷新趣味提示开关
     //  [修复] 默认值改为 true，避免在 Flow 加载实际值之前错误触发弹窗
@@ -700,6 +702,11 @@ data class HomeSettings(
     val isLiquidGlassEnabled: Boolean
         get() = androidNativeLiquidGlassEnabled
 }
+
+internal fun resolveHomeCardFrostedGlassEnabled(
+    storedValue: Boolean?,
+    legacyCombinedValue: Boolean?,
+): Boolean = storedValue ?: legacyCombinedValue ?: false
 
 data class AppThemeSettings(
     val uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
@@ -1598,6 +1605,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_HOME_WALLPAPER_EFFECT_MODE = intPreferencesKey("home_wallpaper_effect_mode")
     private val KEY_HOME_WALLPAPER_EFFECT_SCOPE = intPreferencesKey("home_wallpaper_effect_scope")
     private val KEY_HOME_UP_BADGES_VISIBLE = booleanPreferencesKey("home_up_badges_visible")
+    private val KEY_HOME_REFRESH_TIP_VISIBLE = booleanPreferencesKey("home_refresh_tip_visible")
     private val KEY_HOME_UP_AVATARS_VISIBLE = booleanPreferencesKey("home_up_avatars_visible")
     private val KEY_HOME_PUBLISH_TIME_VISIBLE = booleanPreferencesKey("home_publish_time_visible")
     private val KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE =
@@ -1606,6 +1614,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("video_card_long_press_action_enabled")
     private val KEY_HOME_CARD_DYNAMIC_TINT_ENABLED =
         booleanPreferencesKey("home_card_dynamic_tint_enabled")
+    private val KEY_HOME_CARD_FROSTED_GLASS_ENABLED =
+        booleanPreferencesKey("home_card_frosted_glass_enabled")
     private val KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE =
         booleanPreferencesKey("home_video_duration_badges_visible")
     private val KEY_HOME_DURATION_STYLE = intPreferencesKey("home_duration_style")
@@ -1788,6 +1798,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             homeHeroCarouselEnabled = preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: false,
             homeHeroCarouselAutoplayEnabled =
                 preferences[KEY_HOME_HERO_CAROUSEL_AUTOPLAY_ENABLED] ?: false,
+            homeRefreshTipVisible = preferences[KEY_HOME_REFRESH_TIP_VISIBLE] ?: true,
             cardAnimationEnabled = preferences[KEY_CARD_ANIMATION_ENABLED] ?: false,
             cardTransitionEnabled = preferences[KEY_CARD_TRANSITION_ENABLED] ?: true,
             videoSharedTransitionSpeed = VideoSharedTransitionSpeed.fromValue(
@@ -1821,7 +1832,11 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             showHomePublishTime = preferences[KEY_HOME_PUBLISH_TIME_VISIBLE] ?: true,
             showFullVideoCardContent = preferences[KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE] ?: false,
             videoCardLongPressActionEnabled = preferences[KEY_VIDEO_CARD_LONG_PRESS_ACTION_ENABLED] ?: false,
-            homeCardDynamicTintEnabled = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: true,
+            homeCardDynamicTintEnabled = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: false,
+            homeCardFrostedGlassEnabled = resolveHomeCardFrostedGlassEnabled(
+                storedValue = preferences[KEY_HOME_CARD_FROSTED_GLASS_ENABLED],
+                legacyCombinedValue = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED],
+            ),
             homeDurationStyle = preferences[KEY_HOME_DURATION_STYLE]
                 ?.let(HomeDurationStyle::fromValue)
                 ?: if (preferences[KEY_HOME_VIDEO_DURATION_BADGES_VISIBLE] ?: true) {
@@ -3459,6 +3474,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    fun getHomeRefreshTipVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_HOME_REFRESH_TIP_VISIBLE] ?: true }
+
+    suspend fun setHomeRefreshTipVisible(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_REFRESH_TIP_VISIBLE] = value
+        }
+    }
+
     fun getHomeUpAvatarsVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_HOME_UP_AVATARS_VISIBLE] ?: false }
 
@@ -3496,11 +3520,29 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     fun getHomeCardDynamicTintEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: true }
+        .map { preferences -> preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: false }
 
     suspend fun setHomeCardDynamicTintEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
+            if (preferences[KEY_HOME_CARD_FROSTED_GLASS_ENABLED] == null) {
+                preferences[KEY_HOME_CARD_FROSTED_GLASS_ENABLED] =
+                    preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] ?: false
+            }
             preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED] = value
+        }
+    }
+
+    fun getHomeCardFrostedGlassEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences ->
+            resolveHomeCardFrostedGlassEnabled(
+                storedValue = preferences[KEY_HOME_CARD_FROSTED_GLASS_ENABLED],
+                legacyCombinedValue = preferences[KEY_HOME_CARD_DYNAMIC_TINT_ENABLED],
+            )
+        }
+
+    suspend fun setHomeCardFrostedGlassEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_CARD_FROSTED_GLASS_ENABLED] = value
         }
     }
 
@@ -5714,6 +5756,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences -> preferences[KEY_TRIPLE_JUMP_ENABLED] = value }
     }
 
+    // --- 订阅文章阅读字号 (0=小 1=标准 2=大) ---
+    private val KEY_SUBSCRIPTION_ARTICLE_FONT_SCALE = intPreferencesKey("subscription_article_font_scale")
+
+    fun getSubscriptionArticleFontScale(context: Context): Flow<Int> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SUBSCRIPTION_ARTICLE_FONT_SCALE] ?: 1 }
+
+    suspend fun setSubscriptionArticleFontScale(context: Context, value: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SUBSCRIPTION_ARTICLE_FONT_SCALE] = value.coerceIn(0, 2)
+        }
+    }
+
     fun getPortraitFullscreenEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_PORTRAIT_FULLSCREEN_ENABLED] ?: true }
 
@@ -6894,6 +6948,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_SHOW_FULLSCREEN_TIME = booleanPreferencesKey("show_fullscreen_time")
     private val KEY_SHOW_FULLSCREEN_ACTION_ITEMS = booleanPreferencesKey("show_fullscreen_action_items")
     private val KEY_SHOW_ONLINE_COUNT = booleanPreferencesKey("show_online_count")
+    private val KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT =
+        booleanPreferencesKey("show_video_detail_comment_count")
     private val KEY_SHOW_PROFILE_EDIT_BUTTON = booleanPreferencesKey("show_profile_edit_button")
     private val KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT =
         intPreferencesKey("comment_collapsed_reply_preview_limit")
@@ -7257,6 +7313,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     fun getShowOnlineCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SHOW_ONLINE_COUNT] ?: false }
+
+    fun getShowVideoDetailCommentCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT] ?: true }
+
+    suspend fun setShowVideoDetailCommentCount(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT] = enabled
+        }
+    }
 
     suspend fun setShowOnlineCount(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
@@ -7932,6 +7997,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             StringShareablePreferenceDefinition(KEY_HOME_WALLPAPER_URI, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_WALLPAPER_EFFECT_MODE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_HOME_REFRESH_TIP_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_AVATARS_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_PUBLISH_TIME_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_FULL_VIDEO_CARD_CONTENT_VISIBLE, SettingsShareSection.APPEARANCE),
@@ -8002,6 +8068,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_TABLET_COMMENT_PANEL_WIDTH_PRESET, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_TABLET_SECONDARY_DEFAULT_TAB, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_SHOW_ONLINE_COUNT, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(
+                KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT,
+                SettingsShareSection.PLAYBACK,
+            ),
             IntShareablePreferenceDefinition(KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT, SettingsShareSection.PLAYBACK),
 
             BooleanShareablePreferenceDefinition(KEY_HAPTIC_FEEDBACK_ENABLED, SettingsShareSection.GESTURE),

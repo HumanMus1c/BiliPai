@@ -919,6 +919,7 @@ fun HomeScreen(
         recommendOldContentRevealKey
     ) {
         if (currentCategory != HomeCategory.RECOMMEND) return@LaunchedEffect
+        if (!homeSettings.homeRefreshTipVisible) return@LaunchedEffect
         if ((refreshNewItemsCount ?: 0) <= 0) return@LaunchedEffect
         val targetKey = refreshNewItemsKey
         if (targetKey <= 0L || recommendOldContentRevealKey == targetKey) return@LaunchedEffect
@@ -1362,7 +1363,7 @@ fun HomeScreen(
         )
     }
     val shouldCaptureHomeWallpaperBackdrop =
-        homeSettings.homeCardDynamicTintEnabled &&
+        homeSettings.homeCardFrostedGlassEnabled &&
             homeWallpaperBackdropAppearance.visible &&
             homeWallpaperUri.isNotBlank() &&
             isStaticHomeWallpaperUri(homeWallpaperUri) &&
@@ -2007,6 +2008,7 @@ fun HomeScreen(
                                         start = AppSpacingTokens.Large,
                                         end = AppSpacingTokens.Large,
                                     ),
+                                    onOpenPluginSettings = onPluginsClick,
                                     articleContentPadding = PaddingValues(
                                         top = statusBarHeight + AppSpacingTokens.Small,
                                         bottom = homeListBottomPadding,
@@ -2415,7 +2417,8 @@ fun HomeScreen(
                                              refreshNewItemsKey = refreshNewItemsKey,
                                              revealedRefreshKey = recommendOldContentRevealKey,
                                              anchorBvid = recommendOldContentAnchorBvid,
-                                             oldContentStartIndex = recommendOldContentStartIndex
+                                             oldContentStartIndex = recommendOldContentStartIndex,
+                                             refreshTipVisible = homeSettings.homeRefreshTipVisible
                                          )
                                      ) {
                                          recommendOldContentAnchorBvid
@@ -2427,12 +2430,19 @@ fun HomeScreen(
                                              refreshNewItemsKey = refreshNewItemsKey,
                                              revealedRefreshKey = recommendOldContentRevealKey,
                                              anchorBvid = recommendOldContentAnchorBvid,
-                                             oldContentStartIndex = recommendOldContentStartIndex
+                                             oldContentStartIndex = recommendOldContentStartIndex,
+                                             refreshTipVisible = homeSettings.homeRefreshTipVisible
                                          )
                                      ) {
                                          recommendOldContentStartIndex
                                      } else {
                                          null
+                                     },
+                                     onOldContentDividerClick = {
+                                         coroutineScope.launch {
+                                             contentGridState.animateScrollToItem(0)
+                                         }
+                                         viewModel.refresh(category)
                                      },
                                      todayWatchEnabled = category == HomeCategory.RECOMMEND && todayWatchPluginEnabled,
                                      todayWatchMode = todayWatchMode,
@@ -2756,6 +2766,14 @@ fun HomeScreen(
 
         //  [新增] 刷新撤销悬浮按钮（右下角，5秒后自动消失）
         val undoVisible = undoAvailable && currentCategory == HomeCategory.RECOMMEND
+        val oldContentLocatorVisible = shouldShowRecommendOldContentDivider(
+            currentCategory = currentCategory,
+            refreshNewItemsKey = refreshNewItemsKey,
+            revealedRefreshKey = recommendOldContentRevealKey,
+            anchorBvid = recommendOldContentAnchorBvid,
+            oldContentStartIndex = recommendOldContentStartIndex,
+            refreshTipVisible = homeSettings.homeRefreshTipVisible,
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -2772,7 +2790,11 @@ fun HomeScreen(
                     animationSpec = tween(overlayMotionSpec.undoFabSlideDurationMillis),
                     targetOffsetY = { it }
                 ),
-                modifier = Modifier.padding(end = AppSpacingTokens.Large, bottom = homeListBottomPadding + AppSpacingTokens.Small)
+                modifier = Modifier.padding(
+                    end = AppSpacingTokens.Large,
+                    bottom = homeListBottomPadding + AppSpacingTokens.Small +
+                        if (oldContentLocatorVisible) 64.dp else 0.dp,
+                )
             ) {
             AppButton(
                 onClick = { viewModel.undoRefresh() },

@@ -15,7 +15,8 @@ internal data class CommonListVideoCardAppearance(
     val showInfoGlassBadges: Boolean
 )
 
-internal fun resolveCommonListSingleColumnMaxWidth(): Dp = 840.dp
+internal fun resolveCommonListSingleColumnMaxWidth(): Dp =
+    com.android.purebilibili.core.util.resolveSingleColumnFeedMaxWidth()
 
 internal fun resolveCommonListGridMinColumnWidth(isExpandedScreen: Boolean): Dp =
     if (isExpandedScreen) 240.dp else 170.dp

@@ -5,6 +5,8 @@ import com.android.purebilibili.feature.dynamic.components.DynamicDisplayMode
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.network.DynamicDeleteRequest
@@ -22,6 +24,7 @@ import com.android.purebilibili.data.model.response.LiveRoom
 import com.android.purebilibili.data.model.response.ReplyData
 import com.android.purebilibili.data.model.response.ReplyInteractionData
 import com.android.purebilibili.data.model.response.ReplyItem
+import com.android.purebilibili.data.model.response.ReplyPicture
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.data.repository.CommentRepository
@@ -35,6 +38,7 @@ import com.android.purebilibili.feature.dynamic.components.DynamicReserveAction
 import com.android.purebilibili.feature.dynamic.components.DynamicReserveResult
 import com.android.purebilibili.feature.dynamic.components.buildDynamicVisibilityObjectId
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicVisibilityAction
+import com.android.purebilibili.feature.dynamic.notification.LiveReserveReminderScheduler
 import com.android.purebilibili.feature.video.viewmodel.resolveRoutedCommentRootReply
 import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyLoadedTotalCount
 import com.android.purebilibili.feature.video.viewmodel.isSortedSubReplyPageEnd
@@ -1519,7 +1523,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         _commentReplyTarget.value = null
     }
 
-    fun postComment(dynamicId: String, message: String, onResult: (Boolean, String) -> Unit) {
+    fun postComment(
+        dynamicId: String,
+        message: String,
+        imageUris: List<Uri> = emptyList(),
+        onResult: (Boolean, String) -> Unit,
+    ) {
         viewModelScope.launch {
             try {
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
@@ -1539,12 +1548,22 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 val replyTarget = _commentReplyTarget.value
+                if (message.isBlank() && imageUris.isEmpty()) {
+                    onResult(false, "请输入评论内容")
+                    return@launch
+                }
+                if (replyTarget != null && imageUris.isNotEmpty()) {
+                    onResult(false, "回复暂不支持图片")
+                    return@launch
+                }
+                val pictures = uploadCommentPictures(imageUris)
                 val response = CommentRepository.addCommentForSubject(
                     oid = target.oid,
                     type = target.type,
                     message = message,
                     root = replyTarget?.rootRpid ?: 0L,
-                    parent = replyTarget?.parentRpid ?: 0L
+                    parent = replyTarget?.parentRpid ?: 0L,
+                    pictures = pictures,
                 )
                 if (response.isSuccess) {
                     _commentReplyTarget.value = null
@@ -1553,11 +1572,35 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     onResult(false, response.exceptionOrNull()?.message ?: "评论失败")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 onResult(false, e.message ?: "网络错误")
             }
         }
     }
+
+    private suspend fun uploadCommentPictures(imageUris: List<Uri>): List<ReplyPicture> =
+        withContext(Dispatchers.IO) {
+            require(imageUris.size <= 9) { "最多选择 9 张图片" }
+            imageUris.mapIndexed { index, uri ->
+                val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: error("无法读取图片文件")
+                require(bytes.isNotEmpty()) { "图片内容为空" }
+                require(bytes.size <= 15 * 1024 * 1024) { "图片过大（单张最大 15MB）" }
+                val fileName = appContext.contentResolver.query(
+                    uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+                )?.use { cursor ->
+                    val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+                } ?: "comment_${System.currentTimeMillis()}_${index + 1}.jpg"
+                CommentRepository.uploadCommentImage(
+                    fileName = fileName,
+                    mimeType = appContext.contentResolver.getType(uri) ?: "image/jpeg",
+                    bytes = bytes,
+                ).getOrElse { throw it }
+            }
+        }
 
     fun likeComment(rpid: Long, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
         if (rpid <= 0L) return
@@ -1602,6 +1645,58 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 onResult(true, if (toLiked) "已点赞" else "已取消")
             }
         }
+    }
+
+    fun hateComment(rpid: Long, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        if (rpid <= 0L) return
+        val current = _comments.value.firstNotNullOfOrNull { reply ->
+            findDynamicComment(reply, rpid)
+        } ?: _subReplyState.value.items.firstOrNull { it.rpid == rpid }
+            ?: _subReplyState.value.rootReply?.takeIf { it.rpid == rpid }
+            ?: return
+        val target = _selectedCommentTarget.value
+        if (target == null) {
+            onResult(false, "无法确定评论参数")
+            return
+        }
+        val toHated = !isDynamicCommentHated(current)
+        _comments.value = applyDynamicCommentHateInList(_comments.value, rpid, toHated)
+        val subState = _subReplyState.value
+        _subReplyState.value = subState.copy(
+            rootReply = subState.rootReply?.let { root ->
+                if (root.rpid == rpid) applyDynamicCommentHate(root, toHated) else root
+            },
+            items = applyDynamicCommentHateInList(subState.items, rpid, toHated).toImmutableList(),
+        )
+        viewModelScope.launch {
+            CommentRepository.hateCommentForSubject(
+                oid = target.oid,
+                type = target.type,
+                rpid = rpid,
+                hate = toHated,
+            ).fold(
+                onSuccess = { onResult(true, if (toHated) "点踩成功" else "已取消点踩") },
+                onFailure = { error ->
+                    _comments.value = replaceDynamicCommentInList(_comments.value, current)
+                    val rollback = _subReplyState.value
+                    _subReplyState.value = rollback.copy(
+                        rootReply = rollback.rootReply?.let { root ->
+                            if (root.rpid == rpid) current else root
+                        },
+                        items = replaceDynamicCommentInList(rollback.items, current).toImmutableList(),
+                    )
+                    onResult(false, error.message ?: "点踩失败")
+                },
+            )
+        }
+    }
+
+    private fun findDynamicComment(
+        reply: com.android.purebilibili.data.model.response.ReplyItem,
+        rpid: Long,
+    ): com.android.purebilibili.data.model.response.ReplyItem? {
+        if (reply.rpid == rpid) return reply
+        return reply.replies.orEmpty().firstNotNullOfOrNull { findDynamicComment(it, rpid) }
     }
 
     fun deleteDynamicComment(rpid: Long, onResult: (Boolean, String) -> Unit) {
@@ -1837,15 +1932,17 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 if (response.code != 0 || response.data == null) {
                     throw IllegalStateException(response.message.ifBlank { "预约操作失败" })
                 }
-                onResult(
-                    Result.success(
-                        DynamicReserveResult(
-                            description = response.data.desc_update,
-                            reserveTotal = response.data.reserve_update,
-                            buttonStatus = response.data.final_btn_status,
-                        )
-                    )
+                val result = DynamicReserveResult(
+                    description = response.data.desc_update,
+                    reserveTotal = response.data.reserve_update,
+                    buttonStatus = response.data.final_btn_status,
                 )
+                if (action.buttonType > 0 && result.buttonStatus == action.buttonType) {
+                    LiveReserveReminderScheduler.schedule(getApplication(), action)
+                } else {
+                    LiveReserveReminderScheduler.cancel(getApplication(), action.reserveId)
+                }
+                onResult(Result.success(result))
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

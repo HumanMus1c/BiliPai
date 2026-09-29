@@ -532,6 +532,8 @@ object CommentRepository {
                 val data = finalResponse.data ?: ReplyData()
                 Result.success(
                     data.copy(
+                        // REST 补全评论 IP 属地时保留 gRPC 独有的评论区投票卡片。
+                        voteCard = data.voteCard ?: fallbackGrpcResult?.getOrNull()?.voteCard,
                         grpcNextOffset = data.cursor.paginationReply?.nextOffset.orEmpty()
                     )
                 )

@@ -24,6 +24,7 @@ fun DynamicSubReplyPreviewHost(
     onUserClick: (Long) -> Unit,
     onReplyClick: ((ReplyItem) -> Unit)? = null,
     onCommentLike: ((Long) -> Unit)? = null,
+    onCommentHate: ((Long) -> Unit)? = null,
     currentMid: Long = 0L,
     onDeleteComment: ((Long) -> Unit)? = null,
     onCoveredBlurProgressChange: ((Float) -> Unit)? = null,
@@ -46,6 +47,7 @@ fun DynamicSubReplyPreviewHost(
             images = previewImages,
             initialIndex = previewInitialIndex,
             sourceRect = previewSourceRect?.rect,
+            sourceRects = previewSourceRect?.galleryRects.orEmpty(),
             sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
                 ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
@@ -65,6 +67,7 @@ fun DynamicSubReplyPreviewHost(
         onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
         onReplyClick = onReplyClick,
         onCommentLike = onCommentLike,
+        onCommentHate = onCommentHate,
         currentMid = currentMid,
         onDeleteComment = onDeleteComment,
         onImagePreview = { images, index, rect, textContent ->

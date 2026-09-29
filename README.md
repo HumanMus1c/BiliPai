@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.7-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-alpha.7" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.9-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-alpha.9" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -211,12 +211,11 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-alpha.7 / versionCode 400`；最新完整版本记录为 `v0.2.3-alpha.7`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前源码版本为 `0.2.3-alpha.9 / versionCode 405`；完整变更见 [CHANGELOG.md](CHANGELOG.md)。安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 听视频新增沉浸歌词、语言切换、播放历史、启动续播与可恢复的外部歌单导入。
-- 直播交互与视频分屏/自由窗口播放适配完善；动态、文章和收藏列表交互更新。
-- 底栏滚动隐藏、封面加载、歌词和播放器振动反馈等问题得到修复。
-- alpha.6 之后的完整变更见 [CHANGELOG.md](CHANGELOG.md)。
+- 直播预约定时提醒、首页刷新位置快捷入口和视频详情评论数开关已加入。
+- 评论区点踩、图片预览返回、视频卡片返回动画和动态详情 @ 信息已修复。
+- 空间内容分页、音频数据、创作者公告复制及听视频背景过渡得到完善。
 
 ## 路线图
 

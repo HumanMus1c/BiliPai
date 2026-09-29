@@ -54,6 +54,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.util.resolveSingleColumnFeedMaxWidth
+import com.android.purebilibili.core.util.responsiveContentWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +96,7 @@ fun InboxScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .responsiveContentWidth(maxWidth = resolveSingleColumnFeedMaxWidth())
         ) {
             when {
                 uiState.isLoading -> {

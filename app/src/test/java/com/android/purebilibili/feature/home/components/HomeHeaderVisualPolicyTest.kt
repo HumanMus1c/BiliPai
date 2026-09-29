@@ -26,6 +26,31 @@ import org.junit.Test
 
 class HomeHeaderVisualPolicyTest {
     @Test
+    fun `illustrated header uses a light action surface above the skin`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
+            .readText()
+        val action = source.substringAfter("val topRightActionButtonSize =")
+            .substringBefore("if (topRightUnreadBadge != null)")
+
+        assertTrue(action.contains("!hasIllustratedHeader &&"))
+        assertTrue(action.contains("if (hasIllustratedHeader) {"))
+        assertTrue(action.indexOf("if (hasIllustratedHeader) {") < action.indexOf("Modifier.homeTopBottomBarMatchedSurface("))
+        assertTrue(action.contains("OpticalContrastPalette.Highlight.copy(alpha = 0.16f)"))
+        assertTrue(action.contains("tint = if (hasIllustratedHeader)"))
+    }
+
+    @Test
+    fun `illustrated top tab labels draw over their skin background`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
+            .readText()
+        val tabs = source.substringAfter("val topTabsContent: @Composable (Dp) -> Unit =")
+            .substringBefore("    BoxWithConstraints(")
+
+        assertTrue(tabs.indexOf("topTabBackgroundImagePath?.let") < tabs.indexOf("HomeTopTabChrome("))
+        assertTrue(tabs.contains("containerZIndex = if (hasIllustratedHeader || useUnifiedTopPanel) 0f else -1f"))
+    }
+
+    @Test
     fun `legacy top tabs require liquid glass and floating bottom bar both disabled`() {
         assertTrue(
             shouldUseLegacyHomeTopTabs(

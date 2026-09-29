@@ -11,6 +11,7 @@ import com.android.purebilibili.data.model.response.ReplyData
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.ReplyPage
 import com.android.purebilibili.data.model.response.ReplyPicture
+import com.android.purebilibili.data.model.response.ReplyVoteCard
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.data.repository.CommentFraudRepository
 import com.android.purebilibili.data.repository.shouldStartCommentFraudDetection
@@ -89,6 +90,7 @@ internal fun shouldApplyConversationReplyResult(
 // 评论状态
 data class CommentUiState(
     val replies: ImmutableList<ReplyItem> = persistentListOf(),
+    val voteCard: ReplyVoteCard? = null,
     val isRepliesLoading: Boolean = false,
     val replyCount: Int = 0,
     val repliesError: String? = null,
@@ -337,7 +339,8 @@ class VideoCommentViewModel : ViewModel() {
                 page = pageToLoad, 
                 ps = 20,
                 mode = currentState.sortMode.apiMode,
-                paginationOffset = currentState.grpcNextOffset
+                paginationOffset = currentState.grpcNextOffset,
+                fallbackOnMissingLocation = requestSubject.type == 1,
             )
 
             result.onSuccess { data ->
@@ -384,6 +387,7 @@ class VideoCommentViewModel : ViewModel() {
                 
                 _commentState.value = current.copy(
                     replies = combinedReplies.toImmutableList(),
+                    voteCard = if (pageToLoad == 1) data.voteCard else current.voteCard,
                     likedComments = (current.likedComments + combinedReplies.flatMap { root ->
                         (listOf(root) + root.replies.orEmpty()).filter { it.action == 1 }.map { it.rpid }
                     }).toImmutableSet(),
@@ -1338,6 +1342,7 @@ class VideoCommentViewModel : ViewModel() {
         allReplies = emptyList()
         _commentState.value = _commentState.value.copy(
             replies = emptyList<ReplyItem>().toImmutableList(),
+            voteCard = null,
             nextPage = 1,
             isRepliesEnd = false,
             isRepliesLoading = false,

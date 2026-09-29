@@ -60,8 +60,10 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.components.resolveReadableNativeTabMinWidth
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.home.components.biliPaiProgressiveTopBlur
 import com.android.purebilibili.core.ui.blur.topSolidProgressiveFade
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
@@ -71,6 +73,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.ReplyItem
+import com.android.purebilibili.data.model.response.ReplyVoteCard
 import com.android.purebilibili.data.model.response.VideoTag
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.data.model.response.BgmInfo
@@ -95,6 +98,7 @@ import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
 import com.android.purebilibili.feature.video.ui.components.CommentSearchSheet
 import com.android.purebilibili.feature.video.ui.components.resolveCommentSortDockViewportOverflowDp
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
+import com.android.purebilibili.feature.video.ui.components.VideoCommentVoteCard
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
 import com.android.purebilibili.feature.video.ui.components.resolveReplyItemContentType
 import com.android.purebilibili.feature.video.ui.components.shouldShowReplyTopAction
@@ -428,6 +432,7 @@ internal class VideoContentEngagementState(
     val isFollowing: Boolean,
     val isFavorited: Boolean,
     val isLiked: Boolean,
+    val isDisliked: Boolean = false,
     val coinCount: Int,
     val currentPageIndex: Int,
     val downloadProgress: Float,
@@ -437,6 +442,7 @@ internal class VideoContentEngagementState(
 internal class VideoContentCommentState(
     val isRepliesLoading: Boolean,
     val isRepliesEnd: Boolean,
+    val voteCard: ReplyVoteCard?,
     val sortMode: CommentSortMode,
     val currentMid: Long,
     val showUpFlag: Boolean,
@@ -473,6 +479,7 @@ internal class VideoContentPrimaryActions(
     val onFollowClick: () -> Unit,
     val onFavoriteClick: () -> Unit,
     val onLikeClick: () -> Unit,
+    val onDislikeClick: () -> Unit = {},
     val onCoinClick: () -> Unit,
     val onTripleClick: () -> Unit,
     val onPageSelect: (Int) -> Unit,
@@ -553,12 +560,14 @@ internal fun VideoContentSection(
     val isFollowing = engagementState.isFollowing
     val isFavorited = engagementState.isFavorited
     val isLiked = engagementState.isLiked
+    val isDisliked = engagementState.isDisliked
     val coinCount = engagementState.coinCount
     val currentPageIndex = engagementState.currentPageIndex
     val downloadProgress = engagementState.downloadProgress
     val isInWatchLater = engagementState.isInWatchLater
     val isRepliesLoading = commentState.isRepliesLoading
     val isRepliesEnd = commentState.isRepliesEnd
+    val voteCard = commentState.voteCard
     val sortMode = commentState.sortMode
     val currentMid = commentState.currentMid
     val showUpFlag = commentState.showUpFlag
@@ -586,6 +595,7 @@ internal fun VideoContentSection(
     val onFollowClick = primaryActions.onFollowClick
     val onFavoriteClick = primaryActions.onFavoriteClick
     val onLikeClick = primaryActions.onLikeClick
+    val onDislikeClick = primaryActions.onDislikeClick
     val onCoinClick = primaryActions.onCoinClick
     val onTripleClick = primaryActions.onTripleClick
     val onPageSelect = primaryActions.onPageSelect
@@ -636,7 +646,19 @@ internal fun VideoContentSection(
         !themeConfig.headerBlurEnabled
     val immersiveVideoContentChromeEnabled = progressiveCommentHeaderEnabled ||
         solidProgressiveCommentHeaderEnabled
-    val tabs = listOf("简介", "评论")
+    val showVideoDetailCommentCount by SettingsManager
+        .getShowVideoDetailCommentCount(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    val tabs = remember(replyCount, showVideoDetailCommentCount) {
+        listOf(
+            "简介",
+            if (showVideoDetailCommentCount) {
+                "评论 ${FormatUtils.formatStat(replyCount.coerceAtLeast(0).toLong())}"
+            } else {
+                "评论"
+            },
+        )
+    }
     val scope = rememberCoroutineScope()
     var showCommentSearchSheet by remember { mutableStateOf(false) }
     TrackJankStateFlag(
@@ -914,6 +936,7 @@ internal fun VideoContentSection(
                         isFollowing = isFollowing,
                         isFavorited = isFavorited,
                         isLiked = isLiked,
+                        isDisliked = isDisliked,
                         coinCount = coinCount,
                         downloadProgress = downloadProgress,
                         isInWatchLater = isInWatchLater,
@@ -922,6 +945,7 @@ internal fun VideoContentSection(
                         onFollowClick = onFollowClick,
                         onFavoriteClick = onFavoriteClick,
                         onLikeClick = onLikeClick,
+                        onDislikeClick = onDislikeClick,
                         onCoinClick = onCoinClick,
                         onTripleClick = onTripleClick,
                         onCommentClick = { onTabSelected(1) },
@@ -968,6 +992,7 @@ internal fun VideoContentSection(
                         emoteMap = emoteMap,
                         isRepliesLoading = isRepliesLoading,
                         isRepliesEnd = isRepliesEnd,
+                        voteCard = voteCard,
                         videoTags = videoTags,
                         onUpClick = onUpClick,
                         onSubReplyClick = onSubReplyClick,
@@ -1159,6 +1184,7 @@ internal fun VideoContentSection(
                 images = previewImages,
                 initialIndex = previewInitialIndex,
                 sourceRect = sourceRect?.rect,
+                sourceRects = sourceRect?.galleryRects.orEmpty(),
                 sourceCornerRadiusDp = sourceRect?.cornerRadiusDp
                     ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                 textContent = previewTextContent,
@@ -1269,6 +1295,7 @@ private fun VideoIntroTab(
     isFollowing: Boolean,
     isFavorited: Boolean,
     isLiked: Boolean,
+    isDisliked: Boolean = false,
     coinCount: Int,
     downloadProgress: Float,
     isInWatchLater: Boolean,
@@ -1277,6 +1304,7 @@ private fun VideoIntroTab(
     onFollowClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onLikeClick: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -1331,6 +1359,7 @@ private fun VideoIntroTab(
                 isFollowing = isFollowing,
                 isFavorited = isFavorited,
                 isLiked = isLiked,
+                isDisliked = isDisliked,
                 coinCount = coinCount,
                 downloadProgress = downloadProgress,
                 isInWatchLater = isInWatchLater,
@@ -1339,6 +1368,7 @@ private fun VideoIntroTab(
                 onFollowClick = onFollowClick,
                 onFavoriteClick = onFavoriteClick,
                 onLikeClick = onLikeClick,
+                onDislikeClick = onDislikeClick,
                 onCoinClick = onCoinClick,
                 onTripleClick = onTripleClick,
                 onCommentClick = onCommentClick,
@@ -1427,6 +1457,7 @@ internal fun VideoCommentTab(
     emoteMap: Map<String, String>,
     isRepliesLoading: Boolean,
     isRepliesEnd: Boolean,
+    voteCard: ReplyVoteCard?,
     videoTags: List<VideoTag>,
     onUpClick: (Long) -> Unit,
     onSubReplyClick: (ReplyItem, Long) -> Unit,
@@ -1517,11 +1548,19 @@ internal fun VideoCommentTab(
                     bottom = contentPadding.calculateBottomPadding(),
                 )
             ) {
+            voteCard?.let { card ->
+                item(key = "inline_vote_${card.voteId}") {
+                    VideoCommentVoteCard(
+                        card = card,
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    )
+                }
+            }
             if (isRepliesLoading && replies.isEmpty()) {
                 item {
                     com.android.purebilibili.core.ui.skeleton.CommentListColumnSkeleton()
                 }
-            } else if (replies.isEmpty()) {
+            } else if (replies.isEmpty() && voteCard == null) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         // replyCount 来自详情/游标 all_count：>0 却列表空 = 最热链路空成功，勿误报「暂无」
@@ -1624,6 +1663,7 @@ internal fun LandscapeCommentPanel(
     emoteMap: Map<String, String>,
     isRepliesLoading: Boolean,
     isRepliesEnd: Boolean,
+    voteCard: ReplyVoteCard?,
     videoTags: List<VideoTag>,
     sortMode: CommentSortMode,
     currentMid: Long,
@@ -1729,6 +1769,7 @@ internal fun LandscapeCommentPanel(
                         emoteMap = emoteMap,
                         isRepliesLoading = isRepliesLoading,
                         isRepliesEnd = isRepliesEnd,
+                        voteCard = voteCard,
                         videoTags = videoTags,
                         onUpClick = onUpClick,
                         onSubReplyClick = onSubReplyClick,
@@ -1768,6 +1809,7 @@ internal fun LandscapeCommentPanel(
             images = previewImages,
             initialIndex = previewInitialIndex,
             sourceRect = previewSourceRect?.rect,
+            sourceRects = previewSourceRect?.galleryRects.orEmpty(),
             sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
                 ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
             textContent = previewTextContent,
@@ -1798,6 +1840,7 @@ private fun VideoHeaderContent(
     isFollowing: Boolean,
     isFavorited: Boolean,
     isLiked: Boolean,
+    isDisliked: Boolean = false,
     coinCount: Int,
     downloadProgress: Float,
     isInWatchLater: Boolean,
@@ -1806,6 +1849,7 @@ private fun VideoHeaderContent(
     onFollowClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onLikeClick: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     onCoinClick: () -> Unit,
     onTripleClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -1907,11 +1951,13 @@ private fun VideoHeaderContent(
                 info = info,
                 isFavorited = isFavorited,
                 isLiked = isLiked,
+                isDisliked = isDisliked,
                 coinCount = coinCount,
                 downloadProgress = downloadProgress,
                 isInWatchLater = isInWatchLater,
                 onFavoriteClick = onFavoriteClick,
                 onLikeClick = onLikeClick,
+                onDislikeClick = onDislikeClick,
                 onCoinClick = onCoinClick,
                 onTripleClick = onTripleClick,
                 onCommentClick = onCommentClick,
@@ -1986,6 +2032,15 @@ private fun VideoContentTabBar(
             layoutSpec = layoutSpec,
         )
     }
+    val tabItemWidth = remember(tabs, liquidChromeSpec.labelFontSizeSp) {
+        resolveReadableNativeTabMinWidth(
+            requestedMinWidth = resolveVideoContentTabBarDockItemWidthDp(
+                liquidChromeSpec.labelFontSizeSp,
+            ).dp,
+            labels = tabs,
+            allowLabelOverflow = true,
+        )
+    }
     Column(
         modifier = modifier
     ) {
@@ -2014,11 +2069,7 @@ private fun VideoContentTabBar(
             }
         ) {
             Box(
-                modifier = Modifier.width(
-                    (resolveVideoContentTabBarDockItemWidthDp(
-                        liquidChromeSpec.labelFontSizeSp,
-                    ) * tabs.size).dp,
-                ),
+                modifier = Modifier.width(tabItemWidth * tabs.size),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 AppThemeAdaptiveTabRow(

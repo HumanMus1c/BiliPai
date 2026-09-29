@@ -25,6 +25,13 @@ fun Modifier.imagePreviewSourceBounds(target: MutableState<Rect?>): Modifier =
         target.value = coordinates.boundsInWindow()
     }
 
+fun Modifier.imagePreviewGallerySourceBounds(
+    target: MutableMap<Int, Rect>,
+    pageIndex: Int,
+): Modifier = onGloballyPositioned { coordinates ->
+    target[pageIndex] = coordinates.boundsInWindow()
+}
+
 /**
  * 评论图片链路的落位锚点：缩略图窗口坐标 + 缩略图真实圆角。
  * 由 [CommentPictures] 在捕获处构造（单图 Card / 九宫格 Field 圆角不同），
@@ -33,4 +40,6 @@ fun Modifier.imagePreviewSourceBounds(target: MutableState<Rect?>): Modifier =
 data class ImagePreviewSourceAnchor(
     val rect: Rect,
     val cornerRadiusDp: Float,
+    /** Bounds for the other thumbnails in this same gallery, keyed by preview page index. */
+    val galleryRects: Map<Int, Rect> = emptyMap(),
 )

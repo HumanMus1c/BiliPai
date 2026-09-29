@@ -434,6 +434,11 @@ fun DynamicDetailScreen(
                         onViewReplies = { reply -> interactionViewModel.openSubReply(reply) },
                         onReply = { reply -> interactionViewModel.startCommentReply(reply) },
                         onLike = { reply -> interactionViewModel.likeComment(reply.rpid) },
+                        onHate = { reply ->
+                            interactionViewModel.hateComment(reply.rpid) { _, message ->
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         dynamicAuthorMid = state.item.modules.module_author?.mid ?: 0L,
                         currentUserMid = com.android.purebilibili.core.store.TokenManager.midCache,
                         onDelete = { reply ->
@@ -463,9 +468,10 @@ fun DynamicDetailScreen(
                 }
                 val commentComposer: @Composable (Modifier) -> Unit = { modifier ->
                     DynamicInlineCommentComposer(
-                        onPostComment = { message ->
-                            interactionViewModel.postComment(state.item.id_str, message) { _, toastMessage ->
+                        onPostComment = { message, images, onResult ->
+                            interactionViewModel.postComment(state.item.id_str, message, images) { success, toastMessage ->
                                 android.widget.Toast.makeText(context, toastMessage, android.widget.Toast.LENGTH_SHORT).show()
+                                onResult(success)
                             }
                         },
                         replyTargetUname = commentReplyTarget?.uname,
@@ -676,6 +682,11 @@ fun DynamicDetailScreen(
                         interactionViewModel.startCommentReply(reply)
                     },
                     onCommentLike = { rpid -> interactionViewModel.likeComment(rpid) },
+                    onCommentHate = { rpid ->
+                        interactionViewModel.hateComment(rpid) { _, message ->
+                            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     currentMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L,
                     onDeleteComment = { rpid ->
                         interactionViewModel.deleteDynamicComment(rpid) { _, message ->
@@ -696,6 +707,7 @@ fun DynamicDetailScreen(
                         images = previewImages,
                         initialIndex = previewInitialIndex,
                         sourceRect = previewSourceRect?.rect,
+                        sourceRects = previewSourceRect?.galleryRects.orEmpty(),
                         sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
                             ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                         textContent = previewTextContent,

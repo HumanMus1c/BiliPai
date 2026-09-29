@@ -581,6 +581,7 @@ sealed class VideoPlaybackUiState {
         val isFollowing: Boolean = false,
         val isFavorited: Boolean = false,
         val isLiked: Boolean = false,
+        val isDisliked: Boolean = false,
         val coinCount: Int = 0,
         val emoteMap: Map<String, String> = emptyMap(),
         val isInWatchLater: Boolean = false,  //  稍后再看状态
@@ -5221,6 +5222,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             val favoriteDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkFavoriteStatus(aid) }
             val watchLaterDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkWatchLaterStatus(aid) }
             val likeDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkLikeStatus(aid) }
+            val dislikeDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkDislikeStatus(aid) }
             val coinDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkCoinStatus(aid) }
             val vipDeferred = async {
                 if (com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip()) {
@@ -5237,6 +5239,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             val fetchedFavorite = favoriteDeferred.await()
             val fetchedWatchLater = watchLaterDeferred.await()
             val fetchedLike = likeDeferred.await()
+            val fetchedDislike = dislikeDeferred.await()
             val fetchedCoinCount = coinDeferred.await()
             val fetchedVip = vipDeferred.await()
 
@@ -5261,6 +5264,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         isFavorited = success.isFavorited || fetchedFavorite,
                         isInWatchLater = success.isInWatchLater || fetchedWatchLater,
                         isLiked = success.isLiked || fetchedLike,
+                        isDisliked = success.isDisliked || fetchedDislike,
                         coinCount = maxOf(success.coinCount, fetchedCoinCount),
                         followingMids = mergedFollowingMids
                     )

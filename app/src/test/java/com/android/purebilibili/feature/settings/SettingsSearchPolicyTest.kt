@@ -78,6 +78,15 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
+    fun separateCardEffectsSearchIntoHomeSettings() {
+        val glass = resolveSettingsSearchResults("卡片毛玻璃")
+        val tint = resolveSettingsSearchResults("卡片动态取色")
+
+        assertEquals(SettingsSearchTarget.HOME_FEED, glass.firstOrNull()?.target)
+        assertEquals(SettingsSearchTarget.HOME_FEED, tint.firstOrNull()?.target)
+    }
+
+    @Test
     fun queryByUpBadgeKeyword_hitsHomeEntry() {
         val results = resolveSettingsSearchResults("UP主标识")
 
@@ -404,6 +413,7 @@ class SettingsSearchPolicyTest {
         assertTrue(resolveSettingsSearchResults("顶部标签").any { it.target == SettingsSearchTarget.NAVIGATION })
         assertTrue(resolveSettingsSearchResults("首页壁纸").any { it.target == SettingsSearchTarget.HOME_FEED })
         assertTrue(resolveSettingsSearchResults("评论装扮").any { it.target == SettingsSearchTarget.INTERACTION_COMMENT })
+        assertTrue(resolveSettingsSearchResults("IP属地").any { it.title == "评论 IP 属地" })
         assertTrue(resolveSettingsSearchResults("WebDAV").any { it.target == SettingsSearchTarget.DATA_BACKUP })
     }
 

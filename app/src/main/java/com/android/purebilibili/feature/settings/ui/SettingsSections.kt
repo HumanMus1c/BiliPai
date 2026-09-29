@@ -1497,7 +1497,7 @@ private fun DiagnosticsSection(
     val siblingTints = remember { resolveSettingsSiblingIconTints(6, paletteOffset = 5) }
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
     val useMd3ExportLogsDescription = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
-    val exportLogsDescription = "导出前统一脱敏，仅由你主动分享"
+    val exportLogsDescription = "崩溃摘要优先；原始回溯需单独选择"
     val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
         initialValue = NetworkProxyStore.getSync(context)
     )

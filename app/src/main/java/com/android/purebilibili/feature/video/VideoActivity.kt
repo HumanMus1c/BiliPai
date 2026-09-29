@@ -207,7 +207,10 @@ class VideoActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = true)
             val cardDynamicTintEnabled by SettingsManager
                 .getHomeCardDynamicTintEnabled(this@VideoActivity)
-                .collectAsStateWithLifecycle(initialValue = true)
+                .collectAsStateWithLifecycle(initialValue = false)
+            val cardFrostedGlassEnabled by SettingsManager
+                .getHomeCardFrostedGlassEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = false)
             val hapticFeedbackEnabled by SettingsManager
                 .getHapticFeedbackEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
@@ -266,6 +269,8 @@ class VideoActivity : ComponentActivity() {
                     LocalVideoTransitionAdaptiveInfo provides videoTransitionAdaptiveInfo,
                     com.android.purebilibili.feature.home.components.cards.LocalHomeCardDynamicTintEnabled provides
                         cardDynamicTintEnabled,
+                    com.android.purebilibili.feature.home.components.cards.LocalHomeCardFrostedGlassEnabled provides
+                        cardFrostedGlassEnabled,
                 ) {
                 // VideoDetailScreen handles its own UI state and player initialization
                 com.android.purebilibili.feature.video.screen.VideoDetailScreen(

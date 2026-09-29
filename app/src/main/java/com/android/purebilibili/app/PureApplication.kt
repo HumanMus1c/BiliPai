@@ -130,9 +130,9 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
                     .maxSizeBytes(diskCacheBytes)
                     .build()
             }
-            // 保留本地文件更新失效策略与原图请求，避免长图/预览雪碧图被默认 4096px 上限截小。
+            // 显示用位图必须低于 Android Canvas 的单次绘制上限。长图与雪碧图按比例采样。
             .addLastModifiedToFileCacheKey(true)
-            .maxBitmapSize(coil3.size.Size.ORIGINAL)
+            .maxBitmapSize(coil3.size.Size(4608, 4608))
             //  优先使用缓存
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
@@ -156,8 +156,11 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
             return
         }
         Logger.init(this)
-        com.android.purebilibili.core.performance.Android17Diagnostics
-            .persistLatestAbnormalExitSnapshot(this)
+        // 系统退出 Trace 的读取与脱敏可能很慢，不能阻塞 Application.onCreate。
+        AppScope.ioScope.launch {
+            com.android.purebilibili.core.performance.Android17Diagnostics
+                .persistLatestAbnormalExitSnapshot(this@PureApplication)
+        }
 
         // StrictMode 必须装在任何业务代码之前，否则紧接着的 applyThemePreference()
         // 里那次同步偏好读取就漏检了——而那恰恰是最该被看见的一处。

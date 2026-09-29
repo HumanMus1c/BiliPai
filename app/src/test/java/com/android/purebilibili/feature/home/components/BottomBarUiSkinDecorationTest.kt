@@ -18,6 +18,19 @@ import kotlin.test.assertTrue
 class BottomBarUiSkinDecorationTest {
 
     @Test
+    fun illustratedSkinKeepsTheConfiguredFloatingDock() {
+        val source = File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+            .readText()
+        val host = source.substringAfter("fun FrostedBottomBar(")
+            .substringBefore("private fun MaterialBottomBar(")
+        val floatingChrome = source.substringAfter("private fun BiliPaiFloatingBottomBarChrome(")
+            .substringBefore("// BiliPai 对齐：材质/动效由 FloatingBottomBar 三层结构承担")
+
+        assertEquals(2, "isFloating = isFloating,".toRegex().findAll(host).count())
+        assertTrue(!floatingChrome.contains("IllustratedSkinBottomBar("))
+    }
+
+    @Test
     fun illustratedNavigationRequiresArtworkAndKeepsTabletNavigation() {
         assertTrue(shouldUseIllustratedSkinBottomBar(true, true, false))
         assertTrue(!shouldUseIllustratedSkinBottomBar(false, true, false))

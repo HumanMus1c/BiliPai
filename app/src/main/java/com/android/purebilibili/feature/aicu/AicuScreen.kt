@@ -197,7 +197,11 @@ internal fun AicuScreen(
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
+            Column(
+                Modifier
+                    .widthIn(max = com.android.purebilibili.core.util.resolveSingleColumnFeedMaxWidth())
+                    .fillMaxSize()
+            ) {
                 if (state.consent == AicuConsentState.CHECKING) {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { AdaptiveLoadingIndicator() }
                 } else if (state.consent == AicuConsentState.ERROR) {

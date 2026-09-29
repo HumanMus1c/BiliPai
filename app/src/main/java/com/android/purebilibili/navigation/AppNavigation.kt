@@ -557,6 +557,8 @@ fun AppNavigation(
             LocalLiquidGlassRenderConfig provides liquidGlassRenderConfig,
             com.android.purebilibili.feature.home.components.cards.LocalHomeCardDynamicTintEnabled provides
                 effectiveHomeSettings.homeCardDynamicTintEnabled,
+            com.android.purebilibili.feature.home.components.cards.LocalHomeCardFrostedGlassEnabled provides
+                effectiveHomeSettings.homeCardFrostedGlassEnabled,
             com.android.purebilibili.core.plugin.skin.LocalUiSkinState provides uiSkinState,
         ) {
         // [新增] 全局底栏状态管理
@@ -3489,7 +3491,7 @@ fun AppNavigation(
                                 }
                             )
                         BiliPaiNavEntryContentRole.INBOX ->
-                            com.android.purebilibili.feature.message.InboxScreen(
+                            com.android.purebilibili.feature.message.MessageCenterScreen(
                                 onBack = { performSystemBackAction() },
                                 onTopItemClick = { destination ->
                                     when (destination) {
@@ -3503,9 +3505,13 @@ fun AppNavigation(
                                             pushNavigation3Key(BiliPaiNavKey.SystemNotice)
                                     }
                                 },
-                                onSessionClick = { talkerId, sessionType, userName ->
+                                onOpenSessionFullScreen = { talkerId, sessionType, userName ->
                                     pushNavigation3Key(BiliPaiNavKey.Chat(talkerId, sessionType, userName))
-                                }
+                                },
+                                onNavigateToVideo = { bvid ->
+                                    navigateToVideoInNavigation3(bvid, 0L, "")
+                                },
+                                onOpenBilibiliLink = ::openBilibiliLinkInNavigation3
                             )
                         BiliPaiNavEntryContentRole.REPLY_ME ->
                             com.android.purebilibili.feature.message.feed.ReplyMeScreen(
@@ -3639,14 +3645,16 @@ fun AppNavigation(
                                 val likedVideosKey = key as? BiliPaiNavKey.LikedVideos
                                 val targetMid = likedVideosKey?.mid?.takeIf { it > 0L }
                                 val ownerName = likedVideosKey?.ownerName?.takeIf { it.isNotBlank() }.orEmpty()
+                                val isCoinArchive = likedVideosKey?.isCoinArchive == true
                                 val context = androidx.compose.ui.platform.LocalContext.current
                                 val application = context.applicationContext as android.app.Application
                                 val likedVideosViewModel: LikedVideosViewModel = viewModel(
-                                    key = targetMid?.let { "liked_videos_$it" } ?: "liked_videos_self",
+                                    key = "${if (isCoinArchive) "coin_videos" else "liked_videos"}_${targetMid ?: "self"}",
                                     factory = com.android.purebilibili.feature.list.LikedVideosViewModelFactory(
                                         application = application,
                                         targetMid = targetMid,
-                                        ownerName = ownerName
+                                        ownerName = ownerName,
+                                        isCoinArchive = isCoinArchive,
                                     )
                                 )
                                 val sourceRoute = (key as? BiliPaiNavKey)?.toLegacyRoute()
@@ -3972,7 +3980,15 @@ fun AppNavigation(
                                         }
                                     },
                                     onViewAllClick = { type, id, mid, title, ownerName ->
-                                        if (type.equals("like", ignoreCase = true) || type.equals("liked", ignoreCase = true)) {
+                                        if (type.equals("coin", ignoreCase = true)) {
+                                            pushNavigation3Key(
+                                                BiliPaiNavKey.LikedVideos(
+                                                    mid = mid,
+                                                    ownerName = ownerName,
+                                                    isCoinArchive = true,
+                                                )
+                                            )
+                                        } else if (type.equals("like", ignoreCase = true) || type.equals("liked", ignoreCase = true)) {
                                             pushNavigation3Key(
                                                 BiliPaiNavKey.LikedVideos(
                                                     mid = mid,
