@@ -230,8 +230,13 @@ internal fun resolveMiuixVideoCardGestureVisualOrigin(
 internal fun resolveMiuixVideoCardDepthProgress(relativeDepth: Float): Float =
     topProgress(relativeDepth)
 
-/** Keep a visible portion of the card's return for the committed settle. */
-internal const val MIUIX_VIDEO_CARD_GESTURE_MAX_RETURN = 0.8f
+/**
+ * Manual predictive-back drag may land the card fully. Reserving a visible portion
+ * for the committed settle made full-finger landing impossible and replayed a second
+ * flight after release; with cap 1f a full drag leaves the commit tween nothing to
+ * animate (remaining = 0), while partial releases still settle smoothly.
+ */
+internal const val MIUIX_VIDEO_CARD_GESTURE_MAX_RETURN = 1f
 
 internal fun resolveMiuixVideoCardSeekReturn(
     startReturn: Float,

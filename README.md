@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.9-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-alpha.9" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.10-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-alpha.10" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -33,7 +33,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-09-28 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-09-29 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -211,11 +211,11 @@ cd BiliPai
 
 ## 最近更新
 
-当前源码版本为 `0.2.3-alpha.9 / versionCode 405`；完整变更见 [CHANGELOG.md](CHANGELOG.md)。安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前源码版本为 `0.2.3-alpha.10 / versionCode 407`；完整变更见 [CHANGELOG.md](CHANGELOG.md)。安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 直播预约定时提醒、首页刷新位置快捷入口和视频详情评论数开关已加入。
-- 评论区点踩、图片预览返回、视频卡片返回动画和动态详情 @ 信息已修复。
-- 空间内容分页、音频数据、创作者公告复制及听视频背景过渡得到完善。
+- 评论投票卡片、评论 IP 属地、动态全屏发布与评论图片发送已加入。
+- 图片预览飞入飞回、视频卡片返回动画、Android 17 启动和大图绘制问题已修复。
+- 多用户视频分享、横屏分享目标、系统旋转与平板/折叠屏空间布局得到完善。
 
 ## 路线图
 

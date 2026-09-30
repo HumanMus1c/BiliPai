@@ -1783,6 +1783,9 @@ fun VideoProgressBar(
                         .height(layoutPolicy.touchContainerHeightDp.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
+            // 音频 ridge 两个 Path 跨帧复用(每帧 reset 重填),进度条频繁失效时避免逐帧分配。
+            val ridgePathScratch = remember { Path() }
+            val ridgeLinePathScratch = remember { Path() }
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1818,7 +1821,8 @@ fun VideoProgressBar(
                 if (pbpRidgeSamples.size >= 2 && size.width > 0f) {
                     val ridgeHeightPx = (size.height * 0.42f).coerceAtMost(18.dp.toPx())
                     val baselineY = centerY
-                    val ridgePath = Path().apply {
+                    val ridgePath = ridgePathScratch.apply {
+                        reset()
                         moveTo(0f, baselineY)
                         pbpRidgeSamples.forEach { sample ->
                             val x = size.width * sample.fraction.coerceIn(0f, 1f)
@@ -1828,7 +1832,8 @@ fun VideoProgressBar(
                         lineTo(size.width, baselineY)
                         close()
                     }
-                    val ridgeLinePath = Path().apply {
+                    val ridgeLinePath = ridgeLinePathScratch.apply {
+                        reset()
                         pbpRidgeSamples.forEachIndexed { index, sample ->
                             val x = size.width * sample.fraction.coerceIn(0f, 1f)
                             val y = resolveRidgeY(baselineY, ridgeHeightPx, sample)

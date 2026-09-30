@@ -171,7 +171,6 @@ import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackJankStateValue
-import com.android.purebilibili.core.util.animateScrollToTop
 import coil3.imageLoader
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
@@ -352,6 +351,8 @@ fun HomeScreen(
         mutableStateOf<com.android.purebilibili.feature.video.share.VideoSharePayload?>(null)
     }
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
+    var homeBackToTopSquishActive by remember { mutableStateOf(false) }
+    var homeBackToTopSquishGeneration by remember { mutableIntStateOf(0) }
     val headerSettleMotionSpec = AppMotionTokens.emphasizedSpec<Float>()
     val globalScrollOffset = LocalHomeScrollOffset.current
     val globalFeedScrollInProgress = LocalHomeFeedScrollInProgress.current
@@ -380,6 +381,18 @@ fun HomeScreen(
         topTabsAutoCollapsedByScroll = false
         setHeaderOffsetImmediate(0f)
         globalScrollOffset.floatValue = 0f
+    }
+
+    fun triggerHomeBackToTopCardSquish() {
+        val generation = homeBackToTopSquishGeneration + 1
+        homeBackToTopSquishGeneration = generation
+        homeBackToTopSquishActive = true
+        coroutineScope.launch {
+            delay(105L)
+            if (homeBackToTopSquishGeneration == generation) {
+                homeBackToTopSquishActive = false
+            }
+        }
     }
 
     fun animateHeaderOffsetTo(targetValue: Float) {
@@ -558,9 +571,10 @@ fun HomeScreen(
 
                         if (!isAtTop) {
                             val listState = requireNotNull(gridState)
-                            listState.animateScrollToTop(
-                                fast = request != HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH,
-                            )
+                            // 底栏/重选回顶直达：单次 scrollToItem 是原子操作，
+                            // 无两段式 preJump+animate 的中间态，任何距离都不掉帧。
+                            listState.scrollToItem(0)
+                            triggerHomeBackToTopCardSquish()
                         }
                         val shouldRefresh = request == HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH ||
                             (request == HomeScrollRequest.SCROLL_TO_TOP_OR_REFRESH && isAtTop)
@@ -1440,8 +1454,9 @@ fun HomeScreen(
                         if (isAtTop) {
                             viewModel.refresh()
                         } else {
+                            // 直达到顶，避免两段式回顶的硬跳+小动画顿挫。
                             val listState = requireNotNull(gridState)
-                            listState.animateScrollToTop(fast = true)
+                            listState.scrollToItem(0)
                         }
                     }
                 }
@@ -1617,7 +1632,14 @@ fun HomeScreen(
     val homeTopPresetStyle = remember(topChromePolicy, homeSettings.topTabLabelMode) {
         resolveHomeTopPresetStyle(topChromePolicy, homeSettings.topTabLabelMode)
     }
-    val searchBarHeightDp = homeTopPresetStyle.searchBarHeight
+    val homeTopSearchMetrics = resolveHomeTopSearchRowMetrics(
+        configuredHeight = homeTopPresetStyle.searchBarHeight,
+        configuredTabsSpacing = homeTopPresetStyle.searchToTabsSpacing,
+        bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
+        hideTopTabs = effectiveHomeSettings.hideTopTabs,
+    )
+    val searchBarHeightDp = homeTopSearchMetrics.height
+    val searchToTabsSpacingDp = homeTopSearchMetrics.tabsSpacing
     val tabRowHeightDp = resolveEffectiveHomeTabRowHeight(
         hideTopTabs = effectiveHomeSettings.hideTopTabs,
         defaultTabRowHeight = if (topTabStyle.floating) {
@@ -1627,7 +1649,7 @@ fun HomeScreen(
         }
     )
     val searchCollapseDistanceDp = searchBarHeightDp +
-        (if (effectiveHomeSettings.hideTopTabs) AppSpacingTokens.None else homeTopPresetStyle.searchToTabsSpacing) +
+        (if (effectiveHomeSettings.hideTopTabs) AppSpacingTokens.None else searchToTabsSpacingDp) +
         homeTopPresetStyle.searchCollapseExtraSpacing
     val floatingDockLift = if (effectiveHomeSettings.hideTopTabs) {
         AppSpacingTokens.None
@@ -1640,7 +1662,7 @@ fun HomeScreen(
         searchBarHeight = searchBarHeightDp,
         tabRowHeight = tabRowHeightDp,
         unifiedPanelInnerPadding = homeTopPresetStyle.unifiedPanelInnerPadding,
-        searchToTabsSpacing = homeTopPresetStyle.searchToTabsSpacing
+        searchToTabsSpacing = searchToTabsSpacingDp
     )
     // Android 12 (and older) may extend the legacy blur/glass fallback below its
     // measured bounds by a few pixels. Reserve a small safety gap so the first
@@ -2262,7 +2284,9 @@ fun HomeScreen(
                               ) {
                               if (category != HomeCategory.POPULAR && categoryState.isLoading && categoryState.videos.isEmpty() && categoryState.liveRooms.isEmpty()) {
                                   // Loading Skeleton per page
-                                  val skeletonPulse = rememberHomeFeedSkeletonPulse()
+                                  // [性能优化] 脉冲 state 只包进 provider,值在骨架卡 draw 阶段读取,
+                                  // 骨架期间屏幕级组合作用域不再逐帧失效。
+                                  val skeletonPulseState = rememberHomeFeedSkeletonPulseState()
                                   LazyVerticalStaggeredGrid(
                                       columns = StaggeredGridCells.Fixed(effectiveGridColumns),
                                       contentPadding = PaddingValues(
@@ -2284,7 +2308,7 @@ fun HomeScreen(
                                               span = StaggeredGridItemSpan.FullLine
                                           ) {
                                               HomeFeedHeroCarouselSkeleton(
-                                                  pulse = skeletonPulse
+                                                  pulse = { skeletonPulseState.value }
                                               )
                                           }
                                       }
@@ -2296,7 +2320,7 @@ fun HomeScreen(
                                          contentType = { "home_feed_skeleton_card" }
                                      ) {
                                          HomeFeedSkeletonCard(
-                                             pulse = skeletonPulse,
+                                             pulse = { skeletonPulseState.value },
                                              wallpaperTintEnabled = homeWallpaperBackdropAppearance.visible,
                                              wallpaperEffectMode = homeSettings.homeWallpaperEffectMode,
                                              isDataSaverActive = isDataSaverActive,
@@ -2388,6 +2412,8 @@ fun HomeScreen(
                                      // 刷新数据换位时不再同时启动整屏卡片 placement spring。
                                      cardAnimationEnabled = cardAnimationEnabled && !isPageRefreshing,
                                      cardMotionTier = cardMotionTier,
+                                     backToTopSquishActive = homeBackToTopSquishActive &&
+                                         category == latestHomeScrollCategory,
                                      cardTransitionEnabled = cardTransitionEnabled,
                                      isReturningFromVideoDetail = isReturningFromVideoDetail,
                                      isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
@@ -2438,6 +2464,7 @@ fun HomeScreen(
                                      } else {
                                          null
                                      },
+                                     oldContentLocatorRefreshKey = refreshNewItemsKey,
                                      onOldContentDividerClick = {
                                          coroutineScope.launch {
                                              contentGridState.animateScrollToItem(0)
@@ -2680,7 +2707,7 @@ fun HomeScreen(
             onStatusBarDoubleTap = {
                 coroutineScope.launch {
                     withHomeScrollToTopLock {
-                        activeGridState?.animateScrollToTop()
+                        activeGridState?.scrollToItem(0)
                     }
                 }
             },

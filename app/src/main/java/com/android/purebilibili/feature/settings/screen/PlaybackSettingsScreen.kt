@@ -1349,6 +1349,9 @@ private fun PlaybackInteractionSettingsSection(
     val videoInfoDefaultExpanded by com.android.purebilibili.core.store.SettingsManager
         .getVideoInfoDefaultExpanded(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val videoArgueMsgShown by com.android.purebilibili.core.store.SettingsManager
+        .getVideoArgueMsgShown(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val showVideoDetailCommentCount by SettingsManager
         .getShowVideoDetailCommentCount(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -1560,6 +1563,24 @@ private fun PlaybackInteractionSettingsSection(
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager
                         .setVideoInfoDefaultExpanded(context, it)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSBlue
+        )
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_DESCRIPTION),
+            title = "显示 UP 主视频声明",
+            subtitle = if (videoArgueMsgShown) {
+                "在视频简介区上方显示 UP 主设置的声明（如\"虚构演绎，请勿过度解读\"）"
+            } else {
+                "关闭后：不再显示 UP 主设置的视频声明"
+            },
+            checked = videoArgueMsgShown,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setVideoArgueMsgShown(context, it)
                 }
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue

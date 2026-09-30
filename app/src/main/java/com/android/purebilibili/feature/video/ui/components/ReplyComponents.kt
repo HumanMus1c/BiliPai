@@ -2978,7 +2978,9 @@ fun CommentPictures(
                         .memoryCacheKey(imageUrls[0])
                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
                         .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
-                        .crossfade(true)
+                        // Hero owns the transition; a second image fade on return causes
+                        // the thumbnail to blink after the preview window is removed.
+                        .crossfade(false)
                         .build(),
                     contentDescription = null,
                     imageLoader = gifImageLoader,  //  支持 GIF 和其他格式
@@ -3044,7 +3046,7 @@ fun CommentPictures(
                                         .memoryCacheKey(imageUrls[globalIndex])
                                         .size(thumbnailDecodeSize.widthPx, thumbnailDecodeSize.heightPx)
                                         .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())  //  必需
-                                        .crossfade(true)
+                                        .crossfade(false)
                                         .build(),
                                     contentDescription = null,
                                     imageLoader = gifImageLoader,  //  支持 GIF

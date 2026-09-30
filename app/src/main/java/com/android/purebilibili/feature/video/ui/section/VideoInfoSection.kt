@@ -101,6 +101,7 @@ import com.android.purebilibili.feature.video.ui.components.ShimmerContainer
 import com.android.purebilibili.feature.video.ui.components.SkeletonBox
 import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -116,11 +117,58 @@ private val VIDEO_DESCRIPTION_INLINE_BVID_PATTERN =
     Regex("""(?<![A-Za-z0-9])BV[a-zA-Z0-9]{10}(?![A-Za-z0-9])""", RegexOption.IGNORE_CASE)
 private val VIDEO_DESCRIPTION_TOPIC_PATTERN =
     Regex("""#([^#\n\r\t]+)#""")
+private val VIDEO_DESCRIPTION_MENTION_PATTERN =
+    Regex("""@[^\s@,，。:：;；!！?？/\\]{1,32}""")
 
 internal fun buildVideoDescriptionAnnotatedString(
     desc: String,
     urlColor: Color,
     linkListener: androidx.compose.ui.text.LinkInteractionListener? = null
+): AnnotatedString = buildVideoDescriptionAnnotatedString(
+    desc = desc,
+    descV2 = emptyList(),
+    urlColor = urlColor,
+    linkListener = linkListener
+)
+
+/**
+ * 构建简介富文本。descV2 非空时按分段渲染:type=2 的 @提及带 biz_id,
+ * 点击直达 space.bilibili.com/{mid};纯文本回退时 @xxx 高亮并跳用户搜索。
+ */
+internal fun buildVideoDescriptionAnnotatedString(
+    desc: String,
+    descV2: List<com.android.purebilibili.data.model.response.VideoDescSegment>,
+    urlColor: Color,
+    linkListener: androidx.compose.ui.text.LinkInteractionListener? = null
+): AnnotatedString {
+    if (descV2.isEmpty()) {
+        return buildRawDescriptionAnnotatedString(desc, urlColor, linkListener)
+    }
+    return buildAnnotatedString {
+        descV2.forEach { segment ->
+            if (segment.type == 2 && segment.bizId > 0 && segment.rawText.isNotBlank()) {
+                withLink(
+                    androidx.compose.ui.text.LinkAnnotation.Clickable(
+                        tag = "https://space.bilibili.com/${segment.bizId}",
+                        styles = null,
+                        linkInteractionListener = linkListener,
+                    )
+                ) {
+                    withStyle(SpanStyle(color = urlColor, textDecoration = TextDecoration.Underline)) {
+                        append("@${segment.rawText}")
+                    }
+                }
+            } else {
+                append(buildRawDescriptionAnnotatedString(segment.rawText, urlColor, linkListener))
+            }
+        }
+    }
+}
+
+private fun buildRawDescriptionAnnotatedString(
+    desc: String,
+    urlColor: Color,
+    linkListener: androidx.compose.ui.text.LinkInteractionListener?
 ): AnnotatedString {
     data class LinkMatch(
         val range: IntRange,
@@ -162,6 +210,24 @@ internal fun buildVideoDescriptionAnnotatedString(
                 matches += LinkMatch(
                     range = match.range,
                     annotation = "bilibili://search?keyword=$encoded",
+                    displayText = match.value,
+                    priority = 2
+                )
+            }
+        }
+    }
+    VIDEO_DESCRIPTION_MENTION_PATTERN.findAll(desc).forEach { match ->
+        val overlapsUrl = matches.any { existing ->
+            match.range.first <= existing.range.last && match.range.last >= existing.range.first
+        }
+        if (!overlapsUrl) {
+            val mention = match.value.removePrefix("@").trim()
+            if (mention.isNotEmpty()) {
+                val encoded = java.net.URLEncoder.encode(mention, java.nio.charset.StandardCharsets.UTF_8.name())
+                matches += LinkMatch(
+                    range = match.range,
+                    // desc_v2 缺失时拿不到 mid,回退到站内用户搜索页。
+                    annotation = "https://search.bilibili.com/upuser?keyword=$encoded",
                     displayText = match.value,
                     priority = 2
                 )
@@ -394,6 +460,9 @@ fun VideoTitleWithDesc(
     val defaultExpanded by com.android.purebilibili.core.store.SettingsManager
         .getVideoInfoDefaultExpanded(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val argueMsgShown by com.android.purebilibili.core.store.SettingsManager
+        .getVideoArgueMsgShown(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     var expanded by remember(info.bvid, info.desc, videoTags.size, defaultExpanded) {
         mutableStateOf(
             resolveVideoInfoInitialExpandedState(
@@ -705,6 +774,55 @@ fun VideoTitleWithDesc(
             }
         }
 
+        // 视频荣誉徽标(全站排行榜/每周必看/入站必刷/热门):可点击跳转对应榜单页
+        val honorChips = info.honorReply?.honor.orEmpty().mapNotNull { honor ->
+            resolveVideoHonorChipText(
+                type = honor.type,
+                honorName = honor.honorName,
+                descContent = honor.desc?.content,
+                weeklyRecommendNum = honor.weeklyRecommendNum
+            )?.let { text ->
+                val jumpUrl = resolveVideoHonorJumpUrl(
+                    type = honor.type,
+                    honorUrl = honor.honorUrl,
+                    weeklyRecommendNum = honor.weeklyRecommendNum
+                ) ?: return@mapNotNull null
+                Triple(honor, text, jumpUrl)
+            }
+        }
+        if (honorChips.isNotEmpty()) {
+            // 紧跟统计行/徽标区:上方无徽标时收紧到 3dp,避免与播放量行隔离太远。
+            Spacer(Modifier.height(if (videoBadges.isNotEmpty()) 6.dp else 3.dp))
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                honorChips.forEach { (honor, text, jumpUrl) ->
+                    VideoHonorChip(
+                        text = text,
+                        onClick = { onDescriptionUrlClick?.invoke(jumpUrl) }
+                    )
+                }
+            }
+        }
+
+        // UP 主视频声明(PiliPlus argue_msg)+ 禁止转载(rights.no_reprint):
+        // 声明小字置于 BGM 胶囊之上,与荣誉胶囊形成"胶囊区→声明区"的统一观感。
+        val argueMsg = info.argueInfo?.argueMsg.orEmpty()
+        val noReprint = info.rights.noReprint == 1
+        if (argueMsgShown && (argueMsg.isNotBlank() || noReprint)) {
+            Spacer(Modifier.height(6.dp))
+            if (argueMsg.isNotBlank()) {
+                VideoArgueMsgRow(argueMsg = argueMsg)
+            }
+            if (argueMsg.isNotBlank() && noReprint) {
+                Spacer(Modifier.height(4.dp))
+            }
+            if (noReprint) {
+                VideoArgueMsgRow(argueMsg = "未经作者授权，请勿转载")
+            }
+        }
+
         // [新增] BGM Info Row
         if (bgmList.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
@@ -739,9 +857,15 @@ fun VideoTitleWithDesc(
                         }
                     }
                 }
-                val descriptionText = remember(info.desc, descriptionUrlColor, descriptionLinkListener) {
+                val descriptionText = remember(
+                    info.desc,
+                    info.descV2,
+                    descriptionUrlColor,
+                    descriptionLinkListener
+                ) {
                     buildVideoDescriptionAnnotatedString(
                         desc = info.desc,
+                        descV2 = info.descV2,
                         urlColor = descriptionUrlColor,
                         linkListener = descriptionLinkListener
                     )
@@ -816,6 +940,54 @@ private fun VideoDetailBadgeChip(
         label = text,
         emphasized = emphasized,
     )
+}
+
+/**
+ * UP 主视频声明行(PiliPlus argue_msg 样式):
+ * error_outline 小图标 + 12sp 次要色文本,如"虚构演绎,请勿过度解读"。
+ */
+@Composable
+private fun VideoArgueMsgRow(argueMsg: String) {
+    Row(
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+    ) {
+        androidx.compose.material3.Icon(
+            imageVector = Icons.Outlined.ErrorOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(13.dp)
+        )
+        AppText(
+            text = argueMsg,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 视频荣誉徽标(全站排行榜最高第N名/每周必看等):
+ * 着色小胶囊,有跳转链接时可点击,走通用的 B 站链接路由(榜单页进应用内 Web)。
+ */
+@Composable
+private fun VideoHonorChip(
+    text: String,
+    onClick: (() -> Unit)? = null
+) {
+    androidx.compose.material3.Surface(
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        AppText(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
 }
 
 /**
@@ -1143,6 +1315,7 @@ fun UpInfoSection(
             if (shouldShowCreatorTeamSection(info)) {
                 CreatorTeamSection(
                     staff = info.staff,
+                    ownerMid = info.owner.mid,
                     onMemberClick = onUpClick
                 )
             }
@@ -1153,9 +1326,27 @@ fun UpInfoSection(
 @Composable
 private fun CreatorTeamSection(
     staff: List<VideoStaff>,
+    ownerMid: Long,
     onMemberClick: (Long) -> Unit
 ) {
     if (staff.isEmpty()) return
+    // 每个成员的关注状态:null=查询中;经 followStateChanges 与全局动作同步。
+    val followStates = remember(staff) { mutableStateMapOf<Long, Boolean>() }
+    LaunchedEffect(staff) {
+        staff.filter { it.mid > 0L && it.mid != ownerMid }.forEach { member ->
+            followStates[member.mid] =
+                com.android.purebilibili.data.repository.ActionRepository
+                    .checkFollowStatus(member.mid)
+        }
+    }
+    LaunchedEffect(Unit) {
+        com.android.purebilibili.data.repository.ActionRepository.followStateChanges.collect { change ->
+            if (followStates.containsKey(change.mid)) {
+                followStates[change.mid] = change.isFollowing
+            }
+        }
+    }
+    val scope = rememberCoroutineScope()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1188,6 +1379,17 @@ private fun CreatorTeamSection(
             staff.forEach { member ->
                 CreatorTeamMemberChip(
                     member = member,
+                    showFollow = member.mid > 0L && member.mid != ownerMid,
+                    isFollowing = followStates[member.mid] ?: false,
+                    onFollowToggle = {
+                        scope.launch {
+                            val target = !(followStates[member.mid] ?: false)
+                            val ok = com.android.purebilibili.data.repository.ActionRepository
+                                .followUser(member.mid, target)
+                                .getOrDefault(false)
+                            if (ok) followStates[member.mid] = target
+                        }
+                    },
                     onClick = { onMemberClick(member.mid) }
                 )
             }
@@ -1198,8 +1400,18 @@ private fun CreatorTeamSection(
 @Composable
 private fun CreatorTeamMemberChip(
     member: VideoStaff,
+    showFollow: Boolean,
+    isFollowing: Boolean,
+    onFollowToggle: () -> Unit,
     onClick: () -> Unit
 ) {
+    val followDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val followVisualPolicy = remember(isFollowing, followDarkTheme) {
+        resolveVideoFollowVisualPolicy(
+            isFollowing = isFollowing,
+            darkTheme = followDarkTheme,
+        )
+    }
     val officialBadge = remember(member.official) {
         resolveOfficialVerifyBadgeFromRole(
             type = member.official.type,
@@ -1271,6 +1483,39 @@ private fun CreatorTeamMemberChip(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+        if (showFollow) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClick = onFollowToggle),
+                contentAlignment = Alignment.Center
+            ) {
+                AppSurface(
+                    color = when (followVisualPolicy.detailButtonTone) {
+                        FollowButtonTone.PRIMARY -> MaterialTheme.colorScheme.primary
+                        FollowButtonTone.PRIMARY_CONTAINER -> MaterialTheme.colorScheme.primaryContainer
+                    },
+                    shape = VideoDetailShapes.action(),
+                    modifier = Modifier.heightIn(min = 28.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    ) {
+                        AppText(
+                            text = if (isFollowing) "已关注" else "关注",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = when (followVisualPolicy.detailTextTone) {
+                                FollowTextTone.ON_PRIMARY -> MaterialTheme.colorScheme.onPrimary
+                                FollowTextTone.ON_PRIMARY_CONTAINER -> MaterialTheme.colorScheme.onPrimaryContainer
+                            },
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }

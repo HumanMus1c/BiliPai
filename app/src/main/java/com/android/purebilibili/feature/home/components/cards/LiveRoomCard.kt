@@ -28,7 +28,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,6 +78,14 @@ fun LiveRoomCard(
     }
     val viewerCount = remember(room.online, room.watchedShow) { room.viewerCount() }
     val triggerCardClick = { onClick(room.roomid) }
+    // 封面容器 16:10、宽度至多占满一屏：按屏幕宽度约束解码尺寸，避免滚动期间
+    // 反复解码直播源的整张原图（此前无 size 约束）。
+    val coverDecodeWidthPx = with(LocalDensity.current) {
+        LocalConfiguration.current.screenWidthDp.dp.toPx().coerceAtMost(1440f)
+    }
+    val coverDecodeHeightPx = coverDecodeWidthPx * 10f / 16f
+    // 封面参与共享元素返回时不允许 crossfade：淡入会和返回飞行叠一层双重动画。
+    val coverCrossfadeEnabled = sharedTransitionScope == null || animatedVisibilityScope == null
 
     Column(
         modifier = Modifier
@@ -118,8 +128,10 @@ fun LiveRoomCard(
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(coverUrl)
-                    .crossfade(150)
+                    .size(coverDecodeWidthPx.toInt(), coverDecodeHeightPx.toInt())
+                    .crossfade(coverCrossfadeEnabled)
                     .memoryCacheKey("live_cover_${room.roomid}")
+                    .diskCacheKey("live_cover_${room.roomid}")
                     .build(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),

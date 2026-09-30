@@ -346,7 +346,7 @@ class DanmakuManager private constructor(
                 }
                 if (rebuild == null) return@collect
 
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main.immediate) {
                     if (!shouldApplyDanmakuLoadResult(
                             expectedCid = expectedCid,
                             expectedGeneration = expectedGeneration,
@@ -1747,7 +1747,7 @@ class DanmakuManager private constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, " Failed to load danmaku for cid=$cid: ${e.message}", e)
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main.immediate) {
                     if (shouldApplyDanmakuLoadResult(cid, requestGeneration, cachedCid, loadGeneration)) {
                         isLoading = false
                     }
@@ -1876,7 +1876,7 @@ class DanmakuManager private constructor(
             )
         }
         if (!isCurrentSegmentWindowRequest(cid, requestGeneration, requestWindowGeneration)) return
-        withContext(Dispatchers.Main) {
+        withContext(Dispatchers.Main.immediate) {
             if (!isCurrentSegmentWindowRequest(cid, requestGeneration, requestWindowGeneration)) {
                 return@withContext
             }
@@ -2107,7 +2107,7 @@ class DanmakuManager private constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, " Failed to load local danmaku for cid=$cid: ${e.message}", e)
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main.immediate) {
                     if (shouldApplyDanmakuLoadResult(cid, requestGeneration, cachedCid, loadGeneration)) {
                         isLoading = false
                     }

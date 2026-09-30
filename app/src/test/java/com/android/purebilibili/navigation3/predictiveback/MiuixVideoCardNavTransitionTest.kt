@@ -77,7 +77,7 @@ class MiuixVideoCardNavTransitionTest {
     }
 
     @Test
-    fun fullGestureKeepsCardAirborneUntilCommitSettleFinishes() {
+    fun fullGestureLandsManuallyAndCommitHasNoSecondFlight() {
         val scope = object : NavTransitionScope {
             override var relativeDepth = 0f
             override var role = NavRole.Top
@@ -93,22 +93,24 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(1f, progress.depthOrNull())
         scope.relativeDepth = -.999f
         scope.gesture = NavGesture(.999f, NavSwipeEdge.Left, 500f)
-        assertEquals(.2f, progress.depthOrNull()!!, absoluteTolerance = .001f)
+        // Manual drag reaches (almost) full landing; the last sliver waits for the driver.
+        assertEquals(.001f, progress.depthOrNull()!!, absoluteTolerance = .002f)
         scope.settle = object : NavSettle {
             override val phase = NavSettlePhase.Commit
             override val releaseVelocity = 0f
             override val elapsedMillis = 0f
         }
         scope.role = NavRole.Outgoing
-        assertEquals(.2f, progress.depthOrNull()!!, absoluteTolerance = .001f)
+        // Commit at a fully-dragged release has no remaining distance: no second flight.
+        assertEquals(.001f, progress.depthOrNull()!!, absoluteTolerance = .002f)
         scope.relativeDepth = -.9995f
-        assertEquals(.1f, progress.depthOrNull()!!, absoluteTolerance = .002f)
+        assertEquals(.0005f, progress.depthOrNull()!!, absoluteTolerance = .002f)
         scope.relativeDepth = -1f
         assertEquals(0f, progress.depthOrNull())
     }
 
     @Test
-    fun interruptingEntryRetainsItsCurrentPositionAndLeavesLandingDistance() {
+    fun interruptingEntryRetainsItsCurrentPositionAndMapsGestureOneToOne() {
         val scope = object : NavTransitionScope {
             override var relativeDepth = -.5f
             override val role = NavRole.Incoming
@@ -124,8 +126,8 @@ class MiuixVideoCardNavTransitionTest {
         assertEquals(.5f, progress.depthOrNull())
         scope.relativeDepth = -.9f
         scope.gesture = NavGesture(.4f, NavSwipeEdge.Left, 500f)
-        assertEquals(.2f, progress.depthOrNull()!!, absoluteTolerance = .001f)
-        // A very early interruption is already inside the reserved landing range.
+        // Interruption keeps the pre-gesture position and gesture progress maps 1:1.
+        assertEquals(.1f, progress.depthOrNull()!!, absoluteTolerance = .001f)
         // The first gesture frame must stay at the current position.
         val earlyScope = object : NavTransitionScope by scope {
             override val relativeDepth = -.9f

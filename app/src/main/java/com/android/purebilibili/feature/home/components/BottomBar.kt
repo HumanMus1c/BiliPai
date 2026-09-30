@@ -2496,6 +2496,7 @@ private fun MaterialBottomBar(
         val searchEnabled = shouldReserveBottomBarSearchLayout(
             bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
         )
+        val mergeOnScrollDownEnabled = homeSettings.linkedDockMergeOnScrollEnabled
         if (searchEnabled || nowPlayingContent != null) {
             LinkedBottomDock(
                 currentItem = currentItem,
@@ -2523,6 +2524,7 @@ private fun MaterialBottomBar(
                 dockPhase = linkedDockPhase,
                 onDockPhaseChange = onLinkedDockPhaseChange,
                 isTopLevelDestination = isTopLevelDestination,
+                mergeOnScrollDownEnabled = mergeOnScrollDownEnabled,
                 animateNowPlayingPresence = animateNowPlayingPresence,
                 modifier = modifier,
                 navigationContent = {
@@ -2598,6 +2600,7 @@ private fun MaterialBottomBar(
             navigationIconCrossScaleEnabled = homeSettings.navigationIconCrossScaleEnabled,
             haptic = haptic,
             bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
+            mergeOnScrollDownEnabled = homeSettings.linkedDockMergeOnScrollEnabled,
             bottomBarSearchAutoExpandMode = homeSettings.bottomBarSearchAutoExpandMode,
             bottomBarSearchLayoutMode = homeSettings.bottomBarSearchLayoutMode,
             onSearchClick = onSearchClick,
@@ -3525,6 +3528,7 @@ private fun BiliPaiFloatingBottomBar(
     linkedDockPhase: LinkedDockPhase? = null,
     onLinkedDockPhaseChange: ((LinkedDockPhase) -> Unit)? = null,
     isTopLevelDestination: Boolean = true,
+    mergeOnScrollDownEnabled: Boolean = true,
     animateNowPlayingPresence: Boolean = true,
 ) {
     if (bottomBarSearchEnabled || nowPlayingContent != null) {
@@ -3535,6 +3539,7 @@ private fun BiliPaiFloatingBottomBar(
             dockPhase = linkedDockPhase,
             onDockPhaseChange = onLinkedDockPhaseChange,
             isTopLevelDestination = isTopLevelDestination,
+            mergeOnScrollDownEnabled = mergeOnScrollDownEnabled,
             animateNowPlayingPresence = animateNowPlayingPresence,
             searchEnabled = bottomBarSearchEnabled,
             isFeedScrollInProgress = isFeedScrollInProgress,

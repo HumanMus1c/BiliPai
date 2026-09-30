@@ -4024,7 +4024,9 @@ internal fun VideoDetailScreenStateHolder(
                                 isCommentThreadVisible = subReplyState.visible,
                                 collapseMode = portraitPlayerCollapseMode,
                                 isVerticalVideo = isVerticalVideo,
-                                isPlaybackPaused = isPlaybackPaused
+                                isPlaybackPaused = isPlaybackPaused,
+                                isCompactFoldableCoverWindow = displayContext.isFoldableCoverWindow &&
+                                    configuration.screenHeightDp < FOLDABLE_COVER_COMPACT_HEIGHT_MAX_DP,
                             )
                         val compactInlinePlayerForIntroScroll =
                             shouldUseCompactInlinePortraitPlayerForIntroScroll(

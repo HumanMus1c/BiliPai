@@ -1,5 +1,8 @@
 package com.android.purebilibili.data.repository
 
+import android.content.ContentResolver
+import android.net.Uri
+import android.provider.OpenableColumns
 import com.android.purebilibili.core.network.BilibiliApi
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiUtils
@@ -18,8 +21,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
+import okio.source
 import java.util.TreeMap
 
 /**
@@ -30,6 +37,9 @@ object CommentRepository {
     private val api = NetworkModule.api
     private val guestApi = NetworkModule.guestApi
     private val commentJson = Json { ignoreUnknownKeys = true }
+
+    private const val MAX_COMMENT_IMAGE_BYTES = 15L * 1024 * 1024
+    private const val IMAGE_TOO_LARGE_MESSAGE = "图片过大（单张最大 15MB）"
 
     // WBI Key 缓存
     private var wbiKeysCache: Pair<String, String>? = null
@@ -918,17 +928,70 @@ object CommentRepository {
         mimeType: String,
         bytes: ByteArray
     ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
+        val mediaType = mimeType.toMediaType()
+        uploadCommentImagePart(
+            fileName = fileName.ifBlank { "comment_image.jpg" },
+            mimeType = mimeType,
+            fileBody = bytes.toRequestBody(mediaType)
+        )
+    }
+
+    /**
+     * 流式上传本地图片:不把整个文件读入内存,请求体直接从 ContentResolver 流写入。
+     * 大小校验基于 [OpenableColumns.SIZE] 在读文件**之前**完成;无法获取尺寸时
+     * (自定义 DocumentsProvider 等)回退到整读的旧路径,保持原校验行为。
+     */
+    suspend fun uploadCommentImage(
+        fileName: String,
+        mimeType: String,
+        resolver: ContentResolver,
+        uri: Uri
+    ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
+        val size = queryContentImageSize(resolver, uri)
+        if (size == null) {
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return@withContext Result.failure(Exception("无法读取图片文件"))
+            if (bytes.isEmpty()) return@withContext Result.failure(Exception("图片内容为空"))
+            if (bytes.size > MAX_COMMENT_IMAGE_BYTES) {
+                return@withContext Result.failure(Exception(IMAGE_TOO_LARGE_MESSAGE))
+            }
+            uploadCommentImage(
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = bytes
+            )
+        } else {
+            if (size <= 0L) return@withContext Result.failure(Exception("图片内容为空"))
+            if (size > MAX_COMMENT_IMAGE_BYTES) {
+                return@withContext Result.failure(Exception(IMAGE_TOO_LARGE_MESSAGE))
+            }
+            uploadCommentImagePart(
+                fileName = fileName.ifBlank { "comment_image.jpg" },
+                mimeType = mimeType,
+                fileBody = ContentUriRequestBody(
+                    resolver = resolver,
+                    uri = uri,
+                    mediaType = mimeType.toMediaType(),
+                    contentLength = size
+                )
+            )
+        }
+    }
+
+    private suspend fun uploadCommentImagePart(
+        fileName: String,
+        mimeType: String,
+        fileBody: RequestBody
+    ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
             if (csrf.isNullOrEmpty()) {
                 return@withContext Result.failure(Exception("请先登录"))
             }
 
-            val mediaType = mimeType.toMediaType()
-            val fileBody = bytes.toRequestBody(mediaType)
             val part = okhttp3.MultipartBody.Part.createFormData(
                 "file_up",
-                fileName.ifBlank { "comment_image.jpg" },
+                fileName,
                 fileBody
             )
             val textMedia = "text/plain".toMediaType()
@@ -956,17 +1019,49 @@ object CommentRepository {
             } else {
                 Logger.e(
                     "CommentRepo",
-                    "uploadCommentImage failed: fileName=$fileName, mimeType=$mimeType, size=${bytes.size}, code=${response.code}, message=${response.message}"
+                    "uploadCommentImage failed: fileName=$fileName, mimeType=$mimeType, size=${fileBody.contentLength()}, code=${response.code}, message=${response.message}"
                 )
                 Result.failure(Exception(response.message.ifEmpty { "图片上传失败 (${response.code})" }))
             }
         } catch (e: Exception) {
             Logger.e(
                 "CommentRepo",
-                "uploadCommentImage exception: fileName=$fileName, mimeType=$mimeType, size=${bytes.size}",
+                "uploadCommentImage exception: fileName=$fileName, mimeType=$mimeType, size=${fileBody.contentLength()}",
                 e
             )
             Result.failure(e)
+        }
+    }
+
+    private fun queryContentImageSize(resolver: ContentResolver, uri: Uri): Long? = runCatching {
+        resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) {
+                cursor.getLong(index)
+            } else {
+                null
+            }
+        }
+    }.getOrNull()
+
+    /**
+     * 一次性请求体:每次 [writeTo] 重新打开输入流,边读边写,不缓存整份字节。
+     * [isOneShot] 禁止 OkHttp 在连接失败后重放,避免二次上传。
+     */
+    private class ContentUriRequestBody(
+        private val resolver: ContentResolver,
+        private val uri: Uri,
+        private val mediaType: MediaType,
+        private val contentLength: Long
+    ) : RequestBody() {
+        override fun contentType(): MediaType = mediaType
+        override fun contentLength(): Long = contentLength
+        override fun isOneShot(): Boolean = true
+
+        override fun writeTo(sink: BufferedSink) {
+            resolver.openInputStream(uri)?.use { input ->
+                sink.writeAll(input.source())
+            } ?: error("无法读取图片文件")
         }
     }
 

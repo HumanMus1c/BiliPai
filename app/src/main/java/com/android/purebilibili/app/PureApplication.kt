@@ -21,6 +21,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.StrictMode
+import androidx.compose.foundation.ComposeFoundationFlags
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.profileinstaller.ProfileInstaller
 import com.android.purebilibili.BuildConfig
 import coil3.ImageLoader
@@ -143,8 +145,14 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
             .also { _imageLoader = it }  // 保存引用
     }
     
+    @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate() {
         instance = this
+
+        // Compose 1.13's staggered-grid cache-window prefetch can assign an invalid lane
+        // after rapid scroll-to-top and subsequent scrolling. Keep the established prefetcher
+        // until the upstream cache-window path is safe for this feed.
+        ComposeFoundationFlags.isUsingCacheWindowInStaggeredGrids = false
 
         // Install the local crash path before theme, StrictMode, or any other startup work. This
         // ensures even an early initialization exception has a private snapshot for feedback.
@@ -156,6 +164,11 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
             return
         }
         Logger.init(this)
+        // 预热启动任务(wbi_key_restore)要在主线程同步读的 SP 文件:
+        // IO 线程提前触发磁盘加载,主线程执行恢复时通常已命中内存缓存。
+        AppScope.ioScope.launch {
+            com.android.purebilibili.core.network.WbiKeyManager.prewarmStorage(this@PureApplication)
+        }
         // 系统退出 Trace 的读取与脱敏可能很慢，不能阻塞 Application.onCreate。
         AppScope.ioScope.launch {
             com.android.purebilibili.core.performance.Android17Diagnostics
@@ -168,15 +181,9 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
 
         //  [关键] 必须在 super.onCreate() 之前设置！
         // 这样系统在初始化时就能读取到正确的夜间模式配置
-        // 新用户默认设置必须先于主题读取应用，避免首屏短暂显示旧默认值。
-        // 仅首次运行（标记缺失）才同步等待应用内置默认值；其余启动只做一次标记
-        // 读取，不再 parked 主线程等待 IO 派发。
-        if (!SettingsShareService.hasBundledDefaultMarker(this)) {
-            runBlocking(Dispatchers.IO) {
-                SettingsShareService(this@PureApplication)
-                    .applyBundledDefaultIfNeeded()
-            }
-        }
+        // 新用户内置默认值不再阻塞主线程:profile 不含 theme_mode/语言键,
+        // applyThemePreference 不依赖它;应用动作移入 initializeNormalRuntime 的
+        // 后台协程,并与首页视觉默认值迁移串行,保证内置 profile 先落地。
         applyThemePreference()
         
         super.onCreate()
@@ -201,12 +208,18 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
 
         // 启动即确保首页视觉默认值生效：底栏悬浮 + 液态玻璃 + 顶部模糊
         // 冷启动路径不阻塞主线程，迁移改为后台执行。
+        // 首次运行的内置默认 profile 在同一协程内先于该迁移应用（串行），
+        // 保证最终生效的是内置 profile 的取值,与旧的同步路径语义一致。
         if (PureApplicationRuntimeConfig.shouldBlockStartupForHomeVisualDefaultsMigration()) {
             runBlocking(Dispatchers.IO) {
+                SettingsShareService(this@PureApplication)
+                    .applyBundledDefaultIfNeeded()
                 SettingsManager.ensureHomeVisualDefaults(this@PureApplication)
             }
         } else {
             AppScope.ioScope.launch {
+                SettingsShareService(this@PureApplication)
+                    .applyBundledDefaultIfNeeded()
                 SettingsManager.ensureHomeVisualDefaults(this@PureApplication)
             }
         }

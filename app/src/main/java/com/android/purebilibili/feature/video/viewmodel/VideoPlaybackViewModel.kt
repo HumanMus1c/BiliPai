@@ -1370,9 +1370,15 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     private fun updateSponsorVideoLabel(segments: List<com.android.purebilibili.data.model.response.SponsorSegment>) {
         val label = segments.resolveSponsorVideoLabel()
-        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
-        if (current.sponsorVideoLabel == label) return
-        _uiState.value = current.copy(sponsorVideoLabel = label)
+        // 原子 RMW：label 写入慢（插件网络返回后），与其它 uiState 更新交错时
+        // 先读后写的 copy 会互相覆盖，表现为徽标概率性丢失。
+        _uiState.update { current ->
+            if (current is VideoPlaybackUiState.Success && current.sponsorVideoLabel != label) {
+                current.copy(sponsorVideoLabel = label)
+            } else {
+                current
+            }
+        }
     }
     val uiState = _uiState.asStateFlow()
 
@@ -1835,7 +1841,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 delay(minutes * 60 * 1000L)
                 
                 // 定时结束
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                     exoPlayer?.pause()
                     toast("⏰ 定时结束，已暂停播放")
                     _sleepTimerMinutes.value = null
@@ -4455,7 +4461,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 "VideoPlaybackViewModel",
                 "Recorded not interested feedback: bvid=${current.info.bvid}, mid=${current.info.owner.mid}"
             )
-            withContext(Dispatchers.Main) {
+            withContext(Dispatchers.Main.immediate) {
                 toast("已减少此类推荐")
             }
         }
@@ -4999,26 +5005,17 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         return withContext(Dispatchers.IO) {
             runCatching {
                 selectedUris.mapIndexed { index, uri ->
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        stream.readBytes()
-                    } ?: error("无法读取图片文件")
-
-                    if (bytes.isEmpty()) {
-                        error("图片内容为空")
-                    }
-                    if (bytes.size > 15 * 1024 * 1024) {
-                        error("图片过大（单张最大 15MB）")
-                    }
-
                     val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
                     val fileName = queryDisplayName(context, uri)
                         ?: "comment_${System.currentTimeMillis()}_${index + 1}.jpg"
 
+                    // 流式上传:空/15MB 校验在 CommentRepository 内完成,不再整文件读入内存。
                     val uploadResult = com.android.purebilibili.data.repository.CommentRepository
                         .uploadCommentImage(
                             fileName = fileName,
                             mimeType = mimeType,
-                            bytes = bytes
+                            resolver = context.contentResolver,
+                            uri = uri
                         )
                     uploadResult.getOrElse { throw it }
                 }
@@ -5247,7 +5244,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 com.android.purebilibili.core.store.TokenManager.isVipCache = true
             }
 
-            withContext(Dispatchers.Main) {
+            withContext(Dispatchers.Main.immediate) {
                 _uiState.update { state ->
                     val success = state as? VideoPlaybackUiState.Success ?: return@update state
                     if (success.info.bvid != bvid) return@update state
@@ -7751,6 +7748,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                                 _sponsorProgressMarkers.value = emptyList()
                                 sponsorContributionRequest = null
                                 _sponsorContributionUiState.value = SponsorContributionUiState()
+                                // 插件注册与配置恢复是异步的；冷启动快速进视频时插件列表
+                                // 可能尚未就绪，onVideoLoad 会被跳过且不会重试（恰饭徽标丢失）。
+                                kotlinx.coroutines.withTimeoutOrNull(3_000L) {
+                                    PluginManager.awaitPluginReady(com.android.purebilibili.feature.plugin.SPONSOR_BLOCK_PLUGIN_ID)
+                                }
                                 PluginManager.getEnabledPlayerPlugins().forEach { plugin ->
                                     try {
                                         plugin.onVideoLoad(loadedBvid, loadedCid)
@@ -7781,6 +7783,17 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             while (true) {
                 val plugins = PluginManager.getEnabledPlayerPlugins()
                 refreshSponsorContributionAvailability(plugins)
+                // 标签自愈：若首次写入时 uiState 瞬时不是 Success（重试/切换）或被
+                // 并发更新覆盖，这里用插件已加载的片段补写，对齐 PiliPlus 的
+                // "数据到达即写入 RxString" 语义。
+                plugins.forEach { plugin ->
+                    if (plugin is com.android.purebilibili.feature.plugin.SponsorBlockPlugin) {
+                        val segments = plugin.getSegments()
+                        if (segments.isNotEmpty()) {
+                            updateSponsorVideoLabel(segments)
+                        }
+                    }
+                }
                 if (plugins.none { it is com.android.purebilibili.feature.plugin.SponsorBlockPlugin } &&
                     _sponsorProgressMarkers.value.isNotEmpty()
                 ) {

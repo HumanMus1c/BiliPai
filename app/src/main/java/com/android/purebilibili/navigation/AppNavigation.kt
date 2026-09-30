@@ -56,6 +56,8 @@ import com.android.purebilibili.feature.home.components.LinkedDockPhase
 import com.android.purebilibili.feature.home.components.resolveLinkedDockPhaseOnAudioChange
 import com.android.purebilibili.feature.home.HomeVideoClickRequest
 import com.android.purebilibili.feature.home.HomeVideoClickSource
+import com.android.purebilibili.feature.home.HomeCategory
+import com.android.purebilibili.feature.home.PopularSubCategory
 import com.android.purebilibili.feature.home.HomeScreen
 import com.android.purebilibili.feature.home.HomeViewModel
 import com.android.purebilibili.feature.home.DepthSyncedGlobalHomeWallpaperBackdrop
@@ -1638,6 +1640,28 @@ fun AppNavigation(
                 is BilibiliNavigationTarget.Article -> {
                     pushNavigation3Key(BiliPaiNavKey.ArticleDetail(target.articleId))
                 }
+                is BilibiliNavigationTarget.PopularFeed -> {
+                    // 热门榜单(每周必看/排行榜/入站必刷/综合热门):切回首页 POPULAR
+                    // 子分类的原生 feed,并弹回主宿主,与底栏点首页一致。
+                    // 注意顺序:先切子分类(同步写状态),再切大类(其状态更新在协程中,
+                    // 若后切子分类,switchCategory 捕获的旧快照会把子分类覆盖回去)。
+                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
+                    if (homeIndex >= 0) {
+                        mainBottomPagerState.switchToPage(homeIndex)
+                    }
+                    homeViewModel.switchPopularSubCategory(
+                        when (target.subCategoryKey) {
+                            "weekly" -> PopularSubCategory.WEEKLY
+                            "rank" -> PopularSubCategory.RANKING
+                            "all", "precious" -> PopularSubCategory.PRECIOUS
+                            else -> PopularSubCategory.COMPREHENSIVE
+                        }
+                    )
+                    homeViewModel.switchCategory(HomeCategory.POPULAR)
+                    replaceNavigation3BackStack(
+                        popBiliPaiNavKeyToRoot(navigation3BackStack)
+                    )
+                }
             }
             return true
         }
@@ -2178,8 +2202,7 @@ fun AppNavigation(
                                                 realtimeBlurEnabledProvider = {
                                                     shouldUseRealtimeVideoCardTransitionBackgroundBlur(
                                                         source = backgroundSource,
-                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled ||
-                                                            appNavigationSettings.miuixTransitionBlurEnabled,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
                                                     )
                                                 },
                                                 scaleReductionProvider = {
@@ -2199,8 +2222,7 @@ fun AppNavigation(
                                                 realtimeBlurEnabledProvider = {
                                                     shouldUseRealtimeVideoCardTransitionBackgroundBlur(
                                                         source = backgroundSource,
-                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled ||
-                                                            appNavigationSettings.miuixTransitionBlurEnabled,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
                                                     )
                                                 },
                                                 scaleReductionProvider = {

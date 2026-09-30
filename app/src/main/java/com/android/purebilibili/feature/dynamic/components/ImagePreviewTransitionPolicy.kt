@@ -1,7 +1,10 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Dp
@@ -202,18 +205,30 @@ internal fun resolveImagePreviewVisualFrame(
 internal fun imagePreviewOpenTween(): TweenSpec<Float> =
     tween(durationMillis = IMAGE_PREVIEW_OPEN_DURATION_MS, easing = CubicBezierEasing(0f, 0f, 0.58f, 1f))
 
-/** Reverse route motion uses the matching ease-in curve when returning to the source. */
-internal fun imagePreviewCloseTween(durationMillis: Int): TweenSpec<Float> =
-    tween(durationMillis = durationMillis, easing = CubicBezierEasing(0.42f, 0f, 1f, 1f))
+/**
+ * 关闭回位用临界阻尼 spring 而非 easeIn tween：easeIn 在 t=0 斜率为 0，
+ * 松手后画面会先"停一下"再窜出，且末端速度最大造成硬着陆。
+ * 临界阻尼 spring 起步即可携带手势速度，落地自带减速，与评论区下拉关闭的手感一致。
+ */
+internal fun imagePreviewCloseSpring(): SpringSpec<Float> =
+    spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
 
+/** 关闭回位允许携带的手势速度上限（px/s），避免极端快挥把画面甩过落点方向。 */
+internal fun clampImagePreviewDismissVelocity(velocityY: Float): Float =
+    velocityY.coerceIn(-3000f, 3000f)
+
+/**
+ * 模糊随回位进度线性爬升。此前用 returnProgress² 会让模糊集中在关闭后半段
+ * 突然涌出，叠加量化步进呈现"跳级"感；线性曲线整段均匀，步进仍用于防抖动。
+ */
 internal fun resolveImagePreviewBlurRadiusPx(
     visualProgress: Float,
     maxBlurRadiusPx: Float,
 ): Float {
     val returnProgress = 1f - visualProgress.coerceIn(0f, 1f)
     val maxRadius = maxBlurRadiusPx.coerceAtLeast(0f)
-    val easedRadius = maxRadius * returnProgress * returnProgress
-    return ((easedRadius / IMAGE_PREVIEW_BLUR_QUANTUM_PX).roundToInt() *
+    val linearRadius = maxRadius * returnProgress
+    return ((linearRadius / IMAGE_PREVIEW_BLUR_QUANTUM_PX).roundToInt() *
         IMAGE_PREVIEW_BLUR_QUANTUM_PX).coerceIn(0f, maxRadius)
 }
 
@@ -397,15 +412,63 @@ internal fun resolveImagePreviewDismissBackdropAlpha(
 /**
  * Chrome（顶栏/评论条）比图片 morph 更早淡出，避免控件跟着缩变形。
  */
+/**
+ * Rect 飞行路径的图片全程不透明、自己飞回缩略图，避免初始暗闪；
+ * fallback 关闭（无 sourceRect）没有落点，图片必须与遮罩同步淡出，
+ * 否则窗口移除瞬间全屏图凭空消失，产生一次闪切。
+ */
+internal fun resolveImagePreviewDismissContentAlpha(
+    hasRectFlight: Boolean,
+    isDismissing: Boolean,
+    visualProgress: Float
+): Float {
+    if (hasRectFlight || !isDismissing) return 1f
+    return visualProgress.coerceIn(0f, 1f)
+}
+
+/**
+ * Chrome（顶栏/评论条）比图片 morph 更早淡出，避免控件跟着缩变形。
+ * 淡出窗口 [0.05, 0.6]：与背景/图片的节奏错位比旧的 [0.35, 1] 更小，
+ * 又仍保证后半段只剩干净的图片飞回。
+ */
 internal fun resolveImagePreviewChromeAlpha(
     visualProgress: Float,
     isDismissing: Boolean
 ): Float {
     val progress = visualProgress.coerceIn(0f, 1f)
     if (!isDismissing) return progress
-    // 前半段基本清掉 chrome，后半段只剩干净的图片飞回。
-    return ((progress - 0.35f) / 0.65f).coerceIn(0f, 1f)
+    return ((progress - 0.05f) / 0.55f).coerceIn(0f, 1f)
 }
+
+/**
+ * 圆角在非均匀缩放图层上会被拉伸成椭圆。按轴分别反除缩放，
+ * 屏幕上的圆角在飞行全程保持正圆。
+ */
+internal data class ImagePreviewCounterScaledCornerRadii(
+    val horizontalDp: Float,
+    val verticalDp: Float
+)
+
+internal fun resolveImagePreviewCounterScaledCornerRadii(
+    cornerRadiusDp: Float,
+    scaleX: Float,
+    scaleY: Float
+): ImagePreviewCounterScaledCornerRadii {
+    val radius = cornerRadiusDp.coerceAtLeast(0f)
+    val cap = radius * 64f
+    return ImagePreviewCounterScaledCornerRadii(
+        horizontalDp = (radius / scaleX.coerceAtLeast(0.01f)).coerceAtMost(cap),
+        verticalDp = (radius / scaleY.coerceAtLeast(0.01f)).coerceAtMost(cap)
+    )
+}
+
+/** 3D 翻页强度随进度在 [0.85, 1] 平滑进入，替代硬阈值开关造成的尾段跳变。 */
+internal fun resolveImagePreviewGallery3DBlend(transitionProgress: Float): Float =
+    ((transitionProgress.coerceIn(0f, 1f) - 0.85f) / 0.15f).coerceIn(0f, 1f)
+
+/** 实况照片在 [0.7, 1] 随进度淡入，替代 0.85 处的整帧弹入。 */
+internal fun resolveImagePreviewLivePhotoAlpha(visualProgress: Float): Float =
+    ((visualProgress.coerceIn(0f, 1f) - 0.7f) / 0.3f).coerceIn(0f, 1f)
 
 internal fun resolveImagePreviewText(
     textContent: ImagePreviewTextContent?,

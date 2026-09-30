@@ -1584,20 +1584,18 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         withContext(Dispatchers.IO) {
             require(imageUris.size <= 9) { "最多选择 9 张图片" }
             imageUris.mapIndexed { index, uri ->
-                val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: error("无法读取图片文件")
-                require(bytes.isNotEmpty()) { "图片内容为空" }
-                require(bytes.size <= 15 * 1024 * 1024) { "图片过大（单张最大 15MB）" }
                 val fileName = appContext.contentResolver.query(
                     uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
                 )?.use { cursor ->
                     val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
                 } ?: "comment_${System.currentTimeMillis()}_${index + 1}.jpg"
+                // 流式上传:空/15MB 校验在 CommentRepository 内完成,不再整文件读入内存。
                 CommentRepository.uploadCommentImage(
                     fileName = fileName,
                     mimeType = appContext.contentResolver.getType(uri) ?: "image/jpeg",
-                    bytes = bytes,
+                    resolver = appContext.contentResolver,
+                    uri = uri,
                 ).getOrElse { throw it }
             }
         }

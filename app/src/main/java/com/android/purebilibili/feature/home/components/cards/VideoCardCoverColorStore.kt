@@ -47,7 +47,7 @@ object VideoCardCoverColorStore {
             synchronized(colorCache) {
                 colorCache.put(cacheKey, color)
             }
-            withContext(Dispatchers.Main) {
+            withContext(Dispatchers.Main.immediate) {
                 onColorExtracted(color)
             }
         }

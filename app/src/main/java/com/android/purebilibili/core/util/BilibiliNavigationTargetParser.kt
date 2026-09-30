@@ -13,6 +13,12 @@ sealed interface BilibiliNavigationTarget {
     data class BangumiEpisode(val epId: Long) : BilibiliNavigationTarget
     data class Music(val musicId: String) : BilibiliNavigationTarget
     data class Article(val articleId: Long) : BilibiliNavigationTarget
+
+    /**
+     * 站内热门榜单页(weekly/rank/all/comprehensive)。
+     * subCategoryKey 用中性字符串,由导航层映射到首页原生子分类。
+     */
+    data class PopularFeed(val subCategoryKey: String) : BilibiliNavigationTarget
 }
 
 object BilibiliNavigationTargetParser {
@@ -92,6 +98,12 @@ object BilibiliNavigationTargetParser {
         queryMap: Map<String, String>
     ): BilibiliNavigationTarget? {
         when {
+            host == "popular" -> {
+                pathSegments.firstOrNull()?.lowercase()?.let { key ->
+                    return BilibiliNavigationTarget.PopularFeed(subCategoryKey = key)
+                }
+            }
+
             host == "space" -> {
                 pathSegments.firstOrNull()?.toLongOrNull()?.let {
                     return BilibiliNavigationTarget.Space(it)

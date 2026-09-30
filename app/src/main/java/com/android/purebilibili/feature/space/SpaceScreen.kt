@@ -24,6 +24,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.android.purebilibili.feature.home.homeFeedPinchZoom
 import com.android.purebilibili.feature.home.resolveHomeFeedPinchColumnBounds
+import com.android.purebilibili.feature.home.resolveHomeFeedStoredColumnCount
+import com.android.purebilibili.feature.home.isCompactHomeFeedScreen
 import com.android.purebilibili.feature.home.GridPinchColumnHudPill
 import com.android.purebilibili.core.ui.components.AppLiquidGlassBackToTopButton
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
@@ -240,6 +242,7 @@ import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceH
 import com.android.purebilibili.feature.dynamic.components.imagePreviewSourceBounds
 import com.android.purebilibili.feature.dynamic.components.rememberImagePreviewSourceRect
 import com.android.purebilibili.feature.dynamic.components.prepareImagePreviewSourceTransition
+import com.android.purebilibili.feature.dynamic.components.resolveImagePreviewPlaceholderCacheKey
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
@@ -1380,7 +1383,11 @@ private fun SpaceContent(
         // 使用 360dp 的可读宽度，避免在展开屏上被媒体卡片的紧密列数压窄。
         val preferredGridColumns = resolveSpaceContentGridColumnCount(
             widthDp = windowWidthDp,
-            fixedColumnCount = homeSettings.gridColumnCount,
+            fixedColumnCount = resolveHomeFeedStoredColumnCount(
+                widthSizeClass = windowSizeClass.widthSizeClass,
+                compactColumnCount = homeSettings.gridColumnCountCompact,
+                defaultColumnCount = homeSettings.gridColumnCount,
+            ),
             cardWidthPreset = homeSettings.homeFeedCardWidthPreset,
             contentMaxWidthDp = adaptiveLayoutSpec.contentMaxWidthDp,
             widthSizeClass = windowSizeClass.widthSizeClass,
@@ -1402,7 +1409,7 @@ private fun SpaceContent(
                 contentWidthDp = windowWidthDp,
             )
         }
-        LaunchedEffect(homeSettings.gridColumnCount) {
+        LaunchedEffect(homeSettings.gridColumnCount, homeSettings.gridColumnCountCompact) {
             interactiveColumns = null
         }
         val spaceFeedCardLayout = resolveHomeFeedCardLayout(
@@ -1429,7 +1436,11 @@ private fun SpaceContent(
                     },
                     onGestureEnd = { finalColumns ->
                         coroutineScope.launch {
-                            SettingsManager.setGridColumnCount(context, finalColumns)
+                            if (isCompactHomeFeedScreen(windowSizeClass.widthSizeClass)) {
+                                SettingsManager.setGridColumnCountCompact(context, finalColumns)
+                            } else {
+                                SettingsManager.setGridColumnCount(context, finalColumns)
+                            }
                         }
                         pinchPillDismissJob?.cancel()
                         pinchPillDismissJob = coroutineScope.launch {
@@ -2787,7 +2798,8 @@ private fun SpaceHeader(
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(FormatUtils.buildSizedImageUrl(userInfo.face, width = 320, height = 320))
-                            .crossfade(true)
+                            .memoryCacheKey(resolveImagePreviewPlaceholderCacheKey(userInfo.face) ?: userInfo.face)
+                            .crossfade(false)
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
@@ -5106,7 +5118,8 @@ private fun SpaceHeaderBanner(
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(item.header)
-                        .crossfade(true)
+                        .memoryCacheKey(resolveImagePreviewPlaceholderCacheKey(item.header) ?: item.header)
+                        .crossfade(false)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -5143,7 +5156,8 @@ private fun SpaceHeaderBanner(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(item.header)
-                    .crossfade(true)
+                    .memoryCacheKey(resolveImagePreviewPlaceholderCacheKey(item.header) ?: item.header)
+                    .crossfade(false)
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
@@ -5164,7 +5178,10 @@ private fun SpaceHeaderBanner(
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(fallbackTopPhotoUrl)
-                .crossfade(true)
+                .memoryCacheKey(
+                    resolveImagePreviewPlaceholderCacheKey(fallbackTopPhotoUrl) ?: fallbackTopPhotoUrl
+                )
+                .crossfade(false)
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,

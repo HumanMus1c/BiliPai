@@ -2524,6 +2524,7 @@ private fun dispatchDynamicRichTextLinkPayload(
                                 true
                             } else false
                         }
+                        is BilibiliNavigationTarget.PopularFeed -> false
                         is BilibiliNavigationTarget.Live -> {
                             if (onLiveClick != null) {
                                 onLiveClick(target.roomId, "", "")

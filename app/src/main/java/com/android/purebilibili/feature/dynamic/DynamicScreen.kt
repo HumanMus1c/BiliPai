@@ -1525,10 +1525,12 @@ private fun DynamicList(
     val useManualPrependAnchor = remember(feedLayoutMode) {
         shouldUseDynamicManualPrependAnchor(feedLayoutMode)
     }
-    val skeletonPulse = if (showSkeleton) {
-        com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse()
+    // [性能优化] 脉冲 state 只包进 provider,值在骨架卡 draw 阶段读取,
+    // 骨架期间屏幕级组合作用域不再逐帧失效。
+    val skeletonPulseState = if (showSkeleton) {
+        com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulseState()
     } else {
-        0f
+        null
     }
 
     FeedVerticalStaggeredGrid(
@@ -1580,7 +1582,7 @@ private fun DynamicList(
                 contentType = { "dynamic_skeleton" }
             ) { _ ->
                 com.android.purebilibili.feature.dynamic.components.DynamicFeedSkeletonCard(
-                    pulse = skeletonPulse
+                    pulse = { skeletonPulseState?.value ?: 0f }
                 )
             }
         }

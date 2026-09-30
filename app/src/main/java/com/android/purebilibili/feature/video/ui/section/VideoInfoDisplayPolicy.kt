@@ -175,3 +175,45 @@ internal fun resolveDynamicPublishTimeRowText(
         "动态发布 $relativeText"
     }
 }
+
+/**
+ * 视频荣誉徽标文案(入站必刷/每周必看/全站排行榜/热门)。
+ * 优先使用接口下发的 honor_name;缺省时按 type 拼 B 站官方文案。
+ */
+internal fun resolveVideoHonorChipText(
+    type: Int,
+    honorName: String,
+    descContent: String?,
+    weeklyRecommendNum: Int
+): String? {
+    honorName.takeIf { it.isNotBlank() }?.let { return it }
+    return when (type) {
+        1 -> "入站必刷收录"
+        2 -> weeklyRecommendNum.takeIf { it > 0 }
+            ?.let { "第$it 期每周必看" }
+            ?: "每周必看"
+        3 -> descContent?.toIntOrNull()
+            ?.let { "全站排行榜最高第$it 名" }
+            ?: "全站排行榜上榜作品"
+        4 -> "热门"
+        else -> null
+    }
+}
+
+/**
+ * 荣誉徽标跳转链接:一律走 bilibili://popular 内部 scheme,
+ * 由链接路由映射到首页热门区对应子分类的原生 feed,不进 Web。
+ */
+internal fun resolveVideoHonorJumpUrl(
+    type: Int,
+    honorUrl: String,
+    weeklyRecommendNum: Int
+): String? {
+    return when (type) {
+        1 -> "bilibili://popular/all"
+        2 -> "bilibili://popular/weekly"
+        3 -> "bilibili://popular/rank"
+        4 -> "bilibili://popular/comprehensive"
+        else -> honorUrl.takeIf { it.isNotBlank() }
+    }
+}
