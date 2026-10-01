@@ -1,6 +1,8 @@
 // 文件路径: app/src/main/java/com/android/purebilibili/MainActivity.kt
 package com.android.purebilibili
 
+import com.android.purebilibili.core.ui.components.AppText
+
 import androidx.compose.runtime.collectAsState
 
 import android.animation.ValueAnimator
@@ -401,9 +403,8 @@ internal fun resolveMainActivityLinkNavigation(
         )
 
         is BilibiliNavigationTarget.Music -> {
-            val auSid = target.musicId.removePrefix("au").removePrefix("AU").toLongOrNull() ?: return null
             MainActivityLinkNavigation(
-                pendingNavigationRoute = ScreenRoutes.MusicDetail.createRoute(auSid)
+                pendingNavigationRoute = ScreenRoutes.createMusicRoute(target.musicId) ?: return null
             )
         }
 
@@ -411,8 +412,13 @@ internal fun resolveMainActivityLinkNavigation(
             pendingNavigationRoute = ScreenRoutes.ArticleDetail.createRoute(target.articleId)
         )
 
-        // 热门榜单只在主宿主内导航,冷启动深链接入时落到默认首页即可。
-        is BilibiliNavigationTarget.PopularFeed -> MainActivityLinkNavigation()
+        is BilibiliNavigationTarget.PopularFeed -> if (target.subCategoryKey == "weekly") {
+            MainActivityLinkNavigation(
+                pendingNavigationRoute = ScreenRoutes.WeeklySeries.createRoute(target.weeklyNumber)
+            )
+        } else {
+            MainActivityLinkNavigation()
+        }
     }
 }
 
@@ -2047,50 +2053,50 @@ open class MainActivity : AppCompatActivity() {
                         AppAlertDialog(
                             onDismissRequest = { startupUpdateCheckResult = null },
                             title = {
-                                Text(
+                                AppText(
                                     text = "发现新版本 v${info.latestVersion}",
                                     color = dialogTextColors.titleColor
                                 )
                             },
                             text = {
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
+                                    AppText(
                                         text = "当前版本 v${info.currentVersion}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = dialogTextColors.currentVersionColor
                                     )
                                     preferredAsset?.let { asset ->
                                         Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
+                                        AppText(
                                             text = "安装包：${asset.name}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = dialogTextColors.currentVersionColor
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
+                                    AppText(
                                         text = "Release 锁定：${if (info.releaseIsImmutable) "Immutable" else "可变"}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = dialogTextColors.currentVersionColor
                                     )
-                                    Text(
+                                    AppText(
                                         text = "源码提交：$releaseCommit",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = dialogTextColors.currentVersionColor
                                     )
-                                    Text(
+                                    AppText(
                                         text = "构建来源：$releaseWorkflowSubtitle",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = dialogTextColors.currentVersionColor
                                     )
-                                    Text(
+                                    AppText(
                                         text = "Provenance：$releaseVerificationEvidence",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = dialogTextColors.currentVersionColor
                                     )
                                     if (startupUpdateDownloadState.status != AppUpdateDownloadStatus.IDLE) {
                                         Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
+                                        AppText(
                                             text = when (startupUpdateDownloadState.status) {
                                                 AppUpdateDownloadStatus.QUEUED -> "等待网络后开始下载"
                                                 AppUpdateDownloadStatus.DOWNLOADING ->
@@ -2105,7 +2111,7 @@ open class MainActivity : AppCompatActivity() {
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
+                                    AppText(
                                         text = resolvedReleaseNotes,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = dialogTextColors.releaseNotesColor,
@@ -2162,7 +2168,7 @@ open class MainActivity : AppCompatActivity() {
                                         }
                                     }
                                 }) {
-                                    Text(
+                                    AppText(
                                         when {
                                             preferredAsset == null -> "前往下载"
                                             startupUpdateDownloadState.status == AppUpdateDownloadStatus.DOWNLOADING ->
@@ -2177,7 +2183,7 @@ open class MainActivity : AppCompatActivity() {
                                 AppDialogAction(onClick = {
                                     startupUpdateCheckResult = null
                                     startupUpdateDownloadState = AppUpdateDownloadState()
-                                }) { Text("稍后") }
+                                }) { AppText("稍后") }
                             }
                         )
                     }
@@ -2198,10 +2204,10 @@ open class MainActivity : AppCompatActivity() {
                                 }
                             },
                             title = {
-                                Text(text = "检测到上次闪退日志")
+                                AppText(text = "检测到上次闪退日志")
                             },
                             text = {
-                                Text(
+                                AppText(
                                     text = "应用已在私有目录保存一份脱敏后的崩溃快照，不会自动上传或写入公共下载目录。现在可以主动分享给开发者排查，也可以关闭提示。"
                                 )
                             },
@@ -2213,7 +2219,7 @@ open class MainActivity : AppCompatActivity() {
                                         Logger.clearPendingCrashSnapshot(context)
                                         pendingCrashSnapshotPath = null
                                     }
-                                }) { Text("分享") }
+                                }) { AppText("分享") }
                             },
                             dismissButton = {
                                 AppDialogAction(onClick = {
@@ -2222,7 +2228,7 @@ open class MainActivity : AppCompatActivity() {
                                         Logger.clearPendingCrashSnapshot(context)
                                         pendingCrashSnapshotPath = null
                                     }
-                                }) { Text("关闭") }
+                                }) { AppText("关闭") }
                             }
                         )
                     }

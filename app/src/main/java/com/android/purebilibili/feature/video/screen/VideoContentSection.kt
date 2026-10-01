@@ -518,11 +518,12 @@ internal class VideoContentNoteActions(
     val onOpenVideoNoteEditor: () -> Unit,
     val onCloseVideoNoteEditor: () -> Unit,
     val onVideoNoteDocumentChange: (VideoNoteEditorDocument) -> Unit,
-    val onInsertVideoNoteTimestamp: () -> Unit,
+    val onInsertVideoNoteTimestamp: () -> com.android.purebilibili.feature.video.note.VideoNoteBlock.Timestamp?,
     val onVideoNoteTimestampClick: (Long) -> Unit,
     val onSaveVideoNote: (VideoNoteEditorDocument) -> Unit,
     val onDeleteVideoNote: () -> Unit,
     val onRetryVideoNote: () -> Unit,
+    val onLoadMorePublicVideoNotes: () -> Unit,
     val onPublicVideoNoteClick: (Long, String) -> Unit,
 )
 
@@ -633,6 +634,7 @@ internal fun VideoContentSection(
     val onSaveVideoNote = noteActions.onSaveVideoNote
     val onDeleteVideoNote = noteActions.onDeleteVideoNote
     val onRetryVideoNote = noteActions.onRetryVideoNote
+    val onLoadMorePublicVideoNotes = noteActions.onLoadMorePublicVideoNotes
     val onPublicVideoNoteClick = noteActions.onPublicVideoNoteClick
     val onSelectedTabChange = uiActions.onSelectedTabChange
     val onIntroScrollThresholdChange = uiActions.onIntroScrollThresholdChange
@@ -1242,14 +1244,24 @@ internal fun VideoContentSection(
                 confirmDeleteNote = true
             },
             onShareClick = { document -> onShareVideoNote(document, false) },
-            onPublicNoteClick = onPublicVideoNoteClick
+            onPublicNoteClick = onPublicVideoNoteClick,
+            onAuthorClick = { mid ->
+                if (mid > 0L) onDescriptionUrlClick?.invoke("https://space.bilibili.com/$mid")
+            },
+            onLoadMore = onLoadMorePublicVideoNotes,
+            onOfficialEditorClick = {
+                showNoteListSheet = false
+                onDescriptionUrlClick?.invoke(
+                    "https://www.bilibili.com/h5/note-app?oid=${info.aid}&pagefrom=ugcvideo"
+                )
+            }
         )
 
         VideoNoteEditorSheet(
             noteState = videoNoteState,
             onDismiss = onCloseVideoNoteEditor,
             onDocumentChange = onVideoNoteDocumentChange,
-            onInsertTimestamp = onInsertVideoNoteTimestamp,
+            currentTimestampProvider = onInsertVideoNoteTimestamp,
             onTimestampClick = onVideoNoteTimestampClick,
             onShare = { document -> onShareVideoNote(document, videoNoteState.editorFromAiSummary) },
             onSave = onSaveVideoNote
@@ -2116,8 +2128,8 @@ private fun VideoContentTabBar(
                 NativeDanmakuToggleButton(
                     enabled = danmakuEnabled,
                     onToggle = onDanmakuToggle,
-                    activeTint = MaterialTheme.colorScheme.secondary,
-                    inactiveTint = MaterialTheme.colorScheme.outline,
+                    activeTint = MaterialTheme.colorScheme.onSurface,
+                    inactiveTint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .padding(end = danmakuActionLayoutPolicy.toggleTrailingPaddingDp.dp)
                         .size(danmakuActionLayoutPolicy.toggleButtonSizeDp.dp),

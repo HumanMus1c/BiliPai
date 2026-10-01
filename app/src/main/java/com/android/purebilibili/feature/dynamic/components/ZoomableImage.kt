@@ -49,7 +49,7 @@ fun ZoomableImage(
     onZoomChange: (Float) -> Unit = {},
     onDisplayRectChange: (Rect?) -> Unit = {},
     onVerticalDismissDragStart: () -> Unit = {},
-    onVerticalDismissDrag: (Float) -> Unit = {},
+    onVerticalDismissDrag: (Offset) -> Unit = {},
     onVerticalDismissDragEnd: (Float) -> Unit = {},
     onVerticalDismissDragCancel: () -> Unit = {},
     onExtremeAspectRatioDetected: () -> Unit = {},
@@ -238,8 +238,9 @@ fun ZoomableImage(
                         if (pastTouchSlop) {
                             when (gestureMode) {
                                 ZoomableImageGestureMode.VERTICAL_DISMISS -> {
-                                    if (panChange.y != 0f) {
-                                        onVerticalDismissDrag(panChange.y)
+                                    if (panChange != Offset.Zero) {
+                                        // 双轴跟随：竖滑退出时手指横向漂移也实时传给宿主
+                                        onVerticalDismissDrag(panChange)
                                     }
                                     val moveTimeMs = event.changes.firstOrNull()?.uptimeMillis ?: 0L
                                     if (lastVerticalDragTimeMs != 0L && moveTimeMs > lastVerticalDragTimeMs) {

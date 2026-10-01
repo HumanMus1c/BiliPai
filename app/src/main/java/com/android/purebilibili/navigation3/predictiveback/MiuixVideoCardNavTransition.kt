@@ -427,8 +427,19 @@ internal class MiuixVideoCardTransitionProgress {
     private var settleRawReturn = 0f
     private var settleVisualReturn = 0f
 
+    private fun isCoveredOrRevealedParent(scope: NavTransitionScope): Boolean =
+        scope.relativeDepth >= 0f && scope.role != NavRole.Outgoing
+
     /** One mapping for the flying shell, its contents, and the retained source page. */
     fun visualDepth(scope: NavTransitionScope): Float {
+        // Gesture/settle belongs to the whole NavDisplay, including covered entries. Returning
+        // from BGM (or another child) reveals this video at positive depth; it does not close
+        // the video into its original feed card. Keep it fullscreen through the landing frame.
+        if (isCoveredOrRevealedParent(scope)) {
+            gestureStartReturn = null
+            activeSettle = null
+            return 1f
+        }
         val rawDepth = resolveMiuixVideoCardDepthProgress(scope.relativeDepth)
         val rawReturn = 1f - rawDepth
         val settle = scope.settle
@@ -514,7 +525,7 @@ internal class MiuixVideoCardTransitionProgress {
 
     // Miuix retains gesture metadata while settling. It is NOT still direct manipulation.
     fun isGestureInProgress(): Boolean = topScope?.let {
-        it.gesture != null && it.settle == null
+        !isCoveredOrRevealedParent(it) && it.gesture != null && it.settle == null
     } == true
 
     fun depthOrNull(): Float? = topScope?.let(::visualDepth)
@@ -523,6 +534,7 @@ internal class MiuixVideoCardTransitionProgress {
 
     fun settleStateOrNull(): VideoCardTransitionSettleState? = topScope?.let { scope ->
         when {
+            isCoveredOrRevealedParent(scope) -> VideoCardTransitionSettleState.Held
             scope.settle?.phase == NavSettlePhase.Cancel -> VideoCardTransitionSettleState.CancelRestore
             isGestureInProgress() -> VideoCardTransitionSettleState.InteractiveSeek
             scope.role == NavRole.Outgoing && scope.relativeDepth <= -1f -> VideoCardTransitionSettleState.Idle
@@ -556,7 +568,7 @@ internal class MiuixVideoCardTransitionProgress {
      * 供预测返回背景模糊（predictiveBackBackgroundEffect）随手势与落地动画平滑消退，避免松手瞬间断档闪烁。
      */
     fun gestureBackProgress(): Float? = topScope?.let { scope ->
-        if (scope.gesture != null || scope.settle != null) {
+        if (!isCoveredOrRevealedParent(scope) && (scope.gesture != null || scope.settle != null)) {
             val morph = visualDepth(scope)
             (1f - morph).coerceIn(0f, 1f)
         } else {

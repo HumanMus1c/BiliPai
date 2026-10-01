@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.MoreVert
@@ -102,6 +103,7 @@ import com.android.purebilibili.core.ui.UserAvatarCornerMarkBadge
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.resolveUpNameColor
 import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.foundation.text.selection.SelectionContainer
 import java.net.URLEncoder
@@ -1573,11 +1575,12 @@ fun ReplyItemView(
                                 text = item.member.uname,
                                 fontSize = VideoCommentTypographyTokens.author,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (item.member.vip?.vipStatus == 1) {
-                                    appearance.accentColor
-                                } else {
-                                    appearance.primaryTextColor.copy(alpha = 0.9f)
-                                },
+                                color = resolveUpNameColor(
+                                    vipStatus = item.member.vip?.vipStatus ?: 0,
+                                    vipType = item.member.vip?.vipType ?: 0,
+                                    onSurface = appearance.primaryTextColor.copy(alpha = 0.9f),
+                                    secondary = MaterialTheme.colorScheme.secondary,
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -1613,7 +1616,7 @@ fun ReplyItemView(
                         AppText(
                             text = metadataText,
                             fontSize = VideoCommentTypographyTokens.metadata,
-                            lineHeight = 16.sp,
+                            lineHeight = VideoCommentTypographyTokens.metadataLineHeight,
                             color = appearance.secondaryTextColor
                         )
                     }
@@ -1648,7 +1651,8 @@ fun ReplyItemView(
                                 ReplyTextAction(
                                     label = "屏蔽该用户",
                                     appearance = appearance,
-                                    onClick = { confirmBlockUser = true }
+                                    onClick = { confirmBlockUser = true },
+                                    icon = Icons.Outlined.Block
                                 )
                                 ReplyTextAction(
                                     label = "举报",
@@ -1656,7 +1660,8 @@ fun ReplyItemView(
                                     onClick = {
                                         hatePromptHandled = true
                                         showReportDialog = true
-                                    }
+                                    },
+                                    icon = Icons.Outlined.Flag
                                 )
                             }
                         }
@@ -2735,7 +2740,8 @@ internal fun ReplySpecialLabelChip(text: String) {
 internal fun ReplyTextAction(
     label: String,
     appearance: VideoCommentAppearance,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    icon: ImageVector = Icons.AutoMirrored.Outlined.Reply
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -2745,7 +2751,7 @@ internal fun ReplyTextAction(
             .padding(end = 8.dp)
     ) {
         AppIcon(
-            imageVector = Icons.AutoMirrored.Outlined.Reply,
+            imageVector = icon,
             contentDescription = null,
             tint = appearance.actionTint,
             modifier = Modifier.size(17.dp)

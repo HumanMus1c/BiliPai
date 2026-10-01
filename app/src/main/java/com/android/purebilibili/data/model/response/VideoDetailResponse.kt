@@ -205,8 +205,13 @@ data class UgcSeason(
     val cover: String = "",
     val mid: Long = 0,
     val ep_count: Int = 0,  // 总集数
+    val intro: String = "", // 合集简介（视图接口返回，PiliPlus 未利用）
+    val desc: String = "",
     val sections: List<UgcSection> = emptyList()
-)
+) {
+    /** 展示用简介：intro 优先，desc 兜底 */
+    val displayIntro: String get() = intro.ifBlank { desc }
+}
 
 @Serializable
 data class UgcSection(

@@ -708,6 +708,7 @@ fun DynamicDetailScreen(
                         initialIndex = previewInitialIndex,
                         sourceRect = previewSourceRect?.rect,
                         sourceRects = previewSourceRect?.galleryRects.orEmpty(),
+                        sourceKey = previewSourceRect?.sourceKey,
                         sourceCornerRadiusDp = previewSourceRect?.cornerRadiusDp
                             ?: AppShapes.containerCornerDp(ContainerLevel.Field).value,
                         textContent = previewTextContent,

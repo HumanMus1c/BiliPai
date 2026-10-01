@@ -21,6 +21,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.StrictMode
+import android.os.SystemClock
 import androidx.compose.foundation.ComposeFoundationFlags
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.profileinstaller.ProfileInstaller
@@ -34,6 +35,9 @@ import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.core.lifecycle.BackgroundManager
+import com.android.purebilibili.core.lifecycle.BACKGROUND_IMAGE_TRIM_DELAY_MS
+import com.android.purebilibili.core.lifecycle.resolveBackgroundImageCacheTrimTargetBytes
+import com.android.purebilibili.core.lifecycle.shouldTrimImageCacheAfterBackgroundDelay
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiKeyManager
 import com.android.purebilibili.core.plugin.PluginManager
@@ -93,6 +97,46 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
     //  保存 ImageLoader 引用以便在 onTrimMemory 中使用
     private var _imageLoader: ImageLoader? = null
     private var launcherIconUiModeSnapshot: Int? = null
+
+    private val backgroundImageTrimHandler by lazy { Handler(Looper.getMainLooper()) }
+    private var enteredBackgroundForImageTrimAtMs = 0L
+    private val delayedBackgroundImageTrim = Runnable {
+        val miniPlayer = com.android.purebilibili.feature.video.player.MiniPlayerManager.getInstanceOrNull()
+        if (!StartupRecovery.isRecoveryMode && shouldTrimImageCacheAfterBackgroundDelay(
+                isInBackground = BackgroundManager.isInBackground,
+                isPipActiveOrPending = miniPlayer?.shouldKeepPlaybackForPipTransition() == true,
+                backgroundElapsedMs = SystemClock.elapsedRealtime() - enteredBackgroundForImageTrimAtMs,
+            )
+        ) {
+            // Keep a small warm cache for return-to-home. This never stops playback, clears
+            // a video surface, or discards the current wallpaper palette.
+            _imageLoader?.memoryCache?.apply {
+                trimToSize(resolveBackgroundImageCacheTrimTargetBytes(size, BACKGROUND_IMAGE_TRIM_DELAY_MS))
+            }
+            com.android.purebilibili.feature.home.components.cards.VideoCardCoverColorStore.trimToSize(16)
+            com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.clearCache()
+            Logger.d(PureApplicationRuntimeConfig.TAG, "Sustained background: trimmed image cache to 8 MiB")
+        }
+    }
+    private val backgroundImageTrimListener = object : BackgroundManager.BackgroundStateListener {
+        override fun onEnterBackground() {
+            enteredBackgroundForImageTrimAtMs = SystemClock.elapsedRealtime()
+            backgroundImageTrimHandler.removeCallbacks(delayedBackgroundImageTrim)
+            // A cached process may be frozen before the delayed task can execute. Apply
+            // the light budget synchronously while the process is still running.
+            val miniPlayer = com.android.purebilibili.feature.video.player.MiniPlayerManager.getInstanceOrNull()
+            if (!StartupRecovery.isRecoveryMode && miniPlayer?.shouldKeepPlaybackForPipTransition() != true) {
+                _imageLoader?.memoryCache?.apply {
+                    trimToSize(resolveBackgroundImageCacheTrimTargetBytes(size, 0L))
+                }
+            }
+            backgroundImageTrimHandler.postDelayed(delayedBackgroundImageTrim, BACKGROUND_IMAGE_TRIM_DELAY_MS)
+        }
+
+        override fun onEnterForeground() {
+            backgroundImageTrimHandler.removeCallbacks(delayedBackgroundImageTrim)
+        }
+    }
 
     private val telemetryListener by lazy {
         PureApplicationRuntimeConfig.createTelemetryBackgroundStateListener()
@@ -282,7 +326,10 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
             "token_manager_init" -> TokenManager.init(this)
             "wbi_key_restore" -> WbiKeyManager.restoreFromStorage(this)
             "video_repository_init" -> com.android.purebilibili.data.repository.VideoRepository.init(this)
-            "background_manager_init" -> BackgroundManager.init(this)
+            "background_manager_init" -> {
+                BackgroundManager.init(this)
+                BackgroundManager.addListener(backgroundImageTrimListener)
+            }
             "player_settings_cache_init" -> com.android.purebilibili.core.store.PlayerSettingsCache.init(this)
             "notification_channel_init" -> createNotificationChannel()
             "message_notification_sync" -> AppScope.ioScope.launch {

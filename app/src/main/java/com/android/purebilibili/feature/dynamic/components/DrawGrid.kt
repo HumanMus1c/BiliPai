@@ -164,8 +164,10 @@ private fun DrawGridImage(
     // boundsInWindow changes on every scroll frame. Keep it outside snapshot state so
     // measuring a waterfall item never back-writes into composition and reflows the grid.
     val imageRectRef = remember { object { var value: Rect? = null } }
-    // 预览打开期间隐藏原位卡片，回位落地后恢复
-    val sourceHidden = isImagePreviewSourceHidden(imageRectRef.value)
+    // 预览打开期间隐藏原位卡片，回位落地后恢复。
+    // 优先按图片 URL 身份匹配，几何判定仅作无身份键入口的回退，
+    // 避免 Dialog 窗口/滚动容器坐标差异导致的"原图残留"。
+    val sourceHidden = isImagePreviewSourceHidden(imageRectRef.value, imageUrl)
 
     Box(
         modifier = modifier
@@ -183,10 +185,15 @@ private fun DrawGridImage(
             ) {
                 val rect = imageRectRef.value
                 val anchor = rect?.let {
-                    ImagePreviewSourceAnchor(it, cornerRadius.value, galleryRects.toMap())
+                    ImagePreviewSourceAnchor(
+                        rect = it,
+                        cornerRadiusDp = cornerRadius.value,
+                        galleryRects = galleryRects.toMap(),
+                        sourceKey = imageUrl,
+                    )
                 }
                 if (onImagePreviewClick != null) {
-                    prepareImagePreviewSourceTransition(anchor?.rect)
+                    prepareImagePreviewSourceTransition(anchor?.rect, imageUrl)
                 }
                 onImageClick(index, rect)
                 onImagePreviewClick?.invoke(index, anchor)

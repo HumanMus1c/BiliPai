@@ -82,6 +82,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.ViewAgenda
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.resolveUpNameColor
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
@@ -304,6 +305,8 @@ fun SpaceScreen(
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showTopPhotoPreview by remember(mid) { mutableStateOf(false) }
     var topPhotoSourceRect by remember(mid) { mutableStateOf<Rect?>(null) }
+    // 点击时 banner 实际显示的 URL（装扮头图可能与 topPhoto 不同）
+    var topPhotoBannerUrl by remember(mid) { mutableStateOf<String?>(null) }
     var avatarSourceRect by remember(mid) { mutableStateOf<Rect?>(null) }
     var showAvatarPreview by remember(mid) { mutableStateOf(false) }
     var repostDynamicId by remember { mutableStateOf<String?>(null) }
@@ -742,9 +745,10 @@ fun SpaceScreen(
                                 ?: { m, _, _ -> onWebClick("https://space.bilibili.com/$m/upower/rank", "充电排行") },
                             onMemberGuardClick = onMemberGuardClick
                                 ?: { m, _, _ -> onWebClick("https://space.bilibili.com/$m", "大航海") },
-                            onTopPhotoClick = { rect ->
+                            onTopPhotoClick = { rect, bannerUrl ->
                                 prepareImagePreviewSourceTransition(rect)
                                 topPhotoSourceRect = rect
+                                topPhotoBannerUrl = bannerUrl
                                 showTopPhotoPreview = true
                             },
                             onAvatarClick = { rect ->
@@ -845,10 +849,21 @@ fun SpaceScreen(
     val avatarCornerDp = avatarSourceRect?.let { rect ->
         with(density) { (minOf(rect.width, rect.height) / 2f).toDp().value }
     } ?: 40f
-    if (showTopPhotoPreview && shouldEnableSpaceTopPhotoPreview(previewUrl)) {
+    // 装扮头图（可能多张）优先：预览列表与点击时实际显示的页对齐，支持滑动切换
+    val topPhotoPreviewImages = remember(topPhotoBannerUrl, currentSuccessState?.userInfo?.topImages, previewUrl) {
+        val topImages = currentSuccessState?.userInfo?.topImages.orEmpty()
+        if (topImages.isNotEmpty()) {
+            topImages.map { normalizeSpaceTopPhotoUrl(it.header) }.filter { it.isNotBlank() }
+        } else {
+            listOf(previewUrl)
+        }
+    }
+    val topPhotoPreviewIndex = topPhotoPreviewImages.indexOf(topPhotoBannerUrl).takeIf { it >= 0 } ?: 0
+    val topPhotoPreviewEnabled = topPhotoPreviewImages.any { shouldEnableSpaceTopPhotoPreview(it) }
+    if (showTopPhotoPreview && topPhotoPreviewEnabled) {
         ImagePreviewDialog(
-            images = listOf(previewUrl),
-            initialIndex = 0,
+            images = topPhotoPreviewImages,
+            initialIndex = topPhotoPreviewIndex,
             sourceRect = topPhotoSourceRect,
             // hero 封面全出血无圆角
             sourceCornerRadiusDp = 0f,
@@ -1130,7 +1145,7 @@ private fun SpaceContent(
     onFansClick: () -> Unit,
     onUpowerRankClick: (Long, String, Long) -> Unit = { _, _, _ -> },
     onMemberGuardClick: (Long, String, Long) -> Unit = { _, _, _ -> },
-    onTopPhotoClick: (Rect?) -> Unit,
+    onTopPhotoClick: (Rect?, String?) -> Unit,
     onAvatarClick: (Rect?) -> Unit,
     dynamicCardItems: List<com.android.purebilibili.data.model.response.DynamicItem>,
     likedDynamics: Set<String>,
@@ -2597,7 +2612,7 @@ private fun SpaceHeader(
     onFansClick: () -> Unit,
     onUpowerRankClick: (Long, String, Long) -> Unit = { _, _, _ -> },
     onMemberGuardClick: (Long, String, Long) -> Unit = { _, _, _ -> },
-    onTopPhotoClick: (Rect?) -> Unit,
+    onTopPhotoClick: (Rect?, String?) -> Unit,
     onAvatarClick: (Rect?) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
@@ -2614,6 +2629,9 @@ private fun SpaceHeader(
         userInfo.topPhoto
     }
     val topPhotoUrl = normalizeSpaceTopPhotoUrl(resolvedPhoto)
+    // banner 组件上报的当前实际显示 URL（装扮头图可能不是 topPhoto），
+    // 点击预览时优先用它，保证预览与所见一致。
+    var currentBannerUrl by remember { mutableStateOf<String?>(null) }
     val avatarPreviewEnabled = userInfo.face.isNotBlank()
     val isOwner = userInfo.mid > 0L &&
         userInfo.mid == com.android.purebilibili.core.store.TokenManager.midCache
@@ -2737,12 +2755,13 @@ private fun SpaceHeader(
                         indication = null,
                         enabled = skinSpaceBackgroundPaths.isEmpty() &&
                             (shouldEnableSpaceTopPhotoPreview(topPhotoUrl) || userInfo.topImages.isNotEmpty()),
-                        onClick = { onTopPhotoClick(topPhotoRect.value) }
+                        onClick = { onTopPhotoClick(topPhotoRect.value, currentBannerUrl) }
                     )
             ) {
                 SpaceHeaderBanner(
                     topImages = userInfo.topImages,
                     fallbackTopPhotoUrl = topPhotoUrl,
+                    onCurrentBannerUrlChange = { currentBannerUrl = it },
                     skinBackgroundPaths = skinSpaceBackgroundPaths,
                     isDarkTheme = isDarkTheme,
                     modifier = Modifier.fillMaxSize()
@@ -2960,13 +2979,12 @@ private fun SpaceHeaderIdentityInfo(
                         .weight(1f, fill = false)
                         .copyOnLongPress(userInfo.name, "UP主名称"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = if (userInfo.vip.status == 1 && userInfo.vip.type == 2) {
-                        Color(0xFFFB7299)
-                    } else if (userInfo.vip.status == 1) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color = resolveUpNameColor(
+                        vipStatus = userInfo.vip.status,
+                        vipType = userInfo.vip.type,
+                        onSurface = MaterialTheme.colorScheme.onSurface,
+                        secondary = MaterialTheme.colorScheme.secondary,
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -5072,6 +5090,7 @@ private fun SpaceHeaderMetricDivider() {
 private fun SpaceHeaderBanner(
     topImages: List<com.android.purebilibili.data.model.response.SpaceTopImageItem>,
     fallbackTopPhotoUrl: String,
+    onCurrentBannerUrlChange: (String?) -> Unit = {},
     skinBackgroundPaths: List<String> = emptyList(),
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
@@ -5080,6 +5099,7 @@ private fun SpaceHeaderBanner(
     // 与 PiliPlus 一致：所有背景图统一做亮/暗色调色，保证顶栏与头像在任意封面上可读。
     val bannerColorFilter = resolveSpaceBannerColorFilter(isLight = !isDarkTheme)
     if (skinBackgroundPaths.isNotEmpty()) {
+        LaunchedEffect(skinBackgroundPaths) { onCurrentBannerUrlChange(null) }
         val pagerState = rememberPagerState { skinBackgroundPaths.size }
         Box(modifier = modifier) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -5108,6 +5128,9 @@ private fun SpaceHeaderBanner(
         }
     } else if (topImages.size > 1) {
         val pagerState = rememberPagerState { topImages.size }
+        LaunchedEffect(pagerState.currentPage, topImages) {
+            onCurrentBannerUrlChange(topImages.getOrNull(pagerState.currentPage)?.header)
+        }
         Box(modifier = modifier) {
             HorizontalPager(
                 state = pagerState,
@@ -5151,6 +5174,7 @@ private fun SpaceHeaderBanner(
         }
     } else if (topImages.size == 1) {
         val item = topImages[0]
+        LaunchedEffect(item.header) { onCurrentBannerUrlChange(item.header) }
         val alignment = resolveSpaceBannerAlignment(item.dy)
         Box(modifier = modifier) {
             AsyncImage(
@@ -5175,6 +5199,7 @@ private fun SpaceHeaderBanner(
             }
         }
     } else if (fallbackTopPhotoUrl.isNotBlank()) {
+        LaunchedEffect(fallbackTopPhotoUrl) { onCurrentBannerUrlChange(fallbackTopPhotoUrl) }
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(fallbackTopPhotoUrl)

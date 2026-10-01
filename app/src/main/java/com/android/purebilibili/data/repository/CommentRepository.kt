@@ -11,6 +11,10 @@ import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.data.model.CommentFraudStatus
 import com.android.purebilibili.data.model.response.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
@@ -618,12 +622,75 @@ object CommentRepository {
                 nextOffset = paginationOffset
             )
             currentCoroutineContext().ensureActive()
-            result
+            val data = result.getOrNull() ?: return@withContext result
+            Result.success(supplementSortedSubReplyLocations(oid, type, data))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun supplementSortedSubReplyLocations(
+        oid: Long,
+        type: Int,
+        data: ReplyData,
+    ): ReplyData {
+        val missing = collectReplyLocationCandidates(data).filter {
+            it.rpid > 0 && it.replyControl?.location.isNullOrBlank()
+        }
+        if (missing.isEmpty()) return data
+        // seek_rpid is already used for exact comment reads. Never substitute REST pn
+        // pages for a sorted gRPC page, or infer a child's location from its author/root.
+        val supplements = mutableListOf<ReplyItem>()
+        withTimeoutOrNull(3_500L) {
+            val keys = getWbiKeysOrNull() ?: return@withTimeoutOrNull
+            currentCoroutineContext().ensureActive()
+            val readMode = resolveCommentReadPlan(
+                hasSession = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
+            ).primary
+            val apiClient = resolveReadApi(readMode)
+            for (batch in missing.chunked(3)) {
+                val responses = coroutineScope {
+                    batch.filter { item -> supplements.none {
+                        it.rpid == item.rpid && !it.replyControl?.location.isNullOrBlank()
+                    } }.map { item ->
+                        async {
+                            try {
+                                val params = TreeMap<String, String>().apply {
+                                    put("oid", oid.toString())
+                                    put("type", type.toString())
+                                    put("mode", "2")
+                                    put("next", "0")
+                                    put("ps", "20")
+                                    put("plat", "1")
+                                    put("seek_rpid", item.rpid.toString())
+                                }
+                                val response = apiClient.getReplyList(
+                                    WbiUtils.sign(params, keys.first, keys.second)
+                                )
+                                response
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Logger.w("CommentRepo", "Reply location supplement failed: ${e.message}")
+                                null
+                            }
+                        }
+                    }.awaitAll()
+                }
+                supplements += responses.filterNotNull()
+                    .filter { it.code == 0 }
+                    .mapNotNull { it.data }
+                    .flatMap(::collectReplyLocationCandidates)
+                // Stop optional reads on authentication/rate-limit errors.
+                if (responses.filterNotNull().any { shouldFallbackCommentRead(it.code) }) break
+                if (missing.all { item -> supplements.any {
+                        it.rpid == item.rpid && !it.replyControl?.location.isNullOrBlank()
+                    } }) break
+            }
+        }
+        return mergeCommentReplyLocations(data, supplements)
     }
 
     suspend fun getSubCommentsForSubject(

@@ -46,6 +46,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.resolveUpNameColor
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
@@ -1210,7 +1211,12 @@ private fun CommentItem(
                     text = member.uname,
                     fontSize = VideoCommentTypographyTokens.author,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = resolveUpNameColor(
+                        vipStatus = member.vip?.vipStatus ?: 0,
+                        vipType = member.vip?.vipType ?: 0,
+                        onSurface = MaterialTheme.colorScheme.onSurface,
+                        secondary = MaterialTheme.colorScheme.secondary,
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
@@ -1416,7 +1422,12 @@ private fun CommentItem(
                                         text = "${subReply.member.uname}:",
                                         fontSize = VideoCommentTypographyTokens.subReply,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = resolveUpNameColor(
+                                            vipStatus = subReply.member.vip?.vipStatus ?: 0,
+                                            vipType = subReply.member.vip?.vipType ?: 0,
+                                            onSurface = MaterialTheme.colorScheme.onSurface,
+                                            secondary = MaterialTheme.colorScheme.secondary,
+                                        ),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )

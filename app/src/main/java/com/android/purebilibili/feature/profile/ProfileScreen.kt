@@ -2730,7 +2730,7 @@ private fun ProfileDynamicCard(
                 text = bodyText,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 22.sp,
+
                 maxLines = 8,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2776,7 +2776,7 @@ private fun ProfileDynamicOriginalContent(item: SpaceDynamicItem, onVideoClick: 
                     text = text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 21.sp,
+
                     maxLines = 8,
                     overflow = TextOverflow.Ellipsis
                 )

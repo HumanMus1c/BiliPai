@@ -123,6 +123,7 @@ internal fun LinkedBottomDock(
             query = ""
         }
     }
+    var pendingUserImeRequest by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scroll = LocalHomeScrollOffset.current
@@ -570,6 +571,7 @@ internal fun LinkedBottomDock(
                                     if (phase != LinkedDockPhase.Search) {
                                         Modifier.clickable(role = Role.Button) {
                                             phaseBeforeSearch = phase
+                                            pendingUserImeRequest = true
                                             updatePhase(LinkedDockPhase.Search)
                                         }
                                     } else Modifier
@@ -582,9 +584,21 @@ internal fun LinkedBottomDock(
                                 onQueryChange = { query = it },
                                 onSubmit = {
                                     focusManager.clearFocus()
+                                    keyboardController?.hide()
                                     val keyword = query.trim()
                                     query = ""
-                                    if (keyword.isBlank()) onSearchClick() else onSearchKeywordSubmit(keyword)
+                                    if (keyword.isBlank()) {
+                                        onSearchClick()
+                                    } else {
+                                        onSearchKeywordSubmit(keyword)
+                                        pendingUserImeRequest = false
+                                        updatePhase(
+                                            resolveLinkedDockPhaseOnSearchDismiss(
+                                                hasAudio = hasAudio,
+                                                previousPhase = phaseBeforeSearch,
+                                            )
+                                        )
+                                    }
                                 },
                                 contentColor = contentColor,
                                 accentColor = accentColor,
@@ -592,6 +606,8 @@ internal fun LinkedBottomDock(
                                 fieldAlpha = searchProgressProvider,
                                 interactive = phase == LinkedDockPhase.Search,
                                 iconStyle = iconStyle,
+                                pendingUserImeRequest = pendingUserImeRequest,
+                                onUserImeRequestConsumed = { pendingUserImeRequest = false },
                             )
                         }
                     }

@@ -55,6 +55,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.VideoStaff
 import com.android.purebilibili.data.model.response.ViewInfo
@@ -71,6 +72,7 @@ import com.android.purebilibili.core.ui.resolveUserAvatarCornerMark
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
+import com.android.purebilibili.core.ui.components.resolveUpNameColor
 import com.android.purebilibili.core.ui.components.UserUpBadge
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -400,7 +402,7 @@ fun VideoDetailSponsorLabelChip(
     modifier: Modifier = Modifier,
     maxLines: Int = 1,
 ) {
-    androidx.compose.material3.Surface(
+    AppSurface(
         modifier = modifier,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -785,7 +787,8 @@ fun VideoTitleWithDesc(
                 val jumpUrl = resolveVideoHonorJumpUrl(
                     type = honor.type,
                     honorUrl = honor.honorUrl,
-                    weeklyRecommendNum = honor.weeklyRecommendNum
+                    weeklyRecommendNum = honor.weeklyRecommendNum,
+                    honorText = "${honor.honorName} ${honor.desc?.content.orEmpty()}"
                 ) ?: return@mapNotNull null
                 Triple(honor, text, jumpUrl)
             }
@@ -911,19 +914,23 @@ fun VideoTitleWithDesc(
                 .resolveAppTagChipMetrics(videoTagSize)
             Column {
                 Spacer(Modifier.height(8.dp))
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(tagMetrics.itemSpacingHorizontal),
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    videoTags.take(10).forEach { tag ->
-                        com.android.purebilibili.core.ui.components.AppTagChip(
-                            label = tag.tag_name,
-                            onClick = { onTagClick(tag.tag_name) },
-                            modifier = Modifier
-                                .padding(bottom = tagMetrics.itemSpacingVertical)
-                                .copyOnLongPress(tag.tag_name, "标签"),
-                            size = videoTagSize,
-                        )
+                // Keep native touch expansion without reserving a 48dp layout box per tag.
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(tagMetrics.itemSpacingHorizontal),
+                        verticalArrangement = Arrangement.spacedBy(tagMetrics.itemSpacingVertical)
+                    ) {
+                        videoTags.take(10).forEach { tag ->
+                            com.android.purebilibili.core.ui.components.AppTagChip(
+                                label = if (tag.tag_type == "bgm") tag.tag_name.replaceFirst("发现", "♫ BGM：") else tag.tag_name,
+                                onClick = {
+                                    val bgm = resolveBgmTagInfo(tag)
+                                    if (bgm != null) onBgmClick(bgm) else onTagClick(tag.tag_name)
+                                },
+                                modifier = Modifier.copyOnLongPress(tag.tag_name, "标签"),
+                                size = videoTagSize,
+                            )
+                        }
                     }
                 }
             }
@@ -968,14 +975,14 @@ private fun VideoArgueMsgRow(argueMsg: String) {
 
 /**
  * 视频荣誉徽标(全站排行榜最高第N名/每周必看等):
- * 着色小胶囊,有跳转链接时可点击,走通用的 B 站链接路由(榜单页进应用内 Web)。
+ * 着色小胶囊,有跳转链接时可点击,走通用的 B 站链接路由进入对应原生榜单页面。
  */
 @Composable
 private fun VideoHonorChip(
     text: String,
     onClick: (() -> Unit)? = null
 ) {
-    androidx.compose.material3.Surface(
+    AppSurface(
         onClick = onClick ?: {},
         enabled = onClick != null,
         shape = RoundedCornerShape(50),
@@ -1161,12 +1168,38 @@ fun UpInfoSection(
                     }
                     Spacer(Modifier.width(4.dp))
                 }
+                val ownerStaff = info.staff.firstOrNull { it.mid == info.owner.mid }
+                val fallbackVipStatus = ownerStaff?.vip?.status ?: 0
+                val fallbackVipType = ownerStaff?.vip?.type ?: 0
+                val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+                val secondaryColor = MaterialTheme.colorScheme.secondary
+                val ownerNameColor by produceState<Color>(
+                    initialValue = resolveUpNameColor(
+                        vipStatus = fallbackVipStatus,
+                        vipType = fallbackVipType,
+                        onSurface = onSurfaceColor,
+                        secondary = secondaryColor,
+                    ),
+                    key1 = info.owner.mid,
+                ) {
+                    val card = if (info.owner.mid > 0L) {
+                        VideoRepository.getCreatorCardStats(info.owner.mid).getOrNull()
+                    } else {
+                        null
+                    }
+                    value = resolveUpNameColor(
+                        vipStatus = card?.vipStatus ?: fallbackVipStatus,
+                        vipType = card?.vipType ?: fallbackVipType,
+                        onSurface = onSurfaceColor,
+                        secondary = secondaryColor,
+                    )
+                }
                 SelectionContainer {
                     AppText(
                         text = info.owner.name,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = ownerNameColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = upNameModifier
@@ -1614,7 +1647,7 @@ private fun InlineBgmSection(
         subtitle = null,
         showIndicator = false,
         onClick = {
-            showSheet = true
+            if (bgmList.size == 1) onBgmClick(leadSong) else showSheet = true
         }
     )
 
@@ -2164,6 +2197,8 @@ private fun BgmDetailCard(
     }
 
     AppSurface(
+        onClick = onOpenMusic,
+        enabled = !isLoading,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -2392,6 +2427,11 @@ private fun resolveBgmRecommendRowKey(
 private fun resolveBgmRecommendRowItemIndex(rowIndex: Int): Int {
     return BGM_RECOMMEND_ROW_START_INDEX + rowIndex
 }
+
+internal fun resolveBgmTagInfo(tag: com.android.purebilibili.data.model.response.VideoTag): BgmInfo? =
+    if (tag.tag_type == "bgm" && (tag.music_id.isNotBlank() || tag.jump_url.isNotBlank())) {
+        BgmInfo(musicId = tag.music_id, musicTitle = tag.tag_name, jumpUrl = tag.jump_url, coverUrl = tag.cover)
+    } else null
 
 internal fun resolveDisplayBgmList(
     bgmInfo: BgmInfo?,

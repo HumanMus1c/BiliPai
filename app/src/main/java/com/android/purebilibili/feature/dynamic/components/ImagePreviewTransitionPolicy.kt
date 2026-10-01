@@ -353,13 +353,14 @@ internal fun resolveImagePreviewOverlayPadding(
 internal fun resolveImagePreviewDraggedDisplayRect(
     displayedImageRect: Rect?,
     translationYPx: Float,
-    scale: Float
+    scale: Float,
+    translationXPx: Float = 0f
 ): Rect? {
     if (displayedImageRect == null) return null
     val safeScale = scale.coerceAtLeast(0.01f)
     val width = displayedImageRect.width * safeScale
     val height = displayedImageRect.height * safeScale
-    val centerX = (displayedImageRect.left + displayedImageRect.right) / 2f
+    val centerX = (displayedImageRect.left + displayedImageRect.right) / 2f + translationXPx
     val centerY = (displayedImageRect.top + displayedImageRect.bottom) / 2f + translationYPx
     return Rect(
         left = centerX - width / 2f,

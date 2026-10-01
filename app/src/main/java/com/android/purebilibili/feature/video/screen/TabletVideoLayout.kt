@@ -153,8 +153,8 @@ internal fun TabletSecondaryDanmakuActions(
         NativeDanmakuToggleButton(
             enabled = danmakuEnabled,
             onToggle = onDanmakuToggle,
-            activeTint = MaterialTheme.colorScheme.secondary,
-            inactiveTint = MaterialTheme.colorScheme.outline,
+            activeTint = MaterialTheme.colorScheme.onSurface,
+            inactiveTint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .padding(end = layoutPolicy.toggleTrailingPaddingDp.dp)
                 .size(layoutPolicy.toggleButtonSizeDp.dp),
@@ -465,6 +465,9 @@ internal fun TabletVideoLayout(
                                     onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
                                     onDanmakuInputClick = playbackActions.showDanmakuSendDialog,
                                     onLikeDanmaku = playbackActions.likeDanmaku,
+                                    onLikeDanmakuToggle = playbackActions.likeDanmakuToggle,
+                                    likedDanmakuIds = playbackActions.likedDanmakuIds,
+                                    onReportDanmaku = playbackActions.reportDanmaku,
                                     onRecallDanmaku = playbackActions.recallDanmaku,
                                 ),
                             )
@@ -692,6 +695,7 @@ internal fun TabletVideoInfoPane(
         videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
         onOpenVideoNoteEditor = playbackActions.openVideoNoteEditor,
         onRetryVideoNote = playbackActions.retryVideoNote,
+        onLoadMoreVideoNotes = playbackActions.loadMorePublicVideoNotes,
         onDeleteVideoNoteClick = { confirmDeleteNote = true },
         onShareVideoNote = { document -> onShareVideoNote(document, false) },
         onPublicVideoNoteClick = { cvid, _ ->
@@ -704,7 +708,7 @@ internal fun TabletVideoInfoPane(
         noteState = success.videoNoteState,
         onDismiss = playbackActions.closeVideoNoteEditor,
         onDocumentChange = playbackActions.updateVideoNoteEditorDocument,
-        onInsertTimestamp = playbackActions.insertCurrentPlaybackTimestampIntoNote,
+        currentTimestampProvider = playbackActions.currentVideoNoteTimestamp,
         onTimestampClick = { timestamp -> playbackActions.seekTo(timestamp) },
         onShare = { document -> onShareVideoNote(document, success.videoNoteState.editorFromAiSummary) },
         onSave = playbackActions.saveVideoNote
@@ -1425,6 +1429,7 @@ private fun ScrollableVideoInfoSection(
     videoNoteDefaultCollapsed: Boolean = true,
     onOpenVideoNoteEditor: () -> Unit = {},
     onRetryVideoNote: () -> Unit = {},
+    onLoadMoreVideoNotes: () -> Unit = {},
     onDeleteVideoNoteClick: () -> Unit = {},
     onShareVideoNote: (VideoNoteEditorDocument) -> Unit = {},
     onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
@@ -1631,7 +1636,7 @@ private fun ScrollableVideoInfoSection(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                lineHeight = 16.sp
+
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             AppText(
@@ -1696,7 +1701,17 @@ private fun ScrollableVideoInfoSection(
             onDeleteVideoNoteClick()
         },
         onShareClick = onShareVideoNote,
-        onPublicNoteClick = onPublicVideoNoteClick
+        onPublicNoteClick = onPublicVideoNoteClick,
+        onAuthorClick = { mid ->
+            if (mid > 0L) onOpenBilibiliLink?.invoke("https://space.bilibili.com/$mid")
+        },
+        onLoadMore = onLoadMoreVideoNotes,
+        onOfficialEditorClick = {
+            showNoteListSheet = false
+            onOpenBilibiliLink?.invoke(
+                "https://www.bilibili.com/h5/note-app?oid=${info.aid}&pagefrom=ugcvideo"
+            )
+        }
     )
 }
 

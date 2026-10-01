@@ -202,16 +202,24 @@ internal fun resolveVideoHonorChipText(
 
 /**
  * 荣誉徽标跳转链接:一律走 bilibili://popular 内部 scheme,
- * 由链接路由映射到首页热门区对应子分类的原生 feed,不进 Web。
+ * 每周必看携带期号进入原生选期页,其余映射到首页热门区对应子分类。
  */
 internal fun resolveVideoHonorJumpUrl(
     type: Int,
     honorUrl: String,
-    weeklyRecommendNum: Int
+    weeklyRecommendNum: Int,
+    honorText: String = ""
 ): String? {
     return when (type) {
         1 -> "bilibili://popular/all"
-        2 -> "bilibili://popular/weekly"
+        2 -> {
+            val number = weeklyRecommendNum.takeIf { it > 0 }
+                ?: (com.android.purebilibili.core.util.BilibiliNavigationTargetParser.parse(honorUrl)
+                    as? com.android.purebilibili.core.util.BilibiliNavigationTarget.PopularFeed)?.weeklyNumber
+                ?: Regex("第\\s*(\\d+)\\s*期").find(honorText)
+                    ?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it > 0 }
+            "bilibili://popular/weekly" + (number?.let { "?number=$it" } ?: "")
+        }
         3 -> "bilibili://popular/rank"
         4 -> "bilibili://popular/comprehensive"
         else -> honorUrl.takeIf { it.isNotBlank() }

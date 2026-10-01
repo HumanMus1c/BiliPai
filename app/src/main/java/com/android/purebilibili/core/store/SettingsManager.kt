@@ -966,12 +966,12 @@ enum class DanmakuSettingsScope(
     PORTRAIT(
         keyPrefix = "portrait",
         badgeLabel = "竖屏专用",
-        subtitle = "开关、字号和区域与横屏同步，其余样式独立"
+        subtitle = "开关、字号、行距和区域与横屏同步，其余样式独立"
     ),
     LANDSCAPE(
         keyPrefix = "landscape",
         badgeLabel = "横屏专用",
-        subtitle = "开关、字号和区域与竖屏同步，其余样式独立"
+        subtitle = "开关、字号、行距和区域与竖屏同步，其余样式独立"
     )
 }
 
@@ -1001,6 +1001,7 @@ data class DanmakuSettings(
     val allowBottom: Boolean = true,
     val allowColorful: Boolean = true,
     val allowSpecial: Boolean = true,
+    val weightFilterLevel: Int = 0,
     val hideInteractiveCommands: Boolean = false,
     val blockAttentionCommands: Boolean = false,
     val smartOcclusion: Boolean = false,
@@ -4592,7 +4593,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         suffix: String
     ): String {
         // Keep the existing fullscreen values authoritative across playback modes.
-        val shared = suffix == "enabled" || suffix == "font_scale" || suffix == "area"
+        val shared = suffix == "enabled" || suffix == "font_scale" ||
+            suffix == "line_height" || suffix == "area"
         val prefix = if (shared) DanmakuSettingsScope.LANDSCAPE.keyPrefix else scope.keyPrefix
         return "danmaku_${prefix}_$suffix"
     }
@@ -4622,6 +4624,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_DANMAKU_BLOCK_ATTENTION_COMMANDS =
         booleanPreferencesKey("danmaku_block_attention_commands")
     private val KEY_DANMAKU_SMART_OCCLUSION = booleanPreferencesKey("danmaku_smart_occlusion")
+    private val KEY_DANMAKU_WEIGHT_FILTER_LEVEL = intPreferencesKey("danmaku_weight_filter_level")
     private val KEY_DANMAKU_FULLSCREEN_PANEL_WIDTH_MODE =
         intPreferencesKey("danmaku_fullscreen_panel_width_mode")
     private val KEY_DANMAKU_BLOCK_RULES = stringPreferencesKey("danmaku_block_rules")
@@ -4662,6 +4665,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("danmaku_portrait_enabled")
     private fun keyDanmakuLegacyPortraitFontScale() =
         floatPreferencesKey("danmaku_portrait_font_scale")
+    private fun keyDanmakuLegacyPortraitLineHeight() =
+        floatPreferencesKey("danmaku_portrait_line_height")
     private fun keyDanmakuLegacyPortraitArea() =
         floatPreferencesKey("danmaku_portrait_area")
 
@@ -4783,9 +4788,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 )
             ),
             lineHeight = normalizeDanmakuLineHeight(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuLineHeight(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitLineHeight(),
                     legacyKey = KEY_DANMAKU_LINE_HEIGHT,
                     defaultValue = DEFAULT_DANMAKU_LINE_HEIGHT
                 )
@@ -4876,6 +4882,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 legacyKey = KEY_DANMAKU_ALLOW_SPECIAL,
                 defaultValue = true
             ),
+            weightFilterLevel = (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 10),
             hideInteractiveCommands = preferences[KEY_DANMAKU_BLOCK_ATTENTION_COMMANDS] ?: false,
             blockAttentionCommands = preferences[KEY_DANMAKU_BLOCK_ATTENTION_COMMANDS] ?: false,
             smartOcclusion = readScopedDanmakuPreference(
@@ -5106,9 +5113,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     ): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
             normalizeDanmakuLineHeight(
-                readScopedDanmakuPreference(
+                readSharedDanmakuPreference(
                     preferences = preferences,
                     scopeKey = keyDanmakuLineHeight(scope),
+                    legacyPortraitKey = keyDanmakuLegacyPortraitLineHeight(),
                     legacyKey = KEY_DANMAKU_LINE_HEIGHT,
                     defaultValue = DEFAULT_DANMAKU_LINE_HEIGHT
                 )
@@ -5267,6 +5275,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     ) {
         context.settingsDataStore.edit { preferences ->
             preferences[keyDanmakuAllowScroll(scope)] = value
+        }
+    }
+
+    // --- 弹幕智能云屏蔽等级 (0=关闭, 1~10) ---
+    fun getDanmakuWeightFilterLevel(context: Context): Flow<Int> =
+        context.settingsDataStore.data.map { preferences ->
+            (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 10)
+        }
+
+    suspend fun setDanmakuWeightFilterLevel(context: Context, value: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] = value.coerceIn(0, 10)
         }
     }
 
@@ -5775,6 +5795,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     // --- 订阅文章阅读字号 (0=小 1=标准 2=大) ---
     private val KEY_SUBSCRIPTION_ARTICLE_FONT_SCALE = intPreferencesKey("subscription_article_font_scale")
+
+    private val KEY_SUBSCRIPTION_ARTICLE_WALLPAPER_ENABLED =
+        booleanPreferencesKey("subscription_article_wallpaper_enabled")
+
+    fun getSubscriptionArticleWallpaperEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SUBSCRIPTION_ARTICLE_WALLPAPER_ENABLED] ?: false }
+
+    suspend fun setSubscriptionArticleWallpaperEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SUBSCRIPTION_ARTICLE_WALLPAPER_ENABLED] = enabled
+        }
+    }
 
     fun getSubscriptionArticleFontScale(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SUBSCRIPTION_ARTICLE_FONT_SCALE] ?: 1 }
