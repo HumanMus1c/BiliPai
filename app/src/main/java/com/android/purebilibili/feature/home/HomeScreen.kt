@@ -1341,13 +1341,6 @@ fun HomeScreen(
     var pinchPillDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val effectiveGridColumns = interactiveColumns ?: gridColumns
     val haptic = LocalHapticFeedback.current
-    val pinchColumnBounds = remember(windowSizeClass.widthSizeClass, contentWidth, displayMode) {
-        resolveHomeFeedPinchColumnBounds(
-            widthSizeClass = windowSizeClass.widthSizeClass,
-            contentWidthDp = contentWidth.value.toInt(),
-            displayMode = displayMode,
-        )
-    }
     LaunchedEffect(
         homeSettings.gridColumnCount,
         homeSettings.gridColumnCountCompact,
@@ -1366,22 +1359,7 @@ fun HomeScreen(
             widthSizeClass = windowSizeClass.widthSizeClass,
         )
     }
-    val homeFeedCoverAspectRatio = homeFeedCardLayout.coverAspectRatio
     val density = LocalDensity.current
-    val hingeGridSpec = remember(appWindowAdaptiveInfo, density.density) {
-        resolveHomeFeedBookHingeGridSpec(appWindowAdaptiveInfo, density.density)
-    }
-    val homeFeedHorizontalArrangement = remember(
-        effectiveGridColumns,
-        homeFeedCardLayout.itemSpacingDp,
-        hingeGridSpec,
-    ) {
-        resolveHomeFeedHorizontalArrangement(
-            columns = effectiveGridColumns,
-            baseSpacing = homeFeedCardLayout.itemSpacingDp.dp,
-            hingeSpec = hingeGridSpec,
-        )
-    }
     
     
     val tabletUseSidebar = appNavigationSettings.tabletUseSidebar
@@ -2042,12 +2020,33 @@ fun HomeScreen(
                                 isTopLevelActive = isTopLevelActive,
                                 hideTopTabs = effectiveHomeSettings.hideTopTabs
                             )
+                        com.android.purebilibili.core.ui.adaptive.AppHingeSafeContent(
+                            modifier = Modifier.responsiveContentWidth(maxWidth = contentWidth).fillMaxSize(),
+                        ) {
+                            val requestedGridColumns = effectiveGridColumns
+                            val effectiveGridColumns = if (appWindowAdaptiveInfo.shouldAvoidHinge) {
+                                com.android.purebilibili.core.ui.adaptive.resolveHingeSafeFeedColumns(
+                                    requestedGridColumns, maxWidth.value,
+                                    if (isSingleColumnMode) 280 else homeSettings.homeFeedCardWidthPreset.minCardWidthDp ?: 180,
+                                )
+                            } else requestedGridColumns
+                            val homeFeedCardLayout = resolveHomeFeedCardLayout(
+                                style = homeFeedCardStyle,
+                                gridColumns = effectiveGridColumns,
+                                widthSizeClass = windowSizeClass.widthSizeClass,
+                            )
+                            val homeFeedCoverAspectRatio = homeFeedCardLayout.coverAspectRatio
+                            val homeFeedHorizontalArrangement = Arrangement.spacedBy(homeFeedCardLayout.itemSpacingDp.dp)
+                            val pinchColumnBounds = resolveHomeFeedPinchColumnBounds(
+                                widthSizeClass = windowSizeClass.widthSizeClass,
+                                contentWidthDp = maxWidth.value.toInt(),
+                                displayMode = displayMode,
+                            )
                         HorizontalPager(
                             state = pagerState,
                             beyondViewportPageCount = 0,
                             userScrollEnabled = false,
                             modifier = Modifier
-                                .responsiveContentWidth(maxWidth = contentWidth)
                                 .fillMaxSize()
                                 .verticalPriorityHorizontalPagerSwipe(
                                     state = pagerState,
@@ -2569,6 +2568,7 @@ fun HomeScreen(
                             null -> Unit
                         }
                 } // Close HorizontalPager lambda
+                        } // Close AppHingeSafeContent
             } // Close Box wrapper
                     } // Close LocalHomeMiuixBackdrop provider
         } // Close Scaffold lambda

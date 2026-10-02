@@ -1399,6 +1399,18 @@ fun SearchScreen(
                     },
                 ) { resultChromePadding ->
                     val resultTopPadding = resultChromePadding.calculateTopPadding()
+                        com.android.purebilibili.core.ui.adaptive.AppHingeSafeContent(
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            val requestedSkeletonColumns = videoGridColumns
+                            val videoGridColumns = if (
+                                com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.shouldAvoidHinge
+                            ) {
+                                com.android.purebilibili.core.ui.adaptive.resolveHingeSafeFeedColumns(
+                                    requestedSkeletonColumns, maxWidth.value,
+                                    homeSettings.homeFeedCardWidthPreset.minCardWidthDp ?: 180,
+                                )
+                            } else requestedSkeletonColumns
                         HorizontalPager(
                             state = searchPagerState,
                             userScrollEnabled = false,
@@ -1599,7 +1611,15 @@ fun SearchScreen(
                                     var isPinchPillVisible by remember { mutableStateOf(false) }
                                     var pinchPillDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                                     val haptic = LocalHapticFeedback.current
-                                    val effectiveSearchGridColumns = interactiveColumns ?: actualGridColumns
+                                    val requestedSearchGridColumns = interactiveColumns ?: actualGridColumns
+                                    val effectiveSearchGridColumns = if (
+                                        com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current.shouldAvoidHinge
+                                    ) {
+                                        com.android.purebilibili.core.ui.adaptive.resolveHingeSafeFeedColumns(
+                                            requestedSearchGridColumns, maxWidth.value,
+                                            homeSettings.homeFeedCardWidthPreset.minCardWidthDp ?: 180,
+                                        )
+                                    } else requestedSearchGridColumns
                                     val pinchColumnBounds = remember(windowSizeClass.widthSizeClass, maxWidth) {
                                         resolveHomeFeedPinchColumnBounds(
                                             widthSizeClass = windowSizeClass.widthSizeClass,
@@ -1620,6 +1640,8 @@ fun SearchScreen(
                                             widthSizeClass = windowSizeClass.widthSizeClass,
                                         )
                                     }
+                                    val searchGridHorizontalArrangement =
+                                        Arrangement.spacedBy(searchGridCardLayout.itemSpacingDp.dp)
                                     val searchCoverRequestSpec = remember(
                                         maxWidth, density.density, searchGridCardLayout, searchLayoutPolicy, effectiveSearchGridColumns
                                     ) {
@@ -1679,7 +1701,7 @@ fun SearchScreen(
                                         start = searchGridCardLayout.outerPaddingDp.dp,
                                         end = searchGridCardLayout.outerPaddingDp.dp
                                     ),
-                                    horizontalArrangement = Arrangement.spacedBy(searchGridCardLayout.itemSpacingDp.dp),
+                                    horizontalArrangement = searchGridHorizontalArrangement,
                                     verticalArrangement = Arrangement.spacedBy(searchGridCardLayout.itemSpacingDp.dp),
                                     modifier = videoGridModifier
                         ) {
@@ -2300,6 +2322,7 @@ fun SearchScreen(
                                     }
                                 }
                             }
+                        }
                         }
                         }
                         }

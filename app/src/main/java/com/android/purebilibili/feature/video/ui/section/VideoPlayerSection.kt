@@ -4704,7 +4704,10 @@ private fun VideoPlayerSectionContent(
                             videoshotData = videoshotData,
                             targetPositionMs = seekTargetTime,
                             durationMs = playerState.player.duration,
-                            videoAspectRatio = com.android.purebilibili.feature.video.ui.components.PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
+                            // 使用播放器实际视频宽比，避免横屏内容预览被压扁/裁切
+                            videoAspectRatio = playerState.player.videoSize.takeIf { it.width > 0 && it.height > 0 }
+                                ?.let { it.width.toFloat() / it.height.toFloat() }
+                                ?: com.android.purebilibili.feature.video.ui.components.PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
                             containerHeightDp = LocalConfiguration.current.screenHeightDp
                         )
                     } else {
@@ -5090,11 +5093,11 @@ private fun VideoPlayerSectionContent(
                 requestedQuality = uiState.requestedQuality,
                 isQualitySwitching = uiState.isQualitySwitching
             )
-            // Keep overlay preparation out of the 6,000-line parent to stay below
-            // JVM's 64 KiB method limit. The render call below has only two arguments,
-            // avoiding the old 257-register DEX invocation.
-            @Composable
-            fun RenderVideoPlayerOverlay() {
+            // Keep overlay preparation out of the large parent method. A local function
+            // lifts every captured value into a synthetic method parameter, which can
+            // overflow DEX invocation registers and cause VerifyError on Android.
+            // A composable lambda stores captures on its closure instead.
+            val renderVideoPlayerOverlay: @Composable () -> Unit = {
                 val overlayState = VideoPlayerOverlayState(
                     player = playerState.player,
                     title = uiState.info.title,
@@ -5732,7 +5735,7 @@ private fun VideoPlayerSectionContent(
                         alpha = transitionChromeAlphaProvider()
                     }
             ) {
-                RenderVideoPlayerOverlay()
+                renderVideoPlayerOverlay()
             }
 
             SponsorSkipButton(

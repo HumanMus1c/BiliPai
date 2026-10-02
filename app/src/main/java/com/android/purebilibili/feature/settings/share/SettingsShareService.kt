@@ -374,6 +374,26 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
         }
     }
 
+    /** In-memory twin of [readImportSession] used by device transfer (no Uri involved). */
+    suspend fun buildTransferImportSession(rawJson: String): Result<SettingsShareImportSession> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val profile = decodeProfile(rawJson)
+                val normalizedProfile = normalizeThemeSelectionForImport(profile.sections)
+                    .let { sections ->
+                        if (sections == profile.sections) profile else profile.copy(sections = sections)
+                    }
+                SettingsShareImportSession(
+                    profile = normalizedProfile,
+                    preview = resolveSettingsShareImportPreview(
+                        profile = normalizedProfile,
+                        definitions = SettingsManager.getShareableSettingsEntryDefinitions()
+                    ),
+                    rawJson = rawJson
+                )
+            }
+        }
+
     override suspend fun applyImport(session: SettingsShareImportSession): Result<SettingsShareApplyResult> =
         withContext(Dispatchers.IO) {
             runCatching {

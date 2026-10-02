@@ -72,6 +72,7 @@ data class VideoNotePublicPreview(
     val authorMid: Long = 0L,
     val authorFace: String = "",
     val authorLevel: Int = 0,
+    val authorSenior: Boolean = false,
     val pubtime: String = "",
     val webUrl: String,
     val likes: Int

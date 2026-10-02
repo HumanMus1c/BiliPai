@@ -274,12 +274,20 @@ internal fun TabletVideoLayout(
     playerContent: (@Composable (Modifier) -> Unit)? = null,
 ) {
     val adaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
-    val foldHalfOpened = adaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book ||
-        adaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Tabletop
-    val layoutPolicy = remember(configuration.screenWidthDp, adaptiveInfo.posture) {
+    val hasHingePartition = adaptiveInfo.shouldAvoidHinge
+    val layoutPosture = if (adaptiveInfo.shouldAvoidHinge) {
+        when (adaptiveInfo.foldingFeature.hingeOrientation) {
+            com.android.purebilibili.core.util.AppHingeOrientation.Horizontal ->
+                com.android.purebilibili.core.util.AppFoldPosture.Tabletop
+            com.android.purebilibili.core.util.AppHingeOrientation.Vertical ->
+                com.android.purebilibili.core.util.AppFoldPosture.Book
+            else -> adaptiveInfo.posture
+        }
+    } else adaptiveInfo.posture
+    val layoutPolicy = remember(configuration.screenWidthDp, layoutPosture) {
         resolveTabletVideoLayoutPolicy(
             widthDp = configuration.screenWidthDp,
-            foldPosture = adaptiveInfo.posture,
+            foldPosture = layoutPosture,
         )
     }
     var secondaryPaneModeName by rememberSaveable(bvid) {
@@ -353,7 +361,7 @@ internal fun TabletVideoLayout(
                 //  为播放器容器添加共享元素标记（受开关控制）
                 val playerContainerModifier = if (
                     transitionEnabled &&
-                    !foldHalfOpened &&
+                    !hasHingePartition &&
                     sharedTransitionScope != null &&
                     animatedVisibilityScope != null &&
                     !forceCoverOnlyOnReturn
@@ -410,10 +418,10 @@ internal fun TabletVideoLayout(
                                     isFullscreen = false,
                                     isInPipMode = isInPipMode,
                                     useTextureSurfaceForNavigation = resolveNavigationLiveSurfaceTextureEnabled(
-                                        cardTransitionEnabled = transitionEnabled && !foldHalfOpened,
+                                        cardTransitionEnabled = transitionEnabled && !hasHingePartition,
                                         liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
                                     ),
-                                    allowLivePlayerSharedElement = !foldHalfOpened &&
+                                    allowLivePlayerSharedElement = !hasHingePartition &&
                                         resolveAllowLivePlayerSharedElementForMorph(
                                             cardTransitionEnabled = transitionEnabled,
                                             liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
@@ -917,7 +925,15 @@ internal fun TabletSecondaryContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .then(if (applyStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
+            // 半开沉浸模式下状态栏 inset 为 0，但挖孔仍然存在；
+            // safeDrawing 取两者最大，避免 tab 条被裁切。
+            .then(
+                if (applyStatusBarPadding) {
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                } else {
+                    Modifier
+                }
+            )
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (fixedTab == null && tabs.size > 1) {

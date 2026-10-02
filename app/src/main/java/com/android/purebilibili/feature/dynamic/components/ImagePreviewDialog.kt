@@ -334,51 +334,53 @@ fun ImagePreviewOverlayHost(
 ) {
     val activeRequest by ImagePreviewOverlayController.request.collectAsStateWithLifecycle()
     activeRequest?.let { request ->
-        var dismissRequestCount by remember(request.token) { mutableIntStateOf(0) }
-        Dialog(
-            onDismissRequest = {
-                dismissRequestCount++
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            val dialogView = LocalView.current
-            SideEffect {
-                // The image itself already performs the return morph. The platform Dialog
-                // window animation would scale it a second time when the window is removed.
-                ((dialogView.parent as? DialogWindowProvider) ?: (dialogView as? DialogWindowProvider))
-                    ?.window?.let { window ->
-                        window.setWindowAnimations(0)
-                        // 平台 Dialog 默认 FLAG_DIM_BEHIND 会在窗口挂上时把整个屏幕压暗、
-                        // 关闭时瞬间变亮；画廊自带进度 scrim，这层额外 dim 表现为点击
-                        // 放大/返回时的变暗闪烁，必须清掉。
-                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                        window.setDimAmount(0f)
-                    }
-            }
-            ImagePreviewOverlayContent(
-                images = request.images,
-                livePhotoVideos = request.livePhotoVideos,
-                initialIndex = request.initialIndex,
-                sourceRect = request.sourceRect,
-                sourceRects = request.sourceRects,
-                sourceKey = request.sourceKey,
-                requestToken = request.token,
-                sourceCornerRadiusDp = request.sourceCornerRadiusDp,
-                textContent = request.textContent,
-                defaultTextVisible = request.defaultTextVisible,
-                onImageLongPress = request.onImageLongPress,
-                dismissRequestCount = dismissRequestCount,
-                onDismiss = {
-                    ImagePreviewOverlayController.dismiss(request.token)
-                    request.onDismiss()
+        key(request.token) {
+            var dismissRequestCount by remember(request.token) { mutableIntStateOf(0) }
+            Dialog(
+                onDismissRequest = {
+                    dismissRequestCount++
                 },
-                modifier = modifier
-                    .fillMaxSize()
-                    .zIndex(100f)
-            )
+                properties = DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false
+                )
+            ) {
+                val dialogView = LocalView.current
+                SideEffect {
+                    // The image itself already performs the return morph. The platform Dialog
+                    // window animation would scale it a second time when the window is removed.
+                    ((dialogView.parent as? DialogWindowProvider) ?: (dialogView as? DialogWindowProvider))
+                        ?.window?.let { window ->
+                            window.setWindowAnimations(0)
+                            // 平台 Dialog 默认 FLAG_DIM_BEHIND 会在窗口挂上时把整个屏幕压暗、
+                            // 关闭时瞬间变亮；画廊自带进度 scrim，这层额外 dim 表现为点击
+                            // 放大/返回时的变暗闪烁，必须清掉。
+                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                            window.setDimAmount(0f)
+                        }
+                }
+                ImagePreviewOverlayContent(
+                    images = request.images,
+                    livePhotoVideos = request.livePhotoVideos,
+                    initialIndex = request.initialIndex,
+                    sourceRect = request.sourceRect,
+                    sourceRects = request.sourceRects,
+                    sourceKey = request.sourceKey,
+                    requestToken = request.token,
+                    sourceCornerRadiusDp = request.sourceCornerRadiusDp,
+                    textContent = request.textContent,
+                    defaultTextVisible = request.defaultTextVisible,
+                    onImageLongPress = request.onImageLongPress,
+                    dismissRequestCount = dismissRequestCount,
+                    onDismiss = {
+                        ImagePreviewOverlayController.dismiss(request.token)
+                        request.onDismiss()
+                    },
+                    modifier = modifier
+                        .fillMaxSize()
+                        .zIndex(100f)
+                )
+            }
         }
     }
 }
@@ -457,14 +459,22 @@ private fun ImagePreviewOverlayContent(
     }
     var isDismissing by remember { mutableStateOf(false) }
     var dismissBackdropStartAlpha by remember { mutableFloatStateOf(1f) }
+    // Viewport-local image geometry. Window coordinates here would include the Hero transform
+    // and get applied a second time by the pager's counter-scale/translation during back scrub.
     var currentImageDisplayRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    // 打开飞行期间冻结首帧展示 rect，Coil 布局/缩放更新不再中途改变 counter-scale 基准。
-    var flightAnchorDisplayRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var dismissImageDisplayRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     // 关闭起飞时冻结源缩略图 rect: dismiss 窗口内不再跟读 currentSourceRect,
     // 防止动画中途目标改道(切页/新页无 rect 时 flight 中断退化成淡出)。
     var dismissSourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var dismissStartProgress by remember { mutableFloatStateOf(1f) }
+    var dismissStartCornerRadiusDp by remember { mutableFloatStateOf(0f) }
+    var dismissFallbackScale by remember { mutableFloatStateOf(1f) }
+    var dismissOffsetXPx by remember { mutableFloatStateOf(0f) }
+    var dismissOffsetYPx by remember { mutableFloatStateOf(0f) }
+    var dismissStartImageScale by remember { mutableFloatStateOf(1f) }
+    var dismissTargetImageScale by remember { mutableFloatStateOf(1f) }
+    var dismissImageContentRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var isPreparingDismiss by remember { mutableStateOf(false) }
     var activeZoomScale by remember { mutableFloatStateOf(1f) }
     // 放大态退出: 先把 ZoomableImage 子层缩放回弹到 fit,再开始飞回。
     var zoomResetTrigger by remember { mutableIntStateOf(0) }
@@ -540,7 +550,7 @@ private fun ImagePreviewOverlayContent(
             verticalDismissOffsetXPx = 0f
             verticalDismissSnapAnim.snapTo(0f)
             verticalDismissSnapAnimX.snapTo(0f)
-            flightAnchorDisplayRect = null
+            currentImageDisplayRect = null
         }
     }
     
@@ -683,6 +693,9 @@ private fun ImagePreviewOverlayContent(
                 else -> animateTrigger.value
             }
 
+            fun dismissRemainingProgress(): Float =
+                (animateTrigger.value / dismissStartProgress.coerceAtLeast(0.001f)).coerceIn(0f, 1f)
+
             val currentSourceRect = sourceRectForPage(pagerState.currentPage)
             val shouldUseRectAnim = currentSourceRect != null && !pagerState.isScrollInProgress
             val previewSurfaceRect = remember(constraints.maxWidth, constraints.maxHeight) {
@@ -697,8 +710,7 @@ private fun ImagePreviewOverlayContent(
             fun currentFlightRect(progress: Float): androidx.compose.ui.geometry.Rect? {
                 if (!shouldUseRectAnim && !isDismissing) return null
                 // dismiss 起飞时已冻结源 rect,动画中途不再跟读(防切页改道)。
-                val source = dismissSourceRect
-                    ?: currentSourceRect
+                val source = (if (isDismissing) dismissSourceRect else currentSourceRect)
                     ?: return null
                 return if (isDismissing) {
                     val start = dismissImageDisplayRect ?: previewSurfaceRect
@@ -726,37 +738,54 @@ private fun ImagePreviewOverlayContent(
                 )
             }
 
-            fun triggerDismiss(
+            fun beginDismiss(
                 startRect: androidx.compose.ui.geometry.Rect? = null,
-                backdropStartAlpha: Float = 1f,
+                backdropStartAlpha: Float? = null,
                 initialVelocityY: Float = 0f,
             ) {
                 if (isDismissing) return
-                if (activeZoomScale > 1.01f) {
-                    // 放大态退出:先让 ZoomableImage 子层回弹到 fit(同时更新 activeZoomScale),
-                    // 再从 fit rect 起飞。直接飞会让外层 morph 与子层放大叠加,
-                    // 落点与画面内容错位、窗口移除时内容跳变。
-                    zoomResetTrigger += 1
-                    scope.launch {
-                        withTimeoutOrNull(450L) {
-                            androidx.compose.runtime.snapshotFlow { activeZoomScale }
-                                .first { it <= 1.01f }
-                        }
-                        triggerDismiss(
-                            startRect = null,
-                            backdropStartAlpha = backdropStartAlpha,
-                            initialVelocityY = 0f,
-                        )
-                    }
-                    return
-                }
                 val startProgress = currentTransitionProgress().coerceIn(0f, 1f)
+                val dragFrame = resolveImagePreviewVerticalDragFrame(verticalDismissOffsetYPx, fullHeightPx)
                 dismissStartProgress = startProgress
-                dismissImageDisplayRect = startRect
-                    ?: currentFlightRect(startProgress)
-                    ?: previewSurfaceRect
-                dismissSourceRect = currentSourceRect
-                dismissBackdropStartAlpha = backdropStartAlpha.coerceIn(0f, 1f)
+                val flightRect = currentFlightRect(startProgress)
+                dismissImageDisplayRect = startRect ?: resolveImagePreviewDraggedDisplayRect(
+                    displayedImageRect = flightRect ?: previewSurfaceRect,
+                    translationYPx = verticalDismissOffsetYPx,
+                    translationXPx = verticalDismissOffsetXPx,
+                    scale = dragFrame.scale,
+                )
+                // A partially scrolled pager has no single thumbnail to return to.
+                dismissSourceRect = currentSourceRect.takeIf { shouldUseRectAnim }
+                val displayed = currentImageDisplayRect?.takeIf { it.width > 0f && it.height > 0f }
+                val fillScale = if (currentSourceRect != null && displayed != null) {
+                    maxOf(currentSourceRect.width / displayed.width, currentSourceRect.height / displayed.height)
+                } else {
+                    maxOf(
+                        (flightRect ?: previewSurfaceRect).width / fullWidthPx,
+                        (flightRect ?: previewSurfaceRect).height / fullHeightPx,
+                    )
+                }
+                dismissTargetImageScale = fillScale
+                dismissStartImageScale = (fillScale + (1f - fillScale) * startProgress) * dragFrame.scale
+                dismissImageContentRect = currentImageDisplayRect
+                dismissStartCornerRadiusDp = resolveImagePreviewPresentedCornerRadiusDp(
+                    visualProgress = startProgress,
+                    verticalDragProgress = dragFrame.progress,
+                    hasSourceRect = shouldUseRectAnim,
+                    sourceCornerRadiusDp = sourceCornerRadiusDp,
+                )
+                dismissFallbackScale = resolveImagePreviewTransitionFrame(
+                    rawProgress = startProgress,
+                    hasSourceRect = false,
+                    sourceCornerRadiusDp = sourceCornerRadiusDp,
+                ).fallbackScale * dragFrame.scale
+                dismissOffsetXPx = verticalDismissOffsetXPx
+                dismissOffsetYPx = verticalDismissOffsetYPx
+                dismissBackdropStartAlpha = if (backdropStartAlpha != null) {
+                    backdropStartAlpha.coerceIn(0f, 1f)
+                } else {
+                    startProgress * dragFrame.backdropAlphaMultiplier
+                }
                 isVerticalDismissDragging = false
                 backRecoverEpoch += 1
                 backRecovering = false
@@ -767,12 +796,17 @@ private fun ImagePreviewOverlayContent(
                     verticalDismissSnapAnim.snapTo(0f)
                     verticalDismissSnapAnimX.snapTo(0f)
                     val dismissMotion = imagePreviewDismissMotion()
-                    // 临界阻尼 spring 回位：起步可携带手势松手速度，落地自带减速。
-                    // 进度向 0 收敛，竖滑方向的速度在进度空间取反号以延续手势动量。
+                    // Convert pixel velocity to progress velocity along the frozen return path.
                     animateTrigger.animateTo(
                         targetValue = dismissMotion.settleTarget,
                         animationSpec = imagePreviewCloseSpring(),
-                        initialVelocity = clampImagePreviewDismissVelocity(-initialVelocityY),
+                        initialVelocity = resolveImagePreviewDismissProgressVelocity(
+                            velocityY = initialVelocityY,
+                            startRect = dismissImageDisplayRect,
+                            targetRect = dismissSourceRect,
+                            containerHeightPx = fullHeightPx,
+                            startProgress = startProgress,
+                        ),
                     )
                     // Keep the final Hero frame in the Dialog for one display frame so
                     // the source list can become visible before this window is removed.
@@ -785,13 +819,42 @@ private fun ImagePreviewOverlayContent(
                 }
             }
 
+            val latestBeginDismiss by rememberUpdatedState<(androidx.compose.ui.geometry.Rect?, Float?, Float) -> Unit>(
+                { rect, alpha, velocity -> beginDismiss(rect, alpha, velocity) }
+            )
+            fun triggerDismiss(
+                startRect: androidx.compose.ui.geometry.Rect? = null,
+                backdropStartAlpha: Float? = null,
+                initialVelocityY: Float = 0f,
+            ) {
+                if (isDismissing || isPreparingDismiss) return
+                if (activeZoomScale <= 1.01f) {
+                    beginDismiss(startRect, backdropStartAlpha, initialVelocityY)
+                    return
+                }
+                // Only one reset can own this phase; repeated back/taps cannot restart it.
+                isPreparingDismiss = true
+                zoomResetTrigger += 1
+                scope.launch {
+                    try {
+                        val resetCompleted = withTimeoutOrNull(450L) {
+                            snapshotFlow { activeZoomScale }.first { it <= 1.01f }
+                        }
+                        if (resetCompleted != null) latestBeginDismiss(null, backdropStartAlpha, 0f)
+                    } finally {
+                        isPreparingDismiss = false
+                    }
+                }
+            }
+            val latestTriggerDismiss by rememberUpdatedState<() -> Unit>({ triggerDismiss() })
+
             LaunchedEffect(dismissRequestCount) {
                 if (dismissRequestCount > 0) triggerDismiss()
             }
 
             NavigationBackHandler(
                 state = backEventState,
-                isBackEnabled = !isDismissing,
+                isBackEnabled = !isDismissing && !isPreparingDismiss,
                 onBackCancelled = {
                     if (!isDismissing) {
                         scope.launch {
@@ -854,7 +917,7 @@ private fun ImagePreviewOverlayContent(
                         )
                         val alpha = if (isDismissing) {
                             resolveImagePreviewDismissBackdropAlpha(
-                                visualProgress = progress,
+                                visualProgress = dismissRemainingProgress(),
                                 startAlpha = dismissBackdropStartAlpha
                             )
                         } else {
@@ -864,7 +927,7 @@ private fun ImagePreviewOverlayContent(
                     }
                     .pointerInput(Unit) {
                         detectTapGestures(
-                            onTap = { triggerDismiss() }
+                            onTap = { latestTriggerDismiss() }
                         )
                     }
             )
@@ -881,13 +944,17 @@ private fun ImagePreviewOverlayContent(
                     alpha = resolveImagePreviewDismissContentAlpha(
                         hasRectFlight = flightRect != null,
                         isDismissing = isDismissing,
-                        visualProgress = progress
+                        visualProgress = if (isDismissing) dismissRemainingProgress() else progress
                     )
                     val dragFrame = resolveImagePreviewVerticalDragFrame(
                         dragOffsetYPx = verticalDismissOffsetYPx,
                         containerHeightPx = fullHeightPx
                     )
-                    val presentedCornerRadius = resolveImagePreviewPresentedCornerRadiusDp(
+                    val presentedCornerRadius = if (isDismissing) resolveImagePreviewDismissCornerRadiusDp(
+                        remainingProgress = dismissRemainingProgress(),
+                        startCornerRadiusDp = dismissStartCornerRadiusDp,
+                        targetCornerRadiusDp = if (dismissSourceRect != null) sourceCornerRadiusDp else 0f,
+                    ) else resolveImagePreviewPresentedCornerRadiusDp(
                         visualProgress = progress,
                         verticalDragProgress = if (isDismissing) 0f else dragFrame.progress,
                         hasSourceRect = shouldUseRectAnim,
@@ -913,15 +980,17 @@ private fun ImagePreviewOverlayContent(
                         clip = true
                         transformOrigin = TransformOrigin.Center
                     } else {
-                        val fallbackScale = resolveImagePreviewTransitionFrame(
+                        val fallbackScale = if (isDismissing) {
+                            dismissFallbackScale * (0.96f + 0.04f * dismissRemainingProgress())
+                        } else resolveImagePreviewTransitionFrame(
                             rawProgress = progress,
                             hasSourceRect = false,
                             sourceCornerRadiusDp = sourceCornerRadiusDp
-                        ).fallbackScale * if (isDismissing) 1f else dragFrame.scale
+                        ).fallbackScale * dragFrame.scale
                         scaleX = fallbackScale
                         scaleY = fallbackScale
-                        translationX = if (isDismissing) 0f else verticalDismissOffsetXPx
-                        translationY = if (isDismissing) 0f else verticalDismissOffsetYPx
+                        translationX = if (isDismissing) dismissOffsetXPx else verticalDismissOffsetXPx
+                        translationY = if (isDismissing) dismissOffsetYPx else verticalDismissOffsetYPx
                         shape = RoundedCornerShape(presentedCornerRadius.dp)
                         clip = true
                         transformOrigin = TransformOrigin.Center
@@ -953,14 +1022,18 @@ private fun ImagePreviewOverlayContent(
                                             }
                                     }
                                     ?: maxOf(baseScaleX, baseScaleY)
-                                val imageScale = sourceFillScale +
-                                    (1f - sourceFillScale) * currentTransitionProgress().coerceIn(0f, 1f)
+                                val imageScale = if (isDismissing) {
+                                    dismissTargetImageScale +
+                                        (dismissStartImageScale - dismissTargetImageScale) * dismissRemainingProgress()
+                                } else {
+                                    sourceFillScale + (1f - sourceFillScale) * currentTransitionProgress().coerceIn(0f, 1f)
+                                }
                                 scaleX = imageScale / baseScaleX
                                 scaleY = imageScale / baseScaleY
                                 val imageRect = if (isDismissing) {
-                                    currentImageDisplayRect
+                                    dismissImageContentRect
                                 } else {
-                                    flightAnchorDisplayRect ?: currentImageDisplayRect
+                                    currentImageDisplayRect
                                 }
                                 if (imageRect != null) {
                                     val remainingFlight = 1f - currentTransitionProgress().coerceIn(0f, 1f)
@@ -982,7 +1055,7 @@ private fun ImagePreviewOverlayContent(
                         },
                     beyondViewportPageCount = 1,  // 预加载相邻页面
                     userScrollEnabled = !isVerticalDismissDragging &&
-                        !isDismissing &&
+                        !isDismissing && !isPreparingDismiss &&
                         activeZoomScale <= 1.01f,
                     key = { images.getOrElse(it) { "" } }
                 ) { page ->
@@ -1033,7 +1106,7 @@ private fun ImagePreviewOverlayContent(
                                 detectTapGestures { 
                                      if (!useCommentPreviewChrome) {
                                          // 点击图片也关闭
-                                         triggerDismiss()
+                                         latestTriggerDismiss()
                                      }
                                 }
                             },
@@ -1074,15 +1147,14 @@ private fun ImagePreviewOverlayContent(
                             contentDescription = null,
                             imageLoader = gifImageLoader,  //  使用 GIF 加载器
                             modifier = Modifier.fillMaxSize(),
-                            resetZoomTrigger = zoomResetTrigger,
+                            resetZoomTrigger = if (page == pagerState.currentPage) zoomResetTrigger else 0,
+                            gesturesEnabled = !isDismissing && !isPreparingDismiss,
+                            displayRectTrackingEnabled = page == pagerState.currentPage && !isDismissing,
                             onZoomChange = {
-                                activeZoomScale = it
+                                if (page == pagerState.currentPage) activeZoomScale = it
                             },
                             onDisplayRectChange = { rect ->
                                 if (!isDismissing && page == pagerState.currentPage) {
-                                    if (flightAnchorDisplayRect == null) {
-                                        flightAnchorDisplayRect = rect
-                                    }
                                     currentImageDisplayRect = rect
                                 }
                             },
@@ -1133,7 +1205,8 @@ private fun ImagePreviewOverlayContent(
                                                     verticalDismissSnapAnim.snapTo(verticalDismissOffsetYPx)
                                                     verticalDismissSnapAnim.animateTo(
                                                         targetValue = 0f,
-                                                        animationSpec = interactiveSnapSpring()
+                                                        animationSpec = interactiveSnapSpring(),
+                                                        initialVelocity = clampImagePreviewDismissVelocity(releaseVelocityY),
                                                     ) {
                                                         verticalDismissOffsetYPx = value
                                                     }

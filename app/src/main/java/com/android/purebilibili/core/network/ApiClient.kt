@@ -2463,6 +2463,39 @@ interface PassportApi {
 
     @GET("x/passport-login/web/qrcode/poll")
     suspend fun pollQrCode(@Query("qrcode_key") key: String): Response<PollResponse>
+
+    // Web scan-authorization authenticates via access_key + android64 sign (not cookies).
+    // Contract verified by PiliPlus issue #2933 against the live API.
+    @GET("x/passport-login/web/qrcode/check")
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "app-key: android64",
+        "env: prod",
+    )
+    suspend fun checkWebQrCode(
+        @retrofit2.http.QueryMap signedParams: Map<String, String>,
+    ): QrAuthorizationResponse
+
+    @GET("x/passport-login/web/qrcode/scene")
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "app-key: android64",
+        "env: prod",
+    )
+    suspend fun getWebQrScene(
+        @retrofit2.http.QueryMap signedParams: Map<String, String>,
+    ): QrAuthorizationSceneResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/passport-login/web/qrcode/confirm")
+    @retrofit2.http.Headers(
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/master innerVer/8430300 osVer/15 network/2",
+        "app-key: android64",
+        "env: prod",
+    )
+    suspend fun confirmWebQrCode(
+        @retrofit2.http.FieldMap signedParams: Map<String, String>,
+    ): QrAuthorizationResponse
     
     // ==========  极验验证 + 手机号/密码登录 ==========
 
@@ -2597,12 +2630,20 @@ interface PassportApi {
     /** Confirm a TV QR scanned by an already logged-in BiliPai client. */
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/confirm")
+    @retrofit2.http.Headers(
+        "Origin: https://passport.bilibili.com",
+        "User-Agent: Mozilla/5.0 BiliDroid/8.43.0 (bbcallen@gmail.com) os/android model/android mobi_app/android build/8430300 channel/bilih5 osVer/15 network/2",
+    )
     suspend fun confirmTvQrCode(
         @retrofit2.http.Field("auth_code") authCode: String,
         @Header(FORCE_COOKIE_HEADER) cookieHeader: String,
-        @retrofit2.http.Field("build") build: Int = 7082000,
+        @retrofit2.http.Field("build") build: Int = 8430300,
         @retrofit2.http.Field("csrf") csrf: String,
-    ): com.android.purebilibili.data.model.response.SimpleApiResponse
+        @retrofit2.http.Field("scanning_type") scanningType: Int = 1,
+        @Header("Referer") referer: String,
+        @retrofit2.http.Field("mobi_app") mobiApp: String = "android",
+        @Header("Buvid") buvidHeader: String = "",
+    ): QrAuthorizationResponse
 
     //  [新增] TV 端刷新 Token
     @retrofit2.http.FormUrlEncoded
@@ -3380,6 +3421,13 @@ object NetworkModule {
     }
     val passportApi: PassportApi by lazy {
         Retrofit.Builder().baseUrl("https://passport.bilibili.com/").client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
+            .create(PassportApi::class.java)
+    }
+    /** Strict TLS and fixed destinations even in Debug builds, with no credential redirects. */
+    val qrAuthorizationApi: PassportApi by lazy {
+        Retrofit.Builder().baseUrl("https://passport.bilibili.com/")
+            .client(createQrAuthorizationClient(okHttpClient))
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build()
             .create(PassportApi::class.java)
     }

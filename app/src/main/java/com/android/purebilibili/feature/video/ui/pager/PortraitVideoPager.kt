@@ -176,7 +176,6 @@ import com.android.purebilibili.feature.video.ui.components.UpPreviewSheet
 import com.android.purebilibili.feature.video.ui.components.UP_PREVIEW_SHEET_HEIGHT_FRACTION
 import com.android.purebilibili.feature.video.ui.components.resolvePortraitOverlaySheetExpansion
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
-import com.android.purebilibili.feature.video.ui.components.PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO
 import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
 import com.android.purebilibili.feature.video.ui.overlay.FullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.ImmersiveAmbientLetterboxBackdrop
@@ -2851,7 +2850,8 @@ private fun VideoPageItem(
                         sourceWidthPx = gestureVideoshotData.img_x_size,
                         sourceHeightPx = gestureVideoshotData.img_y_size,
                         screenWidthDp = previewConfiguration.screenWidthDp,
-                        videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO
+                        // 使用真实视频宽比：横屏内容预览不再被强行裁成 9:16
+                        videoAspectRatio = currentVideoAspect
                     )
                 }
                 val previewWidthPx = with(density) { gesturePreviewSize.widthDp.dp.toPx() }
@@ -2870,7 +2870,7 @@ private fun VideoPageItem(
                     videoshotData = gestureVideoshotData,
                     targetPositionMs = seekTargetPosition.toLong(),
                     durationMs = progressState.duration,
-                    videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
+                    videoAspectRatio = currentVideoAspect,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .offset {
@@ -3191,6 +3191,13 @@ private fun VideoPageItem(
             currentCid = portraitDetailInfo?.cid ?: 0L,
             authorName = authorName,
             authorFace = authorFace,
+            staff = portraitDetailInfo?.staff.orEmpty(),
+            ownerMid = authorMid,
+            onStaffMemberClick = { mid ->
+                if (isCurrentPage && mid > 0L) {
+                    onUserClick(mid)
+                }
+            },
             isPlaying = if (isCurrentPage) {
                 isPlaying || shouldShowPlaybackRecoveryUiAfterSeek(
                     state = seekSession,
@@ -3343,7 +3350,7 @@ private fun VideoPageItem(
             danmakuEnabled = danmakuEnabled,
             isStatusBarHidden = true,
             videoshotData = currentSuccess?.videoshotData,
-            videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
+            videoAspectRatio = currentVideoAspect,
             isPlaybackRecovering = isCurrentPage && shouldShowPlaybackRecoveryUiAfterSeek(
                 state = seekSession,
                 playWhenReady = exoPlayer.playWhenReady,

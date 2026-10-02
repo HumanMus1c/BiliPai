@@ -1026,6 +1026,8 @@ data class AppNavigationSettings(
     val miuixTransitionBlurEnabled: Boolean = true,
     val miuixPredictiveBackMaxProgressPercent: Int = 100,
     val videoSharedReturnGestureFollowEnabled: Boolean = true,
+    val videoSharedReturnGestureTranslationEnabled: Boolean = true,
+    val videoReturnContentFollowProgressEnabled: Boolean = true,
 )
 
 internal data class BottomTabMigrationResult(
@@ -1677,6 +1679,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_AUDIO_FOCUS_ENABLED = booleanPreferencesKey("audio_focus_enabled")
     private val KEY_AUDIO_MODE_AUTO_PIP_ENABLED = booleanPreferencesKey("audio_mode_auto_pip_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_ENABLED = booleanPreferencesKey("audio_now_playing_bar_enabled")
+    private val KEY_AUDIO_NOW_PLAYING_BAR_IMMERSIVE_ENABLED =
+        booleanPreferencesKey("audio_now_playing_bar_immersive_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE =
         booleanPreferencesKey("audio_now_playing_bar_opens_audio_mode")
     private val KEY_MUSIC_LYRICS_UI_STYLE = intPreferencesKey("music_lyrics_ui_style")
@@ -6579,6 +6583,21 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     /**
+     * 听视频标题横条自动沉浸：开启后进入听视频页且播放中静置 5 秒，
+     * 底部标题横条自动隐藏，点按底部把柄恢复。默认开启。
+     */
+    fun getAudioNowPlayingBarImmersiveEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_AUDIO_NOW_PLAYING_BAR_IMMERSIVE_ENABLED] ?: true
+        }
+
+    suspend fun setAudioNowPlayingBarImmersiveEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_AUDIO_NOW_PLAYING_BAR_IMMERSIVE_ENABLED] = value
+        }
+    }
+
+    /**
      * 听视频歌词界面风格。
      * - CLASSIC: 现有全屏歌词列
      * - IMMERSIVE: 沉浸式大字歌词（Halcyon 风格）
@@ -7604,6 +7623,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("miuix_transition_blur_enabled")
     private val KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED =
         booleanPreferencesKey("video_shared_return_gesture_follow_enabled")
+    private val KEY_VIDEO_SHARED_RETURN_GESTURE_TRANSLATION_ENABLED =
+        booleanPreferencesKey("video_shared_return_gesture_translation_enabled")
     
     /**
      *  平板导航模式
@@ -7653,6 +7674,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     .coerceIn(0, 100),
             videoSharedReturnGestureFollowEnabled =
                 preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED] ?: true,
+            videoReturnContentFollowProgressEnabled =
+                preferences[booleanPreferencesKey("video_return_content_follow_progress_enabled")] ?: true,
+            videoSharedReturnGestureTranslationEnabled =
+                preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_TRANSLATION_ENABLED] ?: true,
         )
     }
 
@@ -7704,6 +7729,14 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setVideoSharedReturnGestureFollowEnabled(context: Context, enabled: Boolean) {
         NavigationSettingsStore.setVideoSharedReturnGestureFollowEnabled(context, enabled)
+    }
+
+    suspend fun setVideoReturnContentFollowProgressEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setVideoReturnContentFollowProgressEnabled(context, enabled)
+    }
+
+    suspend fun setVideoSharedReturnGestureTranslationEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setVideoSharedReturnGestureTranslationEnabled(context, enabled)
     }
 
     fun getFullScreenSwipeBackEnabled(context: Context): Flow<Boolean> =
@@ -8045,6 +8078,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             ),
             BooleanShareablePreferenceDefinition(
                 KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
+            BooleanShareablePreferenceDefinition(
+                KEY_VIDEO_SHARED_RETURN_GESTURE_TRANSLATION_ENABLED,
                 SettingsShareSection.APPEARANCE,
             ),
             IntShareablePreferenceDefinition(KEY_VIDEO_SHARED_TRANSITION_SPEED, SettingsShareSection.APPEARANCE),

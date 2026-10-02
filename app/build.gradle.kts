@@ -120,8 +120,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 421
-        versionName = "0.2.3.5"
+        versionCode = 425
+        versionName = "0.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -393,7 +393,7 @@ dependencies {
     implementation(libs.miuix.shader)
     implementation(libs.miuix.squircle)
     implementation(libs.miuix.icons)
-    implementation(libs.miuix.navigation)
+    implementation(project(":miuix-navigation"))
     // 图标扩展库 (全屏、设置图标等)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")

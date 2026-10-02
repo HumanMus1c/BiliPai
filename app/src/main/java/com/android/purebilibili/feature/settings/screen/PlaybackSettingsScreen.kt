@@ -161,6 +161,8 @@ fun PlaybackSettingsContent(
         .getAudioModeAutoPipEnabled(context).collectAsStateWithLifecycle(initialValue = false)
     val audioNowPlayingBarEnabled by com.android.purebilibili.core.store.SettingsManager
         .getAudioNowPlayingBarEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val audioNowPlayingBarImmersiveEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getAudioNowPlayingBarImmersiveEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val audioNowPlayingBarOpensAudioMode by SettingsManager
         .getAudioNowPlayingBarOpensAudioMode(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -701,6 +703,24 @@ fun PlaybackSettingsContent(
                             onCheckedChange = {
                                 scope.launch {
                                     SettingsManager.setAudioNowPlayingBarOpensAudioMode(context, it)
+                                }
+                            },
+                            iconTint = iOSOrange
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYLIST_AUTO_CONTINUE),
+                            title = "听视频标题横条自动沉浸",
+                            subtitle = if (audioNowPlayingBarImmersiveEnabled) {
+                                "听视频页播放中静置 5 秒后隐藏标题横条，点按底部把柄恢复"
+                            } else {
+                                "关闭后标题横条始终显示"
+                            },
+                            checked = audioNowPlayingBarImmersiveEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    com.android.purebilibili.core.store.SettingsManager
+                                        .setAudioNowPlayingBarImmersiveEnabled(context, it)
                                 }
                             },
                             iconTint = iOSOrange

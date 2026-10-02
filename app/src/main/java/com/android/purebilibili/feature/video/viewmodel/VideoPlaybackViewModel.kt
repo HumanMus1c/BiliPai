@@ -6622,6 +6622,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                                         authorMid = note.author?.mid ?: 0L,
                                         authorFace = note.author?.face.orEmpty(),
                                         authorLevel = note.author?.level ?: 0,
+                                        authorSenior = (note.author?.isSeniorMember ?: 0) == 1,
                                         pubtime = note.pubtime,
                                         webUrl = note.webUrl,
                                         likes = note.likes

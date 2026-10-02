@@ -2720,11 +2720,24 @@ private fun parseHexColorOrNull(hex: String?): Color? {
 
 // 评论行组合期热路径：共享 formatter，避免每条评论格式化时间都新建 SimpleDateFormat。
 // 仅主线程（Compose 组合）调用，不涉及 SimpleDateFormat 的线程安全问题。
-private val replyPublishDayFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+private val replyPublishTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+private val replyPublishDayFormatter = SimpleDateFormat("MM-dd", Locale.getDefault())
+private val replyPublishYearDayFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+private val replyPublishCalendar = Calendar.getInstance()
 
 fun formatTime(timestamp: Long): String {
     val date = Date(timestamp * 1000)
-    return replyPublishDayFormatter.format(date)
+    val calendar = replyPublishCalendar
+    val now = calendar.clone() as Calendar
+    calendar.time = date
+    val sameDay = calendar.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+        calendar.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+    return when {
+        sameDay -> replyPublishTimeFormatter.format(date)
+        calendar.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
+            replyPublishDayFormatter.format(date)
+        else -> replyPublishYearDayFormatter.format(date)
+    }
 }
 
 @Composable

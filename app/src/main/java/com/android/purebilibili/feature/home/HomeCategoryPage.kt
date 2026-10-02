@@ -280,18 +280,7 @@ internal fun HomeCategoryPageContent(
             widthSizeClass = widthSizeClass,
         )
     }
-    val adaptiveInfo = com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val hingeGridSpec = remember(adaptiveInfo, density.density) {
-        resolveHomeFeedBookHingeGridSpec(adaptiveInfo, density.density)
-    }
-    val horizontalArrangement = remember(gridColumns, cardLayout.itemSpacingDp, hingeGridSpec) {
-        resolveHomeFeedHorizontalArrangement(
-            columns = gridColumns,
-            baseSpacing = cardLayout.itemSpacingDp.dp,
-            hingeSpec = hingeGridSpec,
-        )
-    }
+    val horizontalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp)
     TrackScrollJank(
         scrollableState = gridState,
         stateName = "home:feed:${category.name.lowercase()}"

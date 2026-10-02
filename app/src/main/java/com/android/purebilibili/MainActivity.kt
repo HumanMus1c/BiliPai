@@ -1513,6 +1513,10 @@ open class MainActivity : AppCompatActivity() {
                         LocalDensity provides effectiveDensity,
                         LocalWindowSizeClass provides windowSizeClass,
                         LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
+                        com.android.purebilibili.core.ui.LocalHingeSafeOverlayRegions provides
+                            com.android.purebilibili.core.ui.adaptive.rememberHingeSafeOverlayRegions(
+                                adaptiveInfo = appWindowAdaptiveInfo
+                            ),
                         LocalDisplayMetricsSnapshot provides displayMetricsSnapshot,
                         LocalAppSingleChoicePresentation provides
                             appThemeSettings.singleChoicePresentation,
@@ -1630,7 +1634,9 @@ open class MainActivity : AppCompatActivity() {
                             ) {
                                 refreshAndroid17HandoffAvailability()
                             }
-                            AppNavigation(
+                            //  首次启动必须同意用户协议与隐私政策后才能使用应用
+                            com.android.purebilibili.feature.agreement.UserAgreementGate {
+                                AppNavigation(
                                 miniPlayerManager = miniPlayerManager,
                                 isInPipMode = isPipRenderingActive,
                                 pendingVideoId = pendingVideoId,
@@ -1679,7 +1685,8 @@ open class MainActivity : AppCompatActivity() {
                                 },
                                 onPrivacyAuthenticationRequired = ::authenticatePrivacyAccess,
                                 mainHazeState = mainHazeState //  传递全局 Haze 状态
-                            )
+                                )
+                            }
                             
                             //  OnboardingBottomSheet 等其他 overlay 组件
 
@@ -2608,9 +2615,16 @@ open class MainActivity : AppCompatActivity() {
             return
         }
 
-        resolveIntentLinkFallbackRoute(rawInput)?.let { route ->
-            Logger.d(TAG, "🌐 入口链接先回退到 WebView: $route")
-            pendingNavigationRoute = route
+        // b23.tv 短链必须等异步展开出原生目标，不能先落 Web 兜底——
+        // 否则 Web 路由被组合层抢先消费，原生视频页永远进不来。
+        val containsShortLink = BilibiliUrlParser.extractUrls(rawInput)
+            .any { it.contains("b23.tv", ignoreCase = true) } ||
+            rawInput.trim().startsWith("b23.tv/", ignoreCase = true)
+        if (!containsShortLink) {
+            resolveIntentLinkFallbackRoute(rawInput)?.let { route ->
+                Logger.d(TAG, "🌐 入口链接先回退到 WebView: $route")
+                pendingNavigationRoute = route
+            }
         }
 
         lifecycleScope.launch {

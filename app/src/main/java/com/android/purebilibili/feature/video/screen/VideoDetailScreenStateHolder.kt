@@ -779,6 +779,9 @@ internal fun VideoDetailScreenStateHolder(
     val commentListState = rememberSaveable(currentBvid, saver = LazyListState.Saver) {
         LazyListState()
     }
+    // 横屏评论面板必须用独立列表状态：与竖屏共用时，转全屏途中横屏列表被销毁
+    // 会让共享 state 的滚动互斥锁卡死，回竖屏后评论区划不动。
+    val landscapeCommentListState = remember(currentBvid) { LazyListState() }
     val videoContentPagerState: PagerState = key(currentBvid) {
         rememberPagerState(pageCount = { 2 })
     }
@@ -1249,15 +1252,14 @@ internal fun VideoDetailScreenStateHolder(
                 .getHideVideoPageStatusBarSync(context),
             lifecycle = lifecycleOwner.lifecycle
         )
-    val useTabletLayout = horizontalAdaptationEnabled && (
-        appWindowAdaptiveInfo.shouldAvoidHinge ||
-            shouldUseLargeScreenVideoLayout(
-                windowWidthDp = configuration.screenWidthDp.toFloat(),
-                windowHeightDp = configuration.screenHeightDp.toFloat(),
-                horizontalAdaptationEnabled = true,
-                isFoldableCoverWindow = displayContext.isFoldableCoverWindow,
-            )
+    val useTabletLayout = appWindowAdaptiveInfo.shouldAvoidHinge || (
+        horizontalAdaptationEnabled && shouldUseLargeScreenVideoLayout(
+            windowWidthDp = configuration.screenWidthDp.toFloat(),
+            windowHeightDp = configuration.screenHeightDp.toFloat(),
+            horizontalAdaptationEnabled = true,
+            isFoldableCoverWindow = displayContext.isFoldableCoverWindow,
         )
+    )
 
     val activity = remember { context.findActivity() }
     val isActivityInMultiWindowMode = activity?.let {
@@ -3483,7 +3485,7 @@ internal fun VideoDetailScreenStateHolder(
                     val success = uiState as? VideoPlaybackUiState.Success
                     if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
-                            info = success.info, listState = commentListState,
+                            info = success.info, listState = landscapeCommentListState,
                             replies = commentState.replies, replyCount = commentState.replyCount,
                             emoteMap = success.emoteMap, isRepliesLoading = commentState.isRepliesLoading,
                             isRepliesEnd = commentState.isRepliesEnd, videoTags = success.videoTags,
@@ -3707,7 +3709,7 @@ internal fun VideoDetailScreenStateHolder(
                     if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
                             info = success.info,
-                            listState = commentListState,
+                            listState = landscapeCommentListState,
                             replies = commentState.replies,
                             replyCount = commentState.replyCount,
                             emoteMap = success.emoteMap,
@@ -3820,11 +3822,8 @@ internal fun VideoDetailScreenStateHolder(
                     }
                     //  📐 [大屏适配] 根据设备类型选择布局
                     if (useTabletLayout) {
-                        if (
-                            appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Book ||
-                            appWindowAdaptiveInfo.posture == com.android.purebilibili.core.util.AppFoldPosture.Tabletop
-                        ) {
-                            // Book/Tabletop：由 AppSplitLayout 按真实铰链位置切分窗格。
+                        if (appWindowAdaptiveInfo.shouldAvoidHinge) {
+                            // 半开折痕和展开后的实体铰链都按实际安全区域切分。
                             TabletVideoLayout(
                                 playerState = playerState,
                                 uiState = uiState,
@@ -4533,12 +4532,12 @@ internal fun VideoDetailScreenStateHolder(
                                 sourceLayout = miuixLandingState.sourceLayout,
                             ).takeIf { it.canRender }
                         }
-                        // The now-playing bar is a COVER_ONLY source, but its frozen bitmap still
-                        // has a real target rect. Keep that rect in the media handoff instead of
-                        // letting the generic COVER_ONLY branch pin the detail-sized shell.
+                        // A frozen now-playing snapshot contains the whole capsule, not just
+                        // its cover. Land it in the complete source bounds for either bar layout.
                         val nativeSnapshotTargetBoundsProvider: (() -> Rect?)? =
                             if (CardPositionManager.lastClickedNativeCardBitmap != null &&
-                                miuixLandingState.sourceLayout == VideoCardSourceLayout.COVER_ONLY
+                                (miuixLandingState.sourceLayout == VideoCardSourceLayout.COVER_ONLY ||
+                                    miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true)
                             ) {
                                 { miuixLandingState.sourceBoundsProvider() }
                             } else {
@@ -4607,11 +4606,13 @@ internal fun VideoDetailScreenStateHolder(
                                     animatedVisibilityProgress = detailTransitionProgress.value,
                                     morphDepthProgress =
                                         videoCardDepthBackgroundState.progressProvider(),
-                                    liveReturnMorph = liveReturnMorph,
+                                    liveReturnMorph = liveReturnMorph || entryOwnsMiuixCardTransition,
                                 ),
                                 isCommittedCardReturn = isCommittedCardReturn,
                                 hasResidentCover = hasResidentReturnCover,
                                 liveReturnMorph = liveReturnMorph,
+                                followProgressEnabled = videoCardDepthBackgroundState
+                                    .returnContentFollowProgressEnabledProvider(),
                                 isReturnGestureInProgress = returnGestureInProgress,
                                 showResidentCoverUntilFirstFrame =
                                     entryOwnsMiuixCardTransition &&
@@ -4630,6 +4631,8 @@ internal fun VideoDetailScreenStateHolder(
                                             .isGestureRestoreInProgressProvider(),
                                 sourceLayout = landingLayoutForMedia?.layout
                                     ?: miuixLandingState.sourceLayout,
+                                followProgressEnabled = videoCardDepthBackgroundState
+                                    .returnContentFollowProgressEnabledProvider(),
                                 detailContentLoading = uiState is VideoPlaybackUiState.Loading,
                                 isNowPlayingBar =
                                     miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true,
@@ -4652,7 +4655,18 @@ internal fun VideoDetailScreenStateHolder(
                                         0.dp
                                     },
                                 )
-                                .background(Color.Black)
+                                .drawBehind {
+                                    // The compact source is translucent in both plain and glass modes.
+                                    // Do not leave the opaque player backing under its return snapshot.
+                                    val backingAlpha = if (
+                                        miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true
+                                    ) {
+                                        1f - flyingSourceChromeAlphaProvider().coerceIn(0f, 1f)
+                                    } else {
+                                        1f
+                                    }
+                                    drawRect(Color.Black.copy(alpha = backingAlpha))
+                                }
                                 //  [PiP修复] 捕获视频播放器在屏幕上的位置
                                 .onGloballyPositioned { layoutCoordinates ->
                                     // Morph height changes every frame. PiP and system-bar bounds only need
@@ -4879,6 +4893,8 @@ internal fun VideoDetailScreenStateHolder(
                                             motionTier =
                                                 videoCardDepthBackgroundState.motionTierProvider(),
                                             sourceLayout = miuixLandingState.sourceLayout,
+                                            followProgressEnabled = videoCardDepthBackgroundState
+                                                .returnContentFollowProgressEnabledProvider(),
                                         )
                                         alpha = frame.alpha
                                         // Shrink toward card-info size so type size meets source chrome
@@ -5176,6 +5192,8 @@ internal fun VideoDetailScreenStateHolder(
                             morphDepthProgressProvider =
                                 miuixCardTransitionState.progressProvider,
                             phaseProvider = videoCardDepthBackgroundState.phaseProvider,
+                            followProgressEnabledProvider = videoCardDepthBackgroundState
+                                .returnContentFollowProgressEnabledProvider,
                             isReturnGestureInProgressProvider = {
                                 videoCardDepthBackgroundState
                                     .isReturnGestureInProgressProvider() ||

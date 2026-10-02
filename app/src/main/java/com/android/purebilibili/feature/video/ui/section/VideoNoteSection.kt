@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.section
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -62,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -888,6 +890,23 @@ fun VideoNoteDeleteConfirmDialog(
     )
 }
 
+/** 官方等级徽章素材（与 PiliPlus 同源）：硬核会员显示 lv6_s，等级超过 6 按 6 处理。 */
+private fun noteLevelBadgeRes(note: VideoNotePublicPreview): Int? {
+    return when {
+        note.authorSenior -> com.android.purebilibili.R.drawable.lv6_s
+        note.authorLevel <= 0 -> null
+        note.authorLevel >= 6 -> com.android.purebilibili.R.drawable.lv6
+        else -> when (note.authorLevel) {
+            1 -> com.android.purebilibili.R.drawable.lv1
+            2 -> com.android.purebilibili.R.drawable.lv2
+            3 -> com.android.purebilibili.R.drawable.lv3
+            4 -> com.android.purebilibili.R.drawable.lv4
+            5 -> com.android.purebilibili.R.drawable.lv5
+            else -> null
+        }
+    }
+}
+
 @Composable
 private fun PublicNoteListRow(
     note: VideoNotePublicPreview,
@@ -919,12 +938,14 @@ private fun PublicNoteListRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable(onClick = onAuthorClick),
                 )
-                if (note.authorLevel > 0) {
+                noteLevelBadgeRes(note)?.let { badgeRes ->
                     Spacer(modifier = Modifier.width(6.dp))
-                    AppText(
-                        text = "Lv${note.authorLevel}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Image(
+                        painter = painterResource(badgeRes),
+                        contentDescription = "Lv${note.authorLevel}",
+                        modifier = Modifier
+                            .height(12.dp)
+                            .clickable(onClick = onAuthorClick),
                     )
                 }
             }

@@ -809,6 +809,21 @@ internal fun SettingsRootCategoryContent(
                 }
                 SettingsRootCategoryEntranceSection {
                     SettingsDetailGroup(title = "关于与更新") {
+                        var showUserAgreement by remember { mutableStateOf(false) }
+                        SettingClickableItem(
+                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(
+                                com.android.purebilibili.R.drawable.ms_gavel_24
+                            ),
+                            title = "用户协议与隐私政策",
+                            value = "查看全文",
+                            onClick = { showUserAgreement = true }
+                        )
+                        SettingsAdaptiveDivider()
+                        if (showUserAgreement) {
+                            com.android.purebilibili.feature.agreement.UserAgreementReviewDialog(
+                                onDismiss = { showUserAgreement = false }
+                            )
+                        }
                         AboutSection(
                             versionName = state.versionName,
                             appIconKey = state.appIcon,
@@ -953,6 +968,12 @@ fun ReleaseChannelPinnedCard(
                         overflow = TextOverflow.Clip
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 AppOutlinedButton(
                     onClick = onTelegramGroupClick,
                     modifier = Modifier.weight(1f),
@@ -965,7 +986,7 @@ fun ReleaseChannelPinnedCard(
                         overflow = TextOverflow.Clip
                     )
                 }
-                AppTextButton(
+                AppOutlinedButton(
                     onClick = onDisclaimerClick,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp)

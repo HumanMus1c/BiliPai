@@ -524,6 +524,14 @@ internal fun MusicPlayerContent(
         animationSpec = if (effectiveReduceMotion) snap() else AppMotionTokens.emphasizedSpec(),
         label = "music_palette"
     )
+    androidx.compose.runtime.DisposableEffect(backgroundColor) {
+        com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
+            .publishImmersiveBackdropColor(backgroundColor)
+        onDispose {
+            com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
+                .publishImmersiveBackdropColor(null)
+        }
+    }
     val glassEnabled = resolveMusicLiquidGlassEnabled(
         sdkInt = Build.VERSION.SDK_INT,
         effectsEnabled = liquidGlassEffectsEnabled,
