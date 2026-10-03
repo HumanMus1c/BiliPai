@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
-import com.android.purebilibili.feature.video.danmaku.AdvancedDanmakuData
+import com.android.purebilibili.danmaku.parser.AdvancedDanmakuData
 import kotlinx.coroutines.isActive
 import kotlin.math.roundToInt
 
@@ -150,7 +150,7 @@ private fun RenderSingleAdvancedDanmaku(
     } else {
         val currentX = danmaku.startX + (danmaku.endX - danmaku.startX) * easedProgress
         val currentY = danmaku.startY + (danmaku.endY - danmaku.startY) * easedProgress
-        com.android.purebilibili.feature.video.danmaku.BasPathPoint(currentX, currentY)
+        com.android.purebilibili.danmaku.parser.BasPathPoint(currentX, currentY)
     }
 
     // Normalized author coordinates are mapped once; the anchor is the text's top-left.

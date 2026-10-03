@@ -18,7 +18,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -29,6 +32,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -58,6 +63,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.CompositionLocalProvider
@@ -67,9 +73,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -77,7 +85,9 @@ import androidx.compose.runtime.withFrameMillis
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -85,6 +95,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
@@ -134,10 +147,18 @@ import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.LocalBottomBarVisible
 import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
+import com.android.purebilibili.feature.home.HomeCardWallpaperSurfaceMode
 import com.android.purebilibili.feature.home.HomeWallpaperBackdrop
+import com.android.purebilibili.feature.home.LocalHomeWallpaperBackdrop
+import com.android.purebilibili.feature.home.LocalHomeWallpaperBackdropReady
+import com.android.purebilibili.feature.home.LocalHomeWallpaperIsStatic
+import com.android.purebilibili.feature.home.resolveHomeCardWallpaperSurfaceMode
 import com.android.purebilibili.feature.home.resolveHomeWallpaperBackdropAppearance
 import com.android.purebilibili.feature.home.resolveHomeWallpaperUri
 import com.android.purebilibili.core.ui.AppShapes
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
@@ -161,6 +182,9 @@ import com.android.purebilibili.feature.dynamic.components.prepareImagePreviewSo
 import com.android.purebilibili.feature.home.homeFeedPinchZoom
 import java.time.Instant
 import java.time.ZoneId
+
+/** revision 触发的非手动刷新最小联网间隔；间隔内只重读本地缓存。 */
+private const val MIN_NETWORK_REFRESH_INTERVAL_MS = 8_000L
 
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -186,6 +210,7 @@ fun SubscriptionFeedPage(
     var cachedBodies by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var unreadOnly by remember { mutableStateOf(false) }
     var selectedSourceId by remember { mutableStateOf<String?>(null) }
+    var selectedGroup by remember { mutableStateOf<String?>(null) }
     var opened by remember { mutableStateOf<ParsedFeedItem?>(null) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var previewIndex by remember { mutableIntStateOf(0) }
@@ -250,6 +275,10 @@ fun SubscriptionFeedPage(
         }
     }
     var reloadToken by remember { mutableIntStateOf(0) }
+    var refreshErrors by remember { mutableStateOf<List<String>>(emptyList()) }
+    var refreshProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var lastNetworkFetchAt by remember { mutableLongStateOf(0L) }
+    var lastFetchReloadToken by remember { mutableIntStateOf(-1) }
 
     LaunchedEffect(scrollToTopRequestId) {
         if (scrollToTopRequestId > 0 && !isArticleOpen) listState.animateScrollToTop()
@@ -259,6 +288,11 @@ fun SubscriptionFeedPage(
         try {
             val loadedSources = withContext(Dispatchers.IO) { loadEnabledFeedSources(context) }
             sources = loadedSources
+            val groupNames = loadedSources.map { it.group }.filter { it.isNotBlank() }.distinct()
+            val activeGroup = selectedGroup
+            if (activeGroup != null && activeGroup.isNotEmpty() && activeGroup !in groupNames) {
+                selectedGroup = null
+            }
             if (selectedSourceId != null && loadedSources.none { it.id == selectedSourceId }) {
                 selectedSourceId = null
             }
@@ -267,15 +301,30 @@ fun SubscriptionFeedPage(
             cachedBodies = cache.fullBodies
             val enabledIds = loadedSources.map { it.id }.toSet()
             items = mergeCachedFeedItems(cache.items, emptyList(), enabledIds)
+            // 手动下拉始终联网；revision 触发（如设置里切换开关）在最小间隔内只重读本地缓存，
+            // 避免每次开关订阅都全量请求所有源。
+            val manualRefresh = reloadToken != lastFetchReloadToken
+            val shouldFetchNetwork = loadedSources.isNotEmpty() && (
+                manualRefresh ||
+                    items.isEmpty() ||
+                    System.currentTimeMillis() - lastNetworkFetchAt >= MIN_NETWORK_REFRESH_INTERVAL_MS
+                )
+            lastFetchReloadToken = reloadToken
+            if (!shouldFetchNetwork) return@LaunchedEffect
+            lastNetworkFetchAt = System.currentTimeMillis()
+            refreshProgress = 0 to loadedSources.size
             val snapshot = loadFeedSources(loadedSources, FeedConditionalStore.load(context)) { update ->
+                refreshProgress = update.completedSources to update.totalSources
                 val preserveOrder = listState.firstVisibleItemIndex > 0 ||
                     listState.firstVisibleItemScrollOffset > 0
                 val merged = mergeCachedFeedItems(cache.items, update.items, enabledIds)
                 items = stabilizeFeedOrder(items, merged, preserveOrder)
             }
+            refreshProgress = snapshot.completedSources to snapshot.totalSources
             val merged = mergeCachedFeedItems(cache.items, snapshot.items, enabledIds)
             val preserveOrder = listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
             items = stabilizeFeedOrder(items, merged, preserveOrder)
+            refreshErrors = snapshot.errors
             snapshot.errors.forEach { Logger.w("SubscriptionFeed", it) }
             runCatching { FeedReadingStore.saveItems(context, merged) }
                 .onFailure { Logger.w("SubscriptionFeed", "本地缓存保存失败: ${it.message}") }
@@ -292,8 +341,16 @@ fun SubscriptionFeedPage(
         }
     }
 
+    val groupSourceIds = remember(sources, selectedGroup) {
+        if (selectedGroup == null) {
+            emptySet()
+        } else {
+            sources.filter { it.group == selectedGroup }.map { it.id }.toSet()
+        }
+    }
     val visibleItems = items.filter { item ->
         (selectedSourceId == null || item.sourceId == selectedSourceId) &&
+            (selectedGroup == null || item.sourceId in groupSourceIds) &&
             (!unreadOnly || feedItemKey(item) !in readKeys || feedItemKey(item) == opened?.let(::feedItemKey))
     }
     SharedTransitionLayout(modifier = modifier.fillMaxSize()) {
@@ -317,7 +374,10 @@ fun SubscriptionFeedPage(
                         val key = feedItemKey(article)
                         readKeys = if (read) readKeys + key else readKeys - key
                         scope.launch {
-                            runCatching { FeedReadingStore.setRead(context, key, read) }
+                            runCatching {
+                                if (read) FeedReadingStore.recordRead(context, key)
+                                else FeedReadingStore.setRead(context, key, false)
+                            }
                                 .onFailure { Logger.w("SubscriptionFeed", "阅读状态保存失败: ${it.message}") }
                         }
                     },
@@ -359,6 +419,11 @@ fun SubscriptionFeedPage(
                         visibleItems = visibleItems,
                         loading = loading,
                         unreadOnly = unreadOnly,
+                        refreshErrors = refreshErrors,
+                        onDismissRefreshErrors = { refreshErrors = emptyList() },
+                        refreshProgress = refreshProgress,
+                        selectedGroup = selectedGroup,
+                        onSelectGroup = { selectedGroup = it },
                         onUnreadOnlyChange = { unreadOnly = it },
                         readKeys = readKeys,
                         selectedSourceId = selectedSourceId,
@@ -370,7 +435,7 @@ fun SubscriptionFeedPage(
                             val key = feedItemKey(item)
                             readKeys = readKeys + key
                             scope.launch {
-                                runCatching { FeedReadingStore.setRead(context, key, true) }
+                                runCatching { FeedReadingStore.recordRead(context, key) }
                                     .onFailure { Logger.w("SubscriptionFeed", "阅读状态保存失败: ${it.message}") }
                             }
                             scope.launch {
@@ -427,6 +492,11 @@ private fun SubscriptionFeedGrid(
     visibleItems: List<ParsedFeedItem>,
     loading: Boolean,
     unreadOnly: Boolean,
+    refreshErrors: List<String>,
+    onDismissRefreshErrors: () -> Unit,
+    refreshProgress: Pair<Int, Int>?,
+    selectedGroup: String?,
+    onSelectGroup: (String?) -> Unit,
     onUnreadOnlyChange: (Boolean) -> Unit,
     readKeys: Set<String>,
     selectedSourceId: String?,
@@ -461,26 +531,108 @@ private fun SubscriptionFeedGrid(
         verticalItemSpacing = 8.dp,
     ) {
         item(span = StaggeredGridItemSpan.FullLine) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppAssistChip(onClick = { onSelectSource(null) }, label = { AppText("全部") })
-                AppAssistChip(
-                    onClick = { onUnreadOnlyChange(!unreadOnly) },
-                    label = { AppText(if (unreadOnly) "✓ 只看未读" else "只看未读") },
-                )
-                sources.forEach { source ->
-                    AppAssistChip(
-                        onClick = { onSelectSource(source.id) },
-                        label = { AppText(source.title) },
-                    )
+            val groupNames = sources.map { it.group }.filter { it.isNotBlank() }.distinct()
+            val hasGroups = groupNames.isNotEmpty()
+            val displayedSources = if (selectedGroup == null) {
+                sources
+            } else {
+                sources.filter { it.group == selectedGroup }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (hasGroups) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppAssistChip(
+                            onClick = { onSelectGroup(null) },
+                            label = { AppText(if (selectedGroup == null) "✓ 全部分组" else "全部分组") },
+                        )
+                        groupNames.forEach { group ->
+                            AppAssistChip(
+                                onClick = { onSelectGroup(if (selectedGroup == group) null else group) },
+                                label = {
+                                    AppText(
+                                        if (selectedGroup == group) "✓ $group" else group
+                                    )
+                                },
+                            )
+                        }
+                        if (sources.any { it.group.isBlank() }) {
+                            AppAssistChip(
+                                onClick = { onSelectGroup(if (selectedGroup == "") null else "") },
+                                label = {
+                                    AppText(
+                                        if (selectedGroup == "") "✓ 未分组" else "未分组"
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
-                AppTextButton(onClick = onRefresh, enabled = !loading) {
-                    AppText(if (loading) "刷新中" else "刷新")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppAssistChip(onClick = { onSelectSource(null) }, label = { AppText("全部") })
+                    AppAssistChip(
+                        onClick = { onUnreadOnlyChange(!unreadOnly) },
+                        label = { AppText(if (unreadOnly) "✓ 只看未读" else "只看未读") },
+                    )
+                    displayedSources.forEach { source ->
+                        AppAssistChip(
+                            onClick = { onSelectSource(source.id) },
+                            label = { AppText(source.title) },
+                        )
+                    }
+                    AppTextButton(onClick = onRefresh, enabled = !loading) {
+                        val progress = refreshProgress
+                        AppText(
+                            when {
+                                !loading -> "刷新"
+                                progress == null || progress.second <= 0 -> "刷新中"
+                                progress.first >= progress.second -> "刷新中 ${progress.second}/${progress.second}"
+                                else -> "刷新中 ${progress.first}/${progress.second}"
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        if (refreshErrors.isNotEmpty()) {
+            item(span = StaggeredGridItemSpan.FullLine, key = "subscription_refresh_errors") {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AppText(
+                            text = if (refreshErrors.size == 1) {
+                                refreshErrors.first()
+                            } else {
+                                "${refreshErrors.size} 个订阅源刷新失败：${refreshErrors.first()}"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppTextButton(onClick = onDismissRefreshErrors) {
+                            AppText("知道了")
+                        }
+                    }
                 }
             }
         }
@@ -524,6 +676,16 @@ private fun SubscriptionFeedCard(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
+    //  [壁纸毛玻璃] 与首页视频卡片同一套壁纸模糊样式（详见 SubscriptionCardFrost）。
+    val frost = rememberSubscriptionCardFrost()
+    val palette = com.android.purebilibili.feature.home.components.cards.LocalWallpaperPalette.current
+    val dynamicTintEnabled = com.android.purebilibili.feature.home.components.cards.LocalHomeCardDynamicTintEnabled.current
+    val frostedGlassEnabled = com.android.purebilibili.feature.home.components.cards.LocalHomeCardFrostedGlassEnabled.current
+    val baseColor = AppSurfaceTokens.cardContainer()
+    val scrollTick = com.android.purebilibili.feature.home.components.cards.LocalHomeScrollTickProvider.current
+    val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+    val viewportHeightPx = with(LocalDensity.current) { screenHeightDp.dp.toPx() }
+    val cardCoordinates = remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     AppSurface(
         modifier = with(sharedTransitionScope) {
             Modifier
@@ -535,9 +697,34 @@ private fun SubscriptionFeedCard(
                     clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Card)),
                 )
                 .clip(AppShapes.container(ContainerLevel.Card))
+                .then(frost.backdropModifier())
+                .onPlaced { cardCoordinates.value = it }
+                .drawBehind {
+                    val color = if (dynamicTintEnabled && !frost.useRealtimeFrosted) {
+                        scrollTick?.invoke()
+                        val coordinates = cardCoordinates.value
+                        val yFraction = if (coordinates != null && coordinates.isAttached && viewportHeightPx > 0f) {
+                            (coordinates.positionInRoot().y / viewportHeightPx).coerceIn(0f, 1f)
+                        } else 0.5f
+                        com.android.purebilibili.feature.home.components.cards.resolveVideoCardAmbientDrawSpec(
+                            wallpaperPalette = palette,
+                            yFraction = yFraction,
+                            coverTint = null,
+                            wallpaperTintEnabled = palette != null,
+                            isDarkTheme = frost.isDarkCardTheme,
+                            defaultContainerColor = baseColor,
+                            defaultBorderColor = Color.White,
+                            frostedGlassEnabled = frostedGlassEnabled,
+                            dynamicTintEnabled = dynamicTintEnabled,
+                        ).containerColor
+                    } else frost.containerColor
+                    drawRect(color)
+                }
+                .then(frost.borderModifier())
                 .clickable(onClick = onClick)
         },
-        color = AppSurfaceTokens.cardContainer(),
+        // 材质已由 drawBackdrop + drawBehind 绘制，Surface 不再覆盖一层实心底色。
+        color = Color.Transparent,
         tonalElevation = 0.dp,
     ) {
         Column {
@@ -572,6 +759,71 @@ private fun SubscriptionFeedCard(
     }
 }
 
+/** 订阅卡片与回顾卡共用的壁纸毛玻璃外观（与首页 VideoCard 实时毛玻璃同参数）。 */
+private class SubscriptionCardFrost(
+    val useRealtimeFrosted: Boolean,
+    val isDarkCardTheme: Boolean,
+    private val backdrop: MiuixBackdrop?,
+    private val shape: androidx.compose.ui.graphics.Shape,
+    private val blurRadiusPx: Float,
+    val containerColor: Color,
+) {
+    fun backdropModifier(): Modifier = if (!useRealtimeFrosted || backdrop == null) {
+        Modifier
+    } else {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = { blur(blurRadiusPx, blurRadiusPx) },
+        )
+    }
+
+    fun borderModifier(): Modifier = if (!useRealtimeFrosted) {
+        Modifier
+    } else {
+        Modifier.border(
+            width = 0.5.dp,
+            color = Color.White.copy(alpha = if (isDarkCardTheme) 0.14f else 0.22f),
+            shape = shape,
+        )
+    }
+}
+
+@Composable
+private fun rememberSubscriptionCardFrost(): SubscriptionCardFrost {
+    val context = LocalContext.current
+    val backdrop = LocalHomeWallpaperBackdrop.current
+    val frostedGlassEnabled = com.android.purebilibili.feature.home.components.cards.LocalHomeCardFrostedGlassEnabled.current
+    val surfaceMode = resolveHomeCardWallpaperSurfaceMode(
+        dynamicTintEnabled = false,
+        frostedGlassEnabled = frostedGlassEnabled,
+        wallpaperVisible = LocalHomeWallpaperBackdropReady.current,
+        wallpaperIsStatic = LocalHomeWallpaperIsStatic.current,
+        backdropReady = LocalHomeWallpaperBackdropReady.current,
+        blurEnabled = true,
+        isDataSaverActive = false,
+        lowBlurBudgetForced = false,
+        sdkInt = Build.VERSION.SDK_INT,
+    )
+    return SubscriptionCardFrost(
+        useRealtimeFrosted = surfaceMode == HomeCardWallpaperSurfaceMode.REALTIME_FROSTED && backdrop != null,
+        isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f,
+        backdrop = backdrop,
+        shape = AppShapes.container(ContainerLevel.Card),
+        blurRadiusPx = with(LocalDensity.current) { 24.dp.toPx() },
+        containerColor = if (surfaceMode == HomeCardWallpaperSurfaceMode.REALTIME_FROSTED) {
+            //  与 VideoCard 实时毛玻璃一致的不透明度，保证标题文字可读。
+            AppSurfaceTokens.cardContainer().copy(alpha = if (AppSurfaceTokens.chromeBackground().luminance() < 0.5f) 0.44f else 0.36f)
+        } else if (frostedGlassEnabled) {
+            AppSurfaceTokens.cardContainer().copy(
+                alpha = if (AppSurfaceTokens.chromeBackground().luminance() < 0.5f) 0.38f else 0.34f
+            )
+        } else {
+            AppSurfaceTokens.cardContainer()
+        },
+    )
+}
+
 @Composable
 private fun FeedCoverImage(
     url: String,
@@ -587,7 +839,7 @@ private fun FeedCoverImage(
     )
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 private fun SubscriptionArticleScreen(
     item: ParsedFeedItem,
@@ -650,9 +902,16 @@ private fun SubscriptionArticleScreen(
         .collectAsStateWithLifecycle(initialValue = "")
     val splashWallpaperUri by remember(context) { SettingsManager.getSplashWallpaperUri(context) }
         .collectAsStateWithLifecycle(initialValue = "")
+    val customArticleWallpaperUri by remember(context) {
+        SettingsManager.getSubscriptionArticleWallpaperUri(context)
+    }.collectAsStateWithLifecycle(initialValue = "")
     val wallpaperMode by remember(context) { SettingsManager.getHomeWallpaperEffectMode(context) }
         .collectAsStateWithLifecycle(initialValue = HomeWallpaperEffectMode.SOFT_BLUR)
-    val wallpaperUri = resolveHomeWallpaperUri(configuredWallpaperUri, splashWallpaperUri)
+    //  [独立壁纸] RSS 阅读页可设置专属壁纸；为空时回退首页壁纸链。
+    val wallpaperUri = customArticleWallpaperUri.ifBlank {
+        resolveHomeWallpaperUri(configuredWallpaperUri, splashWallpaperUri)
+    }
+    var wallpaperPickerVisible by remember { mutableStateOf(false) }
     val articleBackground = MaterialTheme.colorScheme.surface
     val dataSaverActive = remember(context) { SettingsManager.isDataSaverActive(context) }
     val wallpaperAppearance = remember(wallpaperEnabled, wallpaperUri, wallpaperMode, articleBackground, dataSaverActive) {
@@ -666,6 +925,22 @@ private fun SubscriptionArticleScreen(
     }
     var actionsExpanded by remember { mutableStateOf(false) }
     var fontScale by remember { mutableIntStateOf(1) }
+    val articleWallpaperPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        com.android.purebilibili.core.util.PickGalleryVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            articleScope.launch {
+                SettingsManager.setSubscriptionArticleWallpaperUri(context, uri.toString())
+                SettingsManager.setSubscriptionArticleWallpaperEnabled(context, true)
+            }
+        }
+    }
     // 文章笔记（本地）：按文章链接为键，写笔记/摘录/摘要草稿共用一个编辑器。
     val noteRevision by ArticleNoteStore.revision.collectAsStateWithLifecycle()
     val savedArticleNote = remember(noteRevision, item.link) { ArticleNoteStore.get(context, item.link) }
@@ -705,6 +980,34 @@ private fun SubscriptionArticleScreen(
     }
     val readingBlocks = blocks
     val onReadingLinkClick: (String) -> Unit = onOpenUrl
+    //  [阅读进展] 记录进度并在重开未读完的文章时自动续读。
+    val articleKey = feedItemKey(item)
+    LaunchedEffect(articleKey) {
+        val savedPercent = runCatching { FeedReadingStore.readProgress(context, articleKey) }.getOrDefault(0)
+        if (savedPercent in 10..95 && readingBlocks.isNotEmpty()) {
+            kotlinx.coroutines.delay(400)
+            articleListState.scrollToItem(
+                index = (readingBlocks.size * savedPercent / 100).coerceIn(0, readingBlocks.size - 1),
+            )
+            android.widget.Toast.makeText(
+                context,
+                "已恢复到上次阅读位置 · ${savedPercent}%",
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    LaunchedEffect(articleKey, readingBlocks.size) {
+        if (readingBlocks.isEmpty()) return@LaunchedEffect
+        snapshotFlow {
+            val first = articleListState.firstVisibleItemIndex
+            if (first <= 0) 0
+            else ((first + 1) * 100 / readingBlocks.size).coerceIn(0, 100)
+        }
+            .sample(1200L)
+            .collect { percent ->
+                runCatching { FeedReadingStore.recordProgress(context, articleKey, percent) }
+            }
+    }
     val imageUrls = remember(blocks) {
         blocks.filterIsInstance<FeedBlock.Image>().map { it.url }.distinct()
     }
@@ -785,6 +1088,38 @@ private fun SubscriptionArticleScreen(
                                 actionsExpanded = false
                             },
                         )
+                        AppDropdownMenuItem(
+                            text = {
+                                AppText(
+                                    if (customArticleWallpaperUri.isBlank()) "选择阅读壁纸（当前跟随首页）"
+                                    else "更换阅读壁纸"
+                                )
+                            },
+                            onClick = {
+                                wallpaperPickerVisible = true
+                                actionsExpanded = false
+                            },
+                        )
+                        if (wallpaperPickerVisible) {
+                            articleWallpaperPickerLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    androidx.activity.result.contract.ActivityResultContracts
+                                        .PickVisualMedia.ImageOnly
+                                )
+                            )
+                            wallpaperPickerVisible = false
+                        }
+                        if (customArticleWallpaperUri.isNotBlank()) {
+                            AppDropdownMenuItem(
+                                text = { AppText("恢复跟随首页壁纸") },
+                                onClick = {
+                                    articleScope.launch {
+                                        SettingsManager.setSubscriptionArticleWallpaperUri(context, "")
+                                    }
+                                    actionsExpanded = false
+                                },
+                            )
+                        }
                         AppDropdownMenuItem(
                             text = { AppText(if (excerptMode) "退出摘录模式" else "摘录模式（点选段落进笔记）") },
                             onClick = {

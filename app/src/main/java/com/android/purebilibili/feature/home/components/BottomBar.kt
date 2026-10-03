@@ -2526,7 +2526,12 @@ private fun MaterialBottomBar(
             bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
         )
         val mergeOnScrollDownEnabled = homeSettings.linkedDockMergeOnScrollEnabled
-        if (searchEnabled || nowPlayingContent != null) {
+        // 播放条关闭后继续保留同一个 Dock，避免切换组件使展开动画丢失。
+        var hasHostedNowPlaying by remember { mutableStateOf(nowPlayingContent != null) }
+        SideEffect {
+            if (nowPlayingContent != null) hasHostedNowPlaying = true
+        }
+        if (searchEnabled || nowPlayingContent != null || hasHostedNowPlaying) {
             LinkedBottomDock(
                 currentItem = currentItem,
                 firstItem = bottomBarVisibleItems.firstOrNull() ?: BottomNavItem.HOME,
@@ -3560,7 +3565,11 @@ private fun BiliPaiFloatingBottomBar(
     mergeOnScrollDownEnabled: Boolean = true,
     animateNowPlayingPresence: Boolean = true,
 ) {
-    if (bottomBarSearchEnabled || nowPlayingContent != null) {
+    var hasHostedNowPlaying by remember { mutableStateOf(nowPlayingContent != null) }
+    SideEffect {
+        if (nowPlayingContent != null) hasHostedNowPlaying = true
+    }
+    if (bottomBarSearchEnabled || nowPlayingContent != null || hasHostedNowPlaying) {
         LinkedBottomDock(
             currentItem = currentItem,
             firstItem = visibleItems.firstOrNull() ?: BottomNavItem.HOME,

@@ -113,6 +113,7 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.ui.section.AiSummarySheet
 import com.android.purebilibili.feature.video.ui.section.VideoSupplementStatsActions
@@ -443,6 +444,8 @@ internal class VideoContentEngagementState(
 
 internal class VideoContentCommentState(
     val isRepliesLoading: Boolean,
+    val isRepliesRefreshing: Boolean,
+    val repliesError: String?,
     val isRepliesEnd: Boolean,
     val voteCard: ReplyVoteCard?,
     val sortMode: CommentSortMode,
@@ -502,6 +505,7 @@ internal class VideoContentCommentActions(
     val onSubReplyClick: (ReplyItem, Long) -> Unit,
     val onCommentReplyClick: (ReplyItem) -> Unit,
     val onLoadMoreReplies: () -> Unit,
+    val onRefreshReplies: () -> Unit,
     val onDeleteComment: (Long) -> Unit,
     val onDissolveStart: (Long) -> Unit,
     val onCommentLike: (Long) -> Unit,
@@ -569,6 +573,8 @@ internal fun VideoContentSection(
     val downloadProgress = engagementState.downloadProgress
     val isInWatchLater = engagementState.isInWatchLater
     val isRepliesLoading = commentState.isRepliesLoading
+    val isRepliesRefreshing = commentState.isRepliesRefreshing
+    val repliesError = commentState.repliesError
     val isRepliesEnd = commentState.isRepliesEnd
     val voteCard = commentState.voteCard
     val sortMode = commentState.sortMode
@@ -616,6 +622,7 @@ internal fun VideoContentSection(
     val onSubReplyClick = commentActions.onSubReplyClick
     val onCommentReplyClick = commentActions.onCommentReplyClick
     val onLoadMoreReplies = commentActions.onLoadMoreReplies
+    val onRefreshReplies = commentActions.onRefreshReplies
     val onDeleteComment = commentActions.onDeleteComment
     val onDissolveStart = commentActions.onDissolveStart
     val onCommentLike = commentActions.onCommentLike
@@ -995,6 +1002,8 @@ internal fun VideoContentSection(
                         replyCount = replyCount,
                         emoteMap = emoteMap,
                         isRepliesLoading = isRepliesLoading,
+                        isRepliesRefreshing = isRepliesRefreshing,
+                        repliesError = repliesError,
                         isRepliesEnd = isRepliesEnd,
                         voteCard = voteCard,
                         videoTags = videoTags,
@@ -1002,6 +1011,7 @@ internal fun VideoContentSection(
                         onSubReplyClick = onSubReplyClick,
                         onCommentReplyClick = onCommentReplyClick,
                         onLoadMoreReplies = onLoadMoreReplies,
+                        onRefreshReplies = onRefreshReplies,
                         onImagePreview = { images, index, rect, textContent ->
                             previewImages = images
                             previewInitialIndex = index
@@ -1051,14 +1061,16 @@ internal fun VideoContentSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(tabBarVisibleHeightDp + commentChromeHeight)
+                    // 播放器收起后使用内容页底色，避免模糊采样卡片造成横向色带。
+                    .background(if (isPlayerCollapsed) MaterialTheme.colorScheme.surface else Color.Transparent)
                     .biliPaiProgressiveTopBlur(
                         backdrop = videoContentMiuixBackdrop,
-                        enabled = progressiveCommentHeaderEnabled,
+                        enabled = progressiveCommentHeaderEnabled && !isPlayerCollapsed,
                         surfaceColor = Color.Transparent,
                     )
                     .topSolidProgressiveFade(
                         surfaceColor = MaterialTheme.colorScheme.surface,
-                        enabled = solidProgressiveCommentHeaderEnabled,
+                        enabled = solidProgressiveCommentHeaderEnabled && !isPlayerCollapsed,
                     ),
             )
         }
@@ -1470,6 +1482,8 @@ internal fun VideoCommentTab(
     replyCount: Int,
     emoteMap: Map<String, String>,
     isRepliesLoading: Boolean,
+    isRepliesRefreshing: Boolean,
+    repliesError: String?,
     isRepliesEnd: Boolean,
     voteCard: ReplyVoteCard?,
     videoTags: List<VideoTag>,
@@ -1477,6 +1491,7 @@ internal fun VideoCommentTab(
     onSubReplyClick: (ReplyItem, Long) -> Unit,
     onCommentReplyClick: (ReplyItem) -> Unit,
     onLoadMoreReplies: () -> Unit,
+    onRefreshReplies: () -> Unit,
     onImagePreview: (List<String>, Int, ImagePreviewSourceAnchor?, ImagePreviewTextContent?) -> Unit,
     onTimestampClick: ((Long) -> Unit)?,
     contentPadding: PaddingValues,
@@ -1512,20 +1527,22 @@ internal fun VideoCommentTab(
         replies.size,
         replyCount,
         isRepliesLoading,
+        isRepliesRefreshing,
+        repliesError,
         isRepliesEnd
     ) {
         derivedStateOf {
             shouldLoadMoreVideoComments(
                 lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1,
                 totalItemsCount = listState.layoutInfo.totalItemsCount,
-                isLoading = isRepliesLoading,
+                isLoading = isRepliesLoading || isRepliesRefreshing || repliesError != null,
                 // 置顶/热评会额外插入列表，已渲染条数不能推断服务端分页已结束。
                 isEnd = isRepliesEnd
             )
         }
     }
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) {
+    LaunchedEffect(shouldLoadMore, isRepliesRefreshing, repliesError) {
+        if (shouldLoadMore && !isRepliesRefreshing && repliesError == null) {
             onLoadMoreReplies()
         }
     }
@@ -1550,7 +1567,12 @@ internal fun VideoCommentTab(
                 title = "${sortMode.label}评论",
             )
         }
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        AdaptivePullToRefreshBox(
+            isRefreshing = isRepliesRefreshing,
+            onRefresh = onRefreshReplies,
+            indicatorTopInset = contentPadding.calculateTopPadding() + floatingHeaderContentPadding,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -1562,6 +1584,26 @@ internal fun VideoCommentTab(
                     bottom = contentPadding.calculateBottomPadding(),
                 )
             ) {
+            if (repliesError != null) {
+                item(key = "video_comment_refresh_error") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppText(
+                            text = repliesError,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        AppTextButton(onClick = onRefreshReplies) {
+                            AppText("重试")
+                        }
+                    }
+                }
+            }
             voteCard?.let { card ->
                 item(key = "inline_vote_${card.voteId}") {
                     VideoCommentVoteCard(
@@ -1570,11 +1612,11 @@ internal fun VideoCommentTab(
                     )
                 }
             }
-            if (isRepliesLoading && replies.isEmpty()) {
+            if (isRepliesLoading && !isRepliesRefreshing && replies.isEmpty()) {
                 item {
                     com.android.purebilibili.core.ui.skeleton.CommentListColumnSkeleton()
                 }
-            } else if (replies.isEmpty() && voteCard == null) {
+            } else if (replies.isEmpty() && voteCard == null && repliesError == null) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         // replyCount 来自详情/游标 all_count：>0 却列表空 = 最热链路空成功，勿误报「暂无」
@@ -1652,6 +1694,7 @@ internal fun VideoCommentTab(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
+                            isRepliesRefreshing -> Unit
                             isRepliesLoading -> AdaptiveLoadingIndicator()
                             isRepliesEnd -> {
                                 AppText("—— end ——", color = commentAppearance.secondaryTextColor, style = MaterialTheme.typography.bodySmall)
@@ -1676,6 +1719,8 @@ internal fun LandscapeCommentPanel(
     replyCount: Int,
     emoteMap: Map<String, String>,
     isRepliesLoading: Boolean,
+    isRepliesRefreshing: Boolean,
+    repliesError: String?,
     isRepliesEnd: Boolean,
     voteCard: ReplyVoteCard?,
     videoTags: List<VideoTag>,
@@ -1691,6 +1736,7 @@ internal fun LandscapeCommentPanel(
     onSubReplyClick: (ReplyItem, Long) -> Unit,
     onCommentReplyClick: (ReplyItem) -> Unit,
     onLoadMoreReplies: () -> Unit,
+    onRefreshReplies: () -> Unit,
     onDeleteComment: (Long) -> Unit,
     onDissolveStart: (Long) -> Unit,
     onCommentLike: (Long) -> Unit,
@@ -1715,105 +1761,124 @@ internal fun LandscapeCommentPanel(
     var showCommentSearchSheet by remember { mutableStateOf(false) }
     val commentAppearance = rememberVideoCommentAppearance()
 
-    LandscapeSidePanel(
-        visible = true,
-        edge = if (isOnLeft) LandscapeSidePanelEdge.Start else LandscapeSidePanelEdge.End,
-        width = drawerWidth,
-        onDismiss = onDismiss,
-        modifier = modifier,
-    ) { requestDismiss ->
-        AppSurface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface,
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppText("评论 $replyCount", style = MaterialTheme.typography.titleMedium)
+    com.android.purebilibili.core.ui.adaptive.AppHingeSafeSidePanel(
+        isStart = isOnLeft,
+        modifier = modifier.fillMaxSize(),
+    ) {
+        LandscapeSidePanel(
+            visible = true,
+            edge = if (isOnLeft) LandscapeSidePanelEdge.Start else LandscapeSidePanelEdge.End,
+            width = drawerWidth.coerceAtMost(maxWidth),
+            onDismiss = onDismiss,
+            modifier = Modifier
+                .align(if (isOnLeft) Alignment.CenterStart else Alignment.CenterEnd)
+                .fillMaxHeight(),
+        ) { requestDismiss ->
+            AppSurface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppText(
+                            "评论 $replyCount",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        AppTextButton(
+                            onClick = onSwitchSide,
+                            modifier = Modifier.widthIn(min = 76.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        ) {
+                            AppText(
+                                text = if (isOnLeft) "移至右侧" else "移至左侧",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip,
+                            )
+                        }
+                        AppTextButton(
+                            onClick = requestDismiss,
+                            modifier = Modifier.widthIn(min = 56.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        ) {
+                            AppText(
+                                text = "关闭",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip,
+                            )
+                        }
+                    }
                     CommentSortFilterBar(
                         sortMode = sortMode,
                         onSortModeChange = onSortModeChange,
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
                         onSearchClick = { showCommentSearchSheet = true },
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    AppTextButton(
-                        onClick = onSwitchSide,
-                        modifier = Modifier.widthIn(min = 76.dp),
-                    ) {
-                        AppText(
-                            text = if (isOnLeft) "移至右侧" else "移至左侧",
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip,
-                        )
-                    }
-                    AppTextButton(
-                        onClick = requestDismiss,
-                        modifier = Modifier.widthIn(min = 56.dp),
-                    ) {
-                        AppText(
-                            text = "关闭",
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip,
-                        )
-                    }
-                }
-                AppHorizontalDivider(color = commentAppearance.secondaryTextColor.copy(alpha = 0.18f))
-                if (threadContent != null) {
-                    threadContent { images, index, rect, textContent ->
-                        previewImages = images
-                        previewInitialIndex = index
-                        previewSourceRect = rect
-                        previewTextContent = textContent
-                        showImagePreview = true
-                    }
-                } else {
-                    VideoCommentTab(
-                        listState = listState,
-                        modifier = Modifier.weight(1f),
-                        info = info,
-                        replies = replies,
-                        replyCount = replyCount,
-                        emoteMap = emoteMap,
-                        isRepliesLoading = isRepliesLoading,
-                        isRepliesEnd = isRepliesEnd,
-                        voteCard = voteCard,
-                        videoTags = videoTags,
-                        onUpClick = onUpClick,
-                        onSubReplyClick = onSubReplyClick,
-                        onCommentReplyClick = onCommentReplyClick,
-                        onLoadMoreReplies = onLoadMoreReplies,
-                        onImagePreview = { images, index, rect, textContent ->
+                    AppHorizontalDivider(color = commentAppearance.secondaryTextColor.copy(alpha = 0.18f))
+                    if (threadContent != null) {
+                        threadContent { images, index, rect, textContent ->
                             previewImages = images
                             previewInitialIndex = index
                             previewSourceRect = rect
                             previewTextContent = textContent
                             showImagePreview = true
-                        },
-                        onTimestampClick = onTimestampClick,
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                        currentMid = currentMid,
-                        showUpFlag = showUpFlag,
-                        dissolvingIds = dissolvingIds,
-                        onDeleteComment = onDeleteComment,
-                        onDissolveStart = onDissolveStart,
-                        onCommentLike = onCommentLike,
-                        onCommentHate = onCommentHate,
-                        likedComments = likedComments,
-                        hatedComments = hatedComments,
-                        onCommentUrlClick = onCommentUrlClick,
-                        onReportComment = onReportComment,
-                        onToggleTopComment = onToggleTopComment,
-                        onCheckCommentFraud = onCheckCommentFraud,
-                        showIdentityDecorations = showIdentityDecorations,
-                        lightweightCommentRendering = false,
-                    )
+                        }
+                    } else {
+                        VideoCommentTab(
+                            listState = listState,
+                            modifier = Modifier.weight(1f),
+                            info = info,
+                            replies = replies,
+                            replyCount = replyCount,
+                            emoteMap = emoteMap,
+                            isRepliesLoading = isRepliesLoading,
+                            isRepliesRefreshing = isRepliesRefreshing,
+                            repliesError = repliesError,
+                            isRepliesEnd = isRepliesEnd,
+                            voteCard = voteCard,
+                            videoTags = videoTags,
+                            onUpClick = onUpClick,
+                            onSubReplyClick = onSubReplyClick,
+                            onCommentReplyClick = onCommentReplyClick,
+                            onLoadMoreReplies = onLoadMoreReplies,
+                            onRefreshReplies = onRefreshReplies,
+                            onImagePreview = { images, index, rect, textContent ->
+                                previewImages = images
+                                previewInitialIndex = index
+                                previewSourceRect = rect
+                                previewTextContent = textContent
+                                showImagePreview = true
+                            },
+                            onTimestampClick = onTimestampClick,
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                            currentMid = currentMid,
+                            showUpFlag = showUpFlag,
+                            dissolvingIds = dissolvingIds,
+                            onDeleteComment = onDeleteComment,
+                            onDissolveStart = onDissolveStart,
+                            onCommentLike = onCommentLike,
+                            onCommentHate = onCommentHate,
+                            likedComments = likedComments,
+                            hatedComments = hatedComments,
+                            onCommentUrlClick = onCommentUrlClick,
+                            onReportComment = onReportComment,
+                            onToggleTopComment = onToggleTopComment,
+                            onCheckCommentFraud = onCheckCommentFraud,
+                            showIdentityDecorations = showIdentityDecorations,
+                            lightweightCommentRendering = false,
+                        )
+                    }
                 }
             }
         }
@@ -2082,7 +2147,7 @@ private fun VideoContentTabBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
-                    if (liquidChromeSpec.useTransparentTabRowBackground) {
+                    if (liquidChromeSpec.useTransparentTabRowBackground && !isPlayerCollapsed) {
                         Modifier
                     } else {
                         Modifier.background(MaterialTheme.colorScheme.surface)

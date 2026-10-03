@@ -616,4 +616,31 @@ class HomeGlassVisualPolicyTest {
 
         assertEquals(1, Regex("""\bAsyncImage\(""").findAll(source).count())
     }
+
+    @Test
+    fun overlayPillsShareOneGlassCapsuleComponent() {
+        // 「撤销刷新」「定位上次刷新」必须共用 HomeOverlayPillButton，
+        // 避免同屏出现实心 primaryContainer 与毛玻璃两种胶囊。
+        listOf(
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt",
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt",
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt",
+        ).forEach { path ->
+            val source = listOf(File(path), File(path.removePrefix("app/"))).first(File::exists).readText()
+            assertTrue(
+                source.contains("HomeOverlayPillButton("),
+                "$path 未接入统一的悬浮玻璃胶囊组件",
+            )
+        }
+        val pill = File(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/HomeOverlayPillButton.kt"
+        ).readText()
+        assertTrue(pill.contains("AppShapes.container(ContainerLevel.Pill)"))
+        assertTrue(pill.contains("overlayPillColors.borderColor"))
+        // 动态页在本地解析同一套颜色，玻璃/模糊开关关闭时与首页退化形态一致。
+        val dynamic = File(
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt"
+        ).readText()
+        assertTrue(dynamic.contains("rememberHomeGlassPillColors("))
+    }
 }

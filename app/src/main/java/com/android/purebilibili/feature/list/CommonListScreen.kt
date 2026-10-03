@@ -66,6 +66,8 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.util.responsiveContentWidth
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -314,6 +316,10 @@ fun CommonListScreen(
     //  [修复] 分页支持：收藏 + 历史记录 + 用户最近点赞
     val favoriteViewModel = viewModel as? FavoriteViewModel
     val historyViewModel = viewModel as? HistoryViewModel
+    val personalRecapEnabled = if (historyViewModel != null) {
+        SettingsManager.getSubscriptionRecapEnabled(LocalContext.current)
+            .collectAsStateWithLifecycle(initialValue = false).value
+    } else false
     val likedVideosViewModel = viewModel as? LikedVideosViewModel
     val seasonSeriesDetailViewModel = viewModel as? SeasonSeriesDetailViewModel
     val likedVideosHasMore by likedVideosViewModel?.hasMoreState?.collectAsStateWithLifecycle()
@@ -1137,6 +1143,10 @@ fun CommonListScreen(
             AppSurfaceTokens.groupedListContainer()
         }
     ) { scaffoldPadding ->
+        // 遮挡铰链时整页内容落入最大安全区，软折痕允许跨越（与首页/动态/搜索一致）。
+        com.android.purebilibili.core.ui.adaptive.AppHingeSafeContent(
+            modifier = Modifier.fillMaxSize(),
+        ) {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -1284,7 +1294,21 @@ fun CommonListScreen(
                                 androidx.compose.foundation.lazy.grid.LazyGridState()
                             }
 
+                            val recapHeader: (@Composable () -> Unit)? = if (
+                                pageFilter == HistoryContentFilter.ALL && personalRecapEnabled &&
+                                !isSearchDestination && searchQuery.isBlank() && !isHistoryBatchMode
+                            ) {
+                                {
+                                    HistoryRecapCard(
+                                        refreshToken = state.items,
+                                        active = isCurrentPage && !state.isLoading,
+                                        onUpClick = onUpClick,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            } else null
                             CommonListContent(
+                                headerContent = recapHeader,
                                 items = pageItems,
                                 isLoading = state.isLoading,
                                 error = state.error,
@@ -2104,6 +2128,7 @@ fun CommonListScreen(
                 }
             }
         }
+        }
     }
 
     if (showHistoryBatchDeleteConfirm && historyViewModel != null) {
@@ -2581,7 +2606,8 @@ private fun CommonListContent(
     pinchBounds: IntRange = 1..1,
     onPinchColumnsChange: (Int) -> Unit = {},
     onPinchColumnsEnd: (Int) -> Unit = {},
-    gridState: androidx.compose.foundation.lazy.grid.LazyGridState? = null
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState? = null,
+    headerContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val isHistoryPersonalList = resolveHistoryItem != null
@@ -2633,6 +2659,11 @@ private fun CommonListContent(
             verticalArrangement = Arrangement.spacedBy(gridItemSpacingDp.dp),
             modifier = viewportModifier
         ) {
+            if (headerContent != null) {
+                item(key = "personal_recap", span = { GridItemSpan(maxLineSpan) }) {
+                    headerContent()
+                }
+            }
             items(columns * 4, key = { it }) {
                 if (isHistoryPersonalList) {
                     HistoryPersonalCardSkeleton(blockColor = historySkeletonBlockColor)
@@ -2647,8 +2678,9 @@ private fun CommonListContent(
         Column(
             modifier = emptyViewportModifier,
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = if (headerContent == null) Arrangement.Center else Arrangement.spacedBy(16.dp)
         ) {
+            headerContent?.invoke()
             AppText(
                 text = error,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2662,8 +2694,22 @@ private fun CommonListContent(
             }
         }
     } else if (items.isEmpty()) {
-        Box(modifier = emptyViewportModifier, contentAlignment = Alignment.Center) {
-             AppText("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (headerContent != null) {
+            Column(
+                modifier = emptyViewportModifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = gridOuterPaddingDp.dp)
+                    .padding(bottom = padding.calculateBottomPadding()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                headerContent()
+                AppText("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            Box(modifier = emptyViewportModifier, contentAlignment = Alignment.Center) {
+                AppText("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     } else {
         val filteredItems = androidx.compose.runtime.remember(items, searchQuery) {
@@ -2731,6 +2777,11 @@ private fun CommonListContent(
                         onGestureEnd = onPinchColumnsEnd,
                     )
             ) {
+                if (headerContent != null) {
+                    item(key = "personal_recap", span = { GridItemSpan(maxLineSpan) }) {
+                        headerContent()
+                    }
+                }
                  itemsIndexed(
                     items = filteredItems,
                     key = { index, _ -> renderKeys[index] },

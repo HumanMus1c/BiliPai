@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui.components
 
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.resolveButtonContentColor
 import com.android.purebilibili.core.ui.resolveAppButtonContentPadding
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
@@ -493,10 +494,11 @@ fun AppButton(
 ) {
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
+    val readableContentColor = resolveButtonContentColor(containerColor, contentColor, MaterialTheme.colorScheme)
     val miuixColors = MiuixButtonColors(
         color = containerColor,
         disabledColor = disabledContainerColor,
-        contentColor = contentColor,
+        contentColor = readableContentColor,
         disabledContentColor = disabledContentColor,
     )
     when (LocalAppUiStyle.current) {
@@ -516,7 +518,7 @@ fun AppButton(
             shape = shape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
-                contentColor = contentColor,
+                contentColor = readableContentColor,
                 disabledContainerColor = disabledContainerColor,
                 disabledContentColor = disabledContentColor,
             ),
@@ -559,12 +561,25 @@ fun AppButton(
             disabledContentColor = it.disabledContentColor,
         )
     } ?: MiuixButtonDefaults.buttonColorsPrimary()
+    val readableMiuixColors = MiuixButtonColors(
+        color = miuixColors.color,
+        disabledColor = miuixColors.disabledColor,
+        contentColor = resolveButtonContentColor(miuixColors.color, miuixColors.contentColor, MaterialTheme.colorScheme),
+        disabledContentColor = miuixColors.disabledContentColor,
+    )
+    val materialColors = colors ?: ButtonDefaults.buttonColors(
+        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
+    )
+    val readableMaterialColors = materialColors.copy(
+        contentColor = resolveButtonContentColor(materialColors.containerColor, materialColors.contentColor, MaterialTheme.colorScheme),
+    )
     when (LocalAppUiStyle.current) {
         AppUiStyle.MIUIX -> AppMiuixButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
-            colors = miuixColors,
+            colors = readableMiuixColors,
             insideMargin = contentPadding,
             interactionSource = resolvedInteractionSource,
             content = content,
@@ -574,10 +589,7 @@ fun AppButton(
             modifier = interactionModifier,
             enabled = enabled,
             shape = shape,
-            colors = colors ?: ButtonDefaults.buttonColors(
-                containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-                contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
-            ),
+            colors = readableMaterialColors,
             elevation = elevation,
             border = border,
             contentPadding = resolveAppButtonContentPadding(

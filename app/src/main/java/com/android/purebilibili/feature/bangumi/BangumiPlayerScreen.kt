@@ -11,6 +11,7 @@ import android.annotation.SuppressLint
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
+import com.android.purebilibili.core.util.layoutHinges
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.core.util.formatAppAdaptiveStrategySnapshot
 import com.android.purebilibili.core.util.resolvePlayerPresentationPolicy
@@ -639,8 +640,26 @@ fun BangumiPlayerScreen(
                 setWindowNavigationBarColor(window, Color.Black.toArgb())
             } else {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior =
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
                 setWindowStatusBarColor(window, Color.Transparent.toArgb())
                 setWindowNavigationBarColor(window, Color.Transparent.toArgb())
+            }
+        }
+    }
+
+    //  [修复] 离开番剧页时恢复系统栏：横屏沉浸路径（isFullscreen=true）此前没有
+    //  onDispose，经小窗/深链等非返回手势路径离开会泄漏隐藏的系统栏。
+    if (!view.isInEditMode) {
+        DisposableEffect(Unit) {
+            onDispose {
+                val exitWindow = view.context.findActivity()?.window ?: return@onDispose
+                val exitController = WindowCompat.getInsetsController(exitWindow, view)
+                exitController.show(WindowInsetsCompat.Type.systemBars())
+                exitController.systemBarsBehavior =
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                setWindowStatusBarColor(exitWindow, Color.Transparent.toArgb())
+                setWindowNavigationBarColor(exitWindow, Color.Transparent.toArgb())
             }
         }
     }
@@ -966,7 +985,11 @@ fun BangumiPlayerScreen(
             }
         }
 
-        if (appWindowAdaptiveInfo.shouldAvoidHinge) {
+        // 非全屏有简介等二级内容，半开时分 pane；全屏没有二级内容，仅物理遮挡铰链才分 pane，
+        // 软折痕跨整窗避免下半屏留黑。
+        val bangumiSplitPanes = appWindowAdaptiveInfo.shouldAvoidHinge &&
+            (!isFullscreen || appWindowAdaptiveInfo.foldingFeature.layoutHinges().any { it.isOccluding })
+        if (bangumiSplitPanes) {
             com.android.purebilibili.core.ui.adaptive.AppHingePaneLayout(
                 modifier = Modifier.fillMaxSize(),
                 primaryContent = {

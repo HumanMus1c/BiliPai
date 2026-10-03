@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.android.purebilibili.core.ui.AppWindowSystemUiController
+import com.android.purebilibili.core.ui.AppWindowSystemUiSnapshot
 import com.android.purebilibili.feature.video.screen.VideoDetailHiddenSystemBars
 import com.android.purebilibili.feature.video.screen.VideoDetailSystemBarsApplySpec
 import com.android.purebilibili.feature.video.screen.applyVideoDetailSystemBarsSpec
@@ -301,9 +302,19 @@ fun PortraitVideoPager(
         if (window != null) WindowInsetsControllerCompat(window, view) else null
     }
     // Immersive: hide status + nav bars while portrait pager is active (Story + detail overlay).
+    //  [修复] 沉浸前捕获系统栏快照，退出时还原进入前的真实外观（含图标明暗），
+    //  而不是硬编码透明色 + 深色图标，避免与进入前的页面外观不一致。
+    var preImmersiveSystemBarsSnapshot by remember(window) {
+        mutableStateOf<AppWindowSystemUiSnapshot?>(null)
+    }
     LaunchedEffect(isActive, window, insetsController) {
         if (!isActive || window == null || insetsController == null) return@LaunchedEffect
         AppWindowSystemUiController.ensureEdgeToEdge(window)
+        preImmersiveSystemBarsSnapshot =
+            AppWindowSystemUiController.capture(window).let { snapshot ->
+                // 快照若在系统栏已被隐藏时取得，照实记录会让退出恢复走到 hide 分支。
+                if (snapshot.systemBarsVisible) snapshot else snapshot.copy(systemBarsVisible = true)
+            }
         val immersiveSpec = resolveVideoDetailSystemBarsApplySpec(
             visibilityPolicy = resolveVideoDetailSystemBarsVisibilityPolicy(
                 isFullscreenMode = false,
@@ -325,15 +336,28 @@ fun PortraitVideoPager(
         onDispose {
             if (window == null || insetsController == null) return@onDispose
             // Restore bars when leaving portrait immersive (detail returns to inline / Story pops).
-            val restoreSpec = VideoDetailSystemBarsApplySpec(
-                hiddenBars = VideoDetailHiddenSystemBars.NONE,
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT,
-                statusBarColor = ComposeColor.Transparent.toArgb(),
-                navigationBarColor = ComposeColor.Transparent.toArgb(),
-                lightStatusBars = false,
-                lightNavigationBars = false
-            )
-            applyVideoDetailSystemBarsSpec(window, insetsController, restoreSpec)
+            val snapshot = preImmersiveSystemBarsSnapshot
+            if (snapshot != null) {
+                val restoreSpec = VideoDetailSystemBarsApplySpec(
+                    hiddenBars = VideoDetailHiddenSystemBars.NONE,
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT,
+                    statusBarColor = snapshot.statusBarColor,
+                    navigationBarColor = snapshot.navigationBarColor,
+                    lightStatusBars = snapshot.lightStatusBars,
+                    lightNavigationBars = snapshot.lightNavigationBars
+                )
+                applyVideoDetailSystemBarsSpec(window, insetsController, restoreSpec)
+            } else {
+                val restoreSpec = VideoDetailSystemBarsApplySpec(
+                    hiddenBars = VideoDetailHiddenSystemBars.NONE,
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT,
+                    statusBarColor = ComposeColor.Transparent.toArgb(),
+                    navigationBarColor = ComposeColor.Transparent.toArgb(),
+                    lightStatusBars = false,
+                    lightNavigationBars = false
+                )
+                applyVideoDetailSystemBarsSpec(window, insetsController, restoreSpec)
+            }
             insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
     }
@@ -1527,7 +1551,8 @@ fun PortraitVideoPager(
                 text = danmakuData.text,
                 color = danmakuData.color,
                 mode = danmakuData.mode,
-                fontSize = danmakuData.fontSize
+                fontSize = danmakuData.fontSize,
+                isVipGradualColor = danmakuData.isVipGradualColor,
             )
         }
     }

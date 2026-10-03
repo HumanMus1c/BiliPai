@@ -372,6 +372,10 @@ fun VideoSettingsPanel(
         .getProgressPeakDanmakuEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false
         )
+    val danmakuHotBarEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getDanmakuHotBarEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true
+        )
     val timerIcon = rememberAppTimerIcon()
     val refreshIcon = rememberAppRefreshIcon()
     val photoIcon = rememberAppPhotoIcon()
@@ -1073,7 +1077,7 @@ fun VideoSettingsPanel(
                             )
                             Spacer(modifier = Modifier.width(customSectionIconGap))
                             VideoSettingsPanelText(
-                                text = "CDN 设置",
+                                text = "播放线路",
                                 role = VideoSettingsPanelTextRole.TITLE,
                                 legacyFontSize = 16.sp,
                                 legacyFontWeight = FontWeight.Medium,
@@ -1092,18 +1096,26 @@ fun VideoSettingsPanel(
                             )
                         }
                         Spacer(modifier = Modifier.height(customTitleToOptionsGap))
+                        var showDiagnostics by remember { mutableStateOf(false) }
                         AppButton(
-                            enabled = !isCdnProbing,
-                            onClick = onProbeCdnCandidates,
+                            onClick = { showDiagnostics = !showDiagnostics },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            AppText(if (isCdnProbing) "检测中..." else "检测当前候选线路")
+                            AppText(if (showDiagnostics) "收起线路可视化" else "查看实时线路与播放加速")
                         }
-                        Spacer(
-                            modifier = Modifier.height(
-                                if (useMiuixNonGlassPresentation) AppSpacingTokens.Small else 10.dp
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
+                        if (showDiagnostics) {
+                            PlaybackCdnDiagnostics(
+                                diagnostics = cdnLineDiagnostics,
+                                checking = isCdnProbing,
+                                canCheck = cdnCount > 0,
+                                onCheck = onProbeCdnCandidates,
+                                onSwitchTo = onSwitchCdnTo,
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        )
+                        }
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
+                        AppText("点按线路切换，保留播放进度；所选节点优先使用，失败时允许备用线路接替。")
                         Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                             repeat(cdnCount) { index ->
                                 val diagnostic = diagnosticsByIndex[index]
@@ -1112,6 +1124,7 @@ fun VideoSettingsPanel(
                                     isSelected = index == currentCdnIndex,
                                     diagnostic = diagnostic,
                                     onClick = {
+                                        com.android.purebilibili.feature.plugin.CdnTransferRuntime.preferHost(diagnostic?.host)
                                         if (index != currentCdnIndex) onSwitchCdnTo(index)
                                     }
                                 )
@@ -1401,6 +1414,22 @@ fun VideoSettingsPanel(
                         scope.launch {
                             com.android.purebilibili.core.store.SettingsManager
                                 .setProgressPeakDanmakuEnabled(context, checked)
+                        }
+                    }
+                )
+                SettingsDivider()
+            }
+
+            item {
+                VideoSettingsSwitchRow(
+                    icon = rememberSettingsSemanticIcon(SettingsIconRole.PROGRESS_PEAK_DANMAKU),
+                    title = "高赞弹幕悬浮条",
+                    subtitle = if (danmakuHotBarEnabled) "展示最近 15 秒的高赞弹幕，可点赞或确认后发送同款" else "关闭高赞弹幕悬浮条",
+                    checked = danmakuHotBarEnabled,
+                    onCheckedChange = { checked ->
+                        scope.launch {
+                            com.android.purebilibili.core.store.SettingsManager
+                                .setDanmakuHotBarEnabled(context, checked)
                         }
                     }
                 )

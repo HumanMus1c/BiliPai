@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -41,6 +42,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AnimatedCountText
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -62,20 +64,24 @@ private enum class DanmakuPoolSortMode(val label: String) {
 fun DanmakuPoolSheet(
     danmakuList: List<DanmakuItem>,
     currentPositionMs: Long = 0L,
+    videoCid: Long = 0L,
     onSeekTo: (Long) -> Unit,
     likedDanmakuIds: Set<Long> = emptySet(),
     onLikeDanmaku: (dmid: Long, like: Boolean) -> Unit = { _, _ -> },
     onRecallDanmaku: (Long) -> Unit = {},
     onReportDanmaku: (dmid: Long, reason: Int) -> Unit = { _, _ -> },
     onBlockSender: (userHash: String) -> Unit = {},
+    onSendSame: (String) -> Unit = {},
+    isSending: Boolean = false,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var sortMode by remember { mutableStateOf(DanmakuPoolSortMode.TIME) }
-    var selectedItemForAction by remember { mutableStateOf<DanmakuItem?>(null) }
+    var selectedItemForAction by remember(videoCid) { mutableStateOf<DanmakuItem?>(null) }
     var showReportReasons by remember { mutableStateOf(false) }
+    var pendingSendText by remember(videoCid) { mutableStateOf<String?>(null) }
 
     val filteredList by remember(danmakuList, searchQuery, sortMode) {
         derivedStateOf {
@@ -264,6 +270,15 @@ fun DanmakuPoolSheet(
         }
     }
 
+    pendingSendText?.let { text ->
+        DanmakuSameSendConfirmation(
+            text = text,
+            isSending = isSending,
+            onDismiss = { pendingSendText = null },
+            onConfirm = { pendingSendText = null; onSendSame(text) },
+        )
+    }
+
     // 弹幕长按操作菜单 Dialog
     selectedItemForAction?.let { item ->
         AppAlertDialog(
@@ -340,6 +355,20 @@ fun DanmakuPoolSheet(
                                 text = "跳转到该时间 (${FormatUtils.formatDuration(item.showAtTime)})",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
+                        }
+
+                        if (!item.text.isNullOrBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSending) {
+                                    pendingSendText = item.text
+                                    selectedItemForAction = null
+                                }.padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AppIcon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                AppText("发送同款", style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
 
                         // 复制文本
@@ -551,15 +580,14 @@ private fun DanmakuPoolItemRow(
                     modifier = Modifier.size(16.dp),
                     tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                val totalLikes = item.likeCount + if (isLiked) 1 else 0
-                if (totalLikes > 0) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    AppText(
-                        text = totalLikes.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                val totalLikes = item.likeCount.coerceAtLeast(0L) +
+                    if (isLiked && item.likeCount < Long.MAX_VALUE) 1L else 0L
+                Spacer(modifier = Modifier.width(4.dp))
+                AnimatedCountText(
+                    count = totalLikes,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

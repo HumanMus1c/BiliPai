@@ -139,7 +139,7 @@ import com.android.purebilibili.feature.home.HomeGlassPillStyle
 import com.android.purebilibili.feature.home.HomeGlassResolvedColors
 import com.android.purebilibili.feature.home.resolveHomeGlassCoverPillBaseColor
 import com.android.purebilibili.feature.home.resolveHomeGlassPillStyle
-import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
+import com.android.purebilibili.core.player.PlaybackProgressManager
 import com.android.purebilibili.feature.video.ui.section.resolveCompactPublishTimeRowText
 //  [预览播放] 相关引用已移除
 
@@ -801,7 +801,11 @@ internal fun ElegantVideoCard(
             isDarkTheme = isDarkCardTheme,
             defaultOnSurface = defaultOnSurface,
             defaultOnSurfaceVariant = defaultOnSurfaceVariant,
-            homeCardDynamicTintEnabled = useCardEffectSurface
+            homeCardDynamicTintEnabled = useCardEffectSurface,
+            wallpaperGlassAlpha = resolveWallpaperGlassAlpha(
+                frostedGlassEnabled = homeCardFrostedGlassEnabled,
+                isDarkTheme = isDarkCardTheme
+            )
         )
     }
     // 返回预热：组合即可见，上报 (bvid, url, cacheKey)，供详情返回时按同一 cacheKey
@@ -1634,7 +1638,8 @@ internal fun ElegantVideoCard(
                         }
                     } else {
                         val neutralGlassAlpha = if (isDarkCardTheme) 0.38f else 0.34f
-                        val realtimeAlpha = if (isDarkCardTheme) 0.24f else 0.16f
+                        // 实时毛玻璃直接透出壁纸，透明度过低时标题/作者文字会被壁纸细节淹没
+                        val realtimeAlpha = if (isDarkCardTheme) 0.44f else 0.36f
                         drawRect(
                             color = baseContainerColor.copy(
                                 alpha = if (useRealtimeWallpaperBackdrop) {

@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.danmaku
 
+import com.android.purebilibili.danmaku.parser.resolveBilibiliDanmakuFontScale
+
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_BOTTOM
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_SCROLL
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_TOP

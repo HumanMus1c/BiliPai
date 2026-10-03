@@ -12,6 +12,7 @@ import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.util.NetworkUtils
 import com.android.purebilibili.data.model.response.*
 import com.android.purebilibili.feature.video.progress.PbpProgressData
+import com.android.purebilibili.feature.video.progress.buildDanmakuDensityValues
 import com.android.purebilibili.feature.video.progress.parsePbpProgressData
 import com.android.purebilibili.feature.video.subtitle.SubtitleCue
 import com.android.purebilibili.feature.video.subtitle.normalizeBilibiliSubtitleUrl
@@ -260,7 +261,8 @@ object VideoRepository {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Fetching buvid3 from SPI API...")
             val response = buvidApi.getSpi()
             if (response.code == 0 && response.data != null) {
-                val b3 = response.data.b_3
+                val checkedResponseData = requireNotNull(response.data)
+                val b3 = checkedResponseData.b_3
                 if (b3.isNotEmpty()) {
                     TokenManager.buvid3Cache = b3
                     com.android.purebilibili.core.util.Logger.d("VideoRepo", " buvid3 from SPI: ${b3.take(20)}...")
@@ -363,32 +365,7 @@ object VideoRepository {
         bvid: String,
         aid: Long = 0L,
         requestedCid: Long = 0L
-    ): Result<ViewInfo> = withContext(Dispatchers.IO) {
-        try {
-            val lookup = resolveVideoInfoLookupInput(rawBvid = bvid, aid = aid)
-                ?: throw Exception("无效的视频标识: bvid=$bvid, aid=$aid")
-            val viewResp = if (lookup.bvid.isNotEmpty()) {
-                api.getVideoInfo(lookup.bvid)
-            } else {
-                api.getVideoInfoByAid(lookup.aid)
-            }
-            val rawInfo = viewResp.data ?: throw Exception("视频详情为空: ${viewResp.code}")
-            val cid = resolveRequestedVideoCid(
-                requestCid = requestedCid,
-                infoCid = rawInfo.cid,
-                pages = rawInfo.pages
-            )
-            if (cid == 0L) throw Exception("CID 获取失败")
-            val info = if (cid > 0L && cid != rawInfo.cid) {
-                rawInfo.copy(cid = cid)
-            } else {
-                rawInfo
-            }
-            Result.success(info)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    ): Result<ViewInfo> = SharedContentRepository.detail(bvid, aid, requestedCid)
 
     suspend fun getInitialPlayUrlData(
         bvid: String,
@@ -692,7 +669,7 @@ object VideoRepository {
                 "feed_version" to System.currentTimeMillis().toString(), "y_num" to idx.toString()
             )
             val signedParams = WbiUtils.sign(params, imgKey, subKey)
-            val feedResp = api.getRecommendParams(signedParams)
+            val feedResp = SharedContentRepository.recommendationResponse(signedParams)
             
             //  [调试] 检查 API 是否返回 dimension 字段
             feedResp.data?.item?.take(3)?.forEachIndexed { index, item ->
@@ -789,7 +766,7 @@ object VideoRepository {
                 "fresh_type" to "4"
             )
             val signedParams = WbiUtils.sign(params, imgKey, subKey)
-            val feedResp = api.getRecommendParams(signedParams)
+            val feedResp = SharedContentRepository.recommendationResponse(signedParams)
 
             val list = feedResp.data?.item?.map { it.toVideoItem() }?.filter { it.bvid.isNotEmpty() } ?: emptyList()
 
@@ -957,10 +934,11 @@ object VideoRepository {
     suspend fun getWeeklyPeriod(number: Int): Result<PopularSeriesOneData> = withContext(Dispatchers.IO) {
         try {
             val response = api.getWeeklySeriesVideos(number)
-            if (response.code != 0 || response.data == null) {
+            val data = response.data
+            if (response.code != 0 || data == null) {
                 Result.failure(Exception(response.message.ifBlank { "第${number}期加载失败(${response.code})" }))
             } else {
-                Result.success(response.data)
+                Result.success(data)
             }
         } catch (e: CancellationException) {
             throw e
@@ -1054,55 +1032,20 @@ object VideoRepository {
         sid: Long = 0L,
         videoType: Int = 3,
         subType: Int? = null
-    ) = withContext(Dispatchers.IO) {
-        try {
-            //  隐私无痕模式检查：如果启用则跳过上报
-            val context = com.android.purebilibili.core.network.NetworkModule.appContext
-            if (context != null && com.android.purebilibili.core.store.SettingsManager.isPrivacyModeEnabledSync(context)) {
-                com.android.purebilibili.core.util.Logger.d("VideoRepo", " Privacy mode enabled, skipping heartbeat report")
-                return@withContext true  // 返回成功但不实际上报
-            }
-
-            val fields = buildPlaybackHeartbeatFields(
-                bvid = bvid,
-                aid = aid,
-                cid = cid,
-                epid = epid,
-                sid = sid,
-                mid = com.android.purebilibili.core.store.TokenManager.midCache,
-                playedTimeSec = playedTime,
-                realPlayedTimeSec = realPlayedTime,
-                startTsSec = startTsSec,
-                csrf = com.android.purebilibili.core.store.TokenManager.csrfCache.orEmpty(),
-                videoType = videoType,
-                subType = subType
-            )
-            
-            com.android.purebilibili.core.util.Logger.d(
-                "VideoRepo",
-                "🔴 Reporting heartbeat: bvid=$bvid, aid=$aid, cid=$cid, epid=$epid, sid=$sid, type=$videoType, " +
-                    "playedTime=$playedTime, realPlayedTime=$realPlayedTime, startTs=$startTsSec"
-            )
-            val resp = api.reportHeartbeat(fields)
-            com.android.purebilibili.core.util.Logger.d("VideoRepo", "🔴 Heartbeat response: code=${resp.code}, msg=${resp.message}")
-            if (resp.code == 0) {
-                com.android.purebilibili.core.refresh.HistoryRefreshBus.notifyChanged()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("VideoRepo", " Heartbeat failed: ${e.message}")
-            false
-        }
+    ): Boolean {
+        val success = HistoryRepository.reportPlayback(bvid, cid, playedTime, realPlayedTime,
+            startTsSec, aid, epid, sid, videoType, subType).isSuccess
+        if (success) com.android.purebilibili.core.refresh.HistoryRefreshBus.notifyChanged()
+        return success
     }
-    
+
 
     suspend fun getNavInfo(): Result<NavData> = withContext(Dispatchers.IO) {
         try {
             val resp = api.getNavInfo()
             if (resp.code == 0 && resp.data != null) {
-                Result.success(resp.data)
+                val checkedRespData = requireNotNull(resp.data)
+                Result.success(checkedRespData)
             } else {
                 if (resp.code == -101) {
                     Result.success(NavData(isLogin = false))
@@ -1123,7 +1066,8 @@ object VideoRepository {
         try {
             val resp = NetworkModule.playbackApi().getNavInfo()
             if (resp.code == 0 && resp.data != null) {
-                Result.success(resp.data)
+                val checkedRespData = requireNotNull(resp.data)
+                Result.success(checkedRespData)
             } else {
                 if (resp.code == -101) {
                     Result.success(NavData(isLogin = false))
@@ -1884,7 +1828,8 @@ object VideoRepository {
             try {
                 val legacyResult = NetworkModule.playbackApi().getPlayUrlLegacy(bvid = bvid, cid = cid, qn = 80)
                 if (legacyResult.code == 0 && legacyResult.data != null) {
-                    val data = legacyResult.data
+                    val checkedLegacyResultData = requireNotNull(legacyResult.data)
+                    val data = checkedLegacyResultData
                     if (hasPlayableStreams(data)) {
                         com.android.purebilibili.core.util.Logger.d("VideoRepo", " [LoggedIn] Legacy API success: quality=${data.quality}")
                         return PlayUrlFetchResult(data, PlayUrlSource.LEGACY)
@@ -1941,7 +1886,8 @@ object VideoRepository {
                 )
 
                 if (legacyResult.code == 0 && legacyResult.data != null) {
-                    val data = legacyResult.data
+                    val checkedLegacyResultData = requireNotNull(legacyResult.data)
+                    val data = checkedLegacyResultData
                     if (!data.durl.isNullOrEmpty()) {
                         com.android.purebilibili.core.util.Logger.d(
                             "VideoRepo",
@@ -2006,7 +1952,8 @@ object VideoRepository {
                         com.android.purebilibili.core.util.Logger.d("VideoRepo", " [Guest] DASH failed, trying legacy playurl API...")
                         val legacyResult = api.getPlayUrlLegacy(bvid = bvid, cid = cid, qn = 80)
                         if (legacyResult.code == 0 && legacyResult.data != null) {
-                            val data = legacyResult.data
+                            val checkedLegacyResultData = requireNotNull(legacyResult.data)
+                            val data = checkedLegacyResultData
                             if (!data.durl.isNullOrEmpty() || !data.dash?.video.isNullOrEmpty()) {
                                 val dashIds = data.dash?.video?.map { it.id }?.distinct() ?: emptyList()
                                 if (!shouldAcceptAppApiResultForTargetQuality(
@@ -2139,37 +2086,8 @@ object VideoRepository {
         com.android.purebilibili.core.util.Logger.d("VideoRepo", " fetchPlayUrlWithAccessToken: bvid=$bvid, qn=$qn, retry=$allowRetry")
         
         val tokenPlatform = playbackAccessTokenPlatform()
-        val usesAndroidToken = tokenPlatform == com.android.purebilibili.core.store.TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
-        val params = mapOf(
-            "bvid" to bvid,
-            "cid" to cid.toString(),
-            "qn" to qn.toString(),
-            // 4048 (Web DASH formats) + 16384 (APP-only HDR Vivid, qn=129).
-            "fnval" to "20432",
-            "fnver" to "0",
-            "fourk" to "1",
-            "access_key" to accessToken,
-            "appkey" to if (usesAndroidToken) AppSignUtils.ANDROID_APP_KEY else AppSignUtils.TV_APP_KEY,
-            "ts" to AppSignUtils.getTimestamp().toString(),
-            "platform" to "android",
-            "mobi_app" to if (usesAndroidToken) "android" else "android_tv_yst",
-            "device" to "android"
-        ).toMutableMap()
-        
-        if (!audioLang.isNullOrEmpty()) {
-           params["cur_language"] = audioLang
-           params["lang"] = audioLang
-        }
-        
-        val signedParams = if (usesAndroidToken) {
-            AppSignUtils.signForAndroidApi(params)
-        } else {
-            AppSignUtils.signForTvLogin(params)
-        }
-        
         try {
-            val response = NetworkModule.playbackApi().getPlayUrlApp(signedParams)
-            
+            val response = PlaybackStreamDataSource.appPlayUrl(bvid, cid, qn, accessToken, tokenPlatform, audioLang)
             // Check for -101 (Invalid Access Key)
             if (response.code == -101 && allowRetry && applicationContext != null && playbackAccount() == null) {
                 com.android.purebilibili.core.util.Logger.w("VideoRepo", " Access token invalid (-101), trying to refresh...")
@@ -2186,7 +2104,8 @@ object VideoRepository {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " APP PlayUrl response: code=${response.code}, qn=$qn, dashIds=$dashIds")
             
             if (response.code == 0 && response.data != null) {
-                val payload = response.data
+                val checkedResponseData = requireNotNull(response.data)
+                val payload = checkedResponseData
                 if (hasPlayableStreams(payload)) {
                     appApiCooldownUntilMs = 0L
                     com.android.purebilibili.core.util.Logger.d("VideoRepo", " APP API success: returned quality=${payload.quality}, available: $dashIds")
@@ -2227,9 +2146,10 @@ object VideoRepository {
         try {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", "🖼️ getVideoshot: bvid=$bvid, cid=$cid")
             val response = api.getVideoshot(bvid = bvid, cid = cid)
-            if (response.code == 0 && response.data != null && response.data.isValid) {
-                com.android.purebilibili.core.util.Logger.d("VideoRepo", "🖼️ Videoshot success: ${response.data.image.size} images, ${response.data.index.size} frames")
-                response.data
+            if (response.code == 0 && response.data != null && requireNotNull(response.data).isValid) {
+                val checkedResponseData = requireNotNull(response.data)
+                com.android.purebilibili.core.util.Logger.d("VideoRepo", "🖼️ Videoshot success: ${checkedResponseData.image.size} images, ${checkedResponseData.index.size} frames")
+                checkedResponseData
             } else {
                 com.android.purebilibili.core.util.Logger.d("VideoRepo", "🖼️ Videoshot failed: code=${response.code}")
                 null
@@ -2251,7 +2171,8 @@ object VideoRepository {
             val signedParams = WbiUtils.sign(params, imgKey, subKey)
             val response = api.getPlayerInfo(signedParams)
             if (response.code == 0 && response.data != null) {
-                Result.success(response.data)
+                val checkedResponseData = requireNotNull(response.data)
+                Result.success(checkedResponseData)
             } else {
                 Result.failure(Exception("PlayerInfo error: ${response.code}"))
             }
@@ -2279,6 +2200,49 @@ object VideoRepository {
                 aid = aid.takeIf { it > 0L }
             )
             Result.success(parsePbpProgressData(body.string()))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 本地弹幕密度曲线：拉取全部分段弹幕，按秒桶计数并归一化。
+     * 官方 pbp 接口（bvc.bilivideo.com/pbp/data）已 404，此为兜底数据源，
+     * 输出结构与 pbp 对齐（秒桶计数，由渲染层归一化），渲染层无需感知差异。
+     */
+    suspend fun getDanmakuDensityProgressData(
+        cid: Long,
+        durationSeconds: Long,
+    ): Result<PbpProgressData> = withContext(Dispatchers.IO) {
+        try {
+            if (cid <= 0L || durationSeconds <= 0L) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("弹幕密度曲线参数无效: cid=$cid duration=${durationSeconds}s")
+                )
+            }
+            val stepSeconds = (durationSeconds / 240).coerceIn(2L, 10L).toInt()
+            val segments = DanmakuRepository.getDanmakuSegments(
+                cid = cid,
+                durationMs = durationSeconds * 1000L
+            )
+            if (segments.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("弹幕分段为空"))
+            }
+            val parsed = com.android.purebilibili.danmaku.parser.DanmakuParser.parseProtobuf(segments)
+            if (parsed.serverDisabled) {
+                return@withContext Result.failure(IllegalStateException("UP主已关闭该视频弹幕"))
+            }
+            val values = buildDanmakuDensityValues(
+                positionsMs = parsed.standardList.map { it.showAtTime },
+                durationSeconds = durationSeconds,
+                stepSeconds = stepSeconds
+            )
+            if (values.all { it == 0f }) {
+                return@withContext Result.failure(IllegalStateException("该视频弹幕密度为零"))
+            }
+            Result.success(PbpProgressData(stepSeconds = stepSeconds, values = values))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -2352,7 +2316,8 @@ object VideoRepository {
         try {
             val response = api.getInteractEdgeInfo(bvid = bvid, graphVersion = graphVersion, edgeId = edgeId)
             if (response.code == 0 && response.data != null) {
-                Result.success(response.data)
+                val checkedResponseData = requireNotNull(response.data)
+                Result.success(checkedResponseData)
             } else {
                 Result.failure(Exception(response.message.ifBlank { "互动分支信息加载失败(${response.code})" }))
             }

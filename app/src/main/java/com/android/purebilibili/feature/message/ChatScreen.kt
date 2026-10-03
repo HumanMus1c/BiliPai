@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,7 +131,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory(talkerId, sessionType))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var inputText by remember { mutableStateOf("") }
+    var inputText by rememberSaveable(talkerId, sessionType) { mutableStateOf("") }
     val listState = rememberLazyListState()
     var pendingWithdrawMessage by remember { mutableStateOf<PrivateMessageItem?>(null) }
     var showInterceptConfirm by remember { mutableStateOf(false) }
@@ -1458,10 +1459,11 @@ private fun getMessageTypeName(msgType: Int): String {
 // 会话列表组合期热路径：共享 formatter，避免每行每帧新建 SimpleDateFormat。
 // 仅主线程（Compose 组合）调用，不涉及 SimpleDateFormat 的线程安全问题。
 private val chatTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-private val chatDateTimeFormatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+private val chatDateTimeFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 
 /**
- * 格式化消息时间
+ * 格式化消息时间：与 PiliPlus `DateFormatUtils.chatFormat` 对齐——
+ * 今天 HH:mm / 昨天 HH:mm / 更早 yyyy-MM-dd HH:mm。
  */
 private fun formatMessageTime(timestamp: Long): String {
     if (timestamp == 0L) return ""
@@ -1471,7 +1473,12 @@ private fun formatMessageTime(timestamp: Long): String {
 
     val sameDay = now.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) &&
             now.get(Calendar.DAY_OF_YEAR) == msgTime.get(Calendar.DAY_OF_YEAR)
+    if (sameDay) return chatTimeFormatter.format(Date(timestamp * 1000))
 
-    val formatter = if (sameDay) chatTimeFormatter else chatDateTimeFormatter
-    return formatter.format(Date(timestamp * 1000))
+    val yesterday = now.apply { add(Calendar.DAY_OF_YEAR, -1) }
+    val isYesterday = yesterday.get(Calendar.YEAR) == msgTime.get(Calendar.YEAR) &&
+            yesterday.get(Calendar.DAY_OF_YEAR) == msgTime.get(Calendar.DAY_OF_YEAR)
+    if (isYesterday) return "昨天 ${chatTimeFormatter.format(Date(timestamp * 1000))}"
+
+    return chatDateTimeFormatter.format(Date(timestamp * 1000))
 }

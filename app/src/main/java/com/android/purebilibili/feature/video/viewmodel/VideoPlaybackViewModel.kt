@@ -39,6 +39,7 @@ import com.android.purebilibili.data.repository.ViewGrpcRepository
 import com.android.purebilibili.data.repository.resolveVideoPlaybackAuthState
 import com.android.purebilibili.data.repository.isExactRequestedQualitySelected
 import com.android.purebilibili.data.repository.shouldScheduleHdrAutoUpgrade
+import com.android.purebilibili.feature.plugin.CdnTransferRuntime
 import com.android.purebilibili.feature.plugin.CdnHealthEvent
 import com.android.purebilibili.feature.plugin.CdnDashPrefetchRequest
 import com.android.purebilibili.feature.plugin.CdnDashSegmentPrefetcher
@@ -98,14 +99,14 @@ import com.android.purebilibili.feature.video.playback.loader.PlaybackRequest
 import com.android.purebilibili.feature.video.playback.loader.PlaybackLoadConfig
 import com.android.purebilibili.feature.video.playback.loader.PlaybackLoadResult
 import com.android.purebilibili.feature.video.playback.loader.PlaybackLoader
-import com.android.purebilibili.feature.video.playback.dash.AdaptiveDashPlaybackSource
+import com.android.purebilibili.core.player.dash.AdaptiveDashPlaybackSource
 import com.android.purebilibili.feature.video.playback.audio.AudioFallbackReason
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.playback.audio.AUDIO_QUALITY_AUTO
 import com.android.purebilibili.feature.video.playback.audio.isPremiumAudioPlaybackFailure
 import com.android.purebilibili.feature.video.playback.audio.resolveRequestedAudioQuality
 import com.android.purebilibili.feature.video.playback.policy.PlaybackPostLoadTask
-import com.android.purebilibili.feature.video.playback.policy.PlaybackQualityMode
+import com.android.purebilibili.core.player.policy.PlaybackQualityMode
 import com.android.purebilibili.feature.video.playback.policy.PlaybackHeartbeatSnapshot
 import com.android.purebilibili.feature.video.playback.policy.resolveOnlineCountPollingDelayMs
 import com.android.purebilibili.feature.video.playback.policy.buildPlaybackPostLoadPlan
@@ -1472,8 +1473,9 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     "NavInfo: code=${result.code}, isLogin=${result.data?.isLogin}, money=${result.data?.money}, wallet=${result.data?.wallet?.bcoin_balance}")
                 
                 if (result.code == 0 && result.data != null) {
-                    if (result.data.isLogin) {
-                        _userCoinBalance.value = result.data.money
+                    val checkedResultData = requireNotNull(result.data)
+                    if (checkedResultData.isLogin) {
+                        _userCoinBalance.value = checkedResultData.money
                     } else {
                         com.android.purebilibili.core.util.Logger.w("VideoPlaybackViewModel", "User not logged in according to getNavInfo")
                         _userCoinBalance.value = -3.0 // API says Not Logged In
@@ -1675,6 +1677,9 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     val viewPoints = _viewPoints.asStateFlow()
     private val _pbpProgressData = MutableStateFlow<PbpProgressData?>(null)
     val pbpProgressData = _pbpProgressData.asStateFlow()
+    /** 本地弹幕密度兜底的进行中任务与已构建 cid 记录。 */
+    private var densityFallbackJob: Job? = null
+    private var densityFallbackLoadedCid: Long = 0L
 
     private val _interactiveChoicePanel = MutableStateFlow(InteractiveChoicePanelUiState())
     val interactiveChoicePanel = _interactiveChoicePanel.asStateFlow()
@@ -2312,6 +2317,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     //  [新增] 播放完成监听器
     private val playbackEndListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (CdnTransferRuntime.enabled) {
+                CdnTransferRuntime.playback(
+                    exoPlayer?.let { (it.bufferedPosition - it.currentPosition).coerceAtLeast(0) } ?: 0L,
+                    exoPlayer?.videoFormat?.bitrate?.coerceAtLeast(0)?.toLong() ?: 0L
+                )
+            }
             if (playbackState == Player.STATE_READY) {
                 cancelPlaybackStallRecovery()
                 markPlaybackCdnReadyIfMediaReady()
@@ -4674,6 +4685,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         fontSize: Int = 25,
         attentionCommand: Boolean = false
     ) {
+        if (_isSendingDanmaku.value) return
+        val requestCid = currentCid
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: run {
             viewModelScope.launch { toast("视频未加载") }
             return
@@ -4696,57 +4709,66 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             color == com.android.purebilibili.feature.video.ui.components.DANMAKU_SEND_VIP_GRADUAL_COLOR
         val actualColor = if (isVipGradualColor) 16777215 else color
         
+        _isSendingDanmaku.value = true
         viewModelScope.launch {
-            _isSendingDanmaku.value = true
-
-            val result = if (attentionCommand) {
-                com.android.purebilibili.data.repository.DanmakuRepository
-                    .sendAttentionCommandDanmaku(
-                        aid = current.info.aid,
-                        cid = currentCid,
-                        progress = progress
-                    )
-                    .map { Unit }
-            } else {
-                com.android.purebilibili.data.repository.DanmakuRepository
-                    .sendDanmaku(
-                        aid = current.info.aid,
-                        cid = currentCid,
-                        message = message,
-                        progress = progress,
-                        color = actualColor,
-                        fontSize = fontSize,
-                        mode = mode,
-                        colorful = isVipGradualColor,
-                        upIdentity = false
-                    )
-                    .map { Unit }
-            }
-            result
-                .onSuccess {
-                    toast("发送成功")
-                    hideDanmakuSendDialog()
-                    _composerDrafts.update {
-                        it.copy(danmaku = DanmakuComposerDraft())
-                    }
+            try {
+                val result = if (attentionCommand) {
+                    com.android.purebilibili.data.repository.DanmakuRepository
+                        .sendAttentionCommandDanmaku(
+                            aid = current.info.aid,
+                            cid = requestCid,
+                            progress = progress
+                        )
+                        .map { Unit }
+                } else {
+                    com.android.purebilibili.data.repository.DanmakuRepository
+                        .sendDanmaku(
+                            aid = current.info.aid,
+                            cid = requestCid,
+                            message = message,
+                            progress = progress,
+                            color = actualColor,
+                            fontSize = fontSize,
+                            mode = mode,
+                            colorful = isVipGradualColor,
+                            upIdentity = false
+                        )
+                        .map { Unit }
+                }
+                result
+                    .onSuccess {
+                        if (currentCid != requestCid) return@onSuccess
+                        toast("发送成功")
+                        hideDanmakuSendDialog()
+                        _composerDrafts.update {
+                            it.copy(danmaku = DanmakuComposerDraft())
+                        }
                     
-                    // 本地即时显示弹幕
-                    // 注意：这需要在 Composable 中通过 DanmakuManager 调用
-                    // 这里只发送事件通知
-                    if (!attentionCommand) {
-                        _danmakuSentEvent.trySend(DanmakuSentData(message, actualColor, mode, fontSize))
+                        // 本地即时显示弹幕
+                        // 注意：这需要在 Composable 中通过 DanmakuManager 调用
+                        // 这里只发送事件通知
+                        if (!attentionCommand) {
+                            _danmakuSentEvent.trySend(DanmakuSentData(message, actualColor, mode, fontSize, isVipGradualColor))
+                        }
                     }
-                }
-                .onFailure { error ->
-                    toast(error.message ?: "发送失败")
-                }
+                    .onFailure { error ->
+                        toast(error.message ?: "发送失败")
+                    }
             
-            _isSendingDanmaku.value = false
+            } finally {
+                _isSendingDanmaku.value = false
+            }
         }
     }
     
     // 弹幕发送成功事件（用于本地显示）
-    data class DanmakuSentData(val text: String, val color: Int, val mode: Int, val fontSize: Int)
+    data class DanmakuSentData(
+        val text: String,
+        val color: Int,
+        val mode: Int,
+        val fontSize: Int,
+        val isVipGradualColor: Boolean = false,
+    )
     private val _danmakuSentEvent = Channel<DanmakuSentData>(
         capacity = resolvePlayerTransientEventChannelCapacity()
     )
@@ -4792,16 +4814,19 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /** 已点赞弹幕的会话级集合，供点按菜单与弹幕列表共享点赞状态 */
+    private val pendingDanmakuLikes = mutableSetOf<Pair<Long, Long>>()
     private val _likedDanmakuIds = MutableStateFlow<Set<Long>>(emptySet())
     val likedDanmakuIds = _likedDanmakuIds.asStateFlow()
 
     private fun refreshDanmakuThumbupState(dmid: Long) {
         if (dmid <= 0L || currentCid <= 0L) return
 
+        val requestCid = currentCid
         viewModelScope.launch {
             com.android.purebilibili.data.repository.DanmakuRepository
-                .getDanmakuThumbupState(cid = currentCid, dmid = dmid)
+                .getDanmakuThumbupState(cid = requestCid, dmid = dmid)
                 .onSuccess { thumbupState ->
+                    if (currentCid != requestCid) return@onSuccess
                     _likedDanmakuIds.update { if (thumbupState.liked) it + dmid else it - dmid }
                     _danmakuMenuState.update { current ->
                         if (!current.visible || current.dmid != dmid) current
@@ -4862,42 +4887,54 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             return
         }
 
+        val requestCid = currentCid
+        val requestKey = requestCid to dmid
+        if (!pendingDanmakuLikes.add(requestKey)) return
+        val wasLiked = dmid in _likedDanmakuIds.value
+        _likedDanmakuIds.update { if (like) it + dmid else it - dmid }
         _danmakuMenuState.update { current ->
             if (!current.visible || current.dmid != dmid) current
             else current.copy(voteLoading = true)
         }
         
         viewModelScope.launch {
-            com.android.purebilibili.data.repository.DanmakuRepository
-                .likeDanmaku(cid = currentCid, dmid = dmid, like = like)
-                .onSuccess {
-                    _likedDanmakuIds.update { if (like) it + dmid else it - dmid }
-                    _danmakuMenuState.update { current ->
-                        if (!current.visible || current.dmid != dmid) current
-                        else {
-                            val delta = when {
-                                like && !current.hasLiked -> 1
-                                !like && current.hasLiked -> -1
-                                else -> 0
+            try {
+                com.android.purebilibili.data.repository.DanmakuRepository
+                    .likeDanmaku(cid = requestCid, dmid = dmid, like = like)
+                    .onSuccess {
+                        if (currentCid != requestCid) return@onSuccess
+                        _likedDanmakuIds.update { if (like) it + dmid else it - dmid }
+                        _danmakuMenuState.update { current ->
+                            if (!current.visible || current.dmid != dmid) current
+                            else {
+                                val delta = when {
+                                    like && !current.hasLiked -> 1
+                                    !like && current.hasLiked -> -1
+                                    else -> 0
+                                }
+                                current.copy(
+                                    hasLiked = like,
+                                    voteCount = (current.voteCount + delta).coerceAtLeast(0),
+                                    voteLoading = false,
+                                    canVote = true
+                                )
                             }
-                            current.copy(
-                                hasLiked = like,
-                                voteCount = (current.voteCount + delta).coerceAtLeast(0),
-                                voteLoading = false,
-                                canVote = true
-                            )
                         }
+                        toast(if (like) "点赞成功" else "已取消点赞")
+                        refreshDanmakuThumbupState(dmid)
                     }
-                    toast(if (like) "点赞成功" else "已取消点赞")
-                    refreshDanmakuThumbupState(dmid)
-                }
-                .onFailure { error ->
-                    _danmakuMenuState.update { current ->
-                        if (!current.visible || current.dmid != dmid) current
-                        else current.copy(voteLoading = false)
+                    .onFailure { error ->
+                        if (currentCid != requestCid) return@onFailure
+                        _likedDanmakuIds.update { if (wasLiked) it + dmid else it - dmid }
+                        _danmakuMenuState.update { current ->
+                            if (!current.visible || current.dmid != dmid) current
+                            else current.copy(voteLoading = false)
+                        }
+                        toast(error.message ?: "操作失败")
                     }
-                    toast(error.message ?: "操作失败")
-                }
+            } finally {
+                pendingDanmakuLikes.remove(requestKey)
+            }
         }
     }
 
@@ -5380,7 +5417,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 // 使用 Relation 接口精准查询
                 val response = currentApi.getRelation(mid)
                 if (response.code == 0 && response.data != null) {
-                    val isFollowing = response.data.attribute == 2 || response.data.attribute == 6
+                    val checkedResponseData = requireNotNull(response.data)
+                    val isFollowing = checkedResponseData.attribute == 2 || checkedResponseData.attribute == 6
 
                     _uiState.update { state ->
                         if (state is VideoPlaybackUiState.Success) {
@@ -5436,7 +5474,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     try {
                         val result = com.android.purebilibili.core.network.NetworkModule.api.getFollowings(loginMid, page, pageSize)
                         if (result.code == 0 && result.data != null) {
-                            val list = result.data.list ?: break
+                            val checkedResultData = requireNotNull(result.data)
+                            val list = checkedResultData.list ?: break
                             if (list.isEmpty()) break
                             allMids.addAll(list.map { it.mid })
                             if (list.size < pageSize) break
@@ -5546,13 +5585,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             try {
                 val response = com.android.purebilibili.core.network.NetworkModule.api.getVideoTags(bvid)
                 if (response.code == 0 && response.data != null) {
+                    val checkedResponseData = requireNotNull(response.data)
                     _uiState.update { current ->
                         if (current is VideoPlaybackUiState.Success && current.info.bvid == bvid) {
-                            current.copy(videoTags = response.data)
+                            current.copy(videoTags = checkedResponseData)
                         } else current
                     }
-                    MiniPlayerManager.getInstance(getApplication<Application>()).updateCachedVideoTags(bvid, response.data)
-                    Logger.d("PlayerVM", "🏷️ Loaded ${response.data.size} video tags")
+                    MiniPlayerManager.getInstance(getApplication<Application>()).updateCachedVideoTags(bvid, checkedResponseData)
+                    Logger.d("PlayerVM", "🏷️ Loaded ${checkedResponseData.size} video tags")
                 }
             } catch (e: Exception) {
                 Logger.d("PlayerVM", " Failed to load video tags: ${e.message}")
@@ -5619,13 +5659,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     ) {
                         val response = com.android.purebilibili.core.network.NetworkModule.api.getOnlineCount(bvid, cid)
                         if (response.code == 0 && response.data != null) {
-                            val onlineText = "${response.data.total}人正在看"
+                            val checkedResponseData = requireNotNull(response.data)
+                            val onlineText = "${checkedResponseData.total}人正在看"
                             _uiState.update { current ->
                                 if (current is VideoPlaybackUiState.Success) {
                                     current.copy(onlineCount = onlineText)
                                 } else current
                             }
-                            Logger.d("PlayerVM", "👀 Online count: ${response.data.total}")
+                            Logger.d("PlayerVM", "👀 Online count: ${checkedResponseData.total}")
                         }
                     }
                 } catch (e: Exception) {
@@ -5637,6 +5678,51 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
     
     //  [新增] 异步加载播放器额外信息 (章节/看点 + BGM + 互动剧情图)
+    /**
+     * 官方 pbp 热度接口失效（404/空数据）时的兜底：用全部分段弹幕本地聚合密度曲线。
+     * 仅在进度条热度曲线开关开启时执行；同一 cid 只构建一次。
+     */
+    private fun loadDanmakuDensityFallback(
+        bvid: String,
+        cid: Long,
+        requestToken: Long,
+    ) {
+        if (densityFallbackLoadedCid == cid) return
+        val state = _uiState.value as? VideoPlaybackUiState.Success ?: return
+        if (state.info.bvid != bvid || state.info.cid != cid) return
+        val durationSeconds = state.info.pages.firstOrNull { it.cid == cid }?.duration
+            ?: state.info.pages.maxOfOrNull { it.duration } ?: 0L
+        if (durationSeconds <= 0L) return
+        densityFallbackJob?.cancel()
+        densityFallbackJob = viewModelScope.launch {
+            val appContextRef = appContext ?: getApplication<Application>()
+            val enabled = SettingsManager.getProgressPeakDanmakuEnabled(appContextRef).first()
+            if (!enabled) return@launch
+            VideoRepository.getDanmakuDensityProgressData(cid = cid, durationSeconds = durationSeconds)
+                .onSuccess { localData ->
+                    if (shouldApplyPlayerInfoResult(
+                            activeRequestToken = currentLoadRequestToken,
+                            resultRequestToken = requestToken,
+                            expectedBvid = bvid,
+                            expectedCid = cid,
+                            currentBvid = currentBvid,
+                            currentCid = currentCid
+                        )
+                    ) {
+                        densityFallbackLoadedCid = cid
+                        _pbpProgressData.value = localData
+                        Logger.d(
+                            "PlayerVM",
+                            "📈 Loaded local danmaku density: step=${localData.stepSeconds}s points=${localData.values.size}"
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    Logger.d("PlayerVM", "📈 Local danmaku density failed: ${error.message}")
+                }
+        }
+    }
+
     private fun loadPlayerInfo(
         bvid: String,
         cid: Long,
@@ -5649,6 +5735,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         )
         playerInfoJob?.cancel()
         _pbpProgressData.value = null
+        densityFallbackJob?.cancel()
+        densityFallbackLoadedCid = 0L
         playerInfoJob = viewModelScope.launch {
             try {
                 val result = VideoRepository.getPlayerInfo(bvid, cid)
@@ -5697,12 +5785,27 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                                 expectedCid = cid,
                                 currentBvid = currentBvid,
                                 currentCid = currentCid
-                            )
+                            ) && pbpData.values.isNotEmpty()
                         ) {
                             _pbpProgressData.value = pbpData
                             Logger.d(
                                 "PlayerVM",
                                 "📈 Loaded PBP progress: step=${pbpData.stepSeconds}s points=${pbpData.values.size}"
+                            )
+                        } else if (shouldApplyPlayerInfoResult(
+                                activeRequestToken = currentLoadRequestToken,
+                                resultRequestToken = requestToken,
+                                expectedBvid = bvid,
+                                expectedCid = cid,
+                                currentBvid = currentBvid,
+                                currentCid = currentCid
+                            )
+                        ) {
+                            // 官方 pbp 接口已 404 / 返回空数据：回落到本地弹幕密度聚合
+                            loadDanmakuDensityFallback(
+                                bvid = bvid,
+                                cid = cid,
+                                requestToken = requestToken,
                             )
                         }
                     }.onFailure { e ->
@@ -5716,18 +5819,26 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                             )
                         ) {
                             _pbpProgressData.value = null
+                            Logger.d("PlayerVM", "📈 PBP unavailable (${e.message}), falling back to local danmaku density")
+                            loadDanmakuDensityFallback(
+                                bvid = bvid,
+                                cid = cid,
+                                requestToken = requestToken,
+                            )
+                        } else {
+                            Logger.d("PlayerVM", "📈 Failed to load PBP progress: ${e.message}")
                         }
-                        Logger.d("PlayerVM", "📈 Failed to load PBP progress: ${e.message}")
                     }
 
                     // 2. 处理 BGM 信息
                     if (data.bgmInfo != null) {
+                        val checkedDataBgmInfo = requireNotNull(data.bgmInfo)
                         _uiState.update { current ->
                             if (current is VideoPlaybackUiState.Success) {
-                                current.copy(bgmInfo = data.bgmInfo)
+                                current.copy(bgmInfo = checkedDataBgmInfo)
                             } else current
                         }
-                        Logger.d("PlayerVM", "🎵 Loaded BGM: ${data.bgmInfo.musicTitle}")
+                        Logger.d("PlayerVM", "🎵 Loaded BGM: ${checkedDataBgmInfo.musicTitle}")
                     }
 
                     // 2b. gRPC BGM list (multi-song support)
@@ -6253,7 +6364,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         val edgeStartMs = resolveInteractiveEdgeStartPositionMs(data, resolvedEdgeId)
         val triggerOffsetMs = question.startTimeR.toLong().coerceAtLeast(0L)
         val absoluteTriggerMs = resolveInteractiveQuestionTriggerMs(edgeStartMs, triggerOffsetMs)
-        val dimension = data.edges.dimension
+        val dimension = data.edges?.dimension
 
         scheduleInteractiveQuestion(
             edgeId = resolvedEdgeId,
@@ -7926,6 +8037,15 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         lastPluginDispatchPositionMs = null
         pluginCheckJob = viewModelScope.launch {
             while (true) {
+                if (CdnTransferRuntime.enabled) {
+                    exoPlayer?.let { player ->
+                        CdnTransferRuntime.playback(
+                            (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
+                            (player.videoFormat?.bitrate?.coerceAtLeast(0)?.toLong() ?: 0L) +
+                                (player.audioFormat?.bitrate?.coerceAtLeast(0)?.toLong() ?: 0L)
+                        )
+                    }
+                }
                 val plugins = getSessionPlayerPlugins()
                 refreshSponsorContributionAvailability(plugins)
                 val currentVideo = _uiState.value as? VideoPlaybackUiState.Success

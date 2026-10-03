@@ -94,7 +94,7 @@ internal fun LinkedBottomDock(
     navigationContent: @Composable () -> Unit,
 ) {
     val hasAudio = nowPlayingContent != null
-    var internalPhase by remember(currentItem, searchEnabled, hasAudio) {
+    var internalPhase by remember(currentItem, searchEnabled) {
         mutableStateOf(
             resolveLinkedDockInitialPhase(
                 currentItem = currentItem,
@@ -150,8 +150,8 @@ internal fun LinkedBottomDock(
                 if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
                     updatePhase(LinkedDockPhase.Expanded)
                     accumulated = 0f
-                } else if ((hasAudio || searchEnabled) && accumulated >= threshold) {
-                    updatePhase(if (hasAudio) LinkedDockPhase.Playback else LinkedDockPhase.Compact)
+                } else if (hasAudio && accumulated >= threshold) {
+                    updatePhase(LinkedDockPhase.Playback)
                     accumulated = 0f
                 }
             }
@@ -271,9 +271,15 @@ internal fun LinkedBottomDock(
     val slotGeometryPresenceProvider = remember {
         { if (slotEntering.value) 1f else presence.value.coerceIn(0f, 1f) }
     }
-    val latestNowPlayingContent by rememberUpdatedState(nowPlayingContent)
+    // 保留最后一个有效播放条，退出动画完成后再释放；最新值在关闭时已是 null。
+    var retainedNowPlayingContent by remember { mutableStateOf(nowPlayingContent) }
+    SideEffect {
+        if (nowPlayingContent != null || !keepSlotComposed) {
+            retainedNowPlayingContent = nowPlayingContent
+        }
+    }
     val nowPlayingSlot = nowPlayingContent
-        ?: latestNowPlayingContent.takeIf { keepSlotComposed }
+        ?: retainedNowPlayingContent.takeIf { keepSlotComposed }
 
     val shape = resolveSharedBottomBarCapsuleShape()
     val contentColor = MaterialTheme.colorScheme.onSurface
@@ -327,6 +333,9 @@ internal fun LinkedBottomDock(
             gap = gap,
             searchEnabled = searchEnabled,
         )
+        // 小横条展开态与底栏整簇（导航胶囊 + 搜索圆钮）同宽同起点：
+        // 两行胶囊长度一致、左右边缘对齐。
+        val bottomBarClusterWidth = (navWidth + reservedSearchWidth).coerceAtMost(maximumWidth)
 
         // 折叠落定时不组合导航行（等价旧实现 progress>=0.999 不放置），
         // 避免透明导航层在静止折叠态拦截底栏区域外的触摸。
@@ -452,11 +461,15 @@ internal fun LinkedBottomDock(
                                 searchProgress = search.value,
                                 verticalGap = verticalGap,
                                 presenceProgress = slotGeometryPresenceProvider(),
+                                expandedAudioWidth = bottomBarClusterWidth,
+                                expandedAudioX = navigationX,
                             )
+                            // 槽高与导航行同为 barHeight：两行胶囊圆角（percent=50）
+                            // 严格一致，不会因槽更矮而出现更小的圆角。
                             val placeable = measurable.measure(
-                                Constraints.fixed(geometry.audioWidth, controlHeight)
+                                Constraints.fixed(geometry.audioWidth, barHeight)
                             )
-                            layout(geometry.audioWidth, controlHeight) {
+                            layout(geometry.audioWidth, barHeight) {
                                 placeable.placeRelative(0, 0)
                             }
                         }
@@ -472,11 +485,15 @@ internal fun LinkedBottomDock(
                                 searchProgress = search.value,
                                 verticalGap = verticalGap,
                                 presenceProgress = slotGeometryPresenceProvider(),
+                                expandedAudioWidth = bottomBarClusterWidth,
+                                expandedAudioX = navigationX,
                             )
+                            // 槽高已与导航行同为 barHeight：展开时槽底贴导航行上方
+                            // verticalGap 处；收合时槽与导航行完全重合（圆心同中心）。
                             IntOffset(
                                 geometry.audioX,
-                                controlRowY - ((barHeight + verticalGap) * (1f - merge.value))
-                                    .roundToInt(),
+                                navRowY - verticalGap - barHeight +
+                                    ((barHeight + verticalGap) * merge.value).roundToInt(),
                             )
                         },
                 ) {

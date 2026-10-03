@@ -900,6 +900,17 @@ fun LivePlayerScreen(
         }
     }
 
+    //  [修复] 离开直播间时恢复系统栏：横屏沉浸只由上方 LaunchedEffect 的翻转分支解除，
+    //  此前 onDispose 不恢复，经小窗/深链等非翻转路径离开会泄漏隐藏的系统栏。
+    DisposableEffect(activity) {
+        onDispose {
+            val exitWindow = activity?.window ?: return@onDispose
+            val exitController = WindowCompat.getInsetsController(exitWindow, exitWindow.decorView)
+            exitController.show(WindowInsetsCompat.Type.systemBars())
+            exitController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+        }
+    }
+
     val liveRequestedOrientationMode = remember(displayContext, isFullscreen, isPortraitLive) {
         resolveLiveRequestedOrientationMode(
             displayContext = displayContext,

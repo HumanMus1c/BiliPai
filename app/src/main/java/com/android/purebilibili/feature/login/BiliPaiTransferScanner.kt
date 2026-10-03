@@ -15,6 +15,8 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -27,12 +29,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -107,6 +114,21 @@ fun BiliPaiTransferScanner(
     }
 
     val previewView = remember { PreviewView(context) }
+    // SurfaceView renders on a separate window layer that ignores view bounds clipping,
+    // so the camera preview bleeds over surrounding text. TextureView (COMPATIBLE) clips.
+    previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+    // NagramX-style viewfinder: spring-in appearance, corner brackets, recognition pulse.
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val appear = remember { androidx.compose.animation.core.Animatable(0f) }
+    val pulse = remember { androidx.compose.animation.core.Animatable(0f) }
+    var cameraControl by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
+    var torchEnabled by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        appear.animateTo(
+            1f,
+            androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 250f),
+        )
+    }
     DisposableEffect(lifecycleOwner, previewView, singleShot, acceptAnyQr) {
         val executor = Executors.newSingleThreadExecutor()
         val active = AtomicBoolean(true)
@@ -152,7 +174,25 @@ fun BiliPaiTransferScanner(
                                 code?.let {
                                     if (!singleShot || delivered.compareAndSet(false, true)) {
                                         lastDeliveredAt = now
-                                        mainExecutor.execute { if (active.get()) currentOnCode(it) }
+                                        mainExecutor.execute {
+                                            if (!active.get()) return@execute
+                                            if (singleShot) {
+                                                // Recognition pulse before handing the code over,
+                                                // mirroring NagramX's lock-on feedback.
+                                                coroutineScope.launch {
+                                                    pulse.animateTo(
+                                                        1f,
+                                                        androidx.compose.animation.core.spring(
+                                                            dampingRatio = 0.55f, stiffness = 700f,
+                                                        ),
+                                                    )
+                                                    kotlinx.coroutines.delay(140)
+                                                    currentOnCode(it)
+                                                }
+                                            } else {
+                                                currentOnCode(it)
+                                            }
+                                        }
                                     }
                                 }
                             } else throw IllegalStateException("Invalid luminance frame")
@@ -169,10 +209,13 @@ fun BiliPaiTransferScanner(
                         image.close()
                     }
                 }
-                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                val camera = provider.bindToLifecycle(
+                    lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis,
+                )
                 boundProvider = provider
                 boundPreview = preview
                 boundAnalysis = analysis
+                cameraControl = camera.cameraControl
             } catch (_: Exception) {
                 reportError()
             }
@@ -180,6 +223,8 @@ fun BiliPaiTransferScanner(
         providerFuture.addListener(listener, mainExecutor)
         onDispose {
             active.set(false)
+            cameraControl = null
+            torchEnabled = false
             boundAnalysis?.clearAnalyzer()
             boundPreview?.let { preview ->
                 boundAnalysis?.let { analysis -> boundProvider?.unbind(preview, analysis) }
@@ -187,16 +232,98 @@ fun BiliPaiTransferScanner(
             executor.shutdown()
         }
     }
-    androidx.compose.foundation.layout.Box(modifier = modifier) {
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier
+            // Defense in depth: never let the camera layer paint outside the slot.
+            .clipToBounds()
+    ) {
         AndroidView(factory = { previewView }, modifier = Modifier.matchParentSize())
-        AppTextButton(
-            onClick = { launchGalleryPicker() },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) { androidx.compose.material3.Text("从相册识别") }
+        ScannerViewfinderOverlay(appear = appear.value, pulse = pulse.value)
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        ) {
+            AppTextButton(onClick = { launchGalleryPicker() }) {
+                androidx.compose.material3.Text("从相册识别")
+            }
+            if (cameraControl != null) {
+                AppTextButton(onClick = {
+                    val next = !torchEnabled
+                    torchEnabled = next
+                    cameraControl?.enableTorch(next)
+                }) {
+                    androidx.compose.material3.Text(if (torchEnabled) "关闭手电筒" else "手电筒")
+                }
+            }
+        }
     }
 }
 
-/** Loads an image Uri into a bitmap capped at [maxDimension] to keep ZXing fast. */
+/**
+ * NagramX-inspired viewfinder: a centered square (short edge / 1.5) with 50% black
+ * mask outside, white rounded corner brackets that spring in on appear, and a
+ * pulse that thickens the brackets and darkens the mask when a code is recognized.
+ */
+@Composable
+private fun ScannerViewfinderOverlay(appear: Float, pulse: Float) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        val side = minOf(width, height) / 1.5f * (0.5f + 0.5f * appear)
+        val left = (width - side) / 2f
+        val top = (height - side) / 2f
+
+        val maskAlpha = (0.5f + 0.25f * pulse) * appear.coerceIn(0f, 1f)
+        val mask = androidx.compose.ui.graphics.Color.Black.copy(alpha = maskAlpha)
+        drawRect(mask, topLeft = Offset.Zero, size = Size(width, top))
+        drawRect(mask, topLeft = Offset(0f, top + side), size = Size(width, height - top - side))
+        drawRect(mask, topLeft = Offset(0f, top), size = Size(left, side))
+        drawRect(mask, topLeft = Offset(left + side, top), size = Size(width - left - side, side))
+        if (appear < 1f) {
+            drawRect(
+                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f * (1f - appear)),
+                topLeft = Offset(left, top),
+                size = Size(side, side),
+            )
+        }
+
+        val stroke = 4.dp.toPx() * (1f + 0.8f * pulse)
+        val cornerLen = 20.dp.toPx() * (1f + 0.5f * pulse)
+        val half = stroke / 2f
+        val bracket = androidx.compose.ui.graphics.Color.White.copy(
+            alpha = appear.coerceIn(0f, 1f),
+        )
+        val strokeStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+            width = stroke,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            join = androidx.compose.ui.graphics.StrokeJoin.Round,
+        )
+
+        // Bracket with an arc bend at the corner, like NagramX's rounded corner path.
+        val bendRadius = minOf(stroke * 1.5f, cornerLen / 2f)
+        fun cornerPath(corner: Offset, dx: Float, dy: Float) = androidx.compose.ui.graphics.Path().apply {
+            moveTo(corner.x + dx * cornerLen, corner.y + dy * half)
+            lineTo(corner.x + dx * bendRadius, corner.y + dy * half)
+            quadraticBezierTo(
+                corner.x + dx * half, corner.y + dy * half,
+                corner.x + dx * half, corner.y + dy * bendRadius,
+            )
+            lineTo(corner.x + dx * half, corner.y + dy * cornerLen)
+        }
+        listOf(
+            Offset(left, top) to Offset(1f, 1f),
+            Offset(left + side, top) to Offset(-1f, 1f),
+            Offset(left, top + side) to Offset(1f, -1f),
+            Offset(left + side, top + side) to Offset(-1f, -1f),
+        ).forEach { (corner, dir) ->
+            drawPath(cornerPath(corner, dir.x, dir.y), bracket, style = strokeStyle)
+        }
+    }
+}
+
+/** Loads an image Uri into a bitmap capped at [maxDimension], honoring EXIF rotation. */
 private fun decodeUriBitmap(
     context: android.content.Context,
     uri: Uri,
@@ -210,7 +337,28 @@ private fun decodeUriBitmap(
         sample *= 2
     }
     val bounds = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
-    return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: return null
+    val rotationDegrees = runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            androidExifOrientationDegrees(
+                android.media.ExifInterface(input).getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL,
+                )
+            )
+        }
+    }.getOrNull() ?: 0
+    if (rotationDegrees == 0) return decoded
+    val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+    return android.graphics.Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+}
+
+private fun androidExifOrientationDegrees(orientation: Int): Int = when (orientation) {
+    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+    else -> 0
 }
 
 private fun androidx.camera.core.ImageProxy.toLuminanceBytes(): ByteArray? {

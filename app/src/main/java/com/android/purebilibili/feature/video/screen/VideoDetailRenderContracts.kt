@@ -79,10 +79,12 @@ internal data class VideoDetailEngagementActions(
 @Immutable
 internal data class VideoDetailCommentActions(
     val loadComments: () -> Unit,
+    val refreshComments: () -> Unit,
     val setSortMode: (CommentSortMode) -> Unit,
     val deleteComment: (Long) -> Unit,
     val startDissolve: (Long) -> Unit,
     val loadMoreSubReplies: () -> Unit,
+    val refreshSubReplies: () -> Unit,
     val setSubReplySortMode: (SubReplySortMode) -> Unit,
     val openSubReply: (ReplyItem, Long) -> Unit,
     val openSubReplyConversation: (ReplyItem) -> Unit,

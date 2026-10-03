@@ -31,17 +31,7 @@ data class BiliPaiTransferEnvelope(
     val expiresAt: Long,
 )
 
-@Serializable
-data class BiliPaiSessionBundle(
-    val mid: Long,
-    val sessData: String,
-    val csrf: String = "",
-    val accessToken: String = "",
-    val refreshToken: String = "",
-    val accessTokenPlatform: String = "tv",
-    val buvid3: String = "",
-    val isVip: Boolean = false,
-)
+typealias BiliPaiSessionBundle = com.android.purebilibili.data.session.BiliPaiSessionBundle
 
 /** Version bump of the encrypted payload; receivers reject mismatches explicitly. */
 const val BILIPAI_TRANSFER_PAYLOAD_VERSION = 2

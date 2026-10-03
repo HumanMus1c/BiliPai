@@ -2073,7 +2073,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         val result = com.android.purebilibili.core.network.NetworkModule.api.getFollowings(mid, page, 50)
                         if (result.code == 0 && result.data != null) {
-                            val list = result.data.list ?: break
+                            val checkedResultData = requireNotNull(result.data)
+                            val list = checkedResultData.list ?: break
                             if (list.isEmpty()) break
                             
                             list.forEach { user -> allMids.add(user.mid) }

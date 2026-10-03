@@ -41,9 +41,6 @@ import com.android.purebilibili.feature.video.ui.overlay.resolveBottomControlBar
 import com.android.purebilibili.feature.video.ui.overlay.resolveVideoProgressBarLayoutPolicy
 import com.android.purebilibili.feature.video.ui.overlay.resolveLandscapeEndDrawerReservedWidthDp
 import com.android.purebilibili.feature.video.ui.overlay.resolveLandscapeEndDrawerLayoutPolicy
-import com.android.purebilibili.feature.video.ui.overlay.VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS
-import com.android.purebilibili.feature.video.ui.overlay.VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX
-import com.android.purebilibili.feature.video.ui.overlay.VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX
 import com.android.purebilibili.feature.video.ui.components.SponsorSkipButton
 import com.android.purebilibili.feature.video.ui.components.SponsorContributionOverlay
 import com.android.purebilibili.feature.video.ui.components.DanmakuPoolSheet
@@ -81,6 +78,8 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.resolveAppTvIcon
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
+import com.android.purebilibili.feature.video.ui.overlay.HotDanmakuBar
+import com.android.purebilibili.feature.video.ui.overlay.HOT_DANMAKU_BAR_HEIGHT_DP
 import com.android.purebilibili.feature.video.progress.buildPbpRidgeSamples
 import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 
@@ -107,6 +106,12 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import com.android.purebilibili.feature.video.ambient.AmbientPresentation
+import com.android.purebilibili.feature.video.ambient.AmbientFrameController
+import com.android.purebilibili.feature.video.ambient.LocalAmbientPresentation
+import com.android.purebilibili.feature.video.ambient.LocalAmbientController
+import com.android.purebilibili.feature.video.ambient.PlayerAmbientGlow
+import com.android.purebilibili.feature.video.ambient.BindPlayerAmbient
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.*
@@ -219,7 +224,6 @@ import com.android.purebilibili.feature.video.player.PlayerKeyAction
 import com.android.purebilibili.feature.video.player.calculateSeekTargetPositionMs
 import com.android.purebilibili.feature.video.player.resolvePlayerKeyAction
 import com.android.purebilibili.feature.video.ui.components.rememberVideoScreenshotAction
-import com.android.purebilibili.feature.video.util.captureVideoAmbientFrame
 import com.android.purebilibili.feature.video.playback.session.PlaybackSeekSessionState
 import com.android.purebilibili.feature.video.playback.session.SEEK_PLAYBACK_RECOVERY_DELAY_MS
 import com.android.purebilibili.feature.video.playback.session.shouldAttemptPlaybackRecoveryAfterSeek
@@ -673,8 +677,19 @@ private const val MEDIA_SWITCH_SURFACE_RETRY_INTERVAL_MS = 750L
 internal fun VideoPlayerSection(
     state: VideoPlayerSectionState,
     actions: VideoPlayerSectionActions,
+    modifier: Modifier = Modifier,
 ) {
-    VideoPlayerSectionContent(state = state, actions = actions)
+    val hostedAmbient = LocalAmbientPresentation.current
+    val ambient = hostedAmbient ?: remember(state.playerState.player) { AmbientPresentation() }
+    val ambientController = LocalAmbientController.current ?: remember(ambient) { AmbientFrameController(ambient) }
+    CompositionLocalProvider(LocalAmbientPresentation provides ambient, LocalAmbientController provides ambientController) {
+        Box(modifier = modifier) {
+            if (!state.isFullscreen && hostedAmbient == null) {
+                PlayerAmbientGlow(ambient, fullscreen = false, modifier = Modifier.matchParentSize())
+            }
+            VideoPlayerSectionContent(state = state, actions = actions)
+        }
+    }
 }
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -1310,7 +1325,10 @@ private fun VideoPlayerSectionContent(
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
     var measuredPlayerViewportSize by remember(bvid) { mutableStateOf(IntSize.Zero) }
     var measuredBottomControlsHeightPx by remember(bvid) { mutableIntStateOf(0) }
-    val statusBarAmbientFrame = remember(bvid) { mutableStateOf<ImageBitmap?>(null) }
+    val ambientPresentation = LocalAmbientPresentation.current
+    val statusBarAmbientFrame = remember(ambientPresentation) {
+        derivedStateOf { ambientPresentation?.current?.raw }
+    }
     
     // 🔒 [新增] 屏幕锁定状态（全屏时防误触）
     var isScreenLocked by remember { mutableStateOf(false) }
@@ -1367,32 +1385,6 @@ private fun VideoPlayerSectionContent(
         hostLifecycleStarted = hostLifecycleStarted,
         statusBarHazeEnabled = statusBarHazeEnabled,
     )
-    LaunchedEffect(
-        lifecycleOwner,
-        playerViewRef,
-        shouldCaptureStatusBarAmbientFrame,
-        observedIsPlaying,
-        currentPlaybackIdentity,
-    ) {
-        if (!shouldCaptureStatusBarAmbientFrame) {
-            statusBarAmbientFrame.value = null
-            return@LaunchedEffect
-        }
-        val playerView = playerViewRef ?: return@LaunchedEffect
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) {
-                if (playerView.isAttachedToWindow && playerView.width > 0 && playerView.height > 0) {
-                    statusBarAmbientFrame.value = captureVideoAmbientFrame(
-                        playerView = playerView,
-                        targetWidth = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_WIDTH_PX,
-                        targetHeight = VIDEO_STATUS_BAR_AMBIENT_SAMPLE_HEIGHT_PX,
-                    )?.asImageBitmap()
-                }
-                if (!observedIsPlaying) break
-                delay(VIDEO_STATUS_BAR_AMBIENT_CAPTURE_INTERVAL_MS)
-            }
-        }
-    }
 
     var gestureMode by remember { mutableStateOf<VideoGestureMode>(VideoGestureMode.None) }
     var gestureIcon by remember { mutableStateOf<ImageVector?>(null) }
@@ -1536,6 +1528,13 @@ private fun VideoPlayerSectionContent(
     //  [新增] 视频翻转状态
     var isFlippedHorizontal by remember { mutableStateOf(false) }
     var isFlippedVertical by remember { mutableStateOf(false) }
+    var ambientFlipSettling by remember { mutableStateOf(false) }
+    LaunchedEffect(isFlippedHorizontal, isFlippedVertical) {
+        ambientFlipSettling = true
+        delay(180)
+        ambientFlipSettling = false
+    }
+
 
     // 记录手势开始时的初始值
     var startVolumeStep by remember { mutableIntStateOf(0) }
@@ -2946,6 +2945,9 @@ private fun VideoPlayerSectionContent(
         val danmakuAllowColorful = danmakuSettings.allowColorful
         val danmakuAllowSpecial = danmakuSettings.allowSpecial
         val danmakuHideInteractiveCommands = danmakuSettings.hideInteractiveCommands
+        val danmakuHotBarEnabled by com.android.purebilibili.core.store.SettingsManager
+            .getDanmakuHotBarEnabled(context)
+            .collectAsStateWithLifecycle(initialValue = true)
         val danmakuSmartOcclusion = danmakuSettings.smartOcclusion
         val portraitDanmakuDisplayAreaMode = danmakuSettings.portraitDisplayAreaMode
         val danmakuFullscreenPanelWidthMode by com.android.purebilibili.core.store.SettingsManager
@@ -3627,6 +3629,24 @@ private fun VideoPlayerSectionContent(
             currentQualityId = currentQualityId,
             colorTransfer = videoInputFormat?.colorInfo?.colorTransfer ?: 0
         )
+        BindPlayerAmbient(
+            player = playerState.player,
+            playerView = playerViewRef,
+            identity = currentPlaybackIdentity,
+            quality = currentQualityId,
+            width = videoSizeState.first,
+            height = videoSizeState.second,
+            foreground = hostLifecycleStarted,
+            excluded = isInPipMode || isPortraitFullscreen || isAudioOnly ||
+                MiniPlayerManager.getInstance(context).isMiniMode,
+            hdr = requiresHdrSurface,
+            anime4k = shouldUseAnime4kPipeline,
+            transitioning = forceCoverDuringReturnAnimation || liveBackPreview ||
+                ambientFlipSettling,
+            firstFrameReady = isFirstFrameRendered && hasStartedSmoothReveal,
+            statusBar = shouldCaptureStatusBarAmbientFrame,
+            diagnosticLogging = playerDiagnosticLoggingEnabled,
+        )
         val useTextureSurface = shouldUseTextureSurfaceForFlip(
             isFlippedHorizontal = isFlippedHorizontal,
             isFlippedVertical = isFlippedVertical,
@@ -3650,6 +3670,9 @@ private fun VideoPlayerSectionContent(
                             aspectRatio = viewportAspectRatio
                         )
                     }
+                }
+                if (isFullscreen && ambientPresentation != null) {
+                    PlayerAmbientGlow(ambientPresentation, fullscreen = true, modifier = Modifier.matchParentSize())
                 }
                 val fillMaxViewport = shouldUseFillMaxPlayerViewport(viewportAspectRatio)
                 val targetResizeMode = viewportAspectRatio.playerResizeMode
@@ -4485,6 +4508,35 @@ private fun VideoPlayerSectionContent(
                     isFollowing = isFollowed,
                     modifier = Modifier.fillMaxSize()
                 )
+                // 3.1 高赞弹幕悬浮条：当前时间窗内点赞 Top-N，支持一键跟发
+                if (danmakuHotBarEnabled) {
+                    val hotBarLikedDanmakuIds by actions.likedDanmakuIds
+                        .collectAsStateWithLifecycle()
+                    HotDanmakuBar(
+                        getDanmakuList = { danmakuManager.getLoadedDanmakuList() },
+                        onVisibilityChange = { visible ->
+                            danmakuManager.reserveHotDanmakuBarHeight(
+                                if (visible) HOT_DANMAKU_BAR_HEIGHT_DP * density.density else 0f
+                            )
+                        },
+                        player = playerState.player,
+                        likedDanmakuIds = hotBarLikedDanmakuIds,
+                        onLikeDanmaku = actions.onLikeDanmakuToggle,
+                        isSending = isSendingDanmakuComposer,
+                        onSendSame = { message ->
+                            onSendDanmakuComposer(
+                                message,
+                                16777215,
+                                1,
+                                25,
+                                false,
+                            )
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth(),
+                    )
+                }
             }
             }
         }

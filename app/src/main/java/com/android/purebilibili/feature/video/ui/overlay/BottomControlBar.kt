@@ -19,9 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Brush
@@ -58,6 +56,8 @@ import com.android.purebilibili.core.ui.components.AppSwitch
 import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.components.AppWindowActionMenu
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.player.resolveProgressFraction as resolveSharedProgressFraction
+import com.android.purebilibili.core.ui.drawMediaProgressTrack
 import com.android.purebilibili.data.model.response.SponsorProgressMarker
 import com.android.purebilibili.feature.video.progress.PbpRidgeDensity
 import com.android.purebilibili.feature.video.progress.PbpRidgeSample
@@ -184,8 +184,7 @@ internal fun resolveProgressFraction(
     positionMs: Long,
     durationMs: Long
 ): Float {
-    if (durationMs <= 0L) return 0f
-    return (positionMs.coerceIn(0L, durationMs).toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    return resolveSharedProgressFraction(positionMs, durationMs)
 }
 
 internal fun resolveSeekPositionFromTouch(
@@ -1833,7 +1832,6 @@ fun VideoProgressBar(
                             .drawWithCache {
                                 val trackTop = ((size.height - trackHeightPx) / 2f).coerceAtLeast(0f)
                                 val centerY = trackTop + trackHeightPx / 2f
-                                val cornerRadius = CornerRadius(trackHeightPx / 2f, trackHeightPx / 2f)
                                 val ridgeHeight = (size.height * 0.42f).coerceAtMost(18.dp.toPx())
                                 val ridgePoints = pbpRidgeSamples.map { sample ->
                                     val intensity = when (sample.density) {
@@ -1873,11 +1871,6 @@ fun VideoProgressBar(
                                         .takeIf { it in 0.01f..0.99f }?.let { size.width * it }
                                 } else emptyList()
                                 onDrawBehind {
-                                    fun drawTrack(width: Float, color: Color) {
-                                        if (width <= 0f) return
-                                        drawRoundRect(color, Offset(0f, trackTop),
-                                            Size(width.coerceAtLeast(trackHeightPx), trackHeightPx), cornerRadius)
-                                    }
                                     if (ridgePoints.size >= 2 && size.width > 0f) {
                                         drawPath(ridgePath, ridgeBrush)
                                         drawPath(ridgeLinePath, primaryColor.copy(alpha = 0.14f), style = ridgeGlow)
@@ -1887,9 +1880,14 @@ fun VideoProgressBar(
                                                 ridgePoints[index + 1], trackHeightPx * 1.25f, StrokeCap.Round)
                                         }
                                     }
-                                    drawTrack(size.width, inactiveTrackColor)
-                                    drawTrack(size.width * bufferedProgress, bufferedTrackColor)
-                                    drawTrack(size.width * resolveProgressFraction(activePositionProvider(), duration), primaryColor)
+                                    drawMediaProgressTrack(
+                                        progressFraction = resolveProgressFraction(activePositionProvider(), duration),
+                                        bufferedFraction = bufferedProgress,
+                                        trackHeightPx = trackHeightPx,
+                                        activeColor = primaryColor,
+                                        bufferedColor = bufferedTrackColor,
+                                        inactiveColor = inactiveTrackColor,
+                                    )
                                     sponsorLines.forEach { (start, end, color) ->
                                         drawLine(color, start, end, trackHeightPx, StrokeCap.Round)
                                     }

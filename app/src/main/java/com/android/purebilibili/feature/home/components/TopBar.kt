@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.home.components
 
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppPressShiftContent
 import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -890,21 +891,27 @@ fun FluidHomeTopBar(
                         .padding(horizontal = AppSpacingTokens.Medium),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AppIcon(
-                            Icons.Outlined.Search,
-                            null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
-                            modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
-                        )
-                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                        AppText(
-                            text = "搜索视频、UP主...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            maxLines = 1
-                        )
+                    val searchPressed by searchClickInteractionSource.collectIsPressedAsState()
+                    AppPressShiftContent(
+                        pressed = searchPressed,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppIcon(
+                                Icons.Outlined.Search,
+                                null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
+                                modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                            )
+                            Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                            AppText(
+                                text = "搜索视频、UP主...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
 

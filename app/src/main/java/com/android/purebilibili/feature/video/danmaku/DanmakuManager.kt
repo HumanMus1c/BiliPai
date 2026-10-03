@@ -1,6 +1,8 @@
 // 文件路径: feature/video/danmaku/DanmakuManager.kt
 package com.android.purebilibili.feature.video.danmaku
 
+import com.android.purebilibili.danmaku.parser.*
+
 import android.content.Context
 import android.graphics.Typeface
 import android.os.SystemClock
@@ -19,6 +21,7 @@ import com.android.purebilibili.core.plugin.DanmakuStyle
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.json.JsonPluginManager
 import com.android.purebilibili.core.store.DanmakuSettings
+import com.android.purebilibili.danmaku.parser.resolveBilibiliDanmakuFontScale
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_BOTTOM
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_REVERSE
 import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_SCROLL
@@ -188,6 +191,15 @@ class DanmakuManager private constructor(
         return sourceDanmakuList ?: cachedDanmakuList ?: emptyList()
     }
     
+    /** 使用渲染前、合并前的已过滤快照，保留原文并遵守插件及原生屏蔽规则。 */
+    fun getHotDanmakuList(expectedCid: Long): List<DanmakuItem> {
+        if (cachedCid != expectedCid || cachedDanmakuList == null) return emptyList()
+        return rawDanmakuList.orEmpty().asSequence()
+            .filter { it.likeCount >= 10L && it.danmakuId > 0L }
+            .map { it.copy() }
+            .toList()
+    }
+
     var opacity: Float
         get() = config.opacity
         set(value) {
@@ -1067,6 +1079,13 @@ class DanmakuManager private constructor(
     }
 
     private var viewport: DanmakuViewport? = null
+
+    fun reserveHotDanmakuBarHeight(heightPx: Float) {
+        val height = heightPx.coerceAtLeast(0f)
+        if (config.hotBarReservedHeightPx == height) return
+        config.hotBarReservedHeightPx = height
+        applyConfigToController("hot_bar_space")
+    }
 
     /**
      * Hosts that only render (portrait pager, bangumi, offline, fullscreen overlay) rely on the
@@ -2361,7 +2380,8 @@ class DanmakuManager private constructor(
         text: String,
         color: Int = 16777215,
         mode: Int = 1,
-        fontSize: Int = 25
+        fontSize: Int = 25,
+        isVipGradualColor: Boolean = false,
     ) {
         val currentPosition = player?.currentPosition ?: run {
             Log.w(TAG, "📝 addLocalDanmaku: player is null, cannot add danmaku")
@@ -2380,6 +2400,8 @@ class DanmakuManager private constructor(
             
             // 设置颜色 (ARGB 格式)
             textColor = color or 0xFF000000.toInt()
+            this.isVipGradualColor = isVipGradualColor
+            isSelf = true
             
             // 尝试设置边框/背景
             try {
@@ -2421,7 +2443,8 @@ class DanmakuManager private constructor(
         
         // 添加到缓存列表并排序
         // [核心修复] 必须按时间排序！渲染引擎依赖顺序数据，乱序会导致弹幕无法显示
-        cachedDanmakuList = (cachedDanmakuList ?: emptyList()).plus(danmakuData).sortedBy { it.showAtTime }
+        val visibleLocalDanmaku = applyDanmakuTypeFilters(listOf(danmakuData), emptyList()).first
+        cachedDanmakuList = (cachedDanmakuList ?: emptyList()).plus(visibleLocalDanmaku).sortedBy { it.showAtTime }
         sourceDanmakuList = (sourceDanmakuList ?: emptyList()).plus(danmakuData).sortedBy { it.showAtTime }
         Log.d(TAG, "📝 Added to cache and sorted, total: ${cachedDanmakuList?.size} danmakus")
         

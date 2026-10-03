@@ -87,6 +87,11 @@ private fun BackdropEffectScope.roundedRectCornerRadii(): FloatArray? {
 }
 
 private const val ROUNDED_RECT_SDF = """
+// 圆角轴线与中心可能产生零向量；避免 NaN 传播到纹理采样。
+float2 safeNormalize(float2 vector) {
+    return vector / max(length(vector), 0.0001);
+}
+
 float radiusAt(float2 coord, float4 radii) {
     if (coord.x >= 0.0) {
         if (coord.y <= 0.0) return radii.y;
@@ -107,7 +112,7 @@ float sdRoundedRect(float2 coord, float2 halfSize, float radius) {
 float2 gradSdRoundedRect(float2 coord, float2 halfSize, float radius) {
     float2 cornerCoord = abs(coord) - (halfSize - float2(radius));
     if (cornerCoord.x >= 0.0 || cornerCoord.y >= 0.0) {
-        return sign(coord) * normalize(max(cornerCoord, 0.0));
+        return sign(coord) * safeNormalize(max(cornerCoord, 0.0));
     } else {
         float gradX = step(cornerCoord.y, cornerCoord.x);
         return sign(coord) * float2(gradX, 1.0 - gradX);
@@ -145,7 +150,7 @@ half4 main(float2 coord) {
 
     float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
-    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));
+    float2 grad = safeNormalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * safeNormalize(centeredCoord));
 
     float2 refractedCoord = coord + d * grad;
     return content.eval(refractedCoord);
@@ -183,7 +188,7 @@ half4 main(float2 coord) {
 
     float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
-    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));
+    float2 grad = safeNormalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * safeNormalize(centeredCoord));
 
     float2 refractedCoord = coord + d * grad;
     float dispersionIntensity = chromaticAberration * ((centeredCoord.x * centeredCoord.y) / (halfSize.x * halfSize.y));
@@ -191,10 +196,16 @@ half4 main(float2 coord) {
 
     // 物理光学三通道（RGB）波长色散：采样数从 7 次降低至 3 次（减少 57% GPU 纹理采样），
     // 消除冗余多次采样的混色浑浊感，色散边缘更清澈通透，大幅降低显存带宽与 TMU 压力。
-    half r = content.eval(refractedCoord + dispersedCoord).r;
+    half4 rSample = content.eval(refractedCoord + dispersedCoord);
     half4 gSample = content.eval(refractedCoord);
-    half b = content.eval(refractedCoord - dispersedCoord).b;
+    half4 bSample = content.eval(refractedCoord - dispersedCoord);
 
-    return half4(r, gSample.g, b, gSample.a);
+    // 输入是预乘透明度颜色。通道采到透明边缘时回退到中心样本，
+    // 并统一预乘输出，避免透明黑被当成不透明的色散边缘。
+    half r = rSample.a > 0.0001 ? rSample.r / rSample.a :
+        (gSample.a > 0.0001 ? gSample.r / gSample.a : 0.0);
+    half b = bSample.a > 0.0001 ? bSample.b / bSample.a :
+        (gSample.a > 0.0001 ? gSample.b / gSample.a : 0.0);
+    return half4(r * gSample.a, gSample.g, b * gSample.a, gSample.a);
 }
 """

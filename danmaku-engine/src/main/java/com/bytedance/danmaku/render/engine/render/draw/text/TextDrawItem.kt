@@ -16,6 +16,9 @@
 package com.bytedance.danmaku.render.engine.render.draw.text
 
 import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.Matrix
+import android.graphics.Shader
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.TextUtils
@@ -39,6 +42,10 @@ open class TextDrawItem: DrawItem<TextData>() {
     private val mTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
     private val mUnderlinePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
 
+    private val gradientMatrix = Matrix()
+    private var vipGradient: LinearGradient? = null
+    private var vipGradientWidth = 0f
+
     private val mFontMetrics = Paint.FontMetrics()
     private var mMetricsValid = false
     private var mMetricsTextSize = 0f
@@ -60,6 +67,9 @@ open class TextDrawItem: DrawItem<TextData>() {
 
     override fun onBindData(data: TextData) {
         mMetricsValid = false
+        vipGradient = null
+        vipGradientWidth = 0f
+        mTextPaint.shader = null
         mTextPaint.flags = Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG
         mUnderlinePaint.flags = Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG
     }
@@ -67,6 +77,7 @@ open class TextDrawItem: DrawItem<TextData>() {
     override fun onMeasure(config: DanmakuConfig) {
         if (!TextUtils.isEmpty(data?.text)) {
             mTextPaint.textSize = data?.textSize ?: config.text.size
+            mTextPaint.typeface = data?.typeface ?: config.text.typeface
             width = mTextPaint.measureText(data?.text)
             val includeFontPadding = data?.includeFontPadding ?: config.text.includeFontPadding
             height = getFontHeight(includeFontPadding, mTextPaint)
@@ -85,6 +96,9 @@ open class TextDrawItem: DrawItem<TextData>() {
         super.recycle()
         mMetricsValid = false
         mMetricsTypeface = null
+        vipGradient = null
+        vipGradientWidth = 0f
+        gradientMatrix.reset()
         mTextPaint.reset()
         mUnderlinePaint.reset()
     }
@@ -94,6 +108,8 @@ open class TextDrawItem: DrawItem<TextData>() {
      */
     private fun drawText(canvas: Canvas, paint: Paint, config: DanmakuConfig) {
         data?.text?.let { text ->
+            // 描边保持单色，复用的画笔不能带上上一条弹幕的渐变。
+            paint.shader = null
             // draw stroke
             (data?.textStrokeWidth ?: config.text.strokeWidth).takeIf { it > 0 }?.let { width ->
                 paint.style = Paint.Style.STROKE
@@ -112,7 +128,21 @@ open class TextDrawItem: DrawItem<TextData>() {
             paint.strokeWidth = 0f
             val includeFontPadding = data?.includeFontPadding ?: config.text.includeFontPadding
             val baseline = getBaseline(includeFontPadding, y, paint)
+            if (data?.isVipGradualColor == true && width > 0f) {
+                if (vipGradient == null || vipGradientWidth != width) {
+                    vipGradient = LinearGradient(
+                        0f, 0f, width, 0f,
+                        VIP_GRADIENT_COLORS, null, Shader.TileMode.CLAMP,
+                    )
+                    vipGradientWidth = width
+                }
+                // 渐变跟随文字移动；只更新矩阵，不在每帧创建 Shader。
+                gradientMatrix.setTranslate(x, 0f)
+                vipGradient?.setLocalMatrix(gradientMatrix)
+                paint.shader = vipGradient
+            }
             canvas.drawText(text, x, baseline, paint)
+            paint.shader = null
         }
     }
 
@@ -133,6 +163,14 @@ open class TextDrawItem: DrawItem<TextData>() {
             underlinePaint.strokeWidth = 0f
             canvas.drawRect(x, underlineY, x + width, underlineY + config.underline.width, underlinePaint)
         }
+    }
+
+    private companion object {
+        val VIP_GRADIENT_COLORS = intArrayOf(
+            0xFFFFD86F.toInt(),
+            0xFFFF80B5.toInt(),
+            0xFF8A9FFF.toInt(),
+        )
     }
 
     private fun getFontHeight(includeFontPadding: Boolean, paint: Paint): Float {

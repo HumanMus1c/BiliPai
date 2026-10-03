@@ -386,9 +386,9 @@ private fun TabletBangumiDetailContent(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 val playLabel = if (isCourse) {
-                                    if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续学习" else "开始学习"
+                                    if ((detail.userStatus?.progress?.lastEpId ?: 0L) > 0L) "继续学习" else "开始学习"
                                 } else {
-                                    if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续观看" else "立即播放"
+                                    if ((detail.userStatus?.progress?.lastEpId ?: 0L) > 0L) "继续观看" else "立即播放"
                                 }
                                 AppText(
                                     text = playLabel,
@@ -475,7 +475,7 @@ private fun TabletBangumiDetailContent(
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            detail.briefImgs.forEach { briefImg ->
+                            detail.briefImgs.orEmpty().forEach { briefImg ->
                                 if (briefImg.url.isNotBlank()) {
                                     val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
                                     AsyncImage(
@@ -606,7 +606,7 @@ private fun TabletBangumiDetailContent(
                      }
                  
                  // Related Seasons
-                 if (!detail.seasons.isNullOrEmpty() && detail.seasons.size > 1) {
+                 if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                      item(span = { GridItemSpan(maxLineSpan) }) {
                          AppText(
                             text = "相关季度",
@@ -616,7 +616,7 @@ private fun TabletBangumiDetailContent(
                         )
                      }
                      
-                     items(detail.seasons, key = { it.seasonId }) { season ->
+                     items(detail.seasons.orEmpty(), key = { it.seasonId }) { season ->
                          val isCurrentSeason = season.seasonId == detail.seasonId
                          AppSurface(
                             onClick = { if (!isCurrentSeason) onSeasonClick(season.seasonId) },
@@ -654,7 +654,7 @@ private fun TabletBangumiDetailContent(
                             jumpInputText = it.filter { char -> char.isDigit() }
                             jumpErrorMessage = null
                         },
-                        label = { AppText("集数 (1-${detail.episodes.size})") },
+                        label = { AppText("集数 (1-${detail.episodes.orEmpty().size})") },
                         singleLine = true,
                         isError = jumpErrorMessage != null,
                         modifier = Modifier.fillMaxWidth()
@@ -673,10 +673,10 @@ private fun TabletBangumiDetailContent(
                 AppTextButton(
                     onClick = {
                         val epNumber = jumpInputText.toIntOrNull()
-                        if (epNumber == null || epNumber < 1 || epNumber > detail.episodes.size) {
-                            jumpErrorMessage = "请输入 1-${detail.episodes.size} 之间的数字"
+                        if (epNumber == null || epNumber < 1 || epNumber > detail.episodes.orEmpty().size) {
+                            jumpErrorMessage = "请输入 1-${detail.episodes.orEmpty().size} 之间的数字"
                         } else {
-                            val targetEpisode = detail.episodes.getOrNull(epNumber - 1)
+                            val targetEpisode = detail.episodes.orEmpty().getOrNull(epNumber - 1)
                             if (targetEpisode != null) {
                                 onEpisodeClick(targetEpisode)
                             }
@@ -941,9 +941,9 @@ private fun MobileBangumiDetailContent(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             val playLabel = if (isCourse) {
-                                if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续学习" else "开始学习"
+                                if ((detail.userStatus?.progress?.lastEpId ?: 0L) > 0L) "继续学习" else "开始学习"
                             } else {
-                                if (detail.userStatus?.progress?.lastEpId != null && detail.userStatus.progress.lastEpId > 0L) "继续观看" else "立即播放"
+                                if ((detail.userStatus?.progress?.lastEpId ?: 0L) > 0L) "继续观看" else "立即播放"
                             }
                             AppText(
                                 text = playLabel,
@@ -1071,7 +1071,7 @@ private fun MobileBangumiDetailContent(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        detail.briefImgs.forEach { briefImg ->
+                        detail.briefImgs.orEmpty().forEach { briefImg ->
                             if (briefImg.url.isNotBlank()) {
                                 val ratio = (1f / briefImg.aspectRatio.coerceAtLeast(0.1f)).coerceIn(0.2f, 5f)
                                 AsyncImage(
@@ -1114,7 +1114,7 @@ private fun MobileBangumiDetailContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         AppText(
-                            text = "选集 (${detail.episodes.size})",
+                            text = "选集 (${detail.episodes.orEmpty().size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -1146,10 +1146,10 @@ private fun MobileBangumiDetailContent(
                 }
                 
                 //  分页选择器（超过50集时显示）
-                if (detail.episodes.size > 50) {
+                if (detail.episodes.orEmpty().size > 50) {
                     item {
                         val episodesPerPage = 50
-                        val totalPages = (detail.episodes.size + episodesPerPage - 1) / episodesPerPage
+                        val totalPages = (detail.episodes.orEmpty().size + episodesPerPage - 1) / episodesPerPage
                         
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -1166,7 +1166,7 @@ private fun MobileBangumiDetailContent(
                                 ) {
                                     AppText(
                                         text = resolveBangumiEpisodePageLabel(
-                                            episodeCount = detail.episodes.size,
+                                            episodeCount = detail.episodes.orEmpty().size,
                                             page = page,
                                             episodesPerPage = episodesPerPage,
                                             descending = episodesDescending
@@ -1183,9 +1183,9 @@ private fun MobileBangumiDetailContent(
                 
                 //  剧集预览（只显示前6个，点击展开完整列表）
                 item {
-                    val previewEpisodes = if (detail.episodes.size > 50) {
+                    val previewEpisodes = if (detail.episodes.orEmpty().size > 50) {
                         val window = resolveBangumiEpisodePreviewWindow(
-                            episodeCount = detail.episodes.size,
+                            episodeCount = detail.episodes.orEmpty().size,
                             selectedPage = selectedPreviewPage,
                             episodesPerPage = 50,
                             previewCount = 6
@@ -1208,7 +1208,7 @@ private fun MobileBangumiDetailContent(
                         }
 
                         // 更多按钮
-                        if (detail.episodes.size > 6) {
+                        if (detail.episodes.orEmpty().size > 6) {
                             item {
                                 AppSurface(
                                     onClick = { showEpisodeSheet = true },
@@ -1230,7 +1230,7 @@ private fun MobileBangumiDetailContent(
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                             AppText(
-                                                text = "全部${detail.episodes.size}集",
+                                                text = "全部${detail.episodes.orEmpty().size}集",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -1257,7 +1257,7 @@ private fun MobileBangumiDetailContent(
                 }
             
             // 相关季度
-            if (!detail.seasons.isNullOrEmpty() && detail.seasons.size > 1) {
+            if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                 item {
                     AppText(
                         text = "相关季度",
@@ -1272,7 +1272,7 @@ private fun MobileBangumiDetailContent(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(detail.seasons, key = { it.seasonId }) { season ->
+                        items(detail.seasons.orEmpty(), key = { it.seasonId }) { season ->
                             val isCurrentSeason = season.seasonId == detail.seasonId
                             AppSurface(
                                 modifier = Modifier.clickable {
@@ -1317,7 +1317,7 @@ private fun MobileBangumiDetailContent(
                                 jumpInputText = it.filter { char -> char.isDigit() }
                                 jumpErrorMessage = null
                             },
-                            label = { AppText("集数 (1-${detail.episodes.size})") },
+                            label = { AppText("集数 (1-${detail.episodes.orEmpty().size})") },
                             singleLine = true,
                             isError = jumpErrorMessage != null,
                             modifier = Modifier.fillMaxWidth()
@@ -1336,10 +1336,10 @@ private fun MobileBangumiDetailContent(
                     com.android.purebilibili.core.ui.AppDialogAction(
                         onClick = {
                             val epNumber = jumpInputText.toIntOrNull()
-                            if (epNumber == null || epNumber < 1 || epNumber > detail.episodes.size) {
-                                jumpErrorMessage = "请输入 1-${detail.episodes.size} 之间的数字"
+                            if (epNumber == null || epNumber < 1 || epNumber > detail.episodes.orEmpty().size) {
+                                jumpErrorMessage = "请输入 1-${detail.episodes.orEmpty().size} 之间的数字"
                             } else {
-                                val targetEpisode = detail.episodes.getOrNull(epNumber - 1)
+                                val targetEpisode = detail.episodes.orEmpty().getOrNull(epNumber - 1)
                                 if (targetEpisode != null) {
                                     onEpisodeClick(targetEpisode)
                                 }
@@ -1718,13 +1718,13 @@ private fun EpisodeSelectionSheet(
             }
             
             //  季度标签（如果有多个季度）
-            if (!detail.seasons.isNullOrEmpty() && detail.seasons.size > 1) {
+            if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
-                    items(detail.seasons, key = { it.seasonId }) { season ->
+                    items(detail.seasons.orEmpty(), key = { it.seasonId }) { season ->
                         val isCurrentSeason = season.seasonId == detail.seasonId
                         
                         AppSurface(

@@ -83,6 +83,7 @@ import androidx.window.layout.WindowMetrics
 import androidx.window.layout.WindowMetricsCalculator
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.LocalDetailedCommentTimeEnabled
 import com.android.purebilibili.core.coroutines.AppScope
 
 import com.android.purebilibili.core.theme.LocalDisplayMetricsSnapshot
@@ -161,7 +162,7 @@ import com.android.purebilibili.feature.privacy.PrivacyAuthenticationReason
 import com.android.purebilibili.feature.privacy.PrivacyAuthenticationRequest
 import com.android.purebilibili.feature.privacy.PrivacyAuthenticationResult
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
-import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
+import com.android.purebilibili.core.player.PlaybackProgressManager
 import com.android.purebilibili.feature.video.handoff.PlaybackHandoffCodec
 import com.android.purebilibili.feature.video.handoff.PlaybackHandoffPayload
 import com.android.purebilibili.feature.video.handoff.PlaybackHandoffRegistry
@@ -1368,6 +1369,9 @@ open class MainActivity : AppCompatActivity() {
             val globalTextTapCopyEnabled by SettingsManager
                 .getGlobalTextTapCopyEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = false)
+            val detailedCommentTimeEnabled by remember(context) {
+                SettingsManager.getDetailedCommentTimeEnabled(context)
+            }.collectAsStateWithLifecycle(initialValue = false)
             val uiEntranceAnimationEnabled by SettingsManager
                 .getUiEntranceAnimationEnabled(context)
                 .collectAsStateWithLifecycle(initialValue = true)
@@ -1427,17 +1431,20 @@ open class MainActivity : AppCompatActivity() {
                 uiStyle = appThemeSettings.uiStyle
             )
 
-            //  [新增] 根据主题动态更新状态栏样式
+            //  [新增] 根据主题动态更新状态栏/导航栏样式（两条系统栏均保持透明，
+            //  只翻转图标明暗；补传 navigationBarStyle 避免回落到 enableEdgeToEdge 的默认 scrim）
+            val edgeToEdgeSystemBarStyle = if (useDarkTheme) {
+                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT
+                )
+            }
             LaunchedEffect(useDarkTheme) {
                 enableEdgeToEdge(
-                    statusBarStyle = if (useDarkTheme) {
-                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-                    } else {
-                        SystemBarStyle.light(
-                            android.graphics.Color.TRANSPARENT,
-                            android.graphics.Color.TRANSPARENT
-                        )
-                    }
+                    statusBarStyle = edgeToEdgeSystemBarStyle,
+                    navigationBarStyle = edgeToEdgeSystemBarStyle
                 )
             }
 
@@ -1511,6 +1518,7 @@ open class MainActivity : AppCompatActivity() {
                     //  📐 [平板适配] 提供全局 WindowSizeClass
                     CompositionLocalProvider(
                         LocalDensity provides effectiveDensity,
+                        LocalDetailedCommentTimeEnabled provides detailedCommentTimeEnabled,
                         LocalWindowSizeClass provides windowSizeClass,
                         LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
                         com.android.purebilibili.core.ui.LocalHingeSafeOverlayRegions provides

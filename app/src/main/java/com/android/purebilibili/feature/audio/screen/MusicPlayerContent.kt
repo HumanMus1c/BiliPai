@@ -1789,13 +1789,20 @@ private fun ImmersiveBottomQueueShelf(
                 .fillMaxWidth()
                 .pointerInput(dismissThresholdPx) {
                     detectVerticalDragGestures(
+                        // Kill any in-flight return/dismiss animation so snapTo below
+                        // never races a running animateTo (that caused the flicker).
+                        onDragStart = {
+                            dragScope.launch { dragOffsetY.stop() }
+                        },
                         onDragEnd = {
                             val settled = dragOffsetY.value
                             if (settled > dismissThresholdPx) {
                                 dragScope.launch {
                                     dragOffsetY.animateTo(settled + 1200f, tween(160))
+                                    // Hand over to the AnimatedVisibility exit; do NOT snap
+                                    // back to 0 here — that jumped the panel to its resting
+                                    // position before the exit slide, causing the bounce.
                                     onClose()
-                                    dragOffsetY.snapTo(0f)
                                 }
                             } else {
                                 dragScope.launch {

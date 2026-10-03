@@ -76,6 +76,8 @@ class DanmakuConfig {
     
     // 顶部边距（像素）
     var topMarginPx = 0
+    /** 顶部高赞计数条的专属空间，独立于人脸避让。 */
+    var hotBarReservedHeightPx = 0f
     
     /** Resolve app settings into the renderer-neutral configuration contract. */
     fun resolveRenderConfig(viewport: DanmakuViewport): DanmakuRenderConfig {
@@ -94,12 +96,17 @@ class DanmakuConfig {
             viewportWidthPx = viewWidth
         )
         val activeBand = resolveActiveDisplayBand(displayAreaRatio)
+        val topMargin = maxOf(
+            if (viewHeight > 0) viewHeight * activeBand.topRatio else 0f,
+            hotBarReservedHeightPx.coerceIn(0f, viewHeight.toFloat()),
+        )
         val visibleHeightPx = if (viewHeight > 0) {
-            (viewHeight * activeBand.heightRatio).coerceAtLeast(0f)
+            (viewHeight * activeBand.bottomRatio - topMargin).coerceAtLeast(0f)
         } else {
             0f
         }
-        val maxLines = resolveDanmakuVisibleLineCount(
+        val maxLines = if (viewHeight > 0 && hotBarReservedHeightPx > 0f && visibleHeightPx <= 0f) 0
+        else resolveDanmakuVisibleLineCount(
             visibleHeightPx = visibleHeightPx,
             areaRatioHint = activeBand.heightRatio,
             fontSize = resolvedTextSize,
@@ -108,7 +115,6 @@ class DanmakuConfig {
             lineHeight = lineHeight,
             massiveMode = massiveMode
         )
-        val topMargin = if (viewHeight > 0) viewHeight * activeBand.topRatio else 0f
         val bottomInset = if (viewHeight > 0) viewHeight * (1f - activeBand.bottomRatio) else 0f
         val pinnedDuration = resolveDanmakuPinnedDurationMillis(staticDurationSeconds)
         topMarginPx = topMargin.toInt()
@@ -184,12 +190,6 @@ internal const val DANMAKU_BASE_TEXT_SIZE_DP = 20f
 
 internal fun resolveDanmakuTextSizePx(density: Float, fontScale: Float): Float =
     DANMAKU_BASE_TEXT_SIZE_DP * density * fontScale.coerceIn(0.3f, 2f)
-
-/** Converts Bilibili's 18/25/36 size grades into a renderer-independent multiplier. */
-internal fun resolveBilibiliDanmakuFontScale(fontSize: Float): Float {
-    if (!fontSize.isFinite() || fontSize <= 0f) return 1f
-    return (fontSize / BILIBILI_STANDARD_DANMAKU_FONT_SIZE).coerceIn(0.48f, 2.56f)
-}
 
 internal fun resolveDanmakuScrollDurationMillis(
     scrollDurationSeconds: Float,
@@ -286,5 +286,3 @@ internal fun resolveDanmakuFallbackMaxLines(displayAreaRatio: Float): Int {
         else -> 16
     }
 }
-
-private const val BILIBILI_STANDARD_DANMAKU_FONT_SIZE = 25f

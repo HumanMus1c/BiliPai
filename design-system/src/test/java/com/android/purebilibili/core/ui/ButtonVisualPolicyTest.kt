@@ -6,12 +6,36 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.ACCESSIBLE_TEXT_MIN_CONTRAST
+import com.android.purebilibili.core.theme.calculateContrastRatio
+import com.android.purebilibili.core.theme.opaqueCompositeOver
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ButtonVisualPolicyTest {
+
+    @Test
+    fun `light follow status button rejects light primary text`() {
+        val scheme = lightColorScheme(surface = Color.White, onSurface = Color.Black)
+        val resolved = resolveButtonContentColor(Color.White, Color(0xFFF8F6FF), scheme)
+        assertTrue(calculateContrastRatio(resolved, Color.White) >= ACCESSIBLE_TEXT_MIN_CONTRAST)
+    }
+
+    @Test
+    fun `dark and translucent button backgrounds keep readable text`() {
+        val scheme = darkColorScheme(surface = Color(0xFF121212), onSurface = Color.White)
+        val container = Color.White.copy(alpha = 0.2f)
+        val resolved = resolveButtonContentColor(container, Color.Black, scheme)
+        assertTrue(calculateContrastRatio(resolved, opaqueCompositeOver(container, scheme.surface)) >= ACCESSIBLE_TEXT_MIN_CONTRAST)
+    }
+
+    @Test
+    fun `readable custom foreground is preserved`() {
+        val foreground = Color(0xFF245A20)
+        assertEquals(foreground, resolveButtonContentColor(Color.White, foreground, lightColorScheme()))
+    }
 
     @Test
     fun `filled button uses primary on dark theme and primaryContainer on light theme`() {

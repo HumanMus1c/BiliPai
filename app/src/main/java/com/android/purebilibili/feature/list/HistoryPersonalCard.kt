@@ -90,12 +90,8 @@ internal fun resolveHistoryKindLabel(business: HistoryBusiness): String = when (
     HistoryBusiness.UNKNOWN -> "未知"
 }
 
-internal fun resolveHistoryProgressLabel(progress: Int, duration: Int): String = when {
-    progress == -1 -> "已看完"
-    duration <= 0 -> "已看"
-    progress <= 0 -> FormatUtils.formatDuration(duration)
-    else -> "${FormatUtils.formatDuration(progress)}/${FormatUtils.formatDuration(duration)}"
-}
+internal fun resolveHistoryProgressLabel(progress: Int, duration: Int): String =
+    com.android.purebilibili.data.model.resolveHistoryProgressLabel(progress, duration)
 
 internal fun canAddHistoryToWatchLater(item: HistoryItem): Boolean =
     item.business == HistoryBusiness.ARCHIVE && item.videoItem.id > 0L
@@ -215,7 +211,7 @@ internal fun HistoryPersonalCard(
                     durationText = FormatUtils.formatDuration(video.duration),
                     infoPresentation = com.android.purebilibili.core.ui.transition
                         .resolveVideoCardSourceInfoPresentation(
-                            publishTimeText = FormatUtils.formatPublishTime(video.view_at),
+                            publishTimeText = FormatUtils.formatHistoryViewTime(video.view_at),
                             // History cards show owner + viewed time, not play/danmaku stats.
                             showStatsInInfo = false,
                             ownerBeforePublish = true,
@@ -240,7 +236,7 @@ internal fun HistoryPersonalCard(
     val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
     val owner = video.owner.name.takeIf { it.isNotBlank() }
         ?: if (item.business == HistoryBusiness.PGC) "番剧" else "未知作者"
-    val viewedAt = FormatUtils.formatPublishTime(video.view_at)
+    val viewedAt = FormatUtils.formatHistoryViewTime(video.view_at)
     val titleMaxLines = if (item.page > 1) 1 else 2
 
     val actionContent: @Composable () -> Unit = {

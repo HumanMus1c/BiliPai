@@ -43,12 +43,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
+import com.android.purebilibili.core.ui.animation.DissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.DissolveAnimationPreset
 import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.adaptive.MotionTier
@@ -60,6 +62,7 @@ import kotlinx.collections.immutable.ImmutableSet
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.HomeHeroCarousel
+import com.android.purebilibili.feature.home.components.HomeHeroCarouselImmersive
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -227,6 +230,7 @@ internal fun HomeCategoryPageContent(
     oldContentStartIndex: Int? = null,
     oldContentLocatorRefreshKey: Long = 0L,
     onOldContentDividerClick: () -> Unit = {},
+    overlayPillColors: com.android.purebilibili.feature.home.HomeGlassResolvedColors,
     todayWatchEnabled: Boolean = false,
     todayWatchMode: TodayWatchMode = TodayWatchMode.RELAX,
     todayWatchPlan: TodayWatchPlan? = null,
@@ -376,6 +380,10 @@ internal fun HomeCategoryPageContent(
     }
     val oldContentLocatorScope = rememberCoroutineScope()
     var oldContentLocatorDismissed by remember(oldContentLocatorRefreshKey) {
+        mutableStateOf(false)
+    }
+
+    var oldContentLocatorDissolving by remember(oldContentLocatorRefreshKey) {
         mutableStateOf(false)
     }
 
@@ -588,25 +596,46 @@ internal fun HomeCategoryPageContent(
                         contentType = "home_hero_carousel",
                         span = StaggeredGridItemSpan.FullLine
                     ) {
-                        HomeHeroCarousel(
-                            videos = carouselVideos,
-                            autoplayEnabled = homeHeroCarouselAutoplayEnabled,
-                            onGestureActiveChange = onHeroCarouselGestureActiveChange,
-                            onVideoClick = { video ->
-                                onVideoClick(
-                                    HomeVideoClickRequest(
-                                        bvid = video.bvid,
-                                        dynamicId = video.dynamicId,
-                                        cid = video.cid,
-                                        coverUrl = video.pic,
-                                        isVerticalVideo = video.isVertical,
-                                        source = HomeVideoClickSource.GRID,
-                                        sourceRoute = sourceRoute
+                        if (LocalConfiguration.current.screenWidthDp >= HOME_HERO_CAROUSEL_WIDE_BREAKPOINT_DP.toInt()) {
+                            // 折叠屏/平板展开态:全幅沉浸式 hero(与 TV 首页同一视觉语言)
+                            HomeHeroCarouselImmersive(
+                                videos = carouselVideos,
+                                horizontalEscapeDp = contentPadding.calculateLeftPadding(LocalLayoutDirection.current),
+                                onVideoClick = { video ->
+                                    onVideoClick(
+                                        HomeVideoClickRequest(
+                                            bvid = video.bvid,
+                                            dynamicId = video.dynamicId,
+                                            cid = video.cid,
+                                            coverUrl = video.pic,
+                                            isVerticalVideo = video.isVertical,
+                                            source = HomeVideoClickSource.GRID,
+                                            sourceRoute = sourceRoute
+                                        )
                                     )
-                                )
-                            },
-                            onGetPreviewUrl = onGetPreviewUrl
-                        )
+                                },
+                            )
+                        } else {
+                            HomeHeroCarousel(
+                                videos = carouselVideos,
+                                autoplayEnabled = homeHeroCarouselAutoplayEnabled,
+                                onGestureActiveChange = onHeroCarouselGestureActiveChange,
+                                onVideoClick = { video ->
+                                    onVideoClick(
+                                        HomeVideoClickRequest(
+                                            bvid = video.bvid,
+                                            dynamicId = video.dynamicId,
+                                            cid = video.cid,
+                                            coverUrl = video.pic,
+                                            isVerticalVideo = video.isVertical,
+                                            source = HomeVideoClickSource.GRID,
+                                            sourceRoute = sourceRoute
+                                        )
+                                    )
+                                },
+                                onGetPreviewUrl = onGetPreviewUrl
+                            )
+                        }
                     }
                 }
                 if (todayWatchEnabled) {
@@ -773,11 +802,12 @@ internal fun HomeCategoryPageContent(
             .AudioNowPlayingSession.barOverlayVisible
             .collectAsStateWithLifecycle()
         AnimatedVisibility(
-            visible = category == HomeCategory.RECOMMEND &&
-                oldContentGridItemIndex != null &&
+            visible = ((category == HomeCategory.RECOMMEND &&
+                oldContentGridItemIndex != null) || oldContentLocatorDissolving) &&
                 !oldContentLocatorDismissed,
             enter = fadeIn() + scaleIn(initialScale = 0.92f),
-            exit = fadeOut() + scaleOut(targetScale = 0.92f),
+            exit = if (oldContentLocatorDismissed) androidx.compose.animation.ExitTransition.None else
+                fadeOut() + scaleOut(targetScale = 0.92f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(
@@ -789,33 +819,47 @@ internal fun HomeCategoryPageContent(
                         if (nowPlayingBarOverlayVisible) 76.dp else 0.dp,
                 ),
         ) {
-            AppButton(
-                onClick = {
+            DissolvableVideoCard(
+                isDissolving = oldContentLocatorDissolving,
+                onDissolveComplete = {
                     oldContentLocatorDismissed = true
-                    oldContentGridItemIndex?.let { targetIndex ->
-                        oldContentLocatorScope.launch {
-                            gridState.animateScrollToItem(targetIndex)
-                        }
-                    }
+                    oldContentLocatorDissolving = false
                 },
-                modifier = Modifier.heightIn(min = 48.dp),
-                shape = RoundedCornerShape(24.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                cardId = "old-content-locator-$oldContentLocatorRefreshKey",
+                preset = DissolveAnimationPreset.TELEGRAM_FAST,
+                collapseAfterDissolve = false,
+                publishGlobalDissolveState = false,
+                keepInvisibleAfterDissolve = true,
             ) {
-                AppText("定位上次刷新")
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .clickable { oldContentLocatorDismissed = true },
-                    contentAlignment = Alignment.Center
+                com.android.purebilibili.feature.home.components.HomeOverlayPillButton(
+                    overlayPillColors = overlayPillColors,
+                    onClick = {
+                        if (!oldContentLocatorDissolving) {
+                            oldContentLocatorDismissed = true
+                            oldContentGridItemIndex?.let { targetIndex ->
+                                oldContentLocatorScope.launch {
+                                    gridState.animateScrollToItem(targetIndex)
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "关闭",
-                        modifier = Modifier.size(14.dp)
-                    )
+                    AppText("定位上次刷新")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clickable(enabled = !oldContentLocatorDissolving) { oldContentLocatorDissolving = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "关闭",
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1249,9 +1293,10 @@ private fun OldContentDivider(onClick: () -> Unit) {
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        // 半透明主色容器：让模糊壁纸背景透出，与毛玻璃卡片的观感一致。
+        color = resolveOldContentDividerContainerColor(MaterialTheme.colorScheme),
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        tonalElevation = 1.dp,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier

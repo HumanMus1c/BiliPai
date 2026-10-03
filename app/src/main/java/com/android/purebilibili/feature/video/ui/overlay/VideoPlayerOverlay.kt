@@ -78,7 +78,7 @@ import com.android.purebilibili.data.repository.isCastDashManifestAvailable
 import com.android.purebilibili.data.repository.selectCastDashAudio
 import com.android.purebilibili.data.repository.selectCastDashVideo
 import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
-import com.android.purebilibili.feature.video.playback.dash.buildLocalDashManifest
+import com.android.purebilibili.core.player.dash.buildLocalDashManifest
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.playback.audio.resolveAudioQualityControlPresentation
 import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
@@ -1629,7 +1629,7 @@ fun VideoPlayerOverlay(
             ) {
                 AppSurface(
                     onClick = onLockToggle,
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = Color.Transparent,
                     shape = RoundedCornerShape(overlayVisualPolicy.lockButtonCornerRadiusDp.dp),
                     modifier = Modifier.size(overlayVisualPolicy.lockButtonSizeDp.dp)
                 ) {
@@ -1663,7 +1663,7 @@ fun VideoPlayerOverlay(
             ) {
                 AppSurface(
                     onClick = onCaptureScreenshot,
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = Color.Transparent,
                     shape = RoundedCornerShape(overlayVisualPolicy.lockButtonCornerRadiusDp.dp),
                     modifier = Modifier.size(overlayVisualPolicy.lockButtonSizeDp.dp)
                 ) {
@@ -1689,7 +1689,7 @@ fun VideoPlayerOverlay(
         if (showInsightHud) {
             AppSurface(
                 onClick = { showInsightDetails = true },
-                color = Color.Black.copy(alpha = 0.68f),
+                color = if (isFullscreen) Color.Transparent else Color.Black.copy(alpha = 0.68f),
                 contentColor = Color.White,
                 shape = AppShapes.container(ContainerLevel.Dialog),
                 modifier = Modifier
@@ -2946,7 +2946,8 @@ fun LandscapeEndDrawer(
                             AppButton(
                                 onClick = onToggleFollow,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isFollowed) MaterialTheme.colorScheme.onSurface.copy(0.2f) else MaterialTheme.colorScheme.primary
+                                    containerColor = if (isFollowed) MaterialTheme.colorScheme.onSurface.copy(0.2f) else MaterialTheme.colorScheme.primary,
+                                    contentColor = if (isFollowed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
                                 ),
                                 contentPadding = PaddingValues(
                                     horizontal = layoutPolicy.followButtonHorizontalPaddingDp.dp,
@@ -3401,7 +3402,8 @@ private fun LandscapeEpisodeItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. 封面 (如果有 arc 信息)
-        if (episode.arc != null && episode.arc.pic.isNotEmpty()) {
+        if (episode.arc != null && requireNotNull(episode.arc).pic.isNotEmpty()) {
+            val checkedEpisodeArc = requireNotNull(episode.arc)
             Box(
                 modifier = Modifier
                     .aspectRatio(16f / 9f)
@@ -3410,13 +3412,13 @@ private fun LandscapeEpisodeItem(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 coil3.compose.AsyncImage(
-                    model = episode.arc.pic,
+                    model = checkedEpisodeArc.pic,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
                 com.android.purebilibili.feature.home.components.cards.VideoCardCoverDurationText(
-                    text = FormatUtils.formatDuration(episode.arc.duration),
+                    text = FormatUtils.formatDuration(checkedEpisodeArc.duration),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(horizontal = 4.dp, vertical = 1.dp),
@@ -3465,7 +3467,8 @@ private fun LandscapeEpisodeItem(
                注意：data.model.response.Stat 通常包含 view, danmaku
                这里我们需要安全访问
             */
-            if (episode.arc?.stat != null) {
+            val episodeStat = episode.arc?.stat
+            if (episodeStat != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // 播放量
                     AppIcon(
@@ -3476,7 +3479,7 @@ private fun LandscapeEpisodeItem(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     AppText(
-                        text = FormatUtils.formatStat(episode.arc.stat.view.toLong()), 
+                        text = FormatUtils.formatStat(episodeStat.view.toLong()),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = layoutPolicy.itemMetaFontSp.sp
                     )
@@ -3492,7 +3495,7 @@ private fun LandscapeEpisodeItem(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     AppText(
-                        text = FormatUtils.formatStat(episode.arc.stat.danmaku.toLong()), 
+                        text = FormatUtils.formatStat(episodeStat.danmaku.toLong()),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = layoutPolicy.itemMetaFontSp.sp
                     )

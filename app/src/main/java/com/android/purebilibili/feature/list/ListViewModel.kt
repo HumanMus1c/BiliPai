@@ -1,6 +1,8 @@
 // 文件路径: feature/list/ListViewModel.kt
 package com.android.purebilibili.feature.list
 
+import com.android.purebilibili.core.player.PlaybackProgressManager
+
 import android.app.Application
 import com.android.purebilibili.core.ui.animation.gl.isThanosEffectSupported
 import androidx.lifecycle.AndroidViewModel
@@ -178,7 +180,7 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     private var historyListType: String? = null
     
     private val progressManager by lazy {
-        com.android.purebilibili.feature.video.controller.PlaybackProgressManager.getInstance(
+        com.android.purebilibili.core.player.PlaybackProgressManager.getInstance(
             getApplication<Application>()
         )
     }
@@ -414,7 +416,7 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         }
         
         // 判断是否还有更多
-        hasMore = historyResult.list.isNotEmpty() && historyResult.cursor != null && historyResult.cursor.max > 0
+        hasMore = historyResult.list.isNotEmpty() && (historyResult.cursor?.max ?: 0L) > 0L
         _hasMoreState.value = hasMore
         
         // 保存历史记录项并转换为 VideoItem
@@ -484,7 +486,7 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                 }
                 
                 // 判断是否还有更多
-                hasMore = historyResult.cursor != null && historyResult.cursor.max > 0
+                hasMore = (historyResult.cursor?.max ?: 0L) > 0L
                 _hasMoreState.value = hasMore
                 
                 // 保存历史记录项并转换为 VideoItem

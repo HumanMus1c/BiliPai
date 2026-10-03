@@ -1864,8 +1864,9 @@ fun DynamicCardV2(
         
         //  转发动态 - 嵌套显示原始内容
         if (type == DynamicType.FORWARD && item.orig != null) {
+            val checkedItemOrig = requireNotNull(item.orig)
             ForwardedContent(
-                orig = item.orig,
+                orig = checkedItemOrig,
                 onVideoClick = onVideoClick,
                 onBangumiClick = onBangumiClick,
                 onUserClick = onUserClick,

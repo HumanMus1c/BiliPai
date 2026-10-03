@@ -8,7 +8,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -42,20 +48,29 @@ internal fun SettingsSearchBarSection(
         onQueryChange = onQueryChange,
         onSearch = onSearch,
         placeholder = placeholder,
+        autoFocusEnabled = true,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun SettingsHomeSearchEntry(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visualSpec = resolveSettingsVisualSpec()
     val placeholder = stringResource(R.string.settings_search_placeholder)
+    val searchBarState = rememberSearchBarState()
+    val scope = rememberCoroutineScope()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        scope.launch { searchBarState.snapTo(0f) }
+    }
     AppSearchEntry(
         onClick = onClick,
         placeholder = placeholder,
+        centeredIdleContent = true,
+        searchBarState = searchBarState,
         modifier = modifier
             .padding(horizontal = visualSpec.screenHorizontalPadding),
     )

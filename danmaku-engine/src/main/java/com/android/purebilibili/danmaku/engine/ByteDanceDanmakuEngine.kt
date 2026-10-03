@@ -275,6 +275,7 @@ internal class ByteDanceDanmakuEngine(
                     .takeUnless { it == 1f }
                     ?.let { scale -> currentConfig.textSizePx * scale }
                 textColor = item.textColor
+                isVipGradualColor = item.isVipGradualColor
                 typeface = item.typeface
                 textStrokeWidth = item.textStrokeWidth
                 textStrokeColor = item.textStrokeColor

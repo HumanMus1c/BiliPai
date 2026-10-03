@@ -257,6 +257,8 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 ),
                                 commentState = VideoContentCommentState(
                                     isRepliesLoading = commentState.isRepliesLoading,
+                                    isRepliesRefreshing = commentState.isRepliesRefreshing,
+                                    repliesError = commentState.repliesError,
                                     isRepliesEnd = commentState.isRepliesEnd,
                                     voteCard = commentState.voteCard,
                                     sortMode = commentState.sortMode,
@@ -343,6 +345,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     onSubReplyClick = commentActions.openSubReply,
                                     onCommentReplyClick = playbackActions.replyTo,
                                     onLoadMoreReplies = commentActions.loadComments,
+                                    onRefreshReplies = commentActions.refreshComments,
                                     onDeleteComment = commentActions.deleteComment,
                                     onDissolveStart = commentActions.startDissolve,
                                     onCommentLike = commentActions.likeComment,

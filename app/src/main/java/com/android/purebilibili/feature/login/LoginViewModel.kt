@@ -304,9 +304,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val response = NetworkModule.passportApi.getCaptcha()
                 if (response.code == 0 && response.data != null) {
-                    currentCaptchaData = response.data
+                    val checkedResponseData = requireNotNull(response.data)
+                    currentCaptchaData = checkedResponseData
                     Logger.d("LoginDebug", "极验参数获取成功")
-                    _state.value = LoginState.CaptchaReady(response.data)
+                    _state.value = LoginState.CaptchaReady(checkedResponseData)
                 } else {
                     _state.value = LoginState.Error("获取验证参数失败: ${response.message}")
                 }
@@ -476,13 +477,14 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 
                 // 1. 获取 RSA 公钥
                 val keyResponse = NetworkModule.passportApi.getWebKey()
-                if (keyResponse.code != 0 || keyResponse.data == null) {
+                val keyData = keyResponse.data
+                if (keyResponse.code != 0 || keyData == null) {
                     _state.value = LoginState.Error("获取密钥失败: ${keyResponse.message}")
                     return@launch
                 }
                 
-                val hash = keyResponse.data.hash
-                val key = keyResponse.data.key
+                val hash = keyData.hash
+                val key = keyData.key
                 
                 // 2. RSA 加密密码
                 val encryptedPassword = RsaEncryption.encryptPassword(password, key, hash)
@@ -564,13 +566,13 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         try {
             val info = NetworkModule.passportApi.safeCenterGetInfo(tmpCode = riskTmpCode)
-            if (info.code != 0 || info.data?.accountInfo == null) {
+            val account = info.data?.accountInfo
+            if (info.code != 0 || account == null) {
                 _state.value = LoginState.Error(
                     "获取安全验证信息失败(${info.code}): ${info.message.ifBlank { "请改用扫码登录" }}"
                 )
                 return
             }
-            val account = info.data.accountInfo
             if (!account.telVerify) {
                 _state.value = LoginState.Error(
                     "当前账号不支持手机号风控验证，请改用扫码或 Cookie 导入。"
@@ -880,20 +882,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         accessTokenPlatform: String = TokenManager.ACCESS_TOKEN_PLATFORM_TV,
         source: String
     ) {
-        TokenManager.saveCookies(getApplication(), sessData)
-        if (csrf.isNotBlank()) TokenManager.saveCsrf(getApplication(), csrf)
-        if (buvid3.isNotBlank()) TokenManager.saveBuvid3(getApplication(), buvid3)
-        if (mid > 0L) TokenManager.saveMid(getApplication(), mid)
-        if (accessToken.isNotBlank()) {
-            TokenManager.saveAccessToken(
-                context = getApplication(),
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-                platform = accessTokenPlatform
-            )
-        } else {
-            TokenManager.clearAccessToken(getApplication())
-        }
+        com.android.purebilibili.data.repository.SessionRepository.save(
+            context = getApplication(), sessData = sessData, csrf = csrf, buvid3 = buvid3,
+            mid = mid, accessToken = accessToken, refreshToken = refreshToken,
+            accessTokenPlatform = accessTokenPlatform,
+        )
         finishLogin(source, hasHighQualityCredential = accessToken.isNotBlank())
     }
 
@@ -976,18 +969,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 _state.value = LoginState.Loading
                 Logger.d("TvLogin", "1. 开始获取 TV 二维码...")
                 
-                // 构建 TV 端请求参数
-                val params = mapOf(
-                    "appkey" to com.android.purebilibili.core.network.AppSignUtils.TV_APP_KEY,
-                    "local_id" to "0",
-                    "ts" to com.android.purebilibili.core.network.AppSignUtils.getTimestamp().toString()
-                )
-                val signedParams = com.android.purebilibili.core.network.AppSignUtils.signForTvLogin(params)
-                
-                val response = NetworkModule.passportApi.generateTvQrCode(signedParams)
-                
+                val response = com.android.purebilibili.data.repository.QrLoginRepository.generate()
+
                 if (response.code == 0 && response.data != null) {
-                    val data = response.data
+                    val checkedResponseData = requireNotNull(response.data)
+                    val data = checkedResponseData
                     tvAuthCode = data.authCode ?: throw Exception("TV auth_code 为空")
                     val qrUrl = data.url ?: throw Exception("TV 二维码 URL 为空")
                     
@@ -1018,16 +1004,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             while (isTvPolling) {
                 delay(2000)
                 try {
-                    val params = mapOf(
-                        "appkey" to com.android.purebilibili.core.network.AppSignUtils.TV_APP_KEY,
-                        "auth_code" to tvAuthCode,
-                        "local_id" to "0",
-                        "ts" to com.android.purebilibili.core.network.AppSignUtils.getTimestamp().toString()
-                    )
-                    val signedParams = com.android.purebilibili.core.network.AppSignUtils.signForTvLogin(params)
-                    
-                    val response = NetworkModule.passportApi.pollTvQrCode(signedParams)
-                    
+                    val response = com.android.purebilibili.data.repository.QrLoginRepository.poll(tvAuthCode)
+
                     Logger.d("TvLogin", "TV 轮询状态: code=${response.code}")
                     
                     when (response.code) {

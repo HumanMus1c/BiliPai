@@ -145,6 +145,7 @@ suspend fun loadFeedSources(
     val items = mutableListOf<ParsedFeedItem>()
     val errors = mutableListOf<String>()
     val updatedValidators = mutableMapOf<String, FeedConditionalValidators>()
+    var completedSources = 0
     fun publish(): FeedLoadSnapshot {
         val sorted = items.sortedWith(
             compareBy<ParsedFeedItem> { it.publishedEpochSec == null }
@@ -154,6 +155,8 @@ suspend fun loadFeedSources(
             items = sorted.toList(),
             errors = errors.toList(),
             validators = updatedValidators.toMap(),
+            completedSources = completedSources,
+            totalSources = sources.size,
         )
     }
     val gate = Semaphore(4)
@@ -170,6 +173,7 @@ suspend fun loadFeedSources(
                 }
             }
             val snapshot = synchronized(items) {
+                completedSources += 1
                 outcome
                     .onSuccess { parsed ->
                         if (parsed == null) {

@@ -316,9 +316,8 @@ private suspend fun captureSurfaceViewAmbientBitmap(
         if (continuation.isActive) continuation.resume(null)
     }
 
-    continuation.invokeOnCancellation {
-        if (!bitmap.isRecycled) bitmap.recycle()
-    }
+    // PixelCopy cannot be cancelled. The callback above owns cleanup for cancelled
+    // requests; recycling here would destroy a destination still being written.
 }
 
 private fun resizeBitmapIfNeeded(bitmap: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {

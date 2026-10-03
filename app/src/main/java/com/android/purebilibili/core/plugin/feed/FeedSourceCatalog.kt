@@ -36,9 +36,16 @@ fun isSubscriptionPluginOrFeedEnabled(
 
 fun loadEnabledFeedSources(context: Context): List<FeedSource> {
     val builtin = if (PluginManager.plugins.any { it.enabled && it.plugin.id == SubscriptionFeedPlugin.PLUGIN_ID }) {
-        SubscriptionFeedStore.list(context)
+        SubscriptionFeedStore.listBlocking(context)
             .filter { it.enabled && isHttpFeedUrl(it.url) }
-            .map { FeedSource(id = "builtin:${it.id}", title = it.title, url = it.url) }
+            .map {
+                FeedSource(
+                    id = "builtin:${it.id}",
+                    title = it.title,
+                    url = it.url,
+                    group = it.group,
+                )
+            }
     } else {
         emptyList()
     }

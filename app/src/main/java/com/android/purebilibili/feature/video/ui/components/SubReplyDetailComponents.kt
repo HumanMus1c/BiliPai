@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.common.TextSelectionBottomSheet
+import com.android.purebilibili.core.ui.LocalDetailedCommentTimeEnabled
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberStoragePermissionState
 import com.android.purebilibili.data.model.response.ReplyItem
@@ -102,6 +103,7 @@ import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplySortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.material.icons.outlined.Delete
@@ -432,6 +434,7 @@ internal fun VideoInlineSubReplyDetailContent(
     emoteMap: Map<String, String>,
     maxTimestampMs: Long?,
     onLoadMore: () -> Unit,
+    onRefresh: () -> Unit,
     onSortModeChange: (SubReplySortMode) -> Unit,
     onDismiss: () -> Unit,
     onRootCommentClick: () -> Unit,
@@ -466,9 +469,11 @@ internal fun VideoInlineSubReplyDetailContent(
         onSortModeChange = onSortModeChange,
         remoteReplyCount = state.totalCount,
         isLoading = state.isLoading,
+        isRefreshing = state.isRefreshing,
         isEnd = state.isEnd,
         emoteMap = emoteMap,
         onLoadMore = onLoadMore,
+        onRefresh = onRefresh,
         onDismiss = onDismiss,
         applyStatusBarPadding = false,
         onRootCommentClick = onRootCommentClick,
@@ -506,9 +511,11 @@ internal fun SubReplyDetailContent(
     sortMode: SubReplySortMode,
     error: String?,
     isLoading: Boolean,
+    isRefreshing: Boolean = false,
     isEnd: Boolean,
     emoteMap: Map<String, String>,
     onLoadMore: () -> Unit,
+    onRefresh: () -> Unit,
     onSortModeChange: (SubReplySortMode) -> Unit,
     onDismiss: () -> Unit,
     applyStatusBarPadding: Boolean = false,
@@ -550,6 +557,13 @@ internal fun SubReplyDetailContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val unusedShowUpFlag = showUpFlag
     val listState = rememberLazyListState()
+    var wasRefreshing by remember(rootReply.rpid) { mutableStateOf(false) }
+    LaunchedEffect(isRefreshing, error) {
+        if (wasRefreshing && !isRefreshing && error != null) {
+            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+        }
+        wasRefreshing = isRefreshing
+    }
     var highlightedTargetId by remember(rootReply.rpid) { mutableLongStateOf(0L) }
     var conversationAnchor by remember(rootReply.rpid) { mutableStateOf<ReplyItem?>(null) }
     var previousConversationMode by remember(rootReply.rpid) { mutableStateOf<Boolean?>(null) }
@@ -759,11 +773,15 @@ internal fun SubReplyDetailContent(
         }
         AppHorizontalDivider(thickness = 0.5.dp, color = appearance.dividerColor)
 
+        AdaptivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) {
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
                 .testTag(SUB_REPLY_DETAIL_LIST_TAG),
             contentPadding = PaddingValues(bottom = layoutPolicy.listBottomPaddingDp.dp)
         ) {
@@ -961,14 +979,14 @@ internal fun SubReplyDetailContent(
                             text = "$error，点击重试",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(onClick = onLoadMore)
+                                .clickable(onClick = onRefresh)
                                 .sizeIn(minHeight = 48.dp)
                                 .padding(16.dp),
                             textAlign = TextAlign.Center,
                             color = appearance.sortTint,
                         )
                     }
-                    isLoading && visibleReplies.isNotEmpty() -> {
+                    isLoading && !isRefreshing && visibleReplies.isNotEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -992,6 +1010,7 @@ internal fun SubReplyDetailContent(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -1024,6 +1043,7 @@ private fun SubReplyDetailItem(
     auxiliaryDecoration: SubReplyAuxiliaryDecoration?,
     showTrailingDivider: Boolean
 ) {
+    val detailedCommentTimeEnabled = LocalDetailedCommentTimeEnabled.current
     val backgroundColor by animateColorAsState(
         targetValue = if (highlighted) {
             appearance.accentColor.copy(alpha = 0.14f)
@@ -1073,9 +1093,14 @@ private fun SubReplyDetailItem(
         }
     }
     val isUpComment = upMid > 0 && item.mid == upMid
-    val metadataText = remember(item.ctime, displayLocation) {
+    val metadataText = remember(item.ctime, displayLocation, detailedCommentTimeEnabled) {
         buildString {
-            append(formatTime(item.ctime))
+            append(
+                FormatUtils.formatCommentTime(
+                    timestampSeconds = item.ctime,
+                    detailedTimeEnabled = detailedCommentTimeEnabled
+                )
+            )
             if (!displayLocation.isNullOrEmpty()) {
                 append(" · $displayLocation")
             }
@@ -1332,7 +1357,7 @@ private fun SubReplyDetailItem(
                     if (collapseHatedBody) {
                         AppText(
                             text = "已点踩的评论 · 点击展开",
-                            style = if (isRootItem) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                            fontSize = VideoCommentTypographyTokens.body,
                             color = appearance.secondaryTextColor,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -1366,7 +1391,7 @@ private fun SubReplyDetailItem(
                     } else {
                 ReplyMessageText(
                     text = displayMessage,
-                    fontSize = if (isRootItem) MaterialTheme.typography.bodyLarge.fontSize else MaterialTheme.typography.bodyMedium.fontSize,
+                    fontSize = VideoCommentTypographyTokens.body,
                     color = appearance.primaryTextColor,
                     emoteMap = localEmoteMap,
                     content = item.content,
@@ -1384,7 +1409,7 @@ private fun SubReplyDetailItem(
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(modifier = Modifier.heightIn(max = 220.dp)) {
                         CommentPictures(
-                            pictures = item.content.pictures,
+                            pictures = item.content.pictures.orEmpty(),
                             onImageClick = { images, index, rect ->
                                 onImagePreview?.invoke(
                                     images,
@@ -1394,7 +1419,7 @@ private fun SubReplyDetailItem(
                                         item = item,
                                         isLiked = isLiked,
                                         onLikeClick = onLikeClick,
-                                        onReplyClick = onReplyClick
+                                        onReplyClick = onReplyClick,
                                     )
                                 )
                             },

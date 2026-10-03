@@ -31,6 +31,7 @@ open class TextData: DanmakuData() {
     var text: String? = null
     var textSize: Float? = null
     var textColor: Int? = null
+    var isVipGradualColor: Boolean = false
     var typeface: Typeface? = null
     var textStrokeWidth: Float? = null
     var textStrokeColor: Int? = null

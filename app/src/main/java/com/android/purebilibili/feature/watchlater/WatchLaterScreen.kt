@@ -1668,16 +1668,16 @@ private fun WatchLaterVideoCard(
             )
         },
         coverOverlayContent = {
-            val watched = item.duration > 0 && item.progress >= item.duration
+            val progressState = com.android.purebilibili.data.model.resolveWatchLaterDisplayProgressState(item)
             VideoCardCoverDurationText(
-                text = if (watched) "已看完" else formatDuration(item.duration),
+                text = if (progressState.progressSec == -1) "已看完" else formatDuration(item.duration),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(AppSpacingTokens.ExtraSmall),
             )
-            if (item.duration > 0 && item.progress > 0) {
+            if (progressState.showProgressBar) {
                 AppLinearProgressIndicator(
-                    progress = { (item.progress.toFloat() / item.duration).coerceIn(0f, 1f) },
+                    progress = { progressState.progressFraction },
                     modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = Color.Transparent,

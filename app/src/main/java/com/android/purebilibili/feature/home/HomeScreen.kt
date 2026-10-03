@@ -1124,6 +1124,12 @@ fun HomeScreen(
         )
     }
     val isLiquidGlassEnabled = homePerformanceConfig.isAnyLiquidGlassEnabled
+    val overlayPillColors = rememberHomeGlassPillColors(
+        glassEnabled = isLiquidGlassEnabled,
+        blurEnabled = isHeaderBlurEnabled || isBottomBarBlurEnabled,
+        emphasized = true,
+        baseColor = AppSurfaceTokens.cardContainer()
+    )
     val appThemeConfig = com.android.purebilibili.core.ui.LocalAppThemeConfig.current
     val chromeCategoryStateFlow = remember(viewModel, currentCategory, popularSubCategory) {
         if (currentCategory == HomeCategory.POPULAR) {
@@ -1427,12 +1433,24 @@ fun HomeScreen(
         SideEffect {
             val window = (context as? android.app.Activity)?.window ?: return@SideEffect
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
-            //  根据背景亮度设置状态栏图标颜色
+            //  根据背景亮度设置状态栏/导航栏图标颜色。
+            //  [关键] 图标明暗必须在系统栏隐藏时也照常写入：从沉浸播放页返回的瞬间
+            //  系统栏尚未恢复可见，若因此跳过，insets 恢复不会触发重组，图标会停留
+            //  在上一页的明暗（浅色模式下白色图标压白底不可见）。隐藏时写入不可见，
+            //  且沉浸页面的 effect 会在自己的重组中重新 assert，无竞争副作用。
             insetsController.isAppearanceLightStatusBars = useDarkStatusBarIcons
-            //  [修复] 导航栏也需要根据背景亮度设置图标颜色
             insetsController.isAppearanceLightNavigationBars = isLightBackground
-            //  确保状态栏可见且透明
-            insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            //  沉浸式播放覆盖层（小窗全屏播放等）隐藏系统栏期间，首页不得抢权恢复
+            //  系统栏可见性/滑出行为，否则会打断播放器的沉浸；覆盖层退出时会通过
+            //  快照自行还原。仅 show() 与 behavior 需要这层守卫。
+            val systemBarsVisible = androidx.core.view.ViewCompat.getRootWindowInsets(view)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.systemBars()) ?: true
+            if (!systemBarsVisible) return@SideEffect
+            //  [修复] 从直播/番剧等沉浸页面返回时导航栏可能仍被隐藏，系统栏整体恢复，
+            //  并重置滑出行为，避免上一页面遗留 BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             com.android.purebilibili.core.ui.setWindowStatusBarColor(window, android.graphics.Color.TRANSPARENT)
             //  [修复] 导航栏也设为透明，确保底栏隐藏时手势区域沉浸
             com.android.purebilibili.core.ui.setWindowNavigationBarColor(window, android.graphics.Color.TRANSPARENT)
@@ -2520,6 +2538,7 @@ fun HomeScreen(
                                          }
                                          viewModel.refresh(category)
                                      },
+                                     overlayPillColors = overlayPillColors,
                                      todayWatchEnabled = category == HomeCategory.RECOMMEND && todayWatchPluginEnabled,
                                      todayWatchMode = todayWatchMode,
                                      todayWatchPlan = if (category == HomeCategory.RECOMMEND) todayWatchPlan else null,
@@ -2624,12 +2643,7 @@ fun HomeScreen(
                 blurEnabled = isHeaderBlurEnabled || isBottomBarBlurEnabled
             )
         }
-        val overlayPillColors = rememberHomeGlassPillColors(
-            glassEnabled = isLiquidGlassEnabled,
-            blurEnabled = isHeaderBlurEnabled || isBottomBarBlurEnabled,
-            emphasized = true,
-            baseColor = AppSurfaceTokens.cardContainer()
-        )
+
         
         // Calculate parameters based on scroll
         val topTabsCollapsedForHeader = if (collapseTabsOnScroll) {
@@ -2847,10 +2861,8 @@ fun HomeScreen(
         //  可见时再抬一个胶囊位（胶囊高约 36dp + 8dp 间距），避免两者互相遮挡。
         val undoVisible = undoAvailable && currentCategory == HomeCategory.RECOMMEND
         //  手动关闭撤销胶囊；下次撤销可用时自动复位
-        var undoDismissed by remember { androidx.compose.runtime.mutableStateOf(false) }
-        androidx.compose.runtime.LaunchedEffect(undoAvailable) {
-            if (!undoAvailable) undoDismissed = false
-        }
+        var undoDismissed by remember(refreshNewItemsKey) { mutableStateOf(false) }
+        var undoDissolving by remember(refreshNewItemsKey) { mutableStateOf(false) }
         val oldContentLocatorVisible = shouldShowRecommendOldContentDivider(
             currentCategory = currentCategory,
             refreshNewItemsKey = refreshNewItemsKey,
@@ -2873,65 +2885,69 @@ fun HomeScreen(
             contentAlignment = Alignment.BottomEnd
         ) {
             AnimatedVisibility(
-                visible = undoVisible && !undoDismissed,
+                visible = (undoVisible || undoDissolving) && !undoDismissed,
                 enter = fadeIn(animationSpec = tween(overlayMotionSpec.undoFabFadeDurationMillis)) + slideInVertically(
                     animationSpec = tween(overlayMotionSpec.undoFabSlideDurationMillis),
                     initialOffsetY = { it }
                 ),
-                exit = fadeOut(animationSpec = tween(overlayMotionSpec.undoFabFadeDurationMillis)) + slideOutVertically(
-                    animationSpec = tween(overlayMotionSpec.undoFabSlideDurationMillis),
-                    targetOffsetY = { it }
-                ),
+                exit = if (undoDismissed) androidx.compose.animation.ExitTransition.None else
+                    fadeOut(animationSpec = tween(overlayMotionSpec.undoFabFadeDurationMillis)) + slideOutVertically(
+                        animationSpec = tween(overlayMotionSpec.undoFabSlideDurationMillis),
+                        targetOffsetY = { it }
+                    ),
                 modifier = Modifier.padding(
                     end = AppSpacingTokens.Large,
                     bottom = undoPillBottomPadding,
                 )
             ) {
-            AppButton(
-                onClick = { viewModel.undoRefresh() },
-                modifier = Modifier.pointerInput(Unit) {
-                    detectHorizontalDragGestures { change, _ ->
-                        change.consume()
-                    }
-                },
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = overlayPillColors.containerColor,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                border = BorderStroke(AppSpacingTokens.Micro * 0.4f, overlayPillColors.borderColor),
-                shape = AppShapes.container(ContainerLevel.Pill),
-                elevation = androidx.compose.material3.ButtonDefaults.buttonElevation(
-                    defaultElevation = AppSpacingTokens.ExtraSmall,
-                    pressedElevation = AppSpacingTokens.Micro
-                ),
-                contentPadding = PaddingValues(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro)
-            ) {
-                AppText(
-                    text = "⟲",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                AppText(
-                    text = "撤销刷新",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .clickable { undoDismissed = true },
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                DissolvableVideoCard(
+                    isDissolving = undoDissolving,
+                    onDissolveComplete = {
+                        undoDismissed = true
+                        undoDissolving = false
+                    },
+                    cardId = "undo-refresh-$refreshNewItemsKey",
+                    preset = com.android.purebilibili.core.ui.animation.DissolveAnimationPreset.TELEGRAM_FAST,
+                    collapseAfterDissolve = false,
+                    publishGlobalDissolveState = false,
+                    keepInvisibleAfterDissolve = true,
                 ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "关闭",
-                        modifier = Modifier.size(14.dp)
-                    )
+                    com.android.purebilibili.feature.home.components.HomeOverlayPillButton(
+                        overlayPillColors = overlayPillColors,
+                        onClick = { if (!undoDissolving) viewModel.undoRefresh() },
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectHorizontalDragGestures { change, _ ->
+                                change.consume()
+                            }
+                        },
+                    ) {
+                        AppText(
+                            text = "⟲",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                        AppText(
+                            text = "撤销刷新",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .clickable(enabled = !undoDissolving) { undoDissolving = true },
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "关闭",
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
-            }
             }
         }
 

@@ -132,6 +132,7 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCommentSheet
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.dynamic.components.DynamicSubReplyPreviewHost
 import com.android.purebilibili.feature.home.LocalHomeFeedScrollInProgress
+import com.android.purebilibili.feature.home.resolveOldContentDividerContainerColor
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
@@ -1277,7 +1278,15 @@ fun DynamicScreen(
                 enter = fadeIn() + scaleIn(initialScale = 0.92f),
                 exit = fadeOut() + scaleOut(targetScale = 0.92f),
             ) {
-                Button(
+                // 与首页「撤销刷新」胶囊共用同一套悬浮玻璃样式（含关闭壁纸的退化形态）。
+                val locatorPillColors = com.android.purebilibili.feature.home.rememberHomeGlassPillColors(
+                    glassEnabled = appThemeConfig.liquidGlassEnabled,
+                    blurEnabled = appThemeConfig.headerBlurEnabled,
+                    emphasized = true,
+                    baseColor = com.android.purebilibili.core.ui.AppSurfaceTokens.cardContainer()
+                )
+                com.android.purebilibili.feature.home.components.HomeOverlayPillButton(
+                    overlayPillColors = locatorPillColors,
                     onClick = {
                         val gridIndex = resolveDynamicRefreshDividerGridIndex(oldContentDividerIndex)
                         if (gridIndex >= 0) {
@@ -1285,8 +1294,6 @@ fun DynamicScreen(
                         }
                     },
                     modifier = Modifier.heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     AppText("定位上次刷新")
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1813,9 +1820,10 @@ private fun OldContentDivider(label: String) {
             .fillMaxWidth()
             .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        // 半透明主色容器：让模糊壁纸背景透出，与毛玻璃卡片的观感一致。
+        color = resolveOldContentDividerContainerColor(MaterialTheme.colorScheme),
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        tonalElevation = 1.dp,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier

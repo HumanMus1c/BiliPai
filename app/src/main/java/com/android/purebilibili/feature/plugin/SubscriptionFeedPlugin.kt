@@ -25,10 +25,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.android.purebilibili.core.plugin.Plugin
 import com.android.purebilibili.core.plugin.feed.FeedConditionalStore
+import com.android.purebilibili.core.plugin.feed.SavedSubscriptionFeed
 import com.android.purebilibili.core.plugin.feed.SubscriptionFeedStore
 import com.android.purebilibili.core.plugin.feed.buildSubscriptionOpml
 import com.android.purebilibili.core.plugin.feed.resolveSubscriptionTitle
-import com.android.purebilibili.core.plugin.feed.resolveImportedSubscriptionTitles
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.components.AppButton
@@ -88,10 +88,20 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
     var selecting by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var confirmBatchDelete by remember { mutableStateOf(false) }
-    val feeds = remember(revision) { SubscriptionFeedStore.list(context) }
+    var editingGroupFeed by remember { mutableStateOf<SavedSubscriptionFeed?>(null) }
+    var feeds by remember { mutableStateOf<List<SavedSubscriptionFeed>>(emptyList()) }
+    LaunchedEffect(revision) {
+        feeds = SubscriptionFeedStore.list(context)
+    }
     LaunchedEffect(feeds) {
         selectedIds = selectedIds.intersect(feeds.map { it.id }.toSet())
         if (feeds.isEmpty()) selecting = false
+    }
+    // 兜底：进入设置页时补全历史遗留的占位标题（上次后台补全未完成的条目）。
+    LaunchedEffect(Unit) {
+        com.android.purebilibili.core.coroutines.AppScope.ioScope.launch {
+            com.android.purebilibili.core.plugin.feed.refreshMissingSubscriptionTitles(context)
+        }
     }
     val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
@@ -125,7 +135,7 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val opml = buildSubscriptionOpml(SubscriptionFeedStore.list(context))
+                    val opml = buildSubscriptionOpml(SubscriptionFeedStore.listBlocking(context))
                     context.contentResolver.openOutputStream(uri)?.use { output ->
                         output.write(opml.toByteArray(Charsets.UTF_8))
                     } ?: error("无法写入所选位置")
@@ -307,7 +317,7 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
                         },
                     )
                     AppText(
-                        text = feed.url,
+                        text = if (feed.group.isBlank()) feed.url else "${feed.group} · ${feed.url}",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -315,6 +325,9 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
                     )
                 }
                 if (!selecting) {
+                    AppTextButton(onClick = { editingGroupFeed = feed }) {
+                        AppText(if (feed.group.isBlank()) "分组" else feed.group)
+                    }
                     AppSwitch(
                         checked = feed.enabled,
                         onCheckedChange = { checked ->
@@ -339,6 +352,40 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
             }
         }
     }
+    // editingGroupFeed 是委托属性，智能转换不可用；orEmpty() 也不适用于对象类型。
+    editingGroupFeed?.let { feed ->
+        var groupInput by remember(feed.id) { mutableStateOf(feed.group) }
+        AppAlertDialog(
+            onDismissRequest = { editingGroupFeed = null },
+            title = { AppText("设置分组") },
+            text = {
+                Column {
+                    AppOutlinedTextField(
+                        value = groupInput,
+                        onValueChange = { groupInput = it },
+                        labelText = "分组名称（留空表示未分组）",
+                        placeholderText = "技术博客",
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                AppDialogAction(onClick = {
+                    val target = feed
+                    val group = groupInput
+                    editingGroupFeed = null
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            SubscriptionFeedStore.setGroup(context, target.id, group)
+                        }
+                    }
+                }) { AppText("保存") }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { editingGroupFeed = null }) { AppText("取消") }
+            },
+        )
+    }
     if (confirmBatchDelete) {
         AppAlertDialog(
             onDismissRequest = { confirmBatchDelete = false },
@@ -346,11 +393,13 @@ private fun SubscriptionFeedSettings(modifier: Modifier = Modifier) {
             text = { AppText("将删除 ${selectedIds.size} 个订阅来源。") },
             confirmButton = {
                 AppDialogAction(onClick = {
-                    val removedUrls = feeds.filter { it.id in selectedIds }.map { it.url }.toSet()
+                    // 固定本次删除目标，避免下面清空选择后协程读取到空集合。
+                    val idsToRemove = selectedIds.toSet()
+                    val removedUrls = feeds.filter { it.id in idsToRemove }.map { it.url }.toSet()
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             runCatching { FeedConditionalStore.clear(context, removedUrls) }
-                            SubscriptionFeedStore.removeAll(context, selectedIds)
+                            SubscriptionFeedStore.removeAll(context, idsToRemove)
                         }
                     }
                     selectedIds = emptySet()
@@ -405,20 +454,23 @@ private suspend fun applySubscriptionImport(
         onResult("没有解析到订阅地址", false)
         return
     }
-    val resolved = resolveImportedSubscriptionTitles(imported)
-    if (resolved.isEmpty()) {
-        onResult("没有可识别的 RSS 或 Atom 地址", false)
+    // 导入本身零网络请求：条目即时入库，缺标题的用地址占位，后台再逐个补全。
+    val added = withContext(Dispatchers.IO) { SubscriptionFeedStore.addAll(context, imported) }
+    if (added == 0) {
+        onResult("这 ${imported.size} 个地址都已经在列表里", false)
         return
     }
-    val added = withContext(Dispatchers.IO) { SubscriptionFeedStore.addAll(context, resolved) }
-    val skipped = imported.size - resolved.size
+    val skipped = imported.size - added
     onResult(
+
         when {
-            added == 0 && skipped > 0 -> "没有新增订阅：${resolved.size} 个已存在，$skipped 个地址无法识别"
-            added == 0 -> "这 ${resolved.size} 个地址都已经在列表里"
-            skipped > 0 -> "已导入 $added 个订阅，跳过 $skipped 个无法识别的地址"
-            else -> "已导入 $added 个订阅"
+            skipped > 0 -> "已导入 $added 个订阅，跳过 $skipped 个无效或重复地址；标题将自动补全"
+            else -> "已导入 $added 个订阅；标题将自动补全"
         },
-        added > 0,
+        true,
     )
+    // 用应用级作用域：离开设置页也继续补全，多次导入由 resolver 内部互斥串行。
+    com.android.purebilibili.core.coroutines.AppScope.ioScope.launch {
+        com.android.purebilibili.core.plugin.feed.refreshMissingSubscriptionTitles(context)
+    }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppPressShiftContent
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -83,27 +85,33 @@ internal fun HomeTopSearchPillContent(
     contentColor: Color,
     textFontSize: TextUnit,
     iconTextGap: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pressed: Boolean = false,
 ) {
-    Row(
+    AppPressShiftContent(
+        pressed = pressed,
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        AppIcon(
-            imageVector = searchIcon,
-            contentDescription = "搜索",
-            tint = contentColor,
-            modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
-        )
-        Spacer(modifier = Modifier.width(iconTextGap))
-        AppText(
-            text = "搜索视频、UP主...",
-            style = MaterialTheme.typography.bodyMedium,
-            fontSize = textFontSize,
-            fontWeight = FontWeight.Normal,
-            color = contentColor,
-            maxLines = 1
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppIcon(
+                imageVector = searchIcon,
+                contentDescription = "搜索",
+                tint = contentColor,
+                modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+            )
+            Spacer(modifier = Modifier.width(iconTextGap))
+            AppText(
+                text = "搜索视频、UP主...",
+                style = MaterialTheme.typography.bodyMedium,
+                fontSize = textFontSize,
+                fontWeight = FontWeight.Normal,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

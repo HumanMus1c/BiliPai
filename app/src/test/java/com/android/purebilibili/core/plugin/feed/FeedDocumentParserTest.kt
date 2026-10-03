@@ -2,6 +2,7 @@ package com.android.purebilibili.core.plugin.feed
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -255,6 +256,50 @@ class FeedDocumentParserTest {
         assertEquals("阮一峰的网络日志", chooseSubscriptionTitle("", parsed.title, url))
         assertEquals("我的命名", chooseSubscriptionTitle("我的命名", parsed.title, url))
         assertEquals("v2ex.com", chooseSubscriptionTitle("", null, "https://v2ex.com/index.xml"))
+    }
+
+    @Test
+    fun `placeholder titles are queued for background resolution`() {
+        assertTrue(needsTitleResolution(SavedSubscriptionFeed(id = "1", title = "", url = "https://v2ex.com/index.xml")))
+        assertTrue(
+            needsTitleResolution(
+                SavedSubscriptionFeed(id = "1", title = "https://v2ex.com/index.xml", url = "https://v2ex.com/index.xml")
+            )
+        )
+        assertFalse(
+            needsTitleResolution(SavedSubscriptionFeed(id = "1", title = "V2EX", url = "https://v2ex.com/index.xml"))
+        )
+    }
+
+    @Test
+    fun `opml folders become groups and round trip through export`() {
+        val opml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline text="技术">
+                  <outline type="rss" text="阮一峰" title="阮一峰" xmlUrl="https://www.ruanyifeng.com/blog/atom.xml"/>
+                  <outline type="rss" text="V2EX" title="V2EX" xmlUrl="https://v2ex.com/index.xml"/>
+                </outline>
+                <outline type="rss" text="散列" title="散列" xmlUrl="https://example.com/feed"/>
+              </body>
+            </opml>
+        """.trimIndent()
+        val imported = parseOpmlSubscriptions(opml)
+
+        val ruanyifeng = imported.first { it.url == "https://www.ruanyifeng.com/blog/atom.xml" }
+        assertEquals("技术", ruanyifeng.group)
+        assertEquals("散列", imported.first { it.url == "https://example.com/feed" }.group)
+
+        val exported = buildSubscriptionOpml(
+            listOf(
+                SavedSubscriptionFeed(id = "a", title = "阮一峰", url = "https://www.ruanyifeng.com/blog/atom.xml", group = "技术"),
+                SavedSubscriptionFeed(id = "b", title = "散列", url = "https://example.com/feed"),
+            )
+        )
+        val reparsed = parseOpmlSubscriptions(exported)
+        assertEquals("技术", reparsed.first { it.url == "https://www.ruanyifeng.com/blog/atom.xml" }.group)
+        assertEquals("", reparsed.first { it.url == "https://example.com/feed" }.group)
     }
 
     @Test

@@ -2711,6 +2711,9 @@ fun AppNavigation(
                                 },
                                 onBack = { performSystemBackAction() },
                                 onOpenTrending = { pushNavigation3Key(BiliPaiNavKey.SearchTrending) },
+                                onNavigateSearchTarget = { target ->
+                                    openBilibiliNativeTargetInNavigation3(target)
+                                },
                                 onVideoClick = { bvid, cid, coverUrl ->
                                     navigateToVideoInNavigation3(
                                         bvid = bvid,

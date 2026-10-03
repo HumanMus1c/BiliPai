@@ -6,6 +6,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.ACCESSIBLE_TEXT_MIN_CONTRAST
+import com.android.purebilibili.core.theme.opaqueCompositeOver
+import com.android.purebilibili.core.theme.calculateContrastRatio
 
 /** 依据 [ColorScheme.surface] 亮度判断当前是否为深色主题。 */
 fun isColorSchemeDark(colorScheme: ColorScheme): Boolean =
@@ -21,6 +24,19 @@ fun resolveFilledButtonContainerColor(colorScheme: ColorScheme): Color =
 /** 填充按钮内容色,与 [resolveFilledButtonContainerColor] 配对。 */
 fun resolveFilledButtonContentColor(colorScheme: ColorScheme): Color =
     if (isColorSchemeDark(colorScheme)) colorScheme.onPrimary else colorScheme.onPrimaryContainer
+
+/** 按钮可独立覆盖底色，文字必须按实际底色检查，不能继续盲用 onPrimary。 */
+fun resolveButtonContentColor(
+    containerColor: Color,
+    contentColor: Color,
+    colorScheme: ColorScheme,
+): Color {
+    val background = opaqueCompositeOver(containerColor, colorScheme.surface)
+    val candidates = listOf(contentColor, colorScheme.onSurface, Color.Black, Color.White)
+    return candidates.firstOrNull {
+        calculateContrastRatio(opaqueCompositeOver(it, background), background) >= ACCESSIBLE_TEXT_MIN_CONTRAST
+    } ?: candidates.maxBy { calculateContrastRatio(opaqueCompositeOver(it, background), background) }
+}
 
 /** MD3 模式按钮的紧凑内容内边距(对齐 PiliPlus 的 visualDensity(-2, -1.25) 观感)。 */
 val AppCompactButtonContentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)

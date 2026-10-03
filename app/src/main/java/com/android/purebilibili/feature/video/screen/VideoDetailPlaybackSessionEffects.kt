@@ -48,6 +48,7 @@ internal fun VideoDetailPlaybackEventEffects(
                 color = danmakuData.color,
                 mode = danmakuData.mode,
                 fontSize = danmakuData.fontSize,
+                isVipGradualColor = danmakuData.isVipGradualColor,
             )
         }
     }

@@ -1,6 +1,7 @@
 // 文件路径: feature/video/screen/VideoDetailScreen.kt
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.feature.video.ambient.PlayerAmbientLayout
 import coil3.request.crossfade
 import kotlinx.coroutines.flow.first
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
@@ -251,6 +252,7 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
+import com.android.purebilibili.core.util.layoutHinges
 import com.android.purebilibili.core.util.resolvePlayerWindowOrientationPolicy
 
 import coil3.compose.AsyncImage
@@ -687,10 +689,12 @@ internal fun VideoDetailScreenStateHolder(
     val commentActions = remember(commentViewModel) {
         VideoDetailCommentActions(
             loadComments = commentViewModel::loadComments,
+            refreshComments = commentViewModel::refreshComments,
             setSortMode = commentViewModel::setSortMode,
             deleteComment = commentViewModel::deleteComment,
             startDissolve = commentViewModel::startDissolve,
             loadMoreSubReplies = commentViewModel::loadMoreSubReplies,
+            refreshSubReplies = commentViewModel::refreshSubReplies,
             setSubReplySortMode = commentViewModel::setSubReplySortMode,
             openSubReply = commentViewModel::openSubReply,
             openSubReplyConversation = commentViewModel::openSubReplyConversation,
@@ -1532,13 +1536,36 @@ internal fun VideoDetailScreenStateHolder(
             WindowCompat.getInsetsController(window, window.decorView)
         } else null
     }
-    val originalSystemBarsSnapshot = remember(window, insetsController) {
-        resolveVideoDetailSystemBarsSnapshot(
-            statusBarColor = window?.statusBarColor,
-            navigationBarColor = window?.navigationBarColor,
-            lightStatusBars = insetsController?.isAppearanceLightStatusBars,
-            lightNavigationBars = insetsController?.isAppearanceLightNavigationBars,
-            systemBarsBehavior = insetsController?.systemBarsBehavior,
+    var originalSystemBarsSnapshot by remember(window, insetsController) {
+        mutableStateOf(
+            resolveVideoDetailSystemBarsSnapshot(
+                statusBarColor = window?.statusBarColor,
+                navigationBarColor = window?.navigationBarColor,
+                lightStatusBars = insetsController?.isAppearanceLightStatusBars,
+                lightNavigationBars = insetsController?.isAppearanceLightNavigationBars,
+                systemBarsBehavior = insetsController?.systemBarsBehavior,
+                fallbackColor = android.graphics.Color.TRANSPARENT,
+                fallbackLightBars = true,
+                fallbackSystemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            )
+        )
+    }
+    //  [修复] 系统栏可见期间持续刷新快照：此前只在首次组合捕获一次，若用户在
+    //  沉浸播放期间切换深浅主题，退出时会恢复到陈旧的图标明暗/栏色。
+    //  仅在系统栏可见时刷新，避免把沉浸期间被本页隐藏的状态当作"原始状态"。
+    SideEffect {
+        val controller = insetsController
+        val hostWindow = window
+        if (controller == null || hostWindow == null) return@SideEffect
+        val systemBarsVisible = ViewCompat.getRootWindowInsets(hostWindow.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.systemBars()) ?: true
+        if (!systemBarsVisible) return@SideEffect
+        originalSystemBarsSnapshot = resolveVideoDetailSystemBarsSnapshot(
+            statusBarColor = hostWindow.statusBarColor,
+            navigationBarColor = hostWindow.navigationBarColor,
+            lightStatusBars = controller.isAppearanceLightStatusBars,
+            lightNavigationBars = controller.isAppearanceLightNavigationBars,
+            systemBarsBehavior = controller.systemBarsBehavior,
             fallbackColor = android.graphics.Color.TRANSPARENT,
             fallbackLightBars = true,
             fallbackSystemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
@@ -3467,27 +3494,53 @@ internal fun VideoDetailScreenStateHolder(
     @Composable
     fun BoxScope.VideoDetailRouteSheetMainContent() {
             // 📐 [平板适配] 全屏模式过渡动画（只有手机横屏才进入全屏）
+        // 全屏没有二级内容：仅物理遮挡铰链才把媒体钳进首个安全 pane；
+        // 软折痕（FOLD）允许跨整窗，否则半开姿态下下半屏整块留黑。
+        val fullscreenOccludingHingePresent = isFullscreenMode &&
+            appWindowAdaptiveInfo.foldingFeature.layoutHinges().any { it.isOccluding }
         if (isFullscreenMode) {
                 val useInlineDanmakuComposer =
                     com.android.purebilibili.feature.video.ui.components.shouldUseInlineDanmakuComposer(
                         isFullscreenMode = isFullscreenMode
                     )
                 if (continuousFullscreenTransitionEnabled) {
-                    continuousPlayerContent(
-                        ContinuousPlayerHostLayout(
-                            modifier = Modifier.fillMaxSize(),
-                            viewportWidth = configuration.screenWidthDp.dp,
-                            alpha = continuousPlayerUnitState,
-                            scale = continuousPlayerUnitState,
-                            isFullscreen = true,
+                    // 全屏＋物理遮挡铰链：媒体收进首个安全区，不跨缝；软折痕跨整窗。
+                    if (fullscreenOccludingHingePresent) {
+                        com.android.purebilibili.core.ui.adaptive.AppHingePaneLayout(
+                            modifier = Modifier.fillMaxSize().background(Color.Black),
+                            primaryContent = {
+                                BoxWithConstraints(Modifier.fillMaxSize()) {
+                                    continuousPlayerContent(
+                                        ContinuousPlayerHostLayout(
+                                            modifier = Modifier.fillMaxSize(),
+                                            viewportWidth = maxWidth,
+                                            alpha = continuousPlayerUnitState,
+                                            scale = continuousPlayerUnitState,
+                                            isFullscreen = true,
+                                        )
+                                    )
+                                }
+                            },
                         )
-                    )
+                    } else {
+                        continuousPlayerContent(
+                            ContinuousPlayerHostLayout(
+                                modifier = Modifier.fillMaxSize(),
+                                viewportWidth = configuration.screenWidthDp.dp,
+                                alpha = continuousPlayerUnitState,
+                                scale = continuousPlayerUnitState,
+                                isFullscreen = true,
+                            )
+                        )
+                    }
                     val success = uiState as? VideoPlaybackUiState.Success
                     if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
                             info = success.info, listState = landscapeCommentListState,
                             replies = commentState.replies, replyCount = commentState.replyCount,
                             emoteMap = success.emoteMap, isRepliesLoading = commentState.isRepliesLoading,
+                            isRepliesRefreshing = commentState.isRepliesRefreshing,
+                            repliesError = commentState.repliesError,
                             isRepliesEnd = commentState.isRepliesEnd, videoTags = success.videoTags,
                             voteCard = commentState.voteCard,
                             sortMode = commentState.sortMode,
@@ -3498,6 +3551,7 @@ internal fun VideoDetailScreenStateHolder(
                             onUpClick = navigateToUserSpaceFromVideo,
                             onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo, onLoadMoreReplies = commentActions.loadComments,
+                            onRefreshReplies = commentActions.refreshComments,
                             onDeleteComment = commentActions.deleteComment, onDissolveStart = commentActions.startDissolve,
                             onCommentLike = commentActions.likeComment,
                             onCommentHate = commentActions.hateComment,
@@ -3524,6 +3578,7 @@ internal fun VideoDetailScreenStateHolder(
                                         emoteMap = success.emoteMap,
                                         maxTimestampMs = success.videoDurationMs.takeIf { it > 0L },
                                         onLoadMore = commentActions.loadMoreSubReplies,
+                                        onRefresh = commentActions.refreshSubReplies,
                                         onSortModeChange = commentActions.setSubReplySortMode,
                                         onDismiss = commentActions.closeSubReply,
                                         onRootCommentClick = playbackActions.openRootCommentComposer,
@@ -3558,7 +3613,8 @@ internal fun VideoDetailScreenStateHolder(
                         )
                     }
                 } else {
-                    VideoPlayerSection(
+                    val fullscreenPlayerSection: @Composable () -> Unit = {
+                        VideoPlayerSection(
                     state = VideoPlayerSectionState(
                         playerState = playerState,
                         uiState = uiState,
@@ -3705,6 +3761,16 @@ internal fun VideoDetailScreenStateHolder(
                         onSubtitleTrackSelected = viewModel::selectSubtitleTrack,
                     ),
                     )
+                    }
+                    // 全屏＋物理遮挡铰链：媒体收进首个安全区，不跨缝；软折痕跨整窗。
+                    if (fullscreenOccludingHingePresent) {
+                        com.android.purebilibili.core.ui.adaptive.AppHingePaneLayout(
+                            modifier = Modifier.fillMaxSize().background(Color.Black),
+                            primaryContent = fullscreenPlayerSection,
+                        )
+                    } else {
+                        fullscreenPlayerSection()
+                    }
                     val success = uiState as? VideoPlaybackUiState.Success
                     if (canShowLandscapeComments && landscapeCommentPanelVisible && success != null) {
                         LandscapeCommentPanel(
@@ -3714,6 +3780,8 @@ internal fun VideoDetailScreenStateHolder(
                             replyCount = commentState.replyCount,
                             emoteMap = success.emoteMap,
                             isRepliesLoading = commentState.isRepliesLoading,
+                            isRepliesRefreshing = commentState.isRepliesRefreshing,
+                            repliesError = commentState.repliesError,
                             isRepliesEnd = commentState.isRepliesEnd,
                             voteCard = commentState.voteCard,
                             videoTags = success.videoTags,
@@ -3728,6 +3796,7 @@ internal fun VideoDetailScreenStateHolder(
                             onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo,
                             onLoadMoreReplies = commentActions.loadComments,
+                            onRefreshReplies = commentActions.refreshComments,
                             onDeleteComment = commentActions.deleteComment,
                             onDissolveStart = commentActions.startDissolve,
                             onCommentLike = commentActions.likeComment,
@@ -3755,6 +3824,7 @@ internal fun VideoDetailScreenStateHolder(
                                         emoteMap = success.emoteMap,
                                         maxTimestampMs = success.videoDurationMs.takeIf { it > 0L },
                                         onLoadMore = commentActions.loadMoreSubReplies,
+                                        onRefresh = commentActions.refreshSubReplies,
                                         onSortModeChange = commentActions.setSubReplySortMode,
                                         onDismiss = commentActions.closeSubReply,
                                         onRootCommentClick = playbackActions.openRootCommentComposer,
@@ -4638,8 +4708,10 @@ internal fun VideoDetailScreenStateHolder(
                                     miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true,
                             )
                         }
-                        Box(
-                            modifier = playerContainerModifier
+                        PlayerAmbientLayout(
+                            modifier = Modifier.fillMaxWidth(),
+                            fullscreen = isFullscreenMode,
+                            playerModifier = playerContainerModifier
                                 .fillMaxWidth()
                                 .continuousPlayerViewportHeight(
                                     progressProvider = { continuousPlayerProgress.value },
