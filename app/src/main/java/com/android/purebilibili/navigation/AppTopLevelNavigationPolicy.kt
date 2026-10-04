@@ -125,7 +125,9 @@ internal fun resolveVisibleBottomBarItems(
 ): List<BottomNavItem> {
     return orderedVisibleTabIds
         .mapNotNull { id -> BottomNavItem.entries.find { it.name == id } }
+        .distinct()
         .take(BOTTOM_BAR_MAX_VISIBLE_ITEMS)
+        .ifEmpty { listOf(BottomNavItem.HOME) }
 }
 
 internal fun resolveActiveBottomTabRoute(

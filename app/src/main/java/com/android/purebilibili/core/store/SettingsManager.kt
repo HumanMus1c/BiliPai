@@ -494,8 +494,8 @@ data class PlayerControlVisibilitySettings(
 )
 
 internal fun normalizeDanmakuDisplayArea(value: Float): Float {
-    val normalized = value.coerceIn(0.25f, 1.0f)
-    val supportedOptions = floatArrayOf(0.25f, 0.5f, 0.75f, 1.0f)
+    val normalized = value.coerceIn(0.125f, 1.0f)
+    val supportedOptions = floatArrayOf(0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f)
     return supportedOptions.minByOrNull { abs(it - normalized) } ?: 0.5f
 }
 
@@ -639,6 +639,7 @@ data class HomeSettings(
     val bottomBarLiquidGlassPreset: BottomBarLiquidGlassPreset =
         BottomBarLiquidGlassPreset.BILIPAI_TUNED,
     val isBottomBarSearchEnabled: Boolean = false,
+    val keepHomeTopSearchWithBottomSearch: Boolean = false,
     val listScopedSearchEnabled: Boolean = false,
     val linkedDockMergeOnScrollEnabled: Boolean = true,
     val bottomBarSearchAutoExpandMode: BottomBarSearchAutoExpandMode =
@@ -1527,6 +1528,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("home_search_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED = booleanPreferencesKey("bottom_bar_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_ENABLED = booleanPreferencesKey("bottom_bar_search_enabled")
+    private val KEY_KEEP_HOME_TOP_SEARCH = booleanPreferencesKey("keep_home_top_search_with_bottom_search")
     private val KEY_LINKED_DOCK_MERGE_ON_SCROLL_ENABLED =
         booleanPreferencesKey("linked_dock_merge_on_scroll_enabled")
     private val KEY_LIST_SCOPED_SEARCH_ENABLED = booleanPreferencesKey("list_scoped_search_enabled")
@@ -1769,6 +1771,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     ?: (preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] ?: false),
             isBottomBarLiquidGlassEnabled = preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: legacyLiquidGlassEnabled,
             isBottomBarSearchEnabled = preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] ?: false,
+            keepHomeTopSearchWithBottomSearch = preferences[KEY_KEEP_HOME_TOP_SEARCH] ?: false,
             linkedDockMergeOnScrollEnabled = preferences[KEY_LINKED_DOCK_MERGE_ON_SCROLL_ENABLED] ?: true,
             listScopedSearchEnabled = preferences[KEY_LIST_SCOPED_SEARCH_ENABLED] ?: false,
             bottomBarSearchAutoExpandMode = BottomBarSearchAutoExpandMode.fromValue(
@@ -4274,6 +4277,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getBottomBarSearchEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] ?: false }
 
+    fun getKeepHomeTopSearchWithBottomSearch(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { it[KEY_KEEP_HOME_TOP_SEARCH] ?: false }
+
+    suspend fun setKeepHomeTopSearchWithBottomSearch(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_KEEP_HOME_TOP_SEARCH] = value }
+    }
+
     suspend fun setBottomBarSearchEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] = value
@@ -4639,6 +4649,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("danmaku_scroll_fixed_velocity")
     private val KEY_DANMAKU_STATIC_TO_SCROLL =
         booleanPreferencesKey("danmaku_static_to_scroll")
+    private val KEY_HOT_DANMAKU_EXPANDED_MODE = booleanPreferencesKey("hot_danmaku_expanded_mode")
     private val KEY_DANMAKU_MASSIVE_MODE = booleanPreferencesKey("danmaku_massive_mode")
     private val KEY_DANMAKU_ALLOW_SCROLL = booleanPreferencesKey("danmaku_allow_scroll")
     private val KEY_DANMAKU_ALLOW_TOP = booleanPreferencesKey("danmaku_allow_top")
@@ -4934,6 +4945,16 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         )
     }
 
+    /** 计数弹幕扩展模式：最多三条，允许滚动与省略，横竖屏共用。 */
+    fun getHotDanmakuExpandedMode(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { it[KEY_HOT_DANMAKU_EXPANDED_MODE] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setHotDanmakuExpandedMode(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_HOT_DANMAKU_EXPANDED_MODE] = enabled }
+    }
+
     fun getDanmakuSettings(
         context: Context,
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
@@ -5045,7 +5066,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
     
-    // --- 弹幕显示区域 (0.25, 0.5, 0.75, 1.0, 默认 0.5) ---
+    // --- 弹幕显示区域 (1/8 至全屏，每档增加 1/8，默认 0.5) ---
     fun getDanmakuArea(
         context: Context,
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
@@ -5633,6 +5654,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     DEFAULT_DANMAKU_STATIC_DURATION_SECONDS
                 preferences[KEY_DANMAKU_SCROLL_FIXED_VELOCITY] = false
                 preferences[KEY_DANMAKU_STATIC_TO_SCROLL] = false
+                preferences[KEY_HOT_DANMAKU_EXPANDED_MODE] = false
                 preferences[KEY_DANMAKU_MASSIVE_MODE] = false
                 preferences[KEY_DANMAKU_DUPLICATE_MERGE_WINDOW_MS] =
                     DEFAULT_DANMAKU_DUPLICATE_MERGE_WINDOW_MS
@@ -8326,6 +8348,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 KEY_DANMAKU_STATIC_TO_SCROLL,
                 SettingsShareSection.DANMAKU
             ),
+            BooleanShareablePreferenceDefinition(KEY_HOT_DANMAKU_EXPANDED_MODE, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_MASSIVE_MODE, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_ALLOW_SCROLL, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_ALLOW_TOP, SettingsShareSection.DANMAKU),

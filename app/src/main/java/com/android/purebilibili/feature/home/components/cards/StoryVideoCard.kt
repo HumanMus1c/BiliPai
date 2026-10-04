@@ -123,6 +123,7 @@ internal fun StoryVideoCard(
     onDismiss: (() -> Unit)? = null,    //  [新增] 删除/过滤回调（长按触发）
     onUpClick: ((Long) -> Unit)? = null,
     onLongClick: ((VideoItem) -> Unit)? = null, // [修复] 长按预览回调
+    modifier: Modifier = Modifier,
     onClick: (String, Long) -> Unit
 ) {
     val contentTypography = feedContentTypography(
@@ -292,7 +293,7 @@ internal fun StoryVideoCard(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .adaptiveCardHoverEffect(shape = cardShellShape)
             .videoCardShellSharedBoundsOrEmpty(
@@ -435,7 +436,7 @@ internal fun StoryVideoCard(
                 isQuickReturnFromDetail = isQuickReturningFromVideoDetail,
             )
         ) {
-        Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.Small else AppSpacingTokens.Medium))
+        Spacer(modifier = Modifier.weight(1f))
         
         AppText(
             text = video.title,
@@ -514,8 +515,8 @@ internal fun StoryVideoCard(
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBackgroundColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
                 showUpBadge = showUpBadge,
-                maxLines = Int.MAX_VALUE,
-                overflow = TextOverflow.Visible,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 metaMaxLines = Int.MAX_VALUE,
                 metaOverflow = TextOverflow.Visible,
                 modifier = upNameModifier

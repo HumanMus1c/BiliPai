@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.horizontalScroll
@@ -165,7 +166,9 @@ internal fun BottomBarFloatingSegmentedControl(
     val viewportHeight = effectiveHeight + scaleOverflow * 2
 
     BoxWithConstraints(
-        modifier = rootModifier.height(viewportHeight)
+        // Top bars often constrain their child to shell height. Keep the scroll clip's
+        // actual viewport tall enough for the pressed indicator, centered by requiredHeight.
+        modifier = rootModifier.requiredHeight(viewportHeight)
     ) {
         val indicatorWidthDp = when {
             effectiveItemWidth != null -> effectiveItemWidth.value
@@ -267,6 +270,8 @@ internal fun BottomBarFloatingSegmentedControl(
             externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
             liquidGlassTuning = liquidGlassTuning,
             drawShell = scrollState == null,
+            dragScrollState = scrollState,
+            dragScrollViewportWidthPx = { constraints.maxWidth.toFloat() },
         ) {
             items.forEachIndexed { index, label ->
                 val selected = index == safeSelectedIndex

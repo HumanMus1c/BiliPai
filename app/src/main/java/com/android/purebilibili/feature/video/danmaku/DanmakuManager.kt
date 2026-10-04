@@ -1084,7 +1084,9 @@ class DanmakuManager private constructor(
         val height = heightPx.coerceAtLeast(0f)
         if (config.hotBarReservedHeightPx == height) return
         config.hotBarReservedHeightPx = height
-        applyConfigToController("hot_bar_space")
+        // Massive mode overlays the count bar without changing the engine's layout.
+        // Retain the requested height for a later switch back to normal mode.
+        if (!config.massiveMode) applyConfigToController("hot_bar_space")
     }
 
     /**
@@ -2170,7 +2172,13 @@ class DanmakuManager private constructor(
     
     fun show() {
         Log.d(TAG, "👁️ show()")
+        val alreadyVisible = danmakuView?.visibility == android.view.View.VISIBLE
         danmakuView?.visibility = android.view.View.VISIBLE
+        // Host/settings recomposition may request show again. A live, synced surface
+        // already owns its timeline; restarting it would clear all on-screen comments.
+        if (alreadyVisible && controller != null && timelineSyncedController === controller &&
+            !pendingTimelineResync && !isSeekScrubbing
+        ) return
 
         // [修复] 相关推荐/同页切集后弹幕开关开启却无弹幕：Enable→show() 常在弹幕数据
         // 就绪前执行，若此时还要求 player.isPlaying 瞬时成立才装填时间线，数据就绪后
@@ -2448,15 +2456,22 @@ class DanmakuManager private constructor(
         sourceDanmakuList = (sourceDanmakuList ?: emptyList()).plus(danmakuData).sortedBy { it.showAtTime }
         Log.d(TAG, "📝 Added to cache and sorted, total: ${cachedDanmakuList?.size} danmakus")
         
-        // 立即显示（通过重新设置数据并跳到当前位置）
-        cachedDanmakuList?.let { list ->
-            Log.d(TAG, "📝 Calling setData with ${list.size} items")
+        val ctrl = controller
+        if (isSeekScrubbing) {
+            pendingTimelineResync = true
+        } else if (ctrl != null && timelineSyncedController === ctrl && !pendingTimelineResync) {
+            // Append only this new item to the sorted timeline. Keep active render
+            // layers, playback state and clock intact for ordinary/send-same comments.
+            ctrl.append(visibleLocalDanmaku)
+            ctrl.invalidate()
+        } else cachedDanmakuList?.let { list ->
+            // First data/late attachment still needs an initial timeline installation.
             resyncDanmakuTimeline(
                 list = list,
                 positionMs = currentPosition,
                 shouldPlay = player?.isPlaying == true,
                 invalidateView = true,
-                reason = "add_local"
+                reason = "initialize_local"
             )
         }
         

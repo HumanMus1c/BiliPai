@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.view.Window
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -156,6 +158,7 @@ fun DissolvableVideoCard(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val completionHandler = remember { Handler(Looper.getMainLooper()) }
     val contentLayer = rememberGraphicsLayer()
     var cardSize by remember(cardId) { mutableStateOf(IntSize.Zero) }
     var cardWindowBounds by remember(cardId) { mutableStateOf<RectF?>(null) }
@@ -289,8 +292,12 @@ fun DissolvableVideoCard(
         onDispose {
             effectView?.dispose()
             effectView = null
-            // A removed/offscreen lazy item must still finish the requested deletion.
-            if (latestIsDissolving) dispatchCompletionOnce()
+            // Lazy layouts dispose offscreen items during measurement. Mutating their
+            // item provider here invalidates the grid's in-flight index/Lookahead data.
+            // A queued callback also survives cancellation of this item's effect scope.
+            if (latestIsDissolving) {
+                completionHandler.post { dispatchCompletionOnce() }
+            }
         }
     }
 

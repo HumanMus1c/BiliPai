@@ -603,6 +603,26 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
+    fun bottomPagerVisibleItems_deduplicateBeforeApplyingPageLimit() {
+        val items = resolveVisibleBottomBarItems(
+            listOf("PROFILE", "HOME", "PROFILE", "DYNAMIC", "SETTINGS", "HISTORY")
+        )
+        assertEquals(
+            listOf(BottomNavItem.PROFILE, BottomNavItem.HOME, BottomNavItem.DYNAMIC,
+                BottomNavItem.SETTINGS, BottomNavItem.HISTORY),
+            items,
+        )
+        val keys = items.map(::resolveBottomPagerSaveableStateKey)
+        assertEquals(keys.size, keys.toSet().size)
+    }
+
+    @Test
+    fun bottomPagerVisibleItems_emptyOrInvalidSettingsKeepOneHomePage() {
+        assertEquals(listOf(BottomNavItem.HOME), resolveVisibleBottomBarItems(emptyList()))
+        assertEquals(listOf(BottomNavItem.HOME), resolveVisibleBottomBarItems(listOf("INVALID")))
+    }
+
+    @Test
     fun bottomPagerNavigation_keepsSaveableKeysUniqueForFarJump() {
         val visibleItems = listOf(
             BottomNavItem.HOME,

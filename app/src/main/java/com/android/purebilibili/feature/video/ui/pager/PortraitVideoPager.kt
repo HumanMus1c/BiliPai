@@ -3148,6 +3148,15 @@ private fun VideoPageItem(
         loadedPageInfo = loadedPageInfo,
         fallbackInfo = fallbackDetailInfo,
     )
+    val showVideoDeclarations by remember(context) {
+        com.android.purebilibili.core.store.SettingsManager.getVideoArgueMsgShown(context)
+    }.collectAsStateWithLifecycle(initialValue = true)
+    val videoDeclarations = remember(portraitDetailInfo, showVideoDeclarations) {
+        if (!showVideoDeclarations) emptyList() else buildList {
+            portraitDetailInfo?.argueInfo?.argueMsg?.trim()?.takeIf { it.isNotEmpty() }?.let { add(it) }
+            if (portraitDetailInfo?.rights?.noReprint == 1) add("未经作者授权，请勿转载")
+        }.distinct()
+    }
     // seed 进场可能没有 owner；加载成功后用 Success.info 补齐 UP 名/头像。
     val authorName = portraitDetailInfo?.owner?.name?.takeIf { it.isNotBlank() } ?: seedAuthorName
     val authorFace = portraitDetailInfo?.owner?.face?.takeIf { it.isNotBlank() } ?: seedAuthorFace
@@ -3211,6 +3220,7 @@ private fun VideoPageItem(
 
     PortraitFullscreenOverlay(
             title = title,
+            declarations = videoDeclarations,
             ugcSeason = portraitDetailInfo?.ugc_season,
             currentBvid = bvid,
             currentCid = portraitDetailInfo?.cid ?: 0L,

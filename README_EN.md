@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-09-29 · Current source build: 0.2.3-alpha.10 · Latest documented release: v0.2.3-alpha.10</sub>
+  <sub>Last updated: 2026-10-03 · Current source build: 0.2.7 · Latest documented release: v0.2.7</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--alpha.10-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.7-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -452,13 +452,13 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-alpha.10 · 2026-09-29)
+### Current source build (v0.2.7 · 2026-10-03)
 
-- Current source build: `0.2.3-alpha.10` / `versionCode 407`.
-- Video comments now include vote cards and IP locations; dynamic posting uses a full-screen composer and supports image attachments in comments.
-- Image preview flights reuse source thumbnails and stable cache keys to avoid black frames and return flicker.
-- Video sharing, Android 17 startup recovery, large-image drawing, and tablet or foldable space layouts have been improved.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete alpha.10 notes.
+- Current source build: `0.2.7` / `versionCode 432`.
+- RSS subscriptions now include reading recaps, saved article progress, and dedicated reading wallpapers; home recommendations, search, and history recaps have also been refined.
+- Comment input, refresh, timestamps, and typography have been improved, alongside clearer hot-danmaku counters and massive-mode behavior.
+- The home dock supports drag navigation and edge auto-scroll; video-card alignment, foldable layouts, and list/navigation stability have been improved.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete changelog since v0.2.5.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---

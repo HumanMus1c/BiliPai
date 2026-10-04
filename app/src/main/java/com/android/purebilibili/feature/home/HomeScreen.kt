@@ -1687,6 +1687,7 @@ fun HomeScreen(
         configuredTabsSpacing = homeTopPresetStyle.searchToTabsSpacing,
         bottomBarSearchEnabled = homeSettings.isBottomBarSearchEnabled,
         hideTopTabs = effectiveHomeSettings.hideTopTabs,
+        keepTopSearch = homeSettings.keepHomeTopSearchWithBottomSearch,
     )
     val searchBarHeightDp = homeTopSearchMetrics.height
     val searchToTabsSpacingDp = homeTopSearchMetrics.tabsSpacing

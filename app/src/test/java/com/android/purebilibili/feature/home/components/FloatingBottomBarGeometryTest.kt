@@ -10,6 +10,22 @@ import kotlin.test.assertTrue
 class FloatingBottomBarGeometryTest {
 
     @Test
+    fun `drag autoscroll is stationary in center and proportional at edges`() {
+        assertEquals(0f, resolveDockDragEdgeScrollFraction(150f, 300f, 60f))
+        assertEquals(-0.5f, resolveDockDragEdgeScrollFraction(30f, 300f, 60f), 0.001f)
+        assertEquals(0.5f, resolveDockDragEdgeScrollFraction(270f, 300f, 60f), 0.001f)
+        assertEquals(-1f, resolveDockDragEdgeScrollFraction(-20f, 300f, 60f))
+        assertEquals(1f, resolveDockDragEdgeScrollFraction(320f, 300f, 60f))
+    }
+
+    @Test
+    fun `drag autoscroll rejects unmeasured and invalid viewport geometry`() {
+        assertEquals(0f, resolveDockDragEdgeScrollFraction(0f, 0f, 60f))
+        assertEquals(0f, resolveDockDragEdgeScrollFraction(0f, 300f, 0f))
+        assertEquals(0f, resolveDockDragEdgeScrollFraction(Float.NaN, 300f, 60f))
+    }
+
+    @Test
     fun `home dock restores original 56 to 78 press bloom ratio`() {
         assertEquals(78f / 56f, FloatingBottomBarPressedScale, 0.0001f)
     }

@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3.5-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3.5" />
+  <img src="https://img.shields.io/badge/Release-0.2.7-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.7" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -211,11 +211,11 @@ cd BiliPai
 
 ## 最近更新
 
-当前源码版本为 `0.2.3.5 / versionCode 421`；完整变更见 [CHANGELOG.md](CHANGELOG.md)。安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前源码版本为 `0.2.7 / versionCode 432`；0.2.5 以后的完整变更见 [CHANGELOG.md](CHANGELOG.md)。安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 收紧设置、搜索、动态和视频简介的布局间距，三连互动弹幕改为紧凑图标栏。
-- 统一各播放器的弹幕字号、行距和横竖屏设置，完善歌词匹配与听视频布局。
-- 首页刷新定位与撤销提示调整位置并支持手动关闭，评论屏蔽和举报图标更清晰。
+- 新增 RSS 订阅回顾、文章阅读进度和独立阅读壁纸；完善搜索、历史回顾及首页推荐横幅。
+- 优化评论表情、刷新、时间显示和阅读字号；调整高赞计数弹幕与海量弹幕的显示行为。
+- 首页底栏支持拖动切换和边缘自动滚动；修复视频卡片对齐、折叠屏布局及多处列表和导航问题。
 
 ## 路线图
 

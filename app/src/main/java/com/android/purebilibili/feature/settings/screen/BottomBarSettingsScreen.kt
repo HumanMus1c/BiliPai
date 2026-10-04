@@ -217,6 +217,8 @@ fun BottomBarSettingsContent(
         .collectAsStateWithLifecycle(initialValue = false)
     val bottomBarSearchEnabled by SettingsManager.getBottomBarSearchEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val keepHomeTopSearch by SettingsManager.getKeepHomeTopSearchWithBottomSearch(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val linkedDockMergeOnScrollEnabled by SettingsManager.getLinkedDockMergeOnScrollEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
     val listScopedSearchEnabled by SettingsManager.getListScopedSearchEnabled(context)
@@ -402,6 +404,17 @@ fun BottomBarSettingsContent(
                             iconTint = com.android.purebilibili.core.theme.iOSTeal,
                         )
                         if (bottomBarSearchEnabled) {
+                            AppPreferenceDivider()
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
+                                title = "保留首页顶部搜索条",
+                                subtitle = "开启时顶部与底栏搜索同时显示；关闭时隐藏首页顶部搜索条",
+                                checked = keepHomeTopSearch,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { SettingsManager.setKeepHomeTopSearchWithBottomSearch(context, enabled) }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                            )
                             AppPreferenceDivider()
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),

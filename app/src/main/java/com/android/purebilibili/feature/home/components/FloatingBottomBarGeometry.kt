@@ -128,6 +128,24 @@ internal fun resolveCompactDockScaleOverflowDp(
     return ((geometry.pressedHeightDp - shellHeightDp) / 2f).coerceAtLeast(0f)
 }
 
+/** Signed speed near the logical viewport edges; zero in the middle or invalid geometry. */
+internal fun resolveDockDragEdgeScrollFraction(
+    indicatorCenterPx: Float,
+    viewportWidthPx: Float,
+    edgeWidthPx: Float,
+): Float {
+    if (!indicatorCenterPx.isFinite() || !viewportWidthPx.isFinite() ||
+        !edgeWidthPx.isFinite() || viewportWidthPx <= 0f || edgeWidthPx <= 0f
+    ) return 0f
+    val edge = edgeWidthPx.coerceAtMost(viewportWidthPx / 2f)
+    return when {
+        indicatorCenterPx < edge -> -((edge - indicatorCenterPx) / edge).coerceIn(0f, 1f)
+        indicatorCenterPx > viewportWidthPx - edge ->
+            ((indicatorCenterPx - viewportWidthPx + edge) / edge).coerceIn(0f, 1f)
+        else -> 0f
+    }
+}
+
 /** HyperIsland 静止几何：64dp 壳配 56dp 指示器，即上下各留 4dp（= 壳高 × 4/64）。 */
 internal const val FLOATING_DOCK_REST_INDICATOR_INSET_RATIO = 4f / 64f
 

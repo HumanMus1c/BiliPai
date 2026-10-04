@@ -198,6 +198,7 @@ fun DownloadListScreen(
             ) {
                 items(taskList, key = { it.id }) { task ->
                     val isDissolving = task.id in dissolvingTaskIds
+                    AnimatedVideoListItem(modifier = videoListItemModifier(), enabled = true, useLookaheadBounds = false) {
                     com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard(
                         isDissolving = isDissolving,
                         onDissolveComplete = {
@@ -212,7 +213,6 @@ fun DownloadListScreen(
                             isCurrentCardDissolving = isDissolving,
                         ),
                     ) {
-                    AnimatedVideoListItem(modifier = videoListItemModifier(), enabled = true) {
                         val playableOffline = remember(task.filePath, task.status) {
                             isDownloadTaskPlayableOffline(task)
                         }

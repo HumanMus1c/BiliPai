@@ -6,6 +6,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class HotDanmakuPolicyTest {
+    @Test
+    fun `fitting row prefers short entries and shows at most two`() {
+        val items = listOf(item(1, 0, 100, "很长的热门弹幕"), item(2, 0, 30, "短句"), item(3, 0, 20, "短"))
+        val selected = selectFittingHotDanmaku(items, 50f, 5f) { it.text.orEmpty().length * 10f }
+        assertEquals(listOf(3L, 2L), selected.map { it.danmakuId })
+    }
+
+    @Test
+    fun `narrow row keeps only complete entries or stays empty`() {
+        val items = listOf(item(1, 0, 100), item(2, 0, 20))
+        assertEquals(1, selectFittingHotDanmaku(items, 35f, 5f) { 30f }.size)
+        assertTrue(selectFittingHotDanmaku(items, 20f, 5f) { 30f }.isEmpty())
+    }
+
     private fun item(id: Long, time: Long, likes: Long, content: String = "弹幕$id") =
         DanmakuItem().apply {
             danmakuId = id
@@ -22,10 +36,10 @@ class HotDanmakuPolicyTest {
     }
 
     @Test
-    fun `top three use stable ties and deduplicate ids and text`() {
+    fun `top two use stable ties and deduplicate ids and text`() {
         val list = listOf(item(4, 0, 30), item(3, 0, 30), item(2, 0, 40, "同款"),
             item(1, 0, 50, "同款"), item(1, 0, 50), item(5, 0, 10))
-        assertEquals(listOf(1L, 3L, 4L), selectHotDanmaku(list, 0).map { it.danmakuId })
+        assertEquals(listOf(1L, 3L), selectHotDanmaku(list, 0).map { it.danmakuId })
     }
 
     @Test

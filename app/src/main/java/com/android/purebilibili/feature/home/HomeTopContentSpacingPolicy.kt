@@ -15,8 +15,9 @@ internal fun resolveHomeTopSearchRowMetrics(
     configuredTabsSpacing: Dp,
     bottomBarSearchEnabled: Boolean,
     hideTopTabs: Boolean,
+    keepTopSearch: Boolean = false,
 ): HomeTopSearchRowMetrics {
-    val searchLivesInTopChrome = !bottomBarSearchEnabled || hideTopTabs
+    val searchLivesInTopChrome = !bottomBarSearchEnabled || hideTopTabs || keepTopSearch
     return if (searchLivesInTopChrome) {
         HomeTopSearchRowMetrics(configuredHeight, configuredTabsSpacing)
     } else {

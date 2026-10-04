@@ -13,6 +13,20 @@ import org.junit.Test
 class DanmakuConfigPolicyTest {
 
     @Test
+    fun `count bar never reserves tracks in massive mode`() {
+        for (height in listOf(0f, 64f, 128f, 1000f)) {
+            assertEquals(0f, resolveDanmakuHotBarReservedHeightPx(height, 720, true), 0f)
+        }
+    }
+
+    @Test
+    fun `normal mode restores bounded count bar reservation`() {
+        assertEquals(64f, resolveDanmakuHotBarReservedHeightPx(64f, 720, false), 0f)
+        assertEquals(32f, resolveDanmakuHotBarReservedHeightPx(64f, 32, false), 0f)
+        assertEquals(0f, resolveDanmakuHotBarReservedHeightPx(64f, 0, false), 0f)
+    }
+
+    @Test
     fun `bilibili font grades should remain relative to user font scale`() {
         assertEquals(0.72f, resolveBilibiliDanmakuFontScale(18f), 0.001f)
         assertEquals(1.0f, resolveBilibiliDanmakuFontScale(25f), 0.001f)

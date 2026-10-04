@@ -2292,15 +2292,16 @@ fun AppNavigation(
                                     HorizontalPager(
                                         modifier = Modifier.fillMaxSize(),
                                         state = bottomPagerState,
+                                        key = { page -> resolveBottomPagerSaveableStateKey(visibleBottomBarItems[page]) },
                                         beyondViewportPageCount = resolveBottomPagerBeyondViewportPageCount(
                                             pageCount = visibleBottomBarItems.size,
                                             contentReady = bottomPagerContentReady
                                         ).coerceAtMost(BOTTOM_PAGER_MAX_PRELOAD_DISTANCE),
                                         userScrollEnabled = shouldEnableBottomPagerUserScroll()
                                     ) { page ->
-                                        val slotItem = visibleBottomBarItems.getOrNull(page) ?: BottomNavItem.HOME
+                                        val slotItem = visibleBottomBarItems.getOrNull(page)
                                         if (
-                                            shouldComposeBottomPagerPage(
+                                            slotItem != null && shouldComposeBottomPagerPage(
                                                 item = slotItem,
                                                 page = page,
                                                 currentPage = bottomPagerState.currentPage,

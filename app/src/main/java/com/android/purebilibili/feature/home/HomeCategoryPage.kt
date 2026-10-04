@@ -41,8 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -451,6 +453,7 @@ internal fun HomeCategoryPageContent(
             when (displayMode) {
                 1 -> StoryVideoCard(
                     video = video,
+                    modifier = if (showFullVideoCardContent) Modifier else Modifier.fillMaxHeight(),
                     index = index,
                     animationEnabled = cardAnimationEnabled,
                     motionTier = cardMotionTier,
@@ -493,6 +496,7 @@ internal fun HomeCategoryPageContent(
 
                 else -> ElegantVideoCard(
                     video = video,
+                    modifier = if (showFullVideoCardContent) Modifier else Modifier.fillMaxHeight(),
                     index = index,
                     isFollowing = video.owner.mid in followingMids && category != HomeCategory.FOLLOW,
                     animationEnabled = cardAnimationEnabled,
@@ -721,8 +725,8 @@ internal fun HomeCategoryPageContent(
                         }
                     }
                 } else {
-                    // Truncated cards advance as complete rows. Metadata remains unabridged, but
-                    // a long timestamp can no longer pull only its own lane out of alignment.
+                    // Keep both the card shells and subsequent rows aligned while retaining
+                    // unabridged metadata. The tallest card determines each row's height.
                     resolveHomeFeedAlignedRows(
                         itemCount = visibleGridVideos.size,
                         columns = gridColumns,
@@ -746,6 +750,7 @@ internal fun HomeCategoryPageContent(
                             contentType = "home_video_row",
                             span = StaggeredGridItemSpan.FullLine,
                         ) {
+                            val rowHeightPx = remember(rowKey) { mutableIntStateOf(0) }
                             Row(
                                 modifier = videoListItemModifier(enabled = cardAnimationEnabled && !cardReflowActive)
                                     .fillMaxWidth(),
@@ -754,11 +759,20 @@ internal fun HomeCategoryPageContent(
                             ) {
                                 rowIndices.forEach { index ->
                                     key(videoGridKeys[index]) {
-                                        Box(modifier = Modifier.weight(1f)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .heightIn(min = with(LocalDensity.current) { rowHeightPx.intValue.toDp() })
+                                                .onSizeChanged { size ->
+                                                    if (size.height > rowHeightPx.intValue) {
+                                                        rowHeightPx.intValue = size.height
+                                                    }
+                                                },
+                                        ) {
                                             renderVideoCard(
                                                 index,
                                                 visibleGridVideos[index],
-                                                Modifier.fillMaxWidth(),
+                                                Modifier.fillMaxWidth().fillMaxHeight(),
                                             )
                                         }
                                     }

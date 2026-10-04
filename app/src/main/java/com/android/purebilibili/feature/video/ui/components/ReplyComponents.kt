@@ -2916,9 +2916,14 @@ fun UpTag() {
 }
 
 @Composable
-fun TopTag() {
+fun TopTag(modifier: Modifier = Modifier) {
+    val labelStyle = MaterialTheme.typography.labelSmall
+    // TOP 没有下伸部，行框居中后仍会显得偏下；按字号补偿视觉中心。
+    val opticalOffset = with(androidx.compose.ui.platform.LocalDensity.current) {
+        (labelStyle.fontSize * -0.08f).toDp()
+    }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(AppShapes.container(ContainerLevel.Tag))
             .border(
                 width = 1.dp,
@@ -2926,12 +2931,23 @@ fun TopTag() {
                 shape = AppShapes.container(ContainerLevel.Tag)
             )
             .padding(horizontal = 3.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center,
     ) {
         AppText(
             text = "TOP",
-            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.offset(y = opticalOffset),
+            style = labelStyle.copy(
+                lineHeight = labelStyle.fontSize,
+                platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                    alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                    trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+                ),
+            ),
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            tapToCopyEnabled = false,
         )
     }
 }

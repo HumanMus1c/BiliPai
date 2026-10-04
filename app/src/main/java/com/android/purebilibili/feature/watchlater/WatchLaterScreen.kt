@@ -3,7 +3,6 @@ package com.android.purebilibili.feature.watchlater
 
 import android.os.Build
 import com.android.purebilibili.core.ui.components.videoListItemModifier
-import com.android.purebilibili.core.ui.components.AnimatedVideoListItem
 import com.android.purebilibili.feature.home.GridPinchColumnHudPill
 import com.android.purebilibili.feature.home.homeFeedPinchZoom
 import com.android.purebilibili.feature.home.resolveHomeFeedPinchColumnBounds
@@ -111,7 +110,7 @@ import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.repository.FavoriteRepository
 import com.android.purebilibili.data.repository.WatchLaterRepository
-import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
+import com.android.purebilibili.feature.list.resolveCommonListRenderKeys
 import com.android.purebilibili.feature.list.resolveHistoryFilterTabChromeSpec
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
 import com.android.purebilibili.feature.personal.PersonalMediaCardSkeleton
@@ -341,11 +340,9 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
 
     // [新增] 动画完成，执行删除
     fun completeVideoDissolve(bvid: String) {
-        // 先从 UI 状态移除 ID（动画结束），然后调用删除逻辑
-        _uiState.value = _uiState.value.copy(
-            dissolvingIds = _uiState.value.dissolvingIds - bvid
-        )
-        // 查找对应的 aid 进行删除
+        // Ignore duplicate/deferred completion after a filter change or another deletion.
+        if (bvid !in _uiState.value.dissolvingIds) return
+        // deleteItem removes both the item and its animation flag in one state update.
         val item = _uiState.value.items.find { it.bvid == bvid }
         item?.let { deleteItem(it.id) }
     }
@@ -359,6 +356,10 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
         val currentList = snapshotState.items
         val newList = currentList.filter { it.id != aid }
         val removedBvid = currentList.firstOrNull { it.id == aid }?.bvid
+        // A failed request restores the card, not the already completed dissolve request.
+        val rollbackState = snapshotState.copy(
+            dissolvingIds = snapshotState.dissolvingIds - setOfNotNull(removedBvid)
+        )
         _uiState.value = _uiState.value.copy(
             items = newList,
             totalCount = (snapshotState.totalCount - (currentList.size - newList.size)).coerceAtLeast(newList.size),
@@ -373,7 +374,7 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache ?: ""
                 if (csrf.isEmpty()) {
-                    _uiState.value = snapshotState
+                    _uiState.value = rollbackState
                     android.widget.Toast.makeText(getApplication(), "请先登录", android.widget.Toast.LENGTH_SHORT).show()
                     return@launch
                 }
@@ -382,7 +383,7 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
                     tabCache.clear()
                     android.widget.Toast.makeText(getApplication(), "已从稍后再看移除", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
-                    _uiState.value = snapshotState
+                    _uiState.value = rollbackState
                     android.widget.Toast.makeText(
                         getApplication(),
                         "移除失败: ${result.exceptionOrNull()?.message ?: "请稍后重试"}",
@@ -391,7 +392,7 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiState.value = snapshotState
+                _uiState.value = rollbackState
                 android.widget.Toast.makeText(getApplication(), "移除失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
@@ -744,6 +745,11 @@ fun WatchLaterScreen(
         }
     }
     val displayedItems = state.items
+    val renderKeys = remember(displayedItems) {
+        resolveCommonListRenderKeys(displayedItems.map { item ->
+            "watch_later_video_${item.bvid.ifBlank { "id_${item.id}" }}"
+        })
+    }
     val gridState = rememberLazyGridState()
 
     // 双指缩放列数：换档震动 + HUD 胶囊提示
@@ -1247,18 +1253,11 @@ fun WatchLaterScreen(
                         ) {
                             itemsIndexed(
                                 items = displayedItems,
-                                key = { index, item ->
-                                    resolveIndexedVideoLazyKey(
-                                        namespace = "watch_later_video",
-                                        index = index,
-                                        bvid = item.bvid,
-                                        id = item.id,
-                                        aid = item.aid,
-                                        cid = item.cid
-                                    )
-                                }
+                                key = { index, _ -> renderKeys[index] }
                             ) { index, item ->
-                                AnimatedVideoListItem(modifier = videoListItemModifier(enabled = homeSettings.cardAnimationEnabled), enabled = homeSettings.cardAnimationEnabled) {
+                                // The dissolve owns height collapse; avoid a second Lookahead
+                                // size animation while scrolling/removing this lazy item.
+                                Box(modifier = videoListItemModifier(enabled = homeSettings.cardAnimationEnabled)) {
                                     if (index == displayedItems.lastIndex && state.hasMore && !state.isLoadingMore) {
                                         LaunchedEffect(state.page, displayedItems.size) { viewModel.loadMore() }
                                     }

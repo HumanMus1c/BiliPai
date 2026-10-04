@@ -85,6 +85,7 @@ internal fun resolvePortraitProgressTimeLabel(
 @Composable
 fun PortraitFullscreenOverlay(
     title: String,
+    declarations: List<String> = emptyList(),
     ugcSeason: UgcSeason? = null,
     currentBvid: String = "",
     currentCid: Long = 0L,
@@ -273,6 +274,7 @@ fun PortraitFullscreenOverlay(
                         ownerMid = ownerMid,
                         onStaffMemberClick = onStaffMemberClick,
                         title = title,
+                        declarations = declarations,
                         ugcSeason = ugcSeason,
                         currentBvid = currentBvid,
                         currentCid = currentCid,
@@ -650,6 +652,7 @@ private fun PortraitVideoInfo(
     ownerMid: Long = 0L,
     onStaffMemberClick: (Long) -> Unit = {},
     title: String,
+    declarations: List<String> = emptyList(),
     ugcSeason: UgcSeason? = null,
     currentBvid: String = "",
     currentCid: Long = 0L,
@@ -783,6 +786,38 @@ private fun PortraitVideoInfo(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.clickable { onTitleClick() }
         )
+        if (declarations.isNotEmpty()) {
+            Column(
+                modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                declarations.forEach { message ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(14.dp),
+                        )
+                        AppText(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                shadow = androidx.compose.ui.graphics.Shadow(
+                                    color = Color.Black,
+                                    blurRadius = 3f,
+                                ),
+                            ),
+                            color = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.weight(1f),
+                            tapToCopyEnabled = false,
+                        )
+                    }
+                }
+            }
+        }
         if (ugcSeason != null && ugcSeason.id > 0L) {
             CollectionRow(
                     ugcSeason = ugcSeason,

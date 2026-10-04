@@ -1817,12 +1817,14 @@ fun HomeHeader(
     }
     
     val hideTopTabs = homeSettings?.hideTopTabs == true
-    val bottomBarSearchEnabled = homeSettings?.isBottomBarSearchEnabled == true && !hideTopTabs
+    val bottomBarSearchEnabled = homeSettings?.isBottomBarSearchEnabled == true && !hideTopTabs &&
+        homeSettings?.keepHomeTopSearchWithBottomSearch != true
     val topSearchMetrics = resolveHomeTopSearchRowMetrics(
         configuredHeight = resolveHomeTopSearchBarHeight(topChromePolicy),
         configuredTabsSpacing = resolveHomeTopSearchToTabsSpacing(topChromePolicy),
         bottomBarSearchEnabled = homeSettings?.isBottomBarSearchEnabled == true,
         hideTopTabs = hideTopTabs,
+        keepTopSearch = homeSettings?.keepHomeTopSearchWithBottomSearch == true,
     )
     val searchBarHeightDp = topSearchMetrics.height
     val topTabLabelMode = homeSettings?.topTabLabelMode
@@ -2721,6 +2723,7 @@ fun HomeHeader(
                                             onSearchClick()
                                         },
                                         placeholder = "搜索视频、UP主...",
+                                        centeredContent = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                 }

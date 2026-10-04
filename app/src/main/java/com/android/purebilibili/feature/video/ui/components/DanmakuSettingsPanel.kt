@@ -63,6 +63,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.store.SettingsManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -371,6 +373,14 @@ fun DanmakuSettingsPanel(
     onShowDanmakuPool: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
+    val settingsContext = LocalContext.current
+    val settingsScopeCoroutine = rememberCoroutineScope()
+    val hotDanmakuEnabled by remember(settingsContext) {
+        SettingsManager.getDanmakuHotBarEnabled(settingsContext)
+    }.collectAsStateWithLifecycle(initialValue = true)
+    val expandedHotDanmaku by remember(settingsContext) {
+        SettingsManager.getHotDanmakuExpandedMode(settingsContext)
+    }.collectAsStateWithLifecycle(initialValue = false)
     var showBlockManager by remember { mutableStateOf(false) }
     val blockManagerSections = remember(blockRulesRaw) {
         resolveDanmakuBlockManagerSections(blockRulesRaw)
@@ -907,6 +917,42 @@ indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
                                     colors = panelColors,
                                     fullscreenStyle = isFullscreenStyle
                                 )
+                                DanmakuFilterSwitchRow(
+                                    label = "顶部计数弹幕",
+                                    checked = hotDanmakuEnabled,
+                                    onCheckedChange = { enabled ->
+                                        settingsScopeCoroutine.launch {
+                                            SettingsManager.setDanmakuHotBarEnabled(settingsContext, enabled)
+                                        }
+                                    },
+                                    colors = panelColors,
+                                    fullscreenStyle = isFullscreenStyle,
+                                )
+                                AppText(
+                                    text = "在顶部正中显示高赞计数弹幕。普通模式预留空间避让；海量模式独立叠加，不改变轨道和行数，顶部可能与普通弹幕重叠。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = panelColors.supportingColor,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                                if (hotDanmakuEnabled) {
+                                    DanmakuFilterSwitchRow(
+                                        label = "计数弹幕扩展显示",
+                                        checked = expandedHotDanmaku,
+                                        onCheckedChange = { enabled ->
+                                            settingsScopeCoroutine.launch {
+                                                SettingsManager.setHotDanmakuExpandedMode(settingsContext, enabled)
+                                            }
+                                        },
+                                        colors = panelColors,
+                                        fullscreenStyle = isFullscreenStyle,
+                                    )
+                                    AppText(
+                                        text = "开启后最多显示三条，允许横向滚动和省略长文字；关闭时最多两条，居中完整显示。",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = panelColors.supportingColor,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                }
                                 DanmakuFilterSwitchRow(
                                     label = "海量弹幕模式",
                                     checked = massiveMode,
@@ -1736,16 +1782,20 @@ private fun DanmakuAreaSelector(
 ) {
     //  本地状态确保即时 UI 响应
     var localArea by remember(currentArea) { mutableFloatStateOf(currentArea) }
-    
+
     data class AreaOption(val value: Float, val label: String, val subLabel: String)
-    
+
     val areaOptions = listOf(
+        AreaOption(0.125f, "1/8", "窄带"),
         AreaOption(0.25f, "1/4", "顶部"),
+        AreaOption(0.375f, "3/8", "小半"),
         AreaOption(0.5f, "1/2", "半屏"),
+        AreaOption(0.625f, "5/8", "过半"),
         AreaOption(0.75f, "3/4", "大部"),
+        AreaOption(0.875f, "7/8", "近全"),
         AreaOption(1.0f, "全屏", "铺满")
     )
-    
+
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.itemColor,
@@ -1759,70 +1809,73 @@ private fun DanmakuAreaSelector(
                 color = colors.titleColor,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                areaOptions.forEach { option ->
-                    //  使用本地状态判断选中状态
-                    val isSelected = kotlin.math.abs(localArea - option.value) < 0.1f
-                    
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(AppShapes.container(ContainerLevel.Card))
-                            .then(
-                                if (isSelected) {
-                                    Modifier.background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                MaterialTheme.colorScheme.primary,
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+
+            areaOptions.chunked(4).forEachIndexed { rowIndex, rowOptions ->
+                if (rowIndex > 0) Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    rowOptions.forEach { option ->
+                        //  使用本地状态判断选中状态
+                        val isSelected = kotlin.math.abs(localArea - option.value) < 0.001f
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(AppShapes.container(ContainerLevel.Card))
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.background(
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    MaterialTheme.colorScheme.primary,
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                                )
                                             )
                                         )
-                                    )
-                                } else {
-                                    Modifier
-                                        .background(colors.fieldBackgroundColor)
-                                        .border(1.dp, colors.fieldBorderColor, AppShapes.container(ContainerLevel.Card))
+                                    } else {
+                                        Modifier
+                                            .background(colors.fieldBackgroundColor)
+                                            .border(1.dp, colors.fieldBorderColor, AppShapes.container(ContainerLevel.Card))
+                                    }
+                                )
+                                .clickable {
+                                    localArea = option.value  //  即时更新 UI
+                                    onAreaChange(option.value)
                                 }
-                            )
-                            .clickable { 
-                                localArea = option.value  //  即时更新 UI
-                                onAreaChange(option.value) 
-                            }
-                            .padding(vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            AppText(
-                                text = option.label,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    colors.titleColor
-                                },
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                ),
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            AppText(
-                                text = option.subLabel,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                                } else {
-                                    colors.supportingColor
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                textAlign = TextAlign.Center
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                AppText(
+                                    text = option.label,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        colors.titleColor
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                AppText(
+                                    text = option.subLabel,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                    } else {
+                                        colors.supportingColor
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }

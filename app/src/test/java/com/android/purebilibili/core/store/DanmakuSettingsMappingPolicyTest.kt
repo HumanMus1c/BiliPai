@@ -18,9 +18,11 @@ class DanmakuSettingsMappingPolicyTest {
 
     @Test
     fun arbitraryDisplayAreaValues_snapToNearestSupportedOption() {
-        assertEquals(0.25f, normalizeDanmakuDisplayArea(0.33f))
-        assertEquals(0.5f, normalizeDanmakuDisplayArea(0.6f))
-        assertEquals(0.75f, normalizeDanmakuDisplayArea(0.63f))
+        assertEquals(0.125f, normalizeDanmakuDisplayArea(0.125f))
+        assertEquals(0.375f, normalizeDanmakuDisplayArea(0.33f))
+        assertEquals(0.625f, normalizeDanmakuDisplayArea(0.6f))
+        assertEquals(0.625f, normalizeDanmakuDisplayArea(0.63f))
+        assertEquals(0.875f, normalizeDanmakuDisplayArea(0.875f))
         assertEquals(1.0f, normalizeDanmakuDisplayArea(0.99f))
     }
 

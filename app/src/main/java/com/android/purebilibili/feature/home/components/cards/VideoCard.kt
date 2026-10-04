@@ -290,7 +290,7 @@ private fun VideoCardOwnerMetadata(
             followerCount = upFollowerCount,
             videoCount = upVideoCount
         ),
-        inlineTrailingContent = if (isFollowing) {
+        badgeTrailingContent = if (isFollowing) {
             {
                 if (infoBadgeStyle == HomeVideoBadgeStyle.GLASS) {
                     AppSurface(
@@ -353,12 +353,12 @@ private fun VideoCardOwnerMetadata(
         nameEndPadding = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
         // 未关注时不再渲染空的尾部槽位，避免继续占用作者名的可用宽度；
         // 已关注时由真实的尾部内容自行占位。
-        reserveTrailingSlot = false,
+        reserveTrailingSlot = isFollowing,
         trailingSlotMinWidth = AppSpacingTokens.None,
         trailingSlotMinHeight = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
         showUpBadge = showUpBadge,
-        maxLines = Int.MAX_VALUE,
-        overflow = TextOverflow.Visible,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         metaMaxLines = Int.MAX_VALUE,
         metaOverflow = TextOverflow.Visible,
         modifier = ownerModifier
@@ -997,6 +997,7 @@ internal fun ElegantVideoCard(
     }
     val adaptiveHoverShape = AppShapes.container(ContainerLevel.Card)
     Box(
+        propagateMinConstraints = true,
         modifier = modifier
             .fillMaxWidth()
             .adaptiveCardHoverEffect(shape = adaptiveHoverShape)
@@ -1104,6 +1105,7 @@ internal fun ElegantVideoCard(
         // - 内层 Column 挂 sharedBounds（封面/标题等，无 solid fill）
         // 若把 cardContainer 画进 sharedBounds，预测返回时会盖住详情壳实时视频 → 大黑块。
         Box(
+            propagateMinConstraints = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .recordNativeVideoCardLayer(
@@ -1717,6 +1719,8 @@ internal fun ElegantVideoCard(
                     }
                 )
         }
+
+        Spacer(modifier = Modifier.weight(1f))
 
         Box(
             modifier = infoContainerModifier.videoCardShellReturnChromeAlpha(

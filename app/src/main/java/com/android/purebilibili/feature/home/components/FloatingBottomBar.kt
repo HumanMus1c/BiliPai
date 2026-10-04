@@ -18,6 +18,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -468,6 +470,8 @@ fun FloatingBottomBar(
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     drawShell: Boolean = true,
+    dragScrollState: ScrollState? = null,
+    dragScrollViewportWidthPx: () -> Float = { 0f },
     content: @Composable RowScope.() -> Unit
 ) {
     // Do not use the system night flag here: BiliPai supports an app-only dark theme.
@@ -620,6 +624,7 @@ fun FloatingBottomBar(
     val selectedIndexLatest = rememberUpdatedState(selectedIndex)
     val onSelectedLatest = rememberUpdatedState(onSelected)
     val onIndicatorPositionChangedLatest = rememberUpdatedState(onIndicatorPositionChanged)
+    val dragScrollViewportWidthLatest = rememberUpdatedState(dragScrollViewportWidthPx)
     val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
     val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
     val pagerFollowGate = remember { ExternalPagerIndicatorFollowGate() }
@@ -707,6 +712,36 @@ fun FloatingBottomBar(
         // Search reserving space beside the dock can retarget indicator geometry. Updating the
         // field keeps press bloom in sync without recreating the pointerInput owner.
         dampedDragAnimation.pressedScale = pressedScale
+    }
+    LaunchedEffect(dampedDragAnimation, dragScrollState, density) {
+        val scroll = dragScrollState ?: return@LaunchedEffect
+        snapshotFlow { dampedDragAnimation.isDragging }.collectLatest { dragging ->
+            if (!dragging) return@collectLatest
+            scroll.scroll {
+                var previousFrame = withFrameNanos { it }
+                while (dampedDragAnimation.isDragging) {
+                    val frame = withFrameNanos { it }
+                    val seconds = ((frame - previousFrame) / 1_000_000_000f).coerceIn(0f, 0.032f)
+                    previousFrame = frame
+                    if (tabWidthPx <= 0f) continue
+                    // Logical coordinates start at the first tab, so RTL uses the same
+                    // edge rule and ScrollState direction as LTR.
+                    val center = with(density) { horizontalPaddingLatest.value.toPx() } +
+                        (dampedDragAnimation.targetValue + 0.5f) * tabWidthPx - scroll.value
+                    val viewport = dragScrollViewportWidthLatest.value()
+                    val edge = minOf(tabWidthPx * 0.65f, viewport / 3f)
+                    val velocity = resolveDockDragEdgeScrollFraction(center, viewport, edge) *
+                        with(density) { 360.dp.toPx() }
+                    val consumed = scrollBy(velocity * seconds)
+                    if (consumed != 0f) {
+                        dampedDragAnimation.updateValue(
+                            (dampedDragAnimation.targetValue + consumed / tabWidthPx)
+                                .coerceIn(0f, maxTabIndex.toFloat())
+                        )
+                    }
+                }
+            }
+        }
     }
     // Pager swipes are already continuous state. When explicitly requested, read that position
     // in layout/draw instead of depending solely on the coroutine mirror above. This keeps the

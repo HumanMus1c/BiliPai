@@ -390,8 +390,6 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         cursorMax = 0
         cursorViewAt = 0
         cursorBusiness = ""
-        _historyItemsMap.clear()
-        _historyItemsByRenderKey.clear()
         _deleteSession.value = null
         
         val result = com.android.purebilibili.data.repository.HistoryRepository.getHistoryList(
@@ -421,6 +419,10 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         
         // 保存历史记录项并转换为 VideoItem
         val historyItems = enrichHistoryProgress(historyResult.list.map { it.toHistoryItem() })
+        // 刷新请求期间保留旧列表的完整信息，收到新列表后再一起替换缓存。
+        // 否则仍在屏幕上的历史条目会暂时退回普通视频卡片（统计缺失时显示 0）。
+        _historyItemsMap.clear()
+        _historyItemsByRenderKey.clear()
         cacheHistoryItems(historyItems)
         
         com.android.purebilibili.core.util.Logger.d(

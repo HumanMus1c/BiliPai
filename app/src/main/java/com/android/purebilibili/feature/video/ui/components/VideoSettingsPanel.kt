@@ -1423,8 +1423,8 @@ fun VideoSettingsPanel(
             item {
                 VideoSettingsSwitchRow(
                     icon = rememberSettingsSemanticIcon(SettingsIconRole.PROGRESS_PEAK_DANMAKU),
-                    title = "高赞弹幕悬浮条",
-                    subtitle = if (danmakuHotBarEnabled) "展示最近 15 秒的高赞弹幕，可点赞或确认后发送同款" else "关闭高赞弹幕悬浮条",
+                    title = "顶部计数弹幕",
+                    subtitle = if (danmakuHotBarEnabled) "顶部居中展示高赞计数弹幕，海量模式不占用普通弹幕轨道" else "已关闭，顶部空间交还普通弹幕",
                     checked = danmakuHotBarEnabled,
                     onCheckedChange = { checked ->
                         scope.launch {
@@ -1776,4 +1776,3 @@ private fun SeekSecondsOptions(
         }
     }
 }
-

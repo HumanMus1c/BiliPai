@@ -22,8 +22,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
@@ -38,13 +36,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +75,6 @@ import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private object NoOpHapticFeedback : HapticFeedback {
@@ -1680,8 +1674,7 @@ fun AppSearchEntry(
     modifier: Modifier = Modifier,
     placeholder: String = "搜索",
     containerColor: Color = Color.Unspecified,
-    centeredIdleContent: Boolean = false,
-    searchBarState: SearchBarState = rememberSearchBarState(),
+    centeredContent: Boolean = false,
 ) {
     val uiStyle = LocalAppUiStyle.current
     val miuixContainerColor = if (containerColor == Color.Unspecified) {
@@ -1689,70 +1682,26 @@ fun AppSearchEntry(
     } else {
         containerColor
     }
-    if (centeredIdleContent) {
-        val scope = rememberCoroutineScope()
-        val currentOnClick by rememberUpdatedState(onClick)
-        var opening by remember { mutableStateOf(false) }
-        val contentColor = if (uiStyle == AppUiStyle.MIUIX) {
-            MiuixTheme.colorScheme.onSurfaceContainerHigh
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
-        Layout(
+    if (centeredContent) {
+        val hintColor = if (uiStyle == AppUiStyle.MIUIX) MiuixTheme.colorScheme.onSurfaceContainerHigh
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
             modifier = modifier
                 .fillMaxWidth()
                 .heightIn(min = rememberAdaptiveListComponentVisualSpec().searchBarHeightDp.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(
-                    if (uiStyle == AppUiStyle.MIUIX) miuixContainerColor
+                .background(if (uiStyle == AppUiStyle.MIUIX) miuixContainerColor
                     else if (containerColor != Color.Unspecified) containerColor
-                    else MaterialTheme.colorScheme.surfaceContainerHigh
-                )
-                .clickable(
-                    enabled = !opening && searchBarState.targetValue == SearchBarValue.Collapsed,
-                    role = Role.Button,
-                ) {
-                    if (!opening && searchBarState.targetValue == SearchBarValue.Collapsed) {
-                        opening = true
-                        scope.launch {
-                            try {
-                                searchBarState.animateToExpanded()
-                                currentOnClick()
-                            } finally {
-                                opening = false
-                            }
-                        }
-                    }
-                }
+                    else MaterialTheme.colorScheme.surfaceContainerHigh)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
-            content = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppIcon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    AppText(
-                        text = placeholder,
-                        color = contentColor,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                }
-            },
-        ) { measurables, constraints ->
-            val content = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
-            val width = constraints.maxWidth
-            val height = constraints.constrainHeight(content.height)
-            layout(width, height) {
-                // 复用搜索展开进度；在放置阶段读取，图标和文字同步移动。
-                val centeredX = (width - content.width) / 2
-                val x = (centeredX * (1f - searchBarState.progress)).toInt()
-                content.placeRelative(x, (height - content.height) / 2)
-            }
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AppIcon(Icons.Default.Search, contentDescription = null, tint = hintColor, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            AppText(placeholder, color = hintColor, style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         return
     }
@@ -1769,6 +1718,7 @@ fun AppSearchEntry(
         )
     } else {
         // 现行 SearchBar API：静态入口无文本，点击/聚焦触发展开时导航并立即收起。
+        val searchBarState = rememberSearchBarState()
         val textFieldState = rememberTextFieldState(initialText = "")
         LaunchedEffect(searchBarState, onClick) {
             snapshotFlow { searchBarState.currentValue }
