@@ -97,6 +97,7 @@ import com.android.purebilibili.data.repository.LiveRedPocketInfo
 import com.android.purebilibili.feature.live.components.LandscapeChatOverlay
 import com.android.purebilibili.feature.live.components.LiveChatSection
 import com.android.purebilibili.feature.live.components.LiveChatInputBar
+import com.android.purebilibili.feature.video.ui.feedback.followActionAnchor
 import com.android.purebilibili.feature.live.components.LiveContributionRankSheet
 import com.android.purebilibili.feature.live.components.LiveDmBlockSheet
 import com.android.purebilibili.feature.live.components.LiveEmoticonSheet
@@ -1041,6 +1042,7 @@ fun LivePlayerScreen(
             ) {
                 LiveDanmakuOverlay(
                     danmakuFlow = viewModel.danmakuFlow,
+                    isFullscreen = isFullscreen,
                     displayArea = liveDanmakuDisplayArea,
                     danmakuSettings = liveDanmakuSettings,
                     modifier = Modifier
@@ -2167,6 +2169,7 @@ private fun LivePortraitOverlayAppBar(
                         contentColor = palette.onAccent,
                         modifier = Modifier
                             .height(26.dp)
+                            .followActionAnchor()
                             .semantics { contentDescription = "关注主播" }
                     ) {
                         Row(

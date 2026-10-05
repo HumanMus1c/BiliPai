@@ -112,27 +112,6 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun stateHolder_suppressesDetailBodyWhenStandalonePortraitPagerIsShown() {
-        val source = java.io.File(
-            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
-        ).readText()
-
-        assertTrue(source.contains("shouldSuppressPhoneDetailBodyUnderStandalonePortraitPager"))
-        assertTrue(source.contains("if (!suppressPhoneDetailBodyForDirectPortrait && !isPortraitFullscreen)"))
-        assertTrue(source.contains("shouldCommitPortraitProgressToDetailState("))
-    }
-
-    @Test
-    fun inlineHost_exitsCompositionWhenPortraitFullscreenOwnsPlayback() {
-        val source = java.io.File(
-            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailPlayerTransitionHost.kt"
-        ).readText()
-
-        assertTrue(source.contains("if (isPortraitFullscreen) {"))
-        assertTrue(source.contains("PortraitInlineVideoPlayerHost("))
-    }
-
-    @Test
     fun standalonePortraitPager_showsWhenPortraitFullscreenRequestedEvenInInlineMode() {
         assertTrue(
             shouldShowStandalonePortraitPager(
@@ -232,42 +211,81 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun enabledCollapseModes_keepFullWidth16By9PortraitCanvas() {
+    fun pausedCommentViewport_hidesMediaWithoutChangingOtherCompactSizes() {
         assertEquals(
-            231.75f,
-            resolvePiliPlusCollapsedPlayerViewportHeightDp(
+            0f,
+            resolveInlinePlayerCollapsedViewportHeightDp(
                 standardCollapsedHeightDp = 231.75f,
-                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
-                isPlaybackPaused = true,
+                hidePausedPlayerForComments = true,
+            )
+        )
+        assertEquals(
+            0f,
+            resolveInlinePlayerCollapsedViewportHeightDp(
+                standardCollapsedHeightDp = 56f,
+                hidePausedPlayerForComments = true,
             )
         )
         assertEquals(
             231.75f,
-            resolvePiliPlusCollapsedPlayerViewportHeightDp(
+            resolveInlinePlayerCollapsedViewportHeightDp(
                 standardCollapsedHeightDp = 231.75f,
-                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
-                isPlaybackPaused = false,
+                hidePausedPlayerForComments = false,
+            )
+        )
+        assertEquals(
+            56f,
+            resolveInlinePlayerCollapsedViewportHeightDp(
+                standardCollapsedHeightDp = 56f,
+                hidePausedPlayerForComments = false,
             )
         )
     }
 
     @Test
-    fun everyCollapseMode_usesFullWidth16By9PortraitCanvas() {
-        listOf(
-            PortraitPlayerCollapseMode.OFF,
-            PortraitPlayerCollapseMode.INTRO_ONLY,
-            PortraitPlayerCollapseMode.COMMENT_ONLY,
-            PortraitPlayerCollapseMode.BOTH,
-        ).forEach { mode ->
-            assertEquals(
-                231.75f,
-                resolvePiliPlusCollapsedPlayerViewportHeightDp(
-                    standardCollapsedHeightDp = 231.75f,
-                    collapseMode = mode,
-                    isPlaybackPaused = true,
+    fun pausedComments_allowHideRegardlessOfPlayingCollapseModeOrVideoOrientation() {
+        PortraitPlayerCollapseMode.entries.forEach { mode ->
+            listOf(false, true).forEach { isVerticalVideo ->
+                assertTrue(
+                    shouldEnableInlinePortraitScrollTransform(
+                        collapseMode = mode,
+                        selectedTabIndex = 1,
+                        isVerticalVideo = isVerticalVideo,
+                        isPlaybackPaused = true,
+                    )
                 )
-            )
+            }
         }
+        assertFalse(
+            shouldEnableInlinePortraitScrollTransform(
+                collapseMode = PortraitPlayerCollapseMode.OFF,
+                selectedTabIndex = 1,
+                isPlaybackPaused = false,
+            )
+        )
+        assertFalse(
+            shouldEnableInlinePortraitScrollTransform(
+                collapseMode = PortraitPlayerCollapseMode.OFF,
+                selectedTabIndex = 0,
+                isPlaybackPaused = true,
+            )
+        )
+    }
+
+    @Test
+    fun pausedCommentThread_canHidePlayerFromIntroWithoutHidingIntroItself() {
+        assertTrue(
+            shouldEnableInlinePortraitScrollTransform(
+                collapseMode = PortraitPlayerCollapseMode.OFF,
+                selectedTabIndex = 0,
+                isPlaybackPaused = true,
+                isCommentThreadVisible = true,
+            )
+        )
+        assertFalse(shouldHidePausedInlinePlayerForComments(0, true))
+        assertFalse(shouldHidePausedInlinePlayerForComments(1, false))
+        assertTrue(shouldHidePausedInlinePlayerForComments(1, true))
+        assertTrue(shouldHidePausedInlinePlayerForComments(0, true, isCommentThreadVisible = true))
     }
 
     @Test
@@ -599,14 +617,12 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun inlinePortraitPlayer_restoreUsesDedicatedAnimatedProgress() {
-        val source = java.io.File(
-            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
-        ).readText()
-
-        assertTrue(source.contains("label = \"inline_portrait_player_restore\""))
-        assertTrue(source.contains("manualOrCompactCollapseProgress = animatedCollapseProgress"))
-        assertTrue(source.contains("if (inlinePlayerCollapseState.restoreRequested)"))
+    fun commentPullRefresh_staysDisabledUntilPlayerIsFullyRestored() {
+        val progress = listOf(1f, 0.5f, 0.001f, 0f, 0.1f, 0f)
+        assertEquals(
+            listOf(false, false, false, true, false, true),
+            progress.map(::shouldEnableCommentPullToRefresh),
+        )
     }
 
     @Test

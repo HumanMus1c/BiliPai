@@ -119,10 +119,12 @@ class VideoActionFeedbackPolicyTest {
     }
 
     @Test
-    fun `like burst placement uses centered emphasized overlay`() {
-        val placement = resolveLikeBurstPlacement()
+    fun `like feedback clears controls and the navigation inset`() {
+        val placement = resolveLikeBurstPlacement(bottomInsetDp = 24)
 
-        assertEquals(VideoFeedbackAnchor.CenterOverlay, placement.anchor)
+        assertEquals(VideoFeedbackAnchor.BottomTrailing, placement.anchor)
+        assertEquals(88, placement.bottomInsetDp)
+        assertEquals(16, placement.sideInsetDp)
         assertEquals(VideoFeedbackEmphasis.Emphasized, placement.emphasis)
     }
 }

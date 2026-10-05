@@ -128,10 +128,9 @@ internal data class SubReplyDetailLayoutPolicy(
     val headerVerticalPaddingDp: Int,
     val sectionVerticalPaddingDp: Int,
     val sectionDividerThicknessDp: Int,
-    val commentVerticalPaddingDp: Int,
+    val commentTopPaddingDp: Int,
     val avatarContentSpacingDp: Int,
     val authorToContentSpacingDp: Int,
-    val contentToActionSpacingDp: Int,
 )
 
 /** Keeps the thread-detail avatar bound in sync with the main comment list. */
@@ -204,10 +203,9 @@ internal fun resolveSubReplyDetailLayoutPolicy(
         headerVerticalPaddingDp = 0,
         sectionVerticalPaddingDp = 0,
         sectionDividerThicknessDp = 6,
-        commentVerticalPaddingDp = 10,
+        commentTopPaddingDp = 10,
         avatarContentSpacingDp = 8,
         authorToContentSpacingDp = 8,
-        contentToActionSpacingDp = 8,
     )
 }
 
@@ -1262,8 +1260,7 @@ private fun SubReplyDetailItem(
         Row(
             modifier = Modifier
                 .padding(
-                    top = layoutPolicy.commentVerticalPaddingDp.dp,
-                    bottom = layoutPolicy.commentVerticalPaddingDp.dp,
+                    top = layoutPolicy.commentTopPaddingDp.dp,
                     start = 16.dp,
                     end = 16.dp
                 )
@@ -1420,6 +1417,7 @@ private fun SubReplyDetailItem(
                                         isLiked = isLiked,
                                         onLikeClick = onLikeClick,
                                         onReplyClick = onReplyClick,
+                                        detailedTimeEnabled = detailedCommentTimeEnabled
                                     )
                                 )
                             },
@@ -1429,8 +1427,6 @@ private fun SubReplyDetailItem(
                 }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(layoutPolicy.contentToActionSpacingDp.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

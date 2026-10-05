@@ -254,10 +254,14 @@ fun AppModalBottomSheet(
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     presentationOverride: AppModalPresentation? = null,
     sheetSurfaceModifier: Modifier = Modifier,
+    backgroundBlurBehind: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
     val miuixNonGlass = isMiuixNonGlassEnabled()
+    // 非（MIUIX 无玻璃）风格才启用系统 blur-behind；Haze 无法跨窗口采样，
+    // 底部弹窗背后的内容模糊依赖系统 FLAG_BLUR_BEHIND（API 31+，设备不支持时自动退化为纯遮罩）。
+    val blurBehind = backgroundBlurBehind && !miuixNonGlass
     val configuration = LocalConfiguration.current
     // 半开折叠屏：sheet 整体收进铰链安全侧，避免横跨折缝。
     val hingeSafeRegions = LocalHingeSafeOverlayRegions.current.sheet
@@ -310,6 +314,7 @@ fun AppModalBottomSheet(
                 dismissOnBackPress = dismissOnBackPress,
                 onDismissRequest = onDismissRequest,
             ) {
+                ModalWindowBlurBehindEffect(enabled = blurBehind)
                 val surface: @Composable () -> Unit = {
                     BoxWithConstraints {
                         AppPopupSurface(
@@ -361,6 +366,7 @@ fun AppModalBottomSheet(
                 dismissOnBackPress = dismissOnBackPress,
                 onDismissRequest = onDismissRequest,
             ) {
+                ModalWindowBlurBehindEffect(enabled = blurBehind)
                 AppPopupSurface(
                     type = AppPopupSurfaceType.SHEET,
                     modifier = Modifier.fillMaxWidth().then(sheetSurfaceModifier),

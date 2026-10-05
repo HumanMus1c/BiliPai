@@ -432,6 +432,13 @@ object DownloadManager {
                 localDanmakuMetadataPath = localDanmakuMetadataPath
             ) 
         }
+        _tasks.value[task.id]?.takeIf { it.status == DownloadStatus.COMPLETED }?.let { completed ->
+            com.android.purebilibili.core.events.BrandSuccessEvents.downloadCompleted(
+                taskId = completed.id,
+                createdAt = completed.createdAt,
+                title = completed.title
+            )
+        }
         scheduleNextQueuedDownload()
         
         com.android.purebilibili.core.util.Logger.d("DownloadManager", "✅ Download completed: ${task.title} (AudioOnly: ${task.isAudioOnly})")

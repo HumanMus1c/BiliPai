@@ -33,6 +33,20 @@ fun buildWatchLaterPageParams(
 )
 
 object WatchLaterRepository {
+    suspend fun add(aid: Long): Result<Boolean> = dataRequest {
+        val response = api.addToWatchLater(aid, requireCsrf())
+        if (response.code != 0) throw ContentRequestException(response.code, when (response.code) {
+            90001 -> "稍后再看列表已满"; 90003 -> "视频已被删除"; else -> response.message
+        })
+        true
+    }
+    suspend fun remove(aid: Long): Result<Boolean> = dataRequest {
+        val response = api.deleteFromWatchLater(aid = aid, csrf = requireCsrf())
+        if (response.code != 0) throw ContentRequestException(response.code, when (response.code) {
+            90001 -> "稍后再看列表已满"; 90003 -> "视频已被删除"; else -> response.message
+        })
+        true
+    }
     private const val PAGE_SIZE = 20
     private val api = NetworkModule.api
 
@@ -47,7 +61,7 @@ object WatchLaterRepository {
             val keys = WbiKeyManager.getWbiKeys().getOrNull()
                 ?: WbiKeyManager.refreshKeys().getOrThrow()
             val response = api.getWatchLaterPage(WbiUtils.sign(params, keys.first, keys.second))
-            check(response.code == 0) { response.message.ifBlank { "加载稍后再看失败" } }
+            if (response.code != 0) throw ContentRequestException(response.code, response.message)
             val data = response.data
             val items = data?.list.orEmpty().map { item ->
                 val badges = buildList {
@@ -129,7 +143,7 @@ object WatchLaterRepository {
         }
     }
 
-    private fun requireCsrf(): String = TokenManager.csrfCache.orEmpty().ifBlank { error("请先登录") }
+    private fun requireCsrf(): String = TokenManager.csrfCache.orEmpty().ifBlank { throw ContentRequestException(-101, "") }
 
     private suspend inline fun <T> apiCall(crossinline block: suspend () -> T): Result<T> = try {
         Result.success(block())

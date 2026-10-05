@@ -72,6 +72,7 @@ import com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoCardSourceCoverPresentation
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
+import com.android.purebilibili.data.model.resolveVideoCardStatsTexts
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.store.HomeCardBadgeEffectMode
@@ -193,13 +194,6 @@ internal fun resolveVideoCardCoverCacheKey(
     val baseKey = resolveVideoSharedCoverCacheKey(normalizedIdentity, useLowQualityCover)
     return requestSpec?.let { "${baseKey}_${it.cacheKeySuffix}" } ?: baseKey
 }
-
-private data class VideoCardTexts(
-    val durationText: String,
-    val primaryStatText: String,
-    val secondaryStatText: String?,
-    val durationBadgeMinWidth: androidx.compose.ui.unit.Dp
-)
 
 private data class VideoCardPillColors(
     val cover: HomeGlassResolvedColors,
@@ -595,25 +589,19 @@ internal fun ElegantVideoCard(
     
     val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Card)
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
+    // 统计文案组合规则已下沉 core-data（resolveVideoCardStatsTexts），与 TV 卡片共用同一实现。
     val cardTexts = remember(video.duration, video.stat.view, video.stat.reply, video.stat.danmaku, video.progress) {
-        val durationText = FormatUtils.formatDuration(video.duration)
-        val primaryStatText = if (video.stat.view > 0) {
-            FormatUtils.formatStat(video.stat.view.toLong())
-        } else {
-            FormatUtils.formatProgress(video.progress, video.duration)
-        }
-        val commentCount = video.stat.reply.takeIf { it > 0 } ?: video.stat.danmaku
-        val secondaryStatText = commentCount.takeIf { it > 0 }?.let { FormatUtils.formatStat(it.toLong()) }
-        val durationBadgeMinWidth = resolveVideoCardDurationBadgeMinWidthDp(
-            durationText = durationText,
-            style = durationBadgeStyle
-        ).dp
-        VideoCardTexts(durationText, primaryStatText, secondaryStatText, durationBadgeMinWidth)
+        resolveVideoCardStatsTexts(video)
     }
     val durationText = cardTexts.durationText
     val primaryStatText = cardTexts.primaryStatText
     val secondaryStatText = cardTexts.secondaryStatText
-    val durationBadgeMinWidth = cardTexts.durationBadgeMinWidth
+    val durationBadgeMinWidth = remember(durationText) {
+        resolveVideoCardDurationBadgeMinWidthDp(
+            durationText = durationText,
+            style = durationBadgeStyle
+        ).dp
+    }
     // 时长作为统计行 pill（闹钟图标 + 文本）时的最小宽度预算，供封面统计行自适应让位。
     val durationStatMinWidthDp = remember(durationText) {
         resolveVideoCardDurationStatMinWidthDp(durationText)

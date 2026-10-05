@@ -958,32 +958,10 @@ class SpaceViewModel(
 
     
     //  支持 tid 和 order 参数的视频获取
-    private suspend fun fetchSpaceVideos(
-        mid: Long, 
-        page: Int, 
-        imgKey: String, 
-        subKey: String, 
-        tid: Int = 0,
-        order: VideoSortOrder = VideoSortOrder.PUBDATE,
-        keyword: String = ""
-    ): SpaceVideoData? {
-        return try {
-            val params = WbiUtils.sign(mutableMapOf(
-                "mid" to mid.toString(),
-                "pn" to page.toString(),
-                "ps" to pageSize.toString(),
-                "order" to order.apiValue  //  使用传入的排序方式
-            ).apply {
-                if (tid > 0) put("tid", tid.toString())  //  添加分类筛选
-                if (keyword.isNotBlank()) put("keyword", keyword)
-            }.toMap(), imgKey, subKey)
-            val response = spaceApi.getSpaceVideos(params)
-            if (response.code == 0) response.data else null
-        } catch (e: Exception) {
-            android.util.Log.e("SpaceVM", "fetchSpaceVideos error: ${e.message}")
-            null
-        }
-    }
+    private suspend fun fetchSpaceVideos(mid: Long, page: Int, imgKey: String, subKey: String,
+        tid: Int = 0, order: VideoSortOrder = VideoSortOrder.PUBDATE, keyword: String = ""): SpaceVideoData? =
+        com.android.purebilibili.data.repository.UserContentRepository.videos(mid, page, pageSize, order.apiValue,
+            tid, keyword, imgKey, subKey).getOrNull()
 
     private suspend fun fetchSpaceVideosWithRetry(
         mid: Long,

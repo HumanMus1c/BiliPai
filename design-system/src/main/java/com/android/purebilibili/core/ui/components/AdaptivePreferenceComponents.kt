@@ -1675,6 +1675,7 @@ fun AppSearchEntry(
     placeholder: String = "搜索",
     containerColor: Color = Color.Unspecified,
     centeredContent: Boolean = false,
+    openOnFocus: Boolean = true,
 ) {
     val uiStyle = LocalAppUiStyle.current
     val miuixContainerColor = if (containerColor == Color.Unspecified) {
@@ -1682,7 +1683,7 @@ fun AppSearchEntry(
     } else {
         containerColor
     }
-    if (centeredContent) {
+    if (centeredContent || !openOnFocus) {
         val hintColor = if (uiStyle == AppUiStyle.MIUIX) MiuixTheme.colorScheme.onSurfaceContainerHigh
             else MaterialTheme.colorScheme.onSurfaceVariant
         Row(
@@ -1695,7 +1696,7 @@ fun AppSearchEntry(
                     else MaterialTheme.colorScheme.surfaceContainerHigh)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = if (centeredContent) Arrangement.Center else Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppIcon(Icons.Default.Search, contentDescription = null, tint = hintColor, modifier = Modifier.size(24.dp))

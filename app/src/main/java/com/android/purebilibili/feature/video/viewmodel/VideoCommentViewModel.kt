@@ -12,6 +12,7 @@ import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.ReplyPage
 import com.android.purebilibili.data.model.response.ReplyPicture
 import com.android.purebilibili.data.model.response.ReplyVoteCard
+import com.android.purebilibili.data.repository.CommentGrpcRepository
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.data.repository.CommentFraudRepository
 import com.android.purebilibili.data.repository.shouldStartCommentFraudDetection
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.collections.immutable.ImmutableList
@@ -231,6 +233,15 @@ internal fun shouldStartRoutedSubReplyOpen(
     return rootReplyId > 0L && currentAid > 0L
 }
 
+// [新增] 全量评论搜索加载状态
+data class FullCommentSearchUiState(
+    val isLoading: Boolean = false,
+    val loadedCount: Int = 0,
+    val totalCount: Int = 0,
+    val isReady: Boolean = false,
+    val error: String? = null
+)
+
 class VideoCommentViewModel : ViewModel() {
     private val _commentState = MutableStateFlow(CommentUiState())
     val commentState = _commentState.asStateFlow()
@@ -251,6 +262,13 @@ class VideoCommentViewModel : ViewModel() {
     //  存储原始评论列表（未经筛选），用于筛选切换
     private var allReplies: List<ReplyItem> = emptyList()
 
+    // [新增] 全量评论搜索：把整个评论区分页拉完后供搜索面板本地过滤
+    private val _fullSearchState = MutableStateFlow(FullCommentSearchUiState())
+    val fullSearchState = _fullSearchState.asStateFlow()
+    private val _fullSearchReplies = MutableStateFlow<List<ReplyItem>>(emptyList())
+    val fullSearchReplies = _fullSearchReplies.asStateFlow()
+    private var fullSearchJob: Job? = null
+
     /**
      * 切换视频时立即废弃旧评论主体和未完成请求，等新页面真正打开评论区后再加载。
      */
@@ -265,6 +283,7 @@ class VideoCommentViewModel : ViewModel() {
         )
         subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState()
+        resetFullCommentSearch()
     }
 
     // 初始化/重置
@@ -289,6 +308,7 @@ class VideoCommentViewModel : ViewModel() {
         currentAid = aid
         currentSubject = CommentSubjectKey(oid = aid, type = commentType)
         allReplies = emptyList()
+        resetFullCommentSearch()
         // 获取当前登录用户 mid
         val myMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
         android.util.Log.d("CommentVM", " init: myMid=$myMid")
@@ -447,6 +467,68 @@ class VideoCommentViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    // --- [新增] 全量评论加载（供评论区搜索/充电评论过滤） ---
+
+    fun loadAllCommentsForSearch() {
+        val state = _fullSearchState.value
+        if (state.isLoading || state.isReady) return
+        val subject = currentSubject
+        if (!subject.isValid) return
+        fullSearchJob?.cancel()
+        _fullSearchState.value = FullCommentSearchUiState(isLoading = true)
+        fullSearchJob = viewModelScope.launch {
+            val collected = mutableListOf<ReplyItem>()
+            var offset: String? = null
+            var page = 1
+            var totalCount = 0
+            var failure: String? = null
+            while (isActive) {
+                val data = CommentRepository.getCommentsForSubject(
+                    oid = subject.oid,
+                    type = subject.type,
+                    page = page,
+                    ps = 20,
+                    mode = CommentGrpcRepository.MODE_TIME,
+                    paginationOffset = offset,
+                ).getOrNull()
+                if (data == null) {
+                    failure = "评论加载失败，请稍后重试"
+                    break
+                }
+                if (page == 1) {
+                    totalCount = data.getAllCount()
+                    collected += data.collectTopReplies()
+                }
+                val batch = data.replies.orEmpty()
+                collected += batch
+                _fullSearchState.value = _fullSearchState.value.copy(
+                    loadedCount = collected.size,
+                    totalCount = totalCount
+                )
+                val next = data.grpcNextOffset.takeIf { it.isNotBlank() }
+                if (data.cursor.isEnd || batch.isEmpty() || next == null) break
+                offset = next
+                page++
+                // 安全上限：极端大评论区最多拉 300 页（约 6000 条根评论）
+                if (page >= 300) break
+            }
+            val deduped = collected.distinctBy { it.rpid }
+            _fullSearchReplies.value = deduped
+            _fullSearchState.value = FullCommentSearchUiState(
+                isReady = failure == null,
+                loadedCount = deduped.size,
+                totalCount = totalCount,
+                error = failure
+            )
+        }
+    }
+
+    fun resetFullCommentSearch() {
+        fullSearchJob?.cancel()
+        _fullSearchState.value = FullCommentSearchUiState()
+        _fullSearchReplies.value = emptyList()
     }
 
     // --- 二级评论逻辑 ---

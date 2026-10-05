@@ -7,16 +7,16 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 完整 BAS（Bilibili Animation Script）高级弹幕解析测试
+ * Mode 7 数组高级弹幕的兼容性测试；真正的 Mode 9 BAS 脚本另行测试。
  *
- * 官方指令格式:
+ * 数组格式：
  * [beginX, beginY, alphaRange, duration, content, rotateZ, rotateY,
  *  endX, endY, translationDuration, delay, noStroke, font, easing, pathData]
  */
-class DanmakuBasParserTest {
+class AdvancedDanmakuParserTest {
 
     @Test
-    fun `parse full bas format with alpha range translation and path`() {
+    fun `parse mode 7 alpha translation and path`() {
         val json = """
             [0.5, 0.3, "1-0.5", 3, "BAS 弹幕", 45, 90,
              0.8, 0.6, 2, 500, "true", "", "0", "M0,0L100,100"]

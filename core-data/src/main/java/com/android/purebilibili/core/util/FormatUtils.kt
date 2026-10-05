@@ -151,7 +151,7 @@ object FormatUtils {
     }
 
     /**
-     * 评论时间：详细模式固定显示本地年月日时分，否则沿用 PiliPlus 相对时间规则。
+     * 评论时间：详细模式固定显示本地年月日时分秒，否则沿用 PiliPlus 相对时间规则。
      */
     fun formatCommentTime(
         timestampSeconds: Long,

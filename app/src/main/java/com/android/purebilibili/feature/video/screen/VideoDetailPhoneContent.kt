@@ -119,6 +119,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit,
     commentThreadCoveredBlurProgress: Float = 0f,
+    commentPullToRefreshEnabled: Boolean = true,
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val danmakuManager = rememberDanmakuManager(success.info.bvid)
@@ -289,6 +290,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     showInteractionActions = showInteractionActions,
                                     isVideoPlaying = isVideoPlaying,
                                     bottomContentPadding = videoContentBottomPadding,
+                                    commentPullToRefreshEnabled = commentPullToRefreshEnabled,
                                 ),
                                 primaryActions = VideoContentPrimaryActions(
                                     onFollowClick = engagementActions.toggleFollow,

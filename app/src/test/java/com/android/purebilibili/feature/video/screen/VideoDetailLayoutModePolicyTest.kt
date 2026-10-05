@@ -270,7 +270,6 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    @Test
     fun floatingWindowFallback_detectsCurrentBoundsSmallerThanMaximum() {
         assertTrue(
             isWindowBoundsSmallerThanMaximum(

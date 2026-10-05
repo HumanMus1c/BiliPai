@@ -219,31 +219,11 @@ object ActionRepository {
      * @param mid UP 主的用户 ID
      * @param follow true=关注, false=取关
      */
-    suspend fun followUser(mid: Long, follow: Boolean): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val csrf = TokenManager.csrfCache ?: ""
-                com.android.purebilibili.core.util.Logger.d("ActionRepository", " followUser: mid=$mid, follow=$follow, csrf.length=${csrf.length}")
-                if (csrf.isEmpty()) {
-                    android.util.Log.e("ActionRepository", " CSRF token is empty!")
-                    return@withContext Result.failure(Exception("请先登录"))
-                }
-                
-                val act = if (follow) 1 else 2
-                com.android.purebilibili.core.util.Logger.d("ActionRepository", " Calling modifyRelation...")
-                val response = api.modifyRelation(fid = mid, act = act, csrf = csrf)
-                com.android.purebilibili.core.util.Logger.d("ActionRepository", " Response: code=${response.code}, message=${response.message}")
-                
-                if (response.code == 0) {
-                    _followStateChanges.tryEmit(FollowStateChange(mid = mid, isFollowing = follow))
-                    Result.success(follow)
-                } else {
-                    Result.failure(Exception(response.message.ifEmpty { "操作失败: ${response.code}" }))
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ActionRepository", "followUser failed", e)
-                Result.failure(e)
-            }
+    suspend fun followUser(mid: Long, follow: Boolean, emitBrandFeedback: Boolean = true): Result<Boolean> {
+        return UserActionRepository.follow(mid, follow).map {
+            _followStateChanges.tryEmit(FollowStateChange(mid = mid, isFollowing = follow))
+            if (emitBrandFeedback) com.android.purebilibili.core.events.BrandSuccessEvents.followChanged(follow)
+            follow
         }
     }
 
@@ -253,7 +233,12 @@ object ActionRepository {
      * @param favorite true=收藏, false=取消收藏
      * @param folderId 收藏夹 ID，为空时使用默认收藏夹
      */
-    suspend fun favoriteVideo(aid: Long, favorite: Boolean, folderId: Long? = null): Result<Boolean> {
+    suspend fun favoriteVideo(
+        aid: Long,
+        favorite: Boolean,
+        folderId: Long? = null,
+        showSuccessFeedback: Boolean = true
+    ): Result<Boolean> {
         return withContext(Dispatchers.IO) {
             try {
                 val csrf = TokenManager.csrfCache ?: ""
@@ -274,6 +259,9 @@ object ActionRepository {
                 }
                 
                 if (response.code == 0) {
+                    if (favorite && showSuccessFeedback) {
+                        com.android.purebilibili.core.events.BrandSuccessEvents.favoriteSaved()
+                    }
                     Result.success(favorite)
                 } else {
                     Result.failure(Exception(response.message.ifEmpty { "操作失败: ${response.code}" }))
@@ -391,29 +379,9 @@ object ActionRepository {
         addFolderIds: Set<Long>,
         removeFolderIds: Set<Long>
     ): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val csrf = TokenManager.csrfCache ?: ""
-                if (csrf.isEmpty()) {
-                    return@withContext Result.failure(Exception("请先登录"))
-                }
-                if (addFolderIds.isEmpty() && removeFolderIds.isEmpty()) {
-                    return@withContext Result.success(true)
-                }
-
-                val addIds = addFolderIds.sorted().joinToString(",")
-                val delIds = removeFolderIds.sorted().joinToString(",")
-                val response = api.dealFavorite(rid = aid, addIds = addIds, delIds = delIds, csrf = csrf)
-
-                if (response.code == 0) {
-                    Result.success(true)
-                } else {
-                    Result.failure(Exception(response.message.ifEmpty { "操作失败: ${response.code}" }))
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ActionRepository", "updateFavoriteFolders failed", e)
-                Result.failure(e)
-            }
+        if (addFolderIds.isEmpty() && removeFolderIds.isEmpty()) return Result.success(true)
+        return UserActionRepository.favorite(aid, addFolderIds, removeFolderIds).onSuccess {
+            if (addFolderIds.isNotEmpty()) com.android.purebilibili.core.events.BrandSuccessEvents.favoriteSaved()
         }
     }
     
@@ -677,25 +645,7 @@ object ActionRepository {
     /**
      * 获取用户收藏夹列表
      */
-    suspend fun getFavoriteFolders(aid: Long? = null): Result<List<com.android.purebilibili.data.model.response.FavFolder>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val mid = TokenManager.midCache ?: return@withContext Result.failure(Exception("请先登录"))
-                val response = api.getFavFolders(
-                    mid = mid,
-                    type = aid?.let { 2 },
-                    rid = aid
-                )
-                if (response.code == 0) {
-                    Result.success(response.data?.list ?: emptyList())
-                } else {
-                    Result.failure(Exception(response.message))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
-    }
+    suspend fun getFavoriteFolders(aid: Long? = null): Result<List<com.android.purebilibili.data.model.response.FavFolder>> { return UserActionRepository.folders(aid) }
 
     /**
      * 创建收藏夹
@@ -728,50 +678,12 @@ object ActionRepository {
     /**
      *  点赞/取消点赞视频
      */
-    suspend fun likeVideo(aid: Long, like: Boolean): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val csrf = TokenManager.csrfCache ?: ""
-                if (csrf.isEmpty()) {
-                    return@withContext Result.failure(Exception("请先登录"))
-                }
-                
-                val likeAction = if (like) 1 else 2
-                val response = api.likeVideo(aid = aid, like = likeAction, csrf = csrf)
-                com.android.purebilibili.core.util.Logger.d("ActionRepository", " likeVideo: aid=$aid, like=$like, code=${response.code}")
-                
-                if (response.code == 0) {
-                    Result.success(like)
-                } else {
-                    Result.failure(Exception(response.message.ifEmpty { "点赞失败: ${response.code}" }))
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ActionRepository", "likeVideo failed", e)
-                Result.failure(e)
-            }
-        }
-    }
+    suspend fun likeVideo(aid: Long, like: Boolean): Result<Boolean> { return UserActionRepository.like(aid, like).map { like } }
     
     /**
      *  检查是否已点赞
      */
-    suspend fun checkLikeStatus(aid: Long): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = api.hasLiked(aid)
-                if (response.code == 0) {
-                    val isLiked = response.data == 1
-                    com.android.purebilibili.core.util.Logger.d("ActionRepository", " checkLikeStatus: aid=$aid, isLiked=$isLiked")
-                    isLiked
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ActionRepository", "checkLikeStatus failed", e)
-                false
-            }
-        }
-    }
+    suspend fun checkLikeStatus(aid: Long): Boolean { return UserActionRepository.liked(aid).getOrDefault(false) }
 
     /**
      *  点踩/取消点踩视频（App 端接口，65007=已踩过、65005=未点踩过视为幂等成功）
@@ -907,7 +819,7 @@ object ActionRepository {
             val coinMessage = coinResult.exceptionOrNull()?.message
             
             // 3. 收藏
-            val favoriteResult = favoriteVideo(aid, true)
+            val favoriteResult = favoriteVideo(aid, true, showSuccessFeedback = false)
             val favoriteSuccess = favoriteResult.isSuccess
             
             com.android.purebilibili.core.util.Logger.d("ActionRepository", " tripleAction: like=$likeSuccess, coin=$coinSuccess, fav=$favoriteSuccess")
@@ -925,35 +837,8 @@ object ActionRepository {
      *  添加/移除稍后再看
      */
     suspend fun toggleWatchLater(aid: Long, add: Boolean): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val csrf = TokenManager.csrfCache ?: ""
-                if (csrf.isEmpty()) {
-                    return@withContext Result.failure(Exception("请先登录"))
-                }
-                
-                val response = if (add) {
-                    api.addToWatchLater(aid = aid, csrf = csrf)
-                } else {
-                    api.deleteFromWatchLater(aid = aid, csrf = csrf)
-                }
-                
-                com.android.purebilibili.core.util.Logger.d("ActionRepository", " toggleWatchLater: aid=$aid, add=$add, code=${response.code}")
-                
-                when (response.code) {
-                    0 -> {
-                        WatchLaterRefreshBus.notifyChanged()
-                        Result.success(add)
-                    }
-                    90001 -> Result.failure(Exception("稍后再看列表已满"))
-                    90003 -> Result.failure(Exception("视频已被删除"))
-                    else -> Result.failure(Exception(response.message.ifEmpty { "操作失败: ${response.code}" }))
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ActionRepository", "toggleWatchLater failed", e)
-                Result.failure(e)
-            }
-        }
+        val result = if (add) WatchLaterRepository.add(aid) else WatchLaterRepository.remove(aid)
+        return result.onSuccess { WatchLaterRefreshBus.notifyChanged() }.map { add }
     }
 
     suspend fun checkWatchLaterStatus(aid: Long): Boolean = withContext(Dispatchers.IO) {

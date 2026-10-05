@@ -11,8 +11,8 @@ android {
         applicationId = "com.android.bilipai.tv"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0-beta.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
@@ -31,6 +31,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":brand-motion"))
     implementation(project(":design-tokens"))
     implementation(project(":core-data"))
     implementation(project(":core-player"))
@@ -39,6 +40,12 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")
+    // 与移动端同一图标源（卡片统计行 PlayCircleOutline/Subtitles 等），保证两端外观一致。
+    implementation("androidx.compose.material:material-icons-extended")
+    // 与移动端同一版本的 Haze：毛玻璃面板（背模糊），RenderEffect 真实高斯模糊，低版本回退半透明。
+    // TV 不引入 haze-blur-materials：其 HazeMaterials 依赖 material3 的 MaterialTheme。
+    implementation("dev.chrisbanes.haze:haze:2.0.0-alpha03")
+    implementation("dev.chrisbanes.haze:haze-blur:2.0.0-alpha03")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.tv:tv-material:1.0.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")

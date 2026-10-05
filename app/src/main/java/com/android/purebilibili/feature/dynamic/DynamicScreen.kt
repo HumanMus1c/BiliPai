@@ -229,7 +229,13 @@ fun DynamicScreen(
     // 侧边栏状态
     val followedUsers by viewModel.followedUsers.collectAsStateWithLifecycle()
     val selectedUserId by viewModel.selectedUserId.collectAsStateWithLifecycle()
-    val selfUid = TokenManager.midCache ?: 0L
+    val accountIdentity by TokenManager.accountIdentity.collectAsStateWithLifecycle()
+    val selfUid = accountIdentity.mid ?: 0L
+    LaunchedEffect(accountIdentity.generation) {
+        listStates.values.forEach { it.scrollToItem(0) }
+        sidebarUserListState.scrollToItem(0)
+        horizontalUserListState.scrollToItem(0)
+    }
     val accountSnapshot by produceState(
         initialValue = com.android.purebilibili.core.store.AccountSessionSnapshot(),
         key1 = context,

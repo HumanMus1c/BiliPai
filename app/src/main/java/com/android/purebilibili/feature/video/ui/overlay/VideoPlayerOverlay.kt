@@ -342,24 +342,6 @@ internal fun resolveOverlayPlaybackButtonPlayingState(
     return isPlaying || (playWhenReady && (playbackState == Player.STATE_BUFFERING || hasPendingSeekResume))
 }
 
-internal fun shouldShowCenterPlayButton(
-    isVisible: Boolean,
-    isPlaying: Boolean,
-    isQualitySwitching: Boolean,
-    isFullscreen: Boolean,
-    isBuffering: Boolean,
-    isScrubbing: Boolean,
-    isSeekTransitionPending: Boolean
-): Boolean {
-    return isVisible &&
-        !isPlaying &&
-        !isQualitySwitching &&
-        isFullscreen &&
-        !isBuffering &&
-        !isScrubbing &&
-        !isSeekTransitionPending
-}
-
 internal fun shouldShowBufferingIndicator(
     isBuffering: Boolean,
     isQualitySwitching: Boolean,
@@ -467,19 +449,16 @@ private fun SkinAwareLoadingIndicator(color: Color) {
     }
 }
 
-private const val CENTER_PLAY_BUTTON_SEEK_TRANSITION_GRACE_MS = 350L
+private const val SEEK_RESUME_TRANSITION_GRACE_MS = 350L
 
 // 播放器 overlay 色层动效 token：遮罩/控制栏/锁屏按钮/加载指示共用同一节奏与曲线。
 // 曲线取全局 alpha 主曲线 Continuity（AppMotionTokens 体系），时长保持既有节奏。
 private const val OVERLAY_CHROME_FADE_DURATION_MILLIS = 300
 private const val OVERLAY_CONTROL_FADE_DURATION_MILLIS = 200
-private const val OVERLAY_CENTER_PLAY_SCALE_DURATION_MILLIS = 250
 private val OverlayChromeFadeSpec =
     tween<Float>(OVERLAY_CHROME_FADE_DURATION_MILLIS, easing = AppMotionEasing.Continuity)
 private val OverlayControlFadeSpec =
     tween<Float>(OVERLAY_CONTROL_FADE_DURATION_MILLIS, easing = AppMotionEasing.Continuity)
-private val OverlayCenterPlayScaleSpec =
-    tween<Float>(OVERLAY_CENTER_PLAY_SCALE_DURATION_MILLIS, easing = AppMotionEasing.Continuity)
 private val OverlayControlSlideSpec =
     tween<IntOffset>(OVERLAY_CONTROL_FADE_DURATION_MILLIS, easing = AppMotionEasing.Continuity)
 
@@ -707,6 +686,7 @@ fun VideoPlayerOverlay(
     val drawerHazeState = state.drawerHazeState
     val statusBarAmbientFrame = state.statusBarAmbientFrame
     val statusBarBackdropHeight = state.statusBarBackdropHeight
+    val ambientVideoBoundsInWindow = state.ambientVideoBoundsInWindow
     val onShowDanmakuPool = actions.onShowDanmakuPool
 
     var showQualityMenu by remember { mutableStateOf(false) }
@@ -767,7 +747,7 @@ fun VideoPlayerOverlay(
             )
         )
     }
-    var suppressCenterPlayButtonForSeekTransition by remember { mutableStateOf(false) }
+    var seekResumeTransitionGraceActive by remember { mutableStateOf(false) }
     var wasPlayingWhenProgressScrubbingStarted by remember { mutableStateOf(false) }
     var previousSeekScrubbingState by remember { mutableStateOf(isSeekScrubbing) }
     
@@ -1189,7 +1169,7 @@ fun VideoPlayerOverlay(
     val centerLoadingUiState = remember(
         isBuffering,
         isQualitySwitching,
-        suppressCenterPlayButtonForSeekTransition,
+        seekResumeTransitionGraceActive,
         isPlaybackTransitionPending,
         hasPendingSeekResume,
         player.playWhenReady,
@@ -1199,7 +1179,7 @@ fun VideoPlayerOverlay(
         resolveCenterLoadingUiState(
             isBuffering = isBuffering,
             isQualitySwitching = isQualitySwitching,
-            isSeekTransitionPending = suppressCenterPlayButtonForSeekTransition ||
+            isSeekTransitionPending = seekResumeTransitionGraceActive ||
                 isPlaybackTransitionPending ||
                 hasPendingSeekResume,
             playWhenReady = player.playWhenReady,
@@ -1267,34 +1247,34 @@ fun VideoPlayerOverlay(
         }
     }
 
-    LaunchedEffect(suppressCenterPlayButtonForSeekTransition) {
-        if (suppressCenterPlayButtonForSeekTransition) {
-            delay(CENTER_PLAY_BUTTON_SEEK_TRANSITION_GRACE_MS)
-            suppressCenterPlayButtonForSeekTransition = false
+    LaunchedEffect(seekResumeTransitionGraceActive) {
+        if (seekResumeTransitionGraceActive) {
+            delay(SEEK_RESUME_TRANSITION_GRACE_MS)
+            seekResumeTransitionGraceActive = false
         }
     }
 
     LaunchedEffect(isSeekScrubbing) {
         if (isSeekScrubbing && !previousSeekScrubbingState) {
             wasPlayingWhenProgressScrubbingStarted = isPlaying
-            suppressCenterPlayButtonForSeekTransition = false
+            seekResumeTransitionGraceActive = false
         } else if (
             !isSeekScrubbing &&
             previousSeekScrubbingState &&
             wasPlayingWhenProgressScrubbingStarted
         ) {
-            suppressCenterPlayButtonForSeekTransition = true
+            seekResumeTransitionGraceActive = true
         }
         previousSeekScrubbingState = isSeekScrubbing
     }
 
-    LaunchedEffect(isPlaying, isBuffering, isSeekScrubbing, suppressCenterPlayButtonForSeekTransition) {
+    LaunchedEffect(isPlaying, isBuffering, isSeekScrubbing, seekResumeTransitionGraceActive) {
         if (
-            suppressCenterPlayButtonForSeekTransition &&
+            seekResumeTransitionGraceActive &&
             !isSeekScrubbing &&
             (isPlaying || isBuffering)
         ) {
-            suppressCenterPlayButtonForSeekTransition = false
+            seekResumeTransitionGraceActive = false
         }
     }
 
@@ -1342,6 +1322,7 @@ fun VideoPlayerOverlay(
                 ambientFrame = statusBarAmbientFrame,
                 height = statusBarBackdropHeight,
                 useAmbientHaze = immersiveVideoPageStatusBar,
+                videoBoundsInWindow = ambientVideoBoundsInWindow,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
@@ -1848,37 +1829,6 @@ fun VideoPlayerOverlay(
                     }
                 }
             }
-        }
-
-        // --- 5. 中央播放/暂停大图标 (仅全屏模式显示) ---
-        AnimatedVisibility(
-            visible = shouldShowCenterPlayButton(
-                isVisible = isVisible,
-                isPlaying = effectiveIsPlaying,
-                isQualitySwitching = isQualitySwitching,
-                isFullscreen = isFullscreen,
-                isBuffering = isBuffering,
-                isScrubbing = isSeekScrubbing,
-                isSeekTransitionPending = suppressCenterPlayButtonForSeekTransition ||
-                    isPlaybackTransitionPending ||
-                    hasPendingSeekResume
-            ),
-            modifier = Modifier.align(Alignment.Center),
-            enter = scaleIn(OverlayCenterPlayScaleSpec) + fadeIn(OverlayControlFadeSpec),
-            exit = scaleOut(OverlayCenterPlayScaleSpec) + fadeOut(OverlayControlFadeSpec)
-        ) {
-            val resumeFromCenterButton = {
-                playPlayerFromUserAction(player)
-                isPlaying = true
-            }
-            OverlayPlaybackButton(
-                isPlaying = false,
-                onClick = resumeFromCenterButton,
-                onDoubleClick = resumeFromCenterButton,
-                outerSize = overlayVisualPolicy.centerPlayButtonSizeDp.dp,
-                innerSize = overlayVisualPolicy.centerPlayInnerButtonSizeDp.dp,
-                glyphSize = overlayVisualPolicy.centerPlayIconSizeDp.dp
-            )
         }
 
         // --- 5.4  缓冲加载指示器 ---

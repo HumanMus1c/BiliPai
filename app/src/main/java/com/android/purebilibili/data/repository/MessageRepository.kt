@@ -357,9 +357,16 @@ object MessageRepository {
                 }
                 Result.failure(Exception(errorMsg))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("MessageRepo", "getMessages exception: ${e.message}", e)
-            Result.failure(e)
+            val message = when (e) {
+                is kotlinx.serialization.SerializationException -> "消息数据暂时无法读取，请稍后重试"
+                is java.io.IOException -> "网络连接失败，请检查网络后重试"
+                else -> "消息加载失败，请稍后重试"
+            }
+            Result.failure(Exception(message, e))
         }
     }
 

@@ -133,14 +133,18 @@ class DanmakuConfigPolicyTest {
     }
 
     @Test
-    fun `text size ignores the container box so every surface renders the same`() {
-        val inline = requireNotNull(resolveDanmakuViewport(1080, 608, 3f))
-        val fullscreen = requireNotNull(resolveDanmakuViewport(2392, 1080, 3f))
-        assertEquals(
-            resolveDanmakuTextSizePx(inline.density, 1f),
-            resolveDanmakuTextSizePx(fullscreen.density, 1f),
-            0f
-        )
+    fun `fullscreen changes the logical baseline but preserves the user's scale`() {
+        assertEquals(39.375f, resolveDanmakuTextSizePx(2.625f, 1f, false), 0.001f)
+        assertEquals(47.25f, resolveDanmakuTextSizePx(2.625f, 1f, true), 0.001f)
+        assertEquals(59.0625f, resolveDanmakuTextSizePx(2.625f, 1.5f, false), 0.001f)
+        assertEquals(70.875f, resolveDanmakuTextSizePx(2.625f, 1.5f, true), 0.001f)
+    }
+
+    @Test
+    fun `stroke thickness uses system density and zero still disables the outline`() {
+        assertEquals(1.5f, resolveDanmakuStrokeWidthPx(1f, 1.5f), 0.001f)
+        assertEquals(5.25f, resolveDanmakuStrokeWidthPx(3.5f, 1.5f), 0.001f)
+        assertEquals(0f, resolveDanmakuStrokeWidthPx(3.5f, 0f), 0f)
     }
 
     @Test

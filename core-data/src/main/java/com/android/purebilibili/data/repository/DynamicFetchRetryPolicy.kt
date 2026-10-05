@@ -2,15 +2,15 @@ package com.android.purebilibili.data.repository
 
 import retrofit2.HttpException
 
-internal const val DYNAMIC_FETCH_MAX_ATTEMPTS = 3
+const val DYNAMIC_FETCH_MAX_ATTEMPTS = 3
 
-internal fun isDynamicRiskControlApiError(code: Int, message: String): Boolean {
+fun isDynamicRiskControlApiError(code: Int, message: String): Boolean {
     if (code == -352 || code == 22015) return true
     val text = message.lowercase()
     return text.contains("风控") || text.contains("risk")
 }
 
-internal fun isDynamicRateLimitApiError(code: Int, message: String): Boolean {
+fun isDynamicRateLimitApiError(code: Int, message: String): Boolean {
     if (code in setOf(-412, -509, 34004)) return true
     val text = message.lowercase()
     return text.contains("412") ||
@@ -18,11 +18,11 @@ internal fun isDynamicRateLimitApiError(code: Int, message: String): Boolean {
         text.contains("precondition")
 }
 
-internal fun isRetryableDynamicApiError(code: Int, message: String): Boolean {
+fun isRetryableDynamicApiError(code: Int, message: String): Boolean {
     return false
 }
 
-internal fun isRetryableDynamicException(error: Throwable): Boolean {
+fun isRetryableDynamicException(error: Throwable): Boolean {
     return when (error) {
         is HttpException -> error.code() in setOf(500, 502, 503, 504)
         else -> {
@@ -33,7 +33,7 @@ internal fun isRetryableDynamicException(error: Throwable): Boolean {
     }
 }
 
-internal fun resolveDynamicRetryDelayMs(attempt: Int): Long {
+fun resolveDynamicRetryDelayMs(attempt: Int): Long {
     return when (attempt) {
         1 -> 250L
         2 -> 700L
@@ -41,7 +41,7 @@ internal fun resolveDynamicRetryDelayMs(attempt: Int): Long {
     }
 }
 
-internal fun resolveDynamicFriendlyErrorMessage(code: Int, message: String): String {
+fun resolveDynamicFriendlyErrorMessage(code: Int, message: String): String {
     return when {
         code == -101 -> "未登录，请先登录"
         isDynamicRiskControlApiError(code = code, message = message) ->

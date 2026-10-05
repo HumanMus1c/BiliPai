@@ -15,6 +15,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -126,6 +127,9 @@ internal fun HomeHeroCarousel(
     onVideoClick: (VideoItem) -> Unit,
     onGetPreviewUrl: suspend (String, Long) -> String?,
     onGestureActiveChange: (Boolean) -> Unit = {},
+    dissolvingVideos: Set<String> = emptySet(),
+    onDissolveComplete: (String) -> Unit = {},
+    onLongPress: ((VideoItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (videos.isEmpty()) return
@@ -209,24 +213,44 @@ internal fun HomeHeroCarousel(
             val activeForPlayback = autoplayEnabled &&
                 pagerState.currentPage == page &&
                 pageOffset.absoluteValue < 0.12f
-            Column {
+            val isDissolving = video.bvid in dissolvingVideos
+            // 新横幅淡入：被消散移除后，下一条在原位轻柔浮现，避免硬切跳变。
+            val entranceAlpha = remember(video.bvid) { androidx.compose.animation.core.Animatable(0f) }
+            LaunchedEffect(video.bvid) {
+                entranceAlpha.animateTo(
+                    1f,
+                    androidx.compose.animation.core.tween(durationMillis = 260),
+                )
+            }
+            Column(modifier = Modifier.graphicsLayer { alpha = entranceAlpha.value }) {
                 HomeHeroCarouselCard(
                     video = video,
                     transform = transform,
                     activeForPlayback = activeForPlayback,
                     aspectRatio = aspectRatio,
+                    isDissolving = isDissolving,
                     onVideoClick = { onVideoClick(video) },
+                    onDissolveComplete = { onDissolveComplete(video.bvid) },
+                    onLongPress = onLongPress,
                     onGetPreviewUrl = onGetPreviewUrl
                 )
                 // 地面镜面倒影：镜像封面，向下渐隐（视频预览不参与，保持轻量）。
                 val normalizedReflectionUrl = remember(video.pic) { FormatUtils.fixImageUrl(video.pic) }
+                val reflectionAlpha by animateFloatAsState(
+                    targetValue = if (isDissolving) 0f else (1f - pageOffset.absoluteValue * 0.5f).coerceIn(0f, 1f) * 0.9f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                    label = "hero_reflection_alpha",
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(reflectionHeight)
                         .graphicsLayer {
                             scaleY = -1f
-                            alpha = (1f - pageOffset.absoluteValue * 0.5f).coerceIn(0f, 1f) * 0.9f
+                            alpha = reflectionAlpha
                             compositingStrategy = CompositingStrategy.Offscreen
                         }
                         .drawWithContent {
@@ -300,14 +324,17 @@ internal fun HomeHeroCarousel(
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun HomeHeroCarouselCard(
     video: VideoItem,
     transform: HomeHeroCarouselCardTransform,
     activeForPlayback: Boolean,
     aspectRatio: Float,
+    isDissolving: Boolean,
     onVideoClick: () -> Unit,
+    onDissolveComplete: () -> Unit,
+    onLongPress: ((VideoItem) -> Unit)?,
     onGetPreviewUrl: suspend (String, Long) -> String?
 ) {
     val context = LocalContext.current
@@ -445,15 +472,34 @@ private fun HomeHeroCarouselCard(
         ),
         label = "hero_card_press",
     )
+    // 长按复用网格卡片的预览弹窗（立即播放/稍后再看/保存封面/分享/屏蔽/不感兴趣）。
+    val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val longPressAction: (() -> Unit)? = onLongPress?.let { callback ->
+        {
+            hapticFeedback.performHapticFeedback(
+                androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress
+            )
+            if (!isDissolving) callback(video)
+        }
+    }
 
-    AppSurface(
+    com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard(
+        isDissolving = isDissolving,
+        onDissolveComplete = onDissolveComplete,
+        cardId = video.bvid,
+        preset = com.android.purebilibili.core.ui.animation.DissolveAnimationPreset.TELEGRAM_FAST,
+        collapseAfterDissolve = false,
+        publishGlobalDissolveState = false,
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(aspectRatio)
+    ) {
+        AppSurface(
         shape = cardShape,
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = AppSpacingTokens.None,
         shadowElevation = (transform.shadowElevationFraction * 10f).dp,
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(aspectRatio)
             .adaptiveCardHoverEffect(shape = cardShape)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
@@ -480,10 +526,11 @@ private fun HomeHeroCarouselCard(
             .onGloballyPositioned { coordinates ->
                 cardCoordsRef.value = coordinates
             }
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = clickAction,
+                onLongClick = longPressAction,
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -660,6 +707,7 @@ private fun HomeHeroCarouselCard(
                 }
             }
         }
+    }
     }
     }
 }

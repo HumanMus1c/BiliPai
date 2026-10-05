@@ -2,7 +2,9 @@
 
 package com.android.bilipai.tv.ui
 
-import android.animation.ValueAnimator
+import android.app.ActivityManager
+import androidx.compose.ui.platform.LocalContext
+import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.tv.material3.LocalContentColor
@@ -18,9 +20,12 @@ import com.android.purebilibili.core.theme.TextSecondaryDark
 
 @Composable
 fun TvTheme(
-    reduceMotion: Boolean = !ValueAnimator.areAnimatorsEnabled(),
+    reduceMotion: Boolean = false,
+    simpleEffects: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val systemReduceMotion = rememberSystemReduceMotion()
+    val lowRam = (LocalContext.current.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
     MaterialTheme(shapes = TvUiTokens.shapes, typography = TvUiTokens.typography, colorScheme = darkColorScheme(
         primary = BiliPink, onPrimary = DarkBackground,
         background = DarkBackground, onBackground = TextPrimaryDark,
@@ -32,7 +37,8 @@ fun TvTheme(
     )) {
         CompositionLocalProvider(
             LocalContentColor provides MaterialTheme.colorScheme.onSurface,
-            LocalTvReduceMotion provides reduceMotion,
+            LocalTvReduceMotion provides (reduceMotion || systemReduceMotion),
+            LocalTvSimpleEffects provides (simpleEffects || lowRam),
             content = content,
         )
     }

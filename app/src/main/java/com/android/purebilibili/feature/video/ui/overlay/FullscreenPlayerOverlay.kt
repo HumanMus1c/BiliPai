@@ -287,6 +287,14 @@ fun FullscreenPlayerOverlay(
     //  共享弹幕管理器（横竖屏切换保持状态，同时可用于手势 seek 同步）
     val danmakuManager = rememberDanmakuManager(miniPlayerManager.currentBvid ?: player ?: miniPlayerManager)
 
+    val danmakuScope = com.android.purebilibili.core.store.DanmakuSettingsScope.LANDSCAPE
+    val danmakuSettings by SettingsManager
+        .getDanmakuSettings(context, danmakuScope)
+        .collectAsStateWithLifecycle(initialValue = DanmakuSettings(),
+            context = kotlin.coroutines.EmptyCoroutineContext
+        )
+    val danmakuEnabled = danmakuSettings.enabled
+
     DisposableEffect(player) {
         val exoPlayer = player
         if (exoPlayer == null) {
@@ -687,8 +695,11 @@ fun FullscreenPlayerOverlay(
                         true
                     }
                     FullscreenKeyboardAction.ToggleDanmaku -> {
-                        danmakuManager.isEnabled = !danmakuManager.isEnabled
-                        if (!danmakuManager.isEnabled) danmakuManager.clear()
+                        val newValue = !danmakuEnabled
+                        danmakuManager.isEnabled = newValue
+                        scope.launch {
+                            SettingsManager.setDanmakuEnabled(context, newValue, danmakuScope)
+                        }
                         true
                     }
                     FullscreenKeyboardAction.ToggleLock -> false
@@ -982,13 +993,6 @@ fun FullscreenPlayerOverlay(
                 },
             )
         }
-        val danmakuScope = com.android.purebilibili.core.store.DanmakuSettingsScope.LANDSCAPE
-        val danmakuSettings by SettingsManager
-            .getDanmakuSettings(context, danmakuScope)
-            .collectAsStateWithLifecycle(initialValue = DanmakuSettings(),
-                context = kotlin.coroutines.EmptyCoroutineContext
-            )
-        val danmakuEnabled = danmakuSettings.enabled
         val danmakuOpacity = danmakuSettings.opacity
         val danmakuFontScale = danmakuSettings.fontScale
         val danmakuSpeed = danmakuSettings.speed
@@ -1006,7 +1010,7 @@ fun FullscreenPlayerOverlay(
         val danmakuBlockRules = danmakuSettings.blockRules
         //  获取当前 cid 并加载弹幕
         val currentCid = miniPlayerManager.currentCid
-        LaunchedEffect(currentCid, danmakuEnabled, player) {
+        LaunchedEffect(danmakuManager, currentCid, danmakuEnabled, player) {
             if (currentCid > 0 && danmakuEnabled) {
                 danmakuManager.updateSettings(settings = danmakuSettings)
                 danmakuManager.isEnabled = true
@@ -1026,7 +1030,7 @@ fun FullscreenPlayerOverlay(
                     durationMs,
                     miniPlayerManager.currentBvid.orEmpty()
                 )
-            } else {
+            } else if (!danmakuEnabled) {
                 danmakuManager.isEnabled = false
             }
         }
@@ -1037,7 +1041,7 @@ fun FullscreenPlayerOverlay(
         }
 
         // 播放器 owner 成对绑定；渲染 View 由 AndroidView.onRelease 独立解绑。
-        DisposableEffect(player) {
+        DisposableEffect(danmakuManager, player) {
             player?.let { danmakuManager.attachPlayer(it) }
             onDispose {
                 player?.let(danmakuManager::detachPlayer)
@@ -1088,28 +1092,32 @@ fun FullscreenPlayerOverlay(
                 )
 
                 if (danmakuEnabled) {
-                    AndroidView(
-                        factory = { ctx ->
-                            DanmakuRenderView(ctx).apply {
-                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                                configureAsPassiveDanmakuOverlay()
-                                danmakuManager.attachView(this)
-                                com.android.purebilibili.core.util.Logger.d("FullscreenDanmaku", " DanmakuView (RenderEngine) created for fullscreen")
-                            }
-                        },
-                        update = { view ->
-                            if (view.width > 0 && view.height > 0) {
-                                val sizeTag = "${view.width}x${view.height}"
-                                if (view.tag != sizeTag) {
-                                    view.tag = sizeTag
-                                    danmakuManager.attachView(view)
-                                    com.android.purebilibili.core.util.Logger.d("FullscreenDanmaku", " DanmakuView update: size=${view.width}x${view.height}")
+                    key(danmakuManager) {
+                        AndroidView(
+                            factory = { ctx ->
+                                DanmakuRenderView(ctx).apply {
+                                    danmakuManager.isFullscreenSurface = true
+                                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                    configureAsPassiveDanmakuOverlay()
+                                    danmakuManager.attachView(this)
+                                    com.android.purebilibili.core.util.Logger.d("FullscreenDanmaku", " DanmakuView (RenderEngine) created for fullscreen")
                                 }
-                            }
-                        },
-                        onRelease = { view -> danmakuManager.detachView(view) },
-                        modifier = viewportModifier
-                    )
+                            },
+                            update = { view ->
+                                danmakuManager.isFullscreenSurface = true
+                                if (view.width > 0 && view.height > 0) {
+                                    val sizeTag = "${view.width}x${view.height}"
+                                    if (view.tag != sizeTag) {
+                                        view.tag = sizeTag
+                                        danmakuManager.attachView(view)
+                                        com.android.purebilibili.core.util.Logger.d("FullscreenDanmaku", " DanmakuView update: size=${view.width}x${view.height}")
+                                    }
+                                }
+                            },
+                            onRelease = { view -> danmakuManager.detachView(view) },
+                            modifier = viewportModifier
+                        )
+                    }
                 }
             }
         }

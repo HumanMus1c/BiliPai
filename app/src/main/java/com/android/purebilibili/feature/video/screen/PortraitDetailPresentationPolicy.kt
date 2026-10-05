@@ -66,12 +66,26 @@ internal fun resolveStandalonePortraitPagerMotionSpec(): StandalonePortraitPager
     )
 }
 
+internal fun shouldHidePausedInlinePlayerForComments(
+    selectedTabIndex: Int,
+    isPlaybackPaused: Boolean,
+    isCommentThreadVisible: Boolean = false,
+): Boolean = isPlaybackPaused && (selectedTabIndex == 1 || isCommentThreadVisible)
+
+/** Restore the whole player before giving a downward comment drag to refresh. */
+internal fun shouldEnableCommentPullToRefresh(playerCollapseProgress: Float): Boolean =
+    playerCollapseProgress <= 0f
+
 internal fun shouldEnableInlinePortraitScrollTransform(
     collapseMode: PortraitPlayerCollapseMode,
     selectedTabIndex: Int,
     isVerticalVideo: Boolean = true,
-    isPlaybackPaused: Boolean = false
+    isPlaybackPaused: Boolean = false,
+    isCommentThreadVisible: Boolean = false,
 ): Boolean {
+    if (shouldHidePausedInlinePlayerForComments(selectedTabIndex, isPlaybackPaused, isCommentThreadVisible)) {
+        return true
+    }
     if (!collapseMode.enablesVideoOrientation(isVerticalVideo)) return false
     if (collapseMode == PortraitPlayerCollapseMode.PAUSED_ONLY && !isPlaybackPaused) return false
     return when (selectedTabIndex) {
@@ -202,20 +216,11 @@ internal fun resolveInlinePortraitPlayerCommentCollapseDurationMillis(
     return tabSwitchAnimationSpec.durationMs
 }
 
-/**
- * Keep the collapsed portrait player on a full-width 16:9 canvas. The vertical media remains
- * centered inside the black canvas while the detail tabs move directly below it.
- */
-@Suppress("UNUSED_PARAMETER")
-internal fun resolvePiliPlusCollapsedPlayerViewportHeightDp(
+/** Paused comment scrolling hides the media viewport; other contexts keep their compact size. */
+internal fun resolveInlinePlayerCollapsedViewportHeightDp(
     standardCollapsedHeightDp: Float,
-    collapseMode: PortraitPlayerCollapseMode,
-    isPlaybackPaused: Boolean,
-    toolbarHeightDp: Float = 56f,
-    mediaPeekHeightDp: Float = 56f,
-): Float {
-    return standardCollapsedHeightDp.coerceAtLeast(0f)
-}
+    hidePausedPlayerForComments: Boolean,
+): Float = if (hidePausedPlayerForComments) 0f else standardCollapsedHeightDp.coerceAtLeast(0f)
 
 /**
  * Inline portrait detail player size.

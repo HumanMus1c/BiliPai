@@ -20,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
@@ -34,7 +35,8 @@ data class ListUiState(
     val items: List<VideoItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val canRemoveItems: Boolean = true
+    val canRemoveItems: Boolean = true,
+    val loadMoreError: String? = null,
 )
 
 // 基类 ViewModel
@@ -47,11 +49,15 @@ abstract class BaseListViewModel(application: Application, private val pageTitle
         viewModelScope.launch {
             val shouldShowLoading = showLoading || _uiState.value.items.isEmpty()
             if (shouldShowLoading) {
-                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                _uiState.update { it.copy(isLoading = true, error = null, loadMoreError = null) }
+            } else {
+                _uiState.update { it.copy(error = null, loadMoreError = null) }
             }
             try {
                 val items = fetchItems()
-                _uiState.value = _uiState.value.copy(isLoading = false, items = items)
+                _uiState.update { it.copy(isLoading = false, items = items, error = null, loadMoreError = null) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "加载失败")
@@ -174,6 +180,7 @@ class LikedVideosViewModelFactory(
 
 // --- 历史记录 ViewModel (支持游标分页加载) ---
 class HistoryViewModel(application: Application) : BaseListViewModel(application, "历史记录") {
+    internal val recapSnapshots = mutableMapOf<PersonalRecapWindow, HistoryRecapSnapshot>()
     private var historySearchQuery: String = ""
     private var historySearchPage: Int = 1
     private var historySearchGeneration: Long = 0L
@@ -267,9 +274,8 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
             return
         }
         historySearchQuery = normalized
-        historySearchPage = 1
         val generation = ++historySearchGeneration
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        _uiState.value = _uiState.value.copy(isLoading = true, error = null, loadMoreError = null)
         viewModelScope.launch {
             loadHistorySearchPage(page = 1, generation = generation, reset = true)
         }
@@ -294,18 +300,19 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                     items = if (reset) videos else (_uiState.value.items + videos).distinctBy(::resolveHistoryRenderKey),
                     isLoading = false,
                     error = null,
+                    loadMoreError = null,
                 )
                 historySearchPage = page
                 hasMore = videos.size >= 20
                 _hasMoreState.value = hasMore
             },
             onFailure = { error ->
+                if (error is CancellationException) throw error
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = error.message ?: "搜索历史失败",
+                    error = (error.message ?: "搜索历史失败").takeIf { reset },
+                    loadMoreError = (error.message ?: "搜索历史失败").takeUnless { reset },
                 )
-                hasMore = false
-                _hasMoreState.value = false
             },
         )
     }
@@ -386,12 +393,6 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     }
     
     override suspend fun fetchItems(): List<VideoItem> {
-        // 重置游标
-        cursorMax = 0
-        cursorViewAt = 0
-        cursorBusiness = ""
-        _deleteSession.value = null
-        
         val result = com.android.purebilibili.data.repository.HistoryRepository.getHistoryList(
             ps = 30,
             max = 0,
@@ -399,12 +400,13 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
             type = historyListType
         )
         
-        val historyResult = result.getOrNull()
-        if (historyResult == null) {
-            hasMore = false
-            _hasMoreState.value = false
-            return emptyList()
-        }
+        // Only replace the cursor after a successful refresh. A failed refresh must
+        // leave the retained list's next page available for retry.
+        val historyResult = result.getOrThrow()
+        cursorMax = 0
+        cursorViewAt = 0
+        cursorBusiness = ""
+        _deleteSession.value = null
         
         // 更新游标
         historyResult.cursor?.let { cursor ->
@@ -434,13 +436,15 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     }
     
     //  加载更多
-    fun loadMore() {
-        if (isLoadingMore || !hasMore) return
+    fun loadMore(retry: Boolean = false) {
+        if (isLoadingMore || _uiState.value.isLoading || !hasMore) return
+        if (!retry && (_uiState.value.loadMoreError != null || _uiState.value.error != null)) return
+        isLoadingMore = true
+        _isLoadingMoreState.value = true
+        _uiState.update { it.copy(loadMoreError = null) }
 
         if (historySearchQuery.isNotBlank()) {
             viewModelScope.launch {
-                isLoadingMore = true
-                _isLoadingMoreState.value = true
                 try {
                     loadHistorySearchPage(
                         page = historySearchPage + 1,
@@ -456,9 +460,6 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         }
         
         viewModelScope.launch {
-            isLoadingMore = true
-            _isLoadingMoreState.value = true
-            
             try {
                 com.android.purebilibili.core.util.Logger.d(
                     "HistoryVM",
@@ -473,8 +474,8 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                     type = historyListType
                 )
                 
-                val historyResult = result.getOrNull()
-                if (historyResult == null || historyResult.list.isEmpty()) {
+                val historyResult = result.getOrThrow()
+                if (historyResult.list.isEmpty()) {
                     hasMore = false
                     _hasMoreState.value = false
                     return@launch
@@ -507,7 +508,10 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                     _uiState.value = _uiState.value.copy(items = currentItems + newItems)
                     com.android.purebilibili.core.util.Logger.d("HistoryVM", " Total items: ${_uiState.value.items.size}")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                _uiState.update { it.copy(loadMoreError = e.message ?: "加载更多历史失败") }
                 e.printStackTrace()
                 com.android.purebilibili.core.util.Logger.e("HistoryVM", " loadMore failed", e)
             } finally {
@@ -515,6 +519,11 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                 _isLoadingMoreState.value = false
             }
         }
+    }
+
+    fun retryHistory() {
+        if (historySearchQuery.isNotBlank()) searchHistory(historySearchQuery)
+        else loadData()
     }
 
     fun deleteHistoryItems(renderKeys: Set<String>) {

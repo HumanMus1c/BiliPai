@@ -160,7 +160,7 @@ data class CreatorCardStats(
 object VideoRepository {
     private val api = NetworkModule.api
     private val buvidApi = NetworkModule.buvidApi
-    private val subtitleCueCache = ConcurrentHashMap<String, List<SubtitleCue>>()
+    // Subtitle cache is shared with TV by SubtitleContentRepository.
     private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()
     private val verticalVideoCache = ConcurrentHashMap<String, Boolean>()
 
@@ -195,7 +195,7 @@ object VideoRepository {
         )
 
     fun getSubtitleCueCacheStats(): SubtitleCueCacheStats {
-        val snapshot = subtitleCueCache.values.toList()
+        val snapshot = SubtitleContentRepository.cachedCues()
         val entryCount = snapshot.size
         val totalCueCount = snapshot.sumOf { it.size }
         return SubtitleCueCacheStats(
@@ -209,7 +209,7 @@ object VideoRepository {
     }
 
     fun clearSubtitleCueCache() {
-        subtitleCueCache.clear()
+        SubtitleContentRepository.clearCache()
     }
 
     internal fun getAppApiCooldownRemainingMs(nowMs: Long = System.currentTimeMillis()): Long {
@@ -2161,27 +2161,8 @@ object VideoRepository {
     }
 
     // [修复] 获取播放器信息 (BGM/ViewPoints/Etc) — WBI 签名
-    suspend fun getPlayerInfo(bvid: String, cid: Long): Result<PlayerInfoData> = withContext(Dispatchers.IO) {
-        try {
-            val (imgKey, subKey) = getWbiKeys()
-            val params = mapOf(
-                "bvid" to bvid,
-                "cid" to cid.toString()
-            )
-            val signedParams = WbiUtils.sign(params, imgKey, subKey)
-            val response = api.getPlayerInfo(signedParams)
-            if (response.code == 0 && response.data != null) {
-                val checkedResponseData = requireNotNull(response.data)
-                Result.success(checkedResponseData)
-            } else {
-                Result.failure(Exception("PlayerInfo error: ${response.code}"))
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getPlayerInfo(bvid: String, cid: Long): Result<PlayerInfoData> =
+        SubtitleContentRepository.playerInfo(bvid, cid)
 
     suspend fun getPbpProgressData(
         bvid: String,
@@ -2248,65 +2229,9 @@ object VideoRepository {
         }
     }
 
-    suspend fun getSubtitleCues(
-        subtitleUrl: String,
-        bvid: String,
-        cid: Long,
-        subtitleId: Long = 0L,
-        subtitleIdStr: String = "",
-        subtitleLan: String = ""
-    ): Result<List<SubtitleCue>> = withContext(Dispatchers.IO) {
-        try {
-            if (bvid.isBlank() || cid <= 0L) {
-                return@withContext Result.failure(
-                    IllegalArgumentException("字幕归属视频信息缺失: bvid=$bvid cid=$cid")
-                )
-            }
-            val normalizedUrl = normalizeBilibiliSubtitleUrl(subtitleUrl)
-            if (normalizedUrl.isBlank()) {
-                return@withContext Result.failure(IllegalArgumentException("字幕 URL 为空"))
-            }
-
-            val cacheKey = buildSubtitleCueCacheKey(
-                bvid = bvid,
-                cid = cid,
-                subtitleId = subtitleId,
-                subtitleIdStr = subtitleIdStr,
-                subtitleLan = subtitleLan,
-                normalizedSubtitleUrl = normalizedUrl
-            )
-            subtitleCueCache[cacheKey]?.let { cached ->
-                return@withContext Result.success(cached)
-            }
-
-            val request = Request.Builder()
-                .url(normalizedUrl)
-                .cacheControl(CacheControl.FORCE_NETWORK)
-                .get()
-                .header("Referer", "https://www.bilibili.com")
-                .header("Cache-Control", "no-cache")
-                .header("Pragma", "no-cache")
-                .build()
-
-            val response = NetworkModule.okHttpClient.newCall(request).execute()
-            response.use { call ->
-                if (!call.isSuccessful) {
-                    return@withContext Result.failure(
-                        IllegalStateException("字幕请求失败: HTTP ${call.code}")
-                    )
-                }
-                val rawJson = call.body.string()
-                val cues = parseBiliSubtitleBody(rawJson)
-                if (subtitleCueCache.size >= SUBTITLE_CUE_CACHE_MAX_ENTRIES) {
-                    subtitleCueCache.clear()
-                }
-                subtitleCueCache[cacheKey] = cues
-                Result.success(cues)
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getSubtitleCues(subtitleUrl: String, bvid: String, cid: Long, subtitleId: Long = 0L,
+        subtitleIdStr: String = "", subtitleLan: String = ""): Result<List<SubtitleCue>> =
+        SubtitleContentRepository.cues(subtitleUrl, bvid, cid, subtitleId, subtitleIdStr, subtitleLan)
 
     suspend fun getInteractEdgeInfo(
         bvid: String,

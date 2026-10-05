@@ -62,6 +62,15 @@ object DanmakuContentRepository {
         android.util.Log.d("DanmakuRepo", "Danmaku cache cleared")
     }
 
+    /** Evict only a segment whose bytes failed protocol parsing. */
+    fun invalidateDanmakuSegment(cid: Long, segmentIndex: Int) {
+        synchronized(danmakuSegmentCache) {
+            danmakuSegmentCache.remove(DanmakuSegmentCacheKey(cid, segmentIndex))?.let {
+                danmakuSegmentCacheBytes -= it.size.toLong()
+            }
+        }
+    }
+
     fun getDanmakuCacheStats(): DanmakuCacheStats {
         val rawEntryCount = synchronized(danmakuCache) { danmakuCache.size }
         val segmentEntryCount = synchronized(danmakuSegmentCache) { danmakuSegmentCache.size }
@@ -194,7 +203,8 @@ object DanmakuContentRepository {
             android.util.Log.w("DanmakuRepo", "Segment $segmentIndex failed: ${e.message}")
             return@withContext null
         }
-        if (bytes.isEmpty()) return@withContext null
+        // A successful empty protobuf body is a valid segment with no comments.
+        // Reserve null for fetch failures so playback can retry those segments.
 
         val entrySize = bytes.size.toLong()
         if (entrySize <= MAX_SEGMENT_CACHE_BYTES) {

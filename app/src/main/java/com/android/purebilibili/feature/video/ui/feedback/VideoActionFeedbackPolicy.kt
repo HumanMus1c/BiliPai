@@ -72,11 +72,11 @@ fun resolveVideoFeedbackPlacement(
     }
 }
 
-/** The like burst is transient feedback and remains visible when centered over the player. */
-fun resolveLikeBurstPlacement(): VideoFeedbackPlacement = VideoFeedbackPlacement(
-    anchor = VideoFeedbackAnchor.CenterOverlay,
-    bottomInsetDp = 0,
-    sideInsetDp = 0,
+/** Reserve room for player controls / the reply composer rather than covering the picture center. */
+fun resolveLikeBurstPlacement(bottomInsetDp: Int = 0): VideoFeedbackPlacement = VideoFeedbackPlacement(
+    anchor = VideoFeedbackAnchor.BottomTrailing,
+    bottomInsetDp = bottomInsetDp + 64,
+    sideInsetDp = 16,
     emphasis = VideoFeedbackEmphasis.Emphasized,
 )
 

@@ -14,6 +14,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -41,6 +42,8 @@ fun AdaptivePullToRefreshBox(
     indicatorTopInset: Dp = 0.dp,
     state: PullToRefreshState = rememberPullToRefreshState(),
     contentAlignment: Alignment = Alignment.TopStart,
+    /** Disable refresh gestures without discarding the list's composition state. */
+    enabled: Boolean = true,
     indicator: @Composable BoxScope.() -> Unit = {
         AdaptivePullToRefreshDefaultIndicator(
             isRefreshing = isRefreshing,
@@ -63,23 +66,33 @@ fun AdaptivePullToRefreshBox(
     when (rememberPresetPrimitiveRenderer()) {
         PresetPrimitiveRenderer.MIUIX_BRIDGED -> {
             val miuixState = rememberMiuixPullToRefreshState()
-            MiuixPullToRefresh(
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh,
-                modifier = modifier,
-                pullToRefreshState = miuixState,
-                contentPadding = mergedContentPadding,
-                color = AppSurfaceTokens.primary(),
-                refreshTexts = resolveMiuixPullToRefreshTexts(),
-                content = {
+            // MIUIX has no gesture-enabled flag. Move, rather than remount, the list
+            // when bypassing its refresh container so comment row state is retained.
+            val stableContent = remember {
+                movableContentOf<Alignment, @Composable BoxScope.() -> Unit> { alignment, body ->
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = contentAlignment,
-                    ) {
-                        content()
-                    }
-                },
-            )
+                        contentAlignment = alignment,
+                        content = body,
+                    )
+                }
+            }
+            if (enabled) {
+                MiuixPullToRefresh(
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                    modifier = modifier,
+                    pullToRefreshState = miuixState,
+                    contentPadding = mergedContentPadding,
+                    color = AppSurfaceTokens.primary(),
+                    refreshTexts = resolveMiuixPullToRefreshTexts(),
+                    content = { stableContent(contentAlignment, content) },
+                )
+            } else {
+                Box(modifier = modifier, contentAlignment = contentAlignment) {
+                    stableContent(contentAlignment, content)
+                }
+            }
         }
         PresetPrimitiveRenderer.MATERIAL3 -> {
             ComfortablePullToRefreshBox(
@@ -88,6 +101,7 @@ fun AdaptivePullToRefreshBox(
                 modifier = modifier,
                 state = state,
                 contentAlignment = contentAlignment,
+                enabled = enabled,
                 indicator = indicator,
                 content = content,
             )

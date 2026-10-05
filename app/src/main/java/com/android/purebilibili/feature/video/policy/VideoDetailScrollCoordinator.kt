@@ -62,7 +62,8 @@ internal fun reduceVideoDetailPostScroll(
 internal fun shouldSkipGesturePlayerCollapseForLayout(
     compactForIntroScroll: Boolean,
     compactForCommentTab: Boolean,
-): Boolean = compactForCommentTab
+    hidePausedPlayerForComments: Boolean = false,
+): Boolean = compactForCommentTab && !hidePausedPlayerForComments
 
 internal fun shouldTrackVideoDetailCollapseMotion(
     inlinePortraitScrollEnabled: Boolean,

@@ -8,6 +8,7 @@ import com.bytedance.danmaku.render.engine.render.draw.mask.MaskData
 import com.bytedance.danmaku.render.engine.render.draw.text.TextData
 import com.bytedance.danmaku.render.engine.touch.IItemClickListener
 import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_BOTTOM_CENTER
+import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_MASK
 import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_SCROLL
 import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_TOP_CENTER
 
@@ -149,7 +150,9 @@ internal class ByteDanceDanmakuEngine(
         this.currentPositionMs = currentPositionMs.coerceAtLeast(0L)
         val shouldResume = playbackState == DanmakuPlaybackState.PLAYING
         controller.pause()
-        controller.clear()
+        // Mask prefetch refreshes independently of text. Replacing its window must
+        // preserve the active scrolling/pinned comments instead of clearing every layer.
+        controller.clear(LAYER_TYPE_MASK)
         traceDanmakuEngineSection(TRACE_SET_DATA) {
             controller.setData(buildEngineTimeline(), this.currentPositionMs)
         }

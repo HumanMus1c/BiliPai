@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import com.android.purebilibili.feature.video.ui.components.PlaybackSpeed
 import com.android.purebilibili.feature.video.ui.components.DolbyBadge
 import com.android.purebilibili.feature.video.ui.components.HiResBadge
+import com.android.purebilibili.feature.video.ui.feedback.followActionAnchor
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
@@ -750,6 +751,7 @@ private fun PortraitVideoInfo(
                 color = buttonColor,
                 modifier = Modifier
                     .height(layoutPolicy.followButtonHeightDp.dp)
+                    .followActionAnchor()
                     .clickable { onFollowClick() }
             ) {
                 Row(

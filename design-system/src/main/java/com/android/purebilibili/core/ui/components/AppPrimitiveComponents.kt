@@ -672,6 +672,8 @@ fun AppOutlinedTextField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     focusRequester: FocusRequester? = null,
     shape: Shape = OutlinedTextFieldDefaults.shape,
+    miuixCornerRadius: androidx.compose.ui.unit.Dp? = null,
+    miuixContainerColor: Color? = null,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     if (
@@ -709,12 +711,16 @@ fun AppOutlinedTextField(
                 visualTransformation = visualTransformation,
                 interactionSource = interactionSource,
                 colors = MiuixTextFieldDefaults.textFieldColors(
+                    backgroundColor = miuixContainerColor
+                        ?: MiuixTheme.colorScheme.secondaryContainer,
                     borderColor = if (isError) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MiuixTheme.colorScheme.primary
                     },
                 ),
+                // Miuix TextField 没有 Shape 参数，只能用圆角半径近似胶囊形
+                cornerRadius = miuixCornerRadius ?: MiuixTextFieldDefaults.CornerRadius,
             )
             supportingText?.invoke()
         }

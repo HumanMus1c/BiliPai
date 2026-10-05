@@ -39,6 +39,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.components.liquidDockViewport
@@ -248,7 +249,12 @@ import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.core.player.PlaybackProgressManager
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.feature.video.ui.feedback.followActionAnchor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// UP 空间多张头图自动轮播间隔
+private const val SPACE_BANNER_AUTO_ROTATE_INTERVAL_MS = 4_000L
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -3995,6 +4001,7 @@ private fun SpaceTopVideoCard(
         play = video.stat.view,
         secondaryCount = video.stat.danmaku,
         badgeLabel = "置顶",
+        showTrailingMore = false,
         onClick = onClick,
         sharedTransitionKey = sharedTransitionKey,
         sharedTransitionScope = sharedTransitionScope,
@@ -4121,6 +4128,7 @@ private fun SpaceArchiveListItemRow(
     progressState: VideoProgressDisplayState? = null,
     badgeLabel: String? = null,
     isLocateHighlight: Boolean = false,
+    showTrailingMore: Boolean = true,
     onClick: () -> Unit,
     sharedTransitionKey: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -4324,16 +4332,20 @@ private fun SpaceArchiveListItemRow(
                 danmakuText = FormatUtils.formatStat(secondaryCount),
             )
         },
-        trailingContent = {
-            AppIcon(
-                imageVector = Icons.Outlined.MoreVert,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(18.dp),
-            )
+        trailingContent = if (showTrailingMore) {
+            {
+                AppIcon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .size(18.dp),
+                )
+            }
+        } else {
+            null
         },
     )
 }
@@ -5012,6 +5024,7 @@ private fun SpaceHeaderRelationActions(
             modifier = Modifier
                 .weight(1f)
                 .height(36.dp)
+                .then(if (isOwner) Modifier else Modifier.followActionAnchor())
         ) {
             Row(
                 modifier = Modifier
@@ -5136,6 +5149,16 @@ private fun SpaceHeaderBanner(
         val pagerState = rememberPagerState { topImages.size }
         LaunchedEffect(pagerState.currentPage, topImages) {
             onCurrentBannerUrlChange(topImages.getOrNull(pagerState.currentPage)?.header)
+        }
+        // 多张头图自动轮播：用户拖动期间暂停，松手后重新计时
+        val bannerDragging by pagerState.interactionSource.collectIsDraggedAsState()
+        LaunchedEffect(pagerState, bannerDragging, topImages.size) {
+            if (bannerDragging) return@LaunchedEffect
+            while (true) {
+                delay(SPACE_BANNER_AUTO_ROTATE_INTERVAL_MS)
+                val nextPage = (pagerState.currentPage + 1) % topImages.size
+                pagerState.animateScrollToPage(nextPage)
+            }
         }
         Box(modifier = modifier) {
             HorizontalPager(

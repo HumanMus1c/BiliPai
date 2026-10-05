@@ -55,6 +55,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
+import com.android.purebilibili.feature.video.ui.feedback.downloadActionAnchor
+import com.android.purebilibili.feature.video.ui.feedback.favoriteActionAnchor
+import com.android.purebilibili.feature.video.ui.feedback.likeBurstAnchor
 import com.android.purebilibili.feature.video.ui.feedback.resolveVideoDetailActionActiveColors
 import com.android.purebilibili.feature.video.ui.feedback.resolveVideoActionCountTint
 import com.android.purebilibili.feature.video.ui.feedback.resolveVideoActionTint
@@ -196,7 +199,9 @@ fun ActionButtonsRow(
                 progress = tripleProgress,
                 onClick = onLikeClick,
                 horizontalPadding = buttonHorizontalPadding,
-                modifier = Modifier.pointerInput(
+                modifier = Modifier
+                    .likeBurstAnchor()
+                    .pointerInput(
                     isLiked,
                     tripleCompleted,
                     tripleProgress
@@ -297,7 +302,8 @@ fun ActionButtonsRow(
                 progress = tripleProgress,
                 onClick = onFavoriteClick,
                 onLongClick = onFavoriteLongClick,
-                horizontalPadding = buttonHorizontalPadding
+                horizontalPadding = buttonHorizontalPadding,
+                modifier = Modifier.favoriteActionAnchor()
             )
         }
 
@@ -349,18 +355,20 @@ fun ActionButtonsRow(
                 .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
-            BiliActionButton(
-                icon = if (isDownloaded) Icons.Outlined.Check else downloadIcon,
-                text = downloadText,
-                isActive = isDownloaded || isDownloading,
-                activeColor = if (isDownloaded) {
-                    activeColors.downloaded
-                } else {
-                    activeColors.downloadInProgress
-                },
-                onClick = onDownloadClick,
-                horizontalPadding = buttonHorizontalPadding
-            )
+            Box(modifier = Modifier.downloadActionAnchor()) {
+                BiliActionButton(
+                    icon = if (isDownloaded) Icons.Outlined.Check else downloadIcon,
+                    text = downloadText,
+                    isActive = isDownloaded || isDownloading,
+                    activeColor = if (isDownloaded) {
+                        activeColors.downloaded
+                    } else {
+                        activeColors.downloadInProgress
+                    },
+                    onClick = onDownloadClick,
+                    horizontalPadding = buttonHorizontalPadding
+                )
+            }
         }
 
     }

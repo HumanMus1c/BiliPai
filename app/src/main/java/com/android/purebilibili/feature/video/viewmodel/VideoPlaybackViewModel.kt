@@ -1789,6 +1789,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
 
     private var exoPlayer: ExoPlayer? = null
+    // Invalidates delayed error recovery as soon as a replacement is requested,
+    // including switches whose network request has not completed yet.
+    internal var playbackRecoveryGeneration: Long = 0L
+        private set
     private var heartbeatJob: Job? = null
     private var heartbeatSessionStartTsSec: Long = 0L
     private var heartbeatAccumulatedPlayMs: Long = 0L
@@ -2292,6 +2296,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     
     fun attachPlayer(player: ExoPlayer) {
         val changed = exoPlayer !== player
+        if (changed) playbackRecoveryGeneration++
         val previousPlayer = exoPlayer
 
         if (changed && previousPlayer != null) {
@@ -2475,7 +2480,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun schedulePlaybackStallRecovery() {
-        if (exoPlayer == null) return
+        val scheduledPlayer = exoPlayer ?: return
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
         val mediaKey = "${current.info.bvid}:${current.info.cid}"
         if (playbackStallRecoveryMediaKey != mediaKey) {
@@ -2483,12 +2488,15 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             attemptedPlaybackStallRecoveryCdnIndexes.clear()
         }
         if (playbackStallRecoveryJob?.isActive == true) return
+        val ticket = playbackRecoveryGeneration
 
         playbackStallRecoveryJob = viewModelScope.launch {
             delay(PLAYBACK_STALL_RECOVERY_TIMEOUT_MS)
             val latestPlayer = exoPlayer ?: return@launch
             val latest = _uiState.value as? VideoPlaybackUiState.Success ?: return@launch
-            if ("${latest.info.bvid}:${latest.info.cid}" != playbackStallRecoveryMediaKey) {
+            if (ticket != playbackRecoveryGeneration || latestPlayer !== scheduledPlayer ||
+                "${latest.info.bvid}:${latest.info.cid}" != mediaKey
+            ) {
                 return@launch
             }
 
@@ -3016,18 +3024,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
         Logger.d("PlayerVM", "🔄 Reloading video (forced)...")
         // 设置标志位，确保 loadVideo 不会跳过
-        loadVideo(bvid, force = true, autoPlay = true, cid = currentCid)
-        
-        // 如果之前有进度，尝试恢复
-        // 注意：loadVideo 是异步的，这里只是一个兜底，主要还是靠 loadVideo 内部读取 cachedPosition
-        if (currentPos > 1000) {
-             viewModelScope.launch {
-                 delay(500)
-                 if (exoPlayer?.currentPosition ?: 0L < 1000) {
-                     seekTo(currentPos)
-                 }
-             }
-        }
+        loadVideo(
+            bvid, force = true, autoPlay = true, cid = currentCid,
+            fallbackResumePositionMs = currentPos.coerceAtLeast(0L)
+        )
     }
 
     fun retryAiSummary() {
@@ -3054,6 +3054,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         fallbackResumePositionMs: Long = 0L
     ) {
         if (bvid.isBlank()) return
+        playbackRecoveryGeneration++
         // A full media load supersedes an in-place page switch. Without this, a slow page request
         // can replace the player after navigation has already started loading another subject.
         pageSwitchJob?.cancel()
@@ -4245,6 +4246,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
      * 在当前画质下切换到下一个 CDN
      */
     fun switchCdn() {
+        playbackRecoveryGeneration++
         cancelPlaybackStallRecovery()
         val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
 
@@ -4310,6 +4312,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         
         val nextVideoUrl = current.allVideoUrls.getOrNull(index) ?: return
         val nextAudioUrl = current.allAudioUrls.getOrNull(index)
+        playbackRecoveryGeneration++
         
         val currentPos = exoPlayer?.currentPosition ?: 0L
         val playWhenReadyAfterSwitch = exoPlayer?.let { player ->
@@ -5202,6 +5205,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun setAudioQuality(audioQuality: Int) {
+        playbackRecoveryGeneration++
         val previousAudioQuality = _audioQualityPreference.value
         _audioQualityPreference.value = audioQuality
         Logger.d("VideoPlaybackViewModel", "🎵 setAudioQuality called with: $audioQuality")
@@ -7351,6 +7355,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             toast("已是当前清晰度", PlayerToastPresentation.CenteredHighlight)
             return
         }
+        playbackRecoveryGeneration++
 
         // Cancel only the current playback's pending auto-upgrade. Other videos remain eligible.
         explicitQualitySelectionKeys += buildPremiumAutoUpgradePlaybackKey(
@@ -7597,6 +7602,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             return
         }
         if (page.cid == pendingPageSwitchCid && pageSwitchJob?.isActive == true) return
+        playbackRecoveryGeneration++
         pageSwitchJob?.cancel()
         val switchGeneration = ++pageSwitchGeneration
         pendingPageSwitchCid = page.cid
@@ -8728,6 +8734,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         cdnFallbackState: PlaybackCdnFallbackState = PlaybackCdnFallbackState.Inactive,
         cdnCacheKeysByUrl: Map<String, String> = emptyMap()
     ) {
+        playbackRecoveryGeneration++
+        cancelPlaybackStallRecovery()
         armPlaybackCdnFallback(cdnFallbackState, playWhenReady)
         if (adaptiveDashSource != null || audioUrl != null) {
             playbackUseCase.playDashVideo(
@@ -8750,9 +8758,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         playbackCdnFallbackJob?.cancel()
         playbackCdnFallbackState = state
         if (!playWhenReady || !state.usesCdnRewrite) return
+        val ticket = playbackRecoveryGeneration
+        val scheduledPlayer = exoPlayer
 
         playbackCdnFallbackJob = viewModelScope.launch {
             delay(PLAYBACK_CDN_FIRST_FRAME_FALLBACK_TIMEOUT_MS)
+            if (ticket != playbackRecoveryGeneration || exoPlayer !== scheduledPlayer) return@launch
             val playbackReady = exoPlayer?.playbackState == Player.STATE_READY
             val expectedAudioTrack = playbackCdnFallbackState.selectedAudioUrl != null
             val hasSelectedAudioTrack = hasSelectedAudioTrack(exoPlayer)

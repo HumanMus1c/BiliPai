@@ -1320,16 +1320,42 @@ fun rememberVideoPlayerState(
 
 
     //  [修复3] 监听播放器错误，智能重试（网络错误 → CDN 切换 → 重试）
-    val retryCountRef = remember { object { 
+    val retryCountRef = remember(player, viewModel, bvid, cid) { object {
         var count = 0 
         var cdnSwitchCount = 0  // 📡 [新增] CDN 切换计数
     } }
     val maxRetries = 3
     val maxCdnSwitches = 2  // 📡 [新增] 最多尝试切换 2 次 CDN
     
-    DisposableEffect(player) {
+    val recoverySessionActive by rememberUpdatedState(playbackSessionActive)
+    DisposableEffect(player, viewModel, bvid, cid, playbackSessionActive) {
+        var recoveryJob: Job? = null
+        fun cancelRecovery() {
+            recoveryJob?.cancel()
+            recoveryJob = null
+        }
+        fun scheduleRecovery(
+            error: androidx.media3.common.PlaybackException,
+            delayMs: Long = 0L,
+            recover: () -> Unit,
+        ) {
+            cancelRecovery()
+            val ticket = viewModel.playbackRecoveryGeneration
+            val mediaItem = player.currentMediaItem
+            recoveryJob = scope.launch {
+                if (delayMs > 0L) delay(delayMs)
+                if (!recoverySessionActive ||
+                    ticket != viewModel.playbackRecoveryGeneration ||
+                    player.currentMediaItem !== mediaItem ||
+                    player.playerError !== error
+                ) return@launch
+                recover()
+            }
+        }
         val listener = object : Player.Listener {
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                cancelRecovery()
+                if (!recoverySessionActive) return
                 val causeName = error.cause?.javaClass?.name
                 val errorCodeName = androidx.media3.common.PlaybackException.getErrorCodeName(error.errorCode)
                 com.android.purebilibili.core.util.Logger.e(
@@ -1342,19 +1368,19 @@ fun rememberVideoPlayerState(
                 )
 
                 val currentState = viewModel.uiState.value
-                val hasCdnAlternatives = currentState is com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState.Success 
-                    && currentState.cdnCount > 1
+                // A new load may still have the old media item's error attached.
+                if (currentState !is VideoPlaybackUiState.Success) return
+                val hasCdnAlternatives = currentState.cdnCount > 1
                 val exoPlaybackError = error as? ExoPlaybackException
                 val isPremiumAudioFailure =
-                    currentState is VideoPlaybackUiState.Success &&
-                        isPremiumAudioPlaybackFailure(
-                            errorCode = error.errorCode,
-                            selectedAudioQuality = currentState.selectedAudioQuality,
-                            rendererName = exoPlaybackError?.rendererName,
-                            rendererSampleMimeType = exoPlaybackError
-                                ?.rendererFormat
-                                ?.sampleMimeType
-                        )
+                    isPremiumAudioPlaybackFailure(
+                        errorCode = error.errorCode,
+                        selectedAudioQuality = currentState.selectedAudioQuality,
+                        rendererName = exoPlaybackError?.rendererName,
+                        rendererSampleMimeType = exoPlaybackError
+                            ?.rendererFormat
+                            ?.sampleMimeType
+                    )
 
                 val action = decidePlayerErrorRecovery(
                     errorCode = error.errorCode,
@@ -1381,8 +1407,7 @@ fun rememberVideoPlayerState(
                             "VideoPlayerState",
                             "📡 Network error, switching CDN (${retryCountRef.cdnSwitchCount}/$maxCdnSwitches)"
                         )
-                        scope.launch {
-                            kotlinx.coroutines.delay(500)
+                        scheduleRecovery(error, delayMs = 500L) {
                             viewModel.switchCdn()
                         }
                     }
@@ -1394,8 +1419,7 @@ fun rememberVideoPlayerState(
                             "VideoPlayerState",
                             "🔄 Network error, retry ${retryCountRef.count}/$maxRetries in ${delayMs}ms"
                         )
-                        scope.launch {
-                            kotlinx.coroutines.delay(delayMs)
+                        scheduleRecovery(error, delayMs) {
                             viewModel.retry()
                         }
                     }
@@ -1406,7 +1430,7 @@ fun rememberVideoPlayerState(
                             "VideoPlayerState",
                             "🛟 Decoder-like error, retrying with safe codec fallback (AVC)"
                         )
-                        scope.launch {
+                        scheduleRecovery(error) {
                             viewModel.retryWithCodecFallback()
                         }
                     }
@@ -1417,7 +1441,7 @@ fun rememberVideoPlayerState(
                             "VideoPlayerState",
                             " Auto-retrying video load (non-network error)..."
                         )
-                        scope.launch {
+                        scheduleRecovery(error) {
                             viewModel.retry()
                         }
                     }
@@ -1433,6 +1457,7 @@ fun rememberVideoPlayerState(
             
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
+                    cancelRecovery()
                     // 播放成功，重置所有计数
                     retryCountRef.count = 0
                     retryCountRef.cdnSwitchCount = 0
@@ -1441,6 +1466,7 @@ fun rememberVideoPlayerState(
         }
         player.addListener(listener)
         onDispose {
+            cancelRecovery()
             player.removeListener(listener)
         }
     }

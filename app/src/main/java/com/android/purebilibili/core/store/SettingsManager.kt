@@ -391,11 +391,11 @@ enum class PlaybackCompletionBehavior(val value: Int, val label: String) {
 }
 
 enum class PortraitPlayerCollapseMode(val value: Int, val label: String, val description: String) {
-    OFF(0, "关闭", "不自动缩小播放器"),
+    OFF(0, "关闭", "关闭滚动缩小；暂停后仍可上滑评论隐藏视频"),
     INTRO_ONLY(1, "竖屏", "竖屏视频评论区或简介上滑时缩小播放器"),
     COMMENT_ONLY(2, "横屏", "仅横屏视频详情页滚动时缩小播放器"),
     BOTH(3, "全部", "横竖屏视频都使用播放器缩小策略"),
-    PAUSED_ONLY(4, "暂停时", "横竖屏视频暂停后，下滑评论或简介可缩小播放器");
+    PAUSED_ONLY(4, "暂停时", "视频暂停后，上滑评论隐藏视频，上滑简介缩小播放器");
 
     val enablesPortraitVideo: Boolean
         get() = this == INTRO_ONLY || this == BOTH || this == PAUSED_ONLY
@@ -1475,6 +1475,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_SPLASH_RANDOM_POOL_URIS = stringPreferencesKey("splash_random_pool_uris")
     private val KEY_SPLASH_ENABLED = booleanPreferencesKey("splash_enabled")
     private val KEY_SPLASH_RANDOM_ENABLED = booleanPreferencesKey("splash_random_enabled")
+    private val KEY_STARTUP_ANIMATION_STYLE = stringPreferencesKey("startup_animation_style")
     private val KEY_SPLASH_ICON_ANIMATION_ENABLED = booleanPreferencesKey("splash_icon_animation_enabled")
     private val KEY_SPLASH_ALIGNMENT_MOBILE = floatPreferencesKey("splash_alignment_mobile")
     private val KEY_SPLASH_ALIGNMENT_TABLET = floatPreferencesKey("splash_alignment_tablet")
@@ -1484,6 +1485,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private const val SPLASH_PREFS_KEY_RANDOM_POOL_URIS = "random_pool_uris"
     private const val SPLASH_PREFS_KEY_ENABLED = "enabled"
     private const val SPLASH_PREFS_KEY_RANDOM_ENABLED = "random_enabled"
+    private const val SPLASH_PREFS_KEY_ANIMATION_STYLE = "animation_style"
     private const val SPLASH_PREFS_KEY_ICON_ANIMATION_ENABLED = "icon_animation_enabled"
     private const val SPLASH_PREFS_KEY_ALIGNMENT_MOBILE = "alignment_mobile"
     private const val SPLASH_PREFS_KEY_ALIGNMENT_TABLET = "alignment_tablet"
@@ -3681,6 +3683,23 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     fun getSplashRandomEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SPLASH_RANDOM_ENABLED] ?: false }
+
+    fun getStartupAnimationStyle(context: Context): Flow<StartupAnimationStyle> =
+        context.settingsDataStore.data.map { StartupAnimationStyle.fromValue(it[KEY_STARTUP_ANIMATION_STYLE]) }
+
+    fun getStartupAnimationStyleSync(context: Context): StartupAnimationStyle =
+        StartupAnimationStyle.fromValue(
+            context.getSharedPreferences(SPLASH_PREFS, Context.MODE_PRIVATE)
+                .getString(SPLASH_PREFS_KEY_ANIMATION_STYLE, null)
+        )
+
+    suspend fun setStartupAnimationStyle(context: Context, value: StartupAnimationStyle) {
+        editSettingsAndCommitPrefs(
+            context, SPLASH_PREFS,
+            editSettings = { this[KEY_STARTUP_ANIMATION_STYLE] = value.value },
+            editPrefs = { putString(SPLASH_PREFS_KEY_ANIMATION_STYLE, value.value) },
+        )
+    }
 
     fun getSplashIconAnimationEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SPLASH_ICON_ANIMATION_ENABLED] ?: true }

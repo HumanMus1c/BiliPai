@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -736,7 +735,7 @@ fun BottomControlBar(
             currentChapter = currentChapter,
             onChapterClick = onChapterClick,
             modifier = Modifier
-                .padding(horizontal = if (isFullscreen) 48.dp else 0.dp)
+                .padding(horizontal = if (isFullscreen) layoutPolicy.horizontalPaddingDp.dp else 0.dp)
                 .semantics { testTagsAsResourceId = true }
                 .testTag("player_progress")
         )
@@ -763,7 +762,7 @@ fun BottomControlBar(
                     currentPositionMs = progress.current,
                     onSeek = onSeek,
                     modifier = Modifier
-                        .padding(horizontal = if (isFullscreen) 48.dp else 0.dp)
+                        .padding(horizontal = if (isFullscreen) layoutPolicy.horizontalPaddingDp.dp else 0.dp)
                         .testTag("player_viewpoint_segments")
                 )
                 Spacer(modifier = Modifier.height(layoutPolicy.progressSpacingDp.dp))
@@ -771,6 +770,7 @@ fun BottomControlBar(
         }
 
         // 2. Control Row
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides layoutPolicy.playButtonSizeDp.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -791,7 +791,6 @@ fun BottomControlBar(
                     isPlaying = isPlaying,
                     onClick = onPlayPauseClick,
                     outerSize = layoutPolicy.playButtonSizeDp.dp,
-                    innerSize = (layoutPolicy.playButtonSizeDp - 8).dp,
                     glyphSize = layoutPolicy.playIconSizeDp.dp
                 )
 
@@ -923,6 +922,7 @@ fun BottomControlBar(
                                 text = currentRatio.displayName,
                                 color = Color.White,
                                 fontSize = layoutPolicy.actionTextFontSp.sp,
+                                lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 softWrap = false
@@ -931,7 +931,7 @@ fun BottomControlBar(
                     } else if (showAudioQualityButtonInline) {
                         Row(
                             modifier = Modifier
-                                .heightIn(min = 48.dp)
+                                .heightIn(min = layoutPolicy.playButtonSizeDp.dp)
                                 .clickable(onClick = onAudioQualityClick),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -944,6 +944,7 @@ fun BottomControlBar(
                                     text = currentAudioQualityLabel.ifBlank { "音质" },
                                     color = Color.White,
                                     fontSize = layoutPolicy.actionTextFontSp.sp,
+                                    lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     softWrap = false
@@ -958,6 +959,7 @@ fun BottomControlBar(
                             text = currentQualityLabel,
                             color = Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
+                            lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             softWrap = false,
@@ -971,6 +973,7 @@ fun BottomControlBar(
                             text = "分集",
                             color = Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
+                            lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             softWrap = false,
@@ -983,6 +986,7 @@ fun BottomControlBar(
                         text = if (currentSpeed == 1.0f) "倍速" else "${currentSpeed}x",
                         color = if (currentSpeed == 1.0f) Color.White else MaterialTheme.colorScheme.primary,
                         fontSize = layoutPolicy.actionTextFontSp.sp,
+                        lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         softWrap = false,
@@ -1014,6 +1018,7 @@ fun BottomControlBar(
                                 text = "字幕",
                                 color = if (subtitleEnabled) MaterialTheme.colorScheme.primary else Color.White,
                                 fontSize = layoutPolicy.actionTextFontSp.sp,
+                                lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 softWrap = false,
@@ -1112,6 +1117,7 @@ fun BottomControlBar(
                                     text = "更多",
                                     color = if (showMoreActionsPanel) MaterialTheme.colorScheme.primary else Color.White,
                                     fontSize = layoutPolicy.actionTextFontSp.sp,
+                                    lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                                     fontWeight = FontWeight.SemiBold,
                                     // Keep the label on one line so the overflow action is never
                                     // split as “更”/“多” in landscape.
@@ -1130,6 +1136,7 @@ fun BottomControlBar(
                             text = "竖屏",
                             color = Color.White,
                             fontSize = layoutPolicy.actionTextFontSp.sp,
+                            lineHeight = (layoutPolicy.actionTextFontSp + 2).sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             softWrap = false,
@@ -1154,6 +1161,7 @@ fun BottomControlBar(
                     modifier = Modifier.size(layoutPolicy.fullscreenIconSizeDp.dp)
                 )
             }
+        }
         }
         if (progressPlacement == PlayerProgressPlacement.BOTTOM_EDGE) {
             Spacer(modifier = Modifier.height(layoutPolicy.progressSpacingDp.dp))
@@ -1939,6 +1947,7 @@ private fun ProgressTimeText(positionProvider: () -> Long, duration: Long, fontS
         text = "${FormatUtils.formatDuration(seconds.toInt())} / ${FormatUtils.formatDuration((duration / 1000L).toInt())}",
         color = Color.White.copy(alpha = 0.9f),
         fontSize = fontSp.sp,
+        lineHeight = (fontSp + 2).sp,
         fontWeight = FontWeight.Medium
     )
 }

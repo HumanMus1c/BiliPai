@@ -149,6 +149,7 @@ internal fun VideoShareSheet(
             payload = payload,
             onDismiss = onDismiss,
             onSuccess = { count ->
+                if (count > 0) VideoShareFeedbackEvents.prepared(payload.bvid)
                 Toast.makeText(context, "已发送给 $count 位 B 站好友", Toast.LENGTH_SHORT).show()
             },
         )
@@ -272,6 +273,7 @@ internal fun VideoShareSheet(
                                 }
                                 VideoShareTarget.COPY_LINK -> {
                                     copyPlainTextToClipboard(context, payload.url, "视频链接")
+                                    VideoShareFeedbackEvents.prepared(payload.bvid)
                                     Toast.makeText(context, "已复制链接", Toast.LENGTH_SHORT).show()
                                     shareScope.launch {
                                         hideVideoShareSheet(sheetState)
@@ -481,6 +483,7 @@ private fun Context.startTargetedVideoShare(
             )
         }
         startActivityWithTaskFlag(intent)
+        VideoShareFeedbackEvents.prepared(payload.bvid)
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(this, "未安装$appName", Toast.LENGTH_SHORT).show()
     } catch (_: Exception) {
@@ -508,6 +511,7 @@ private fun Context.startMoreVideoShare(
             chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivityWithTaskFlag(chooser)
+        VideoShareFeedbackEvents.prepared(payload.bvid)
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(this, "无法打开分享面板", Toast.LENGTH_SHORT).show()
     } catch (_: Exception) {

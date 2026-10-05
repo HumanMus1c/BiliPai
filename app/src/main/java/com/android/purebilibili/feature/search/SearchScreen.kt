@@ -1591,18 +1591,31 @@ fun SearchScreen(
                                         viewModel.search(pageResultState.query)
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = resultTopPadding, bottom = resultBottomPadding),
+                                animation = com.android.purebilibili.core.ui.MaidAnimation.RETRY,
+                                isVisible = searchPagerState.currentPage == page
                             )
                         } else if (pagePresentation.body == SearchResultBodyMode.EMPTY) {
                             val copy = pageEmptyStateCopy
                             if (copy != null) {
-                                SearchNativeMessageState(
-                                    title = copy.title,
-                                    message = copy.subtitle,
-                                    actionLabel = "重新搜索",
-                                    onAction = { viewModel.search(pageResultState.query) },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(top = resultTopPadding, bottom = resultBottomPadding),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    com.android.purebilibili.core.ui.EmptyState(
+                                        message = copy.title,
+                                        subtitle = copy.subtitle,
+                                        animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                        actionText = "重新搜索",
+                                        onAction = { viewModel.search(pageResultState.query) },
+                                        enableEasterEgg = false,
+                                        isVisible = searchPagerState.currentPage == page
+                                    )
+                                }
                             }
                         } else {
                         when (targetSearchType) {
@@ -1798,20 +1811,13 @@ fun SearchScreen(
                                                     .padding(vertical = 64.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.title,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.subtitle,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-                                                }
+                                                com.android.purebilibili.core.ui.EmptyState(
+                                                    message = pageEmptyStateCopy.title,
+                                                    subtitle = pageEmptyStateCopy.subtitle,
+                                                    animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                                    enableEasterEgg = false,
+                                                    isVisible = searchPagerState.currentPage == page
+                                                )
                                             }
                                         }
                                     }
@@ -1904,21 +1910,13 @@ fun SearchScreen(
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.title,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.subtitle,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                                    )
-                                                }
+                                                com.android.purebilibili.core.ui.EmptyState(
+                                                    message = pageEmptyStateCopy.title,
+                                                    subtitle = pageEmptyStateCopy.subtitle,
+                                                    animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                                    enableEasterEgg = false,
+                                                    isVisible = searchPagerState.currentPage == page
+                                                )
                                             }
                                         }
                                     }
@@ -2011,20 +2009,13 @@ fun SearchScreen(
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.title,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.subtitle,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-                                                }
+                                                com.android.purebilibili.core.ui.EmptyState(
+                                                    message = pageEmptyStateCopy.title,
+                                                    subtitle = pageEmptyStateCopy.subtitle,
+                                                    animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                                    enableEasterEgg = false,
+                                                    isVisible = searchPagerState.currentPage == page
+                                                )
                                             }
                                         }
                                     }
@@ -2072,21 +2063,13 @@ fun SearchScreen(
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.title,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.subtitle,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                                    )
-                                                }
+                                                com.android.purebilibili.core.ui.EmptyState(
+                                                    message = pageEmptyStateCopy.title,
+                                                    subtitle = pageEmptyStateCopy.subtitle,
+                                                    animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                                    enableEasterEgg = false,
+                                                    isVisible = searchPagerState.currentPage == page
+                                                )
                                             }
                                         }
                                     }
@@ -2207,21 +2190,13 @@ fun SearchScreen(
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.title,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    AppText(
-                                                        text = pageEmptyStateCopy.subtitle,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                                    )
-                                                }
+                                                com.android.purebilibili.core.ui.EmptyState(
+                                                    message = pageEmptyStateCopy.title,
+                                                    subtitle = pageEmptyStateCopy.subtitle,
+                                                    animation = com.android.purebilibili.core.ui.MaidAnimation.SEARCH_EMPTY,
+                                                    enableEasterEgg = false,
+                                                    isVisible = searchPagerState.currentPage == page
+                                                )
                                             }
                                         }
                                     }
@@ -4380,13 +4355,28 @@ private fun SearchNativeMessageState(
     message: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    animation: com.android.purebilibili.core.ui.MaidAnimation? = null,
+    isVisible: Boolean = true
 ) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    com.android.purebilibili.core.ui.MaidStateViewport(
+        modifier = modifier.padding(24.dp)
     ) {
+        if (animation != null) {
+            var replayKey by remember(animation, title, message) { mutableIntStateOf(0) }
+            com.android.purebilibili.core.ui.BlueSnowMaidAnimation(
+                animation = animation,
+                isVisible = isVisible,
+                replayKey = replayKey,
+                modifier = Modifier
+                    .size(com.android.purebilibili.core.ui.maidStateIllustrationSize())
+                    .clickable(
+                        role = androidx.compose.ui.semantics.Role.Button,
+                        onClickLabel = "重播蓝雪女仆动画"
+                    ) { replayKey++ }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         AppText(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -4402,8 +4392,14 @@ private fun SearchNativeMessageState(
         }
         if (actionLabel != null && onAction != null) {
             Spacer(modifier = Modifier.height(16.dp))
-            AppTextButton(onClick = onAction) {
-                AppText(actionLabel)
+            if (animation == com.android.purebilibili.core.ui.MaidAnimation.RETRY) {
+                com.android.purebilibili.core.ui.components.AppButton(onClick = onAction) {
+                    AppText(actionLabel)
+                }
+            } else {
+                AppTextButton(onClick = onAction) {
+                    AppText(actionLabel)
+                }
             }
         }
     }

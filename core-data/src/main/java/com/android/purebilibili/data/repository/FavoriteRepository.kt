@@ -250,7 +250,7 @@ object FavoriteRepository {
                 if (response.code == 0 && response.data != null) {
                     Result.success(response.data)
                 } else {
-                    Result.failure(Exception(response.message))
+                    Result.failure(ContentRequestException(response.code, response.message))
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -290,7 +290,7 @@ object FavoriteRepository {
                 if (response.code == 0) {
                     Result.success(true)
                 } else {
-                    Result.failure(Exception(response.message))
+                    Result.failure(ContentRequestException(response.code, response.message))
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

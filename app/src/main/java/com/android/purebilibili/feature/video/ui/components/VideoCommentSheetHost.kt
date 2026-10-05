@@ -98,6 +98,7 @@ import com.android.purebilibili.feature.video.ui.pager.shouldDismissPortraitComm
 import com.android.purebilibili.feature.video.ui.pager.shouldOpenPortraitCommentReplyComposer
 import com.android.purebilibili.feature.video.ui.pager.shouldOpenPortraitCommentThreadDetail
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
+import com.android.purebilibili.feature.video.viewmodel.FullCommentSearchUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -904,6 +905,8 @@ internal fun VideoCommentMainList(
     listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
 ) {
     val state by viewModel.commentState.collectAsStateWithLifecycle()
+    val fullSearchState by viewModel.fullSearchState.collectAsStateWithLifecycle()
+    val fullSearchReplies by viewModel.fullSearchReplies.collectAsStateWithLifecycle()
     val repliesError = state.repliesError
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1107,6 +1110,9 @@ internal fun VideoCommentMainList(
     if (showCommentSearchSheet) {
         CommentSearchSheet(
             replies = state.replies,
+            fullReplies = fullSearchReplies,
+            fullSearchState = fullSearchState,
+            onLoadAllComments = { viewModel.loadAllCommentsForSearch() },
             upMid = state.upMid,
             onCommentClick = { reply ->
                 onReplyClick(reply)

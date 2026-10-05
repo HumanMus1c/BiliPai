@@ -36,8 +36,9 @@ internal fun buildReplyCommentImageSpec(
 ): ReplyCommentImageSpec {
     val url = resolveReplyCommentShareUrl(item)
     val likeText = item.like.takeIf { it > 0 }?.let { "${it}赞" }
+    // 保存的评论图片始终保留完整发布时间（含秒），不受“详细评论时间显示”偏好影响
     val metadata = listOfNotNull(
-        //  [PiliPlus 对齐] 分享图 metadata 固定秒级绝对时间，不随详细时间开关变化。
+
         FormatUtils.formatPrecisePublishTime(
             timestampSeconds = item.ctime,
             pattern = "yyyy-MM-dd HH:mm:ss"
@@ -61,9 +62,7 @@ suspend fun saveReplyCommentImageToGallery(
     item: ReplyItem
 ): Boolean = withContext(Dispatchers.IO) {
     runCatching {
-        val spec = buildReplyCommentImageSpec(
-            item = item
-        )
+        val spec = buildReplyCommentImageSpec(item = item)
         val bitmap = renderReplyCommentImage(spec)
         savePngBitmapToGallery(
             context = context,

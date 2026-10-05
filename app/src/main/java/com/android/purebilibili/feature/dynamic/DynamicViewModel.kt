@@ -49,6 +49,10 @@ import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -63,6 +67,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.PersistentMap
@@ -75,6 +80,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.max
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 internal data class DynamicStartupLoadPlan(
     val refreshFeedImmediately: Boolean,
@@ -114,8 +121,26 @@ internal fun hasLoadedAllDynamicFollowings(
 class DynamicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appContext = getApplication<Application>()
-    private val cachePrefs = appContext.getSharedPreferences(PREFS_DYNAMIC_CACHE, Context.MODE_PRIVATE)
-    private val userPrefs = appContext.getSharedPreferences(PREFS_DYNAMIC_USERS, Context.MODE_PRIVATE)
+    private var activeAccountIdentity = TokenManager.accountIdentity.value
+    private var accountScope = CoroutineScope(
+        viewModelScope.coroutineContext + SupervisorJob(viewModelScope.coroutineContext[Job])
+    )
+    private fun launchAccount(
+        context: CoroutineContext = EmptyCoroutineContext,
+        block: suspend CoroutineScope.() -> Unit,
+    ): Job {
+        val requestedAccount = activeAccountIdentity
+        return accountScope.launch(context) {
+            if (requestedAccount != TokenManager.accountIdentity.value) return@launch
+            block()
+        }
+    }
+    private var cachePrefs = appContext.getSharedPreferences(
+        dynamicAccountStorageName(PREFS_DYNAMIC_CACHE, activeAccountIdentity.mid), Context.MODE_PRIVATE
+    )
+    private var userPrefs = appContext.getSharedPreferences(
+        dynamicAccountStorageName(PREFS_DYNAMIC_USERS, activeAccountIdentity.mid), Context.MODE_PRIVATE
+    )
     private val json = Json { ignoreUnknownKeys = true }
     private val blockedUpRepository = BlockedUpRepository(appContext)
 
@@ -183,6 +208,60 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         rebuildFollowedUsers()
         observeFollowStateChanges()
         loadUplistUpdates()
+        observeAccountChanges()
+    }
+
+    private fun observeAccountChanges() {
+        viewModelScope.launch {
+            // Comment and interaction state is declared below the constructor's init block.
+            yield()
+            TokenManager.accountIdentity.collect { identity ->
+                if (identity == activeAccountIdentity) return@collect
+                accountScope.cancel()
+                closeCommentSheet()
+                _uiState.value = DynamicUiState(isLoading = true)
+                _followedUsers.value = emptyList()
+                _selectedUserId.value = null
+                _likedDynamics.value = emptySet()
+                _likeOverrides.value = emptyMap()
+                accountScope.coroutineContext[Job]?.cancelAndJoin()
+                if (identity != TokenManager.accountIdentity.value) return@collect
+                activeAccountIdentity = identity
+                accountScope = CoroutineScope(
+                    viewModelScope.coroutineContext + SupervisorJob(viewModelScope.coroutineContext[Job])
+                )
+                cachePrefs = appContext.getSharedPreferences(
+                    dynamicAccountStorageName(PREFS_DYNAMIC_CACHE, identity.mid), Context.MODE_PRIVATE
+                )
+                userPrefs = appContext.getSharedPreferences(
+                    dynamicAccountStorageName(PREFS_DYNAMIC_USERS, identity.mid), Context.MODE_PRIVATE
+                )
+                cachedLiveRooms = emptyList()
+                cachedFollowings = emptyList()
+                lastFollowingsLoadMs = 0L
+                isFollowingsLoading = false
+                followingsFullyLoaded = false
+                completeFollowingsLoadRequested = false
+                startupFollowingsHydrationScheduled = false
+                activeTimelineRequestTokens.clear()
+                timelineInFlightRequests.clear()
+                activeUserDynamicsRequestToken++
+                isUserLoadingLocked = false
+                _selectedUserId.value = null
+                _followedUsers.value = emptyList()
+                _likedDynamics.value = emptySet()
+                _likeOverrides.value = emptyMap()
+                likeRequestGate = DynamicLikeRequestGate()
+                _isRefreshing.value = false
+                _uiState.value = DynamicUiState()
+                loadUserPreferences()
+                loadNotInterestedDynamicIds()
+                if (identity.mid != null) loadCachedDynamics()
+                rebuildFollowedUsers()
+                loadUplistUpdates()
+                if (startupLoadsActivated) refreshInBackground()
+            }
+        }
     }
 
     fun activateStartupLoads() {
@@ -262,6 +341,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun loadCachedDynamics() {
+        if (activeAccountIdentity.mid == null) return
         val cachedJson = cachePrefs.getString(KEY_DYNAMIC_CACHE, null) ?: return
         runCatching { json.decodeFromString<List<DynamicItem>>(cachedJson) }
             .onSuccess { items ->
@@ -282,6 +362,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun saveDynamicCache(items: List<DynamicItem>) {
+        if (activeAccountIdentity.mid == null) return
         if (items.isEmpty()) {
             cacheSaveJob?.cancel()
             cachePrefs.edit()
@@ -291,11 +372,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             return
         }
         val snapshot = items.take(MAX_CACHE_ITEMS)
+        val targetPrefs = cachePrefs
         cacheSaveJob?.cancel()
-        cacheSaveJob = viewModelScope.launch(Dispatchers.Default) {
+        cacheSaveJob = launchAccount(Dispatchers.Default) {
             val payload = json.encodeToString(snapshot)
             withContext(Dispatchers.IO) {
-                cachePrefs.edit()
+                targetPrefs.edit()
                     .putString(KEY_DYNAMIC_CACHE, payload)
                     .putLong(KEY_DYNAMIC_CACHE_TIME, System.currentTimeMillis())
                     .apply()
@@ -306,7 +388,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private fun refreshInBackground(
         startupPlan: DynamicStartupLoadPlan = resolveDynamicStartupLoadPlan()
     ) {
-        viewModelScope.launch {
+        launchAccount {
             refreshData(showRefreshIndicator = false)
             scheduleStartupFollowingsHydration(startupPlan)
         }
@@ -356,7 +438,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
      *  加载关注用户列表及其直播状态
      */
     fun loadFollowedUsers() {
-        viewModelScope.launch { loadFollowedUsersInternal() }
+        launchAccount { loadFollowedUsersInternal() }
     }
 
     private suspend fun loadFollowedUsersInternal() {
@@ -412,13 +494,15 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             followingsFullyLoaded = reachedEnd
             lastFollowingsLoadMs = now
             rebuildFollowedUsers()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             isFollowingsLoading = false
             if (completeFollowingsLoadRequested && !followingsFullyLoaded) {
                 completeFollowingsLoadRequested = false
-                viewModelScope.launch {
+                launchAccount {
                     loadAllFollowings(force = true, pageLimit = null)
                 }
             }
@@ -428,7 +512,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private fun requestFollowingsRefreshIfStale() {
         val now = System.currentTimeMillis()
         if (!shouldReloadFollowings(nowMs = now, lastLoadMs = lastFollowingsLoadMs)) return
-        viewModelScope.launch {
+        launchAccount {
             loadAllFollowings(force = true)
         }
     }
@@ -440,7 +524,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             return
         }
         completeFollowingsLoadRequested = false
-        viewModelScope.launch {
+        launchAccount {
             loadAllFollowings(force = true, pageLimit = null)
         }
     }
@@ -448,7 +532,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private fun scheduleStartupFollowingsHydration(startupPlan: DynamicStartupLoadPlan) {
         if (startupPlan.loadFollowingsImmediately || startupFollowingsHydrationScheduled) return
         startupFollowingsHydrationScheduled = true
-        viewModelScope.launch {
+        launchAccount {
             delay(startupPlan.followingsHydrationDelayMs.coerceAtLeast(0L))
             loadAllFollowings(
                 force = false,
@@ -574,7 +658,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             activeUserDynamicsRequestToken += 1L
             val requestToken = activeUserDynamicsRequestToken
             _uiState.value = _uiState.value.copy(userIsLoading = true)
-            userDynamicsJob = viewModelScope.launch {
+            userDynamicsJob = launchAccount {
                 delay(USER_SELECTION_DEBOUNCE_MS)
                 DynamicRepository.resetUserPagination(uid)
                 loadUserDynamics(uid = uid, refresh = true, requestToken = requestToken)
@@ -656,7 +740,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     fun loadMoreUserDynamics() {
         val uid = _selectedUserId.value ?: return
         if (!_uiState.value.hasUserMore || _uiState.value.isLoading || isUserLoadingLocked) return
-        viewModelScope.launch {
+        launchAccount {
             loadUserDynamics(
                 uid = uid,
                 refresh = false,
@@ -769,7 +853,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val page = _uiState.value.timelinePage(requestType)
         if (!refresh && (page.isLoading || _isRefreshing.value || isTimelineLoading(requestType))) return
-        viewModelScope.launch {
+        launchAccount {
             loadDynamicFeedInternal(
                 refresh = refresh,
                 showLoading = refresh && page.items.isEmpty(),
@@ -882,7 +966,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             isTimelineLoading(requestType)
         }
         if (!shouldStartDynamicRefresh(_isRefreshing.value, activeSourceLocked)) return
-        viewModelScope.launch {
+        launchAccount {
             refreshData(
                 showRefreshIndicator = true,
                 selectedTab = selectedTab
@@ -893,12 +977,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
     //  [新增] 拉取关注 UP 列表未读标记（红点数据源，尽力而为）
     fun loadUplistUpdates() {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = TokenManager.csrfCache
-                if (csrf.isNullOrEmpty()) return@launch
+                if (csrf.isNullOrEmpty()) return@launchAccount
                 val response = NetworkModule.dynamicApi.getDynamicUplist()
-                if (response.code != 0) return@launch
+                if (response.code != 0) return@launchAccount
                 val mids = response.data?.items
                     ?.filter { it.has_update == 1 }
                     ?.mapNotNull { it.user_profile?.info?.uid }
@@ -955,6 +1039,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() {
+        accountScope.cancel()
         cacheSaveJob?.cancel()
         userDynamicsJob?.cancel()
         super.onCleared()
@@ -1014,7 +1099,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     val likedDynamics: StateFlow<Set<String>> = _likedDynamics.asStateFlow()
     private val _likeOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val likeOverrides: StateFlow<Map<String, Boolean>> = _likeOverrides.asStateFlow()
-    private val likeRequestGate = DynamicLikeRequestGate()
+    private var likeRequestGate = DynamicLikeRequestGate()
     
     /**
      *  [修复] 根据动态ID获取动态对象 - 同时搜索 items 和 userItems
@@ -1116,7 +1201,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val requestId = ++commentLoadRequestId
         commentLoadJob?.cancel()
-        commentLoadJob = viewModelScope.launch {
+        commentLoadJob = launchAccount {
             val sortMode = _dynamicCommentSortMode.value
             val fallbackCount = item.modules.module_stat?.comment?.count ?: 0
             if (isRefresh) {
@@ -1146,7 +1231,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     )
                     DynamicRepository.getDynamicDetail(effectiveItem.id_str).getOrNull()?.let { fullDetail ->
                         if (requestId != commentLoadRequestId || _selectedDynamic.value?.id_str != item.id_str) {
-                            return@launch
+                            return@launchAccount
                         }
                         effectiveItem = fullDetail
                         _selectedDynamic.value = fullDetail
@@ -1160,7 +1245,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     ) {
                         _commentsRefreshError.value = "无法获取评论参数"
                     }
-                    return@launch
+                    return@launchAccount
                 }
 
                 val attempts = mutableListOf<DynamicCommentLoadAttempt>()
@@ -1222,14 +1307,14 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 if (requestId != commentLoadRequestId || _selectedDynamic.value?.id_str != item.id_str) {
-                    return@launch
+                    return@launchAccount
                 }
                 val selected = selectPreferredDynamicCommentAttempt(
                     attempts = attempts,
                     expectedCount = fallbackCount
                 )
                 if (selected != null) {
-                    if (_dynamicCommentSortMode.value != sortMode) return@launch
+                    if (_dynamicCommentSortMode.value != sortMode) return@launchAccount
                     _selectedCommentTarget.value = selected.target
                     _comments.value = selected.replies
                     _commentTotalCount.value = selected.totalCount
@@ -1279,7 +1364,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         val requestId = commentLoadRequestId
         val paginationOffset = commentGrpcNextOffset
         _commentsLoadingMore.value = true
-        viewModelScope.launch {
+        launchAccount {
             try {
                 CommentRepository.getCommentsForSubject(
                     oid = target.oid,
@@ -1407,7 +1492,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val requestId = ++subReplyLoadRequestId
         subReplyLoadJob?.cancel()
-        subReplyLoadJob = viewModelScope.launch {
+        subReplyLoadJob = launchAccount {
             CommentRepository.getSortedSubCommentsForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1545,7 +1630,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         } else {
             state.copy(isLoading = true, isRefreshing = false, error = null)
         }
-        subReplyLoadJob = viewModelScope.launch {
+        subReplyLoadJob = launchAccount {
             try {
                 val result = CommentRepository.getSortedSubCommentsForSubject(
                     oid = oid,
@@ -1639,32 +1724,32 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         imageUris: List<Uri> = emptyList(),
         onResult: (Boolean, String) -> Unit,
     ) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val item = findDynamicById(dynamicId)
                 if (item == null) {
                     onResult(false, "动态不存在")
-                    return@launch
+                    return@launchAccount
                 }
                 val target = _selectedCommentTarget.value
                     ?: resolveDynamicCommentTargets(item).firstOrNull()
                 if (target == null) {
                     onResult(false, "无法确定评论参数")
-                    return@launch
+                    return@launchAccount
                 }
                 val replyTarget = _commentReplyTarget.value
                 if (message.isBlank() && imageUris.isEmpty()) {
                     onResult(false, "请输入评论内容")
-                    return@launch
+                    return@launchAccount
                 }
                 if (replyTarget != null && imageUris.isNotEmpty()) {
                     onResult(false, "回复暂不支持图片")
-                    return@launch
+                    return@launchAccount
                 }
                 val pictures = uploadCommentPictures(imageUris)
                 val response = CommentRepository.addCommentForSubject(
@@ -1733,7 +1818,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             },
             items = applyDynamicCommentLikeInList(subState.items, rpid, toLiked).toImmutableList()
         )
-        viewModelScope.launch {
+        launchAccount {
             CommentRepository.likeCommentForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1776,7 +1861,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             },
             items = applyDynamicCommentHateInList(subState.items, rpid, toHated).toImmutableList(),
         )
-        viewModelScope.launch {
+        launchAccount {
             CommentRepository.hateCommentForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1813,7 +1898,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "无法确定评论参数")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             CommentRepository.deleteCommentForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1847,7 +1932,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "无法确定评论参数")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             CommentRepository.setCommentTopForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1873,7 +1958,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "无法确定评论参数")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             CommentRepository.reportCommentForSubject(
                 oid = target.oid,
                 type = target.type,
@@ -1915,12 +2000,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "操作进行中，请稍候")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val serverIsLiked = knownIsLiked ?: findDynamicById(dynamicId)
                     ?.modules
@@ -1979,10 +2064,10 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addToWatchLater(aid: Long, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             if (aid <= 0L) {
                 onResult(false, "无法添加到稍后再看")
-                return@launch
+                return@launchAccount
             }
 
             val result = ActionRepository.toggleWatchLater(aid = aid, add = true)
@@ -1997,7 +2082,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "无法识别该动态")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             try {
                 // Deliberately query as a guest. An authenticated detail request can still see an
                 // author's self-only dynamic and therefore cannot detect publication visibility.
@@ -2023,11 +2108,11 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(Result.failure(IllegalArgumentException("无法识别该预约")))
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             val csrf = TokenManager.csrfCache
             if (csrf.isNullOrBlank()) {
                 onResult(Result.failure(IllegalStateException("请先登录")))
-                return@launch
+                return@launchAccount
             }
             try {
                 val response = NetworkModule.dynamicApi.clickDynamicReserve(
@@ -2073,16 +2158,16 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         alsoComment: Boolean = false,
         onResult: (Boolean, String) -> Unit
     ) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 if (dynamicId.isBlank()) {
                     onResult(false, "无法转发该动态")
-                    return@launch
+                    return@launchAccount
                 }
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val response = com.android.purebilibili.core.network.NetworkModule.dynamicApi
                     .repostDynamic(
@@ -2152,17 +2237,17 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "内容不能为空")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val createdId = if (context != null) {
                     DynamicCreateRepository.publish(context, draft).getOrElse {
                         onResult(false, it.message ?: "发布失败")
-                        return@launch
+                        return@launchAccount
                     }
                 } else {
                     val response = NetworkModule.dynamicApi.createDynamic(
@@ -2171,13 +2256,13 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     )
                     if (response.code != 0) {
                         onResult(false, response.message.ifBlank { "发布失败" })
-                        return@launch
+                        return@launchAccount
                     }
                     response.data?.dynamic_id_str.orEmpty()
                 }
                 onResult(true, "发布成功")
                 refresh(selectedTab = _selectedTab.value)
-                if (createdId.isBlank()) return@launch
+                if (createdId.isBlank()) return@launchAccount
                 try {
                     delay(DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS)
                     val verify = NetworkModule.dynamicApi.getDynamicDetail(id = createdId)
@@ -2197,16 +2282,16 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun deleteDynamic(action: DynamicDeleteAction, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 if (action.dynamicId.isBlank()) {
                     onResult(false, "无法删除该动态")
-                    return@launch
+                    return@launchAccount
                 }
                 val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
 
                 val response = NetworkModule.dynamicApi.deleteDynamic(
@@ -2284,16 +2369,16 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         reasonDesc: String?,
         onResult: (Boolean, String) -> Unit
     ) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 if (action.dynamicId.isBlank() || action.authorMid <= 0L) {
                     onResult(false, "无法举报该动态")
-                    return@launch
+                    return@launchAccount
                 }
                 val response = NetworkModule.dynamicApi.reportDynamic(
                     csrf = csrf,
@@ -2319,7 +2404,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         draft: com.android.purebilibili.data.model.response.DynamicPublishDraft,
         onResult: (Boolean, String) -> Unit,
     ) {
-        viewModelScope.launch {
+        launchAccount {
             com.android.purebilibili.data.repository.DynamicCreateRepository
                 .edit(context = context, dynamicId = dynamicId, draft = draft)
                 .fold(
@@ -2333,16 +2418,16 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleDynamicTop(action: DynamicManageAction.ToggleTop, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 if (action.dynamicId.isBlank()) {
                     onResult(false, "无法操作该动态")
-                    return@launch
+                    return@launchAccount
                 }
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val response = if (action.isCurrentlyTop) {
                     NetworkModule.dynamicApi.removeDynamicTop(
@@ -2367,12 +2452,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setDynamicVisibility(action: DynamicManageAction.SetVisibility, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val response = NetworkModule.dynamicApi.setDynamicVisibility(
                     csrf = csrf,
@@ -2393,7 +2478,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun loadReplyInteractionStatus(oid: Long, type: Int, onLoaded: (ReplyInteractionData?) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val response = NetworkModule.dynamicApi.getReplyInteractionStatus(oid = oid, type = type)
                 onLoaded(if (response.code == 0) response.data else null)
@@ -2404,12 +2489,12 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun modifyReplySubject(action: DynamicManageAction.SetReplySubject, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
+        launchAccount {
             try {
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) {
                     onResult(false, "请先登录")
-                    return@launch
+                    return@launchAccount
                 }
                 val response = NetworkModule.dynamicApi.modifyReplySubject(
                     oid = action.oid,
@@ -2436,7 +2521,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             onResult(false, "无法识别该用户")
             return
         }
-        viewModelScope.launch {
+        launchAccount {
             val result = runCatching {
                 blockedUpRepository.blockUpWithBilibiliSync(
                     mid = action.authorMid,
@@ -2445,7 +2530,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 )
             }.getOrElse { error ->
                 onResult(false, error.message ?: "屏蔽失败")
-                return@launch
+                return@launchAccount
             }
             _uiState.value = mapDynamicTimelineItems(_uiState.value) { items ->
                 items.filterNot { it.modules.module_author?.mid == action.authorMid }

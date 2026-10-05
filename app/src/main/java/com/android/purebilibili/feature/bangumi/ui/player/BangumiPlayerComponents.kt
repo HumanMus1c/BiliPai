@@ -574,30 +574,34 @@ fun BangumiPlayerView(
         
         // 弹幕层 - 使用 DanmakuRenderEngine
         if (danmakuEnabled) {
-            AndroidView(
-                factory = { ctx ->
-                    DanmakuRenderView(ctx).apply {
-                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        android.util.Log.w("BangumiPlayer", "🎯 DanmakuView factory: creating new view")
-                        danmakuManager.attachView(this)
-                    }
-                },
-                update = { view ->
-                    if (view.width > 0 && view.height > 0) {
-                        val sizeTag = "${view.width}x${view.height}"
-                        if (view.tag != sizeTag) {
-                            view.tag = sizeTag
-                            android.util.Log.d("BangumiPlayer", " DanmakuView update: size=${view.width}x${view.height}")
-                            danmakuManager.attachView(view)
+            key(danmakuManager) {
+                AndroidView(
+                    factory = { ctx ->
+                        DanmakuRenderView(ctx).apply {
+                            danmakuManager.isFullscreenSurface = isFullscreen
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            android.util.Log.w("BangumiPlayer", "🎯 DanmakuView factory: creating new view")
+                            danmakuManager.attachView(this)
                         }
-                    }
-                },
-                onRelease = { view -> danmakuManager.detachView(view) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = danmakuTopInset)
-                    .clipToBounds()
-            )
+                    },
+                    update = { view ->
+                        danmakuManager.isFullscreenSurface = isFullscreen
+                        if (view.width > 0 && view.height > 0) {
+                            val sizeTag = "${view.width}x${view.height}"
+                            if (view.tag != sizeTag) {
+                                view.tag = sizeTag
+                                android.util.Log.d("BangumiPlayer", " DanmakuView update: size=${view.width}x${view.height}")
+                                danmakuManager.attachView(view)
+                            }
+                        }
+                    },
+                    onRelease = { view -> danmakuManager.detachView(view) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = danmakuTopInset)
+                        .clipToBounds()
+                )
+            }
         }
         
         // 手势指示器（横屏：全部，竖屏：仅亮度和音量）

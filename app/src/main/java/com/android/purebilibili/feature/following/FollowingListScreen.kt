@@ -456,6 +456,11 @@ class FollowingListViewModel : ViewModel() {
             if (successMids.isNotEmpty()) {
                 removedUserMids.addAll(successMids)
                 applyRemovedUsers(successMids)
+                com.android.purebilibili.core.events.BrandSuccessEvents.followChanged(
+                    following = false,
+                    detail = if (failedCount == 0) "已取关 ${successMids.size} 位 UP 主"
+                        else "已取关 ${successMids.size} 位，${failedCount} 位失败"
+                )
             }
             return BatchUnfollowResult(
                 successCount = successMids.size,
@@ -469,7 +474,7 @@ class FollowingListViewModel : ViewModel() {
 
     private suspend fun unfollowWithRetry(mid: Long): Boolean {
         repeat(BATCH_UNFOLLOW_MAX_ATTEMPTS) { attempt ->
-            val result = ActionRepository.followUser(mid, follow = false)
+            val result = ActionRepository.followUser(mid, follow = false, emitBrandFeedback = false)
             if (result.isSuccess) return true
 
             val message = result.exceptionOrNull()?.message

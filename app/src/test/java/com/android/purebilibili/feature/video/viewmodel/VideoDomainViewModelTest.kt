@@ -5,6 +5,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -216,6 +218,137 @@ class VideoDomainViewModelTest {
         assertFalse(viewModel.uiState.value.isDisliked)
     }
 
+    @Test
+    fun `triple jump waits for animation completion instead of two seconds`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(
+            actions = FakeEngagementActions(),
+            tripleJumpEnabled = { true }
+        )
+        val events = mutableListOf<VideoEngagementEvent>()
+        backgroundScope.launch { viewModel.events.collect { events += it } }
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed())
+        viewModel.doTripleAction()
+        runCurrent()
+
+        advanceTimeBy(2_200L)
+        runCurrent()
+        assertTrue(viewModel.uiState.value.tripleCelebrationVisible)
+        assertTrue(events.none { it is VideoEngagementEvent.LoadVideo })
+
+        viewModel.completeTripleCelebration(viewModel.uiState.value.tripleCelebrationId)
+        runCurrent()
+        assertFalse(viewModel.uiState.value.tripleCelebrationVisible)
+        assertEquals(1, events.filterIsInstance<VideoEngagementEvent.LoadVideo>().size)
+    }
+
+    @Test
+    fun `stale celebration completion cannot close or jump over a new celebration`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(
+            actions = FakeEngagementActions(),
+            tripleJumpEnabled = { true }
+        )
+        val events = mutableListOf<VideoEngagementEvent>()
+        backgroundScope.launch { viewModel.events.collect { events += it } }
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed())
+        viewModel.doTripleAction()
+        runCurrent()
+        val previousId = viewModel.uiState.value.tripleCelebrationId
+        viewModel.doTripleAction()
+        runCurrent()
+        val currentId = viewModel.uiState.value.tripleCelebrationId
+        assertTrue(currentId > previousId)
+
+        viewModel.completeTripleCelebration(previousId)
+        runCurrent()
+        assertTrue(viewModel.uiState.value.tripleCelebrationVisible)
+        assertTrue(events.none { it is VideoEngagementEvent.LoadVideo })
+
+        viewModel.completeTripleCelebration(currentId)
+        runCurrent()
+        assertEquals(1, events.filterIsInstance<VideoEngagementEvent.LoadVideo>().size)
+    }
+
+    @Test
+    fun `unmounted celebration times out without a surprise jump`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(
+            actions = FakeEngagementActions(),
+            tripleJumpEnabled = { true }
+        )
+        val events = mutableListOf<VideoEngagementEvent>()
+        backgroundScope.launch { viewModel.events.collect { events += it } }
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed())
+        viewModel.doTripleAction()
+        runCurrent()
+        advanceTimeBy(5_001L)
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.tripleCelebrationVisible)
+        assertTrue(events.none { it is VideoEngagementEvent.LoadVideo })
+    }
+
+    @Test
+    fun `cancelled celebration does not trigger the enabled jump`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(
+            actions = FakeEngagementActions(),
+            tripleJumpEnabled = { true }
+        )
+        val events = mutableListOf<VideoEngagementEvent>()
+        backgroundScope.launch { viewModel.events.collect { events += it } }
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed())
+        viewModel.doTripleAction()
+        runCurrent()
+        viewModel.cancelTripleCelebration(viewModel.uiState.value.tripleCelebrationId)
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.tripleCelebrationVisible)
+        assertFalse(viewModel.uiState.value.tripleCelebrationFinished)
+        assertTrue(events.none { it is VideoEngagementEvent.LoadVideo })
+    }
+
+    @Test
+    fun `old maid completion cannot dismiss feedback after video changes`() {
+        val viewModel = VideoEngagementViewModel(actions = FakeEngagementActions())
+        viewModel.bindSubject(subject("BV1", 1L), VideoEngagementSeed())
+        viewModel.showShareFeedback("BV1")
+        val oldId = viewModel.uiState.value.maidActionId
+        viewModel.bindSubject(subject("BV2", 2L), VideoEngagementSeed())
+        viewModel.showShareFeedback("BV1")
+        assertEquals(null, viewModel.uiState.value.maidAction)
+        viewModel.showShareFeedback("BV2")
+        viewModel.dismissMaidAction(oldId)
+        assertEquals(VideoMaidAction.SHARE, viewModel.uiState.value.maidAction)
+        viewModel.dismissMaidAction(viewModel.uiState.value.maidActionId)
+        assertEquals(null, viewModel.uiState.value.maidAction)
+    }
+
+    @Test
+    fun `cancel dislike and failed coin do not show completion feedback`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(actions = FakeEngagementActions(failCoin = true))
+        viewModel.bindSubject(subject("BV1", 1L), VideoEngagementSeed(isDisliked = true))
+        viewModel.toggleDislike()
+        runCurrent()
+        assertFalse(viewModel.uiState.value.isDisliked)
+        assertEquals(null, viewModel.uiState.value.maidAction)
+        viewModel.doCoin(1, false)
+        runCurrent()
+        assertEquals(null, viewModel.uiState.value.maidAction)
+        assertEquals(0, viewModel.uiState.value.coinCount)
+    }
+
+    @Test
+    fun `coin with also like replaces like feedback with one coin animation`() = runTest(dispatcher) {
+        val viewModel = VideoEngagementViewModel(actions = FakeEngagementActions())
+        viewModel.bindSubject(subject("BV1", 1L), VideoEngagementSeed())
+        viewModel.toggleLike()
+        runCurrent()
+        assertTrue(viewModel.uiState.value.likeBurstVisible)
+        viewModel.doCoin(1, true)
+        runCurrent()
+        assertFalse(viewModel.uiState.value.likeBurstVisible)
+        assertEquals(VideoMaidAction.COIN, viewModel.uiState.value.maidAction)
+        assertTrue(viewModel.uiState.value.isLiked)
+    }
+
     private fun subject(bvid: String, generation: Long) = VideoSubjectSnapshot(
         bvid = bvid,
         cid = generation,
@@ -228,7 +361,8 @@ class VideoDomainViewModelTest {
     )
 
     private class FakeEngagementActions(
-        private val pendingLike: CompletableDeferred<Result<Boolean>>? = null
+        private val pendingLike: CompletableDeferred<Result<Boolean>>? = null,
+        private val failCoin: Boolean = false
     ) : VideoEngagementActions {
         override suspend fun toggleFollow(mid: Long, currentlyFollowing: Boolean) =
             Result.success(!currentlyFollowing)
@@ -249,7 +383,7 @@ class VideoDomainViewModelTest {
         ) = Result.success(!currentlyInWatchLater)
 
         override suspend fun doCoin(aid: Long, count: Int, alsoLike: Boolean, bvid: String) =
-            Result.success(true)
+            if (failCoin) Result.failure(IllegalStateException("coin failed")) else Result.success(true)
 
         override suspend fun doTripleAction(aid: Long) = Result.success(
             TripleActionResult(

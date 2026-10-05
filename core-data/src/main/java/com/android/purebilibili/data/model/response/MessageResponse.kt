@@ -193,6 +193,7 @@ data class MessageHistoryResponse(
 data class MessageHistoryData(
     val messages: List<PrivateMessageItem>? = null,
     val has_more: Int = 0,
+    @Serializable(with = MessageHistoryCursorSerializer::class)
     val min_seqno: Long = 0,
     val max_seqno: Long = 0,
     val e_infos: List<EmoteInfo>? = null  // 表情信息

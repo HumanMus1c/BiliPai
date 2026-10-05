@@ -49,7 +49,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import com.android.purebilibili.core.ui.transition.NowPlayingBarHandoffState
@@ -66,12 +65,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import com.android.purebilibili.feature.audio.lyrics.halcyon.darken
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -157,21 +152,19 @@ internal fun AudioNowPlayingBar(
     val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val dissolveContext = LocalContext.current
 
-    //  [粒子消散] 取消按钮：截取横条位图后挂 ThanosEffectView（电报/NagramX 那套 GL
-    //  粒子消散），首帧粒子出现时隐藏本体，消散完成再执行真正的 onDismiss。
-    //  GL 不支持或截取失败时直接回退到原有 onDismiss 行为。
-    var cancelDissolving by remember { mutableStateOf(false) }
-    var dissolveRecorded by remember { mutableStateOf(false) }
-    var dissolveContentHidden by remember { mutableStateOf(false) }
+    // 从窗口已绘制的像素截取横条，避免离屏重绘实时模糊/旋转图层。
+    // 粒子首帧出现后隐藏本体，消散完成后再暂停并关闭。
+    var cancelDissolving by remember(state.bvid) { mutableStateOf(false) }
+    var dissolveContentHidden by remember(state.bvid) { mutableStateOf(false) }
     var dissolveEffectView by remember { mutableStateOf<ThanosEffectView?>(null) }
-    val dissolveLayer = rememberGraphicsLayer()
 
     fun finishCancelDissolveCleanup() {
+        // Dock / AnimatedVisibility 保留本体直到退场结束。粒子结束后不能恢复
+        // alpha，否则清理与宿主移除之间会重新露出横条，随后再淡出一次。
+        dissolveContentHidden = true
         dissolveEffectView?.dispose()
         dissolveEffectView = null
-        cancelDissolving = false
-        dissolveRecorded = false
-        dissolveContentHidden = false
+        // 关闭过程保持锁定；退出组合（或切换视频）后才重置。
     }
 
     val handleCancelClick: () -> Unit = {
@@ -183,35 +176,26 @@ internal fun AudioNowPlayingBar(
                 cancelDissolving = true
                 snapshotScope.launch {
                     try {
-                        val ready = withTimeoutOrNull(500L) {
-                            androidx.compose.runtime.snapshotFlow { dissolveRecorded }.first { it }
-                        }
                         withFrameNanos { }
-                        val bitmap = if (ready == true) {
+                        val windowBounds = barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInWindow()
+                        val snapshot = if (windowBounds != null && !windowBounds.isEmpty) {
                             withTimeoutOrNull(500L) {
-                                dissolveLayer.toImageBitmap().asAndroidBitmap()
-                                    .copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                                captureAudioNowPlayingWindowSnapshot(hostWindow, windowBounds)
                             }
                         } else {
                             null
                         }
-                        val windowBounds = barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInWindow()
-                        if (bitmap == null || windowBounds == null || windowBounds.isEmpty) {
-                            if (bitmap != null && !bitmap.isRecycled) bitmap.recycle()
+                        if (snapshot == null) {
                             finishCancelDissolveCleanup()
                             onDismiss()
                             return@launch
                         }
+                        val bitmap = snapshot.bitmap
                         dissolveEffectView?.dispose()
                         dissolveEffectView = ThanosEffectView.attach(
                             window = hostWindow,
                             bitmap = bitmap,
-                            windowBounds = android.graphics.RectF(
-                                windowBounds.left,
-                                windowBounds.top,
-                                windowBounds.right,
-                                windowBounds.bottom,
-                            ),
+                            windowBounds = android.graphics.RectF(snapshot.windowBounds),
                             onFirstFrame = { dissolveContentHidden = true },
                             onComplete = {
                                 finishCancelDissolveCleanup()
@@ -375,15 +359,6 @@ internal fun AudioNowPlayingBar(
                 alpha = if (sourceInActiveReturn || dissolveContentHidden) 0f else 1f
             }
             .clip(shape)
-            .drawWithContent {
-                //  [粒子消散] 消散期间把横条最终像素（含圆角裁剪）记录进独立 graphics layer，
-                //  供取消时抓取位图交给 ThanosEffectView。
-                if (cancelDissolving) {
-                    dissolveLayer.record { this@drawWithContent.drawContent() }
-                    if (!dissolveRecorded) dissolveRecorded = true
-                }
-                drawContent()
-            }
             .recordNativeVideoCardLayer(
                 layer = nativeBarLayer,
                 freezeProvider = {

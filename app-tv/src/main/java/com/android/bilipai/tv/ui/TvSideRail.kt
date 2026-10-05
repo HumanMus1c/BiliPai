@@ -4,7 +4,6 @@ package com.android.bilipai.tv.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,10 +31,11 @@ import com.android.bilipai.tv.TvScreen
 import com.android.bilipai.tv.ui.components.TvNavigationItem
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.theme.DarkSurfaceElevated
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 
 private val railMenu = listOf(
-    TvScreen.Home to "推荐", TvScreen.Search to "搜索", TvScreen.History to "历史",
+    TvScreen.Home to "推荐", TvScreen.Following to "关注", TvScreen.Search to "搜索", TvScreen.History to "历史",
     TvScreen.Folders to "收藏", TvScreen.WatchLater to "稍后再看", TvScreen.Settings to "设置",
     TvScreen.Login to "账号",
 )
@@ -69,8 +69,8 @@ internal fun TvSideRail(
             .offset { IntOffset(offsetX.value.roundToPx(), 0) }
             .padding(start = 16.dp, top = 16.dp, bottom = 16.dp)
             .width(railWidth)
-            .shadow(32.dp, railShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.94f), railShape)
+            .shadow(24.dp, railShape)
+            .tvGlass(railShape, DarkSurfaceElevated)
             .onFocusChanged { onRailFocusChanged(it.hasFocus) }
             .focusGroup()
             .verticalScroll(rememberScrollState())

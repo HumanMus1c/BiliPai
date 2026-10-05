@@ -193,7 +193,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
     private val skippedIds = mutableSetOf<String>()
     
     // 配置
-    private var config: SponsorBlockConfig = SponsorBlockConfig()
+    private var config: SponsorBlockConfig = SponsorBlockConfig().normalized()
     
     override suspend fun onEnable() {
         Logger.d(TAG, " 空降助手已启用")
@@ -481,18 +481,22 @@ class SponsorBlockPlugin : PlayerPluginApi {
         try {
             val context = PluginManager.getContext()
             val jsonStr = PluginStore.getConfigJson(context, id)
-            if (jsonStr != null) {
-                config = Json.decodeFromString<SponsorBlockConfig>(jsonStr).normalized()
-            } else {
-                //  没有保存的配置时，使用默认值
-                config = SponsorBlockConfig(autoSkip = true)
+            val savedConfig = jsonStr?.let { Json.decodeFromString<SponsorBlockConfig>(it) }
+            val loadedConfig = savedConfig ?: config
+            // Reuse this session's ID when migrating a config that has no ID yet.
+            config = loadedConfig.copy(
+                userId = loadedConfig.userId.ifBlank { config.userId }
+            ).normalized()
+            if (savedConfig == null || savedConfig.userId.isBlank()) {
+                PluginStore.setConfigJson(context, id, Json.encodeToString(config))
             }
             Logger.d(TAG, "Loaded SponsorBlock config: autoSkip=${config.autoSkip}, markerMode=${config.markerMode}")
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to load config", e)
-            config = SponsorBlockConfig(autoSkip = true)
+            // Keep the existing ID and settings if reading or saving failed.
+            config = config.normalized()
         }
     }
     

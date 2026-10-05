@@ -1,7 +1,11 @@
 package com.android.bilipai.tv.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +58,9 @@ import kotlinx.coroutines.isActive
 
 private const val HERO_AUTO_ADVANCE_MS = 7_000L
 
+/** 轮播取推荐流前 N 个；首页网格从其后开始，两端共用同一数值避免重复展示。 */
+internal const val TV_HERO_ITEM_COUNT = 6
+
 /** Hero actions share one focus group so content stays fixed throughout a user's decision. */
 @Composable
 internal fun TvHeroCarousel(
@@ -66,15 +73,16 @@ internal fun TvHeroCarousel(
     autoAdvanceEnabled: Boolean = true,
 ) {
     val reduceMotion = LocalTvReduceMotion.current
-    val heroItems = items.take(6)
+    val heroItems = items.take(TV_HERO_ITEM_COUNT)
     if (heroItems.isEmpty()) return
     val identities = heroItems.map { it.tvId() }
     var index by rememberSaveable(identities) { mutableIntStateOf(0) }
     var heroFocused by remember { mutableStateOf(false) }
     val current = heroItems[index.coerceIn(0, heroItems.lastIndex)]
-    val textShadow = Shadow(color = Color(0xCC000000), blurRadius = 8f)
+    val textShadow = Shadow(color = TvMediaColors.OverlaidTextBackdrop, blurRadius = 8f)
 
-    LaunchedEffect(current.pic) { onAmbientChange(current.pic) }
+    val interactive = LocalTvInteractive.current
+    LaunchedEffect(current.pic, interactive) { if (interactive) onAmbientChange(current.pic) }
     LaunchedEffect(identities, reduceMotion, heroFocused, autoAdvanceEnabled) {
         if (reduceMotion || heroFocused || !autoAdvanceEnabled || heroItems.size < 2) return@LaunchedEffect
         while (isActive) {
@@ -94,8 +102,9 @@ internal fun TvHeroCarousel(
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawWithContent {
                 drawContent()
+                // 封面完整展示后仅底部 1/5 渐隐：衔接氛围层不产生横向断层，同时不遮盖封面内容。
                 drawRect(
-                    brush = Brush.verticalGradient(0.42f to Color.Black, 1f to Color.Transparent),
+                    brush = Brush.verticalGradient(0.78f to Color.Black, 1f to Color.Transparent),
                     blendMode = BlendMode.DstIn,
                 )
             })
@@ -106,29 +115,39 @@ internal fun TvHeroCarousel(
                 .padding(TvUiTokens.pagePadding),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
         ) {
-            Text(
-                text = "为你推荐 · ${index + 1}/${heroItems.size}",
-                style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = current.title,
-                style = MaterialTheme.typography.headlineMedium.copy(shadow = textShadow),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(0.8f),
-            )
-            Text(
-                text = buildList {
-                    current.owner.name.takeIf { it.isNotBlank() }?.let(::add)
-                    if (current.duration > 0) add(FormatUtils.formatDuration(current.duration))
-                    if (current.stat.view > 0) add("${FormatUtils.formatStat(current.stat.view.toLong())}播放")
-                }.joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // 海报模式：标题/meta 默认隐藏，焦点进入轮播区时淡入（按钮保持可见作为焦点锚点）。
+            AnimatedVisibility(
+                visible = heroFocused,
+                enter = fadeIn(tween(if (reduceMotion) 0 else TvMotion.enterMs, easing = AppMotionEasing.Continuity)) +
+                    slideInVertically(tween(if (reduceMotion) 0 else TvMotion.enterMs, easing = AppMotionEasing.Continuity)) { if (reduceMotion) 0 else it / 3 },
+                exit = fadeOut(tween(if (reduceMotion) 0 else TvMotion.exitMs, easing = AppMotionEasing.Continuity)),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+                    Text(
+                        text = "为你推荐 · ${index + 1}/${heroItems.size}",
+                        style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = current.title,
+                        style = MaterialTheme.typography.headlineMedium.copy(shadow = textShadow),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(0.8f),
+                    )
+                    Text(
+                        text = buildList {
+                            current.owner.name.takeIf { it.isNotBlank() }?.let(::add)
+                            if (current.duration > 0) add(FormatUtils.formatDuration(current.duration))
+                            if (current.stat.view > 0) add("${FormatUtils.formatStat(current.stat.view.toLong())}播放")
+                        }.joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
+                        color = MaterialTheme.colorScheme.secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
@@ -161,7 +180,7 @@ internal fun TvHeroCarousel(
                     .size(width = if (i == index) AppSpacingTokens.ExtraLarge else AppSpacingTokens.Small,
                         height = AppSpacingTokens.Small)
                     .clip(CircleShape)
-                    .background(if (i == index) MaterialTheme.colorScheme.primary else Color(0x66FFFFFF)))
+                    .background(if (i == index) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.4f)))
             }
         }
     }
@@ -169,15 +188,16 @@ internal fun TvHeroCarousel(
 
 @Composable
 private fun HeroImage(url: String?, reduceMotion: Boolean, modifier: Modifier = Modifier) {
-    if (url.isNullOrBlank()) return
+    val targetUrl = LocalTvBackdropUrl.current ?: url
+    if (targetUrl.isNullOrBlank()) return
     val context = LocalContext.current
     if (reduceMotion) {
-        HeroAsyncImage(url, context, modifier)
+        HeroAsyncImage(targetUrl, context, modifier)
     } else {
         Crossfade(
-            targetState = url,
+            targetState = targetUrl,
             modifier = modifier,
-            animationSpec = tween(400, easing = AppMotionEasing.Continuity),
+            animationSpec = tween(TvMotion.backdropMs, easing = AppMotionEasing.Continuity),
             label = "hero",
         ) { target -> HeroAsyncImage(target, context, Modifier.fillMaxSize()) }
     }
@@ -193,7 +213,9 @@ private fun HeroAsyncImage(url: String, context: android.content.Context, modifi
     AsyncImage(
         model = model,
         contentDescription = null,
-        contentScale = ContentScale.FillWidth,
+        error = androidx.compose.ui.graphics.painter.ColorPainter(TvMediaColors.Base),
+        // 完整展示封面（Fit）：封面按比例完整呈现，留白处透出页面氛围模糊层（同一封面高斯模糊，视觉连贯）。
+        contentScale = ContentScale.Fit,
         alignment = Alignment.TopStart,
         modifier = modifier,
     )

@@ -160,6 +160,9 @@ data class VideoPlayerOverlayState(
     val drawerHazeState: HazeState? = null,
     val statusBarAmbientFrame: State<ImageBitmap?>? = null,
     val statusBarBackdropHeight: androidx.compose.ui.unit.Dp = 0.dp,
+    // 播放器 surface 在窗口坐标中的实时矩形；状态栏模糊条据此做几何映射，
+    // 下滑缩小播放器时模糊内容跟随实际可见区域，而不是固定 Crop 整帧。
+    val ambientVideoBoundsInWindow: (() -> androidx.compose.ui.geometry.Rect?)? = null,
 )
 
 data class VideoPlayerOverlayActions(

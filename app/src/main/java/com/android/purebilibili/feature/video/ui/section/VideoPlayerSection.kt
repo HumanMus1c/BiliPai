@@ -1327,7 +1327,14 @@ private fun VideoPlayerSectionContent(
     var measuredBottomControlsHeightPx by remember(bvid) { mutableIntStateOf(0) }
     val ambientPresentation = LocalAmbientPresentation.current
     val statusBarAmbientFrame = remember(ambientPresentation) {
-        derivedStateOf { ambientPresentation?.current?.raw }
+        derivedStateOf {
+            val presentation = ambientPresentation ?: return@derivedStateOf null
+            // 播放器尺寸/表面变化会推进 requiredRefresh；重采样到位前隐藏旧帧（回落黑底），
+            // 避免状态栏模糊条在下滑缩小过程中停留在旧几何的采样帧上。
+            presentation.current
+                ?.takeIf { it.refreshGeneration >= presentation.requiredRefresh }
+                ?.raw
+        }
     }
     
     // 🔒 [新增] 屏幕锁定状态（全屏时防误触）
@@ -3058,7 +3065,7 @@ private fun VideoPlayerSectionContent(
             hostLifecycleStarted = hostLifecycleStarted,
             isPortraitFullscreen = isPortraitFullscreen,
         )
-        LaunchedEffect(cid, aid, danmakuEnabled, runDanmakuHostEffects) {
+        LaunchedEffect(danmakuManager, cid, aid, danmakuEnabled, runDanmakuHostEffects) {
             // 相关推荐 push 会让新旧详情页在转场期间同时处于 STARTED。旧页不得再次
             // Enable/load 同一播放身份的 Session，否则会取消新 cid 请求或把新数据同步到旧播放器。
             if (!runDanmakuHostEffects) return@LaunchedEffect
@@ -3076,6 +3083,7 @@ private fun VideoPlayerSectionContent(
                     danmakuManager.isEnabled = false
                     danmakuManager.clear()
                 }
+                VideoPlayerDanmakuEngineSyncAction.KeepCurrent -> Unit
             }
             if (!shouldLoadDanmakuForForegroundHost(
                     hostLifecycleStarted = hostLifecycleStarted,
@@ -3277,7 +3285,8 @@ private fun VideoPlayerSectionContent(
             danmakuManager.recoverAfterForeground(
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 playWhenReady = player.playWhenReady,
-                playbackState = player.playbackState
+                playbackState = player.playbackState,
+                preserveTimeline = true
             )
             Logger.d("VideoPlayerSection") {
                 "↩️ Predictive back cancel restored current video surface: " +
@@ -3328,7 +3337,8 @@ private fun VideoPlayerSectionContent(
             danmakuManager.recoverAfterForeground(
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 playWhenReady = player.playWhenReady,
-                playbackState = player.playbackState
+                playbackState = player.playbackState,
+                preserveTimeline = !foregroundRecoveryNeedsSurface
             )
 
             delay(FOREGROUND_SURFACE_RECOVERY_TIMEOUT_MS)
@@ -3425,8 +3435,12 @@ private fun VideoPlayerSectionContent(
         }
         
         // 每个 Compose owner 严格成对绑定/解绑；SessionFactory 负责跨渲染目标复用。
-        DisposableEffect(playerState.player, runDanmakuHostEffects) {
-            val attachedPlayer = playerState.player.takeIf { runDanmakuHostEffects }
+        val keepDanmakuHost = shouldKeepVideoPlayerDanmakuHost(
+            danmakuHostActive = danmakuHostActive,
+            isPortraitFullscreen = isPortraitFullscreen
+        )
+        DisposableEffect(danmakuManager, playerState.player, keepDanmakuHost) {
+            val attachedPlayer = playerState.player.takeIf { keepDanmakuHost }
             if (attachedPlayer != null) {
                 android.util.Log.d("VideoPlayerSection", " attachPlayer, isFullscreen=$isFullscreen")
                 danmakuManager.attachPlayer(attachedPlayer)
@@ -3444,6 +3458,7 @@ private fun VideoPlayerSectionContent(
         val lifecyclePlayerView by rememberUpdatedState(playerViewRef)
         val lifecycleVideoOutputRouter by rememberUpdatedState(videoOutputRouter)
         val lifecycleDanmakuHostActive by rememberUpdatedState(danmakuHostActive)
+        val lifecycleDanmakuManager by rememberUpdatedState(danmakuManager)
         DisposableEffect(lifecycleOwner) {
             var hasObservedHostPause = false
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -3517,10 +3532,11 @@ private fun VideoPlayerSectionContent(
                                 "▶️ ON_RESUME kicked playback after surface recovery"
                             }
                         }
-                        danmakuManager.recoverAfterForeground(
+                        lifecycleDanmakuManager.recoverAfterForeground(
                             positionMs = player.currentPosition.coerceAtLeast(0L),
                             playWhenReady = player.playWhenReady,
-                            playbackState = player.playbackState
+                            playbackState = player.playbackState,
+                            preserveTimeline = !needsSurfaceRecovery
                         )
                     }
                     androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
@@ -4340,6 +4356,7 @@ private fun VideoPlayerSectionContent(
         hostLifecycleStarted = hostLifecycleStarted
     )
         val advancedDanmakuList by danmakuManager.advancedDanmakuFlow.collectAsStateWithLifecycle()
+        val basDanmakuList by danmakuManager.basDanmakuFlow.collectAsStateWithLifecycle()
         val commandDanmakuList by danmakuManager.commandDanmakuFlow.collectAsStateWithLifecycle()
         val commandState = com.android.purebilibili.feature.video.ui.overlay.rememberCommandDanmakuOverlayState(
             bvid to (uiState as? VideoPlaybackUiState.Success)?.info?.cid
@@ -4347,7 +4364,13 @@ private fun VideoPlayerSectionContent(
         val visibleCommandDanmakuList = remember(commandDanmakuList, danmakuHideInteractiveCommands) {
             filterVisibleCommandDanmakuItems(commandDanmakuList, danmakuHideInteractiveCommands)
         }
-        if (shouldShowDanmakuLayer) {
+        // Temporary lifecycle/return-preview hiding must not release the renderer.
+        // It owns the visible comments and the current playback timeline.
+        val keepDanmakuLayer = shouldKeepVideoPlayerDanmakuHost(
+            danmakuHostActive = danmakuHostActive,
+            isPortraitFullscreen = isPortraitFullscreen
+        ) && danmakuEnabled && !(isInPipMode && pipNoDanmakuEnabled)
+        if (keepDanmakuLayer) {
             //  计算状态栏高度
             val statusBarHeightPx = remember(context) {
                 val resourceId = context.resources.getIdentifier(
@@ -4376,6 +4399,7 @@ private fun VideoPlayerSectionContent(
             val viewportAspectRatio = if (isFullscreen) currentAspectRatio else VideoAspectRatio.FIT
             BoxWithConstraints(
                 modifier = playerContentModifier
+                    .graphicsLayer { alpha = if (shouldShowDanmakuLayer) 1f else 0f }
                     .then(
                         if (topOffset > 0) {
                             Modifier.padding(top = with(LocalContext.current.resources.displayMetrics) {
@@ -4400,6 +4424,7 @@ private fun VideoPlayerSectionContent(
                         )
                     }
                 }
+                val danmakuContainerHeightPx = with(density) { maxHeight.roundToPx() }
                 val danmakuSurfaceModifier = if (useScreenTopDanmakuSurface) {
                     Modifier.fillMaxSize()
                 } else {
@@ -4411,43 +4436,47 @@ private fun VideoPlayerSectionContent(
                     }
                 }
                 DanmakuViewportHost(danmakuSurfaceModifier) { viewport ->
-                AndroidView(
-                    factory = { ctx ->
-                        DanmakuRenderView(ctx).apply {
+                key(danmakuManager) {
+                    AndroidView(
+                        factory = { ctx ->
+                            DanmakuRenderView(ctx).apply {
+                                danmakuManager.isFullscreenSurface = isFullscreen
+                                danmakuManager.updateViewport(viewport)
+                                addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                                    if (view.width > 0 && view.height > 0) danmakuManager.attachView(this)
+                                }
+                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                configureAsPassiveDanmakuOverlay()
+                                danmakuManager.attachView(this)
+                                Logger.d("VideoPlayerSection") {
+                                    "DanmakuView (RenderEngine) created, isFullscreen=$isFullscreen"
+                                }
+                            }
+                        },
+                        update = { view ->
                             danmakuManager.updateViewport(viewport)
-                            addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-                                if (view.width > 0 && view.height > 0) danmakuManager.attachView(this)
-                            }
-                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                            configureAsPassiveDanmakuOverlay()
-                            danmakuManager.attachView(this)
+                            //  [关键] 横竖屏切换后视图尺寸变化时，重新 attachView 确保弹幕正确显示
                             Logger.d("VideoPlayerSection") {
-                                "DanmakuView (RenderEngine) created, isFullscreen=$isFullscreen"
+                                "DanmakuView update: size=${view.width}x${view.height}, isFullscreen=$isFullscreen"
                             }
-                        }
-                    },
-                    update = { view ->
-                        danmakuManager.updateViewport(viewport)
-                        //  [关键] 横竖屏切换后视图尺寸变化时，重新 attachView 确保弹幕正确显示
-                        Logger.d("VideoPlayerSection") {
-                            "DanmakuView update: size=${view.width}x${view.height}, isFullscreen=$isFullscreen"
-                        }
-                        // 只有当视图有有效尺寸时才 re-attach
-                        if (view.width > 0 && view.height > 0) {
-                            val sizeTag = "${view.width}x${view.height}"
-                            if (view.tag != sizeTag) {
-                                view.tag = sizeTag
-                                danmakuManager.attachView(view)
+                            danmakuManager.isFullscreenSurface = isFullscreen
+                            // 只有当视图有有效尺寸时才 re-attach
+                            if (view.width > 0 && view.height > 0) {
+                                val sizeTag = "${view.width}x${view.height}"
+                                if (view.tag != sizeTag) {
+                                    view.tag = sizeTag
+                                    danmakuManager.attachView(view)
+                                }
                             }
-                        }
-                    },
-                    onRelease = { view ->
-                        // 仅当本 view 仍是当前绑定的弹幕视图时才解绑；
-                        // 相关推荐跳转后旧页面销毁不能清掉新页面已接管的 view/controller。
-                        danmakuManager.detachView(view)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                        },
+                        onRelease = { view ->
+                            // 仅当本 view 仍是当前绑定的弹幕视图时才解绑；
+                            // 相关推荐跳转后旧页面销毁不能清掉新页面已接管的 view/controller。
+                            danmakuManager.detachView(view)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 com.android.purebilibili.feature.video.ui.overlay.AdvancedDanmakuOverlay(
                     viewport = viewport,
                     danmakuList = advancedDanmakuList,
@@ -4457,8 +4486,54 @@ private fun VideoPlayerSectionContent(
                     fontWeight = danmakuFontWeight,
                     modifier = Modifier.fillMaxSize()
                 )
+                com.android.purebilibili.feature.video.ui.overlay.BasDanmakuOverlay(
+                    items = basDanmakuList,
+                    player = playerState.player,
+                    viewport = viewport,
+                    opacity = danmakuOpacity,
+                    fontScale = danmakuFontScale,
+                    fontWeight = danmakuFontWeight,
+                    modifier = Modifier.fillMaxSize()
+                )
+                // Keep the classic controls footprint reserved, including in compact/hidden chrome.
+                val commandControlsLayout = remember(uiLayoutWidthDp) {
+                    com.android.purebilibili.feature.video.ui.overlay.resolveBottomControlBarLayoutPolicy(uiLayoutWidthDp)
+                }
+                val commandProgressLayout = remember(uiLayoutWidthDp) {
+                    com.android.purebilibili.feature.video.ui.overlay.resolveVideoProgressBarLayoutPolicy(uiLayoutWidthDp)
+                }
+                val requestedCommandProgressPlacement by remember(context) {
+                    com.android.purebilibili.core.store.SettingsManager.getPlayerProgressPlacement(context)
+                }.collectAsStateWithLifecycle(
+                    initialValue = com.android.purebilibili.core.store.PlayerProgressPlacement.ABOVE_CONTROLS
+                )
+                val commandProgressPlacement = com.android.purebilibili.feature.video.ui.overlay.resolveVideoDetailProgressPlacement(
+                    requestedPlacement = requestedCommandProgressPlacement,
+                    isFullscreen = isFullscreen,
+                )
+                val commandControlsBottomPaddingDp = com.android.purebilibili.feature.video.ui.overlay.resolveBottomControlBarBottomPaddingDp(
+                    defaultBottomPaddingDp = commandControlsLayout.bottomPaddingDp,
+                    progressPlacement = commandProgressPlacement,
+                )
+                val commandControlsReservePx = with(density) {
+                    (maxOf(
+                        commandControlsLayout.playButtonSizeDp,
+                        commandControlsLayout.danmakuInputHeightDp,
+                        com.android.purebilibili.feature.video.ui.overlay.resolveFullscreenToggleTouchTargetDp(
+                            commandControlsLayout.fullscreenIconSizeDp
+                        ),
+                    ) +
+                        commandProgressLayout.touchContainerHeightDp +
+                        commandControlsLayout.progressSpacingDp +
+                        commandControlsBottomPaddingDp).dp.roundToPx()
+                } + if (isFullscreen) WindowInsets.navigationBarsIgnoringVisibility.getBottom(density) else 0
                 com.android.purebilibili.feature.video.ui.overlay.CommandDanmakuOverlay(
                     viewport = viewport,
+                    bottomInsetPx = com.android.purebilibili.feature.video.ui.overlay.resolveCommandDanmakuBottomInsetPx(
+                        viewportHeightPx = viewport.heightPx,
+                        surfaceHeightPx = danmakuContainerHeightPx,
+                        controlsReserveHeightPx = commandControlsReservePx,
+                    ),
                     state = commandState,
                     fontScale = danmakuFontScale,
                     items = visibleCommandDanmakuList,
@@ -4467,39 +4542,92 @@ private fun VideoPlayerSectionContent(
                     onTripleClick = onTriple,
                     onVoteSubmit = { item, option, optionIndex ->
                         val success = uiState as? VideoPlaybackUiState.Success
-                        if (success != null && item.voteId.isNotBlank()) {
+                        if (item.voteKind == com.android.purebilibili.feature.video.danmaku.VoteDanmakuKind.GRADE) {
                             val gradeScore = option.score
-                            settingsScope.launch {
-                                if (gradeScore != null) {
-                                    val result = com.android.purebilibili.data.repository.DanmakuRepository.submitGradeDanmaku(
-                                        aid = success.info.aid,
-                                        cid = success.info.cid,
-                                        progress = item.startTimeMs,
-                                        gradeId = item.voteId,
-                                        gradeScore = gradeScore
-                                    )
-                                    if (result.isFailure) {
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            result.exceptionOrNull()?.message ?: "打分失败",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                } else {
-                                    // 互动投票弹幕的 vote_id 属于标准投票系统，复用 do_vote
-                                    val voteIdLong = item.voteId.toLongOrNull()
-                                    if (voteIdLong != null) {
-                                        val result = com.android.purebilibili.data.repository.DynamicVoteRepository.submitVote(
-                                            voteId = voteIdLong,
-                                            optionIndexes = listOf(optionIndex)
+                            if (success == null || success.info.aid <= 0L || success.info.cid <= 0L ||
+                                item.voteId.toLongOrNull() == null || gradeScore == null
+                            ) {
+                                commandState.endSubmission(item.id)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (success == null) "打分失败：播放信息不可用" else "打分失败：缺少有效打分信息",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                // Enter the finally block even if this UI scope is already cancelled.
+                                settingsScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                                    var accepted = false
+                                    try {
+                                        val result = com.android.purebilibili.data.repository.DanmakuRepository.submitGradeDanmaku(
+                                            aid = success.info.aid,
+                                            cid = success.info.cid,
+                                            progress = item.startTimeMs,
+                                            gradeId = item.voteId,
+                                            gradeScore = gradeScore
                                         )
-                                        if (result.isFailure) {
+                                        if (result.isSuccess) {
+                                            accepted = true
+                                            commandState.completeGradeSubmission(item, option)
+                                            val summary = com.android.purebilibili.data.repository.DanmakuRepository.getGradeDanmakuSummary(
+                                                cid = success.info.cid,
+                                                aid = success.info.aid,
+                                                gradeId = item.voteId
+                                            )
+                                            summary.onSuccess { commandState.updateGradeSummary(item.id, it) }
+                                                .onFailure {
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        "打分成功，统计暂不可用",
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                        } else {
                                             android.widget.Toast.makeText(
                                                 context,
-                                                result.exceptionOrNull()?.message ?: "投票失败",
+                                                result.exceptionOrNull()?.message ?: "打分失败",
                                                 android.widget.Toast.LENGTH_SHORT
                                             ).show()
                                         }
+                                    } catch (e: kotlinx.coroutines.CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (accepted) "打分成功，统计暂不可用" else e.message ?: "打分失败",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    } finally {
+                                        // This only releases pending work; an accepted score remains confirmed.
+                                        commandState.endSubmission(item.id)
+                                    }
+                                }
+                            }
+                        } else {
+                            val voteId = item.voteId.toLongOrNull()
+                            if (success == null || voteId == null) {
+                                commandState.endSubmission(item.id)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "投票失败：缺少有效投票信息",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                settingsScope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                                    try {
+                                        val result = com.android.purebilibili.data.repository.DynamicVoteRepository.submitVote(
+                                            voteId = voteId,
+                                            optionIndexes = listOf(optionIndex)
+                                        )
+                                        result.onSuccess { commandState.completeVoteSubmission(item, option) }
+                                            .onFailure {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    it.message ?: "投票失败",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                    } finally {
+                                        commandState.endSubmission(item.id)
                                     }
                                 }
                             }
@@ -5310,6 +5438,7 @@ private fun VideoPlayerSectionContent(
                     drawerHazeState = overlayDrawerHazeState,
                     statusBarAmbientFrame = statusBarAmbientFrame,
                     statusBarBackdropHeight = contentTopInset,
+                    ambientVideoBoundsInWindow = ambientPresentation?.videoBoundsInWindow,
                     landscapeCommentPanelVisible = landscapeCommentPanelVisible,
                     landscapeCommentPanelOnLeft = landscapeCommentPanelOnLeft,
                 )

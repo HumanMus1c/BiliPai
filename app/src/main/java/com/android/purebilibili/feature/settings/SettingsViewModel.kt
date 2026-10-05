@@ -1090,6 +1090,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     // [New] Splash Screen
     fun toggleSplashEnabled(value: Boolean) { viewModelScope.launch { SettingsManager.setSplashEnabled(context, value) } }
     fun toggleSplashRandomEnabled(value: Boolean) { viewModelScope.launch { SettingsManager.setSplashRandomEnabled(context, value) } }
+    fun setStartupAnimationStyle(value: com.android.purebilibili.core.store.StartupAnimationStyle) {
+        viewModelScope.launch {
+            SettingsManager.setStartupAnimationStyle(context, value)
+        }
+    }
+
     fun toggleSplashIconAnimationEnabled(value: Boolean) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             SettingsManager.setSplashIconAnimationEnabled(context, value)

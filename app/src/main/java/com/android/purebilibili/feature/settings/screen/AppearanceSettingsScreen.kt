@@ -1114,6 +1114,8 @@ fun AppearanceSettingsContent(
                     val splashRandomEnabled by com.android.purebilibili.core.store.SettingsManager.getSplashRandomEnabled(context).collectAsStateWithLifecycle(initialValue = false)
                     val splashRandomPoolUris by com.android.purebilibili.core.store.SettingsManager.getSplashRandomPoolUris(context).collectAsStateWithLifecycle(initialValue = emptyList())
                     val splashIconAnimationEnabled by com.android.purebilibili.core.store.SettingsManager.getSplashIconAnimationEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+                    val startupAnimationStyle by SettingsManager.getStartupAnimationStyle(context)
+                        .collectAsStateWithLifecycle(initialValue = SettingsManager.getStartupAnimationStyleSync(context))
                     val splashWallpaperUri by com.android.purebilibili.core.store.SettingsManager.getSplashWallpaperUri(context).collectAsStateWithLifecycle(initialValue = null)
                     val hasSplashWallpaper = !splashWallpaperUri.isNullOrBlank()
                     val splashRandomPoolPreview = remember(splashRandomPoolUris) {
@@ -1236,12 +1238,23 @@ fun AppearanceSettingsContent(
                     AppSwitchPreference(
                         icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_ICON_ANIMATION),
                         title = "开屏图标遮罩动画",
-                        subtitle = "关闭后不保留图标页，不播放遮罩和飞出动画",
+                        subtitle = "关闭后不播放图标飞出或蓝雪女仆动画",
                         checked = splashIconAnimationEnabled,
                         onCheckedChange = { viewModel.toggleSplashIconAnimationEnabled(it) },
                         iconTint = com.android.purebilibili.core.theme.iOSPink
                     )
                     
+                    SettingsSingleChoicePreference(
+                        title = "启动动画样式",
+                        subtitle = "蓝雪女仆与自定义启动壁纸可同时展示",
+                        options = com.android.purebilibili.core.store.StartupAnimationStyle.entries.map {
+                            AppSegmentOption(it, it.label)
+                        },
+                        selectedValue = startupAnimationStyle,
+                        enabled = splashIconAnimationEnabled,
+                        onSelectionChange = viewModel::setStartupAnimationStyle
+                    )
+
                     // 当开启时，显示选择壁纸入口
                     androidx.compose.animation.AnimatedVisibility(
                         visible = isSplashEnabled,

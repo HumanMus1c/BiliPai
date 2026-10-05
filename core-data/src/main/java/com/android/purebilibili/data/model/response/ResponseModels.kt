@@ -711,5 +711,8 @@ data class ReplyControl(
     // [新增] 翻译开关 (0=未指定, 1=不支持, 2=显示翻译, 3=显示原文)
     @Serializable(with = FlexibleIntSerializer::class)
     @SerialName("translation_switch")
-    val translationSwitch: Int = 0
+    val translationSwitch: Int = 0,
+    // [新增] 充电专属评论描述，非空即为充电专属评论
+    @SerialName("charged_desc")
+    val chargedDesc: String = ""
 )

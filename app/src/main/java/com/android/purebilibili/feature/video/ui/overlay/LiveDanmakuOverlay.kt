@@ -24,7 +24,8 @@ import com.android.purebilibili.danmaku.engine.DanmakuRenderConfig
 import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 import com.android.purebilibili.feature.video.danmaku.DanmakuTypeFilterSettings
-import com.android.purebilibili.feature.video.danmaku.DANMAKU_BASE_TEXT_SIZE_DP
+import com.android.purebilibili.feature.video.danmaku.resolveDanmakuStrokeWidthPx
+import com.android.purebilibili.feature.video.danmaku.resolveDanmakuTextSizePx
 import com.android.purebilibili.feature.video.danmaku.createBitmapDanmaku
 import com.android.purebilibili.feature.video.danmaku.resolveDanmakuRenderLayerType
 import com.android.purebilibili.feature.video.danmaku.resolveDanmakuPinnedDurationMillis
@@ -44,10 +45,16 @@ private const val MAX_ACTIVE_LIVE_DANMAKU = 160
 private const val MAX_PENDING_LIVE_DANMAKU = 80
 private const val MAX_PENDING_ITEMS_BEFORE_START = 48
 
+private class PendingLiveDanmakuItem(
+    val item: LiveDanmakuItem,
+    val queuedAtTime: Long
+)
+
 /** Live danmaku renderer backed by an append-only, bounded session timeline. */
 @Composable
 fun LiveDanmakuOverlay(
     danmakuFlow: SharedFlow<LiveDanmakuItem>,
+    isFullscreen: Boolean,
     displayArea: Float = 1f,
     danmakuSettings: DanmakuSettings = DanmakuSettings(),
     modifier: Modifier = Modifier
@@ -56,12 +63,15 @@ fun LiveDanmakuOverlay(
     val density = context.resources.displayMetrics.density
     val safeDisplayArea = displayArea.takeIf(Float::isFinite)?.coerceIn(0.25f, 1f) ?: 1f
     val latestDanmakuSettings by rememberUpdatedState(danmakuSettings)
+    val latestDensity by rememberUpdatedState(density)
+    val latestIsFullscreen by rememberUpdatedState(isFullscreen)
     var renderView by remember { mutableStateOf<DanmakuRenderView?>(null) }
     var engine by remember { mutableStateOf<DanmakuEngine?>(null) }
     var startTime by remember { mutableLongStateOf(0L) }
     var isStarted by remember { mutableStateOf(false) }
     val activeItems = remember { ArrayDeque<DanmakuItem>() }
-    val pendingItems = remember { ArrayDeque<DanmakuItem>() }
+    // Materialize at append time so queued emoji bitmaps use the latest surface size.
+    val pendingItems = remember { ArrayDeque<PendingLiveDanmakuItem>() }
     val pendingItemsBeforeStart = remember { ArrayDeque<LiveDanmakuItem>() }
 
     AndroidView(
@@ -83,9 +93,12 @@ fun LiveDanmakuOverlay(
             .fillMaxWidth()
             .fillMaxHeight(safeDisplayArea),
         update = { view ->
-            val textSize = DANMAKU_BASE_TEXT_SIZE_DP *
-                density * danmakuSettings.fontScale.coerceIn(0.3f, 2f)
-            val strokeWidth = danmakuSettings.strokeWidth.coerceAtLeast(0f)
+            val textSize = resolveDanmakuTextSizePx(
+                density = density,
+                fontScale = danmakuSettings.fontScale,
+                isFullscreen = isFullscreen
+            )
+            val strokeWidth = resolveDanmakuStrokeWidthPx(density, danmakuSettings.strokeWidth)
             view.engine.updateConfig(
                 DanmakuRenderConfig(
                     alpha = (danmakuSettings.opacity.coerceIn(0f, 1f) * 255).toInt(),
@@ -122,19 +135,17 @@ fun LiveDanmakuOverlay(
             if (currentEngine != null && isStarted) {
                 val currentTime = SystemClock.elapsedRealtime() - startTime
                 val settings = latestDanmakuSettings
-                val textSize = DANMAKU_BASE_TEXT_SIZE_DP *
-                    density * settings.fontScale.coerceIn(0.3f, 2f)
+                val textSize = resolveDanmakuTextSizePx(
+                    density = latestDensity,
+                    fontScale = settings.fontScale,
+                    isFullscreen = latestIsFullscreen
+                )
 
                 while (pendingItemsBeforeStart.isNotEmpty()) {
                     pendingItems.addLast(
-                        createLiveDanmakuItem(
+                        PendingLiveDanmakuItem(
                             item = pendingItemsBeforeStart.removeFirst(),
-                            currentTime = currentTime,
-                            context = context,
-                            engine = currentEngine,
-                            textSize = textSize,
-                            fontWeight = settings.fontWeight,
-                            staticDanmakuToScroll = settings.staticDanmakuToScroll
+                            queuedAtTime = currentTime
                         )
                     )
                 }
@@ -142,7 +153,16 @@ fun LiveDanmakuOverlay(
                 if (pendingItems.isNotEmpty()) {
                     val batch = ArrayList<DanmakuItem>(pendingItems.size)
                     while (pendingItems.isNotEmpty()) {
-                        pendingItems.removeFirst().also {
+                        val pending = pendingItems.removeFirst()
+                        createLiveDanmakuItem(
+                            item = pending.item,
+                            currentTime = pending.queuedAtTime,
+                            context = context,
+                            engine = currentEngine,
+                            textSize = textSize,
+                            fontWeight = settings.fontWeight,
+                            staticDanmakuToScroll = settings.staticDanmakuToScroll
+                        ).also {
                             batch += it
                             activeItems.addLast(it)
                         }
@@ -193,23 +213,10 @@ fun LiveDanmakuOverlay(
             }
 
             val currentTime = SystemClock.elapsedRealtime() - startTime
-            val textSize = DANMAKU_BASE_TEXT_SIZE_DP * density * settings.fontScale.coerceIn(0.3f, 2f)
-            val renderItem = createLiveDanmakuItem(
-                item = item,
-                currentTime = currentTime,
-                context = context,
-                engine = currentEngine,
-                textSize = textSize,
-                fontWeight = settings.fontWeight,
-                staticDanmakuToScroll = settings.staticDanmakuToScroll
-            )
             if (pendingItems.size >= MAX_PENDING_LIVE_DANMAKU) {
-                releaseLiveDanmakuItem(
-                    pendingItems.removeFirst(),
-                    LiveDanmakuBitmapOwnership.APP_QUEUE_ONLY
-                )
+                pendingItems.removeFirst()
             }
-            pendingItems.addLast(renderItem)
+            pendingItems.addLast(PendingLiveDanmakuItem(item, currentTime))
         }
     }
 
@@ -217,12 +224,7 @@ fun LiveDanmakuOverlay(
         onDispose {
             engine?.close()
             renderView?.releaseRenderer()
-            activeItems.forEach { item ->
-                releaseLiveDanmakuItem(item, LiveDanmakuBitmapOwnership.TIMELINE_DISCARDED)
-            }
-            pendingItems.forEach { item ->
-                releaseLiveDanmakuItem(item, LiveDanmakuBitmapOwnership.APP_QUEUE_ONLY)
-            }
+            // App queues contain no bitmaps; attached bitmaps remain owned by the renderer.
             activeItems.clear()
             pendingItems.clear()
             pendingItemsBeforeStart.clear()
@@ -248,6 +250,7 @@ private fun createLiveDanmakuItem(
 
     if (!shouldRenderLiveDanmakuAsBitmap(item.isSuperChat, item.emoticonUrl)) {
         return DanmakuItem().apply {
+            // Inherit renderer size so config remeasurement updates retained live text in place.
             text = item.text
             this.textColor = textColor
             this.layerType = layerType
@@ -267,13 +270,4 @@ private fun createLiveDanmakuItem(
         typeface = resolveDanmakuTypeface(fontWeight),
         onUpdate = engine::invalidate
     ).apply { isSelf = item.isSelf }
-}
-
-private fun releaseLiveDanmakuItem(
-    item: DanmakuItem,
-    ownership: LiveDanmakuBitmapOwnership
-) {
-    if (!shouldManuallyRecycleLiveDanmakuBitmap(ownership)) return
-    item.bitmap?.takeUnless { it.isRecycled }?.recycle()
-    item.bitmap = null
 }

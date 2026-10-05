@@ -268,66 +268,6 @@ class VideoPlayerOverlayPolicyTest {
     }
 
     @Test
-    fun centerPlayButtonHiddenWhenScrubbingOrBuffering() {
-        assertFalse(
-            shouldShowCenterPlayButton(
-                isVisible = true,
-                isPlaying = false,
-                isQualitySwitching = false,
-                isFullscreen = true,
-                isBuffering = true,
-                isScrubbing = false,
-                isSeekTransitionPending = false
-            )
-        )
-        assertFalse(
-            shouldShowCenterPlayButton(
-                isVisible = true,
-                isPlaying = false,
-                isQualitySwitching = false,
-                isFullscreen = true,
-                isBuffering = false,
-                isScrubbing = true,
-                isSeekTransitionPending = false
-            )
-        )
-        assertTrue(
-            shouldShowCenterPlayButton(
-                isVisible = true,
-                isPlaying = false,
-                isQualitySwitching = false,
-                isFullscreen = true,
-                isBuffering = false,
-                isScrubbing = false,
-                isSeekTransitionPending = false
-            )
-        )
-    }
-
-    @Test
-    fun centerPlayButtonHiddenDuringSeekResumeTransition() {
-        assertFalse(
-            shouldShowCenterPlayButton(
-                isVisible = true,
-                isPlaying = false,
-                isQualitySwitching = false,
-                isFullscreen = true,
-                isBuffering = false,
-                isScrubbing = false,
-                isSeekTransitionPending = true
-            )
-        )
-    }
-
-    @Test
-    fun centerPlayButton_routesSingleAndDoubleTapToSameResumeAction() {
-        val source = loadVideoPlayerOverlaySource()
-
-        assertTrue(source.contains("onClick = resumeFromCenterButton"))
-        assertTrue(source.contains("onDoubleClick = resumeFromCenterButton"))
-    }
-
-    @Test
     fun playbackButtonState_staysActiveWhilePlayerIsBufferingForResume() {
         assertTrue(
             resolveOverlayPlaybackButtonPlayingState(
@@ -855,20 +795,6 @@ class VideoPlayerOverlayPolicyTest {
                 hasPendingUserAction = true
             )
         )
-    }
-
-    @Test
-    fun centerPlaybackButton_usesThemeTintedNativeIconWithoutContainerShadow() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/overlay/PlaybackButtonComponents.kt")
-            .readText()
-
-        assertTrue(source.contains("IconButton("))
-        assertTrue(source.contains("Icons.Filled.Pause"))
-        assertTrue(source.contains("Icons.Filled.PlayArrow"))
-        assertTrue(source.contains("tint = MaterialTheme.colorScheme.primary"))
-        assertFalse(source.contains("Surface("))
-        assertFalse(source.contains("BorderStroke("))
-        assertFalse(source.contains(".background("))
     }
 
     @Test

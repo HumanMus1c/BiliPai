@@ -41,6 +41,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventState
+import com.android.purebilibili.feature.settings.screen.settingsHasPersistentPanes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
@@ -109,6 +110,7 @@ internal class BiliPaiProgrammaticBackDispatcher {
 @Composable
 internal fun BiliPaiNavDisplayHost(
     backStack: SnapshotStateList<BiliPaiNavKey>,
+    activeMainHostRoute: String? = null,
     cardTransitionEnabled: Boolean = true,
     videoTransitionRealtimeBlurEnabled: Boolean = false,
     isLightBackground: Boolean = false,
@@ -154,6 +156,7 @@ internal fun BiliPaiNavDisplayHost(
             "predictive_style=$predictiveBackAnimationStyle reduced_motion=$reduceMotion",
     )
     val stackSnapshot = backStack.toList()
+    val settingsPersistentPanes = settingsHasPersistentPanes()
     val currentKey = stackSnapshot.lastOrNull()
     val latestOnBack by rememberUpdatedState(onBack)
     val latestPrepareReturn by rememberUpdatedState(onPrepareVideoCardSharedReturn)
@@ -761,6 +764,9 @@ internal fun BiliPaiNavDisplayHost(
         ) {
             biliPaiNavEntries(
                 swipeBackDirection = swipeBackDirection,
+                settingsBackStack = stackSnapshot,
+                settingsPersistentPanes = settingsPersistentPanes,
+                activeMainHostRoute = activeMainHostRoute,
                 predictiveBackExcludedTransition = predictiveBackExcludedTransition,
                 videoCardTransition = videoCardTransition,
                 fullscreenVideoCardTransition = fullscreenVideoCardTransition,

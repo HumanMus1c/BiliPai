@@ -393,7 +393,8 @@ fun AppNavigation(
     ) -> Unit = { _, onResult ->
         onResult(PrivacyAuthenticationResult.Failure("请先设置系统锁屏后再解锁隐私内容"))
     },
-    mainHazeState: dev.chrisbanes.haze.HazeState? = null //  全局 Haze 状态
+    mainHazeState: dev.chrisbanes.haze.HazeState? = null, //  全局 Haze 状态
+    onBrandFeedbackBottomInsetChanged: (androidx.compose.ui.unit.Dp) -> Unit = {}
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val coroutineScope = rememberCoroutineScope()
@@ -1540,6 +1541,10 @@ fun AppNavigation(
             isBottomBarFloating = isBottomBarFloating,
             hasUiSkinDecoration = bottomBarUiSkinDecoration != null,
         )
+        val latestBrandFeedbackInsetCallback by androidx.compose.runtime.rememberUpdatedState(onBrandFeedbackBottomInsetChanged)
+        LaunchedEffect(bottomBarContentPadding) {
+            latestBrandFeedbackInsetCallback(bottomBarContentPadding)
+        }
 
         val setBottomBarVisible: (Boolean) -> Unit = remember {
             bottomBarSetter@{ visible: Boolean ->
@@ -4350,6 +4355,7 @@ fun AppNavigation(
 
                 BiliPaiNavDisplayHost(
                     backStack = navigation3BackStack,
+                    activeMainHostRoute = activeBottomTabRoute,
                     cardTransitionEnabled =
                         com.android.purebilibili.navigation3.resolveVideoCardTransitionEnabledForSource(
                             cardTransitionEnabled = sharedVideoCardTransitionEnabled,

@@ -40,7 +40,7 @@ class DanmakuConfig {
     
     // [问题9修复] 描边设置
     var strokeEnabled = true  // 默认开启描边
-    var strokeWidth = 1.5f  // 描边宽度（像素）
+    var strokeWidth = 1.5f  // 描边宽度（dp），与字号使用同一系统密度
 
     // 静态弹幕停留时长（秒）
     var staticDurationSeconds = 4.0f
@@ -80,11 +80,13 @@ class DanmakuConfig {
     var hotBarReservedHeightPx = 0f
     
     /** Resolve app settings into the renderer-neutral configuration contract. */
-    fun resolveRenderConfig(viewport: DanmakuViewport): DanmakuRenderConfig {
+    fun resolveRenderConfig(viewport: DanmakuViewport, isFullscreen: Boolean): DanmakuRenderConfig {
         val viewWidth = viewport.widthPx
         val viewHeight = viewport.heightPx
-        val resolvedTextSize = resolveDanmakuTextSizePx(viewport.density, fontScale)
-        val resolvedStrokeWidth = if (strokeEnabled) strokeWidth else 0f
+        val resolvedTextSize = resolveDanmakuTextSizePx(viewport.density, fontScale, isFullscreen)
+        val resolvedStrokeWidth = if (strokeEnabled) {
+            resolveDanmakuStrokeWidthPx(viewport.density, strokeWidth)
+        } else 0f
         val layerLineHeightPx = resolveDanmakuLayerLineHeightPx(
             fontSize = resolvedTextSize,
             lineHeightMultiplier = lineHeight
@@ -185,14 +187,21 @@ internal fun resolveDanmakuTypeface(fontWeight: Int): Typeface {
     }
 }
 
-/**
- * Density-independent base size: the same physical size in inline, fullscreen and
- * every other surface; the container only decides how many rows fit.
- */
-internal const val DANMAKU_BASE_TEXT_SIZE_DP = 20f
+/** Logical-pixel baselines matching PiliPlus; neither depends on the picture box or app UI scale. */
+private const val DANMAKU_BASE_TEXT_SIZE_DP = 15f
+private const val DANMAKU_FULLSCREEN_TEXT_SIZE_DP = 18f
 
-internal fun resolveDanmakuTextSizePx(density: Float, fontScale: Float): Float =
-    DANMAKU_BASE_TEXT_SIZE_DP * density * fontScale.coerceIn(0.3f, 2f)
+internal fun resolveDanmakuTextSizePx(
+    density: Float,
+    fontScale: Float,
+    isFullscreen: Boolean
+): Float {
+    val baseSizeDp = if (isFullscreen) DANMAKU_FULLSCREEN_TEXT_SIZE_DP else DANMAKU_BASE_TEXT_SIZE_DP
+    return baseSizeDp * density * fontScale.coerceIn(0.3f, 2f)
+}
+
+internal fun resolveDanmakuStrokeWidthPx(density: Float, strokeWidth: Float): Float =
+    strokeWidth.coerceAtLeast(0f) * density
 
 internal fun resolveDanmakuScrollDurationMillis(
     scrollDurationSeconds: Float,

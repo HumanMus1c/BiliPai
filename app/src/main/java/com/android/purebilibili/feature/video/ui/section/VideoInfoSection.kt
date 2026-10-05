@@ -93,6 +93,7 @@ import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.video.screen.buildVideoNavigationOptions
 import com.android.purebilibili.feature.video.ui.FollowButtonTone
 import com.android.purebilibili.feature.video.ui.FollowTextTone
+import com.android.purebilibili.feature.video.ui.feedback.followActionAnchor
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
 import com.android.purebilibili.data.repository.ViewGrpcRepository
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
@@ -1246,7 +1247,7 @@ fun UpInfoSection(
                     FollowButtonTone.PRIMARY_CONTAINER -> MaterialTheme.colorScheme.primaryContainer
                 },
                 shape = VideoDetailShapes.action(),
-                modifier = followActionModifier
+                modifier = followActionModifier.followActionAnchor()
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

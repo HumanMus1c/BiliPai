@@ -1627,7 +1627,7 @@ private fun PlaybackInteractionSettingsSection(
         AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.COMMENT_DECORATION),
             title = "详细评论时间显示",
-            subtitle = "一级评论固定显示 yyyy-MM-dd HH:mm:ss；开启后楼中楼与动态评论也显示绝对时间，关闭则按相对时间显示",
+            subtitle = "开启后始终显示 yyyy-MM-dd HH:mm:ss；关闭后按相对时间显示",
             checked = detailedCommentTimeEnabled,
             onCheckedChange = { enabled ->
                 scope.launch {

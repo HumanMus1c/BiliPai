@@ -36,6 +36,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.video.ui.feedback.favoriteActionAnchor
+import com.android.purebilibili.feature.video.ui.feedback.likeBurstAnchor
 
 /**
  *  横屏右侧操作栏
@@ -121,13 +123,15 @@ fun LandscapeRightSidebar(
             )
             
             // 收藏按钮
-            SidebarActionButton(
-                icon = favoriteIcon,
-                label = FormatUtils.formatStat(favoriteCount),
-                isActive = isFavorited,
-                activeColor = Color(0xFFFFD700), // 金色
-                onClick = onFavoriteClick
-            )
+            Box(modifier = Modifier.favoriteActionAnchor()) {
+                SidebarActionButton(
+                    icon = favoriteIcon,
+                    label = FormatUtils.formatStat(favoriteCount),
+                    isActive = isFavorited,
+                    activeColor = Color(0xFFFFD700), // 金色
+                    onClick = onFavoriteClick
+                )
+            }
             
             // 投币按钮
             SidebarActionButton(
@@ -139,13 +143,15 @@ fun LandscapeRightSidebar(
             )
             
             // 点赞按钮
-            SidebarActionButton(
-                icon = if (isLiked) likeFilledIcon else likeIcon,
-                label = FormatUtils.formatStat(likeCount),
-                isActive = isLiked,
-                activeColor = MaterialTheme.colorScheme.primary,
-                onClick = onLikeClick
-            )
+            Box(modifier = Modifier.likeBurstAnchor()) {
+                SidebarActionButton(
+                    icon = if (isLiked) likeFilledIcon else likeIcon,
+                    label = FormatUtils.formatStat(likeCount),
+                    isActive = isLiked,
+                    activeColor = MaterialTheme.colorScheme.primary,
+                    onClick = onLikeClick
+                )
+            }
             
             // 更多按钮
             SidebarActionButton(

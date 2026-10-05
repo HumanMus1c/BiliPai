@@ -10,7 +10,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -18,7 +21,18 @@ import java.util.concurrent.TimeUnit
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
 
+data class AccountSessionIdentity(val mid: Long? = null, val generation: Long = 0L)
+
 object TokenManager {
+    private val _accountIdentity = MutableStateFlow(AccountSessionIdentity())
+    val accountIdentity = _accountIdentity.asStateFlow()
+
+    private fun publishAccountIdentity() {
+        val mid = midCache?.takeIf { it > 0L }
+        _accountIdentity.update {
+            if (it.mid == mid) it else AccountSessionIdentity(mid, it.generation + 1L)
+        }
+    }
     private val SESSDATA_KEY = stringPreferencesKey("sessdata")
     private val BUVID3_KEY = stringPreferencesKey("buvid3")
 
@@ -54,6 +68,7 @@ object TokenManager {
     //  [新增] 用户 MID 缓存
     @Volatile
     var midCache: Long? = null
+        private set
     
     //  [新增] APP access_token - 用于调用 APP API 获取高画质视频流
     @Volatile
@@ -149,6 +164,8 @@ object TokenManager {
             ACCESS_TOKEN_PLATFORM_TV
         ) ?: ACCESS_TOKEN_PLATFORM_TV
 
+        publishAccountIdentity()
+
         com.android.purebilibili.core.network.CoreDataLog.d(
             "TokenManager",
             "init: hasSession=${!sessDataCache.isNullOrBlank()}, hasAccessToken=${!accessTokenCache.isNullOrBlank()}, mid=$midCache"
@@ -167,9 +184,10 @@ object TokenManager {
     
     //  [新增] 保存用户 MID
     fun saveMid(context: Context, mid: Long) {
-        midCache = mid
+        midCache = mid.takeIf { it > 0L }
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
             .edit().putLong(SP_KEY_MID, mid).apply()
+        publishAccountIdentity()
         com.android.purebilibili.core.network.CoreDataLog.d("TokenManager", " saveMid: $mid")
     }
     
@@ -272,6 +290,7 @@ object TokenManager {
         } else if (buvid3Cache.isNullOrBlank()) {
             saveBuvid3(context, generateBuvid3())
         }
+        publishAccountIdentity()
     }
 
     fun getSessData(context: Context): Flow<String?> {
@@ -287,6 +306,7 @@ object TokenManager {
         accessTokenCache = null  //  [新增] 清除 access_token
         refreshTokenCache = null
         accessTokenPlatformCache = ACCESS_TOKEN_PLATFORM_TV
+        publishAccountIdentity()
         
         // 清除 SP
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)

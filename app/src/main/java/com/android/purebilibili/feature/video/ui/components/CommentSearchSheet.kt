@@ -32,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,7 @@ import com.android.purebilibili.core.ui.blur.LocalFloatingChromeBackdrop
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.ui.LocalDetailedCommentTimeEnabled
 import com.android.purebilibili.data.model.response.ReplyItem
+import com.android.purebilibili.feature.video.viewmodel.FullCommentSearchUiState
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import top.yukonga.miuix.kmp.blur.Backdrop
@@ -90,14 +92,27 @@ data class CommentSearchEntry(
 )
 
 /**
+ * 评论搜索范围：全部评论 / 只看UP主 / 充电评论
+ */
+enum class CommentSearchScope(val label: String) {
+    ALL("全部评论"),
+    UP_ONLY("只看UP主"),
+    CHARGED("充电评论"),
+}
+
+/**
  * 本视频评论区搜索抽屉
  * 支持在当前已加载的评论（包括主评论与楼中楼子评论）中快速模糊搜索关键字，
+ * 打开抽屉会后台拉取全量评论后在其全集上搜索；
  * 高亮显示匹配内容、UP主专属标记、发布时间、楼层与点赞数，点击可定位或跳转回复。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentSearchSheet(
     replies: List<ReplyItem>,
+    fullReplies: List<ReplyItem> = emptyList(),
+    fullSearchState: FullCommentSearchUiState = FullCommentSearchUiState(),
+    onLoadAllComments: () -> Unit = {},
     upMid: Long = 0L,
     onCommentClick: (ReplyItem) -> Unit,
     onSubReplyClick: (ReplyItem) -> Unit = {},
@@ -108,13 +123,21 @@ fun CommentSearchSheet(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var searchQuery by remember { mutableStateOf("") }
-    var onlyUp by remember { mutableStateOf(false) }
+    var searchScope by remember { mutableStateOf(CommentSearchScope.ALL) }
     var sortMode by remember { mutableStateOf(CommentSearchSortMode.HOT) }
 
+    // 打开抽屉时自动开始全量拉取（ViewModel 内部有防重入；失败后用重试按钮再次触发）
+    LaunchedEffect(Unit) {
+        onLoadAllComments()
+    }
+
+    // 全量拉取完成后用全集搜索，否则退回已加载部分
+    val searchPool = if (fullSearchState.isReady) fullReplies else replies
+
     // 扁平化收集所有评论（主评论 + 二级子评论）
-    val allEntries = remember(replies) {
+    val allEntries = remember(searchPool) {
         val list = mutableListOf<CommentSearchEntry>()
-        for (root in replies) {
+        for (root in searchPool) {
             list.add(CommentSearchEntry(reply = root, rootReply = null, isSubReply = false))
             root.replies?.forEach { sub ->
                 list.add(CommentSearchEntry(reply = sub, rootReply = root, isSubReply = true))
@@ -123,7 +146,7 @@ fun CommentSearchSheet(
         list
     }
 
-    val filteredResults by remember(allEntries, searchQuery, onlyUp, sortMode, upMid) {
+    val filteredResults by remember(allEntries, searchQuery, searchScope, sortMode, upMid) {
         derivedStateOf {
             val query = searchQuery.trim()
             if (query.isEmpty()) {
@@ -132,8 +155,11 @@ fun CommentSearchSheet(
                 val matched = allEntries.filter { entry ->
                     val messageMatches = entry.reply.content.message.contains(query, ignoreCase = true)
                     val authorMatches = entry.reply.member.uname.contains(query, ignoreCase = true)
-                    val passesUpFilter = !onlyUp || entry.reply.member.mid == upMid.toString()
-                    (messageMatches || authorMatches) && passesUpFilter
+                    val passesUpFilter = searchScope != CommentSearchScope.UP_ONLY ||
+                        entry.reply.member.mid == upMid.toString()
+                    val passesChargedFilter = searchScope != CommentSearchScope.CHARGED ||
+                        resolveChargedReplyLabel(entry.reply) != null
+                    (messageMatches || authorMatches) && passesUpFilter && passesChargedFilter
                 }
                 when (sortMode) {
                     CommentSearchSortMode.HOT -> matched.sortedByDescending { it.reply.like }
@@ -181,6 +207,29 @@ fun CommentSearchSheet(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        } else if (fullSearchState.isLoading) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            AppText(
+                                text = "全量加载中 ${fullSearchState.loadedCount}/${fullSearchState.totalCount}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else if (fullSearchState.isReady) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            AppText(
+                                text = "已全量加载 ${fullSearchState.loadedCount} 条",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (fullSearchState.error != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            AppText(
+                                text = "加载失败，点此重试",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.clickable { onLoadAllComments() },
+                            )
                         }
                     }
 
@@ -217,9 +266,11 @@ fun CommentSearchSheet(
                     if (stackControls) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CommentSearchSegmentedDock(
-                                items = listOf("全部评论", "只看UP主"),
-                                selectedIndex = if (onlyUp) 1 else 0,
-                                onSelected = { onlyUp = it == 1 },
+                                items = CommentSearchScope.entries.map { it.label },
+                                selectedIndex = searchScope.ordinal,
+                                onSelected = { index ->
+                                    CommentSearchScope.entries.getOrNull(index)?.let { searchScope = it }
+                                },
                                 miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.fillMaxWidth(),
@@ -241,9 +292,11 @@ fun CommentSearchSheet(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             CommentSearchSegmentedDock(
-                                items = listOf("全部评论", "只看UP主"),
-                                selectedIndex = if (onlyUp) 1 else 0,
-                                onSelected = { onlyUp = it == 1 },
+                                items = CommentSearchScope.entries.map { it.label },
+                                selectedIndex = searchScope.ordinal,
+                                onSelected = { index ->
+                                    CommentSearchScope.entries.getOrNull(index)?.let { searchScope = it }
+                                },
                                 miuixBackdrop = sheetBackdrop,
                                 liquidGlassEnabled = glassActive,
                                 modifier = Modifier.weight(1.3f),

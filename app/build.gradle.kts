@@ -120,8 +120,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 433
-        versionName = "0.2.7"
+        versionCode = 437
+        versionName = "0.2.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -353,6 +353,7 @@ composeCompiler {
 }
 
 dependencies {
+    implementation(project(":brand-motion"))
     val material3Version = "1.5.0-alpha29"
     val material3AdaptiveVersion = "1.3.0"
     val media3Version = "1.10.1"

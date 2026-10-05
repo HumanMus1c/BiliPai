@@ -570,10 +570,6 @@ fun SettingsScreen(
         )
     }
     
-    if (showCacheAnimation && cacheProgress != null) {
-        CacheClearAnimationDialog(progress = cacheProgress!!, onDismiss = { showCacheAnimation = false; cacheProgress = null })
-    }
-    
     if (showPathDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPathDialog = false },
@@ -924,6 +920,16 @@ fun SettingsScreen(
             }
         }
         }
+    }
+
+    // 窗口内底部覆盖层需在内容之后组合才能盖在上面；
+    // 播放清理动画时通过 activeHazeState 模糊压暗背后内容。
+    if (showCacheAnimation && cacheProgress != null) {
+        CacheClearAnimationDialog(
+            progress = cacheProgress!!,
+            onDismiss = { showCacheAnimation = false; cacheProgress = null },
+            hazeState = activeHazeState,
+        )
     }
 }
 

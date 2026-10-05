@@ -11,7 +11,6 @@ import com.android.purebilibili.feature.video.ui.feedback.resolveTripleActionFee
 import com.android.purebilibili.feature.video.ui.feedback.resolveTripleActionVisualState
 import com.android.purebilibili.feature.video.usecase.TripleActionResult
 import com.android.purebilibili.feature.video.usecase.VideoInteractionUseCase
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -22,8 +21,11 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class VideoEngagementSeed(
     val isLoggedIn: Boolean = false,
@@ -38,6 +40,8 @@ data class VideoEngagementSeed(
     val isInWatchLater: Boolean = false,
     val followingMids: Set<Long> = emptySet()
 )
+
+enum class VideoMaidAction { DISLIKE, SHARE, COIN }
 
 data class VideoEngagementUiState(
     val subject: VideoSubjectSnapshot? = null,
@@ -55,7 +59,13 @@ data class VideoEngagementUiState(
     val userCoinBalance: Double? = null,
     val coinDialogVisible: Boolean = false,
     val likeBurstVisible: Boolean = false,
-    val tripleCelebrationVisible: Boolean = false
+    // 每次成功点赞自增；overlay 以此为 key 重挂动画，连续点赞也能重播
+    val likeBurstId: Long = 0L,
+    val maidAction: VideoMaidAction? = null,
+    val maidActionId: Long = 0L,
+    val tripleCelebrationVisible: Boolean = false,
+    val tripleCelebrationId: Long = 0L,
+    val tripleCelebrationFinished: Boolean = false
 )
 
 sealed interface VideoEngagementEvent {
@@ -128,7 +138,10 @@ private class DefaultVideoEngagementActions(
 
 class VideoEngagementViewModel(
     private val actions: VideoEngagementActions = DefaultVideoEngagementActions(),
-    private val coinBalanceLoader: VideoCoinBalanceLoader = DefaultVideoCoinBalanceLoader
+    private val coinBalanceLoader: VideoCoinBalanceLoader = DefaultVideoCoinBalanceLoader,
+    private val tripleJumpEnabled: suspend (Context?) -> Boolean = { context ->
+        context != null && SettingsManager.getTripleJumpEnabled(context).first()
+    }
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(VideoEngagementUiState())
     val uiState = _uiState.asStateFlow()
@@ -137,6 +150,9 @@ class VideoEngagementViewModel(
     val events = _events.receiveAsFlow()
     private var appContext: Context? = null
     private var locallyModifiedFields: Set<VideoEngagementField> = emptySet()
+    private var tripleCelebrationSequence = 0L
+    // 点赞切换排队锁：保证快速连点时每次点击都基于最新状态交替生效
+    private val likeToggleMutex = Mutex()
 
     private enum class VideoEngagementField {
         FOLLOWING,
@@ -158,8 +174,11 @@ class VideoEngagementViewModel(
             return
         }
         locallyModifiedFields = emptySet()
+        val previous = _uiState.value
         _uiState.value = VideoEngagementUiState(
             subject = subject,
+            likeBurstId = previous.likeBurstId,
+            maidActionId = previous.maidActionId,
             isLoggedIn = seed.isLoggedIn,
             isVip = seed.isVip,
             isFollowing = seed.isFollowing,
@@ -247,32 +266,43 @@ class VideoEngagementViewModel(
         val state = _uiState.value
         val targetAid = aid ?: state.subject?.aid ?: return
         val targetBvid = bvid ?: state.subject?.bvid ?: return
-        val wasLiked = currentlyLiked ?: state.isLiked
         viewModelScope.launch {
-            actions.toggleLike(targetAid, wasLiked, targetBvid)
-                .onSuccess { liked ->
-                    if (_uiState.value.subject?.generation != state.subject?.generation) return@onSuccess
-                    locallyModifiedFields = locallyModifiedFields + VideoEngagementField.LIKE +
-                        if (liked) setOf(VideoEngagementField.DISLIKE) else emptySet()
-                    _uiState.update { current ->
-                        if (current.subject?.generation != state.subject?.generation) current
-                        else current.copy(
-                            isLiked = liked,
-                            // 点赞与点踩互斥：点赞时本地静默清除点踩（对齐 PiliPlus）
-                            isDisliked = if (liked) false else current.isDisliked,
-                            likeCount = (current.likeCount + if (liked == current.isLiked) 0 else if (liked) 1 else -1)
-                                .coerceAtLeast(0),
-                            likeBurstVisible = liked
+            // 串行化点赞切换：快速连点时排队执行，且每次执行前重读最新
+            // isLiked，避免两个在途请求基于同一个过期状态算出相同目标，
+            // 导致某次点击"吞掉"（无状态变化、无动画）。
+            likeToggleMutex.withLock {
+                val wasLiked = currentlyLiked ?: _uiState.value.isLiked
+                // NonCancellable：退出详情页会取消 viewModelScope，在途的切换请求若被
+                // 掐断，服务端会停留在上一次状态，重新进入时表现为点赞失效。
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    actions.toggleLike(targetAid, wasLiked, targetBvid)
+                }
+                    .onSuccess { liked ->
+                        if (_uiState.value.subject?.generation != state.subject?.generation) return@onSuccess
+                        locallyModifiedFields = locallyModifiedFields + VideoEngagementField.LIKE +
+                            if (liked) setOf(VideoEngagementField.DISLIKE) else emptySet()
+                        _uiState.update { current ->
+                            if (current.subject?.generation != state.subject?.generation) current
+                            else current.copy(
+                                isLiked = liked,
+                                // 点赞与点踩互斥：点赞时本地静默清除点踩（对齐 PiliPlus）
+                                isDisliked = if (liked) false else current.isDisliked,
+                                likeCount = (current.likeCount + if (liked == current.isLiked) 0 else if (liked) 1 else -1)
+                                    .coerceAtLeast(0),
+                                likeBurstVisible = liked,
+                                maidAction = null,
+                                likeBurstId = if (liked) current.likeBurstId + 1 else current.likeBurstId
+                            )
+                        }
+                        onResult?.invoke(liked)
+                        val easterEggEnabled = appContext?.let(SettingsManager::isEasterEggEnabledSync) == true
+                        emitMessage(
+                            if (liked && easterEggEnabled) EasterEggs.getLikeMessage()
+                            else if (liked) "已点赞" else "已取消点赞"
                         )
                     }
-                    onResult?.invoke(liked)
-                    val easterEggEnabled = appContext?.let(SettingsManager::isEasterEggEnabledSync) == true
-                    emitMessage(
-                        if (liked && easterEggEnabled) EasterEggs.getLikeMessage()
-                        else if (liked) "已点赞" else "已取消点赞"
-                    )
-                }
-                .onFailure { emitMessage(it.message ?: "操作失败") }
+                    .onFailure { emitMessage(it.message ?: "操作失败") }
+            }
         }
     }
 
@@ -295,6 +325,9 @@ class VideoEngagementViewModel(
                         if (current.subject?.generation != state.subject?.generation) current
                         else current.copy(
                             isDisliked = disliked,
+                            likeBurstVisible = false,
+                            maidAction = if (disliked) VideoMaidAction.DISLIKE else null,
+                            maidActionId = if (disliked) current.maidActionId + 1 else current.maidActionId,
                             // 点踩与点赞互斥：点踩时本地静默取消点赞（对齐 PiliPlus）
                             isLiked = if (disliked) false else current.isLiked,
                             likeCount = if (disliked && current.isLiked) {
@@ -369,6 +402,9 @@ class VideoEngagementViewModel(
                         if (current.subject?.generation != subject.generation) current
                         else current.copy(
                             coinCount = minOf(current.coinCount + count, 2),
+                            likeBurstVisible = false,
+                            maidAction = VideoMaidAction.COIN,
+                            maidActionId = current.maidActionId + 1,
                             isLiked = current.isLiked || alsoLike,
                             isDisliked = if (alsoLike) false else current.isDisliked
                         )
@@ -405,6 +441,7 @@ class VideoEngagementViewModel(
                         coinFailureMessage = result.coinMessage,
                         favoriteSuccess = result.favoriteSuccess
                     )
+                    val celebrationId = ++tripleCelebrationSequence
                     _uiState.update { current ->
                         if (current.subject?.generation != state.subject?.generation) current
                         else current.copy(
@@ -421,7 +458,11 @@ class VideoEngagementViewModel(
                                 current.favoriteCount +
                                     if (visual.isFavorited == current.isFavorited) 0 else if (visual.isFavorited) 1 else -1
                                 ).coerceAtLeast(0),
-                            tripleCelebrationVisible = result.allSuccess
+                            tripleCelebrationVisible = result.allSuccess,
+                            maidAction = null,
+                            likeBurstVisible = false,
+                            tripleCelebrationId = celebrationId,
+                            tripleCelebrationFinished = false
                         )
                     }
                     locallyModifiedFields = locallyModifiedFields + buildSet {
@@ -444,10 +485,20 @@ class VideoEngagementViewModel(
                             result.coinMessage
                         )
                     )
-                    val context = appContext
-                    if (result.allSuccess && context != null && SettingsManager.getTripleJumpEnabled(context).first()) {
-                        delay(2_000L)
-                        if (_uiState.value.subject?.generation == state.subject?.generation) {
+                    if (result.allSuccess && tripleJumpEnabled(appContext)) {
+                        // Playback includes the final-pose hold. A stale or unmounted overlay
+                        // cancels the jump rather than cutting off a newer celebration.
+                        val completed = withTimeoutOrNull(5_000L) {
+                            _uiState.first {
+                                it.subject?.generation != state.subject?.generation ||
+                                    it.tripleCelebrationId != celebrationId || !it.tripleCelebrationVisible
+                            }
+                        }
+                        if (completed == null) {
+                            cancelTripleCelebration(celebrationId)
+                        } else if (completed.subject?.generation == state.subject?.generation &&
+                            completed.tripleCelebrationId == celebrationId && completed.tripleCelebrationFinished
+                        ) {
                             _events.send(VideoEngagementEvent.LoadVideo("BV1JsK5eyEuB"))
                         }
                     }
@@ -456,12 +507,46 @@ class VideoEngagementViewModel(
         }
     }
 
-    fun dismissLikeBurst() {
-        _uiState.update { it.copy(likeBurstVisible = false) }
+    fun dismissLikeBurst(expectedId: Long? = null) {
+        _uiState.update {
+            if (expectedId == null || it.likeBurstId == expectedId) it.copy(likeBurstVisible = false) else it
+        }
+    }
+
+    fun showShareFeedback(bvid: String) {
+        _uiState.update {
+            if (it.subject?.bvid != bvid) it else it.copy(
+                likeBurstVisible = false,
+                maidAction = VideoMaidAction.SHARE,
+                maidActionId = it.maidActionId + 1
+            )
+        }
+    }
+
+    fun dismissMaidAction(expectedId: Long) {
+        _uiState.update {
+            if (it.maidActionId == expectedId) it.copy(maidAction = null) else it
+        }
     }
 
     fun dismissTripleCelebration() {
-        _uiState.update { it.copy(tripleCelebrationVisible = false) }
+        cancelTripleCelebration(_uiState.value.tripleCelebrationId)
+    }
+
+    fun completeTripleCelebration(celebrationId: Long) {
+        _uiState.update {
+            if (it.tripleCelebrationId == celebrationId) {
+                it.copy(tripleCelebrationVisible = false, tripleCelebrationFinished = true)
+            } else it
+        }
+    }
+
+    fun cancelTripleCelebration(celebrationId: Long) {
+        _uiState.update {
+            if (it.tripleCelebrationId == celebrationId) {
+                it.copy(tripleCelebrationVisible = false, tripleCelebrationFinished = false)
+            } else it
+        }
     }
 
     fun applyFavoriteFolderResult(isFavorited: Boolean) {

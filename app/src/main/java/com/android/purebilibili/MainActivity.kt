@@ -116,6 +116,7 @@ import com.android.purebilibili.core.theme.buildDisplayMetricsSnapshot
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppThemeConfig
+import com.android.purebilibili.core.ui.BrandSuccessFeedbackHost
 import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.ProvideAppThemeConfig
 import com.android.purebilibili.core.ui.components.AppCard
@@ -878,6 +879,7 @@ open class MainActivity : AppCompatActivity() {
     private var hasCompletedInitialResume = false
     private var splashFlyoutEnabledAtCreate = false
     private var splashExitCallbackTriggered = false
+    private var systemSplashExited by mutableStateOf(false)
 
     /** TTFD 是否已上报（只上报一次）。 */
     private var ttfdReported = false
@@ -1033,7 +1035,15 @@ open class MainActivity : AppCompatActivity() {
         val welcomePrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val splashIconVisible = SettingsManager.isSplashIconAnimationEnabledSync(this)
         val userAgreementAcked = welcomePrefs.getBoolean(USER_AGREEMENT_ACK_KEY, false)
-        val splashFlyoutEnabled = runColdStartSplash && shouldEnableSplashFlyoutAnimation(
+        val startupStyle = SettingsManager.getStartupAnimationStyleSync(this)
+        val maidStartupEnabled = com.android.purebilibili.core.store.shouldShowMaidStartup(
+            coldStart = runColdStartSplash,
+            agreementAccepted = userAgreementAcked,
+            iconAnimationEnabled = splashIconVisible,
+            style = startupStyle
+        )
+        val splashFlyoutEnabled = startupStyle == com.android.purebilibili.core.store.StartupAnimationStyle.ICON_FLYOUT &&
+            runColdStartSplash && shouldEnableSplashFlyoutAnimation(
             sdkInt = Build.VERSION.SDK_INT,
             // Flyout only after mandatory user-agreement gate (covers both new and old users).
             hasCompletedOnboarding = userAgreementAcked,
@@ -1247,13 +1257,21 @@ open class MainActivity : AppCompatActivity() {
                             primaryTrailView?.let(frameContainer::removeView)
                             secondaryTrailView?.let(frameContainer::removeView)
                             splashScreenViewProvider.remove()
+                            systemSplashExited = true
                         }
                     }
                     animator.start()
                 }.onFailure {
                     Logger.e(TAG, "❌ Splash exit animation failed, removing splash immediately", it)
                     splashScreenViewProvider.remove()
+                    systemSplashExited = true
                 }
+            }
+        } else {
+            splashScreen.setOnExitAnimationListener { provider ->
+                splashExitCallbackTriggered = true
+                provider.remove()
+                systemSplashExited = true
             }
         }
 
@@ -1535,6 +1553,7 @@ open class MainActivity : AppCompatActivity() {
                     var isAppScreenshotBlockedBySplash by remember { mutableStateOf(false) }
                     var isAppScreenshotSaving by remember { mutableStateOf(false) }
                     var appScreenshotRegionBitmap by remember { mutableStateOf<Bitmap?>(null) }
+                    var brandFeedbackBottomInset by remember { mutableStateOf(0.dp) }
                     val appScreenshotSnackbarHostState = remember { SnackbarHostState() }
                     val isLandscapeAppScreenshot =
                         configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -1692,7 +1711,8 @@ open class MainActivity : AppCompatActivity() {
                                     Logger.d(TAG, "🎧 退出听视频页")
                                 },
                                 onPrivacyAuthenticationRequired = ::authenticatePrivacyAccess,
-                                mainHazeState = mainHazeState //  传递全局 Haze 状态
+                                mainHazeState = mainHazeState, //  传递全局 Haze 状态
+                                onBrandFeedbackBottomInsetChanged = { brandFeedbackBottomInset = it }
                                 )
                             }
                             
@@ -1845,23 +1865,15 @@ open class MainActivity : AppCompatActivity() {
                         )
                     }
                     var showSplash by remember { mutableStateOf(showCustomSplashInitially) }
-                    LaunchedEffect(showSplash) {
-                        isAppScreenshotBlockedBySplash = showSplash
+                    var showMaidStartup by remember { mutableStateOf(maidStartupEnabled) }
+                    LaunchedEffect(showSplash, showMaidStartup) {
+                        isAppScreenshotBlockedBySplash = showSplash || showMaidStartup
                     }
-                    // [Optimization] If we delayed enough in splash screen, we might want to skip custom splash or show it briefly?
-                    // Logic: If user uses custom splash, system splash shows icon, then custom splash shows wallpaper.
-                    // If we use setKeepOnScreenCondition, system splash (icon) stays longer.
-                    // This is acceptable behavior: Icon -> Wallpaper (if enabled) -> App.
-                    // Or if custom wallpaper is enabled, maybe we shouldn't delay system splash?
-                    // User request: "当用户看见遮罩的时候，异步加载首页视频". Mask usually means System Splash (Icon) OR Custom Wallpaper.
-                    // Implementing delay on System Splash ensures data is likely ready when ANY content shows.
-
-                    LaunchedEffect(showCustomSplashInitially) {
-                        if (showCustomSplashInitially) {
-                            showSplash = true
+                    // Start wallpaper timing only after the native splash has actually left.
+                    // Maid and wallpaper share this interval instead of adding two waits.
+                    LaunchedEffect(showCustomSplashInitially, systemSplashExited) {
+                        if (showCustomSplashInitially && systemSplashExited) {
                             delay(customSplashHoldDurationMs())
-                            showSplash = false
-                        } else {
                             showSplash = false
                         }
                     }
@@ -1978,6 +1990,57 @@ open class MainActivity : AppCompatActivity() {
                             )
                         }
                     }
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showMaidStartup,
+                        enter = androidx.compose.animation.EnterTransition.None,
+                        exit = androidx.compose.animation.fadeOut(
+                            animationSpec = com.android.purebilibili.core.ui.motion.AppMotionTokens.standardSpec()
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (showCustomSplashInitially) Color.Transparent
+                                    else MaterialTheme.colorScheme.background
+                                )
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {}
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val maidStartupSize = minOf(
+                                240.dp,
+                                (com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
+                                    .windowSizeClass.heightDp - 96.dp).coerceAtLeast(80.dp)
+                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                if (systemSplashExited) {
+                                    com.android.purebilibili.core.ui.BlueSnowMaidAnimation(
+                                        animation = com.android.purebilibili.core.ui.MaidAnimation.WELCOME,
+                                        modifier = Modifier.size(maidStartupSize),
+                                        onFinished = { showMaidStartup = false }
+                                    )
+                                } else {
+                                    Image(
+                                        painter = androidx.compose.ui.res.painterResource(com.android.bilipai.brandmotion.R.drawable.bilipai_maid_static),
+                                        contentDescription = "蓝雪女仆",
+                                        modifier = Modifier.size(maidStartupSize)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    BrandSuccessFeedbackHost(
+                        bottomContentInset = brandFeedbackBottomInset,
+                        extraBottomClearance = if (showAudioNowPlaying) 64.dp else 0.dp,
+                        enabled = systemSplashExited && !showSplash && !showMaidStartup &&
+                            !isPipRenderingActive && !isFullscreenPlayerLocked && appScreenshotRegionBitmap == null
+                    )
 
                     appScreenshotRegionBitmap?.let { bitmap ->
                         AppScreenshotRegionOverlay(

@@ -38,46 +38,54 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+internal data class HistoryRecapSnapshot(
+    val sources: List<FeedSource>,
+    val rssStats: PersonalRssRecapStats,
+    val videoStats: PersonalVideoRecapStats,
+)
+
 @Composable
 internal fun HistoryRecapCard(
     refreshToken: Any,
     active: Boolean,
     onUpClick: ((Long) -> Unit)?,
+    snapshotCache: MutableMap<PersonalRecapWindow, HistoryRecapSnapshot>? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var window by rememberSaveable { mutableStateOf(PersonalRecapWindow.TODAY) }
-    var rssStats by remember { mutableStateOf(PersonalRssRecapStats()) }
-    var sources by remember { mutableStateOf(emptyList<FeedSource>()) }
-    var videoStats by remember { mutableStateOf<PersonalVideoRecapStats?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var videoUnavailable by remember { mutableStateOf(false) }
+    // 数据随历史页 ViewModel 保留，Lazy item 重挂载/从 UP 空间返回时直接显示旧快照。
+    var snapshot by remember(window, snapshotCache) { mutableStateOf(snapshotCache?.get(window)) }
+    var loading by remember(window) { mutableStateOf(snapshot == null) }
+    var videoUnavailable by remember(window) { mutableStateOf(false) }
     var resumeRevision by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumeRevision++ }
     LaunchedEffect(window, refreshToken, active, resumeRevision) {
         if (!active) return@LaunchedEffect
-        loading = true
+        loading = snapshot == null
         videoUnavailable = false
-        videoStats = null
-        rssStats = PersonalRssRecapStats()
         val start = resolvePersonalRecapWindowStart(System.currentTimeMillis(), window)
         try {
-            sources = withContext(Dispatchers.IO) { loadEnabledFeedSources(context) }
-            rssStats = PersonalRecapRepository.rssRecap(context, start)
-            videoStats = PersonalRecapRepository.videoRecap(start)
+            val sources = withContext(Dispatchers.IO) { loadEnabledFeedSources(context) }
+            val rssStats = PersonalRecapRepository.rssRecap(context, start)
+            val videoStats = PersonalRecapRepository.videoRecap(start)
+            val refreshed = HistoryRecapSnapshot(sources, rssStats, videoStats)
+            snapshotCache?.set(window, refreshed)
+            snapshot = refreshed
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            videoUnavailable = true
+            // 后台刷新失败仍保留上次统计，不把已展示的图表/头像切成空态。
+            videoUnavailable = snapshot == null
         } finally {
             loading = false
         }
     }
     HistoryRecapCardContent(
-        sources = sources,
+        sources = snapshot?.sources.orEmpty(),
         window = window,
-        rssStats = rssStats,
-        videoStats = videoStats,
+        rssStats = snapshot?.rssStats ?: PersonalRssRecapStats(),
+        videoStats = snapshot?.videoStats,
         loading = loading,
         videoUnavailable = videoUnavailable,
         onWindowChange = { window = it },

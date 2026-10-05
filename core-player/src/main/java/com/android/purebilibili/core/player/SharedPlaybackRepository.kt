@@ -21,7 +21,11 @@ data class SharedPlaybackRequest(
     val cid: Long = 0,
     val quality: Int = 64,
     val startPositionMs: Long? = null,
+    val audioQuality: Int = -1,
+    val audioLanguage: String? = null,
 )
+
+class PlaybackLoadException(val info: ViewInfo, cause: Throwable) : Exception(cause.message, cause)
 
 data class LoadedPlayback(val info: ViewInfo, val streams: PlayUrlData)
 
@@ -29,7 +33,13 @@ object SharedPlaybackRepository {
     suspend fun load(request: SharedPlaybackRequest): Result<LoadedPlayback> = withContext(Dispatchers.IO) {
         try {
             val info = SharedContentRepository.detail(request.bvid, request.aid, request.cid).getOrThrow()
-            val streams = loadStreams(info.bvid, info.cid, request.quality)
+            val streams = try {
+                loadStreams(info.bvid, info.cid, request.quality, request.audioLanguage)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                throw PlaybackLoadException(info, error)
+            }
             Result.success(LoadedPlayback(info, streams))
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -38,12 +48,12 @@ object SharedPlaybackRepository {
         }
     }
 
-    private suspend fun loadStreams(bvid: String, cid: Long, quality: Int): PlayUrlData {
+    private suspend fun loadStreams(bvid: String, cid: Long, quality: Int, audioLanguage: String?): PlayUrlData {
         val account = NetworkModule.playbackAccount()
         var accessToken = account?.accessToken ?: TokenManager.accessTokenCache.orEmpty()
         if (accessToken.isNotBlank()) {
             val platform = account?.accessTokenPlatform ?: TokenManager.accessTokenPlatformCache
-            suspend fun appRequest(token: String) = PlaybackStreamDataSource.appPlayUrl(bvid, cid, quality, token, platform)
+            suspend fun appRequest(token: String) = PlaybackStreamDataSource.appPlayUrl(bvid, cid, quality, token, platform, audioLanguage)
             try {
                 var response = appRequest(accessToken)
                 val context = NetworkModule.appContext
@@ -61,7 +71,7 @@ object SharedPlaybackRepository {
         }
         val keys = WbiKeyManager.getWbiKeys().getOrThrow()
         val response = NetworkModule.playbackApi().getPlayUrl(WbiUtils.sign(
-            buildPlayUrlWbiBaseParams(bvid, cid, quality), keys.first, keys.second,
+            buildPlayUrlWbiBaseParams(bvid, cid, quality) + (audioLanguage?.let { mapOf("cur_language" to it, "lang" to it) } ?: emptyMap()), keys.first, keys.second,
         ))
         if (response.code != 0) throw ContentRequestException(response.code, response.message)
         return response.data?.takeIf { it.hasPlayableStream() } ?: error("没有可播放的视频流，内容可能受访问限制")

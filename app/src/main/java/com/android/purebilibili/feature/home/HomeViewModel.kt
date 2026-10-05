@@ -184,8 +184,19 @@ internal fun shouldRefreshHomeUserInfoAfterFeedLoad(isLoadMore: Boolean): Boolea
     return !isLoadMore
 }
 
-internal fun shouldKeepHomeCategoryAutoPagingAfterFailure(isLoadMore: Boolean): Boolean {
-    return !isLoadMore
+internal fun applyHomeFeedLoadFailure(
+    current: CategoryContent,
+    isLoadMore: Boolean,
+    message: String,
+): CategoryContent {
+    val hasContent = current.videos.isNotEmpty() || current.liveRooms.isNotEmpty() ||
+        current.followedLiveRooms.isNotEmpty()
+    return current.copy(
+        isLoading = false,
+        error = message.takeIf { !isLoadMore && !hasContent },
+        loadMoreError = message.takeIf { isLoadMore },
+        refreshError = message.takeIf { !isLoadMore && hasContent },
+    )
 }
 
 internal fun applyHomeRefreshUndoSnapshot(
@@ -197,7 +208,9 @@ internal fun applyHomeRefreshUndoSnapshot(
         pageIndex = snapshot.pageIndex,
         hasMore = snapshot.hasMore,
         isLoading = false,
-        error = null
+        error = null,
+        loadMoreError = null,
+        refreshError = null,
     )
 }
 
@@ -1193,75 +1206,97 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refresh(category: HomeCategory = _uiState.value.currentCategory) {
+    fun refresh(
+        category: HomeCategory = _uiState.value.currentCategory,
+        popularSubCategory: PopularSubCategory = _uiState.value.popularSubCategory,
+    ) {
         if (_isRefreshing.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
-            val refreshingCategory = category
-            syncCurrentCategoryForRefresh(refreshingCategory)
-            _undoSnapshot = buildHomeRefreshUndoSnapshot(
-                refreshingCategory = refreshingCategory,
-                recommendCategoryState = _uiState.value.categoryStates[HomeCategory.RECOMMEND],
-                fallbackVideos = _uiState.value.videos
-            )
-            //  [新增] 刷新前保存推荐视频快照（用于撤销）
-            val previousRecommendTopBvid = if (refreshingCategory == HomeCategory.RECOMMEND) {
-                (_uiState.value.categoryStates[HomeCategory.RECOMMEND]?.videos
-                    ?: _uiState.value.videos).firstOrNull()?.bvid?.takeIf { it.isNotBlank() }
-            } else null
-            val newItemsCount = fetchData(
-                isLoadMore = false,
-                isManualRefresh = true,
-                category = refreshingCategory
-            )
-            
-            //  数据加载完成后再更新 refreshKey，避免闪烁
-            //  刷新成功后显示趣味提示
-            val refreshMessage = com.android.purebilibili.core.util.EasterEggs.getRefreshMessage()
-            val oldBoundary = _uiState.value.recommendOldContentStartIndex
-            val newBoundary = if (refreshingCategory == HomeCategory.RECOMMEND) {
-                if ((newItemsCount ?: 0) > 0) newItemsCount else null
-            } else {
-                oldBoundary
-            }
-            val oldAnchor = _uiState.value.recommendOldContentAnchorBvid
-            val newAnchor = if (refreshingCategory == HomeCategory.RECOMMEND) {
-                if ((newItemsCount ?: 0) > 0) previousRecommendTopBvid else null
-            } else {
-                oldAnchor
-            }
-            val undoAvailable = shouldExposeHomeRefreshUndo(
-                refreshingCategory = refreshingCategory,
-                snapshot = _undoSnapshot
-            )
-            val stateRefreshKey = System.currentTimeMillis()
-            _uiState.value = _uiState.value.copy(
-                refreshKey = stateRefreshKey,
-                refreshMessage = refreshMessage,
-                refreshNewItemsCount = newItemsCount,
-                refreshNewItemsKey = if (newItemsCount != null) stateRefreshKey else _uiState.value.refreshNewItemsKey,
-                recommendOldContentAnchorBvid = newAnchor,
-                recommendOldContentStartIndex = newBoundary,
-                // 对齐 PiliPlus：刷新完成横幅即在列表中就位（它本身位于新旧内容分界，
-                // 只有滑到那里才可见），不再依赖下滑触发的 reveal 检测。
-                recommendOldContentRevealKey = if (
-                    refreshingCategory == HomeCategory.RECOMMEND && newAnchor != null && (newItemsCount ?: 0) > 0
-                ) {
-                    stateRefreshKey
-                } else if (refreshingCategory == HomeCategory.RECOMMEND) {
-                    0L
+            try {
+                val refreshingCategory = category
+                syncCurrentCategoryForRefresh(refreshingCategory)
+                _undoSnapshot = buildHomeRefreshUndoSnapshot(
+                    refreshingCategory = refreshingCategory,
+                    recommendCategoryState = _uiState.value.categoryStates[HomeCategory.RECOMMEND],
+                    fallbackVideos = _uiState.value.videos
+                )
+                //  [新增] 刷新前保存推荐视频快照（用于撤销）
+                val previousRecommendTopBvid = if (refreshingCategory == HomeCategory.RECOMMEND) {
+                    (_uiState.value.categoryStates[HomeCategory.RECOMMEND]?.videos
+                        ?: _uiState.value.videos).firstOrNull()?.bvid?.takeIf { it.isNotBlank() }
+                } else null
+                val newItemsCount = fetchData(
+                    isLoadMore = false,
+                    isManualRefresh = true,
+                    category = refreshingCategory,
+                    popularSubCategory = popularSubCategory,
+                )
+                val refreshedState = if (refreshingCategory == HomeCategory.POPULAR) {
+                    _uiState.value.popularCategoryStates[popularSubCategory]
                 } else {
-                    _uiState.value.recommendOldContentRevealKey
-                },
-                //  刷新成功且是推荐分类时标记可撤销
-                undoAvailable = undoAvailable
-            )
-            if (undoAvailable) {
-                scheduleUndoDismiss()
-            } else {
-                cancelUndoDismiss()
+                    _uiState.value.categoryStates[refreshingCategory]
+                }
+                if (refreshedState?.error != null || refreshedState?.refreshError != null) {
+                    _undoSnapshot = null
+                    cancelUndoDismiss()
+                    _uiState.value = _uiState.value.copy(
+                        refreshMessage = null,
+                        refreshNewItemsCount = null,
+                        undoAvailable = false,
+                    )
+                    return@launch
+                }
+            
+                //  数据加载完成后再更新 refreshKey，避免闪烁
+                //  刷新成功后显示趣味提示
+                val refreshMessage = com.android.purebilibili.core.util.EasterEggs.getRefreshMessage()
+                val oldBoundary = _uiState.value.recommendOldContentStartIndex
+                val newBoundary = if (refreshingCategory == HomeCategory.RECOMMEND) {
+                    if ((newItemsCount ?: 0) > 0) newItemsCount else null
+                } else {
+                    oldBoundary
+                }
+                val oldAnchor = _uiState.value.recommendOldContentAnchorBvid
+                val newAnchor = if (refreshingCategory == HomeCategory.RECOMMEND) {
+                    if ((newItemsCount ?: 0) > 0) previousRecommendTopBvid else null
+                } else {
+                    oldAnchor
+                }
+                val undoAvailable = shouldExposeHomeRefreshUndo(
+                    refreshingCategory = refreshingCategory,
+                    snapshot = _undoSnapshot
+                )
+                val stateRefreshKey = System.currentTimeMillis()
+                _uiState.value = _uiState.value.copy(
+                    refreshKey = stateRefreshKey,
+                    refreshMessage = refreshMessage,
+                    refreshNewItemsCount = newItemsCount,
+                    refreshNewItemsKey = if (newItemsCount != null) stateRefreshKey else _uiState.value.refreshNewItemsKey,
+                    recommendOldContentAnchorBvid = newAnchor,
+                    recommendOldContentStartIndex = newBoundary,
+                    // 对齐 PiliPlus：刷新完成横幅即在列表中就位（它本身位于新旧内容分界，
+                    // 只有滑到那里才可见），不再依赖下滑触发的 reveal 检测。
+                    recommendOldContentRevealKey = if (
+                        refreshingCategory == HomeCategory.RECOMMEND && newAnchor != null && (newItemsCount ?: 0) > 0
+                    ) {
+                        stateRefreshKey
+                    } else if (refreshingCategory == HomeCategory.RECOMMEND) {
+                        0L
+                    } else {
+                        _uiState.value.recommendOldContentRevealKey
+                    },
+                    //  刷新成功且是推荐分类时标记可撤销
+                    undoAvailable = undoAvailable
+                )
+                if (undoAvailable) {
+                    scheduleUndoDismiss()
+                } else {
+                    cancelUndoDismiss()
+                }
+            } finally {
+                _isRefreshing.value = false
             }
-            _isRefreshing.value = false
         }
     }
 
@@ -1335,17 +1370,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         undoDismissJob = null
     }
 
-    fun loadMore() {
-        val currentCategory = _uiState.value.currentCategory
+    fun loadMore(
+        category: HomeCategory = _uiState.value.currentCategory,
+        popularSubCategory: PopularSubCategory = _uiState.value.popularSubCategory,
+        retry: Boolean = false,
+    ) {
+        val currentCategory = category
         val categoryState = if (currentCategory == HomeCategory.POPULAR) {
-            _uiState.value.popularCategoryStates[_uiState.value.popularSubCategory] ?: return
+            _uiState.value.popularCategoryStates[popularSubCategory] ?: return
         } else {
             _uiState.value.categoryStates[currentCategory] ?: return
         }
         
         if (categoryState.isLoading || _isRefreshing.value || !categoryState.hasMore) return
+        if (!retry && categoryState.loadMoreError != null) return
         if (currentCategory == HomeCategory.POPULAR &&
-            !supportsPopularLoadMore(_uiState.value.popularSubCategory)
+            !supportsPopularLoadMore(popularSubCategory)
         ) {
             return
         }
@@ -1357,7 +1397,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         viewModelScope.launch {
-            fetchData(isLoadMore = true)
+            fetchData(isLoadMore = true, category = category, popularSubCategory = popularSubCategory)
         }
     }
 
@@ -1396,17 +1436,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun fetchData(
         isLoadMore: Boolean,
         isManualRefresh: Boolean = false,
-        category: HomeCategory = _uiState.value.currentCategory
+        category: HomeCategory = _uiState.value.currentCategory,
+        popularSubCategory: PopularSubCategory = _uiState.value.popularSubCategory,
     ): Int? {
         val currentCategory = category
-        val popularSubCategory = _uiState.value.popularSubCategory
         var refreshNewItemsCount: Int? = null
         
         // 更新当前分类为加载状态
         if (currentCategory == HomeCategory.POPULAR) {
-            updatePopularCategoryState(popularSubCategory) { it.copy(isLoading = true, error = null) }
+            updatePopularCategoryState(popularSubCategory) {
+                it.copy(isLoading = true, error = null, loadMoreError = null, refreshError = null)
+            }
         } else {
-            updateCategoryState(currentCategory) { it.copy(isLoading = true, error = null) }
+            updateCategoryState(currentCategory) {
+                it.copy(isLoading = true, error = null, loadMoreError = null, refreshError = null)
+            }
         }
         
         //  直播分类单独处理 (TODO: Adapt fetchLiveRooms to use categoryStates)
@@ -1608,15 +1652,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }.onFailure { error ->
             val updateContent: (CategoryContent) -> CategoryContent = { oldState ->
-                oldState.copy(
-                    isLoading = false,
-                    error = if (!isLoadMore && oldState.videos.isEmpty()) error.message ?: "网络错误" else null,
-                    hasMore = if (shouldKeepHomeCategoryAutoPagingAfterFailure(isLoadMore)) {
-                        oldState.hasMore
-                    } else {
-                        false
-                    }
-                )
+                applyHomeFeedLoadFailure(oldState, isLoadMore, error.message ?: "网络错误")
             }
             if (currentCategory == HomeCategory.POPULAR) {
                 updatePopularCategoryState(popularSubCategory, updateContent)
@@ -1771,11 +1807,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { error ->
+                    if (error is CancellationException) throw error
                     updateCategoryState(HomeCategory.FOLLOW) { oldState ->
-                        oldState.copy(
-                            isLoading = false,
-                            error = if (oldState.videos.isEmpty()) error.message ?: "请先登录" else null
-                        )
+                        applyHomeFeedLoadFailure(oldState, isLoadMore, error.message ?: "加载关注内容失败")
                     }
                 }
                 return tipCount
@@ -1823,11 +1857,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }.onFailure { error ->
+             if (error is CancellationException) throw error
              updateCategoryState(HomeCategory.FOLLOW) { oldState ->
-                oldState.copy(
-                    isLoading = false,
-                    error = if (!isLoadMore && oldState.videos.isEmpty()) error.message ?: "请先登录" else null
-                )
+                applyHomeFeedLoadFailure(oldState, isLoadMore, error.message ?: "加载关注内容失败")
             }
         }
         return tipCount
@@ -1944,12 +1976,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }.onFailure { e ->
+                 if (e is CancellationException) throw e
                  updateCategoryState(HomeCategory.LIVE) { oldState ->
-                    oldState.copy(
-                        followedLiveRooms = followedRooms.toImmutableList(),
-                        isLoading = false,
-                        error = if (followedRooms.isEmpty()) e.message ?: "网络错误" else null
-                    )
+                    applyHomeFeedLoadFailure(oldState, isLoadMore, e.message ?: "加载直播失败")
                 }
             }
         } else {
@@ -1983,19 +2012,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     updateCategoryState(HomeCategory.LIVE) { it.copy(isLoading = false, hasMore = false) }
                 }
             }.onFailure { e ->
-                updateCategoryState(HomeCategory.LIVE) { it.copy(isLoading = false) }
+                if (e is CancellationException) throw e
+                updateCategoryState(HomeCategory.LIVE) {
+                    applyHomeFeedLoadFailure(it, isLoadMore, e.message ?: "加载更多直播失败")
+                }
             }
         }
     }
     
     //  提取用户信息获取逻辑
     private suspend fun fetchUserInfo() {
+        val requestSession = com.android.purebilibili.core.store.TokenManager.sessDataCache
         val navResult = VideoRepository.getNavInfo()
+        if (requestSession != com.android.purebilibili.core.store.TokenManager.sessDataCache) return
         navResult.onSuccess { navData ->
             if (navData.isLogin) {
                 val isVip = navData.vip.status == 1
                 com.android.purebilibili.core.store.TokenManager.isVipCache = isVip
-                com.android.purebilibili.core.store.TokenManager.midCache = navData.mid
+                com.android.purebilibili.core.store.TokenManager.saveMid(getApplication(), navData.mid)
                 com.android.purebilibili.core.util.AnalyticsHelper.syncUserContext(
                     mid = navData.mid,
                     isVip = isVip,
@@ -2027,7 +2061,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 messageUnreadRefreshJob?.cancel()
                 messageUnreadRefreshJob = null
                 com.android.purebilibili.core.store.TokenManager.isVipCache = false
-                com.android.purebilibili.core.store.TokenManager.midCache = null
+                com.android.purebilibili.core.store.TokenManager.saveMid(getApplication(), 0L)
                 com.android.purebilibili.core.util.AnalyticsHelper.syncUserContext(
                     mid = null,
                     isVip = false,

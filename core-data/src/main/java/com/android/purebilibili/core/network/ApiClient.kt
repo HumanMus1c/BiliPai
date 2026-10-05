@@ -1063,8 +1063,17 @@ interface BilibiliApi {
         @retrofit2.http.Field("csrf") csrf: String
     ): CommandDanmakuResponse
 
+    @retrofit2.http.Streaming
     @GET
     suspend fun getDanmakuSpecialDm(@retrofit2.http.Url url: String): ResponseBody
+
+    @retrofit2.http.Streaming
+    @Headers("Accept-Encoding: identity")
+    @GET
+    suspend fun getDanmakuSpecialRange(
+        @retrofit2.http.Url url: String,
+        @Header("Range") range: String
+    ): Response<ResponseBody>
 
     // [新增] 云端弹幕屏蔽规则列表
     @retrofit2.http.GET("x/dm/filter/user")

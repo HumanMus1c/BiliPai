@@ -170,20 +170,11 @@ fun DownloadListScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
-                    AppText(
-                        text = "暂无缓存视频",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
-                    AppText(
-                        text = "在视频详情页点击「缓存」按钮下载",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
+                com.android.purebilibili.core.ui.EmptyState(
+                    message = "暂无缓存视频",
+                    subtitle = "在视频详情页点击「缓存」按钮下载",
+                    enableEasterEgg = false
+                )
             }
         } else {
             LazyVerticalGrid(

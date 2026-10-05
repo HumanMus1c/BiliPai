@@ -2246,8 +2246,7 @@ fun HomeScreen(
                              indicator = {
                                 when (pullRefreshIndicatorStyle) {
                                     AppPullRefreshIndicatorStyle.MATERIAL_DEFAULT -> {
-                                        // Official M3 expressive ContainedLoadingIndicator
-                                        // (dynamic color) for Android Native Material 3.
+                                        // Native MD3 pull-to-refresh indicator.
                                         AppPullRefreshLoadingIndicator(
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
@@ -2404,16 +2403,24 @@ fun HomeScreen(
                                  val categoryError = categoryState.error
                                  if (categoryError != null && categoryState.videos.isEmpty()) {
                                  // Error State per page
-                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                 Box(
+                                     Modifier
+                                         .fillMaxSize()
+                                         .padding(top = listTopPadding, bottom = homeListBottomPadding),
+                                     contentAlignment = Alignment.Center
+                                 ) {
                                      ModernErrorState(
                                          message = categoryError,
-                                         onRetry = { viewModel.refresh() }
+                                         isVisible = pagerState.currentPage == page,
+                                         onRetry = { viewModel.refresh(category) }
                                      )
                                  }
                                  } else {
                                  // Data Content
                                  // [性能优化] Stabilize event callbacks to prevent recomposition on scroll
-                                 val onLoadMoreCallback = remember(viewModel) { { viewModel.loadMore() } }
+                                 val onLoadMoreCallback = remember(viewModel, category, popularSubCategory) {
+                                     { viewModel.loadMore(category, popularSubCategory) }
+                                 }
                                  val onWatchLaterCallback = remember(viewModel) { { bvid: String, aid: Long -> viewModel.addToWatchLater(bvid, aid) } }
                                   val onLongPressCallback = remember(
                                       targetVideoItemState,
@@ -2458,6 +2465,7 @@ fun HomeScreen(
                                  HomeCategoryPageContent(
                                      category = category,
                                      categoryState = pageCategoryState,
+                                     isActive = pagerState.currentPage == page,
                                      gridState = contentGridState,
                                      gridColumns = effectiveGridColumns,
                                      contentPadding = pageContentPadding,
@@ -2470,6 +2478,10 @@ fun HomeScreen(
                                      onLiveClick = onLiveClickCallback,
                                      onOpenLiveHome = onLiveListClick,
                                      onLoadMore = onPageLoadMore,
+                                     onRetryLoadMore = {
+                                         viewModel.loadMore(category, selectedPopularSubCategory, retry = true)
+                                     },
+                                     onRetryRefresh = { viewModel.refresh(category, selectedPopularSubCategory) },
                                      onDismissVideo = onDismissVideoCallback,
                                      onWatchLater = onWatchLaterCallback,
                                      onDissolveComplete = onDissolveCompleteCallback,

@@ -7,6 +7,9 @@ import top.yukonga.miuix.kmp.nav.transition.NavTransition
 
 internal fun NavEntryBuilder.biliPaiNavEntries(
     swipeBackDirection: NavSwipeDirection,
+    settingsBackStack: List<BiliPaiNavKey> = emptyList(),
+    settingsPersistentPanes: Boolean = false,
+    activeMainHostRoute: String? = null,
     predictiveBackExcludedTransition: NavTransition,
     videoCardTransition: NavTransition,
     fullscreenVideoCardTransition: NavTransition,
@@ -25,32 +28,32 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     )
     entry<BiliPaiNavKey.SearchTrending>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.TopicDetail>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.Settings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.SettingsCategory>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.SettingsSearch>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.OpenSourceLicenses>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.AppearanceSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.HomeSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.IconSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.AnimationSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.PlaybackSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.PermissionSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.MessageNotificationSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.PluginsSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.JsPluginContent>(
+    settingsEntry<BiliPaiNavKey.Settings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.SettingsCategory>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.SettingsSearch>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.OpenSourceLicenses>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.AppearanceSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.HomeSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.IconSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.AnimationSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.PlaybackSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.PermissionSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.MessageNotificationSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.PluginsSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.JsPluginContent>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute,
         transition = predictiveBackExcludedTransition,
         swipeDismiss = NavSwipeDirection.None,
         content = content,
     )
-    entry<BiliPaiNavKey.ExternalMedia>(
+    settingsEntry<BiliPaiNavKey.ExternalMedia>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute,
         transition = predictiveBackExcludedTransition,
         swipeDismiss = NavSwipeDirection.None,
         content = content,
     )
-    entry<BiliPaiNavKey.BottomBarSettings>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.SettingsShare>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.WebDavBackup>(swipeDismiss = swipeBackDirection, content = content)
-    entry<BiliPaiNavKey.TipsSettings>(swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.BottomBarSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.SettingsShare>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.WebDavBackup>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
+    settingsEntry<BiliPaiNavKey.TipsSettings>(settingsBackStack, settingsPersistentPanes, activeMainHostRoute, swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Login>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.Profile>(swipeDismiss = swipeBackDirection, content = content)
     entry<BiliPaiNavKey.AicuQuery>(swipeDismiss = swipeBackDirection, content = content)
@@ -139,4 +142,27 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
         content = content,
     )
     entry<BiliPaiNavKey.Unknown>(swipeDismiss = NavSwipeDirection.None, content = content)
+}
+
+/** Entry metadata is retained for departing pages, so pop uses the same boundary as push. */
+private inline fun <reified T : BiliPaiNavKey> NavEntryBuilder.settingsEntry(
+    backStack: List<BiliPaiNavKey>,
+    persistentPanes: Boolean,
+    activeMainHostRoute: String?,
+    transition: NavTransition? = null,
+    swipeDismiss: NavSwipeDirection,
+    noinline content: @Composable (BiliPaiNavKey) -> Unit,
+) {
+    val index = backStack.indexOfLast { it is T }
+    val paneNavigation = index >= 0 && isSettingsPaneNavigation(
+        persistentPanes = persistentPanes,
+        fromKey = backStack.getOrNull(index - 1),
+        toKey = backStack.getOrNull(index),
+        activeMainHostRoute = activeMainHostRoute,
+    )
+    entry<T>(
+        transition = if (paneNavigation) SettingsPaneTransition else transition,
+        swipeDismiss = swipeDismiss,
+        content = content,
+    )
 }

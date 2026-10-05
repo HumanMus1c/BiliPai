@@ -713,6 +713,7 @@ internal object CommentGrpcRepository {
         var isUpTop = false
         var location = ""
         var translationSwitch = 0
+        var chargedDesc = ""
         val labels = mutableListOf<ReplyCardLabel>()
         ProtoWire.parseFields(bytes).forEach { field ->
             when (field.number) {
@@ -721,6 +722,7 @@ internal object CommentGrpcRepository {
                 12 -> isUpTop = field.varint != 0L
                 19 -> labels += parseCardLabel(field.bytes)
                 25 -> location = ProtoWire.stringValue(field)
+                31 -> chargedDesc = ProtoWire.stringValue(field)
                 37 -> translationSwitch = field.varint.toInt()
             }
         }
@@ -730,7 +732,8 @@ internal object CommentGrpcRepository {
                 location = location,
                 isUpTop = isUpTop,
                 upReply = upReply,
-                translationSwitch = translationSwitch
+                translationSwitch = translationSwitch,
+                chargedDesc = chargedDesc
             ),
             cardLabels = labels.takeIf { it.isNotEmpty() }
         )

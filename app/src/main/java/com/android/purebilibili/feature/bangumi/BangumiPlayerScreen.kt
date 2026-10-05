@@ -398,7 +398,7 @@ fun BangumiPlayerScreen(
     
     // 加载弹幕 - 在父级组件管理
     //  [修复] 等待播放器 duration 可用后再加载弹幕，启用 Protobuf API
-    LaunchedEffect(currentCid, currentAid, danmakuEnabled, exoPlayer) {
+    LaunchedEffect(danmakuManager, currentCid, currentAid, danmakuEnabled, exoPlayer) {
         android.util.Log.d("BangumiPlayer", "🎯 Parent Danmaku LaunchedEffect: cid=$currentCid, aid=$currentAid, enabled=$danmakuEnabled")
         if (currentCid > 0 && danmakuEnabled) {
             danmakuManager.isEnabled = true
@@ -427,7 +427,7 @@ fun BangumiPlayerScreen(
     }
     
     // 绑定 Player
-    DisposableEffect(exoPlayer) {
+    DisposableEffect(danmakuManager, exoPlayer) {
         danmakuManager.attachPlayer(exoPlayer)
         onDispose { danmakuManager.detachPlayer(exoPlayer) }
     }

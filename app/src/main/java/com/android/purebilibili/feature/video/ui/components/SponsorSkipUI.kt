@@ -105,7 +105,7 @@ fun SponsorSkipButton(
                         }
                     }
                     AppTextButton(onClick = { onVote(1) }) { AppText("有用") }
-                    AppTextButton(onClick = { onVote(-1) }) { AppText("不准确") }
+                    AppTextButton(onClick = { onVote(0) }) { AppText("不准确") }
                     
                     // 关闭按钮
                     AppIconButton(onClick = onDismiss) {

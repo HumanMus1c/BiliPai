@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import com.android.purebilibili.core.ui.AppIcons
+import com.android.purebilibili.feature.video.ui.feedback.likeBurstAnchor
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ThumbUp
@@ -279,14 +280,16 @@ fun TopControlBar(
             ) {
                 if (showInteractiveActionGroup) {
                     // Like
-                    ActionIcon(
-                        icon = if (isLiked) Icons.Rounded.ThumbUp else Icons.Outlined.ThumbUp,
-                        contentDescription = "点赞",
-                        isActive = isLiked,
-                        onClick = onLikeClick,
-                        buttonSizeDp = layoutPolicy.buttonSizeDp,
-                        iconSizeDp = layoutPolicy.iconSizeDp
-                    )
+                    Box(modifier = Modifier.likeBurstAnchor()) {
+                        ActionIcon(
+                            icon = if (isLiked) Icons.Rounded.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = "点赞",
+                            isActive = isLiked,
+                            onClick = onLikeClick,
+                            buttonSizeDp = layoutPolicy.buttonSizeDp,
+                            iconSizeDp = layoutPolicy.iconSizeDp
+                        )
+                    }
 
                     if (showDislikeAction) {
                         // Dislike

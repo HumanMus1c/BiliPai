@@ -547,9 +547,9 @@ internal fun resolveHomeTopSearchIconTextGap(
 }
 
 internal fun resolveHomeTopSearchContainerShape(
-    chromePolicy: AppTopChromePolicy,
+    @Suppress("UNUSED_PARAMETER") chromePolicy: AppTopChromePolicy,
 ): Shape {
-    return RoundedCornerShape(chromePolicy.compactChromeSpec.primaryCornerRadiusDp.dp)
+    return resolveSharedBottomBarCapsuleShape()
 }
 
 internal fun resolveHomeTopEdgeButtonShape(
@@ -2665,7 +2665,7 @@ fun HomeHeader(
                             Spacer(modifier = Modifier.width(resolveHomeTopEdgeControlGap(topChromePolicy)))
 
                             BottomBarMatchedReusableLiquidDock(
-                                shape = CircleShape,
+                                shape = resolveHomeTopSearchContainerShape(topChromePolicy),
                                 modifier = Modifier
                                     .weight(1f)
                                     .widthIn(max = AppSpacingTokens.TripleExtraLarge * 13 + AppSpacingTokens.Large)

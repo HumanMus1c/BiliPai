@@ -532,7 +532,10 @@ class LivePlayerViewModel : ViewModel() {
                             }
                         )
                     )
+                    com.android.purebilibili.core.events.BrandSuccessEvents.followChanged(!currentState.isFollowing)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             }

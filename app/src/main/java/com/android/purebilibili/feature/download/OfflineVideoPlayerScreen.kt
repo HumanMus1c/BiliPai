@@ -18,6 +18,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -44,6 +46,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
@@ -52,6 +55,7 @@ import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -222,8 +226,13 @@ fun OfflineVideoPlayerScreen(
     }
     
     // 创建播放器
-    val player = remember(file.absolutePath) {
+    val player = remember(context, task.id, file.absolutePath) {
         ExoPlayer.Builder(context).build()
+    }
+    var playbackFailure by remember(player) { mutableStateOf<OfflinePlaybackFailure?>(null) }
+    var retryVersion by remember(player) { mutableIntStateOf(0) }
+    var lastKnownPlaybackPosition by remember(player) {
+        mutableLongStateOf(task.lastPlaybackPositionMs.coerceAtLeast(0L))
     }
     val offlineSessionRegistered = remember(file.exists(), task.filePath) {
         shouldRegisterOfflinePlaybackSession(
@@ -261,7 +270,9 @@ fun OfflineVideoPlayerScreen(
         DownloadManager.updatePlaybackPosition(
             taskId = activeTask.id,
             positionMs = resolveOfflinePersistedPlaybackPosition(
-                currentPositionMs = activePlayer.currentPosition,
+                currentPositionMs = if (activePlayer.playerError != null || activePlayer.playbackState == Player.STATE_IDLE) {
+                    lastKnownPlaybackPosition
+                } else activePlayer.currentPosition,
                 durationMs = activePlayer.duration
             )
         )
@@ -281,6 +292,9 @@ fun OfflineVideoPlayerScreen(
                 buffered = player.bufferedPosition
             )
             isPlaying = player.isPlaying
+            if (player.playbackState == Player.STATE_READY && player.playerError == null) {
+                lastKnownPlaybackPosition = player.currentPosition.coerceAtLeast(0L)
+            }
             delay(if (showControls) 200L else 500L)
         }
     }
@@ -392,10 +406,34 @@ fun OfflineVideoPlayerScreen(
         applyWindowMode(isFullscreen)
     }
 
-    LaunchedEffect(player, file.absolutePath, task.id) {
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                playbackFailure = resolveOfflinePlaybackFailure(error.errorCode)
+                isPlaying = false
+                showControls = true
+                isGestureVisible = false
+                seekFeedbackVisible = false
+                longPressSpeedVisible = false
+                if (isLongPressing) {
+                    player.setPlaybackSpeed(originalSpeed)
+                    isLongPressing = false
+                }
+                player.pause()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) playbackFailure = null
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    LaunchedEffect(player, file.absolutePath, task.id, retryVersion) {
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
         player.prepare()
-        val restoredPosition = task.lastPlaybackPositionMs.coerceAtLeast(0L)
+        val restoredPosition = if (retryVersion > 0) lastKnownPlaybackPosition else task.lastPlaybackPositionMs.coerceAtLeast(0L)
         if (restoredPosition > 0L) {
             player.seekTo(restoredPosition)
         } else {
@@ -434,11 +472,9 @@ fun OfflineVideoPlayerScreen(
     }
 
     LaunchedEffect(danmakuManager, showDanmakuLayer) {
-        if (showDanmakuLayer) {
-            danmakuManager.show()
-        } else {
-            danmakuManager.hide()
-        }
+        // Data commits and player callbacks also consult the engine's enabled state.
+        // Hiding only the View lets an asynchronous load turn it visible again.
+        danmakuManager.isEnabled = showDanmakuLayer
     }
 
     DisposableEffect(player, offlineSessionRegistered, offlineMiniPlayerPayload) {
@@ -495,7 +531,10 @@ fun OfflineVideoPlayerScreen(
                 currentPositionMs = player.currentPosition,
                 durationMs = player.duration
             )
-            if (abs(resolvedPosition - lastPersistedPosition) >= 2_000L) {
+            if (
+                player.playerError == null && player.playbackState == Player.STATE_READY &&
+                abs(resolvedPosition - lastPersistedPosition) >= 2_000L
+            ) {
                 DownloadManager.updatePlaybackPosition(task.id, resolvedPosition)
                 lastPersistedPosition = resolvedPosition
             }
@@ -510,7 +549,8 @@ fun OfflineVideoPlayerScreen(
             .fillMaxSize()
             .background(Color.Black)
             // 🎛️ 拖拽手势：亮度/音量/进度
-            .pointerInput(Unit) {
+            .pointerInput(player, playbackFailure) {
+                if (playbackFailure != null) return@pointerInput
                 detectDragGestures(
                     onDragStart = { offset ->
                         // 边缘防误触
@@ -625,7 +665,8 @@ fun OfflineVideoPlayerScreen(
                 )
             }
             // 🖱️ 点击/双击/长按手势
-            .pointerInput(Unit) {
+            .pointerInput(player, playbackFailure, longPressSpeed) {
+                if (playbackFailure != null) return@pointerInput
                 detectTapGestures(
                     onTap = { showControls = !showControls },
                     onLongPress = {
@@ -681,35 +722,44 @@ fun OfflineVideoPlayerScreen(
                     keepScreenOn = true
                 }
             },
+            update = { view ->
+                view.player = player
+                view.keepScreenOn = playbackFailure == null && isPlaying
+            },
+            onRelease = { view -> view.player = null },
             modifier = Modifier.fillMaxSize()
         )
 
         if (danmakuAvailable) {
-            AndroidView(
-                factory = { ctx ->
-                    DanmakuRenderView(ctx).apply {
-                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        configureAsPassiveDanmakuOverlay()
-                        danmakuManager.attachView(this)
-                    }
-                },
-                update = { view ->
-                    view.visibility = if (showDanmakuLayer) {
-                        android.view.View.VISIBLE
-                    } else {
-                        android.view.View.GONE
-                    }
-                    if (view.width > 0 && view.height > 0) {
-                        val sizeTag = "${view.width}x${view.height}"
-                        if (view.tag != sizeTag) {
-                            view.tag = sizeTag
-                            danmakuManager.attachView(view)
+            key(danmakuManager) {
+                AndroidView(
+                    factory = { ctx ->
+                        DanmakuRenderView(ctx).apply {
+                            danmakuManager.isFullscreenSurface = isFullscreen
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            configureAsPassiveDanmakuOverlay()
+                            danmakuManager.attachView(this)
                         }
-                    }
-                },
-                onRelease = { view -> danmakuManager.detachView(view) },
-                modifier = Modifier.fillMaxSize()
-            )
+                    },
+                    update = { view ->
+                        danmakuManager.isFullscreenSurface = isFullscreen
+                        view.visibility = if (showDanmakuLayer) {
+                            android.view.View.VISIBLE
+                        } else {
+                            android.view.View.GONE
+                        }
+                        if (view.width > 0 && view.height > 0) {
+                            val sizeTag = "${view.width}x${view.height}"
+                            if (view.tag != sizeTag) {
+                                view.tag = sizeTag
+                                danmakuManager.attachView(view)
+                            }
+                        }
+                    },
+                    onRelease = { view -> danmakuManager.detachView(view) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
         
         // 2. 封面图（播放前显示，或是纯音频模式常驻显示）
@@ -1086,7 +1136,7 @@ fun OfflineVideoPlayerScreen(
         
         // 10. 中央播放按钮（暂停时显示）
         AnimatedVisibility(
-            visible = showControls && !isPlaying,
+            visible = showControls && !isPlaying && playbackFailure == null,
             modifier = Modifier.align(Alignment.Center),
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut()
@@ -1104,6 +1154,38 @@ fun OfflineVideoPlayerScreen(
                         tint = Color.White.copy(alpha = 0.95f),
                         modifier = Modifier.size(42.dp)
                     )
+                }
+            }
+        }
+        playbackFailure?.let { failure ->
+            Box(
+                modifier = Modifier.fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.9f))
+                    .pointerInput(failure) { detectTapGestures(onTap = {}) }
+                    .safeDrawingPadding()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppText("播放失败", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    AppText(
+                        failure.message,
+                        color = Color.White.copy(alpha = 0.85f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    if (failure.canRetry) {
+                        AppButton(onClick = {
+                            playbackFailure = null
+                            showControls = true
+                            retryVersion++
+                        }) { AppText("重新播放") }
+                    }
+                    AppTextButton(onClick = onBack) { AppText("返回", color = Color.White) }
                 }
             }
         }

@@ -2,6 +2,21 @@
 
 package com.android.bilipai.tv.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.foundation.layout.Box
+import com.android.bilipai.tv.ui.components.TvStateFeedback
+import com.android.purebilibili.core.ui.MaidAnimation
+import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusable
@@ -61,6 +76,7 @@ import com.android.bilipai.tv.ui.components.TvAppButton
 import com.android.bilipai.tv.ui.components.TvNavigationItem
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.theme.DarkSurfaceElevated
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.bilipai.tv.QrPhase
 import com.android.bilipai.tv.TvUiState
@@ -68,21 +84,25 @@ import com.android.purebilibili.data.model.VideoQuality
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun TvSearchInput(state: TvUiState, requester: FocusRequester, onSearch: (String) -> Unit) {
+internal fun TvSearchInput(state: TvUiState, requester: FocusRequester, onSearch: (String) -> Unit,
+    onSuggest: (String) -> Unit = {}) {
+    val interactive = LocalTvInteractive.current
     var draft by rememberSaveable { mutableStateOf(state.query) }
     val submitFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    fun submit() { if (draft.isNotBlank()) { keyboard?.hide(); onSearch(draft) } }
-    LaunchedEffect(requester) { requester.requestFocus() }
+    fun submit() { if (interactive && draft.isNotBlank()) { keyboard?.hide(); onSearch(draft) } }
+        LaunchedEffect(requester, interactive) { if (interactive) requester.requestFocus() }
+    // 实时联想（SearchRepository.getSuggest）：输入防抖 300ms；清空输入回落到历史/热词。
+    LaunchedEffect(draft) { kotlinx.coroutines.delay(300); onSuggest(draft) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             BasicTextField(value = draft, onValueChange = { draft = it }, singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                readOnly = !interactive, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { submit() }),
-                modifier = Modifier.weight(1f).focusRequester(requester).testTag("tv-search-input")
-                    .background(Color(0xFF242C3C), RoundedCornerShape(12.dp)).padding(18.dp)
+                modifier = Modifier.weight(1f).focusRequester(requester).focusProperties { canFocus = interactive }.testTag("tv-search-input")
+                    .tvGlass(TvUiTokens.shape(ContainerLevel.Card), sampleBackdrop = false).padding(18.dp)
                     .onPreviewKeyEvent { event ->
                         when (event.nativeKeyEvent.keyCode) {
                             KeyEvent.KEYCODE_DPAD_CENTER -> {
@@ -108,12 +128,13 @@ internal fun TvSearchInput(state: TvUiState, requester: FocusRequester, onSearch
                         }
                     },
                 decorationBox = { field ->
-                    if (draft.isEmpty()) Text("输入视频关键词", color = Color(0xFFABB3C5))
+                    if (draft.isEmpty()) Text("输入视频关键词", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     field()
                 })
             TvAppButton(onClick = { submit() }, enabled = draft.isNotBlank(), modifier = Modifier.focusRequester(submitFocus)) { Text("搜索") }
         }
-        val suggestions = (state.searchHistory.take(3) + state.trending.take(3)).distinct().take(5)
+        val suggestions = (if (draft.isNotBlank()) state.suggest
+            else state.searchHistory.take(3) + state.trending.take(3)).distinct().take(5)
         if (suggestions.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 suggestions.forEach { word ->
@@ -134,47 +155,56 @@ internal fun TvDetailContent(
     onWatchLater: () -> Unit,
     onRetry: () -> Unit,
     onBack: () -> Unit,
+    onRestoredAction: () -> Unit = {}, onLike: () -> Unit = {}, onFavorite: () -> Unit = {}, onSpace: () -> Unit = {}, onCoin: (Int, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     if (state.detailLoading) {
-        Column(modifier, verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraLarge)) {
-            Text("正在加载视频详情…")
-            FocusButton("返回列表", onBack, requester)
-        }
+        TvStateFeedback("正在加载视频详情…", null, "返回列表", onBack, requester, modifier)
         return
     }
     val info = state.detail
     if (info == null) {
-        Column(modifier, verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraLarge)) {
-            Text(state.detailError ?: "未找到视频")
-            FocusButton("重试", onRetry, requester)
-        }
+        TvStateFeedback(state.detailError ?: "未找到视频", MaidAnimation.RETRY, "重试", onRetry, requester, modifier)
         return
     }
+    val interactive = LocalTvInteractive.current
     var expanded by rememberSaveable(info.bvid) { mutableStateOf(false) }
     var focusedAction by rememberSaveable(info.bvid) { mutableStateOf("play") }
+    var coinDialog by rememberSaveable(info.bvid) { mutableStateOf(false) }
     var descriptionFocused by remember { mutableStateOf(false) }
     val scroll = rememberScrollState()
     val descriptionScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val actionIds = listOf("play", "later", "expand", "description") +
+    val actionIds = listOf("play", "later", "like", "coin", "favorite", "space", "expand", "description") +
         (if (info.pages.size > 1) info.pages.map { "part:${it.cid}" } else emptyList())
     val actionRequesters = remember(info.bvid, actionIds) {
         actionIds.associateWith { FocusRequester() }
     }
-    val entryAction = focusedAction.takeIf { it in actionRequesters && (it != "description" || expanded) } ?: "play"
+    val restoredAction = state.resumeAction?.takeIf { it in actionRequesters } ?: focusedAction
+    val entryAction = restoredAction.takeIf { it in actionRequesters && (it != "description" || expanded) } ?: "play"
     fun actionModifier(id: String): Modifier = Modifier
         .then(if (id == entryAction) Modifier.focusRequester(requester) else Modifier)
         .focusRequester(actionRequesters.getValue(id))
         .onFocusChanged { if (it.isFocused) focusedAction = id }
 
-    LaunchedEffect(requester, info.bvid) {
-        actionRequesters.getValue(entryAction).requestFocus()
+    LaunchedEffect(requester, info.bvid, interactive, state.favoriteFolders != null, state.resumeAction) {
+        if (interactive && state.favoriteFolders == null) {
+            actionRequesters.getValue(entryAction).requestFocus()
+            if (state.resumeAction != null) onRestoredAction()
+        }
     }
-    BackHandler(enabled = expanded) {
+    BackHandler(enabled = expanded && interactive) {
         expanded = false
         actionRequesters.getValue("expand").requestFocus()
     }
+    // 投币弹窗关闭后恢复投币按钮；子档位选择走 onCoin 即关即投。
+    if (coinDialog) TvChoiceDialog(
+        "投币",
+        listOf(1 to "1 枚硬币", 2 to "2 枚硬币 · 同时点赞"),
+        onDismiss = { coinDialog = false },
+        onChoose = { count -> coinDialog = false; onCoin(count, count == 2) },
+        selectedValue = null,
+    )
     val density = LocalDensity.current
     val fontScale = density.fontScale
     val descriptionStep = with(density) { AppSpacingTokens.TripleExtraLarge.roundToPx() }
@@ -200,6 +230,20 @@ internal fun TvDetailContent(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(info.owner.name, style = MaterialTheme.typography.titleMedium)
+            // BV 式数据行：点赞 · 投币 · 收藏 · 发布日期，小字次级色，提供选片决策上下文。
+            Text(
+                buildString {
+                    append(FormatUtils.formatStat(info.stat.like.toLong()) + " 点赞")
+                    append(" · " + FormatUtils.formatStat(info.stat.coin.toLong()) + " 投币")
+                    append(" · " + FormatUtils.formatStat(info.stat.favorite.toLong()) + " 收藏")
+                    if (info.pubdate > 0) {
+                        append(" · " + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA)
+                            .format(java.util.Date(info.pubdate * 1000)))
+                    }
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
@@ -208,7 +252,13 @@ internal fun TvDetailContent(
                     onClick = { onPlay(info.cid) },
                     modifier = actionModifier("play").testTag("tv-play"),
                 ) { Text(if (state.detailResumePositionMs > 0) "继续观看" else "播放") }
-                TvAppButton(onClick = onWatchLater, modifier = actionModifier("later")) { Text("稍后再看") }
+                TvAppButton(onClick = onWatchLater, isLoading = state.actionBusy, modifier = actionModifier("later")) { Text("稍后再看") }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvAppButton(onLike, actionModifier("like"), isLoading = state.actionBusy) { Text(if (state.liked == true) "已点赞 · 取消" else "点赞") }
+                TvAppButton(onClick = { coinDialog = true }, isLoading = state.actionBusy, modifier = actionModifier("coin")) { Text("投币") }
+                TvAppButton(onFavorite, actionModifier("favorite"), isLoading = state.favoriteLoading || state.actionBusy) { Text("收藏") }
+                TvAppButton(onSpace, actionModifier("space")) { Text("UP 主空间") }
             }
             if (state.detailResumePositionMs > 0) {
                 Text(
@@ -217,7 +267,7 @@ internal fun TvDetailContent(
                     color = MaterialTheme.colorScheme.secondary,
                 )
             }
-            state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+
         }
         Column(
             Modifier.verticalScroll(scroll),
@@ -235,6 +285,9 @@ internal fun TvDetailContent(
             Text(
                 info.desc.ifBlank { "暂无简介" },
                 style = MaterialTheme.typography.bodyLarge,
+                // BV 式两级灰度：简介默认弱化为次级色，展开阅读并聚焦时提亮为正文色。
+                color = if (descriptionFocused) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = if (expanded) actionModifier("description")
@@ -257,6 +310,7 @@ internal fun TvDetailContent(
                             true
                         } else false
                     }
+                    .focusProperties { canFocus = interactive }
                     .focusable()
                     .testTag("tv-detail-description") else Modifier,
             )
@@ -288,57 +342,121 @@ internal fun TvDetailContent(
 
 @Composable
 internal fun TvLoginContent(state: TvUiState, requester: FocusRequester, onRefresh: () -> Unit, onSignOut: () -> Unit) {
-    LaunchedEffect(requester, state.qr.phase == QrPhase.Success || state.account != null) { requester.requestFocus() }
-    Column(Modifier.fillMaxSize().padding(horizontal = TvUiTokens.pagePadding).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text("账号", style = MaterialTheme.typography.headlineLarge)
-        if (state.account != null || state.qr.phase == QrPhase.Success) {
-            Text("已登录 · ${state.account?.uname ?: "正在读取账号信息"}", style = MaterialTheme.typography.titleLarge)
-            Text("收藏、历史和稍后再看与当前账号同步。")
-            state.accountError?.let { Text(it) }
-            TvAppButton(onClick = onSignOut, modifier = Modifier.focusRequester(requester)) { Text("退出登录") }
-        } else {
-            Text("使用哔哩哔哩手机 App 扫码，并在手机上确认登录。", style = MaterialTheme.typography.bodyLarge)
-            state.qr.bitmap?.let { bitmap ->
-                Image(bitmap.asImageBitmap(), contentDescription = "扫码登录二维码",
-                    modifier = Modifier.size(250.dp).background(Color.White).padding(8.dp))
+    val interactive = LocalTvInteractive.current
+    val loggedIn = state.account != null || state.qr.phase == QrPhase.Success
+    LaunchedEffect(requester, loggedIn, interactive) { if (interactive) requester.requestFocus() }
+    BoxWithConstraints(Modifier.fillMaxSize().padding(TvUiTokens.pagePadding)) {
+        val wide = maxWidth >= 640.dp && LocalDensity.current.fontScale <= 1.3f
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Text("账号", style = MaterialTheme.typography.headlineLarge)
+            if (loggedIn) {
+                Text("已登录 · ${state.account?.uname ?: "正在读取账号信息"}", style = MaterialTheme.typography.titleLarge)
+                Text("收藏、历史和稍后再看与当前账号同步。")
+                state.accountError?.let { Text(it) }
+                TvAppButton(onSignOut, Modifier.focusRequester(requester)) { Text("退出登录") }
+            } else {
+                val qr: @Composable () -> Unit = {
+                    // 二维码外层玻璃卡：白底二维码保持可扫，边缘与圆角由面板提供。
+                    Box(Modifier.tvGlass(TvUiTokens.shape(ContainerLevel.Card), sampleBackdrop = false).padding(16.dp)) {
+                        Box(Modifier.size(250.dp).background(Color.White, TvUiTokens.shape(ContainerLevel.MediaCover))) {
+                            state.qr.bitmap?.let { Image(it.asImageBitmap(), "扫码登录二维码", Modifier.fillMaxSize().padding(8.dp)) }
+                        }
+                    }
+                }
+                val instructions: @Composable () -> Unit = {
+                    Column(
+                        Modifier.tvGlass(TvUiTokens.shape(ContainerLevel.Card), sampleBackdrop = false).padding(TvUiTokens.pagePadding),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        Text("使用哔哩哔哩手机 App 扫码，并在手机上确认登录。", style = MaterialTheme.typography.bodyLarge)
+                        Text(when (state.qr.phase) {
+                            QrPhase.Loading -> "正在生成二维码…"
+                            QrPhase.Waiting -> "等待扫码"
+                            QrPhase.Scanned -> "已扫码，请在手机上确认"
+                            QrPhase.Expired -> "二维码已过期，请刷新"
+                            QrPhase.Failed -> state.qr.error ?: "登录失败，请重试"
+                            QrPhase.Success -> "登录成功"
+                        }, modifier = Modifier.heightIn(min = 64.dp))
+                        TvAppButton(onRefresh, Modifier.focusRequester(requester), isLoading = state.qr.phase == QrPhase.Loading) { Text("刷新二维码") }
+                        Text("返回即可取消本次登录。", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (wide) Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) { qr(); Box(Modifier.weight(1f)) { instructions() } }
+                else { qr(); instructions() }
             }
-            Text(when (state.qr.phase) {
-                QrPhase.Loading -> "正在生成二维码…"
-                QrPhase.Waiting -> "等待扫码"
-                QrPhase.Scanned -> "已扫码，请在手机上确认"
-                QrPhase.Expired -> "二维码已过期，请刷新"
-                QrPhase.Failed -> state.qr.error ?: "登录失败，请重试"
-                QrPhase.Success -> "登录成功"
-            })
-            TvAppButton(onClick = onRefresh, modifier = Modifier.focusRequester(requester)) { Text("刷新二维码") }
-            Text("返回即可取消本次登录。", style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+
+/** 设置分组面板：BV 式玻璃分组，标题 + 同组操作行收进同一块表面。 */
+@Composable
+private fun TvSettingsPanel(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().widthIn(max = 760.dp)
+            .tvGlass(TvUiTokens.shape(ContainerLevel.Card), sampleBackdrop = false)
+            .padding(TvUiTokens.pagePadding),
+        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        content()
     }
 }
 
 @Composable
 internal fun TvSettingsContent(state: TvUiState, requester: FocusRequester, onQuality: (Int) -> Unit,
-    onAutoContinue: () -> Unit, onDanmaku: () -> Unit, onPrivacy: () -> Unit, onClearSearchHistory: () -> Unit) {
+    onAutoContinue: () -> Unit, onDanmaku: () -> Unit, onPrivacy: () -> Unit, onClearSearchHistory: () -> Unit, onReduceMotion: () -> Unit = {}, onSimpleEffects: () -> Unit = {}, onCheckUpdate: () -> Unit = {}, onDensity: (Float) -> Unit = {}) {
     var chooseQuality by remember { mutableStateOf(false) }
-    val rowModifier = Modifier.widthIn(max = 640.dp).fillMaxWidth()
-    LaunchedEffect(requester, chooseQuality) { if (!chooseQuality) requester.requestFocus() }
-    Column(Modifier.fillMaxSize().padding(horizontal = TvUiTokens.pagePadding).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Text("播放与隐私", style = MaterialTheme.typography.headlineMedium)
-        Text("播放偏好", style = MaterialTheme.typography.titleMedium)
-        TvAppButton(onClick = { chooseQuality = true }, modifier = rowModifier.focusRequester(requester)) {
-            Text("默认画质：${VideoQuality.fromCode(state.quality)?.description ?: state.quality}")
+    var densityDialog by remember { mutableStateOf(false) }
+    var feedback by remember { mutableStateOf(false) }
+    val interactive = LocalTvInteractive.current
+    val rowModifier = Modifier.fillMaxWidth()
+    LaunchedEffect(requester, chooseQuality, interactive, feedback) { if (!chooseQuality && !feedback && interactive) requester.requestFocus() }
+    Column(Modifier.fillMaxSize().padding(horizontal = TvUiTokens.pagePadding).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)) {
+        Text("设置", style = MaterialTheme.typography.headlineMedium)
+        TvSettingsPanel("播放偏好") {
+            TvAppButton(onClick = { chooseQuality = true }, modifier = rowModifier.focusRequester(requester)) {
+                Text("默认画质：${VideoQuality.fromCode(state.quality)?.description ?: state.quality}")
+            }
+            TvNavigationItem(selected = state.autoContinue, onClick = onAutoContinue, modifier = rowModifier) { Text("播完自动播放下一 P：${if (state.autoContinue) "开启" else "关闭"}") }
+            TvNavigationItem(selected = state.danmakuEnabled, onClick = onDanmaku, modifier = rowModifier) { Text("弹幕显示：${if (state.danmakuEnabled) "开启" else "关闭"}") }
+            Text("画质可用性由账号权限、视频内容和设备能力决定。", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary)
         }
-        TvNavigationItem(selected = state.autoContinue, onClick = onAutoContinue, modifier = rowModifier) { Text("播完自动播放下一 P：${if (state.autoContinue) "开启" else "关闭"}") }
-        TvNavigationItem(selected = state.danmakuEnabled, onClick = onDanmaku, modifier = rowModifier) { Text("弹幕显示：${if (state.danmakuEnabled) "开启" else "关闭"}") }
-        Text("画质可用性由账号权限、视频内容和设备能力决定。", style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary, modifier = rowModifier)
-        Text("隐私与记录", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = AppSpacingTokens.Small))
-        TvNavigationItem(selected = state.privacyMode, onClick = onPrivacy, modifier = rowModifier) { Text("暂停上报观看历史：${if (state.privacyMode) "开启" else "关闭"}") }
-        TvAppButton(onClick = onClearSearchHistory, modifier = rowModifier) { Text("清空搜索历史") }
+        TvSettingsPanel("视觉与动画") {
+            TvNavigationItem(state.reduceMotion, onReduceMotion, rowModifier) { Text("减少动画：${if (state.reduceMotion) "开启" else "关闭"}") }
+            // 全局模糊总开关：关闭后氛围背景与所有玻璃面板回退官方 MD3 纯色表面。
+            TvNavigationItem(state.simpleEffects, onSimpleEffects, rowModifier) { Text("模糊效果：${if (state.simpleEffects) "关闭" else "开启"}（关闭时使用系统默认表面）") }
+            TvAppButton(onClick = { densityDialog = true }, modifier = rowModifier) { Text("网格密度：${gridDensityLabel(state.gridDensity)}") }
+            Text("关闭后氛围背景与毛玻璃面板改为纯色表面；网格列表页长按 OK 键也可随时调整列数。", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary)
+        }
+        TvSettingsPanel("隐私与记录") {
+            TvNavigationItem(selected = state.privacyMode, onClick = onPrivacy, modifier = rowModifier) { Text("暂停上报观看历史：${if (state.privacyMode) "开启" else "关闭"}") }
+            TvAppButton(onClick = onClearSearchHistory, modifier = rowModifier) { Text("清空搜索历史") }
+        }
+        TvSettingsPanel("版本与反馈") {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
+            Text("BiliPai TV $version · 普通视频公开测试版", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TvAppButton(onCheckUpdate, rowModifier, isLoading = state.update.loading) { Text("检查 TV 更新") }
+            state.update.message?.let { Text(it, modifier = rowModifier) }
+            state.update.pageUrl?.let { TvLinkQr(it, "手机扫码进入 TV 下载页") }
+            TvAppButton({ feedback = true }, rowModifier) { Text("问题反馈") }
+        }
     }
-    if (chooseQuality) TvChoiceDialog("默认画质", listOf(32, 64, 80, 112, 116, 120).map {
-        it to (VideoQuality.fromCode(it)?.description ?: "$it")
-    }, onDismiss = { chooseQuality = false }, onChoose = { onQuality(it); chooseQuality = false }, selectedValue = state.quality)
+    if (feedback) TvDialogFrame({ feedback = false }) { dismiss ->
+        val focus = remember { FocusRequester() }
+        Column(Modifier.tvGlass(TvUiTokens.shape(ContainerLevel.Dialog), DarkSurfaceElevated, sampleBackdrop = false).padding(32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            TvLinkQr(com.android.bilipai.tv.TvUpdateRepository.feedbackUrl, "扫码提交 TV 问题，请附上版本、视频和复现步骤")
+            FocusButton("关闭", dismiss, focus)
+        }
+    }
+    if (chooseQuality) TvChoiceDialog("默认画质", VideoQuality.entries.map { it.code to it.description },
+        onDismiss = { chooseQuality = false }, onChoose = onQuality, selectedValue = state.quality)
+    if (densityDialog) TvChoiceDialog("网格密度", GRID_DENSITY_STEPS.map { it to gridDensityLabel(it) },
+        onDismiss = { densityDialog = false }, onChoose = { densityDialog = false; onDensity(it) },
+        selectedValue = state.gridDensity)
 }
 
 @Composable
@@ -352,22 +470,56 @@ internal fun <T> TvChoiceDialog(
 ) {
     val requester = remember { FocusRequester() }
     val selectedIndex = options.indexOfFirst { it.first == selectedValue }.coerceAtLeast(0)
-    Dialog(onDismissRequest = onDismiss) {
+    TvDialogFrame(onDismiss) { dismiss ->
         Column(modifier.widthIn(max = 520.dp).fillMaxWidth().heightIn(max = 440.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, TvUiTokens.shape(ContainerLevel.Dialog))
+            .tvGlass(TvUiTokens.shape(ContainerLevel.Dialog), DarkSurfaceElevated, sampleBackdrop = false)
             .verticalScroll(rememberScrollState()).padding(TvUiTokens.pagePadding),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             options.forEachIndexed { index, (value, label) ->
-                TvNavigationItem(selected = value == selectedValue, onClick = { onChoose(value) },
+                TvNavigationItem(selected = value == selectedValue, onClick = { onChoose(value); dismiss() },
                     modifier = Modifier.fillMaxWidth()
                         .then(if (index == selectedIndex) Modifier.focusRequester(requester) else Modifier)) {
                     Text((if (value == selectedValue) "当前 · " else "") + label)
                 }
             }
-            TvAppButton(onClick = onDismiss,
+            TvAppButton(onClick = dismiss,
                 modifier = if (options.isEmpty()) Modifier.focusRequester(requester) else Modifier) { Text("取消") }
         }
-        LaunchedEffect(requester) { requester.requestFocus() }
+        val interactive = LocalTvInteractive.current
+        LaunchedEffect(requester, interactive) { if (interactive) requester.requestFocus() }
+    }
+}
+
+/** Retain the surface for its exit; disable input at the start of closing. */
+@Composable
+internal fun TvDialogFrame(onDismiss: () -> Unit, content: @Composable (dismiss: () -> Unit) -> Unit) {
+    val parentInteractive = LocalTvInteractive.current
+    val transition = remember { MutableTransitionState(false).apply { targetState = true } }
+    LaunchedEffect(parentInteractive) { if (!parentInteractive) transition.targetState = false }
+    val reduce = LocalTvReduceMotion.current
+    val latestDismiss by rememberUpdatedState(onDismiss)
+    val dismiss = { transition.targetState = false; Unit }
+    Dialog(onDismissRequest = dismiss) {
+        AnimatedVisibility(transition,
+            enter = fadeIn(tween(if (reduce) 0 else TvMotion.enterMs, easing = AppMotionEasing.Continuity)) +
+                scaleIn(
+                    initialScale = 0.96f,
+                    animationSpec = tween(if (reduce) 0 else TvMotion.enterMs, easing = AppMotionEasing.Continuity),
+                    transformOrigin = TransformOrigin.Center,
+                ),
+            exit = fadeOut(tween(if (reduce) 0 else TvMotion.exitMs, easing = AppMotionEasing.Continuity)) +
+                scaleOut(
+                    targetScale = 0.96f,
+                    animationSpec = tween(if (reduce) 0 else TvMotion.exitMs, easing = AppMotionEasing.Continuity),
+                    transformOrigin = TransformOrigin.Center,
+                )) {
+            CompositionLocalProvider(LocalTvInteractive provides (parentInteractive && transition.targetState), LocalTvReturnTarget provides null) {
+                Box(if (transition.targetState) Modifier else Modifier.focusProperties { canFocus = false }.onPreviewKeyEvent { true }) { content(dismiss) }
+            }
+        }
+    }
+    LaunchedEffect(transition.isIdle, transition.currentState, transition.targetState) {
+        if (transition.isIdle && !transition.currentState && !transition.targetState) latestDismiss()
     }
 }

@@ -111,7 +111,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.INTERACTION_COMMENT,
         title = "详细评论时间显示",
-        subtitle = "开启后始终显示 yyyy-MM-dd HH:mm；关闭后按相对时间显示",
+        subtitle = "开启后始终显示 yyyy-MM-dd HH:mm:ss；关闭后按相对时间显示",
         section = "设置",
         aliases = listOf("评论时间", "详细评论时间", "评论发布时间", "完整时间", "绝对时间"),
         focusId = SettingsSearchFocusIds.PLAYBACK_INTERACTION,

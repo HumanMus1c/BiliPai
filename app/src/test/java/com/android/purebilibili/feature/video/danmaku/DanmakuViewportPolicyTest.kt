@@ -23,17 +23,6 @@ class DanmakuViewportPolicyTest {
     }
 
     @Test
-    fun `inline and fullscreen surfaces resolve the same text size`() {
-        val inline = requireNotNull(resolveDanmakuViewport(1080, 608, 3f))
-        val fullscreen = requireNotNull(resolveDanmakuViewport(2392, 1080, 3f))
-        assertEquals(
-            resolveDanmakuTextSizePx(fullscreen.density, 1.5f),
-            resolveDanmakuTextSizePx(inline.density, 1.5f),
-            0f
-        )
-    }
-
-    @Test
     fun `a band shorter than one row budgets no lines`() {
         val rowHeight = resolveDanmakuLayerLineHeightPx(fontSize = 45f, lineHeightMultiplier = 1.6f)
         assertEquals(

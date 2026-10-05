@@ -140,11 +140,11 @@ private fun RenderSingleAdvancedDanmaku(
         danmaku.content
     }
 
-    // [完整 BAS] 位移动画进度（考虑 delay 与 translationDurationMs），并应用缓动曲线
+    // Mode 7 位移动画，考虑 delay 与 translationDurationMs。
     val rawTranslationProgress = danmaku.getTranslationProgress(currentPosition)
     val easedProgress = danmaku.easing.transform(rawTranslationProgress)
 
-    // [完整 BAS] 位置：优先使用路径动画，否则起点->终点线性插值
+    // 优先使用路径动画，否则在起点和终点之间插值。
     val position = if (danmaku.path.isNotEmpty()) {
         danmaku.getPathPointAt(easedProgress)
     } else {
@@ -160,7 +160,7 @@ private fun RenderSingleAdvancedDanmaku(
     // 颜色转换
     val color = Color(danmaku.color or 0xFF000000.toInt())
 
-    // [完整 BAS] 透明度动画（alphaStart -> alphaEnd 按总时长插值）
+    // Mode 7 透明度按总时长插值。
     val currentAlpha = danmaku.getAlphaAt(currentPosition)
 
     // [视觉优化] 高能弹幕使用更强烈的动画效果
