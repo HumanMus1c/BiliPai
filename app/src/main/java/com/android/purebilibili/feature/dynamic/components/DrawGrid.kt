@@ -32,7 +32,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.imageLoader
 import com.android.purebilibili.data.model.response.DrawItem
 import com.android.purebilibili.core.ui.components.AppText
@@ -201,7 +201,7 @@ private fun DrawGridImage(
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl.isNotEmpty()) {
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = coil3.request.ImageRequest.Builder(context)
                     .data(imageUrl)
                     // Reuse this exact source identity as the preview's placeholder key.

@@ -39,12 +39,13 @@ internal sealed interface LiveRealtimeAction {
 
 internal fun resolveLiveRealtimeAction(
     json: JsonObject,
-    myMid: Long = 0L
+    myMid: Long = 0L,
+    nowEpochSeconds: Long = System.currentTimeMillis() / 1_000L,
 ): LiveRealtimeAction {
     val cmd = json.string("cmd")
     return when {
         cmd.startsWith("DANMU_MSG") -> parseLiveDanmakuMessage(json, myMid)
-        cmd == "SUPER_CHAT_MESSAGE" || cmd == "SUPER_CHAT_MESSAGE_JPN" -> parseLiveSuperChat(json)
+        cmd == "SUPER_CHAT_MESSAGE" || cmd == "SUPER_CHAT_MESSAGE_JPN" -> parseLiveSuperChat(json, nowEpochSeconds)
         cmd == "SUPER_CHAT_MESSAGE_DELETE" -> parseSuperChatDelete(json)
         cmd == "WATCHED_CHANGE" -> {
             val data = json.obj("data")
@@ -125,7 +126,7 @@ private fun parseLiveDanmakuMessage(json: JsonObject, myMid: Long): LiveRealtime
     )
 }
 
-private fun parseLiveSuperChat(json: JsonObject): LiveRealtimeAction {
+private fun parseLiveSuperChat(json: JsonObject, nowEpochSeconds: Long): LiveRealtimeAction {
     val data = json.obj("data") ?: return LiveRealtimeAction.Ignore
     val userInfo = data.obj("user_info")
     val uid = data.long("uid").takeIf { it > 0L } ?: userInfo?.long("uid") ?: 0L
@@ -135,6 +136,7 @@ private fun parseLiveSuperChat(json: JsonObject): LiveRealtimeAction {
     val message = data.string("message")
     if (message.isBlank()) return LiveRealtimeAction.Ignore
     val id = data.long("id").takeIf { it > 0L } ?: data.long("message_id")
+    val duration = data.int("time").takeIf { it > 0 } ?: data.int("duration")
     val item = LiveDanmakuItem(
         text = message,
         uid = uid,
@@ -147,7 +149,13 @@ private fun parseLiveSuperChat(json: JsonObject): LiveRealtimeAction {
         ),
         superChatToken = data.string("token"),
         superChatReportTs = data.long("ts").takeIf { it > 0L } ?: data.long("start_time"),
-        superChatDuration = data.int("duration").takeIf { it > 0 } ?: 0
+        superChatDuration = duration.coerceAtLeast(0),
+        superChatEndTime = resolveLiveSuperChatEndTime(
+            endTime = data.long("end_time"),
+            startTime = data.long("start_time"),
+            duration = duration,
+            nowEpochSeconds = nowEpochSeconds,
+        ),
     )
     return LiveRealtimeAction.EmitSuperChat(item, id)
 }
@@ -303,6 +311,7 @@ private fun systemMessage(uname: String, text: String, uid: Long = 0L): LiveReal
             text = text,
             uid = uid,
             uname = uname,
+            isSystem = true,
             color = 0xFFB54A,
             mode = 1
         )
@@ -351,11 +360,18 @@ private fun JsonArray.toLongList(): List<Long> {
 
 private fun parseLiveRealtimeColor(value: JsonElement?): Int {
     val primitive = value?.asPrimitiveOrNull() ?: return 0
+    val raw = primitive.contentOrNull ?: return 0
+    if (raw.startsWith("#")) {
+        val hex = raw.removePrefix("#")
+        val color = hex.toLongOrNull(16)?.toInt() ?: return 0
+        return when (hex.length) {
+            6 -> color or 0xFF000000.toInt()
+            8 -> color
+            else -> 0
+        }
+    }
     return primitive.intOrNull
-        ?: primitive.contentOrNull
-            ?.removePrefix("#")
-            ?.toLongOrNull(16)
-            ?.toInt()
+        ?: raw.toLongOrNull(16)?.toInt()
         ?: 0
 }
 

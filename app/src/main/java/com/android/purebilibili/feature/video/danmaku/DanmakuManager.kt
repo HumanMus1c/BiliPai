@@ -9,8 +9,11 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.Player
@@ -105,7 +108,35 @@ class DanmakuManager private constructor(
     // 视图和控制器
     private var danmakuView: DanmakuRenderView? = null
     private val renderTargets = LinkedHashSet<DanmakuRenderView>()
+    private val renderPauseState = DanmakuRenderPauseState<DanmakuRenderView>()
+    private val isRenderingEnabled: Boolean
+        get() = renderPauseState.isRenderingEnabled(config.isEnabled, danmakuView)
+
+    /** Pause a retained target without clearing its timeline or changing the user's setting. */
+    fun setRenderingPaused(view: DanmakuRenderView, paused: Boolean) {
+        val changed = renderPauseState.setPaused(view, paused)
+        if (!changed || danmakuView !== view) return
+        if (paused) {
+            controller?.pause()
+            view.visibility = android.view.View.INVISIBLE
+            isPlaying = false
+            stopDriftSync()
+        } else if (isRenderingEnabled) {
+            view.visibility = android.view.View.VISIBLE
+            softResyncDanmakuTimeline(
+                positionMs = player?.currentPosition ?: 0L,
+                shouldPlay = player?.isPlaying == true,
+                reason = "transition_resume",
+            )
+            if (isPlaying) startDriftSync()
+        }
+    }
     private var controller: DanmakuEngine? = null
+    /** UP 主身份（owner.mid 的 crc32 hex）；controller 建立前先暂存，attachView 时补绑。 */
+    private var pendingUpOwnerUserHash: String? = null
+    /** 供弹幕池列表等组合层读取当前 UP 主标识。 */
+    var upOwnerUserHash: String? by mutableStateOf<String?>(null)
+        private set
     /** 最近一次成功 replaceWindow 的 controller；用于判断新 view 是否需要补时间线。 */
     private var timelineSyncedController: DanmakuEngine? = null
     /** load 完成时 controller 尚为 null，等 attachView 再补。 */
@@ -197,6 +228,20 @@ class DanmakuManager private constructor(
 
     internal fun bindSessionIdentity(identity: DanmakuSessionIdentity) {
         sessionIdentity = identity
+    }
+
+    /**
+     * 绑定视频 UP 主 mid，用于给 UP 主发送的弹幕渲染 "UP" 徽章。
+     * 与 B 站协议一致：DanmakuElem.midHash 为 mid 字符串的 crc32 hex。
+     */
+    fun bindUpOwnerMid(mid: Long) {
+        pendingUpOwnerUserHash = if (mid > 0L) {
+            DanmakuCloudRuleSyncPolicy.crc32Hex(mid.toString())
+        } else {
+            null
+        }
+        upOwnerUserHash = pendingUpOwnerUserHash
+        controller?.upOwnerUserHash = pendingUpOwnerUserHash
     }
     
     // 便捷属性访问器
@@ -570,7 +615,7 @@ class DanmakuManager private constructor(
         ) {
             return
         }
-        if (config.isEnabled) {
+        if (isRenderingEnabled) {
             danmakuView?.visibility = android.view.View.VISIBLE
         }
         resyncDanmakuTimeline(
@@ -616,17 +661,17 @@ class DanmakuManager private constructor(
                     currentPositionMs = 0L
                 )
             },
-            start = { ctrl.start(positionMs) }
+            start = { if (isRenderingEnabled) ctrl.start(positionMs) }
         )
         if (invalidateView) {
             ctrl.invalidate()
         }
-        if (config.isEnabled) {
+        if (isRenderingEnabled) {
             // A new episode can finish loading after its enable/view effects already ran.
             // Restore visibility at data commit time so the user never has to toggle again.
             danmakuView?.visibility = android.view.View.VISIBLE
         }
-        if (shouldPlay && config.isEnabled) {
+        if (shouldPlay && isRenderingEnabled) {
             isPlaying = true
             if (syncJob?.isActive != true) startDriftSync()
         } else {
@@ -662,7 +707,7 @@ class DanmakuManager private constructor(
         val safePositionMs = positionMs.coerceAtLeast(0L)
         applyPlaybackSpeedToController(ctrl)
         ctrl.synchronizeTo(safePositionMs)
-        if (shouldPlay && config.isEnabled) {
+        if (shouldPlay && isRenderingEnabled) {
             ctrl.start(safePositionMs)
             isPlaying = true
         } else {
@@ -1366,6 +1411,13 @@ class DanmakuManager private constructor(
         }
         danmakuView = view
         controller = view.engine
+        controller?.upOwnerUserHash = pendingUpOwnerUserHash
+        if (!isRenderingEnabled) {
+            controller?.pause()
+            view.visibility = android.view.View.INVISIBLE
+            isPlaying = false
+            stopDriftSync()
+        }
         applyDanmakuClickListener()
         
         Log.w(TAG, "📎 controller obtained: ${controller != null}")
@@ -1457,6 +1509,7 @@ class DanmakuManager private constructor(
     
     /** Detach a render target. A stale target is only allowed to release itself. */
     fun detachView(view: DanmakuRenderView) {
+        renderPauseState.detach(view)
         renderTargets.remove(view)
         if (danmakuView !== view) {
             view.releaseRenderer()
@@ -1482,7 +1535,7 @@ class DanmakuManager private constructor(
      * 根据倍速动态调整检测频率，只校正时间锚点，不清空当前渲染层。
      */
     private fun startDriftSync() {
-        if (isSeekScrubbing) return
+        if (isSeekScrubbing || !isRenderingEnabled) return
         syncJob?.cancel()
         syncJob = scope.launch {
             var tickCount = 0
@@ -1493,7 +1546,7 @@ class DanmakuManager private constructor(
                     .toLong().coerceAtLeast(1L)
                 delay(if (specialWindow != null) minOf(ordinaryInterval, specialInterval) else ordinaryInterval)
                 player?.let { p ->
-                    if (p.isPlaying && config.isEnabled) {
+                    if (p.isPlaying && isRenderingEnabled) {
                         val playerPos = p.currentPosition
                         requestSpecialDanmakuWindow(playerPos, "playback_progress")
                         if (!isPlaying) return@let
@@ -1505,7 +1558,7 @@ class DanmakuManager private constructor(
                             resolveDanmakuGuardAction(
                                 videoSpeed = currentVideoSpeed,
                                 tickCount = tickCount,
-                                danmakuEnabled = config.isEnabled,
+                                danmakuEnabled = isRenderingEnabled,
                                 isPlaying = isPlaying,
                                 hasData = cachedDanmakuList != null
                             )
@@ -1583,7 +1636,7 @@ class DanmakuManager private constructor(
         
         playerListener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
-                if (player.isPlaying && config.isEnabled && specialIndexJob != null &&
+                if (player.isPlaying && isRenderingEnabled && specialIndexJob != null &&
                     syncJob?.isActive != true && !isSeekScrubbing
                 ) startDriftSync()
             }
@@ -1594,7 +1647,7 @@ class DanmakuManager private constructor(
 
                 val syncAction = resolveDanmakuActionForIsPlayingChange(
                     isPlayerPlaying = isPlayerPlaying,
-                    danmakuEnabled = config.isEnabled,
+                    danmakuEnabled = isRenderingEnabled,
                     hasData = cachedDanmakuList != null
                 )
                 when (syncAction) {
@@ -1661,7 +1714,7 @@ class DanmakuManager private constructor(
                 val syncAction = resolveDanmakuActionForPlaybackState(
                     playbackState = playbackState,
                     isPlayerPlaying = exoPlayer.isPlaying,
-                    danmakuEnabled = config.isEnabled,
+                    danmakuEnabled = isRenderingEnabled,
                     hasData = cachedDanmakuList != null,
                     resumedFromBuffering = wasBufferingWhilePlaying
                 )
@@ -1776,7 +1829,7 @@ class DanmakuManager private constructor(
         exoPlayer.addListener(playerListener!!)
 
         if (shouldResyncDanmakuAfterPlayerAttach(
-                danmakuEnabled = config.isEnabled,
+                danmakuEnabled = isRenderingEnabled,
                 hasData = cachedDanmakuList != null,
                 hasController = controller != null
             )
@@ -2138,7 +2191,7 @@ class DanmakuManager private constructor(
                 ) {
                     timelineSyncedController = currentController
                     pendingTimelineResync = false
-                    isPlaying = player?.isPlaying == true && config.isEnabled
+                    isPlaying = player?.isPlaying == true && isRenderingEnabled
                     Log.d(TAG, "Rolled danmaku window forward without timeline restart ($reason)")
                     return@withContext
                 }
@@ -2377,7 +2430,7 @@ class DanmakuManager private constructor(
                 "Special playback window: ${result.startTimeMs}..${result.endTimeMs}ms, " +
                     "advanced=${special.advancedList.size}, BAS=${special.basList.size}"
             )
-            if (player?.isPlaying == true && config.isEnabled && syncJob?.isActive != true) startDriftSync()
+            if (player?.isPlaying == true && isRenderingEnabled && syncJob?.isActive != true) startDriftSync()
         }
     }
 
@@ -2514,6 +2567,13 @@ class DanmakuManager private constructor(
     }
     
     fun show() {
+        if (!isRenderingEnabled) {
+            controller?.pause()
+            danmakuView?.visibility = android.view.View.INVISIBLE
+            isPlaying = false
+            stopDriftSync()
+            return
+        }
         Log.d(TAG, "👁️ show()")
         val alreadyVisible = danmakuView?.visibility == android.view.View.VISIBLE
         danmakuView?.visibility = android.view.View.VISIBLE
@@ -2635,7 +2695,7 @@ class DanmakuManager private constructor(
         val positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
         cancelObsoleteWindowRequest(positionMs)
         requestSpecialDanmakuWindow(positionMs, "seek_scrub_cancel")
-        val shouldPlay = player?.isPlaying == true && config.isEnabled
+        val shouldPlay = player?.isPlaying == true && isRenderingEnabled
         if (shouldPlay) startDriftSync()
         Log.d(TAG, "↩️ cancelSeekScrub() - restoring danmaku at ${positionMs}ms, play=$shouldPlay")
         if (shouldReplaceDanmakuWindow(activeSegmentIndices, positionMs, totalSegmentCount)) {
@@ -2686,7 +2746,7 @@ class DanmakuManager private constructor(
                 shouldPlay = shouldPlay,
                 reason = "manual_seek"
             )
-            if (shouldPlay && config.isEnabled) {
+            if (shouldPlay && isRenderingEnabled) {
                 startDriftSync()
             }
             Log.w(TAG, "⏭️ Danmaku restarted at ${positionMs}ms")
@@ -2709,7 +2769,7 @@ class DanmakuManager private constructor(
                 playWhenReady = playWhenReady,
                 isPlayerPlaying = player?.isPlaying == true,
                 playbackState = playbackState,
-                danmakuEnabled = config.isEnabled,
+                danmakuEnabled = isRenderingEnabled,
                 hasData = cachedDanmakuList != null,
                 preserveTimeline = preserveTimeline,
                 timelineAlreadySynced = controller != null && timelineSyncedController === controller &&
@@ -2871,6 +2931,7 @@ class DanmakuManager private constructor(
         controller = null
         renderTargets.forEach { it.releaseRenderer() }
         renderTargets.clear()
+        renderPauseState.clear()
         danmakuView = null
         
         //  [修复] 重置尺寸记录

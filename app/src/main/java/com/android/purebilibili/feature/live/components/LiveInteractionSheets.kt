@@ -45,7 +45,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
@@ -113,7 +113,8 @@ fun LiveReportDialog(
 @Composable
 fun LiveEmoticonSheet(
     packages: List<LiveEmoticonPackage>,
-    onSelected: (LiveEmoticonItem) -> Unit,
+    onInsertText: (LiveEmoticonItem) -> Unit,
+    onSendEmoticon: (LiveEmoticonItem) -> Unit,
     onDismiss: () -> Unit
 ) {
     val visualSpec = remember { resolveLiveSheetVisualSpec() }
@@ -194,11 +195,19 @@ fun LiveEmoticonSheet(
                         horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                     ) {
-                        items(
+                        itemsIndexed(
                             items = currentEmotes,
-                            key = { "${currentPackage?.id ?: 0}-${it.emoji}" }
-                        ) { item ->
-                            LiveEmoticonGridCell(item = item, onClick = { onSelected(item) })
+                            key = { index, item ->
+                                "${currentPackage?.id ?: 0}-${item.emoticonUnique}-$index"
+                            }
+                        ) { _, item ->
+                            LiveEmoticonGridCell(
+                                item = item,
+                                onClick = {
+                                    if (item.dmType == 0) onInsertText(item)
+                                    else onSendEmoticon(item)
+                                }
+                            )
                         }
                     }
                 }
@@ -226,12 +235,21 @@ private fun LiveEmoticonGridCell(
                 .padding(AppSpacingTokens.Small),
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = item.url,
-                contentDescription = item.description.ifBlank { item.emoji },
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (item.url.isNotBlank()) {
+                AsyncImage(
+                    model = item.url,
+                    contentDescription = item.description.ifBlank { item.emoji },
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                AppText(
+                    text = item.emoji.ifBlank { item.description.ifBlank { "表情" } },
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

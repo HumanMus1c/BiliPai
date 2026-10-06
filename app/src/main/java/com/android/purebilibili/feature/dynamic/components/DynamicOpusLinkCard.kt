@@ -30,7 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import com.android.purebilibili.data.model.response.OpusLinkCard
 
 @Composable
@@ -103,7 +103,7 @@ internal fun DynamicOpusLinkCard(
 private fun LinkCardCover(card: OpusLinkCard) {
     val shape = AppShapes.container(ContainerLevel.Card)
     if (card.cover.isNotBlank()) {
-        AsyncImage(
+        PageAwareAsyncImage(
             model = card.cover,
             contentDescription = card.title,
             modifier = Modifier

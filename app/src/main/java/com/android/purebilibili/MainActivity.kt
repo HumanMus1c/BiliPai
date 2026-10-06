@@ -660,6 +660,8 @@ internal fun splashExitTranslateYDp(): Float = 220f
 internal fun splashExitScaleEnd(): Float = 1.12f
 internal fun splashExitBlurRadiusEnd(): Float = 24f
 internal fun splashMaxKeepOnScreenMs(): Long = 1000L
+internal fun splashExitWaitTimeoutMs(): Long =
+    splashMaxKeepOnScreenMs() + splashExitDurationMs() + 500L
 internal fun customSplashHoldDurationMs(): Long = 1900L
 internal fun customSplashFadeDurationMs(): Int = 1450
 
@@ -1869,10 +1871,22 @@ open class MainActivity : AppCompatActivity() {
                     LaunchedEffect(showSplash, showMaidStartup) {
                         isAppScreenshotBlockedBySplash = showSplash || showMaidStartup
                     }
-                    // Start wallpaper timing only after the native splash has actually left.
-                    // Maid and wallpaper share this interval instead of adding two waits.
-                    LaunchedEffect(showCustomSplashInitially, systemSplashExited) {
-                        if (showCustomSplashInitially && systemSplashExited) {
+                    // Preserve normal handoff timing, but never let a missing native exit
+                    // callback keep the custom wallpaper over the home screen indefinitely.
+                    // The deadline starts once and is not reset by exit-state changes.
+                    LaunchedEffect(showCustomSplashInitially) {
+                        if (showCustomSplashInitially) {
+                            val nativeSplashExited = withTimeoutOrNull(splashExitWaitTimeoutMs()) {
+                                androidx.compose.runtime.snapshotFlow { systemSplashExited }
+                                    .first { it }
+                                true
+                            } ?: false
+                            if (!nativeSplashExited) {
+                                Logger.w(TAG, "Custom splash exit wait timed out; dismissing startup overlays")
+                                // The maid also waits for native handoff before mounting its
+                                // player. Remove that waiting layer so it cannot block touches.
+                                showMaidStartup = false
+                            }
                             delay(customSplashHoldDurationMs())
                             showSplash = false
                         }

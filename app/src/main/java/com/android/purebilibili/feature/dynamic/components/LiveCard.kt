@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.data.model.response.LiveMajor
 import com.android.purebilibili.data.model.response.LiveRcmdMajor
@@ -96,7 +96,7 @@ fun LiveCard(
                 ) {
                     liveInfo.live_play_info?.cover?.let { coverUrl ->
                         val url = if (coverUrl.startsWith("http://")) coverUrl.replace("http://", "https://") else coverUrl
-                        AsyncImage(
+                        PageAwareAsyncImage(
                             model = coil3.request.ImageRequest.Builder(context)
                                 .data(url)
                                 .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())
@@ -222,7 +222,7 @@ fun LiveMajorCard(
                     } else {
                         live.cover
                     }
-                    AsyncImage(
+                    PageAwareAsyncImage(
                         model = coil3.request.ImageRequest.Builder(context)
                             .data(url)
                             .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com/").build())

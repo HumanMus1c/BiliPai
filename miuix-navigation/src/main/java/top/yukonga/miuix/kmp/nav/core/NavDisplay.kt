@@ -42,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.nav.gesture.PredictiveBackHandlerWithSessions
@@ -473,8 +474,13 @@ private fun NavDisplayLayout(
         // A delayed terminal callback from an older session must not settle or release the
         // newer predictive gesture that currently owns the shared driver.
         if (!predictiveBackOwnership.release(session.ownershipLease)) return@cancel
+        val restoreGeneration = predictiveBackOwnership.generation
+        val restoringGesture = presentation.gesture
         presentation.pendingSettleVelocity = 0f
-        backScope.launch {
+        // Claim the Animatable before returning to the event dispatcher. A queued restore
+        // could otherwise start AFTER a new finger has stopped the previous animation.
+        backScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            if (predictiveBackOwnership.generation != restoreGeneration) return@launch
             presentation.trackSettle(phase = NavSettlePhase.Cancel, releaseVelocity = 0f) { onFrame ->
                 presentation.animatedTop.settleCancel(
                     target = topIndex.toFloat(),
@@ -482,7 +488,11 @@ private fun NavDisplayLayout(
                     onFrame = onFrame,
                 )
             }
-            presentation.gesture = null
+            if (predictiveBackOwnership.generation == restoreGeneration &&
+                presentation.gesture === restoringGesture
+            ) {
+                presentation.gesture = null
+            }
         }
     }
     val commitPredictiveBack: (Long) -> Unit = commit@{ sessionId ->

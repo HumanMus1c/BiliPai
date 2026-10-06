@@ -111,35 +111,33 @@ data class LiveListUiState(
     val page: Int = 1,
     val showFirstFrame: Boolean = false,
     val error: String? = null,
+    val loadMoreError: String? = null,
     val livingCount: Int = 0,
 )
 
 class LiveListViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(LiveListUiState(isLoading = true))
     val uiState = _uiState.asStateFlow()
+    private val requests = LiveBrowseRequestPolicy()
 
     init {
         refresh()
     }
 
     fun refresh() {
+        val request = requests.refresh() ?: return
+        val state = _uiState.value
+        _uiState.value = state.copy(
+            isLoading = true, isLoadingMore = false, error = null, loadMoreError = null,
+        )
         viewModelScope.launch {
-            val state = _uiState.value
-            _uiState.value = state.copy(isLoading = true, error = null, page = 1, hasMore = true)
-            when {
-                state.selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX ->
-                    loadRecommendPage(page = 1, append = false)
-                isLiveHomeFollowedTab(state.selectedAreaIndex) ->
-                    loadFollowedPage(page = 1, append = false)
-                else -> loadAreaPage(page = 1, append = false)
-            }
-            // 分区详情子标签仍用 web area list 兜底
+            loadPage(request, state)
+            // 分区详情子标签仍用 web area list 兜底；元数据不依赖当前分类。
             if (_uiState.value.areaList.isEmpty()) {
                 runCatching {
                     val response = NetworkModule.api.getLiveAreaList()
                     if (response.code == 0 && response.data != null) {
-                        val checkedResponseData = requireNotNull(response.data)
-                        _uiState.value = _uiState.value.copy(areaList = checkedResponseData)
+                        _uiState.value = _uiState.value.copy(areaList = requireNotNull(response.data))
                     }
                 }
             }
@@ -148,17 +146,25 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoading || state.isLoadingMore || !state.hasMore) return
-        viewModelScope.launch {
-            val next = state.page + 1
-            _uiState.value = state.copy(isLoadingMore = true)
-            when {
-                state.selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX ->
-                    loadRecommendPage(page = next, append = true)
-                isLiveHomeFollowedTab(state.selectedAreaIndex) ->
-                    loadFollowedPage(page = next, append = true)
-                else -> loadAreaPage(page = next, append = true)
-            }
+        if (state.isLoading || state.isLoadingMore) return
+        val request = requests.loadMore(state.hasMore) ?: return
+        _uiState.value = state.copy(isLoadingMore = true, loadMoreError = null)
+        viewModelScope.launch { loadPage(request, state) }
+    }
+
+    private fun reloadSelection() {
+        requests.invalidate()
+        _uiState.value = _uiState.value.copy(
+            contentItems = emptyList(), isLoadingMore = false, loadMoreError = null,
+        )
+        refresh()
+    }
+
+    private suspend fun loadPage(request: LiveBrowseRequestPolicy.Request, state: LiveListUiState) {
+        when {
+            state.selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX -> loadRecommendPage(request)
+            isLiveHomeFollowedTab(state.selectedAreaIndex) -> loadFollowedPage(request)
+            else -> loadAreaPage(request, state)
         }
     }
 
@@ -177,7 +183,7 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                 isLoading = true,
                 error = null,
             )
-            viewModelScope.launch { loadRecommendPage(page = 1, append = false) }
+            reloadSelection()
             return
         }
         if (isLiveHomeFollowedTab(index)) {
@@ -192,7 +198,7 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                 isLoading = true,
                 error = null,
             )
-            viewModelScope.launch { loadFollowedPage(page = 1, append = false) }
+            reloadSelection()
             return
         }
         val entry = resolveLiveHomeAreaEntries(
@@ -210,7 +216,7 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
             isLoading = true,
             error = null,
         )
-        viewModelScope.launch { loadAreaPage(page = 1, append = false) }
+        reloadSelection()
     }
 
     fun selectSortTag(sortType: String?) {
@@ -224,23 +230,26 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
             isLoading = true,
             error = null,
         )
-        viewModelScope.launch { loadAreaPage(page = 1, append = false) }
+        reloadSelection()
     }
 
     fun toggleShowFirstFrame() {
         _uiState.value = _uiState.value.copy(showFirstFrame = !_uiState.value.showFirstFrame)
     }
 
-    private suspend fun loadRecommendPage(page: Int, append: Boolean) {
+    private suspend fun loadRecommendPage(request: LiveBrowseRequestPolicy.Request) {
+        val page = request.page
+        val append = request.append
         LiveRepository.getLiveFeedHome(page = page).fold(
             onSuccess = { snapshot ->
+                if (!requests.succeed(request)) return@fold
                 val mapped = snapshot.rooms.map { it.toLiveRoomItem() }
                 val followMapped = snapshot.followRooms.map { it.toLiveRoomItem() }
                 val current = _uiState.value
                 val mergedRooms = if (append) {
                     (current.contentItems + mapped).distinctBy { it.roomId }
                 } else {
-                    mapped
+                    mapped.distinctBy { it.roomId }
                 }
                 val areaEntries = when {
                     snapshot.areaEntries.isNotEmpty() -> snapshot.areaEntries
@@ -268,24 +277,29 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                 )
             },
             onFailure = { error ->
+                if (!requests.fail(request)) return@fold
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoadingMore = false,
                     error = if (!append) error.message ?: "加载失败" else _uiState.value.error,
+                    loadMoreError = if (append) error.message ?: "加载更多失败" else null,
                 )
             }
         )
     }
 
-    private suspend fun loadFollowedPage(page: Int, append: Boolean) {
+    private suspend fun loadFollowedPage(request: LiveBrowseRequestPolicy.Request) {
+        val page = request.page
+        val append = request.append
         LiveRepository.getFollowedLivePage(page = page).fold(
             onSuccess = { snapshot ->
+                if (!requests.succeed(request)) return@fold
                 val mapped = snapshot.items.map { it.toLiveRoomItem() }
                 val current = _uiState.value
                 val mergedRooms = if (append) {
                     (current.contentItems + mapped).distinctBy { it.roomId }
                 } else {
-                    mapped
+                    mapped.distinctBy { it.roomId }
                 }
                 _uiState.value = current.copy(
                     contentItems = mergedRooms,
@@ -300,21 +314,28 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                 )
             },
             onFailure = { error ->
+                if (!requests.fail(request)) return@fold
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoadingMore = false,
                     error = if (!append) error.message ?: "加载关注直播失败" else _uiState.value.error,
+                    loadMoreError = if (append) error.message ?: "加载更多失败" else null,
                 )
             }
         )
     }
 
-    private suspend fun loadAreaPage(page: Int, append: Boolean) {
-        val state = _uiState.value
+    private suspend fun loadAreaPage(
+        request: LiveBrowseRequestPolicy.Request,
+        state: LiveListUiState,
+    ) {
+        val page = request.page
+        val append = request.append
         val query = resolveLiveAreaRoomQuery(
             parentAreaId = state.selectedParentAreaId,
             areaId = state.selectedAreaId
         ) ?: run {
+            if (!requests.fail(request)) return
             _uiState.value = state.copy(
                 isLoading = false,
                 isLoadingMore = false,
@@ -329,12 +350,13 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
             sortType = state.selectedSortType,
         ).fold(
             onSuccess = { snapshot ->
+                if (!requests.succeed(request)) return@fold
                 val mapped = snapshot.rooms.map { it.toLiveRoomItem() }
                 val current = _uiState.value
                 val merged = if (append) {
                     (current.contentItems + mapped).distinctBy { it.roomId }
                 } else {
-                    mapped
+                    mapped.distinctBy { it.roomId }
                 }
                 _uiState.value = current.copy(
                     contentItems = merged,
@@ -347,10 +369,12 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                 )
             },
             onFailure = { error ->
+                if (!requests.fail(request)) return@fold
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoadingMore = false,
                     error = if (!append) error.message ?: "加载失败" else _uiState.value.error,
+                    loadMoreError = if (append) error.message ?: "加载更多失败" else null,
                 )
             }
         )
@@ -451,6 +475,28 @@ fun LiveListScreen(
                     onAvatarClick = onAreaListClick
                 )
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = metrics.safeSpaceDp.dp,
+                        end = metrics.safeSpaceDp.dp,
+                        top = metrics.cardSpaceDp.dp
+                    )
+            ) {
+                LiveAreaHomeChipRow(
+                    areaEntries = resolveLiveHomeAreaEntries(
+                        feedEntries = state.areaEntries,
+                        areaParents = state.areaList
+                    ),
+                    selectedAreaIndex = state.selectedAreaIndex,
+                    showFirstFrame = state.showFirstFrame,
+                    onAreaSelected = viewModel::selectHomeArea,
+                    onToggleFirstFrame = viewModel::toggleShowFirstFrame,
+                    onAreaListClick = onAreaListClick,
+                    onMatchClick = onMatchClick,
+                )
+            }
             AdaptivePullToRefreshBox(
                 isRefreshing = state.isLoading,
                 onRefresh = viewModel::refresh,
@@ -483,20 +529,17 @@ fun LiveListScreen(
                             livingCount = state.livingCount,
                             isLoadingMore = state.isLoadingMore,
                             hasMore = state.hasMore,
+                            loadMoreError = state.loadMoreError,
                             showFirstFrame = state.showFirstFrame,
                             gridColumns = gridColumns,
                             bottomPadding = gridBottomPadding,
                             metrics = metrics,
                             visualSpec = visualSpec,
                             onLiveClick = onLiveClick,
-                            onAreaSelected = viewModel::selectHomeArea,
                             onSortTagSelected = viewModel::selectSortTag,
-                            onToggleFirstFrame = viewModel::toggleShowFirstFrame,
                             onLoadMore = viewModel::loadMore,
                             onAreaDetailClick = onAreaDetailClick,
-                            onAreaListClick = onAreaListClick,
                             onFollowingClick = onFollowingClick,
-                            onMatchClick = onMatchClick,
                             onLongPressCard = { card ->
                                 coroutineScope.launch {
                                     val success = com.android.purebilibili.feature.download.DownloadManager
@@ -534,20 +577,17 @@ private fun LiveHomeContent(
     livingCount: Int,
     isLoadingMore: Boolean,
     hasMore: Boolean,
+    loadMoreError: String?,
     showFirstFrame: Boolean,
     gridColumns: Int,
     bottomPadding: androidx.compose.ui.unit.Dp,
     metrics: LiveBiliPaiHomeMetrics,
     visualSpec: LiveVisualSpec,
     onLiveClick: (Long, String, String) -> Unit,
-    onAreaSelected: (Int) -> Unit,
     onSortTagSelected: (String?) -> Unit,
-    onToggleFirstFrame: () -> Unit,
     onLoadMore: () -> Unit,
     onAreaDetailClick: (Int, Int, String) -> Unit,
-    onAreaListClick: () -> Unit,
     onFollowingClick: () -> Unit,
-    onMatchClick: () -> Unit = {},
     onLongPressCard: (LiveRoomCardUiModel) -> Unit = {}
 ) {
     val selectedParent = areaList.firstOrNull { it.id == selectedParentAreaId }
@@ -582,20 +622,6 @@ private fun LiveHomeContent(
                     onLiveClick = onLiveClick
                 )
             }
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            LiveAreaHomeChipRow(
-                areaEntries = resolveLiveHomeAreaEntries(
-                    feedEntries = areaEntries,
-                    areaParents = areaList
-                ),
-                selectedAreaIndex = selectedAreaIndex,
-                showFirstFrame = showFirstFrame,
-                onAreaSelected = onAreaSelected,
-                onToggleFirstFrame = onToggleFirstFrame,
-                onAreaListClick = onAreaListClick,
-                onMatchClick = onMatchClick,
-            )
         }
         if (selectedAreaIndex > LIVE_HOME_FOLLOWED_INDEX && sortTags.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -642,6 +668,7 @@ private fun LiveHomeContent(
                             isLoadingMore = isLoadingMore,
                             contentCount = contentItems.size,
                             hasMore = hasMore,
+                            error = loadMoreError,
                             onLoadMore = onLoadMore,
                         )
                     }
@@ -1018,11 +1045,12 @@ private fun LiveHomeLoadMoreFooter(
     isLoadingMore: Boolean,
     contentCount: Int,
     hasMore: Boolean,
+    error: String?,
     onLoadMore: () -> Unit,
 ) {
     // 滚到底部时自动请求下一页（对齐 BiliPai onLoadMore）
-    LaunchedEffect(contentCount, isLoadingMore, hasMore) {
-        if (hasMore && !isLoadingMore && contentCount > 0) {
+    LaunchedEffect(contentCount, isLoadingMore, hasMore, error) {
+        if (hasMore && !isLoadingMore && error == null && contentCount > 0) {
             onLoadMore()
         }
     }
@@ -1032,11 +1060,17 @@ private fun LiveHomeLoadMoreFooter(
             .padding(vertical = AppSpacingTokens.Medium),
         contentAlignment = Alignment.Center,
     ) {
-        AppText(
-            text = if (isLoadingMore) "加载更多…" else "",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (error != null) {
+            AppOutlinedButton(onClick = onLoadMore) {
+                AppText("$error · 重试")
+            }
+        } else {
+            AppText(
+                text = if (isLoadingMore) "加载更多…" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

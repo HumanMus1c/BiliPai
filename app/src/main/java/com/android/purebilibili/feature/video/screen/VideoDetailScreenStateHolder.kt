@@ -1731,6 +1731,9 @@ internal fun VideoDetailScreenStateHolder(
         )
     }
     val hasResidentReturnCover = residentCoverSource != null
+    var hasDecodedResidentReturnCover by remember(residentCoverSource) {
+        mutableStateOf(false)
+    }
     val detailContentReadyForLiveReturnMorph = shouldTreatVideoDetailContentReadyForLiveReturnMorph(
         hasSuccessfulDetailContent = uiState is VideoPlaybackUiState.Success,
     )
@@ -2160,19 +2163,35 @@ internal fun VideoDetailScreenStateHolder(
         }
     }
     val liveReturnMorph = isLiveReturnMorphFromOwnership(returnCoverOwnership)
+    // Android 15+ avoids the Android 14 SurfaceView/Compose interop recovery path.
+    // Keep the existing surface type (including HDR); only the upper cover fades.
+    val progressiveResidentCoverReturn = shouldUseProgressiveResidentCoverReturn(
+        sdkInt = android.os.Build.VERSION.SDK_INT,
+        ownsInlineCardTransition = entryOwnsMiuixCardTransition && !useTabletLayout &&
+            !isFullscreenMode && !isPortraitFullscreen,
+        hasRenderedFirstFrame = hasRenderedFirstFrameForReturn,
+        hasDecodedResidentCover = hasDecodedResidentReturnCover,
+        liveReturnMorph = liveReturnMorph,
+        forceCoverOnly = forceCoverOnlyOnReturn,
+        reduceMotion = videoCardDepthBackgroundState.motionTierProvider() ==
+            com.android.purebilibili.core.ui.adaptive.MotionTier.Reduced,
+        followProgressEnabled = videoCardDepthBackgroundState
+            .returnContentFollowProgressEnabledProvider(),
+    )
     val useResidentCoverForCommittedReturn = shouldHandResidentCoverFromOwnership(
         ownership = returnCoverOwnership,
         useReturningVisualState = isCommittedCardReturn,
         hasResidentCover = hasResidentReturnCover,
     )
-    // LIVE/TextureView 由上层 resident cover 渐进接管；RESIDENT/SurfaceView 从手势
-    // 起点就让播放器内部进入 cover-only，避免平台 surface 穿透 Compose 层。
-    val forceCoverOnlyForLiveSafeReturn = shouldForceCoverOnlyForReturnOwnership(
-        ownership = returnCoverOwnership,
-        useReturningVisualState = useReturningVideoDetailVisualState,
-        forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
-        isCommittedCardReturn = isCommittedCardReturn,
-    )
+    // Progressive resident return keeps reveal state intact for cancellation. Older
+    // SurfaceView paths still enter cover-only immediately to avoid surface leakage.
+    val forceCoverOnlyForLiveSafeReturn = !progressiveResidentCoverReturn &&
+        shouldForceCoverOnlyForReturnOwnership(
+            ownership = returnCoverOwnership,
+            useReturningVisualState = useReturningVideoDetailVisualState,
+            forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
+            isCommittedCardReturn = isCommittedCardReturn,
+        )
     val videoCardTransitionDensity = LocalDensity.current
     val videoCardDetailChromeAlphaProvider = remember(
         videoCardDepthBackgroundState,
@@ -2192,12 +2211,15 @@ internal fun VideoDetailScreenStateHolder(
             }
         }
     }
-    // Settled 返回运动预算：保 LIVE 一镜到底，旁路减负。
-    // 注意：不在 composition 读 morph progress（会每帧重绘整棵详情树）；
-    // 相位只用 committed / exit 布尔信号；细粒度 alpha 仍在 graphicsLayer 内读 progress。
+    // Budget follows coarse return/restore flags, never frame-rate morph progress.
+    // Ownership is the resolved strategy, even when a resident return has a decoded video frame.
     val returnSessionPhase = resolveVideoDetailReturnSessionPhase(
         isCommittedCardReturn = isCommittedCardReturn,
         isExitTransitionInProgress = isCardReturnExitInProgress,
+        isReturnGestureInProgress = entryOwnsMiuixCardTransition &&
+            videoCardDepthBackgroundState.isReturnGestureInProgressProvider(),
+        isGestureRestoreInProgress = entryOwnsMiuixCardTransition &&
+            videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
         settleProgress = when {
             !isCommittedCardReturn -> 0f
             // 退出过渡进行中：按 Morph 预算（弹幕/控制层减负，不停播）。
@@ -2206,21 +2228,48 @@ internal fun VideoDetailScreenStateHolder(
             else -> 1f
         },
     )
-    // 有实时帧时保留两套内容树：详情控制器/信息与来源卡文字在同一个飞行壳内
-    // 形变，不能提前卸载；无可绘帧的封面路径才允许卸载次要内容。
-    val returnSecondaryContentAlphaPreview =
-        resolveVideoDetailReturnSecondaryContentAlphaPreview(
-            isCommittedCardReturn = isCommittedCardReturn,
-            hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
-        )
+    // Read frame-rate state behind a threshold: only the visible/invisible boundary
+    // invalidates composition. Never detach a body that is still fading inside the card.
+    val returnBodyAlphaIsInvisible by remember(
+        isCommittedCardReturn, liveReturnMorph, detailShellSharedBoundsEnabled,
+        videoCardDepthBackgroundState, currentLandingState.sourceLayout,
+        detailTransitionProgress,
+    ) {
+        derivedStateOf {
+            if (!isCommittedCardReturn || liveReturnMorph) {
+                false
+            } else {
+                val alpha = if (detailShellSharedBoundsEnabled) {
+                    resolveVideoCardSecondaryContentVisualFrame(
+                        morphDepthProgress = videoCardDepthBackgroundState.progressProvider(),
+                        phase = videoCardDepthBackgroundState.phaseProvider(),
+                        isReturnGestureInProgress =
+                            videoCardDepthBackgroundState.isReturnGestureInProgressProvider() ||
+                                videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
+                        motionTier = videoCardDepthBackgroundState.motionTierProvider(),
+                        sourceLayout = currentLandingState.sourceLayout,
+                        followProgressEnabled = videoCardDepthBackgroundState
+                            .returnContentFollowProgressEnabledProvider(),
+                    ).alpha
+                } else {
+                    resolveVideoDetailReturnContentAlpha(
+                        transitionProgress = detailTransitionProgress.value,
+                        isCommittedCardReturn = true,
+                    )
+                }
+                alpha <= 0.02f
+            }
+        }
+    }
     val returnVisualBudget = resolveVideoDetailReturnVisualBudget(
         phase = returnSessionPhase,
         hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
+        ownership = returnCoverOwnership,
         reduceMotion = videoCardDepthBackgroundState.motionTierProvider() ==
             com.android.purebilibili.core.ui.adaptive.MotionTier.Reduced,
-        secondaryContentAlpha = returnSecondaryContentAlphaPreview,
+        secondaryContentAlpha = if (returnBodyAlphaIsInvisible) 0f else 1f,
     )
-    // Live morph 强制 playerMode=LiveMorph 时，有帧才 Live；无帧 Resident（与 ownership 一致）。
+    // Budget describes actual ownership; frame readiness alone cannot select LiveMorph.
     val effectiveDanmakuEnabledForDetail =
         danmakuEnabledForDetail && !shouldPauseHideDanmakuForReturnBudget(returnVisualBudget)
     val detachSecondaryContentForReturn =
@@ -3380,6 +3429,7 @@ internal fun VideoDetailScreenStateHolder(
             transitionEnabled = detailChildTransitionEnabled,
             transitionChromeAlphaProvider = videoCardDetailChromeAlphaProvider,
             danmakuHostActive = !hasCommittedRelatedVideoNavigation,
+            suppressTransientOverlaysForTransition = suppressOverlayControlsForReturn,
             onToggleFullscreen = { toggleFullscreen() },
             playbackActions = playbackActions,
             onDoubleTapLike = engagementViewModel::toggleLike,
@@ -3618,6 +3668,7 @@ internal fun VideoDetailScreenStateHolder(
                         isFullscreen = true,
                         isInPipMode = isPipMode,
                         danmakuHostActive = !hasCommittedRelatedVideoNavigation,
+                        suppressTransientOverlaysForTransition = suppressOverlayControlsForReturn,
                         transitionEnabled = detailChildTransitionEnabled,
                         landscapeCommentPanelVisible = canShowLandscapeComments && landscapeCommentPanelVisible,
                         landscapeCommentPanelOnLeft = landscapeCommentPanelOnLeft,
@@ -4728,6 +4779,7 @@ internal fun VideoDetailScreenStateHolder(
                                 isCommittedCardReturn = isCommittedCardReturn,
                                 hasResidentCover = hasResidentReturnCover,
                                 liveReturnMorph = liveReturnMorph,
+                                progressiveResidentCover = progressiveResidentCoverReturn,
                                 followProgressEnabled = videoCardDepthBackgroundState
                                     .returnContentFollowProgressEnabledProvider(),
                                 isReturnGestureInProgress = returnGestureInProgress,
@@ -4828,6 +4880,7 @@ internal fun VideoDetailScreenStateHolder(
                                 AsyncImage(
                                     model = residentCoverImageRequest,
                                     contentDescription = "cover",
+                                    onSuccess = { hasDecodedResidentReturnCover = true },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .videoDetailReturnMediaLayout(
@@ -4860,7 +4913,7 @@ internal fun VideoDetailScreenStateHolder(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .videoDetailReturnMediaLayout(
+                                    .videoDetailReturnPlayerLayout(
                                         landingLayout = landingLayoutForMedia,
                                         handoffProgressProvider =
                                             returnMediaHandoffProgressProvider,
@@ -5054,7 +5107,7 @@ internal fun VideoDetailScreenStateHolder(
                             when {
                                 suppressPhoneDetailBodyForDirectPortrait &&
                                     uiState !is VideoPlaybackUiState.Error -> Unit
-                                // 仅无实时帧的封面回退允许卸载正文；LiveMorph 内容必须保持
+                                // 封面接管且正文已不可见才允许卸载；LiveMorph 内容必须保持
                                 // composition，并在 Miuix 飞行 entry 内让位给来源卡文字。
                                 detachSecondaryContentForReturn &&
                                     uiState !is VideoPlaybackUiState.Error -> Unit

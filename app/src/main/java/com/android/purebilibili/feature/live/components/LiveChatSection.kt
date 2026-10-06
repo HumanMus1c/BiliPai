@@ -667,6 +667,7 @@ internal fun LiveChatInputBar(
         ) {
             AppIconButton(
                 onClick = onToggleDanmaku,
+                modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp),
             ) {
                 AppIcon(
                     imageVector = Icons.Filled.ChatBubble,
@@ -712,11 +713,13 @@ internal fun LiveChatInputBar(
 
             LiveLikeButton(
                 tint = iconTint,
-                onLike = onLike
+                onLike = onLike,
+                modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp)
             )
 
             AppIconButton(
                 onClick = onOpenEmote,
+                modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp),
             ) {
                 AppIcon(
                     imageVector = Icons.Outlined.EmojiEmotions,
@@ -735,6 +738,7 @@ internal fun LiveChatInputBar(
                         focusManager.clearFocus()
                     }
                 },
+                modifier = Modifier.size(inputVisualSpec.sendButtonSizeDp.dp),
                 enabled = isEnabled,
                 colors = AppIconButtonDefaults.colors(
                     containerColor = if (isOverlay) {
@@ -777,7 +781,7 @@ internal fun LiveLikeButton(
         onDispose { flushJob?.cancel() }
     }
 
-    Box {
+    Box(modifier = modifier) {
         AppIconButton(
             onClick = {
                 likeCount += 1

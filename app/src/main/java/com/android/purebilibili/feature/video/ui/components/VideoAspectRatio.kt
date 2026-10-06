@@ -144,6 +144,7 @@ internal fun applyPlayerViewResizeMode(
     forceRelayout: Boolean,
 ) {
     val current = playerView.resizeMode
+    if (current == resizeMode && !forceRelayout) return
     if (current != resizeMode) {
         playerView.resizeMode = resizeMode
     } else if (forceRelayout) {
@@ -166,43 +167,106 @@ internal fun shouldRefreshMeasuredPlayerViewport(
     return expectedWidth != measuredWidth || expectedHeight != measuredHeight
 }
 
-/**
- * 同步 + 下一帧再刷一次，覆盖上滑全屏首帧约束/ surface attach 竞态。
- */
+/** Coalesce viewport recovery on the View, without retaining disposed players globally. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private class PlayerViewportRefreshController(
+    private val playerView: androidx.media3.ui.PlayerView,
+) : android.view.View.OnAttachStateChangeListener {
+    private data class Request(
+        val resizeMode: Int,
+        val width: Int,
+        val height: Int,
+        val videoWidth: Int,
+        val videoHeight: Int,
+        val player: androidx.media3.common.Player?,
+    )
+
+    private var requested: Request? = null
+    private var completed: Request? = null
+    private var pending: Runnable? = null
+
+    init {
+        playerView.addOnAttachStateChangeListener(this)
+    }
+
+    fun schedule(mode: Int, width: Int, height: Int, videoWidth: Int, videoHeight: Int) {
+        val request = Request(mode, width, height, videoWidth, videoHeight, playerView.player)
+        if (requested == request && pending != null) return
+        // Pager callers may omit expected dimensions: do not cache those as a known
+        // completed viewport, since their next request can represent a new View size.
+        if (completed == request && playerView.resizeMode == mode &&
+            width > 0 && height > 0 && !shouldRefreshMeasuredPlayerViewport(
+                width, height, playerView.width, playerView.height,
+            )
+        ) return
+        cancelPending()
+        requested = request
+        // A real mode change is applied immediately; same-mode recovery waits for layout.
+        applyPlayerViewResizeMode(playerView, mode, forceRelayout = false)
+        if (playerView.isAttachedToWindow) enqueue(request, retry = false)
+    }
+
+    private fun enqueue(request: Request, retry: Boolean) {
+        val callback = Runnable {
+            pending = null
+            if (requested != request || !playerView.isAttachedToWindow) return@Runnable
+            applyPlayerViewResizeMode(playerView, request.resizeMode, forceRelayout = true)
+            // At most one follow-up, and only when there is a known size mismatch.
+            if (!retry && request.width > 0 && request.height > 0 &&
+                shouldRefreshMeasuredPlayerViewport(
+                    request.width, request.height, playerView.width, playerView.height,
+                )
+            ) {
+                enqueue(request, retry = true)
+            } else {
+                completed = request
+            }
+        }
+        pending = callback
+        playerView.postOnAnimation(callback)
+    }
+
+    private fun cancelPending() {
+        pending?.let(playerView::removeCallbacks)
+        pending = null
+    }
+
+    fun cancel() {
+        cancelPending()
+        requested = null
+        completed = null
+    }
+
+    override fun onViewDetachedFromWindow(view: android.view.View) {
+        cancelPending()
+        completed = null
+    }
+
+    override fun onViewAttachedToWindow(view: android.view.View) {
+        requested?.let { enqueue(it, retry = false) }
+    }
+}
+
+/** The latest viewport replaces queued recovery for older sizes or video formats. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal fun schedulePlayerViewViewportRefresh(
     playerView: androidx.media3.ui.PlayerView,
     resizeMode: Int,
     expectedWidth: Int = 0,
     expectedHeight: Int = 0,
+    videoWidth: Int = 0,
+    videoHeight: Int = 0,
 ) {
-    applyPlayerViewResizeMode(
-        playerView = playerView,
-        resizeMode = resizeMode,
-        forceRelayout = true,
-    )
-    playerView.post {
-        applyPlayerViewResizeMode(
-            playerView = playerView,
-            resizeMode = resizeMode,
-            forceRelayout = true,
-        )
-        playerView.postOnAnimation {
-            if (shouldRefreshMeasuredPlayerViewport(
-                    expectedWidth = expectedWidth,
-                    expectedHeight = expectedHeight,
-                    measuredWidth = playerView.width,
-                    measuredHeight = playerView.height
-                )
-            ) {
-                applyPlayerViewResizeMode(
-                    playerView = playerView,
-                    resizeMode = resizeMode,
-                    forceRelayout = true,
-                )
-            }
-        }
-    }
+    val tagId = com.android.purebilibili.R.id.video_player_viewport_refresh_controller
+    val controller = playerView.getTag(tagId) as? PlayerViewportRefreshController
+        ?: PlayerViewportRefreshController(playerView).also { playerView.setTag(tagId, it) }
+    controller.schedule(resizeMode, expectedWidth, expectedHeight, videoWidth, videoHeight)
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+internal fun cancelPlayerViewViewportRefresh(playerView: androidx.media3.ui.PlayerView) {
+    (playerView.getTag(com.android.purebilibili.R.id.video_player_viewport_refresh_controller)
+        as? PlayerViewportRefreshController)?.cancel()
 }
 
 /**

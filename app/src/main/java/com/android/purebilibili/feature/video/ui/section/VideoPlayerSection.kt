@@ -54,6 +54,7 @@ import com.android.purebilibili.feature.video.ui.components.applyPlayerViewResiz
 import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveVideoViewportLayout
 import com.android.purebilibili.feature.video.ui.components.schedulePlayerViewViewportRefresh
+import com.android.purebilibili.feature.video.ui.components.cancelPlayerViewViewportRefresh
 import com.android.purebilibili.feature.video.ui.components.shouldUseFillMaxPlayerViewport
 import com.android.purebilibili.feature.video.ui.components.toAnime4KDisplayScaleMode
 import com.android.purebilibili.feature.video.ui.components.toFullscreenAspectRatio
@@ -70,6 +71,8 @@ import com.android.purebilibili.feature.video.ui.gesture.resolveTwoFingerSpeedGe
 import com.android.purebilibili.feature.video.playback.policy.resolveDisplayedQualityId
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
+import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
+import androidx.compose.runtime.withFrameNanos
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -706,6 +709,7 @@ private fun VideoPlayerSectionContent(
     val transitionEnabled = state.transitionEnabled
     val transitionChromeAlphaProvider = state.transitionChromeAlphaProvider
     val danmakuHostActive = state.danmakuHostActive
+    val suppressTransientOverlaysForTransition = state.suppressTransientOverlaysForTransition
     val endDrawerRequestKey = state.endDrawerRequestKey
     val landscapeCommentPanelVisible = state.landscapeCommentPanelVisible
     val landscapeCommentPanelOnLeft = state.landscapeCommentPanelOnLeft
@@ -1554,12 +1558,13 @@ private fun VideoPlayerSectionContent(
     var dragStartX by remember { mutableFloatStateOf(-1f) }
 
     val latestShowControls = rememberUpdatedState(showControls)
+    val latestSuppressTransientOverlays = rememberUpdatedState(suppressTransientOverlaysForTransition)
     val latestGestureVisible = rememberUpdatedState(isGestureVisible)
     LaunchedEffect(playerState.player, bvid, currentSeekSessionCid, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 val currentSession = sharedSeekSession
-                val shouldPollProgress = shouldPollVideoPlayerProgress(
+                val shouldPollProgress = !latestSuppressTransientOverlays.value && shouldPollVideoPlayerProgress(
                     controlsVisible = latestShowControls.value,
                     gestureVisible = latestGestureVisible.value,
                     isSliderMoving = currentSession.isSliderMoving,
@@ -1679,6 +1684,10 @@ private fun VideoPlayerSectionContent(
     val danmakuManager = rememberDanmakuManager(bvid)
     val overlayDrawerHazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
     var showDanmakuPoolSheet by remember { mutableStateOf(false) }
+    // 关联视频命令弹幕：点击后先确认再跳转
+    var pendingCommandLinkItem by remember {
+        mutableStateOf<com.android.purebilibili.feature.video.danmaku.CommandDanmakuItem?>(null)
+    }
     var showEndDrawer by remember { mutableStateOf(false) }
     var endDrawerInitialTab by remember { mutableIntStateOf(0) }
     LaunchedEffect(endDrawerRequestKey) {
@@ -3610,8 +3619,9 @@ private fun VideoPlayerSectionContent(
         var hasSurfaceRevealSettled by remember(bvid) {
             mutableStateOf(coverBootstrapState.hasStartedSmoothReveal)
         }
-        val revealMotionSpec = remember {
-            resolveVideoPlayerRevealMotionSpec()
+        val reduceRevealMotion = rememberSystemReduceMotion()
+        val revealMotionSpec = remember(reduceRevealMotion) {
+            resolveVideoPlayerRevealMotionSpec(reducedMotion = reduceRevealMotion)
         }
         val surfaceRevealSpec = remember(
             forceCoverDuringReturnAnimation,
@@ -3626,13 +3636,15 @@ private fun VideoPlayerSectionContent(
                 surfaceRevealInitialScale = revealMotionSpec.surfaceRevealInitialScale
             )
         }
-        val playerSurfaceAlpha by animateFloatAsState(
+        val playerSurfaceAlpha = animateFloatAsState(
             targetValue = surfaceRevealSpec.alpha,
-            animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis)
+            animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis),
+            label = "playerSurfaceAlpha",
         )
-        val playerSurfaceScale by animateFloatAsState(
+        val playerSurfaceScale = animateFloatAsState(
             targetValue = surfaceRevealSpec.scale,
-            animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis)
+            animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis),
+            label = "playerSurfaceScale",
         )
 
         // 1. PlayerView (底层) - key 触发 graphicsLayer 强制更新
@@ -3692,11 +3704,27 @@ private fun VideoPlayerSectionContent(
                 }
                 val fillMaxViewport = shouldUseFillMaxPlayerViewport(viewportAspectRatio)
                 val targetResizeMode = viewportAspectRatio.playerResizeMode
+                val transitionBackgroundState = LocalVideoCardTransitionBackgroundState.current
+                val isTransitionActive by remember(transitionBackgroundState) {
+                    derivedStateOf {
+                        val phase = transitionBackgroundState.phaseProvider()
+                        phase == VideoCardTransitionBackgroundPhase.OPENING ||
+                            phase == VideoCardTransitionBackgroundPhase.RETURNING ||
+                            transitionBackgroundState.isReturnGestureInProgressProvider() ||
+                            transitionBackgroundState.isGestureRestoreInProgressProvider()
+                    }
+                }
+
+                DisposableEffect(playerViewRef) {
+                    val view = playerViewRef
+                    onDispose { view?.let(::cancelPlayerViewViewportRefresh) }
+                }
 
                 // 上滑全屏 / 比例切换：容器尺寸与 resizeMode 可能不同步。
                 // Media3 仅在 mode 变化时 remeasure；FILL 右下黑边多为旧 measure 残留。
                 LaunchedEffect(
                     playerViewRef,
+                    playerState.player,
                     viewportLayout.width,
                     viewportLayout.height,
                     targetResizeMode,
@@ -3705,19 +3733,24 @@ private fun VideoPlayerSectionContent(
                     playerVideoSize.width,
                     playerVideoSize.height,
                     measuredPlayerViewportSize,
+                    isTransitionActive,
                 ) {
                     val playerView = playerViewRef ?: return@LaunchedEffect
+                    // Card morph changes the visual bounds, not the playback viewport.
+                    // Recover once the gesture/animation settles, including cancelled back.
+                    if (isTransitionActive) {
+                        cancelPlayerViewViewportRefresh(playerView)
+                        return@LaunchedEffect
+                    }
                     schedulePlayerViewViewportRefresh(
                         playerView = playerView,
                         resizeMode = targetResizeMode,
                         expectedWidth = measuredPlayerViewportSize.width,
                         expectedHeight = measuredPlayerViewportSize.height,
+                        videoWidth = playerVideoSize.width,
+                        videoHeight = playerVideoSize.height,
                     )
                 }
-
-                val transitionBackgroundState = LocalVideoCardTransitionBackgroundState.current
-                val isTransitionActive = transitionBackgroundState.phaseProvider() == VideoCardTransitionBackgroundPhase.OPENING ||
-                    transitionBackgroundState.phaseProvider() == VideoCardTransitionBackgroundPhase.RETURNING
 
                 AndroidView(
                     factory = { ctx ->
@@ -3742,7 +3775,7 @@ private fun VideoPlayerSectionContent(
                             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                             useController = false
                             keepScreenOn = keepVideoPlaybackAwake
-                            // 仅在 sharedBounds 动画活动期（OPENING / RETURNING）将 TextureView 设为半透明，
+                            // 卡片开合、预测预览与取消恢复期间将 TextureView 设为半透明，
                             // 允许底下的封面垫层透出防黑；动画落位后恢复为 opaque 提升正常播放性能与显存带宽。
                             (videoSurfaceView as? TextureView)?.isOpaque = !isTransitionActive
                             applyPlayerViewResizeMode(
@@ -3800,10 +3833,10 @@ private fun VideoPlayerSectionContent(
                         }
                         sizeModifier
                             .onSizeChanged { measuredPlayerViewportSize = it }
-                            .alpha(playerSurfaceAlpha)
                             .graphicsLayer {
-                                val revealAwareScaleX = scale * playerSurfaceScale
-                                val revealAwareScaleY = scale * playerSurfaceScale
+                                alpha = playerSurfaceAlpha.value
+                                val revealAwareScaleX = scale * playerSurfaceScale.value
+                                val revealAwareScaleY = scale * playerSurfaceScale.value
                                 scaleX = if (isFlippedHorizontal) -revealAwareScaleX else revealAwareScaleX
                                 scaleY = if (isFlippedVertical) -revealAwareScaleY else revealAwareScaleY
                                 translationX = panX
@@ -3862,9 +3895,9 @@ private fun VideoPlayerSectionContent(
                                     width = viewportLayout.width.toDp(),
                                     height = viewportLayout.height.toDp()
                                 )
-                                .alpha(playerSurfaceAlpha)
                                 .graphicsLayer {
-                                    val revealAwareScale = scale * playerSurfaceScale
+                                    alpha = playerSurfaceAlpha.value
+                                    val revealAwareScale = scale * playerSurfaceScale.value
                                     scaleX = revealAwareScale
                                     scaleY = revealAwareScale
                                     translationX = panX
@@ -4013,6 +4046,7 @@ private fun VideoPlayerSectionContent(
         isFirstFrameRendered,
         forceCoverDuringReturnAnimation,
         keepCoverForManualStart,
+        revealMotionSpec,
     ) {
         if (
             shouldResetSmoothCoverReveal(
@@ -4028,7 +4062,12 @@ private fun VideoPlayerSectionContent(
             return@LaunchedEffect
         }
         if (hasStartedSmoothReveal) return@LaunchedEffect
-        delay(revealMotionSpec.coverRevealHoldDelayMillis.toLong())
+        // Let the rendered first frame reach a draw boundary instead of adding an
+        // arbitrary 96ms hold on top of the card's spatial motion.
+        withFrameNanos { }
+        if (revealMotionSpec.coverRevealHoldDelayMillis > 0) {
+            delay(revealMotionSpec.coverRevealHoldDelayMillis.toLong())
+        }
         if (
             shouldCommitSmoothCoverReveal(
                 isFirstFrameRendered = isFirstFrameRendered,
@@ -4041,7 +4080,7 @@ private fun VideoPlayerSectionContent(
         }
     }
     // 揭开动画落定前封面保持不透明垫底；落定后再移除（此时视频已完全盖住封面，移除不可见）。
-    LaunchedEffect(bvid, hasStartedSmoothReveal) {
+    LaunchedEffect(bvid, hasStartedSmoothReveal, revealMotionSpec.surfaceRevealDurationMillis) {
         if (!hasStartedSmoothReveal) {
             hasSurfaceRevealSettled = false
             return@LaunchedEffect
@@ -4055,16 +4094,6 @@ private fun VideoPlayerSectionContent(
         hasSurfaceRevealSettled = true
     }
     val isSurfaceRevealSettling = hasStartedSmoothReveal && !hasSurfaceRevealSettled
-    // 揭开叠化窗口内给垫底封面轻微降饱和（不动亮度），视频接管后随落定恢复，
-    // 让混合窗口读作「同一画面渐渐活过来」而不是两张图的叠化。
-    val coverRevealPolishProgress by animateFloatAsState(
-        targetValue = if (isSurfaceRevealSettling) 0f else 1f,
-        animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis),
-        label = "coverRevealPolish",
-    )
-    val coverRevealColorFilter = remember(coverRevealPolishProgress) {
-        resolveVideoPlayerCoverRevealColorFilter(coverRevealPolishProgress)
-    }
     val holdEntryCoverUnderlay = shouldHoldEntryCoverUnderlay(
         isFirstFrameRendered = isFirstFrameRendered,
         forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
@@ -4094,8 +4123,10 @@ private fun VideoPlayerSectionContent(
         isFirstFrameRendered,
         forceCoverDuringReturnAnimation,
         playerState.player.isPlaying,
-        seekSliderMoving
+        seekSliderMoving,
+        suppressTransientOverlaysForTransition,
     ) {
+        if (suppressTransientOverlaysForTransition) return@LaunchedEffect
         if (
             shouldAutoHidePlayerChromeOnPlaybackStart(
                 showControls = showControls,
@@ -4207,6 +4238,15 @@ private fun VideoPlayerSectionContent(
         },
         modifier = Modifier.zIndex(coverLayerZIndex)
     ) {
+        // Keep the per-frame color read inside the cover subtree, away from PlayerView.
+        val coverRevealPolishProgress by animateFloatAsState(
+            targetValue = if (isSurfaceRevealSettling) 0f else 1f,
+            animationSpec = tween(revealMotionSpec.surfaceRevealDurationMillis),
+            label = "coverRevealPolish",
+        )
+        val coverRevealColorFilter = remember(coverRevealPolishProgress) {
+            resolveVideoPlayerCoverRevealColorFilter(coverRevealPolishProgress)
+        }
         val coverCardShape = RoundedCornerShape(
             resolveVideoPlayerCoverCornerDp(
                 sourceCornerDp = videoSharedTransitionVisualSpec.sourceCornerDp,
@@ -4347,7 +4387,7 @@ private fun VideoPlayerSectionContent(
     }
 
     // 2. DanmakuView (使用 ByteDance DanmakuRenderEngine - 覆盖在 PlayerView 上方)
-    val shouldShowDanmakuLayer = danmakuHostActive &&
+    val shouldShowDanmakuLayer = danmakuHostActive && !suppressTransientOverlaysForTransition &&
         !forceCoverDuringReturnAnimation && shouldShowDanmakuLayers(
         isInPipMode = isInPipMode,
         danmakuEnabled = danmakuEnabled,
@@ -4447,6 +4487,7 @@ private fun VideoPlayerSectionContent(
                                 }
                                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
                                 configureAsPassiveDanmakuOverlay()
+                                danmakuManager.setRenderingPaused(this, suppressTransientOverlaysForTransition)
                                 danmakuManager.attachView(this)
                                 Logger.d("VideoPlayerSection") {
                                     "DanmakuView (RenderEngine) created, isFullscreen=$isFullscreen"
@@ -4454,6 +4495,7 @@ private fun VideoPlayerSectionContent(
                             }
                         },
                         update = { view ->
+                            danmakuManager.setRenderingPaused(view, suppressTransientOverlaysForTransition)
                             danmakuManager.updateViewport(viewport)
                             //  [关键] 横竖屏切换后视图尺寸变化时，重新 attachView 确保弹幕正确显示
                             Logger.d("VideoPlayerSection") {
@@ -4484,6 +4526,7 @@ private fun VideoPlayerSectionContent(
                     opacity = danmakuOpacity,
                     fontScale = danmakuFontScale,
                     fontWeight = danmakuFontWeight,
+                    renderingPaused = suppressTransientOverlaysForTransition,
                     modifier = Modifier.fillMaxSize()
                 )
                 com.android.purebilibili.feature.video.ui.overlay.BasDanmakuOverlay(
@@ -4493,6 +4536,7 @@ private fun VideoPlayerSectionContent(
                     opacity = danmakuOpacity,
                     fontScale = danmakuFontScale,
                     fontWeight = danmakuFontWeight,
+                    renderingPaused = suppressTransientOverlaysForTransition,
                     modifier = Modifier.fillMaxSize()
                 )
                 // Keep the classic controls footprint reserved, including in compact/hidden chrome.
@@ -4535,11 +4579,28 @@ private fun VideoPlayerSectionContent(
                         controlsReserveHeightPx = commandControlsReservePx,
                     ),
                     state = commandState,
+                    renderingPaused = suppressTransientOverlaysForTransition,
                     fontScale = danmakuFontScale,
                     items = visibleCommandDanmakuList,
                     player = playerState.player,
                     onFollowClick = onToggleFollow,
                     onTripleClick = onTriple,
+                    onLinkClick = { item ->
+                        val targetBvid = item.linkBvid.ifBlank {
+                            if (item.linkAid > 0L) {
+                                com.android.purebilibili.core.util.IdUtils.av2bv(item.linkAid)
+                            } else ""
+                        }
+                        if (targetBvid.isBlank()) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "关联视频信息缺失，无法跳转",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            pendingCommandLinkItem = item
+                        }
+                    },
                     onVoteSubmit = { item, option, optionIndex ->
                         val success = uiState as? VideoPlaybackUiState.Success
                         if (item.voteKind == com.android.purebilibili.feature.video.danmaku.VoteDanmakuKind.GRADE) {
@@ -4636,6 +4697,38 @@ private fun VideoPlayerSectionContent(
                     isFollowing = isFollowed,
                     modifier = Modifier.fillMaxSize()
                 )
+                // 关联视频命令弹幕：跳转前确认
+                pendingCommandLinkItem?.let { linkItem ->
+                    val dialogTargetBvid = linkItem.linkBvid.ifBlank {
+                        if (linkItem.linkAid > 0L) {
+                            com.android.purebilibili.core.util.IdUtils.av2bv(linkItem.linkAid)
+                        } else ""
+                    }
+                    com.android.purebilibili.core.ui.AppAlertDialog(
+                        onDismissRequest = { pendingCommandLinkItem = null },
+                        title = { AppText("跳转关联视频") },
+                        text = {
+                            AppText("是否跳转到「${linkItem.linkTitle.ifBlank { linkItem.content }}」？")
+                        },
+                        confirmButton = {
+                            AppTextButton(onClick = {
+                                val item = pendingCommandLinkItem
+                                pendingCommandLinkItem = null
+                                if (item != null) {
+                                    commandState.dismiss(item.id)
+                                    onRelatedVideoClick(dialogTargetBvid, null)
+                                }
+                            }) {
+                                AppText("跳转")
+                            }
+                        },
+                        dismissButton = {
+                            AppTextButton(onClick = { pendingCommandLinkItem = null }) {
+                                AppText("取消")
+                            }
+                        },
+                    )
+                }
                 // 3.1 高赞弹幕悬浮条：当前时间窗内点赞 Top-N，支持一键跟发
                 if (danmakuHotBarEnabled) {
                     val hotBarLikedDanmakuIds by actions.likedDanmakuIds
@@ -5283,7 +5376,7 @@ private fun VideoPlayerSectionContent(
                     title = uiState.info.title,
                     // [修复] 竖屏全屏模式下隐藏底部 Overlay，避免进度状态冲突
                     // 手势调节音量/亮度/进度时隐藏控制栏，避免盖住中间手势 UI
-                    isVisible = showControls &&
+                    isVisible = showControls && !suppressTransientOverlaysForTransition &&
                         !isPortraitFullscreen &&
                         gestureMode == VideoGestureMode.None,
                     isFullscreen = isFullscreen,
@@ -5921,7 +6014,7 @@ private fun VideoPlayerSectionContent(
 
             SponsorSkipButton(
                 segment = sponsorSegment,
-                visible = showSponsorSkipButton,
+                visible = showSponsorSkipButton && !suppressTransientOverlaysForTransition,
                 onSkip = onSponsorSkip,
                 onDismiss = onSponsorDismiss,
                 onVote = onSponsorVote,
@@ -5945,6 +6038,7 @@ private fun VideoPlayerSectionContent(
                     .collectAsStateWithLifecycle(initialValue = "", lifecycle = lifecycleOwner.lifecycle)
                 DanmakuPoolSheet(
                     danmakuList = danmakuManager.getLoadedDanmakuList(),
+                    upOwnerUserHash = danmakuManager.upOwnerUserHash,
                     currentPositionMs = playerState.player?.currentPosition ?: 0L,
                     onSeekTo = { posMs ->
                         val commitResult = commitPlaybackSeekInteraction(

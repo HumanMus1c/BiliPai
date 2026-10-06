@@ -24,6 +24,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -32,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,15 +72,16 @@ fun LiveAreaDetailScreen(
     onAreaClick: (Int, Int, String) -> Unit,
     onLiveClick: (Long, String, String) -> Unit,
 ) {
-    var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var rooms by remember { mutableStateOf<List<LiveRoom>>(emptyList()) }
-    var siblings by remember { mutableStateOf<List<LiveAreaChild>>(emptyList()) }
-    var sortType by remember { mutableStateOf("online") }
-    var page by remember { mutableIntStateOf(1) }
-    var hasMore by remember { mutableStateOf(false) }
-    var totalCount by remember { mutableIntStateOf(0) }
-    var isLoadingMore by remember { mutableStateOf(false) }
+    var sortType by remember(parentAreaId, areaId) { mutableStateOf("online") }
+    var isLoading by remember(parentAreaId, areaId, sortType) { mutableStateOf(true) }
+    var error by remember(parentAreaId, areaId, sortType) { mutableStateOf<String?>(null) }
+    var loadMoreError by remember(parentAreaId, areaId, sortType) { mutableStateOf<String?>(null) }
+    var rooms by remember(parentAreaId, areaId, sortType) { mutableStateOf<List<LiveRoom>>(emptyList()) }
+    var siblings by remember(parentAreaId) { mutableStateOf<List<LiveAreaChild>>(emptyList()) }
+    var hasMore by remember(parentAreaId, areaId, sortType) { mutableStateOf(false) }
+    var totalCount by remember(parentAreaId, areaId, sortType) { mutableStateOf(0) }
+    var isLoadingMore by remember(parentAreaId, areaId, sortType) { mutableStateOf(false) }
+    val requests = remember(parentAreaId, areaId, sortType) { LiveBrowseRequestPolicy() }
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
     val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
@@ -114,36 +115,37 @@ fun LiveAreaDetailScreen(
         append(" · $totalCount 个直播间")
     }
 
-    suspend fun loadPage(reset: Boolean) {
+    fun loadPage(reset: Boolean) {
+        val request = if (reset) requests.refresh() else requests.loadMore(hasMore)
+        if (request == null) return
         if (reset) {
             isLoading = true
             error = null
-            page = 1
-            rooms = emptyList()
-            hasMore = false
-            totalCount = 0
-        } else {
-            if (isLoadingMore || !hasMore) return
-            isLoadingMore = true
         }
-        val nextPage = if (reset) 1 else page + 1
-        LiveRepository.getAreaRoomsPage(
-            parentAreaId = parentAreaId,
-            areaId = areaId,
-            page = nextPage,
-            sortType = sortType,
-            areaTitle = title,
-        ).onSuccess { result ->
-            rooms = if (reset) result.rooms else rooms + result.rooms
-            page = nextPage
-            hasMore = result.hasMore
-            totalCount = result.totalCount
-            isLoading = false
-            isLoadingMore = false
-        }.onFailure {
-            error = it.message ?: "加载分区直播失败"
-            isLoading = false
-            isLoadingMore = false
+        loadMoreError = null
+        isLoadingMore = !reset
+        val requestedSort = sortType
+        scope.launch {
+            LiveRepository.getAreaRoomsPage(
+                parentAreaId = parentAreaId,
+                areaId = areaId,
+                page = request.page,
+                sortType = requestedSort,
+                areaTitle = title,
+            ).onSuccess { result ->
+                if (!requests.succeed(request)) return@onSuccess
+                rooms = (if (reset) result.rooms else rooms + result.rooms).distinctBy { it.roomid }
+                hasMore = result.hasMore
+                totalCount = result.totalCount
+                isLoading = false
+                isLoadingMore = false
+            }.onFailure {
+                if (!requests.fail(request)) return@onFailure
+                if (reset) error = it.message ?: "加载分区直播失败"
+                else loadMoreError = it.message ?: "加载更多失败"
+                isLoading = false
+                isLoadingMore = false
+            }
         }
     }
 
@@ -155,10 +157,10 @@ fun LiveAreaDetailScreen(
 
     LaunchedEffect(parentAreaId, areaId, sortType) {
         loadPage(reset = true)
-        loadSiblings()
     }
+    LaunchedEffect(parentAreaId) { loadSiblings() }
 
-    LaunchedEffect(gridState, rooms.size, hasMore, isLoading, isLoadingMore) {
+    LaunchedEffect(gridState, rooms.size, hasMore, isLoading, isLoadingMore, loadMoreError, sortType, parentAreaId, areaId) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
             .distinctUntilChanged()
             .collect { lastVisible ->
@@ -167,6 +169,7 @@ fun LiveAreaDetailScreen(
                     hasMore &&
                     !isLoading &&
                     !isLoadingMore &&
+                    loadMoreError == null &&
                     lastVisible >= rooms.lastIndex - 4
                 ) {
                     loadPage(reset = false)
@@ -245,6 +248,13 @@ fun LiveAreaDetailScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         val liveAreaBackdrop = rememberLayerBackdrop()
+        // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+        val liveAreaBottomPadding = LocalBottomBarContentPadding.current +
+            if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+            } else {
+                0.dp
+            }
         val topContentPadding = innerPadding.calculateTopPadding() + AppSpacingTokens.Small
         Box(
             modifier = Modifier
@@ -264,14 +274,17 @@ fun LiveAreaDetailScreen(
                         start = metrics.safeSpaceDp.dp,
                         end = metrics.safeSpaceDp.dp,
                         top = topContentPadding,
-                        bottom = LocalBottomBarContentPadding.current,
+                        bottom = liveAreaBottomPadding,
                     ),
                     spacing = metrics.cardSpaceDp.dp,
                 )
-                error != null -> LiveAreaDetailState(
-                    error.orEmpty(),
-                    Modifier.weight(1f).padding(top = innerPadding.calculateTopPadding()),
-                )
+                error != null -> Column(
+                    modifier = Modifier.weight(1f).padding(top = innerPadding.calculateTopPadding()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    LiveAreaDetailState(error.orEmpty(), Modifier.weight(1f))
+                    AppButton(onClick = { loadPage(reset = true) }) { AppText("重试") }
+                }
                 rooms.isEmpty() -> LiveAreaDetailState(
                     "暂无该标签直播",
                     Modifier.weight(1f).padding(top = innerPadding.calculateTopPadding()),
@@ -287,7 +300,7 @@ fun LiveAreaDetailScreen(
                         start = metrics.safeSpaceDp.dp,
                         end = metrics.safeSpaceDp.dp,
                         top = topContentPadding,
-                        bottom = LocalBottomBarContentPadding.current,
+                        bottom = liveAreaBottomPadding,
                     ),
                     horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
                     verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
@@ -297,6 +310,16 @@ fun LiveAreaDetailScreen(
                             model = room.toLiveRoomCardUiModel(),
                             onClick = { onLiveClick(room.roomid, room.title, room.uname) },
                         )
+                    }
+                    if (loadMoreError != null) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            AppButton(
+                                onClick = { loadPage(reset = false) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                AppText("$loadMoreError · 重试")
+                            }
+                        }
                     }
                     if (isLoadingMore) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -325,7 +348,7 @@ fun LiveAreaDetailScreen(
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = AppSpacingTokens.Large,
-                        bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
+                        bottom = liveAreaBottomPadding + AppSpacingTokens.Medium,
                     ),
                 backdrop = liveAreaBackdrop,
             )

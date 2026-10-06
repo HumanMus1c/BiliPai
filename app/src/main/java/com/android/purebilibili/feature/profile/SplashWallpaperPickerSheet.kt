@@ -132,10 +132,12 @@ fun SplashWallpaperPickerSheet(
     val titleText = when (target) {
         WallpaperPickerTarget.SPLASH -> "选择开屏壁纸"
         WallpaperPickerTarget.HOME -> "选择首页壁纸"
+        WallpaperPickerTarget.SUBSCRIPTION_ARTICLE -> "选择正文壁纸"
     }
     val actionText = when (target) {
         WallpaperPickerTarget.SPLASH -> "设为开屏壁纸"
         WallpaperPickerTarget.HOME -> "设为首页壁纸"
+        WallpaperPickerTarget.SUBSCRIPTION_ARTICLE -> "设为正文壁纸"
     }
 
     // 初始化加载
@@ -144,7 +146,9 @@ fun SplashWallpaperPickerSheet(
     }
     LaunchedEffect(officialWallpapers) {
         val randomPool = resolveVisibleSplashWallpaperPool(officialWallpapers)
-        SettingsManager.setSplashRandomPoolUris(context, randomPool)
+        if (target != WallpaperPickerTarget.SUBSCRIPTION_ARTICLE) {
+            SettingsManager.setSplashRandomPoolUris(context, randomPool)
+        }
     }
 
     AppModalBottomSheet(
@@ -359,6 +363,13 @@ fun SplashWallpaperPickerSheet(
                             when (target) {
                                 WallpaperPickerTarget.SPLASH -> {
                                     showSplashAdjustmentSheet = true
+                                }
+
+                                WallpaperPickerTarget.SUBSCRIPTION_ARTICLE -> {
+                                    viewModel.setAsSubscriptionArticleWallpaper(url, saveToGallery) {
+                                        onDismiss()
+                                        Toast.makeText(context, "正文壁纸设置成功", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
 
                                 WallpaperPickerTarget.HOME -> {

@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.core.refresh.WatchLaterRefreshBus
@@ -215,6 +215,12 @@ data class WatchLaterUiState(
  * 稍后再看 ViewModel
  */
 class WatchLaterViewModel(application: Application) : AndroidViewModel(application) {
+    private var isPageActive = false
+
+    fun setPageActive(active: Boolean) {
+        isPageActive = active
+    }
+
     private val _uiState = MutableStateFlow(WatchLaterUiState(isLoading = true))
     val uiState = _uiState.asStateFlow()
 
@@ -232,7 +238,8 @@ class WatchLaterViewModel(application: Application) : AndroidViewModel(applicati
     private fun observeWatchLaterRefresh() {
         viewModelScope.launch {
             WatchLaterRefreshBus.changes.collect {
-                loadData(showLoading = false)
+                // The navigation host reloads when this page becomes active again.
+                if (isPageActive) loadData(showLoading = false)
             }
         }
     }
@@ -667,6 +674,10 @@ fun WatchLaterScreen(
     scrollToTopChannel: Channel<Unit>? = null,
     isCurrentPage: Boolean = true
 ) {
+    DisposableEffect(viewModel, isCurrentPage) {
+        viewModel.setPageActive(isCurrentPage)
+        onDispose { viewModel.setPageActive(false) }
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // PiliPlus 式默认单列，双指缩放调节列数
     val windowSizeClass = LocalWindowSizeClass.current
@@ -716,10 +727,14 @@ fun WatchLaterScreen(
             filterCount = WatchLaterFilter.entries.size,
         )
     }
-    val scrollBehavior = if (homeSettings.homeHeaderCollapseMode.hasAnyCollapse) {
-        TopAppBarDefaults.enterAlwaysScrollBehavior()
-    } else {
-        TopAppBarDefaults.pinnedScrollBehavior()
+    val watchLaterHeaderCollapseMode = homeSettings.commonListHeaderCollapseMode
+    val scrollBehavior = when (watchLaterHeaderCollapseMode) {
+        com.android.purebilibili.core.store.CommonListHeaderCollapseMode.ALWAYS_VISIBLE ->
+            TopAppBarDefaults.pinnedScrollBehavior()
+        com.android.purebilibili.core.store.CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL ->
+            TopAppBarDefaults.enterAlwaysScrollBehavior()
+        com.android.purebilibili.core.store.CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY ->
+            TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     }
     var isBatchMode by rememberSaveable { mutableStateOf(false) }
     var selectedBvids by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -775,14 +790,18 @@ fun WatchLaterScreen(
 
     // 分类 tab 行：下滑折叠隐藏，上滑/回顶重新出现
     var watchLaterTabsVisible by remember { mutableStateOf(true) }
-    LaunchedEffect(gridState) {
+    LaunchedEffect(gridState, watchLaterHeaderCollapseMode, scrollBehavior) {
         var lastFirstVisibleItem = 0
         var lastScrollOffset = 0
         snapshotFlow {
             gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset
         }.collect { (firstVisibleItem, scrollOffset) ->
-            if (firstVisibleItem == 0 && scrollOffset < 100) {
+            val isAtTop = firstVisibleItem == 0 && scrollOffset == 0
+            if (watchLaterHeaderCollapseMode == com.android.purebilibili.core.store.CommonListHeaderCollapseMode.ALWAYS_VISIBLE || isAtTop) {
                 watchLaterTabsVisible = true
+                scrollBehavior.state.heightOffset = 0f
+            } else if (watchLaterHeaderCollapseMode == com.android.purebilibili.core.store.CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY) {
+                watchLaterTabsVisible = false
             } else {
                 val isScrollingDown = when {
                     firstVisibleItem > lastFirstVisibleItem -> true
@@ -1089,6 +1108,12 @@ fun WatchLaterScreen(
                     ),
                     scrollBehavior = scrollBehavior
                 )
+                AnimatedVisibility(
+                    visible = watchLaterTabsVisible,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    Column {
                 if (hideListTopSearchBar) {
                     if (showListScopedSearchActiveBar) {
                         com.android.purebilibili.feature.list.ListScopedSearchActiveBar(
@@ -1112,6 +1137,8 @@ fun WatchLaterScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
+                    }
+                }
                 val watchLaterFilterOptions = remember(state.filter, state.totalCount) {
                     WatchLaterFilter.entries.map { filter ->
                         AppSegmentOption(
@@ -1153,7 +1180,15 @@ fun WatchLaterScreen(
         },
         containerColor = AppSurfaceTokens.groupedListContainer()
     ) { padding ->
-        val bottomContentPadding = watchLaterBottomPadding
+        // 听视频小横条悬浮在内容上方时，列表与“播放全部”FAB 上浮避让（与首页 76dp 预留一致）
+        val nowPlayingBarOverlayVisible = com.android.purebilibili.core.ui
+            .rememberNowPlayingBarOverlayVisible()
+        val bottomContentPadding = watchLaterBottomPadding +
+            if (nowPlayingBarOverlayVisible) {
+                com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+            } else {
+                0.dp
+            }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1659,7 +1694,7 @@ private fun WatchLaterVideoCard(
             }
         },
         coverContent = {
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = stationaryCoverRequest,
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,

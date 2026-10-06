@@ -60,6 +60,7 @@ import com.android.purebilibili.core.util.Logger
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.EditNote
@@ -911,7 +912,6 @@ private fun SubscriptionArticleScreen(
     val wallpaperUri = customArticleWallpaperUri.ifBlank {
         resolveHomeWallpaperUri(configuredWallpaperUri, splashWallpaperUri)
     }
-    var wallpaperPickerVisible by remember { mutableStateOf(false) }
     val articleBackground = MaterialTheme.colorScheme.surface
     val dataSaverActive = remember(context) { SettingsManager.isDataSaverActive(context) }
     val wallpaperAppearance = remember(wallpaperEnabled, wallpaperUri, wallpaperMode, articleBackground, dataSaverActive) {
@@ -925,22 +925,8 @@ private fun SubscriptionArticleScreen(
     }
     var actionsExpanded by remember { mutableStateOf(false) }
     var fontScale by remember { mutableIntStateOf(1) }
-    val articleWallpaperPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        com.android.purebilibili.core.util.PickGalleryVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            articleScope.launch {
-                SettingsManager.setSubscriptionArticleWallpaperUri(context, uri.toString())
-                SettingsManager.setSubscriptionArticleWallpaperEnabled(context, true)
-            }
-        }
-    }
+    var articleWallpaperPickerVisible by remember { mutableStateOf(false) }
+    val openArticleWallpaperPicker = { articleWallpaperPickerVisible = true }
     // 文章笔记（本地）：按文章链接为键，写笔记/摘录/摘要草稿共用一个编辑器。
     val noteRevision by ArticleNoteStore.revision.collectAsStateWithLifecycle()
     val savedArticleNote = remember(noteRevision, item.link) { ArticleNoteStore.get(context, item.link) }
@@ -1024,6 +1010,12 @@ private fun SubscriptionArticleScreen(
                 }
             },
             actions = {
+                AppIconButton(onClick = openArticleWallpaperPicker) {
+                    AppIcon(
+                        Icons.Outlined.Wallpaper,
+                        contentDescription = "选择正文壁纸",
+                    )
+                }
                 AppIconButton(onClick = {
                     notePrefillDocument = null
                     noteEditorVisible = true
@@ -1096,19 +1088,10 @@ private fun SubscriptionArticleScreen(
                                 )
                             },
                             onClick = {
-                                wallpaperPickerVisible = true
                                 actionsExpanded = false
+                                openArticleWallpaperPicker()
                             },
                         )
-                        if (wallpaperPickerVisible) {
-                            articleWallpaperPickerLauncher.launch(
-                                androidx.activity.result.PickVisualMediaRequest(
-                                    androidx.activity.result.contract.ActivityResultContracts
-                                        .PickVisualMedia.ImageOnly
-                                )
-                            )
-                            wallpaperPickerVisible = false
-                        }
                         if (customArticleWallpaperUri.isNotBlank()) {
                             AppDropdownMenuItem(
                                 text = { AppText("恢复跟随首页壁纸") },
@@ -1162,6 +1145,12 @@ private fun SubscriptionArticleScreen(
                     }
                 }
             },
+        )
+    }
+    if (articleWallpaperPickerVisible) {
+        com.android.purebilibili.feature.profile.SplashWallpaperPickerSheet(
+            target = com.android.purebilibili.feature.profile.WallpaperPickerTarget.SUBSCRIPTION_ARTICLE,
+            onDismiss = { articleWallpaperPickerVisible = false },
         )
     }
     AppSurface(

@@ -1,6 +1,7 @@
 package com.android.purebilibili.core.ui.transition
 
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.SpringSpec
@@ -12,7 +13,6 @@ import com.android.purebilibili.core.ui.adaptive.AdaptiveFoldPosture
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfileSpec
 import com.android.purebilibili.core.ui.adaptive.toAdaptiveWidthClass
-import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
 import kotlin.math.hypot
@@ -38,16 +38,21 @@ internal object VideoHeroMotionTokens {
     const val SPRING_SETTLING_FACTOR = 8.3f
 }
 
+// Card-only curve: distribute more travel across the middle and shorten the nearly
+// stationary tail. Do not change global motion tokens or re-ease interactive progress.
+private val VIDEO_CARD_SPATIAL_EASING: Easing =
+    CubicBezierEasing(0.24f, 0.60f, 0.32f, 1f)
+
 internal data class VideoHeroMotionSpec(
     val enterDurationMillis: Int,
     val returnDurationMillis: Int,
     val cancelDurationMillis: Int,
     val reducedMotion: Boolean = false,
 ) {
-    val enterSpatialSpec: Easing get() = AppMotionEasing.Continuity
+    val enterSpatialSpec: Easing get() = VIDEO_CARD_SPATIAL_EASING
     // The driver itself must NOT overshoot: Miuix unloads an entry at relativeDepth <= -1.
     // Do not add a flying-layer landing pulse; it drifts off the frozen card bounds.
-    val returnSpatialSpec: Easing get() = AppMotionEasing.Continuity
+    val returnSpatialSpec: Easing get() = VIDEO_CARD_SPATIAL_EASING
     val predictiveSeekSpec: Easing get() = LinearEasing
     val effectsEasing: Easing get() = LinearEasing // progress is already eased by the owner
     val handoffTimeline get() = VideoCardTransitionVisualTimeline
@@ -208,8 +213,8 @@ private const val VIDEO_CARD_HERO_SPRING_MAX_STIFFNESS = 500f
 internal const val VIDEO_CARD_RETURN_SPRING_SETTLE_BUFFER_MS = 48
 // 约 1px：遗留 spring API 收敛阈值。
 private val VIDEO_CARD_HERO_BOUNDS_VISIBILITY_THRESHOLD = Rect(1f, 1f, 1f, 1f)
-// 透明度与进场空间统一 Continuity，避免淡入淡出和位移抢拍。
-private val VIDEO_CARD_ALPHA_EASING = AppMotionEasing.Continuity
+// Alpha and automatic spatial motion share the card curve to keep content in phase.
+private val VIDEO_CARD_ALPHA_EASING = VIDEO_CARD_SPATIAL_EASING
 
 enum class VideoSharedTransitionSpeed(val value: Int, val label: String) {
     FAST(0, "快速"),
@@ -289,7 +294,7 @@ internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing =
 internal fun resolveVideoCardTransitionBackgroundReturnClearEasing(): Easing =
     LinearEasing
 
-internal fun resolveVideoCardSharedTransitionSpatialEasing(): Easing = AppMotionEasing.Continuity
+internal fun resolveVideoCardSharedTransitionSpatialEasing(): Easing = VIDEO_CARD_SPATIAL_EASING
 
 internal fun resolveVideoSharedTransitionSpatialStiffness(durationMillis: Int): Float {
     val safeDurationMillis = durationMillis.coerceAtLeast(1).toFloat()
@@ -674,12 +679,12 @@ internal fun resolveVideoMetadataSharedTransitionMotionSpec(
 
 /**
  * Hero 空间曲线：
- * - 进场（卡片→详情）：Continuity，先快后慢
+ * - 进场（卡片→详情）：卡片专用减速曲线
  * - 返回（详情→卡片）：Linear，保证预测返回 seek 与手指进度 1:1，
  *   松手后 remainingDuration 可按固定时长推算，避免 soft spring 导致
  *   「划一半有特效、松手一闪落位」以及完整加载后返回动画被瞬时掐掉
  *
- * 景深 / alpha 仍用 Continuity，落位柔和感由它们承担。
+ * 景深 / 内容读取统一进度；alpha 与自动空间动画共用卡片曲线。
  */
 internal fun resolveVideoSharedElementSpatialEasing(
     initialBounds: Rect,

@@ -21,6 +21,7 @@ internal data class VideoSharePayload(
 
 internal enum class VideoShareTarget(val packageName: String?) {
     BILIBILI_FRIENDS(null),
+    BILIBILI_DYNAMIC(null),
     WECHAT(WECHAT_PACKAGE_NAME),
     QQ(QQ_PACKAGE_NAME),
     COPY_LINK(null),

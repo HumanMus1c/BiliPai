@@ -40,12 +40,12 @@ internal fun hasMoreLiveAreaRooms(
     loadedCount: Int,
     page: Int,
     pageSize: Int,
-    hasMoreFlag: Int,
+    hasMoreFlag: Int?,
     totalCount: Int
 ): Boolean {
     if (loadedCount <= 0) return false
-    if (hasMoreFlag > 0) return true
-    if (totalCount > 0) return page * pageSize < totalCount
+    if (hasMoreFlag != null) return hasMoreFlag == 1
+    if (totalCount > 0) return page.toLong() * pageSize < totalCount
     return loadedCount >= pageSize
 }
 

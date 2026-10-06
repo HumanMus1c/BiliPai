@@ -34,7 +34,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,10 +80,11 @@ fun LiveFollowingScreen(
     var isLoadingMore by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var hasMore by remember { mutableStateOf(false) }
-    var nextPage by remember { mutableIntStateOf(1) }
     var error by remember { mutableStateOf<String?>(null) }
+    var loadMoreError by remember { mutableStateOf<String?>(null) }
     var items by remember { mutableStateOf<List<LiveRoom>>(emptyList()) }
     val coroutineScope = rememberCoroutineScope()
+    val requests = remember { LiveBrowseRequestPolicy() }
 
     fun mergeRooms(current: List<LiveRoom>, next: List<LiveRoom>, refresh: Boolean): List<LiveRoom> {
         return if (refresh) {
@@ -94,19 +94,35 @@ fun LiveFollowingScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        LiveRepository.getFollowedLivePage(page = 1)
-            .onSuccess { page ->
-                items = mergeRooms(emptyList(), page.items, refresh = true)
-                hasMore = page.hasMore
-                nextPage = page.nextPage
-                isLoading = false
-            }
-            .onFailure {
-                error = it.message ?: "加载关注直播失败"
-                isLoading = false
-            }
+    fun loadPage(refresh: Boolean) {
+        val request = if (refresh) requests.refresh() else requests.loadMore(hasMore)
+        if (request == null) return
+        error = null
+        loadMoreError = null
+        isLoadingMore = !refresh
+        isRefreshing = refresh && !isLoading
+        coroutineScope.launch {
+            LiveRepository.getFollowedLivePage(page = request.page)
+                .onSuccess { page ->
+                    if (!requests.succeed(request, page.nextPage)) return@onSuccess
+                    items = mergeRooms(items, page.items, refresh)
+                    hasMore = page.hasMore
+                    isLoading = false
+                    isRefreshing = false
+                    isLoadingMore = false
+                }
+                .onFailure {
+                    if (!requests.fail(request)) return@onFailure
+                    if (refresh) error = it.message ?: "加载关注直播失败"
+                    else loadMoreError = it.message ?: "加载更多失败"
+                    isLoading = false
+                    isRefreshing = false
+                    isLoadingMore = false
+                }
+        }
     }
+
+    LaunchedEffect(Unit) { loadPage(refresh = true) }
 
     AppScaffold(
         blurContentReady = !isLoading,
@@ -125,20 +141,7 @@ fun LiveFollowingScreen(
                 actions = {
                     AppIconButton(
                         enabled = !isLoading && !isRefreshing,
-                        onClick = {
-                            coroutineScope.launch {
-                                isRefreshing = true
-                                error = null
-                                LiveRepository.getFollowedLivePage(page = 1)
-                                    .onSuccess { page ->
-                                        items = mergeRooms(emptyList(), page.items, refresh = true)
-                                        hasMore = page.hasMore
-                                        nextPage = page.nextPage
-                                    }
-                                    .onFailure { error = it.message ?: "刷新关注直播失败" }
-                                isRefreshing = false
-                            }
-                        },
+                        onClick = { loadPage(refresh = true) },
                     ) {
                         AppIcon(
                             imageVector = Icons.Outlined.Refresh,
@@ -158,7 +161,7 @@ fun LiveFollowingScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             )
-            error != null -> Box(
+            error != null && items.isEmpty() -> Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -181,6 +184,9 @@ fun LiveFollowingScreen(
                     horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
                     verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
                 ) {
+                    if (error != null) {
+                        item { AppText(error.orEmpty(), color = colorScheme.onSurfaceVariant) }
+                    }
                     items(items, key = { it.roomid }) { item ->
                         LiveRoomCard(
                             model = LiveRoomCardUiModel(
@@ -198,23 +204,15 @@ fun LiveFollowingScreen(
                     item {
                         if (hasMore || isLoadingMore) {
                             AppButton(
-                                enabled = !isLoadingMore,
+                                enabled = !isLoading && !isRefreshing && !isLoadingMore,
                                 modifier = Modifier.fillMaxWidth(),
-                                onClick = {
-                                    coroutineScope.launch {
-                                        isLoadingMore = true
-                                        LiveRepository.getFollowedLivePage(page = nextPage)
-                                            .onSuccess { page ->
-                                                items = mergeRooms(items, page.items, refresh = false)
-                                                hasMore = page.hasMore
-                                                nextPage = page.nextPage
-                                            }
-                                            .onFailure { error = it.message ?: "加载更多失败" }
-                                        isLoadingMore = false
-                                    }
-                                },
+                                onClick = { loadPage(refresh = false) },
                             ) {
-                                AppText(if (isLoadingMore) "加载中" else "加载更多")
+                                AppText(
+                                    if (isLoadingMore) "加载中"
+                                    else if (loadMoreError != null) "$loadMoreError · 重试"
+                                    else "加载更多"
+                                )
                             }
                         }
                     }

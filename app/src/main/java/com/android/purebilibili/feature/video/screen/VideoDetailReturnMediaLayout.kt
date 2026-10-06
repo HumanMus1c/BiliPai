@@ -1,8 +1,14 @@
 package com.android.purebilibili.feature.video.screen
 
-import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
@@ -10,6 +16,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSourceLayout
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** Click-time source geometry used only to align the real detail media with the source cover. */
@@ -299,3 +306,91 @@ internal fun Modifier.videoDetailReturnMediaLayout(
         shape = RoundedCornerShape(clipCornerDp * progress)
     } else Modifier,
 )
+
+internal data class VideoDetailReturnPlayerTransform(
+    val translationXPx: Float,
+    val translationYPx: Float,
+    val scale: Float,
+)
+
+/** Cover the changing media slot without stretching or resizing the playback surface. */
+internal fun resolveVideoDetailReturnPlayerTransform(
+    contentWidthPx: Int,
+    contentHeightPx: Int,
+    frame: VideoDetailReturnMediaLayoutFrame,
+): VideoDetailReturnPlayerTransform {
+    val width = contentWidthPx.coerceAtLeast(1)
+    val height = contentHeightPx.coerceAtLeast(1)
+    val scale = max(frame.widthPx.toFloat() / width, frame.heightPx.toFloat() / height)
+    return VideoDetailReturnPlayerTransform(
+        translationXPx = frame.offsetXPx + (frame.widthPx - width * scale) / 2f,
+        translationYPx = frame.offsetYPx + (frame.heightPx - height * scale) / 2f,
+        scale = scale,
+    )
+}
+
+/** Animation state is read in placement/draw; PlayerView keeps its detail measurement. */
+internal fun Modifier.videoDetailReturnPlayerLayout(
+    landingLayout: VideoDetailReturnSourceCardLayout?,
+    handoffProgressProvider: () -> Float,
+    inverseScaleXProvider: () -> Float,
+    inverseScaleYProvider: () -> Float,
+    clipCornerDp: Dp = 0.dp,
+    nativeSnapshotBoundsProvider: (() -> Rect?)? = null,
+): Modifier {
+    fun frame(width: Int, height: Int) = resolveVideoDetailReturnMediaLayoutFrame(
+        containerWidthPx = width,
+        containerHeightPx = height,
+        landingLayout = landingLayout,
+        handoffProgress = handoffProgressProvider(),
+        inverseScaleX = inverseScaleXProvider(),
+        inverseScaleY = inverseScaleYProvider(),
+        nativeSnapshotBounds = nativeSnapshotBoundsProvider?.invoke(),
+    )
+    // Clip outside the transformed child so the clip stays in media-slot coordinates.
+    return drawWithCache {
+        val path = Path()
+        onDrawWithContent {
+            val mediaFrame = frame(size.width.roundToInt(), size.height.roundToInt())
+            val hasTargetGeometry = landingLayout?.canRender == true ||
+                nativeSnapshotBoundsProvider?.invoke()?.let { it.width > 1f && it.height > 1f } == true
+            val radius = if (hasTargetGeometry) {
+                clipCornerDp.toPx() * handoffProgressProvider().coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            path.reset()
+            path.addRoundRect(
+                RoundRect(
+                    Rect(
+                        mediaFrame.offsetXPx.toFloat(),
+                        mediaFrame.offsetYPx.toFloat(),
+                        (mediaFrame.offsetXPx + mediaFrame.widthPx).toFloat(),
+                        (mediaFrame.offsetYPx + mediaFrame.heightPx).toFloat(),
+                    ),
+                    CornerRadius(radius, radius),
+                ),
+            )
+            clipPath(path) { this@onDrawWithContent.drawContent() }
+        }
+    }.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) {
+            if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
+                placeable.place(0, 0)
+            } else {
+                val transform = resolveVideoDetailReturnPlayerTransform(
+                    placeable.width, placeable.height,
+                    frame(placeable.width, placeable.height),
+                )
+                placeable.placeWithLayer(0, 0) {
+                    transformOrigin = TransformOrigin(0f, 0f)
+                    translationX = transform.translationXPx
+                    translationY = transform.translationYPx
+                    scaleX = transform.scale
+                    scaleY = transform.scale
+                }
+            }
+        }
+    }
+}

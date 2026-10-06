@@ -13,6 +13,47 @@ import kotlin.test.assertTrue
 class VideoPlayerCoverPolicyTest {
 
     @Test
+    fun firstFrameRevealHasNoFixedHoldOrSecondZoom() {
+        val motion = resolveVideoPlayerRevealMotionSpec()
+        assertEquals(0, motion.coverRevealHoldDelayMillis)
+        assertTrue(motion.surfaceRevealDurationMillis in 100..160)
+        val hidden = resolveVideoPlayerSurfaceRevealSpec(
+            forceCoverDuringReturnAnimation = false,
+            shouldKeepCoverForManualStart = false,
+            hasStartedSmoothReveal = false,
+            surfaceRevealInitialScale = motion.surfaceRevealInitialScale,
+        )
+        assertEquals(0f, hidden.alpha)
+        assertEquals(1f, hidden.scale)
+    }
+
+    @Test
+    fun reducedMotionShortensRevealWithoutRemovingOpaqueCoverUnderlay() {
+        val normal = resolveVideoPlayerRevealMotionSpec()
+        val reduced = resolveVideoPlayerRevealMotionSpec(reducedMotion = true)
+        assertTrue(reduced.surfaceRevealDurationMillis < normal.surfaceRevealDurationMillis)
+        assertEquals(0, reduced.coverRevealHoldDelayMillis)
+        assertEquals(1f, reduced.surfaceRevealInitialScale)
+        assertTrue(shouldHoldEntryCoverUnderlay(
+            isFirstFrameRendered = true,
+            forceCoverDuringReturnAnimation = false,
+            shouldKeepCoverForManualStart = false,
+            hasStartedSmoothReveal = true,
+            isSurfaceRevealSettling = true,
+        ))
+        assertTrue(resolveVideoPlayerCoverRevealSettleDelayMillis(
+            reduced.surfaceRevealDurationMillis,
+        ) > reduced.surfaceRevealDurationMillis)
+        assertFalse(shouldHoldEntryCoverUnderlay(
+            isFirstFrameRendered = true,
+            forceCoverDuringReturnAnimation = false,
+            shouldKeepCoverForManualStart = false,
+            hasStartedSmoothReveal = true,
+            isSurfaceRevealSettling = false,
+        ))
+    }
+
+    @Test
     fun immediatePlaybackCoverBecomesThePlayerUnderlay() {
         assertEquals(
             -1f,

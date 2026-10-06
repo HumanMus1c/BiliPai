@@ -37,5 +37,6 @@ open class TextData: DanmakuData() {
     var textStrokeColor: Int? = null
     var includeFontPadding: Boolean? = null
     var hasUnderline: Boolean = false
+    var isUpOwner: Boolean = false
 
 }

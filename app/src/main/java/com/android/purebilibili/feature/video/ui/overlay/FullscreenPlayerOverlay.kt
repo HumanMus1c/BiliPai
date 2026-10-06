@@ -342,7 +342,7 @@ fun FullscreenPlayerOverlay(
     var swipeExitAccumulatedY by remember { mutableFloatStateOf(0f) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     // Default to 15s so seek UI/haptics work immediately before prefs load (null blocked delta).
-    val fullscreenSwipeSeekSeconds by produceState(initialValue = 15, context) {
+    val fullscreenSwipeSeekSeconds by produceState(initialValue = 0, context) {
         SettingsManager.getFullscreenSwipeSeekSeconds(context)
             .collectLatest { value = it }
     }
@@ -913,7 +913,7 @@ fun FullscreenPlayerOverlay(
                                     totalDragDistanceX = dragDelta,
                                     containerWidthPx = screenWidth,
                                     fullscreenSwipeSeekSeconds = fullscreenSwipeSeekSeconds,
-                                    inlineSwipeSeekSeconds = 30,
+                                    inlineSwipeSeekSeconds = 0,
                                     gestureSensitivity = 1f
                                 )
                                 if (seekDelta != null) {
@@ -1014,7 +1014,11 @@ fun FullscreenPlayerOverlay(
             if (currentCid > 0 && danmakuEnabled) {
                 danmakuManager.updateSettings(settings = danmakuSettings)
                 danmakuManager.isEnabled = true
-                
+                // UP 主弹幕徽章：全屏路径经小窗管理器，owner.mid 从其缓存的详情状态取
+                danmakuManager.bindUpOwnerMid(
+                    miniPlayerManager.cachedUiState?.info?.owner?.mid ?: 0L
+                )
+
                 // 等待播放器 duration 可用后再加载弹幕，启用 Protobuf API
                 var durationMs = player?.duration ?: 0L
                 var retries = 0

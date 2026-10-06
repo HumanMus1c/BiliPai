@@ -6,8 +6,15 @@ import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class DynamicCreateFeedRequest(
-    val dyn_req: DynamicCreateFeedReq
+    val dyn_req: DynamicCreateFeedReq,
+    val web_repost_src: DynamicVideoRepostSource? = null,
 )
+
+@Serializable
+data class DynamicVideoRepostSource(val revs_id: DynamicVideoRepostResource)
+
+@Serializable
+data class DynamicVideoRepostResource(val rid: Long, val dyn_type: Int)
 
 @Serializable
 data class DynamicEditFeedRequest(

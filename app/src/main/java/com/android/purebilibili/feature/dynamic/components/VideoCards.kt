@@ -53,7 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
@@ -286,7 +286,7 @@ private fun VideoCardLargeCover(
             TextStyle(shadow = resolveVideoCardCoverOverlayTextShadow())
         }
         if (coverUrl.isNotEmpty()) {
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = coverRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),

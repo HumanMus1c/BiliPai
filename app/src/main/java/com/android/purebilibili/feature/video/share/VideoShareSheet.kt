@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.DynamicFeed
+import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +92,7 @@ internal fun VideoShareSheet(
     var sharingTarget by remember { mutableStateOf<VideoShareTarget?>(null) }
     var switchingSheet by remember { mutableStateOf(false) }
     var showFollowingPicker by remember { mutableStateOf(false) }
+    var showDynamicComposer by remember { mutableStateOf(false) }
     var showMoreTargets by remember { mutableStateOf(false) }
     var moreShareMedia by remember { mutableStateOf<VideoShareCoverFile?>(null) }
     var shareStyle by remember { mutableStateOf(VideoShareStyle.LINK) }
@@ -102,6 +105,14 @@ internal fun VideoShareSheet(
         )
     }
     val items = listOf(
+        VideoShareSheetItem(
+            target = VideoShareTarget.BILIBILI_DYNAMIC,
+            label = "分享到动态",
+            iconText = null,
+            iconVector = Icons.Outlined.DynamicFeed,
+            backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
         VideoShareSheetItem(
             target = VideoShareTarget.BILIBILI_FRIENDS,
             label = "B 站好友",
@@ -144,6 +155,10 @@ internal fun VideoShareSheet(
         )
     )
 
+    if (showDynamicComposer) {
+        VideoShareToDynamicDialog(payload = payload, onDismiss = onDismiss)
+        return
+    }
     if (showFollowingPicker) {
         VideoShareToFollowingDialog(
             payload = payload,
@@ -236,7 +251,20 @@ internal fun VideoShareSheet(
                     VideoShareSheetItemView(
                         item = item,
                         onClick = {
+                            if (sharingTarget != null || switchingSheet) return@VideoShareSheetItemView
                             when (item.target) {
+                                VideoShareTarget.BILIBILI_DYNAMIC -> {
+                                    if (sharingTarget != null || switchingSheet) return@VideoShareSheetItemView
+                                    if (TokenManager.csrfCache.isNullOrBlank()) {
+                                        Toast.makeText(context, "请先登录后分享到动态", Toast.LENGTH_SHORT).show()
+                                        return@VideoShareSheetItemView
+                                    }
+                                    switchingSheet = true
+                                    shareScope.launch {
+                                        hideVideoShareSheet(sheetState)
+                                        showDynamicComposer = true
+                                    }
+                                }
                                 VideoShareTarget.BILIBILI_FRIENDS -> {
                                     if (sharingTarget != null) return@VideoShareSheetItemView
                                     switchingSheet = true
@@ -367,9 +395,9 @@ private fun VideoShareSheetItemView(
     ) {
         Box(
             modifier = Modifier
-                .size(58.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .background(item.backgroundColor)
+                .background(if (appIcon == null) item.backgroundColor else Color.Transparent)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
@@ -379,7 +407,9 @@ private fun VideoShareSheetItemView(
                         scaleType = ImageView.ScaleType.FIT_CENTER
                     } },
                     update = { it.setImageDrawable(appIcon) },
-                    modifier = Modifier.size(58.dp),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
                 )
             } else if (item.iconVector != null) {
                 if (item.target == VideoShareTarget.BILIBILI_FRIENDS) {

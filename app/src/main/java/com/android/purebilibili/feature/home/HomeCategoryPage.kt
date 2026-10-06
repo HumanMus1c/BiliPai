@@ -41,11 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -771,53 +768,33 @@ internal fun HomeCategoryPageContent(
                             contentType = "home_video_row",
                             span = StaggeredGridItemSpan.FullLine,
                         ) {
-                            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                                // The same videos can survive rotation or sidebar resizing. Their
-                                // previous row height is valid only for the same measured width.
-                                val rowDensity = LocalDensity.current
-                                val rowHeightPx = remember(
-                                    rowKey, constraints.maxWidth, rowDensity.density,
-                                    rowDensity.fontScale, cardLayout,
-                                ) { mutableIntStateOf(0) }
-                                Row(
-                                    modifier = videoListItemModifier(enabled = cardAnimationEnabled && !cardReflowActive)
-                                        .fillMaxWidth(),
-                                    horizontalArrangement = horizontalArrangement,
-                                    verticalAlignment = Alignment.Top,
-                                ) {
-                                    rowIndices.forEach { index ->
-                                        key(videoGridKeys[index]) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .layout { measurable, incoming ->
-                                                        val minimumHeight = rowHeightPx.intValue.coerceIn(
-                                                            incoming.minHeight, incoming.maxHeight,
-                                                        )
-                                                        val placeable = measurable.measure(
-                                                            incoming.copy(minHeight = minimumHeight),
-                                                        )
-                                                        layout(placeable.width, placeable.height) {
-                                                            placeable.placeRelative(0, 0)
-                                                        }
-                                                    }
-                                                    .onSizeChanged { size ->
-                                                        if (size.height > rowHeightPx.intValue) {
-                                                            rowHeightPx.intValue = size.height
-                                                        }
-                                                    },
-                                            ) {
-                                                renderVideoCard(
-                                                    index,
-                                                    visibleGridVideos[index],
-                                                    Modifier.fillMaxWidth().fillMaxHeight(),
-                                                )
-                                            }
+                            // Measure the current row's natural height before stretching its
+                            // cards. A remembered maximum feeds forced heights back into later
+                            // measurements and can preserve a transient oversized lazy item.
+                            Row(
+                                modifier = videoListItemModifier(enabled = cardAnimationEnabled && !cardReflowActive)
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min),
+                                horizontalArrangement = horizontalArrangement,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                rowIndices.forEach { index ->
+                                    key(videoGridKeys[index]) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight(),
+                                        ) {
+                                            renderVideoCard(
+                                                index,
+                                                visibleGridVideos[index],
+                                                Modifier.fillMaxSize(),
+                                            )
                                         }
                                     }
-                                    repeat(gridColumns - rowIndices.count()) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
+                                }
+                                repeat(gridColumns - rowIndices.count()) {
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }

@@ -33,6 +33,7 @@ open class DanmakuItem {
     var isVipGradualColor: Boolean = false
     var duplicateCount: Int = 0
     var isSelf: Boolean = false
+    var isUpOwner: Boolean = false
     var bitmap: Bitmap? = null
     var bitmapWidth: Float = 0f
     var bitmapHeight: Float = 0f
@@ -58,6 +59,7 @@ open class DanmakuItem {
         target.isVipGradualColor = isVipGradualColor
         target.duplicateCount = duplicateCount
         target.isSelf = isSelf
+        target.isUpOwner = isUpOwner
         target.bitmap = bitmap
         target.bitmapWidth = bitmapWidth
         target.bitmapHeight = bitmapHeight

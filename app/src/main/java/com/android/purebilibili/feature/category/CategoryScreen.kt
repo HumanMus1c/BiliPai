@@ -360,7 +360,15 @@ fun CategoryScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(20.dp),
+                    .padding(
+                        end = 20.dp,
+                        bottom = 20.dp + if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                            // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+                            com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+                        } else {
+                            0.dp
+                        }
+                    ),
                 backdrop = categoryBackdrop,
             )
         }

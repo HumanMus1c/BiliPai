@@ -184,7 +184,18 @@ fun DownloadListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     ,
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 16.dp, bottom = padding.calculateBottomPadding() + 16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding() + 16.dp,
+                    bottom = padding.calculateBottomPadding() + 16.dp +
+                        if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                            // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+                            com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+                        } else {
+                            0.dp
+                        }
+                ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(taskList, key = { it.id }) { task ->

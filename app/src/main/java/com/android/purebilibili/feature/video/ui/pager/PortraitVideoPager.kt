@@ -3182,6 +3182,10 @@ private fun VideoPageItem(
     val authorName = portraitDetailInfo?.owner?.name?.takeIf { it.isNotBlank() } ?: seedAuthorName
     val authorFace = portraitDetailInfo?.owner?.face?.takeIf { it.isNotBlank() } ?: seedAuthorFace
     val authorMid = portraitDetailInfo?.owner?.mid?.takeIf { it > 0L } ?: seedAuthorMid
+    // UP 主弹幕徽章：详情就绪后绑定 owner.mid（seed 进场无 owner 时会在详情回填后重新绑定）
+    LaunchedEffect(danmakuManager, authorMid) {
+        danmakuManager.bindUpOwnerMid(authorMid)
+    }
     val isFollowing = (currentUiState as? VideoPlaybackUiState.Success)?.followingMids?.contains(authorMid) == true
     val detailVideoList = remember(bvid, watchLaterVideos, recommendationVideos) {
         buildPortraitDetailVideoList(

@@ -21,6 +21,7 @@ import com.android.purebilibili.data.repository.LiveRepository
 import com.android.purebilibili.data.repository.LiveShieldInfo
 import com.android.purebilibili.data.repository.LiveSuperChatReportRequest
 import com.android.purebilibili.data.repository.LiveVoteSnapshot
+import com.android.purebilibili.data.repository.buildLiveEmoticonSendRequest
 import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -69,7 +73,9 @@ data class LiveDanmakuItem(
     val superChatToken: String = "",
     val superChatReportTs: Long = 0,
     // SC 展示时长（秒），用于全屏大字浮层自动消失
-    val superChatDuration: Int = 0
+    val superChatDuration: Int = 0,
+    val superChatEndTime: Long = 0,
+    val isSystem: Boolean = false
 )
 
 data class LiveChatMessage(
@@ -126,7 +132,8 @@ sealed class LivePlayerState {
         val isDanmakuEnabled: Boolean = true, // [新增] 弹幕开关状态
         val isAudioOnly: Boolean = false,
         val redPocketInfo: LiveRedPocketInfo? = null,
-        val danmakuPermission: LiveDanmakuPermission = LiveDanmakuPermission()
+        val danmakuPermission: LiveDanmakuPermission = LiveDanmakuPermission(),
+        val playbackRevision: Long = 0
     ) : LivePlayerState()
     
     data class Error(
@@ -136,7 +143,7 @@ sealed class LivePlayerState {
 
 sealed interface LivePlayerEvent {
     data class Toast(val message: String) : LivePlayerEvent
-    data object DanmakuSent : LivePlayerEvent
+    data class DanmakuSent(val message: String) : LivePlayerEvent
     data object EmoticonSent : LivePlayerEvent
 }
 
@@ -182,6 +189,8 @@ class LivePlayerViewModel : ViewModel() {
 
     private val _shieldInfo = MutableStateFlow<LiveShieldInfo?>(null)
     val shieldInfo = _shieldInfo.asStateFlow()
+    private var danmakuFilter = LiveDanmakuFilterPolicy()
+    private var shieldRequestGeneration = 0L
 
     private val _voteSnapshot = MutableStateFlow(LiveVoteSnapshot())
     val voteSnapshot = _voteSnapshot.asStateFlow()
@@ -192,6 +201,8 @@ class LivePlayerViewModel : ViewModel() {
     private var danmakuConnectJob: Job? = null
     private var danmakuCollectJob: Job? = null
     private var liveHeartbeatJob: Job? = null
+    private var superChatExpiryJob: Job? = null
+    private var followJob: Job? = null
     
     private var currentRoomId: Long = 0
     private var currentUid: Long = 0
@@ -205,10 +216,8 @@ class LivePlayerViewModel : ViewModel() {
     private var activeCandidateIndex: Int = 0
     private var activeUrlIndex: Int = 0
     private var remainingReloadAttempts: Int = MAX_PLAYBACK_RELOAD_ATTEMPTS
+    private var nextPlaybackRevision = 0L
     
-    /**
-     * 加载直播流和直播间详情
-     */
     /**
      * 加载直播流和直播间详情
      */
@@ -234,12 +243,27 @@ class LivePlayerViewModel : ViewModel() {
         if (currentRoomId != roomId) {
             _voteSnapshot.value = LiveVoteSnapshot()
             clearChatHistory()
+            _superChatItems.value = emptyList()
+            superChatExpiryJob?.cancel()
+            followJob?.cancel()
+            _replyTarget.value = null
+            _shieldInfo.value = null
+            danmakuFilter = LiveDanmakuFilterPolicy()
+            shieldRequestGeneration++
+            _emoticonPackages.value = emptyList()
+            currentUid = 0
+            resolvedPlayback = null
+            danmakuConnectJob?.cancel()
+            danmakuCollectJob?.cancel()
+            danmakuClient?.disconnect()
+            danmakuClient = null
         }
         currentRoomId = roomId
         currentRequestedQuality = qn
         CrashReporter.markLivePlaybackStage("load_stream_request")
         
         liveStreamLoadJob?.cancel()
+        val audioOnly = currentAudioOnly
         liveStreamLoadJob = viewModelScope.launch {
             if (showLoading) {
                 _uiState.value = LivePlayerState.Loading
@@ -264,13 +288,14 @@ class LivePlayerViewModel : ViewModel() {
                 LiveRepository.getLivePlayUrlWithQuality(
                     roomId = roomId,
                     qn = effectiveQn,
-                    onlyAudio = currentAudioOnly
+                    onlyAudio = audioOnly
                 )
             }
             val roomInitDeferred = async {
                 try {
                     NetworkModule.api.getLiveRoomInit(roomId)
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     e.printStackTrace()
                     null
                 }
@@ -279,6 +304,7 @@ class LivePlayerViewModel : ViewModel() {
                 try { 
                     NetworkModule.api.getLiveRoomDetail(roomId) 
                 } catch (e: Exception) { 
+                    if (e is CancellationException) throw e
                     e.printStackTrace()
                     null 
                 } 
@@ -303,8 +329,12 @@ class LivePlayerViewModel : ViewModel() {
             val redPocketInfo = redPocketDeferred.await()
             val danmakuPermission = danmakuPermissionDeferred.await() ?: LiveDanmakuPermission()
             voteSnapshotDeferred.await()?.let { _voteSnapshot.value = it }
-            val roomInitData = roomInitResponse?.data
-            val realRoomId = roomInitData?.roomId?.takeIf { it > 0L } ?: roomId
+            currentCoroutineContext().ensureActive()
+            val roomInitData = roomInitResponse?.takeIf { it.code == 0 }?.data
+            val playData = playUrlResult.getOrNull()
+            val realRoomId = playData?.roomId?.takeIf { it > 0L }
+                ?: roomInitData?.roomId?.takeIf { it > 0L }
+                ?: roomId
             currentRoomId = realRoomId
 
             // 进房上报（登录态，写入直播观看历史；每房间一次）
@@ -313,14 +343,18 @@ class LivePlayerViewModel : ViewModel() {
                 launch { LiveRepository.reportRoomEntry(realRoomId) }
             }
             
-            var roomInfo = RoomInfo()
-            var anchorInfo = AnchorInfo()
+            currentUid = playData?.uid?.takeIf { it > 0L } ?: roomInitData?.uid ?: 0L
+            var roomInfo = RoomInfo(
+                roomId = realRoomId,
+                liveStatus = playData?.liveStatus ?: roomInitData?.liveStatus ?: 0,
+                liveStartTime = playData?.liveTime?.takeIf { it > 0L } ?: roomInitData?.liveTime ?: 0L,
+                isPortrait = playData?.isPortrait ?: roomInitData?.isPortrait ?: false
+            )
+            var anchorInfo = AnchorInfo(uid = currentUid)
             var isFollowing = false
-            
-            // 尝试解析 LiveRoomDetail
-            var roomData = roomDetailResponse?.data?.roomInfo
-            var anchorData = roomDetailResponse?.data?.anchorInfo
-            var watchedShow = roomDetailResponse?.data?.watchedShow
+
+            val roomData = roomDetailResponse?.data?.roomInfo
+            val anchorData = roomDetailResponse?.data?.anchorInfo
             
             // 如果主要 API 失败或缺少主播信息，尝试 Fallback 方案
             if (roomDetailResponse?.code != 0 || anchorData == null) {
@@ -362,6 +396,7 @@ class LivePlayerViewModel : ViewModel() {
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     e.printStackTrace()
                 }
             }
@@ -372,18 +407,18 @@ class LivePlayerViewModel : ViewModel() {
                  if (roomDetailResponse?.code == 0 && roomDetailResponse.data != null) {
                      val checkedRoomDetailResponseData = requireNotNull(roomDetailResponse.data)
                      val data = checkedRoomDetailResponseData
-                     currentUid = data.roomInfo?.uid ?: 0
+                     currentUid = data.roomInfo?.uid?.takeIf { it > 0L } ?: currentUid
                      
                      roomInfo = RoomInfo(
-                        roomId = data.roomInfo?.roomId ?: roomInfo.roomId.takeIf { it > 0L } ?: realRoomId,
+                        roomId = data.roomInfo?.roomId?.takeIf { it > 0L } ?: realRoomId,
                         title = data.roomInfo?.title ?: roomInfo.title,
                         cover = data.roomInfo?.cover ?: roomH5Snapshot?.cover ?: roomInfo.cover,
                         areaName = data.roomInfo?.areaName ?: roomInfo.areaName,
                         parentAreaName = data.roomInfo?.parentAreaName ?: "",
                         online = data.watchedShow?.num ?: data.roomInfo?.online ?: roomH5Snapshot?.online ?: roomInfo.online,
-                        liveStatus = roomInitData?.liveStatus ?: data.roomInfo?.liveStatus ?: roomInfo.liveStatus,
-                        liveStartTime = roomInitData?.liveTime ?: data.roomInfo?.liveStartTime ?: roomH5Snapshot?.liveStartTime ?: 0,
-                        isPortrait = roomInitData?.isPortrait ?: (data.roomInfo?.liveScreenType == 1),
+                        liveStatus = playData?.liveStatus ?: roomInitData?.liveStatus ?: data.roomInfo?.liveStatus ?: roomInfo.liveStatus,
+                        liveStartTime = playData?.liveTime?.takeIf { it > 0L } ?: roomInitData?.liveTime ?: data.roomInfo?.liveStartTime ?: roomH5Snapshot?.liveStartTime ?: 0,
+                        isPortrait = playData?.isPortrait ?: roomInitData?.isPortrait ?: (data.roomInfo?.liveScreenType == 1),
                         background = data.roomInfo?.background ?: roomH5Snapshot?.appBackground.orEmpty(),
                         watchedText = data.watchedShow?.textLarge ?: data.watchedShow?.textSmall ?: roomH5Snapshot?.watchedText.orEmpty(),
                         description = data.roomInfo?.description ?: "",
@@ -391,7 +426,7 @@ class LivePlayerViewModel : ViewModel() {
                      )
                      
                      anchorInfo = AnchorInfo(
-                        uid = data.roomInfo?.uid ?: 0,
+                        uid = currentUid,
                         uname = data.anchorInfo?.baseInfo?.uname ?: "主播",
                         face = data.anchorInfo?.baseInfo?.face ?: "",
                         followers = data.anchorInfo?.relationInfo?.attention ?: 0,
@@ -423,7 +458,10 @@ class LivePlayerViewModel : ViewModel() {
                             val checkedRelationRespData = requireNotNull(relationResp.data)
                             isFollowing = checkedRelationRespData.isFollowing
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        e.printStackTrace()
+                    }
                 }
                 
                 com.android.purebilibili.core.util.Logger.d("LivePlayerVM", "🔴 Final State -> Room: ${roomInfo.title}, Anchor: ${anchorInfo.uname}")
@@ -431,10 +469,11 @@ class LivePlayerViewModel : ViewModel() {
                 com.android.purebilibili.core.util.Logger.e("LivePlayerVM", "🔴 All attempts to load room info failed.")
             }
             
+            currentCoroutineContext().ensureActive()
             playUrlResult.onSuccess { data ->
                 if (publishResolvedPlayback(
                         data = data,
-                        requestedQn = qn,
+                        requestedQn = effectiveQn,
                         roomInfo = roomInfo,
                         anchorInfo = anchorInfo,
                         isFollowing = isFollowing,
@@ -470,6 +509,7 @@ class LivePlayerViewModel : ViewModel() {
             if (refreshEmoticons) {
                 launch(Dispatchers.IO) {
                     LiveRepository.getLiveEmoticonPackages(roomId).onSuccess { packages ->
+                        currentCoroutineContext().ensureActive()
                         _emoticonPackages.value = packages
                         com.android.purebilibili.feature.live.components.DanmakuEmoticonMapper.update(
                             packages
@@ -479,64 +519,48 @@ class LivePlayerViewModel : ViewModel() {
                         )
                     }
                 }
-                loadLiveShieldInfo()
             }
         }
     }
 
 
     
-    /**
-     * 检查关注状态
-     */
-    private suspend fun checkFollowStatus(uid: Long) {
-        try {
-            val api = NetworkModule.api
-            val response = api.getRelation(uid)
-            
-            if (response.code == 0 && response.data != null) {
-                val checkedResponseData = requireNotNull(response.data)
-                val currentState = _uiState.value as? LivePlayerState.Success ?: return
-                _uiState.value = currentState.copy(
-                    isFollowing = checkedResponseData.isFollowing
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
     
     /**
      * 关注/取关主播
      */
     fun toggleFollow() {
         val currentState = _uiState.value as? LivePlayerState.Success ?: return
-        if (currentUid <= 0) return
-        
-        viewModelScope.launch {
+        if (currentUid <= 0 || followJob?.isActive == true) return
+        val roomId = currentRoomId
+        val uid = currentUid
+        followJob = viewModelScope.launch {
             try {
                 val api = NetworkModule.api
                 val csrf = TokenManager.csrfCache ?: return@launch
                 
                 val act = if (currentState.isFollowing) 2 else 1  // 2=取关, 1=关注
-                val response = api.modifyRelation(currentUid, act, csrf)
+                val response = api.modifyRelation(uid, act, csrf)
                 
                 if (response.code == 0) {
-                    _uiState.value = currentState.copy(
-                        isFollowing = !currentState.isFollowing,
-                        anchorInfo = currentState.anchorInfo.copy(
-                            followers = if (currentState.isFollowing) {
-                                currentState.anchorInfo.followers - 1
-                            } else {
-                                currentState.anchorInfo.followers + 1
-                            }
+                    if (currentRoomId != roomId || currentUid != uid) return@launch
+                    _uiState.update { state ->
+                        val latest = state as? LivePlayerState.Success ?: return@update state
+                        val following = act == 1
+                        if (latest.isFollowing == following) return@update latest
+                        latest.copy(
+                            isFollowing = following,
+                            anchorInfo = latest.anchorInfo.copy(
+                                followers = (latest.anchorInfo.followers + if (following) 1 else -1).coerceAtLeast(0)
+                            )
                         )
-                    )
+                    }
                     com.android.purebilibili.core.events.BrandSuccessEvents.followChanged(!currentState.isFollowing)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 e.printStackTrace()
             }
         }
@@ -551,7 +575,7 @@ class LivePlayerViewModel : ViewModel() {
     }
 
     fun changeQuality(qn: Int) {
-        val currentState = _uiState.value as? LivePlayerState.Success ?: return
+        if (_uiState.value !is LivePlayerState.Success) return
         android.util.Log.d("LivePlayer", "🔴 changeQuality called: qn=$qn")
         currentRequestedQuality = qn
         resetPlaybackReloadBudget()
@@ -561,14 +585,18 @@ class LivePlayerViewModel : ViewModel() {
         }
         
         liveStreamLoadJob?.cancel()
+        val roomId = currentRoomId
+        val audioOnly = currentAudioOnly
         liveStreamLoadJob = viewModelScope.launch {
             val result = LiveRepository.getLivePlayUrlWithQuality(
-                roomId = currentRoomId,
+                roomId = roomId,
                 qn = qn,
-                onlyAudio = currentAudioOnly
+                onlyAudio = audioOnly
             )
             
             result.onSuccess { data ->
+                currentCoroutineContext().ensureActive()
+                val currentState = _uiState.value as? LivePlayerState.Success ?: return@onSuccess
                 if (publishResolvedPlayback(
                         data = data,
                         requestedQn = qn,
@@ -578,17 +606,7 @@ class LivePlayerViewModel : ViewModel() {
                         redPocketInfo = currentState.redPocketInfo,
                         danmakuPermission = currentState.danmakuPermission
                     )) {
-                    val publishedState = _uiState.value as? LivePlayerState.Success
-                    _uiState.value = currentState.copy(
-                        playUrl = publishedState?.playUrl ?: currentState.playUrl,
-                        allPlayUrls = publishedState?.allPlayUrls ?: currentState.allPlayUrls,
-                        currentUrlIndex = publishedState?.currentUrlIndex ?: currentState.currentUrlIndex,
-                        currentQuality = publishedState?.currentQuality ?: currentState.currentQuality,
-                        qualityList = publishedState?.qualityList ?: currentState.qualityList,
-                        isAudioOnly = publishedState?.isAudioOnly ?: currentState.isAudioOnly,
-                        redPocketInfo = publishedState?.redPocketInfo ?: currentState.redPocketInfo,
-                        danmakuPermission = currentState.danmakuPermission
-                    )
+                    // publishResolvedPlayback keeps the latest room and interaction state.
                     CrashReporter.markLivePlaybackStage("quality_changed_$qn")
                 } else {
                     android.util.Log.e("LivePlayer", " changeQuality: No URL found")
@@ -660,7 +678,10 @@ class LivePlayerViewModel : ViewModel() {
                     _uiState.value = currentState.copy(
                         playUrl = next.playUrl,
                         allPlayUrls = nextCandidate.urls,
-                        currentUrlIndex = next.urlIndex
+                        currentUrlIndex = next.urlIndex,
+                        currentQuality = nextCandidate.currentQuality,
+                        qualityList = nextCandidate.qualityList,
+                        playbackRevision = ++nextPlaybackRevision
                     )
                 }
                 is LiveAdvanceResult.ReloadCurrentQuality -> {
@@ -737,7 +758,10 @@ class LivePlayerViewModel : ViewModel() {
         _uiState.value = currentState.copy(
             playUrl = url,
             allPlayUrls = candidate.urls,
-            currentUrlIndex = urlIndex
+            currentUrlIndex = urlIndex,
+            currentQuality = candidate.currentQuality,
+            qualityList = candidate.qualityList,
+            playbackRevision = ++nextPlaybackRevision
         )
     }
 
@@ -779,85 +803,16 @@ class LivePlayerViewModel : ViewModel() {
                 isDanmakuEnabled = danmakuEnabled,
                 isAudioOnly = currentAudioOnly,
                 redPocketInfo = redPocketInfo,
-                danmakuPermission = danmakuPermission
+                danmakuPermission = danmakuPermission,
+                playbackRevision = ++nextPlaybackRevision
             )
             updateLiveHeartbeatForRoom(roomInfo)
             return true
         }
 
-        resolvedPlayback = null
-        activeCandidateIndex = 0
-        activeUrlIndex = 0
-
-        val allUrls = data.durl?.mapNotNull { it.url } ?: emptyList()
-        val url = allUrls.firstOrNull() ?: extractPlayUrl(data) ?: return false
-        val qualityList = data.quality_description?.takeIf { it.isNotEmpty() }
-            ?: data.playurl_info?.playurl?.gQnDesc
-            ?: emptyList()
-        _uiState.value = LivePlayerState.Success(
-            playUrl = url,
-            allPlayUrls = allUrls.ifEmpty { listOf(url) },
-            currentUrlIndex = 0,
-            currentQuality = data.current_quality.takeIf { it > 0 } ?: requestedQn,
-            qualityList = qualityList,
-            roomInfo = roomInfo,
-            anchorInfo = anchorInfo,
-            isFollowing = isFollowing,
-            isDanmakuEnabled = danmakuEnabled,
-            isAudioOnly = currentAudioOnly,
-            redPocketInfo = redPocketInfo,
-            danmakuPermission = danmakuPermission
-        )
-        updateLiveHeartbeatForRoom(roomInfo)
-        return true
+        return false
     }
     
-    /**
-     * 从响应数据中提取播放 URL
-     */
-    private fun extractPlayUrl(data: com.android.purebilibili.data.model.response.LivePlayUrlData): String? {
-        android.util.Log.d("LivePlayer", "🔴 === extractPlayUrl ===")
-        
-        // 尝试新 xlive API
-        data.playurl_info?.playurl?.stream?.let { streams ->
-            android.util.Log.d("LivePlayer", "🔴 Found ${streams.size} streams")
-            streams.forEachIndexed { index, s ->
-                android.util.Log.d("LivePlayer", "🔴 Stream[$index]: protocol=${s.protocolName}")
-            }
-            
-            val stream = streams.find { it.protocolName == "http_hls" }
-                ?: streams.find { it.protocolName == "http_stream" }
-                ?: streams.firstOrNull()
-            
-            android.util.Log.d("LivePlayer", "🔴 Selected stream: ${stream?.protocolName}")
-            
-            val format = stream?.format?.firstOrNull()
-            android.util.Log.d("LivePlayer", "🔴 Format: ${format?.formatName}")
-            
-            val codec = format?.codec?.firstOrNull()
-            android.util.Log.d("LivePlayer", "🔴 Codec: ${codec?.codecName}, baseUrl=${codec?.baseUrl?.take(50)}")
-            
-            val urlInfo = codec?.url_info?.firstOrNull()
-            android.util.Log.d("LivePlayer", "🔴 UrlInfo: host=${urlInfo?.host}, extra=${urlInfo?.extra?.take(30)}")
-            
-            if (codec != null && urlInfo != null) {
-                val url = urlInfo.host + codec.baseUrl + urlInfo.extra
-                android.util.Log.d("LivePlayer", " Built URL from xlive API: ${url.take(100)}...")
-                return url
-            }
-        }
-        
-        // 回退到旧 API
-        android.util.Log.d("LivePlayer", "🔴 Trying durl fallback...")
-        val durlUrl = data.durl?.firstOrNull()?.url
-        if (durlUrl != null) {
-            android.util.Log.d("LivePlayer", " Using durl URL: ${durlUrl.take(100)}...")
-            return durlUrl
-        }
-        
-        android.util.Log.e("LivePlayer", " No URL found in any structure!")
-        return null
-    }
     
     /**
      * 重试
@@ -885,6 +840,7 @@ class LivePlayerViewModel : ViewModel() {
         danmakuClient = null
         
         danmakuConnectJob = viewModelScope.launch {
+            refreshLiveShieldInfo(roomId)
             if (preloadHistory) preloadLiveRoomMessages(roomId)
             val result = DanmakuRepository.startLiveDanmaku(viewModelScope, roomId)
             result.onSuccess { client ->
@@ -896,8 +852,10 @@ class LivePlayerViewModel : ViewModel() {
                 CrashReporter.markLivePlaybackStage("danmaku_connected")
                 
                 // 监听弹幕消息
-                danmakuCollectJob = viewModelScope.launch(Dispatchers.Default) {
+                danmakuCollectJob = viewModelScope.launch {
                     client.messageFlow.collect { packet ->
+                        currentCoroutineContext().ensureActive()
+                        if (currentRoomId != roomId) return@collect
                         handleDanmakuPacket(packet)
                     }
                 }
@@ -918,6 +876,8 @@ class LivePlayerViewModel : ViewModel() {
         val prefetchedSuperChats = mutableListOf<LiveDanmakuItem>()
         LiveRepository.getLiveDanmakuHistory(roomId).onSuccess { items ->
             items.filter { shouldRenderLiveDanmaku(it.text, it.emoticonUrl) }.forEach { seed ->
+                currentCoroutineContext().ensureActive()
+                if (danmakuFilter.blocks(seed.uid, seed.text)) return@forEach
                 appendChatHistory(
                     LiveDanmakuItem(
                         text = seed.text,
@@ -935,6 +895,10 @@ class LivePlayerViewModel : ViewModel() {
         }
         LiveRepository.getLiveSuperChatMessages(roomId).onSuccess { items ->
             items.forEach { seed ->
+                currentCoroutineContext().ensureActive()
+                val nowSeconds = System.currentTimeMillis() / 1000L
+                val endTime = resolveLiveSuperChatEndTime(seed.endTime, seed.startTime, seed.duration, nowSeconds)
+                if (remainingLiveSuperChatSeconds(endTime, nowSeconds) <= 0) return@forEach
                 val item = LiveDanmakuItem(
                     text = seed.message,
                     uid = seed.uid,
@@ -944,7 +908,9 @@ class LivePlayerViewModel : ViewModel() {
                     superChatPrice = seed.price,
                     superChatBackgroundColor = seed.backgroundColor,
                     superChatToken = seed.token,
-                    superChatReportTs = seed.reportTs
+                    superChatReportTs = seed.reportTs,
+                    superChatDuration = seed.duration,
+                    superChatEndTime = endTime
                 )
                 prefetchedSuperChats += item
                 appendChatHistory(item)
@@ -952,6 +918,22 @@ class LivePlayerViewModel : ViewModel() {
         }
         if (prefetchedSuperChats.isNotEmpty()) {
             _superChatItems.value = prefetchedSuperChats.take(MAX_ACTIVE_SUPER_CHAT_ITEMS)
+            scheduleSuperChatExpiry()
+        }
+    }
+
+    private fun scheduleSuperChatExpiry() {
+        superChatExpiryJob?.cancel()
+        superChatExpiryJob = viewModelScope.launch {
+            while (isActive) {
+                val nextEnd = _superChatItems.value.minOfOrNull { it.superChatEndTime } ?: break
+                val now = System.currentTimeMillis() / 1000L
+                if (nextEnd > now) delay((nextEnd - now) * 1000L)
+                val cutoff = System.currentTimeMillis() / 1000L
+                _superChatItems.update { items ->
+                    items.filterNot { shouldExpireLiveSuperChat(it.superChatEndTime, cutoff) }
+                }
+            }
         }
     }
     
@@ -989,25 +971,28 @@ class LivePlayerViewModel : ViewModel() {
             }
         }
         
+        val roomId = currentRoomId
+        val reply = _replyTarget.value
         viewModelScope.launch {
-            val reply = _replyTarget.value
             val request = LiveDanmakuSendRequest(
-                roomId = currentRoomId,
+                roomId = roomId,
                 message = text,
                 color = color,
                 mode = mode,
                 replyMid = reply?.uid ?: 0L,
-                replyAttr = if (reply != null) 1 else 0,
-                replyUname = reply?.uname.orEmpty(),
+                replyAttr = 0,
+                replyUname = "",
                 replayDmid = reply?.idStr.orEmpty()
             )
             val result = LiveRepository.sendDanmaku(request)
             result.onSuccess {
+                currentCoroutineContext().ensureActive()
+                if (currentRoomId != roomId) return@onSuccess
                 // 记录发送的弹幕（用于去重）
                 recentSentDanmaku = text
                 recentSentTime = System.currentTimeMillis()
-                _replyTarget.value = null
-                _events.tryEmit(LivePlayerEvent.DanmakuSent)
+                if (_replyTarget.value === reply) _replyTarget.value = null
+                _events.tryEmit(LivePlayerEvent.DanmakuSent(text))
                 
                 // 发送成功，模拟一条本地弹幕立即上屏（沿用所选颜色与模式）
                 val mid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
@@ -1017,47 +1002,50 @@ class LivePlayerViewModel : ViewModel() {
                     mode = mode,
                     uid = mid,
                     uname = "我",
-                    isSelf = true
+                    isSelf = true,
+                    replyToName = reply?.uname.orEmpty()
                 )
                 emitOwnLiveChatItem(item)
             }.onFailure { e ->
+                if (currentRoomId != roomId) return@onFailure
                 android.util.Log.e("LivePlayer", "Send danmaku failed: ${e.message}")
                 _events.tryEmit(LivePlayerEvent.Toast(e.message ?: "弹幕发送失败"))
             }
         }
     }
 
-    fun sendEmoticon(item: LiveEmoticonItem, preserveReplyTarget: Boolean = false) {
-        if (currentRoomId == 0L || item.emoji.isBlank()) return
+    fun sendEmoticon(item: LiveEmoticonItem) {
+        if (currentRoomId == 0L) return
+        val roomId = currentRoomId
+        val reply = _replyTarget.value
+        val request = buildLiveEmoticonSendRequest(
+            roomId, item, reply?.uid ?: 0L, reply?.idStr.orEmpty()
+        ).getOrElse {
+            _events.tryEmit(LivePlayerEvent.Toast(it.message ?: "表情无法发送"))
+            return
+        }
         viewModelScope.launch {
-            val reply = _replyTarget.value
-            val request = LiveDanmakuSendRequest(
-                roomId = currentRoomId,
-                message = item.emoji,
-                replyMid = reply?.uid ?: 0L,
-                replyAttr = if (reply != null) 1 else 0,
-                replyUname = reply?.uname.orEmpty(),
-                replayDmid = reply?.idStr.orEmpty(),
-                dmType = if (item.emoticonOptions != null) 1 else null,
-                emoticonOptions = item.emoticonOptions
-            )
             LiveRepository.sendDanmaku(request).onSuccess {
-                recentSentDanmaku = item.emoji
+                currentCoroutineContext().ensureActive()
+                if (currentRoomId != roomId) return@onSuccess
+                recentSentDanmaku = item.displayText
                 recentSentTime = System.currentTimeMillis()
-                if (!preserveReplyTarget) _replyTarget.value = null
+                if (item.dmType == 0 && _replyTarget.value === reply) _replyTarget.value = null
                 _events.tryEmit(LivePlayerEvent.EmoticonSent)
                 val mid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
                 emitOwnLiveChatItem(
                     LiveDanmakuItem(
-                        text = item.emoji,
+                        text = item.displayText,
                         uid = mid,
                         uname = "我",
                         isSelf = true,
-                        replyToName = reply?.uname.orEmpty(),
-                        emoticonUrl = item.url
+                        replyToName = if (item.dmType == 0) reply?.uname.orEmpty() else "",
+                        emoticonUrl = item.url.takeIf { item.dmType == 1 && it.isNotBlank() },
+                        dmType = item.dmType
                     )
                 )
             }.onFailure { e ->
+                if (currentRoomId != roomId) return@onFailure
                 _events.tryEmit(LivePlayerEvent.Toast(e.message ?: "表情发送失败"))
             }
         }
@@ -1126,9 +1114,24 @@ class LivePlayerViewModel : ViewModel() {
 
     fun loadLiveShieldInfo() {
         val roomId = currentRoomId.takeIf { it > 0L } ?: return
-        viewModelScope.launch {
-            LiveRepository.getLiveShieldInfo(roomId).onSuccess {
-                _shieldInfo.value = it
+        viewModelScope.launch { refreshLiveShieldInfo(roomId) }
+    }
+
+    private suspend fun refreshLiveShieldInfo(roomId: Long) {
+        val generation = ++shieldRequestGeneration
+        LiveRepository.getLiveShieldInfo(roomId).onSuccess { info ->
+            currentCoroutineContext().ensureActive()
+            if (currentRoomId != roomId || generation != shieldRequestGeneration) return@onSuccess
+            _shieldInfo.value = info
+            danmakuFilter = LiveDanmakuFilterPolicy(info)
+            synchronized(chatHistoryLock) {
+                _chatHistory.update { history ->
+                    history.filterNot { message ->
+                        val item = message.item
+                        !item.isSelf && !item.isSystem && !item.isSuperChat &&
+                            danmakuFilter.blocks(item.uid, item.text)
+                    }
+                }
             }
         }
     }
@@ -1192,7 +1195,8 @@ class LivePlayerViewModel : ViewModel() {
                         dmid = item.idStr,
                         reportTime = item.reportTs,
                         sign = item.reportSign,
-                        reason = reason
+                        reason = reason,
+                        dmType = item.dmType
                     )
                 )
             }
@@ -1256,21 +1260,13 @@ class LivePlayerViewModel : ViewModel() {
             }
             is LiveRealtimeAction.RoomUnavailable -> {
                 pauseLiveHeartbeat()
-                val current = _uiState.value as? LivePlayerState.Success
-                if (current != null) {
-                    _uiState.value = current.copy(
-                        roomInfo = current.roomInfo.copy(
-                            liveStatus = action.liveStatus,
-                            watchedText = action.message
-                        )
-                    )
-                } else {
-                    _uiState.value = LivePlayerState.Error(action.message)
-                }
+                liveStreamLoadJob?.cancel()
+                _uiState.value = LivePlayerState.Error(action.message)
                 CrashReporter.markLivePlaybackStage("live_room_unavailable")
             }
             is LiveRealtimeAction.RoomBlocked -> {
                 pauseLiveHeartbeat()
+                liveStreamLoadJob?.cancel()
                 _uiState.value = LivePlayerState.Error(action.message)
                 CrashReporter.reportLiveError(
                     roomId = currentRoomId,
@@ -1283,10 +1279,12 @@ class LivePlayerViewModel : ViewModel() {
             is LiveRealtimeAction.UpdateRoomTitle -> updateRoomTitle(action.title)
             is LiveRealtimeAction.EmitChat -> emitLiveChatItem(action.item)
             is LiveRealtimeAction.EmitSuperChat -> {
+                if (shouldExpireLiveSuperChat(action.item.superChatEndTime, System.currentTimeMillis() / 1000L)) return
                 _superChatItems.value = (
                     listOf(action.item) + _superChatItems.value
                         .filterNot { it.superChatId > 0L && it.superChatId == action.id }
                 ).take(MAX_ACTIVE_SUPER_CHAT_ITEMS)
+                scheduleSuperChatExpiry()
                 emitLiveChatItem(action.item)
                 _superChatFlashFlow.tryEmit(action.item)
             }
@@ -1339,6 +1337,7 @@ class LivePlayerViewModel : ViewModel() {
     }
 
     private fun emitLiveChatItem(item: LiveDanmakuItem) {
+        if (!item.isSelf && !item.isSystem && !item.isSuperChat && danmakuFilter.blocks(item.uid, item.text)) return
         val myMid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
         val isRecentlyMySent = item.uid == myMid
             && item.text == recentSentDanmaku
@@ -1472,6 +1471,8 @@ class LivePlayerViewModel : ViewModel() {
         danmakuConnectJob?.cancel()
         danmakuCollectJob?.cancel()
         liveHeartbeatJob?.cancel()
+        superChatExpiryJob?.cancel()
+        followJob?.cancel()
         danmakuClient?.disconnect()
         _superChatItems.value = emptyList()
         CrashReporter.markLiveSessionEnd("view_model_cleared")

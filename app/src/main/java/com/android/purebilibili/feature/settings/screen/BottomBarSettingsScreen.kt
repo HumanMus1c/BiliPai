@@ -562,11 +562,11 @@ fun BottomBarSettingsContent(
                         SettingsSingleChoicePreference(
                                 icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_troubleshoot_24),
                                 iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                                title = "全局顶栏显示",
+                                title = "首页顶栏显示",
                                 subtitle = when (homeHeaderCollapseMode) {
-                                    HomeHeaderCollapseMode.OFF -> "首页和二级列表的沉浸顶栏始终显示"
+                                    HomeHeaderCollapseMode.OFF -> "首页顶栏始终显示"
                                     HomeHeaderCollapseMode.SEARCH_ONLY -> "下滑时仅收起顶部搜索框，标签页留在顶部"
-                                    HomeHeaderCollapseMode.BOTH -> "首页、历史、收藏和稍后再看等页面离开顶部后收起沉浸顶栏，回顶后恢复"
+                                    HomeHeaderCollapseMode.BOTH -> "首页离开顶部后收起搜索与标签栏，回顶后恢复；其他列表页由列表页顶栏折叠设置控制"
                                     HomeHeaderCollapseMode.TABS_ONLY -> "下滑时仅收起标签页，搜索框保持显示"
                                 },
                                 options = listOf(

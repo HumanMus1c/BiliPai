@@ -1965,11 +1965,11 @@ private fun PlaybackFullscreenGestureSettingsSection(
         }
     }
     val inlineSwipeSeekSeconds by com.android.purebilibili.core.store.SettingsManager
-        .getInlineSwipeSeekSeconds(context).collectAsStateWithLifecycle(initialValue = 30)
+        .getInlineSwipeSeekSeconds(context).collectAsStateWithLifecycle(initialValue = 0)
     val fullscreenSwipeSeekEnabled by com.android.purebilibili.core.store.SettingsManager
         .getFullscreenSwipeSeekEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val fullscreenSwipeSeekSeconds by com.android.purebilibili.core.store.SettingsManager
-        .getFullscreenSwipeSeekSeconds(context).collectAsStateWithLifecycle(initialValue = 15)
+        .getFullscreenSwipeSeekSeconds(context).collectAsStateWithLifecycle(initialValue = 0)
     val doubleTapSeekEnabled by com.android.purebilibili.core.store.SettingsManager
         .getDoubleTapSeekEnabled(context).collectAsStateWithLifecycle(initialValue = false)
     val seekForwardSeconds by com.android.purebilibili.core.store.SettingsManager
@@ -2313,8 +2313,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
         AppPreferenceDivider()
         SettingsSingleChoicePreference(
             title = "非全屏滑动调进度范围",
-            subtitle = "左右拖动约半屏达到 ${inlineSwipeSeekSeconds} 秒上限，数值越小越精确",
+            subtitle = if (inlineSwipeSeekSeconds == 0) "按拖动距离调整进度，不限制单次调整秒数" else "左右拖动约半屏达到 ${inlineSwipeSeekSeconds} 秒上限，数值越小越精确",
             options = listOf(
+                AppSegmentOption(0, "不限制"),
                 AppSegmentOption(5, "5秒"),
                 AppSegmentOption(10, "10秒"),
                 AppSegmentOption(15, "15秒"),
@@ -2334,9 +2335,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
         AppSwitchPreference(
             title = "横屏滑动调进度",
             subtitle = if (fullscreenSwipeSeekEnabled) {
-                "已开启，当前范围 ${fullscreenSwipeSeekSeconds} 秒"
+                if (fullscreenSwipeSeekSeconds == 0) "已开启，调整范围不限制" else "已开启，当前范围 ${fullscreenSwipeSeekSeconds} 秒"
             } else {
-                "已关闭，重新开启后继续使用 ${fullscreenSwipeSeekSeconds} 秒范围"
+                if (fullscreenSwipeSeekSeconds == 0) "已关闭，重新开启后调整范围不限制" else "已关闭，重新开启后继续使用 ${fullscreenSwipeSeekSeconds} 秒范围"
             },
             checked = fullscreenSwipeSeekEnabled,
             onCheckedChange = {
@@ -2349,8 +2350,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
         AppPreferenceDivider()
         SettingsSingleChoicePreference(
             title = "横屏滑动调进度范围",
-            subtitle = "左右拖动约半屏达到的秒数上限，数值越小越精确",
+            subtitle = if (fullscreenSwipeSeekSeconds == 0) "按拖动距离调整进度，不限制单次调整秒数" else "左右拖动约半屏达到的秒数上限，数值越小越精确",
             options = listOf(
+                AppSegmentOption(0, "不限制"),
                 AppSegmentOption(10, "10秒"),
                 AppSegmentOption(15, "15秒"),
                 AppSegmentOption(20, "20秒"),

@@ -1120,6 +1120,63 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setAsSubscriptionArticleWallpaper(
+        url: String,
+        saveToGallery: Boolean = false,
+        onComplete: () -> Unit = {},
+    ) {
+        if (_splashSaveState.value is WallpaperSaveState.Loading) return
+        _splashSaveState.value = WallpaperSaveState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            var downloadedFile: File? = null
+            var wallpaper: File? = null
+            var saved = false
+            try {
+                val context = getApplication<Application>()
+                val source = if (isUserSelectedSplashWallpaperUri(url)) {
+                    Uri.parse(url)
+                } else {
+                    val request = okhttp3.Request.Builder()
+                        .url(normalizeSplashWallpaperUrl(url))
+                        .build()
+                    val temporaryFile = File.createTempFile("article_wallpaper_", ".img", context.cacheDir)
+                    downloadedFile = temporaryFile
+                    NetworkModule.okHttpClient.newCall(request).execute().use { response ->
+                        check(response.isSuccessful) { "下载失败: ${response.code}" }
+                        response.body.byteStream().use { input ->
+                            temporaryFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                    }
+                    Uri.fromFile(temporaryFile)
+                }
+                val imported = importWallpaperImage(context, source, File(context.filesDir, "subscription_article_wallpaper"))
+                wallpaper = imported
+                SettingsManager.setSubscriptionArticleWallpaperUri(context, Uri.fromFile(imported).toString())
+                saved = true
+                SettingsManager.setSubscriptionArticleWallpaperEnabled(context, true)
+                if (saveToGallery && !isUserSelectedSplashWallpaperUri(url)) {
+                    saveImageToGallery(context, imported.readBytes(), "bili_article_${System.currentTimeMillis()}.jpg")
+                }
+                withContext(Dispatchers.Main.immediate) {
+                    _splashSaveState.value = WallpaperSaveState.Success
+                    onComplete()
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _splashSaveState.value = WallpaperSaveState.Error(error.message ?: "正文壁纸保存失败")
+            } finally {
+                downloadedFile?.delete()
+                if (!saved) wallpaper?.delete()
+                if (_splashSaveState.value is WallpaperSaveState.Success ||
+                    _splashSaveState.value is WallpaperSaveState.Loading
+                ) {
+                    _splashSaveState.value = WallpaperSaveState.Idle
+                }
+            }
+        }
+    }
+
     private fun saveImageToGallery(context: Context, bytes: ByteArray, fileName: String) {
         try {
             val contentValues = android.content.ContentValues().apply {

@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,14 +39,17 @@ fun BasDanmakuOverlay(
     opacity: Float = 1f,
     fontScale: Float = 1f,
     fontWeight: Int = 5,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    renderingPaused: Boolean = false,
 ) {
     val context = LocalContext.current
     val view = remember(context, player) { BasOverlayView(context, player) }
     val wake = remember(player) { Channel<Unit>(Channel.CONFLATED) }
+    val latestRenderingPaused by rememberUpdatedState(renderingPaused)
     DisposableEffect(player, view, wake) {
         val listener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
+                if (latestRenderingPaused) return
                 view.frame(player.currentPosition)
                 wake.trySend(Unit)
             }
@@ -55,7 +60,8 @@ fun BasDanmakuOverlay(
             view.clear()
         }
     }
-    LaunchedEffect(player, items, view, wake) {
+    LaunchedEffect(player, items, view, wake, renderingPaused) {
+        if (renderingPaused) return@LaunchedEffect
         while (isActive) {
             val position = player.currentPosition
             view.frame(position)
@@ -79,7 +85,7 @@ fun BasDanmakuOverlay(
         modifier = modifier.fillMaxSize(),
         update = {
             it.configure(items, viewport, opacity, fontScale, fontWeight)
-            it.frame(player.currentPosition)
+            if (!renderingPaused) it.frame(player.currentPosition)
         }
     )
 }

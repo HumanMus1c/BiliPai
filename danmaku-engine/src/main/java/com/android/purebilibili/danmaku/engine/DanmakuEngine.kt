@@ -7,6 +7,12 @@ interface DanmakuEngine : AutoCloseable {
     val playbackState: DanmakuPlaybackState
     val diagnostics: DanmakuEngineDiagnostics
 
+    /**
+     * UP 主身份标识（owner.mid 的 crc32 hex）。命中该标识的弹幕渲染时附带 UP 徽章。
+     * 置空（null）清除标识。
+     */
+    var upOwnerUserHash: String?
+
     fun updateConfig(config: DanmakuRenderConfig)
 
     fun replaceWindow(window: DanmakuWindow, currentPositionMs: Long = 0L)

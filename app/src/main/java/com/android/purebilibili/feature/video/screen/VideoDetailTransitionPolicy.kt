@@ -20,6 +20,7 @@ import com.android.purebilibili.core.ui.transition.shouldHandVisualOwnershipToRe
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardLiveReturnMorph
 
 private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
+private const val RESIDENT_COVER_RETURN_TAKEOVER_DEPTH_SPAN = 0.82f
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 /**
@@ -281,6 +282,7 @@ internal fun resolveVideoDetailReturnMediaFrame(
     isReturnGestureInProgress: Boolean = false,
     showResidentCoverUntilFirstFrame: Boolean = false,
     followProgressEnabled: Boolean = true,
+    progressiveResidentCover: Boolean = false,
 ): VideoDetailReturnMediaFrame {
     if (!hasResidentCover) {
         return VideoDetailReturnMediaFrame(coverAlpha = 0f, playerAlpha = 1f)
@@ -293,6 +295,18 @@ internal fun resolveVideoDetailReturnMediaFrame(
         return VideoDetailReturnMediaFrame(coverAlpha = 0f, playerAlpha = 1f)
     }
     if (!liveReturnMorph) {
+        if (progressiveResidentCover && followProgressEnabled) {
+            // Take over early, while the playback surface stays fully opaque underneath.
+            // The same depth reverses on gesture cancellation; no new reveal is scheduled.
+            val fraction = ((1f - transitionProgress.coerceIn(0f, 1f)) /
+                RESIDENT_COVER_RETURN_TAKEOVER_DEPTH_SPAN)
+                .coerceIn(0f, 1f)
+            val coverAlpha = fraction * fraction * (3f - 2f * fraction)
+            return VideoDetailReturnMediaFrame(
+                coverAlpha = coverAlpha,
+                playerAlpha = if (coverAlpha < 1f) 1f else 0f,
+            )
+        }
         return VideoDetailReturnMediaFrame(coverAlpha = 1f, playerAlpha = 0f)
     }
     // Keep the flying media slot opaque. Transparent cover + fading player is the empty
@@ -305,6 +319,20 @@ internal fun resolveVideoDetailReturnMediaFrame(
         playerAlpha = 1f - coverTakeover,
     )
 }
+
+/** Conservative SurfaceView/Compose gate; older systems retain cover-only return. */
+internal fun shouldUseProgressiveResidentCoverReturn(
+    sdkInt: Int,
+    ownsInlineCardTransition: Boolean,
+    hasRenderedFirstFrame: Boolean,
+    hasDecodedResidentCover: Boolean,
+    liveReturnMorph: Boolean,
+    forceCoverOnly: Boolean,
+    reduceMotion: Boolean,
+    followProgressEnabled: Boolean,
+): Boolean = sdkInt >= 35 && ownsInlineCardTransition && hasRenderedFirstFrame &&
+    hasDecodedResidentCover && !liveReturnMorph && !forceCoverOnly && !reduceMotion &&
+    followProgressEnabled
 
 internal fun resolveVideoDetailReturnCoverAlpha(
     transitionProgress: Float,

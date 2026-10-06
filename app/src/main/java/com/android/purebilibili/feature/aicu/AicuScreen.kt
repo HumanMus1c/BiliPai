@@ -280,7 +280,14 @@ internal fun AicuScreen(
             onDismissRequest = { showTrending = false },
             title = { AppText("Aicu 24 小时热搜") },
             text = {
-                if (state.trendingLoading) AdaptiveLoadingIndicator()
+                if (state.trendingLoading) {
+                    Box(
+                        Modifier.fillMaxWidth().height(96.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AdaptiveLoadingIndicator()
+                    }
+                }
                 else if (state.trendingError != null) AppText(state.trendingError, color = MaterialTheme.colorScheme.error)
                 else Column(Modifier.verticalScroll(rememberScrollState())) {
                     state.trending.forEachIndexed { index, item ->

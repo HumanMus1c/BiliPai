@@ -37,15 +37,18 @@ fun AdvancedDanmakuOverlay(
     opacity: Float = 1f,
     fontScale: Float = 1f,
     fontWeight: Int = 5,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    renderingPaused: Boolean = false,
 ) {
     // 使用 produceState 每一帧更新播放进度
     // 并处理暂停/播放状态
     val currentPosition by androidx.compose.runtime.produceState(
         initialValue = player.currentPosition,
         key1 = player,
-        key2 = danmakuList
+        key2 = danmakuList,
+        key3 = renderingPaused,
     ) {
+        if (renderingPaused) awaitDispose { }
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 value = player.currentPosition

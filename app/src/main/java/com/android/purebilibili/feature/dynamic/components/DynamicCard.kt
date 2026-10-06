@@ -69,7 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.TextUnit
 import coil3.ImageLoader
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
@@ -529,7 +529,7 @@ fun DynamicCardV2(
                         }
                         // 粉丝装扮牌（作者行时间旁的小徽章）
                         author.decorate?.card_url?.takeIf { it.isNotBlank() }?.let { badgeUrl ->
-                            AsyncImage(
+                            PageAwareAsyncImage(
                                 model = badgeUrl,
                                 contentDescription = author.decorate?.name,
                                 modifier = Modifier
@@ -1363,7 +1363,7 @@ fun DynamicCardV2(
                                         .build()
                                 }
                                 if (expandOpusDetailImages) {
-                                    AsyncImage(
+                                    PageAwareAsyncImage(
                                         model = dividerRequest,
                                         contentDescription = "分割线",
                                         modifier = Modifier
@@ -1408,7 +1408,7 @@ fun DynamicCardV2(
                             }
                             if (expandOpusDetailImages) {
                                 val expandedImageSourceRect = rememberImagePreviewSourceRect()
-                                AsyncImage(
+                                PageAwareAsyncImage(
                                     model = imageRequest,
                                     contentDescription = opus.title.orEmpty(),
                                     modifier = Modifier
@@ -1548,7 +1548,7 @@ fun DynamicCardV2(
                                 )
                                 .build()
                         }
-                        AsyncImage(
+                        PageAwareAsyncImage(
                             model = imageRequest,
                             contentDescription = opus.title.orEmpty(),
                             modifier = Modifier
@@ -2009,7 +2009,7 @@ fun DynamicCardV2(
                     if (foldUsers.isNotEmpty()) {
                         Box(modifier = Modifier.height(22.dp)) {
                             foldUsers.forEachIndexed { index, user ->
-                                AsyncImage(
+                                PageAwareAsyncImage(
                                     model = coil3.request.ImageRequest.Builder(LocalContext.current)
                                         .data(user.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
                                         .crossfade(true)
@@ -2087,7 +2087,7 @@ private fun DynamicAdditionalCard(
             ) {
                 val left = model.matchTeams[0]
                 val right = model.matchTeams[1]
-                AsyncImage(
+                PageAwareAsyncImage(
                     model = left.logoUrl.takeIf { it.isNotBlank() },
                     contentDescription = null,
                     modifier = Modifier.size(26.dp).clip(CircleShape),
@@ -2120,7 +2120,7 @@ private fun DynamicAdditionalCard(
                         .weight(1f)
                         .padding(end = AppSpacingTokens.ExtraSmall)
                 )
-                AsyncImage(
+                PageAwareAsyncImage(
                     model = right.logoUrl.takeIf { it.isNotBlank() },
                     contentDescription = null,
                     modifier = Modifier.size(26.dp).clip(CircleShape),
@@ -2187,7 +2187,7 @@ internal fun DynamicNativeLinkCard(
             },
             leadingContent = if (cover.isNotBlank()) {
                 {
-                    AsyncImage(
+                    PageAwareAsyncImage(
                         model = cover,
                         contentDescription = null,
                         modifier = Modifier
@@ -2372,7 +2372,7 @@ fun RichTextContent(
                     placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                 )
             ) {
-                AsyncImage(
+                PageAwareAsyncImage(
                     model = coil3.request.ImageRequest.Builder(LocalContext.current)
                         .data(iconUrl)
                         .crossfade(true)
@@ -2660,7 +2660,7 @@ private fun DynamicAuthorFace(
     val normalizedFace = faceUrl.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Box(modifier = Modifier.size(faceSize)) {
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = coil3.request.ImageRequest.Builder(LocalContext.current)
                     .data(normalizedFace)
                     .crossfade(true)
@@ -2773,7 +2773,7 @@ fun DynamicCardCompact(
         // 封面缩略图（如果有视频）
         content?.major?.archive?.let { archive ->
             Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = coil3.request.ImageRequest.Builder(LocalContext.current)
                     .data(archive.cover.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
                     .crossfade(true)

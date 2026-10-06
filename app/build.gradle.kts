@@ -120,8 +120,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 437
-        versionName = "0.2.9"
+        versionCode = 441
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -400,7 +400,9 @@ dependencies {
     // 图标扩展库 (全屏、设置图标等)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")
-    implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc14")
+    // Compose UI 1.12 requires AndroidClipboard for native text selection/paste.
+    // rc14's wrapper only implements Clipboard and crashes in RSS/video note editors (#744).
+    implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-cmp-1.12.0-beta03")
 
     // --- 2. Network (网络请求) ---
     implementation("com.squareup.retrofit2:retrofit:3.0.0")

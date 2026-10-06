@@ -353,6 +353,7 @@ fun HomeScreen(
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var dissolvingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
+    var previewDissolvingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var reflowingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var pendingVideoShare by remember {
@@ -850,6 +851,13 @@ fun HomeScreen(
         context = kotlin.coroutines.EmptyCoroutineContext
     )
     val videoCardTransitionBackgroundState = LocalVideoCardTransitionBackgroundState.current
+    val deferHomeHeavyWork by remember(videoCardTransitionBackgroundState) {
+        derivedStateOf {
+            com.android.purebilibili.core.ui.transition.shouldDeferVideoCardSourceHeavyWork(
+                videoCardTransitionBackgroundState.exposureProvider(),
+            )
+        }
+    }
     val videoCardReturnGestureInProgress =
         videoCardTransitionBackgroundState.isReturnGestureInProgressProvider()
     var settledShowHomeUpAvatars by rememberSaveable {
@@ -859,11 +867,12 @@ fun HomeScreen(
         homeSettings.showHomeUpAvatars,
         videoCardReturnGestureInProgress,
         isReturningFromVideoDetail,
+        deferHomeHeavyWork,
     ) {
         // 首页作为预测返回的底层页重新进入活跃状态时，DataStore 可能正好补发新值。
         // 在手势/整卡落位期间改变作者行高度会让 sharedBounds 的目标边界跳动；先沿用
         // 首页上次稳定展示的值，落位完成后再应用，同时关闭头像时仍不保留横向头像槽。
-        if (!videoCardReturnGestureInProgress && !isReturningFromVideoDetail) {
+        if (!deferHomeHeavyWork && !videoCardReturnGestureInProgress && !isReturningFromVideoDetail) {
             settledShowHomeUpAvatars = homeSettings.showHomeUpAvatars
         }
     }
@@ -1080,22 +1089,29 @@ fun HomeScreen(
             if (video?.bvid == bvid) reflowingNotInterestedVideo = video
         }
     }
-    LaunchedEffect(reflowingNotInterestedVideo, systemReduceMotion) {
+    LaunchedEffect(reflowingNotInterestedVideo, previewDissolvingNotInterestedVideo, systemReduceMotion) {
         val video = reflowingNotInterestedVideo ?: return@LaunchedEffect
         // Open once the 180 ms particle tail has cleared; the 240 ms reflow is settling.
         if (!systemReduceMotion) delay(180L)
+        if (previewDissolvingNotInterestedVideo?.bvid == video.bvid) return@LaunchedEffect
         pendingNotInterestedVideo = video
     }
     val onDismissVideoCallback = remember(viewModel, context, systemReduceMotion) {
-        { video: VideoItem ->
+        { video: VideoItem, keepPreviewOpen: Boolean ->
             if (dissolvingNotInterestedVideo == null && pendingNotInterestedVideo == null) {
-                targetVideoItemState.value = null
-                reflowingNotInterestedVideo = null
-                dissolvingNotInterestedVideo = video
-                if (!systemReduceMotion && isThanosEffectSupported(context)) {
-                    viewModel.startVideoDissolve(video.bvid)
+                val particleDissolveEnabled = !systemReduceMotion && isThanosEffectSupported(context)
+                if (keepPreviewOpen && particleDissolveEnabled) {
+                    // Finish the long preview card first; its completion starts the feed-card dissolve.
+                    previewDissolvingNotInterestedVideo = video
                 } else {
-                    onDissolveCompleteCallback(video.bvid)
+                    reflowingNotInterestedVideo = null
+                    dissolvingNotInterestedVideo = video
+                    targetVideoItemState.value = null
+                    if (particleDissolveEnabled) {
+                        viewModel.startVideoDissolve(video.bvid)
+                    } else {
+                        onDissolveCompleteCallback(video.bvid)
+                    }
                 }
             }
         }
@@ -1142,7 +1158,10 @@ fun HomeScreen(
     val chromeContentReady = !(chromeCategoryState.isLoading &&
         chromeCategoryState.videos.isEmpty() && chromeCategoryState.liveRooms.isEmpty())
     val shouldCaptureHomeChromeBackdrop = isLiquidGlassEnabled ||
-        isHeaderBlurEnabled || isBottomBarBlurEnabled || appThemeConfig.progressiveTopBlurEnabled
+        isHeaderBlurEnabled || isBottomBarBlurEnabled || appThemeConfig.progressiveTopBlurEnabled ||
+        (targetVideoItemState.value != null &&
+            shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
+            !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced())
     val homeMiuixBackdropSource = if (shouldCaptureHomeChromeBackdrop) {
         rememberChromeBackdropSource()
     } else {
@@ -1189,7 +1208,8 @@ fun HomeScreen(
     val wallpaperPalette by com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.currentPalette.collectAsStateWithLifecycle()
     val homeLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val homeLifecycleState by homeLifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    LaunchedEffect(homeWallpaperUri, wallpaperPalette == null, homeLifecycleState) {
+    LaunchedEffect(homeWallpaperUri, wallpaperPalette == null, homeLifecycleState, deferHomeHeavyWork) {
+        if (deferHomeHeavyWork) return@LaunchedEffect
         if (homeLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
             if (wallpaperPalette == null || homeWallpaperUri.isNotBlank()) {
                 com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.loadWallpaperPalette(
@@ -2465,7 +2485,8 @@ fun HomeScreen(
                                  HomeCategoryPageContent(
                                      category = category,
                                      categoryState = pageCategoryState,
-                                     isActive = pagerState.currentPage == page,
+                                     isActive = isTopLevelActive && pagerState.currentPage == page &&
+                                         !deferHomeHeavyWork,
                                      gridState = contentGridState,
                                      gridColumns = effectiveGridColumns,
                                      contentPadding = pageContentPadding,
@@ -2482,7 +2503,7 @@ fun HomeScreen(
                                          viewModel.loadMore(category, selectedPopularSubCategory, retry = true)
                                      },
                                      onRetryRefresh = { viewModel.refresh(category, selectedPopularSubCategory) },
-                                     onDismissVideo = onDismissVideoCallback,
+                                     onDismissVideo = { video -> onDismissVideoCallback(video, false) },
                                      onWatchLater = onWatchLaterCallback,
                                      onDissolveComplete = onDissolveCompleteCallback,
                                      onDissolveReflowStarted = onDissolveReflowStartedCallback,
@@ -2992,6 +3013,20 @@ fun HomeScreen(
             if (item != null) {
                 com.android.purebilibili.feature.home.components.VideoPreviewDialog(
                     video = item,
+                    isNotInterestedDissolving = previewDissolvingNotInterestedVideo?.bvid == item.bvid,
+                    onNotInterestedDissolveComplete = {
+                        if (previewDissolvingNotInterestedVideo?.bvid == item.bvid) {
+                            previewDissolvingNotInterestedVideo = null
+                            onDismissVideoCallback(item, false)
+                            targetVideoItemState.value = null
+                        }
+                    },
+                    keepOpenDuringNotInterestedDissolve = !systemReduceMotion &&
+                        isThanosEffectSupported(context) &&
+                        (previewDissolvingNotInterestedVideo == null ||
+                            previewDissolvingNotInterestedVideo?.bvid == item.bvid) &&
+                        dissolvingNotInterestedVideo == null &&
+                        pendingNotInterestedVideo == null,
                     onDismiss = { targetVideoItemState.value = null },
                     onPlay = {
                      // 1. Log click
@@ -3035,7 +3070,7 @@ fun HomeScreen(
                     )
                     targetVideoItemState.value = null
                 },
-                onNotInterested = { onDismissVideoCallback(item) },
+                onNotInterested = { onDismissVideoCallback(item, true) },
                 onBlockCreator = {
                     viewModel.blockCreator(item)
                     targetVideoItemState.value = null
@@ -3043,7 +3078,9 @@ fun HomeScreen(
                 onGetPreviewUrl = { bvid, cid ->
                     viewModel.getPreviewVideoUrl(bvid, cid)
                 },
-                hazeState = hazeState
+                hazeState = hazeState,
+                miuixBackdrop = readyHomeMiuixBackdrop,
+                modifier = Modifier.fillMaxSize(),
             )
             }
         }
@@ -3176,6 +3213,7 @@ fun HomeScreen(
         preloadAheadCount,
         isReturningFromVideoDetail,
         homeCoverRequestSpec,
+        deferHomeHeavyWork,
         isTopLevelActive,
         lifecycleOwner,
     ) {
@@ -3183,7 +3221,7 @@ fun HomeScreen(
         if (isDataSaverActive) return@LaunchedEffect
         if (preloadAheadCount <= 0) return@LaunchedEffect
         // 详情返回 morph 窗口：延后封面预加载，避免与 live surface + 景深抢 IO/主线程。
-        if (isReturningFromVideoDetail) return@LaunchedEffect
+        if (isReturningFromVideoDetail || deferHomeHeavyWork) return@LaunchedEffect
         if (!isTopLevelActive) return@LaunchedEffect
         
         val currentGridState = if (currentCategory == HomeCategory.POPULAR) {

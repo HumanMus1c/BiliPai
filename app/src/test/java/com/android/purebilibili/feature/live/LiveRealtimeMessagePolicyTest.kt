@@ -113,6 +113,106 @@ class LiveRealtimeMessagePolicyTest {
     }
 
     @Test
+    fun `super chat retains server deadline over conflicting duration`() {
+        val action = resolveLiveRealtimeAction(
+            json(
+                """{"cmd":"SUPER_CHAT_MESSAGE","data":{"id":7,"uid":42,"message":"测试","price":30,"start_time":1945,"end_time":"2005","time":300,"duration":60,"background_bottom_color":"#2A60B2","user_info":{"uname":"测试用户"}}}"""
+            ),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(2_005L, item.superChatEndTime)
+        assertEquals(300, item.superChatDuration)
+        assertEquals(5, remainingLiveSuperChatSeconds(item.superChatEndTime, 2_000L))
+        assertEquals(2, remainingLiveSuperChatSeconds(item.superChatEndTime, 2_003L))
+        assertEquals(0xFF2A60B2.toInt(), item.superChatBackgroundColor)
+    }
+
+    @Test
+    fun `expired server deadline is not replaced with a fresh fallback`() {
+        val action = resolveLiveRealtimeAction(
+            json("""{"cmd":"SUPER_CHAT_MESSAGE","data":{"message":"已到期","end_time":1999,"duration":300}}"""),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(1_999L, item.superChatEndTime)
+        assertTrue(shouldExpireLiveSuperChat(item.superChatEndTime, 2_000L))
+    }
+
+    @Test
+    fun `super chat time field precedes duration when recovering start based deadline`() {
+        val action = resolveLiveRealtimeAction(
+            json("""{"cmd":"SUPER_CHAT_MESSAGE","data":{"message":"测试","start_time":1945,"time":60,"duration":300}}"""),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(60, item.superChatDuration)
+        assertEquals(2_005L, item.superChatEndTime)
+    }
+
+    @Test
+    fun `super chat duration recovers deadline when time field is missing`() {
+        val action = resolveLiveRealtimeAction(
+            json("""{"cmd":"SUPER_CHAT_MESSAGE_JPN","data":{"message":"测试","start_time":1945,"duration":60}}"""),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(2_005L, item.superChatEndTime)
+    }
+
+    @Test
+    fun `start based expired super chat does not get a fresh duration`() {
+        val action = resolveLiveRealtimeAction(
+            json("""{"cmd":"SUPER_CHAT_MESSAGE","data":{"message":"已到期","start_time":1900,"time":60}}"""),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(1_960L, item.superChatEndTime)
+        assertTrue(shouldExpireLiveSuperChat(item.superChatEndTime, 2_000L))
+    }
+
+    @Test
+    fun `super chat missing timing becomes a fixed absolute fallback at parsing`() {
+        val action = resolveLiveRealtimeAction(
+            json("""{"cmd":"SUPER_CHAT_MESSAGE","data":{"message":"测试"}}"""),
+            nowEpochSeconds = 2_000L,
+        )
+        val item = assertIs<LiveRealtimeAction.EmitSuperChat>(action).item
+        assertEquals(2_060L, item.superChatEndTime)
+        assertEquals(57, remainingLiveSuperChatSeconds(item.superChatEndTime, 2_003L))
+        assertEquals(0, remainingLiveSuperChatSeconds(item.superChatEndTime, 2_060L))
+    }
+
+    @Test
+    fun `super chat RGB is opaque including black and explicit alpha is retained`() {
+        for ((raw, expected) in listOf(
+            "#000000" to 0xFF000000.toInt(),
+            "#2A60B2" to 0xFF2A60B2.toInt(),
+            "#802A60B2" to 0x802A60B2.toInt(),
+            "#invalid" to 0,
+        )) {
+            val action = resolveLiveRealtimeAction(
+                json("""{"cmd":"SUPER_CHAT_MESSAGE","data":{"message":"测试","background_bottom_color":"$raw"}}"""),
+                nowEpochSeconds = 2_000L,
+            )
+            assertEquals(expected, assertIs<LiveRealtimeAction.EmitSuperChat>(action).item.superChatBackgroundColor)
+        }
+    }
+
+    @Test
+    fun `system and gift announcements are not ordinary chat`() {
+        for (raw in listOf(
+            """{"cmd":"ROOM_SILENT_ON"}""",
+            """{"cmd":"SEND_GIFT","data":{"uname":"Alice","giftName":"小花花","num":3}}""",
+            """{"cmd":"GUARD_BUY","data":{"username":"Bob","guard_level":3,"num":1}}""",
+            """{"cmd":"INTERACT_WORD","data":{"uname":"Carol","uid":42,"msg_type":2}}""",
+        )) {
+            assertTrue(assertIs<LiveRealtimeAction.EmitChat>(resolveLiveRealtimeAction(json(raw))).item.isSystem)
+        }
+        assertEquals(false, assertIs<LiveRealtimeAction.EmitChat>(resolveLiveRealtimeAction(liveDanmakuJson())).item.isSystem)
+    }
+
+    @Test
     fun `super chat delete returns ids for removal`() {
         val action = resolveLiveRealtimeAction(
             json(

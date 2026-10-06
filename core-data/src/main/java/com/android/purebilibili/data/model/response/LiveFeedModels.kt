@@ -93,7 +93,7 @@ data class LiveAppSecondListData(
     val count: Int = 0,
     val list: List<LiveFeedRoomCard>? = null,
     @SerialName("new_tags") val newTags: List<LiveSecondSortTag>? = null,
-    @SerialName("has_more") val hasMore: Int = 0,
+    @SerialName("has_more") val hasMore: Int? = null,
 )
 
 @Serializable

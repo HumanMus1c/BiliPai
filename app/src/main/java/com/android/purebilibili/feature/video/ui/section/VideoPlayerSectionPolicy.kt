@@ -39,11 +39,10 @@ private const val PLAYER_DRAG_GESTURE_BOTTOM_EXCLUSION_BUFFER_DP = 12
 private const val PLAYBACK_STALL_LOG_THRESHOLD_MS = 700L
 private const val VIDEO_PLAYER_COVER_FADE_ENTER_DURATION_MILLIS = 200
 private const val VIDEO_PLAYER_COVER_FADE_EXIT_DURATION_MILLIS = 300
-private const val VIDEO_PLAYER_COVER_REVEAL_HOLD_DELAY_MILLIS = 96
-private const val VIDEO_PLAYER_SURFACE_REVEAL_DURATION_MILLIS = 220
-// 揭开起始 scale > 1：视频帧从轻微放大**收缩沉降**到位，读作「对焦落定」；
-// 反向（<1 放大）会读作画面被推远，不符合落定语义。
-private const val VIDEO_PLAYER_SURFACE_REVEAL_INITIAL_SCALE = 1.02f
+private const val VIDEO_PLAYER_COVER_REVEAL_HOLD_DELAY_MILLIS = 0
+private const val VIDEO_PLAYER_SURFACE_REVEAL_DURATION_MILLIS = 140
+// The card already owns spatial motion; revealing playback must not add another zoom.
+private const val VIDEO_PLAYER_SURFACE_REVEAL_INITIAL_SCALE = 1f
 // 揭开动画结束后再延迟一小段才允许移除封面垫底，吸收 animateFloatAsState
 // 晚一帧启动的相位差，确保移除瞬间视频 surface 已完全不透明。
 private const val VIDEO_PLAYER_COVER_REVEAL_SETTLE_BUFFER_MILLIS = 48
@@ -618,6 +617,7 @@ internal fun resolveHorizontalSeekDeltaMs(
 ): Long? {
     if (isFullscreen && fullscreenSwipeSeekEnabled) {
         val seekSeconds = fullscreenSwipeSeekSeconds ?: return null
+        if (seekSeconds == 0) return (totalDragDistanceX * 200f * gestureSensitivity).toLong()
         return resolveConfiguredSeekDeltaMs(
             totalDragDistanceX = totalDragDistanceX,
             containerWidthPx = containerWidthPx,
@@ -626,6 +626,7 @@ internal fun resolveHorizontalSeekDeltaMs(
         )
     }
     if (!isFullscreen) {
+        if (inlineSwipeSeekSeconds == 0) return (totalDragDistanceX * 200f * gestureSensitivity).toLong()
         return resolveConfiguredSeekDeltaMs(
             totalDragDistanceX = totalDragDistanceX,
             containerWidthPx = containerWidthPx,
@@ -1484,10 +1485,12 @@ internal fun resolveVideoPlayerCoverMotionSpec(
     )
 }
 
-internal fun resolveVideoPlayerRevealMotionSpec(): VideoPlayerRevealMotionSpec {
+internal fun resolveVideoPlayerRevealMotionSpec(
+    reducedMotion: Boolean = false,
+): VideoPlayerRevealMotionSpec {
     return VideoPlayerRevealMotionSpec(
         coverRevealHoldDelayMillis = VIDEO_PLAYER_COVER_REVEAL_HOLD_DELAY_MILLIS,
-        surfaceRevealDurationMillis = VIDEO_PLAYER_SURFACE_REVEAL_DURATION_MILLIS,
+        surfaceRevealDurationMillis = if (reducedMotion) 80 else VIDEO_PLAYER_SURFACE_REVEAL_DURATION_MILLIS,
         surfaceRevealInitialScale = VIDEO_PLAYER_SURFACE_REVEAL_INITIAL_SCALE
     )
 }

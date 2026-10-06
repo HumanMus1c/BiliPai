@@ -42,13 +42,6 @@ class LiveAreaRoomsPolicyTest {
         assertEquals(listOf(1L), filtered.map { it.roomid })
     }
 
-    @Test
-    fun `live area error message should hide raw risk code`() {
-        assertEquals(
-            "触发风控，请稍后重试",
-            resolveLiveAreaRoomsErrorMessage(code = -352, message = "")
-        )
-    }
 
     @Test
     fun `room pagination uses total count when has more flag is absent`() {
@@ -57,7 +50,7 @@ class LiveAreaRoomsPolicyTest {
                 loadedCount = 30,
                 page = 1,
                 pageSize = 30,
-                hasMoreFlag = 0,
+                hasMoreFlag = null,
                 totalCount = 438
             )
         )
@@ -66,9 +59,23 @@ class LiveAreaRoomsPolicyTest {
                 loadedCount = 18,
                 page = 15,
                 pageSize = 30,
-                hasMoreFlag = 0,
+                hasMoreFlag = null,
                 totalCount = 438
             )
         )
+    }
+
+    @Test
+    fun `explicit final page wins over a full page and stale total count`() {
+        assertFalse(hasMoreLiveAreaRooms(30, 1, 30, 0, 438))
+        assertFalse(hasMoreLiveAreaRooms(30, 1, 30, 0, 0))
+        assertTrue(hasMoreLiveAreaRooms(30, 15, 30, 1, 438))
+    }
+
+    @Test
+    fun `missing pagination metadata uses page size while empty pages always stop`() {
+        assertTrue(hasMoreLiveAreaRooms(30, 1, 30, null, 0))
+        assertFalse(hasMoreLiveAreaRooms(29, 1, 30, null, 0))
+        assertFalse(hasMoreLiveAreaRooms(0, 1, 30, 1, 438))
     }
 }

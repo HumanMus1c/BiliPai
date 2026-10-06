@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -319,7 +319,7 @@ private fun VideoCardOwnerMetadata(
         },
         leadingContent = if (showUpAvatar && video.owner.face.isNotEmpty()) {
             {
-                AsyncImage(
+                PageAwareAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(FormatUtils.fixImageUrl(video.owner.face))
                         .crossfade(100)
@@ -1238,7 +1238,7 @@ internal fun ElegantVideoCard(
                     .diskCacheKey(requestCoverCacheKey)
                     .build()
             }
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = coverImageRequest,
                 contentDescription = null,
                 onSuccess = {
@@ -1668,10 +1668,6 @@ internal fun ElegantVideoCard(
                     },
                     shape = infoSurfaceShape
                 )
-                .padding(
-                    horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro,
-                    vertical = if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small
-                )
         } else {
             val ambientCoverGlowModifier = if (
                 homeCardDynamicTintEnabled &&
@@ -1696,16 +1692,12 @@ internal fun ElegantVideoCard(
             Modifier
                 .fillMaxWidth()
                 .then(ambientCoverGlowModifier)
-                .padding(
-                    start = AppSpacingTokens.Small + AppSpacingTokens.Micro,
-                    top = AppSpacingTokens.None,
-                    end = AppSpacingTokens.Small + AppSpacingTokens.Micro,
-                    bottom = if (compactMetadata) {
-                        AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro
-                    } else {
-                        AppSpacingTokens.Small
-                    }
-                )
+        }
+
+        val infoBottomPadding = if (compactMetadata) {
+            AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro
+        } else {
+            AppSpacingTokens.Small
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -1719,7 +1711,15 @@ internal fun ElegantVideoCard(
                 isQuickReturnFromDetail = isQuickReturningFromVideoDetail,
             )
         ) {
-        Column {
+        // Text keeps its inset; the trailing action aligns to the full info surface.
+        Column(
+            modifier = Modifier.padding(
+                start = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                top = if (useCardEffectSurface) infoBottomPadding else AppSpacingTokens.None,
+                end = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                bottom = infoBottomPadding,
+            )
+        ) {
         if (!useCardEffectSurface) {
             Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         }
@@ -1862,9 +1862,11 @@ internal fun ElegantVideoCard(
                             },
                         contentAlignment = Alignment.Center
                     ) {
+                        // 语义是“从收藏夹移除”，用 ✕ 而不是 ThumbUp——
+                        // 后者会被理解为点赞，与行为不符。
                         AppIcon(
-                            imageVector = Icons.Filled.ThumbUp,
-                            contentDescription = "取消收藏",
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "从收藏夹移除",
                             modifier = Modifier.size(AppSpacingTokens.Large),
                             tint = adaptiveContentColors.subtitleColor.copy(alpha = 0.7f)
                         )
@@ -1904,76 +1906,80 @@ internal fun ElegantVideoCard(
         }
     }
         
-        // 菜单需要挂在一个本地小锚点上，避免 DropdownMenu 在整张卡片根节点右侧 fallback 时反向偏移。
-        //
-        // 这里保留非 lambda 版 offset（lint 的 UseOfNonLambdaOffsetOverload 会报）：
-        // menuOffset 只在每次长按时变一次，不是逐帧动画值，lambda 版没有实际收益；
-        // 而改写形式会打断 VideoCardLongPressPolicyTest 对上面那次回归修复的字面守卫。
-        // 为零收益去动别人的回归守卫不划算。
-        @Suppress("UseOfNonLambdaOffsetOverload")
-        Box(
-            modifier = Modifier
-                .offset(x = menuOffset.x, y = menuOffset.y)
-                .size(AppSpacingTokens.Micro / 2)
-        ) {
-            AppDropdownMenu(
-                expanded = showDismissMenu,
-                onDismissRequest = { showDismissMenu = false },
-                offset = DpOffset.Zero
+        // Equal-height feed rows give this card tight height constraints. The root propagates
+        // those minima, so isolate the small popup anchor in an overlay that clears them.
+        // matchParentSize keeps the overlay out of the card's intrinsic height calculation.
+        Box(modifier = Modifier.matchParentSize(), propagateMinConstraints = false) {
+            // 菜单需要挂在一个本地小锚点上，避免 DropdownMenu 在整张卡片根节点右侧 fallback 时反向偏移。
+            //
+            // 这里保留非 lambda 版 offset（lint 的 UseOfNonLambdaOffsetOverload 会报）：
+            // menuOffset 只在每次长按时变一次，不是逐帧动画值，lambda 版没有实际收益；
+            // 而改写形式会打断 VideoCardLongPressPolicyTest 对上面那次回归修复的字面守卫。
+            // 为零收益去动别人的回归守卫不划算。
+            @Suppress("UseOfNonLambdaOffsetOverload")
+            Box(
+                modifier = Modifier
+                    .offset(x = menuOffset.x, y = menuOffset.y)
+                    .size(AppSpacingTokens.Micro / 2)
             ) {
-                // 稍后再看
-                if (onWatchLater != null) {
-                    AppDropdownMenuItem(
-                        text = {
-                            AppText(
-                                "🕐 稍后再看",
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        onClick = {
-                            showDismissMenu = false
-                            onWatchLater.invoke()
-                        }
-                    )
-                }
+                AppDropdownMenu(
+                    expanded = showDismissMenu,
+                    onDismissRequest = { showDismissMenu = false },
+                    offset = DpOffset.Zero,
+                ) {
+                    // 稍后再看
+                    if (onWatchLater != null) {
+                        AppDropdownMenuItem(
+                            text = {
+                                AppText(
+                                    "🕐 稍后再看",
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showDismissMenu = false
+                                onWatchLater.invoke()
+                            }
+                        )
+                    }
 
-                // 取消收藏 (仅在收藏页显示)
-                if (onUnfavorite != null) {
-                     AppDropdownMenuItem(
-                        text = {
-                            AppText(
-                                "💔 取消收藏",
-                                color = MaterialTheme.colorScheme.error  // 使用错误色强调删除操作
-                            )
-                        },
-                        onClick = {
-                            showDismissMenu = false
-                            // onUnfavorite.invoke() -> 改为弹窗确认
-                            showUnfavoriteDialog = true
-                        }
-                    )
-                }
+                    // 取消收藏 (仅在收藏页显示)
+                    if (onUnfavorite != null) {
+                         AppDropdownMenuItem(
+                            text = {
+                                AppText(
+                                    "💔 取消收藏",
+                                    color = MaterialTheme.colorScheme.error  // 使用错误色强调删除操作
+                                )
+                            },
+                            onClick = {
+                                showDismissMenu = false
+                                // onUnfavorite.invoke() -> 改为弹窗确认
+                                showUnfavoriteDialog = true
+                            }
+                        )
+                    }
 
-                // 不感兴趣 (放第一位，方便操作) -> 改回下方
-                if (onDismiss != null) {
-                    AppDropdownMenuItem(
-                        text = {
-                            AppText(
-                                dismissMenuText,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        onClick = {
-                            showDismissMenu = false
-                            onDismiss.invoke()
-                        }
-                    )
+                    // 不感兴趣 (放第一位，方便操作) -> 改回下方
+                    if (onDismiss != null) {
+                        AppDropdownMenuItem(
+                            text = {
+                                AppText(
+                                    dismissMenuText,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showDismissMenu = false
+                                onDismiss.invoke()
+                            }
+                        )
+                    }
                 }
             }
         }
     }
-    
-    
+
     if (showUnfavoriteDialog) {
         AppAlertDialog(
             onDismissRequest = { showUnfavoriteDialog = false },

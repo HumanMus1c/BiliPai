@@ -74,6 +74,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
@@ -213,6 +215,7 @@ fun LivePlayerScreen(
     var showContributionRankSheet by remember { mutableStateOf(false) }
     var showSendDanmakuSheet by remember { mutableStateOf(false) }
     var showEmoticonSheet by remember { mutableStateOf(false) }
+    var danmakuDraft by remember(roomId, siteId) { mutableStateOf("") }
     var showShareMessageSheet by remember { mutableStateOf(false) }
     var showStreamSourceSheet by remember { mutableStateOf(false) }
     var showPortraitMoreSheet by remember(roomId, siteId) { mutableStateOf(false) }
@@ -561,8 +564,11 @@ fun LivePlayerScreen(
                 is LivePlayerEvent.Toast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
-                LivePlayerEvent.DanmakuSent -> {
-                    if (showSendDanmakuSheet) showSendDanmakuSheet = false
+                is LivePlayerEvent.DanmakuSent -> {
+                    if (danmakuDraft.trim() == event.message) {
+                        danmakuDraft = ""
+                        showSendDanmakuSheet = false
+                    }
                 }
                 LivePlayerEvent.EmoticonSent -> {
                     showEmoticonSheet = false
@@ -605,8 +611,23 @@ fun LivePlayerScreen(
     }
 
     val exoPlayer = remember(dataSourceFactory) {
+        // 与视频/番剧/小窗播放器一致：显式声明媒体用途并接管音频焦点，
+        // 否则直播忽略用户的 audio_focus_enabled 开关，被其他音频短暂抢占后偶发丢声。
+        val handleAudioFocus = SettingsManager.getAudioFocusEnabledSync(context)
         ExoPlayer.Builder(context)
+            .setRenderersFactory(
+                androidx.media3.exoplayer.DefaultRenderersFactory(context)
+                    .setEnableDecoderFallback(true)
+            )
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                /* handleAudioFocus= */ handleAudioFocus,
+            )
+            .setHandleAudioBecomingNoisy(true)
             .build().apply { playWhenReady = true }
     }
 
@@ -749,9 +770,9 @@ fun LivePlayerScreen(
             qn = resolveLiveDefaultQualityQn(savedQuality),
         )
     }
-    // 播放 URL 管理 - 只在 playUrl 变化时重新加载
+    // 刷新地址即使返回相同 URL，也需要重新 prepare 已失败的播放源。
     val playUrl = (uiState as? LivePlayerState.Success)?.playUrl
-    LaunchedEffect(playUrl) {
+    LaunchedEffect(exoPlayer, playUrl, successState?.playbackRevision) {
         if (!playUrl.isNullOrEmpty()) {
             CrashReporter.markLivePlaybackStage("prepare_media_source")
             try {
@@ -777,6 +798,9 @@ fun LivePlayerScreen(
             }
             // 埋点
             AnalyticsHelper.logLivePlay(bilibiliRoomId, title, uname)
+        } else {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
         }
     }
     
@@ -1619,7 +1643,7 @@ fun LivePlayerScreen(
                             .align(Alignment.BottomEnd)
                             .navigationBarsPadding()
                             .padding(AppSpacingTokens.Medium)
-                            .heightIn(min = 48.dp),
+                            .heightIn(min = 40.dp),
                     ) {
                         Box(
                             modifier = Modifier.padding(horizontal = AppSpacingTokens.Large),
@@ -1925,9 +1949,21 @@ fun LivePlayerScreen(
     if (showEmoticonSheet) {
         LiveEmoticonSheet(
             packages = emoticonPackages,
-            onSelected = { item ->
-                viewModel.sendEmoticon(item, preserveReplyTarget = showSendDanmakuSheet)
+            onInsertText = { item ->
+                val maxLength = successState?.danmakuPermission?.maxLength ?: 40
+                com.android.purebilibili.data.repository.appendLiveTextEmoticon(
+                    draft = danmakuDraft,
+                    item = item,
+                    maxLength = maxLength
+                ).onSuccess { draft ->
+                    danmakuDraft = draft
+                    showEmoticonSheet = false
+                    showSendDanmakuSheet = true
+                }.onFailure { error ->
+                    Toast.makeText(context, error.message, Toast.LENGTH_SHORT).show()
+                }
             },
+            onSendEmoticon = { item -> viewModel.sendEmoticon(item) },
             onDismiss = { showEmoticonSheet = false }
         )
     }
@@ -1982,7 +2018,7 @@ fun LivePlayerScreen(
         )
     }
 
-    if (showSendDanmakuSheet) {
+    if (showSendDanmakuSheet && !showEmoticonSheet) {
         LiveSendDanmakuSheet(
             onDismiss = {
                 showSendDanmakuSheet = false
@@ -1991,6 +2027,8 @@ fun LivePlayerScreen(
             onSend = { message, color, mode ->
                 viewModel.sendDanmaku(message, color, mode)
             },
+            message = danmakuDraft,
+            onMessageChange = { danmakuDraft = it },
             permission = successState?.danmakuPermission ?: com.android.purebilibili.data.repository.LiveDanmakuPermission(),
             replyTarget = replyTarget,
             onOpenEmote = {
@@ -2068,11 +2106,6 @@ private fun LivePortraitOverlayAppBar(
     val palette = rememberLiveChromePalette()
     val roomColorTokens = resolveLiveBiliPaiRoomColorTokens()
     val backIcon = rememberAppBackIcon()
-    val playerChromeProfile = rememberAppPlayerChromeProfile()
-    val liveVisualSpec = remember(playerChromeProfile.tabPresentation) {
-        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
-    }
-    val compactChrome = playerChromeProfile.compactChromeSpec
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -2094,7 +2127,7 @@ private fun LivePortraitOverlayAppBar(
     ) {
         AppIconButton(
             onClick = onBack,
-            modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp)
+            modifier = Modifier.size(30.dp)
         ) {
             AppIcon(
                 backIcon,
@@ -2102,7 +2135,6 @@ private fun LivePortraitOverlayAppBar(
                 tint = roomColorTokens.inputOverlayColor
             )
         }
-        Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
         AppSurface(
             shape = AppShapes.container(ContainerLevel.Pill),
             color = LiveStatusPalette.MediaScrim.copy(alpha = 0.42f),
@@ -2120,10 +2152,10 @@ private fun LivePortraitOverlayAppBar(
         ) {
             Row(
                 modifier = Modifier.padding(
-                    start = 3.dp,
-                    end = if (!isFollowing) 4.dp else AppSpacingTokens.Small,
-                    top = 3.dp,
-                    bottom = 3.dp
+                    start = 2.dp,
+                    end = if (!isFollowing) 3.dp else AppSpacingTokens.ExtraSmall,
+                    top = 2.dp,
+                    bottom = 2.dp
                 ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2132,13 +2164,13 @@ private fun LivePortraitOverlayAppBar(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .background(roomColorTokens.inputOverlayColor.copy(alpha = 0.18f))
                 )
-                Spacer(Modifier.width(AppSpacingTokens.Small))
+                Spacer(Modifier.width(AppSpacingTokens.Micro))
                 Column(
-                    modifier = Modifier.widthIn(min = 40.dp, max = 110.dp),
+                    modifier = Modifier.widthIn(min = 36.dp, max = 88.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     AppText(
@@ -2146,6 +2178,7 @@ private fun LivePortraitOverlayAppBar(
                         color = roomColorTokens.inputOverlayColor,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
+                        lineHeight = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2155,6 +2188,7 @@ private fun LivePortraitOverlayAppBar(
                             text = secondaryText,
                             color = roomColorTokens.inputOverlayColor.copy(alpha = 0.72f),
                             style = MaterialTheme.typography.labelSmall,
+                            lineHeight = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -2233,7 +2267,7 @@ private fun LivePortraitOverlayAppBar(
         }
         Spacer(Modifier.width(AppSpacingTokens.Small))
         AppWindowActionMenu(
-            modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp),
+            modifier = Modifier.size(30.dp),
             groups = listOf(
                 listOf(
                     AppWindowAction(

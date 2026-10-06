@@ -12,7 +12,10 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +58,7 @@ object WallpaperPaletteStore {
             val palette = extractWallpaperPaletteFromUri(context, uri)
                 ?: extractSystemWallpaperPalette(context)
                 ?: createDefaultThemePalette()
+            currentCoroutineContext().ensureActive()
             synchronized(paletteCache) {
                 paletteCache.put(uri, palette)
             }
@@ -115,6 +119,7 @@ object WallpaperPaletteStore {
             val sliceCount = 5
             val sliceHeight = (bitmap.height / sliceCount).coerceAtLeast(1)
             for (i in 0 until sliceCount) {
+                currentCoroutineContext().ensureActive()
                 val sliceTop = (i * sliceHeight).coerceIn(0, bitmap.height - 1)
                 val sliceBottom = ((i + 1) * sliceHeight).coerceIn(sliceTop + 1, bitmap.height)
                 val palette = Palette.from(bitmap)
@@ -137,6 +142,8 @@ object WallpaperPaletteStore {
                 dominantColor = stops[stops.size / 2],
                 stops = stops
             )
+        }.onFailure {
+            if (it is CancellationException) throw it
         }.getOrNull()
     }
 

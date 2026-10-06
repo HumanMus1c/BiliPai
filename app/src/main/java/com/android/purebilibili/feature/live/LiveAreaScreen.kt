@@ -102,13 +102,14 @@ fun LiveAreaScreen(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var areas by remember { mutableStateOf<List<LiveAreaParent>>(emptyList()) }
-    var selectedTab by remember { mutableIntStateOf(0) }
     var isEditing by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }
     val favoriteTags by SettingsManager.getLiveFavoriteTags(context).collectAsStateWithLifecycle(emptyList())
     val pagerState = rememberPagerState(pageCount = { areas.size })
 
     LaunchedEffect(reloadKey) {
+        isLoading = true
+        error = null
         LiveRepository.getLiveAreaIndex()
             .onSuccess {
                 areas = it
@@ -163,7 +164,9 @@ fun LiveAreaScreen(
                     areas = areas,
                     selectedTab = pagerState.currentPage,
                     horizontalPadding = metrics.safeSpaceDp.dp,
-                    onTabSelected = { selectedTab = it }
+                    onTabSelected = { target ->
+                        scope.launch { animatePagerSelection(pagerState, target) }
+                    }
                 )
                 }
             }
@@ -206,23 +209,6 @@ fun LiveAreaScreen(
                 AppText(text = "暂无直播标签", color = colorScheme.onSurfaceVariant)
             }
             areas.isNotEmpty() -> {
-                LaunchedEffect(areas.size) {
-                    if (areas.isNotEmpty() && selectedTab > areas.lastIndex) {
-                        selectedTab = areas.lastIndex
-                    }
-                }
-                LaunchedEffect(selectedTab, areas.size) {
-                    if (areas.isEmpty()) return@LaunchedEffect
-                    val target = selectedTab.coerceIn(0, areas.lastIndex)
-                    if (pagerState.currentPage != target) {
-                        animatePagerSelection(pagerState, target)
-                    }
-                }
-                LaunchedEffect(pagerState.currentPage, areas.size) {
-                    if (areas.isNotEmpty() && selectedTab != pagerState.currentPage) {
-                        selectedTab = pagerState.currentPage
-                    }
-                }
                 HorizontalPager(
                     state = pagerState,
                     userScrollEnabled = false,

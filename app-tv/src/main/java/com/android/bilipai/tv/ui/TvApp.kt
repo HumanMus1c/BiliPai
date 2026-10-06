@@ -211,7 +211,7 @@ private fun TvHomeContent(
         { id -> model.focusItem(id, state.route.key) }, { index, offset -> model.saveScroll(index, offset, state.route.key) },
         canLoadMore = state.catalog.hasMore && !state.catalog.loading && state.catalog.error == null, onLoadMore = model::loadMore,
         showCoverProgress = true,
-        densityScale = state.gridDensity, onDensityChange = viewModel::updateGridDensity,
+        densityScale = state.gridDensity, onDensityChange = model::updateGridDensity,
         headerFocus = continuingFocus, preferHeader = preferContinue,
         header = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -358,7 +358,7 @@ private fun TvCatalogContent(state: TvUiState, contentFocus: FocusRequester, nav
                 { if (state.catalog.managing) managedItem = it else model.openVideo(it) }, { id -> model.focusItem(id, state.route.key) },
                 { index, offset -> model.saveScroll(index, offset, state.route.key) }, Modifier.weight(1f),
                 canLoadMore = state.catalog.hasMore && !state.catalog.loading && state.catalog.error == null, onLoadMore = model::loadMore,
-                densityScale = state.gridDensity, onDensityChange = viewModel::updateGridDensity,
+                densityScale = state.gridDensity, onDensityChange = model::updateGridDensity,
                 requestInitialFocus = state.resumeAction != "follow",
                 supportingContent = if (state.route.screen == TvScreen.Following) { video ->
                     Text(java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(video.pubdate * 1000)),

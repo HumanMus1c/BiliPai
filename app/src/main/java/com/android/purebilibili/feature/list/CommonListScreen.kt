@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.list
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.videoListItemModifier
 import com.android.purebilibili.feature.home.GridPinchColumnHudPill
@@ -128,7 +130,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
@@ -316,7 +318,14 @@ fun CommonListScreen(
 
     //  [修复] 分页支持：收藏 + 历史记录 + 用户最近点赞
     val favoriteViewModel = viewModel as? FavoriteViewModel
+    LaunchedEffect(favoriteViewModel, isCurrentPage) {
+        if (isCurrentPage) favoriteViewModel?.activateStartupLoads()
+    }
     val historyViewModel = viewModel as? HistoryViewModel
+    DisposableEffect(historyViewModel, isCurrentPage) {
+        historyViewModel?.setPageActive(isCurrentPage)
+        onDispose { historyViewModel?.setPageActive(false) }
+    }
     val personalRecapEnabled = if (historyViewModel != null) {
         SettingsManager.getSubscriptionRecapEnabled(LocalContext.current)
             .collectAsStateWithLifecycle(initialValue = false).value
@@ -367,7 +376,10 @@ fun CommonListScreen(
     }
     // 通用列表页（历史/收藏/最近点赞）使用独立的折叠开关，与首页顶栏折叠解耦
     val supportsCollapsibleCommonListHeader = (
-        historyViewModel != null || favoriteViewModel != null || likedVideosViewModel != null
+        historyViewModel != null ||
+            favoriteViewModel != null ||
+            likedVideosViewModel != null ||
+            isFavoriteDetailPage
     ) && homeSettings.commonListHeaderCollapseMode != CommonListHeaderCollapseMode.ALWAYS_VISIBLE
     val visibleHistoryItems = remember(state.items, historyContentFilter, historyViewModel) {
         if (historyViewModel == null) {
@@ -383,8 +395,10 @@ fun CommonListScreen(
         }
     }
 
-    LaunchedEffect(historyViewModel, historyContentFilter) {
-        historyViewModel?.setHistoryListType(resolveHistoryListType(historyContentFilter))
+    LaunchedEffect(historyViewModel, historyContentFilter, isCurrentPage) {
+        if (isCurrentPage) {
+            historyViewModel?.setHistoryListType(resolveHistoryListType(historyContentFilter))
+        }
     }
 
     LaunchedEffect(
@@ -396,10 +410,11 @@ fun CommonListScreen(
         state.items.size,
         visibleHistoryItems.size,
         historyHasMore,
-        historyIsLoadingMore
+        historyIsLoadingMore,
+        isCurrentPage,
     ) {
         if (
-            historyViewModel != null &&
+            isCurrentPage && historyViewModel != null &&
             !state.isLoading &&
             state.error == null &&
             state.loadMoreError == null &&
@@ -587,7 +602,12 @@ fun CommonListScreen(
         autoHideEnabled = shouldAutoHideBottomBar,
         liveBottomPadding = liveCommonListBottomPadding,
         isBottomBarVisible = isBottomBarVisibleForPadding,
-    )
+    ) + if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+        // 听视频小横条悬浮在内容上方时统一上浮避让（与首页/稍后再看一致）
+        com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+    } else {
+        0.dp
+    }
     val activeCommonListScrollState = remember(
         favoriteViewModel,
         favoriteSection,
@@ -759,7 +779,9 @@ fun CommonListScreen(
         isSearchDestination,
         favoriteViewModel,
         historyViewModel,
+        isCurrentPage,
     ) {
+        if (!isCurrentPage) return@LaunchedEffect
         if (isSearchDestination && favoriteViewModel != null) {
             kotlinx.coroutines.delay(350)
             favoriteViewModel.searchVideos(searchQuery, favoriteSearchScope)
@@ -784,19 +806,10 @@ fun CommonListScreen(
     val statusBarHeightPx = with(LocalDensity.current) {
         WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
     }
-    val commonListHeaderMaxCollapsePx = if (supportsCollapsibleCommonListHeader) {
-        resolveCommonListHeaderMaxCollapsePxForMode(
-            collapseMode = commonListHeaderCollapseMode,
-            fixedTopBarHeightPx = fixedTopBarHeightPx,
-            statusBarHeightPx = statusBarHeightPx,
-        )
+    val commonListHeaderMaxCollapsePx = if (commonListHeaderCollapseEnabled) {
+        (headerHeightPx.toFloat() - statusBarHeightPx).coerceAtLeast(0f)
     } else {
-        resolveCommonListHeaderMaxCollapsePx(
-            headerHeightPx = headerHeightPx,
-            pinnedDockHeightPx = 0,
-            topInsetPx = statusBarHeightPx,
-            retainPinnedDock = false,
-        )
+        0f
     }
     fun animateCommonListHeaderOffsetTo(targetOffsetPx: Float) {
         if (kotlin.math.abs(commonListHeaderOffsetPx - targetOffsetPx) <= 0.5f) {
@@ -1181,6 +1194,7 @@ fun CommonListScreen(
                     searchQuery.isNotBlank()
                 ) {
                     CommonListContent(
+                        allowAutomaticLoadMore = isCurrentPage,
                         items = favoriteSearchUiState.items,
                         isLoading = favoriteSearchUiState.isLoading,
                         error = favoriteSearchUiState.error,
@@ -1227,6 +1241,7 @@ fun CommonListScreen(
                 } else if (isSubscribedBrowse) {
                     val favoriteVm = requireNotNull(favoriteViewModel)
                     FavoriteSubscribedFolderList(
+                        allowAutomaticLoadMore = isCurrentPage,
                         folders = filterFavoriteFoldersByQuery(subscribedFoldersState, searchQuery),
                         searchQuery = searchQuery,
                         padding = PaddingValues(
@@ -1314,6 +1329,7 @@ fun CommonListScreen(
                                 }
                             } else null
                             CommonListContent(
+                                allowAutomaticLoadMore = isCurrentPage,
                                 headerContent = recapHeader,
                                 items = pageItems,
                                 isLoading = state.isLoading,
@@ -1382,6 +1398,7 @@ fun CommonListScreen(
                         }
                     } else {
                         CommonListContent(
+                            allowAutomaticLoadMore = isCurrentPage,
                             items = state.items,
                             isLoading = state.isLoading,
                             error = state.error,
@@ -1515,7 +1532,18 @@ fun CommonListScreen(
                     }
             ) {
                 Layout(
-                    modifier = if (supportsCollapsibleCommonListHeader) Modifier.clipToBounds() else Modifier,
+                    modifier = if (supportsCollapsibleCommonListHeader) {
+                        Modifier
+                            .clipToBounds()
+                            .drawWithContent {
+                                val top = statusBarHeightPx.coerceIn(0f, size.height)
+                                if (size.height > top) {
+                                    clipRect(top = top) { this@drawWithContent.drawContent() }
+                                }
+                            }
+                    } else {
+                        Modifier
+                    },
                     content = {
                     AppTopBar(
                         title = when {
@@ -2047,23 +2075,12 @@ fun CommonListScreen(
                         ?.coerceIn(constraints.minWidth, boundedMaxWidth)
                         ?: constraints.minWidth
                     if (supportsCollapsibleCommonListHeader && placeables.isNotEmpty()) {
-                        val titleHeight = placeables.first().height
-                        val floatingDockHeight = placeables.drop(1).sumOf { it.height }
-                        val titleOffset = resolveHistoryTitleOffsetPx(
-                            headerOffsetPx = commonListHeaderOffsetPx,
-                            maxCollapsePx = commonListHeaderMaxCollapsePx,
-                            titleHeightPx = titleHeight,
-                        )
-                        val floatingDockTop = (titleHeight + commonListHeaderOffsetPx)
-                            .coerceAtLeast(statusBarHeightPx)
-                            .toInt()
-                        val height = (floatingDockTop + floatingDockHeight)
-                            .coerceIn(constraints.minHeight, constraints.maxHeight)
+                        val offset = commonListHeaderOffsetPx.toInt()
+                        val height = (placeables.sumOf { it.height } + offset)
+                            .coerceIn(statusBarHeightPx.toInt().coerceAtLeast(constraints.minHeight), constraints.maxHeight)
                         layout(width, height) {
-                            // 标题完整离场；Dock 仍只上移到状态栏安全区下方。
-                            placeables.first().placeRelative(0, titleOffset)
-                            var y = floatingDockTop
-                            placeables.drop(1).forEach { placeable ->
+                            var y = offset
+                            placeables.forEach { placeable ->
                                 placeable.placeRelative(0, y)
                                 y += placeable.height
                             }
@@ -2570,6 +2587,7 @@ fun CommonListScreen(
 @Composable
 private fun CommonListContent(
     items: List<com.android.purebilibili.data.model.response.VideoItem>,
+    allowAutomaticLoadMore: Boolean = true,
     isLoading: Boolean,
     error: String?,
     searchQuery: String,
@@ -2737,6 +2755,7 @@ private fun CommonListContent(
         }
         LaunchedEffect(
             searchPaginationFallbackEnabled,
+            allowAutomaticLoadMore,
             searchQuery,
             items.size,
             filteredItems.size,
@@ -2747,7 +2766,7 @@ private fun CommonListContent(
             isLoadingMoreSearchResults
         ) {
             if (
-                searchPaginationFallbackEnabled &&
+                allowAutomaticLoadMore && searchPaginationFallbackEnabled &&
                 !isLoading &&
                 error == null &&
                 loadMoreError == null &&
@@ -2792,9 +2811,9 @@ private fun CommonListContent(
                     total > 0 && last >= total - 4
                 }
             }
-            LaunchedEffect(shouldLoadMore.value, loadMoreError, isLoading, error) {
+            LaunchedEffect(shouldLoadMore.value, loadMoreError, isLoading, error, allowAutomaticLoadMore) {
                 if (
-                    shouldLoadMore.value && loadMoreError == null && !isLoading &&
+                    allowAutomaticLoadMore && shouldLoadMore.value && loadMoreError == null && !isLoading &&
                     (!isHistoryPersonalList || error == null)
                 ) onLoadMore()
             }
@@ -3134,7 +3153,7 @@ private fun HistoryArticleCard(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, topEnd = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall))
             ) {
-                AsyncImage(
+                PageAwareAsyncImage(
                     model = article.pic,
                     contentDescription = article.title,
                     modifier = coverModifier,
@@ -3178,6 +3197,7 @@ private fun HistoryArticleCard(
 @Composable
 private fun FavoriteSubscribedFolderList(
     folders: List<com.android.purebilibili.data.model.response.FavFolder>,
+    allowAutomaticLoadMore: Boolean = true,
     searchQuery: String,
     padding: PaddingValues,
     listState: androidx.compose.foundation.lazy.LazyListState,
@@ -3209,8 +3229,8 @@ private fun FavoriteSubscribedFolderList(
             total > 0 && lastVisible >= total - 3
         }
     }
-    LaunchedEffect(shouldLoadMore.value, hasMore, isLoadingMore) {
-        if (shouldLoadMore.value && hasMore && !isLoadingMore) {
+    LaunchedEffect(shouldLoadMore.value, hasMore, isLoadingMore, allowAutomaticLoadMore) {
+        if (allowAutomaticLoadMore && shouldLoadMore.value && hasMore && !isLoadingMore) {
             onLoadMore()
         }
     }
@@ -3315,7 +3335,7 @@ private fun FavoriteSubscribedFolderPreview(
         contentAlignment = Alignment.Center
     ) {
         if (coverUrl != null) {
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = FormatUtils.fixImageUrl(coverUrl),
                 contentDescription = "$title 最新视频封面",
                 modifier = Modifier.fillMaxSize(),

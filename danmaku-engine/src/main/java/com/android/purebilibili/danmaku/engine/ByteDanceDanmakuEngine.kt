@@ -27,6 +27,8 @@ internal class ByteDanceDanmakuEngine(
     private var trimCount = 0L
     private var currentConfig = DanmakuRenderConfig()
 
+    override var upOwnerUserHash: String? = null
+
     override var playbackState: DanmakuPlaybackState = DanmakuPlaybackState.STOPPED
         private set
 
@@ -279,6 +281,7 @@ internal class ByteDanceDanmakuEngine(
                     ?.let { scale -> currentConfig.textSizePx * scale }
                 textColor = item.textColor
                 isVipGradualColor = item.isVipGradualColor
+                isUpOwner = upOwnerUserHash != null && item.userHash == upOwnerUserHash
                 typeface = item.typeface
                 textStrokeWidth = item.textStrokeWidth
                 textStrokeColor = item.textStrokeColor

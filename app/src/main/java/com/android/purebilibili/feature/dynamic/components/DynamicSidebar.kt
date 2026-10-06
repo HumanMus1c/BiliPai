@@ -49,7 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.rememberAppBackIcon
@@ -569,7 +569,7 @@ fun SidebarUserItem(
                         .padding(AppSpacingTokens.Micro),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
+                    PageAwareAsyncImage(
                         model = coil3.request.ImageRequest.Builder(LocalContext.current)
                             .data(faceUrl.ifEmpty { null })
                             .crossfade(true)

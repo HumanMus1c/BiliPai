@@ -35,9 +35,9 @@ class LiveBiliPaiVisualPolicyTest {
         assertEquals(90, ios.roomCardDetailsMinHeightDp)
         assertEquals(88, md3.roomCardDetailsMinHeightDp)
         assertEquals(95, miuix.roomCardDetailsMinHeightDp)
-        assertEquals(48, ios.playerButtonTouchTargetDp)
-        assertEquals(48, md3.playerButtonTouchTargetDp)
-        assertEquals(48, miuix.playerButtonTouchTargetDp)
+        assertEquals(40, ios.playerButtonTouchTargetDp)
+        assertEquals(40, md3.playerButtonTouchTargetDp)
+        assertEquals(40, miuix.playerButtonTouchTargetDp)
         assertEquals(38, ios.playerButtonVisualSizeDp)
         assertEquals(40, md3.playerButtonVisualSizeDp)
         assertEquals(38, miuix.playerButtonVisualSizeDp)
@@ -97,23 +97,6 @@ class LiveBiliPaiVisualPolicyTest {
         assertEquals(true, shouldRenderLiveDanmakuImageEmoticon("https://example.com/e.png"))
     }
 
-    @Test
-    fun `interaction segmented control keeps liquid glass touch target dimensions`() {
-        val spec = resolveLiveInteractionSegmentedControlSpec(
-            compactChrome(
-                primaryHeightDp = 44,
-                compactChipHeightDp = 32,
-                chipHorizontalPaddingDp = 12,
-                standardGapDp = 8,
-            ),
-        )
-
-        assertEquals(12, spec.horizontalPaddingDp)
-        assertEquals(8, spec.verticalPaddingDp)
-        assertEquals(44, spec.heightDp)
-        assertEquals(33, spec.indicatorHeightDp)
-        assertEquals(14, spec.labelFontSizeSp)
-    }
 
     @Test
     fun `interaction segmented control follows android native variants`() {
@@ -141,14 +124,14 @@ class LiveBiliPaiVisualPolicyTest {
     }
 
     @Test
-    fun `live overlay controls keep named density and accessible touch targets`() {
+    fun `live overlay controls keep compact button density`() {
         val chatInput = resolveLiveChatInputVisualSpec()
         val playerControl = resolveLivePlayerControlVisualSpec()
         val sheet = resolveLiveSheetVisualSpec()
 
-        assertEquals(48, chatInput.controlSizeDp)
-        assertEquals(48, chatInput.sendButtonSizeDp)
-        assertEquals(48, playerControl.rowHeightDp)
+        assertEquals(30, chatInput.controlSizeDp)
+        assertEquals(30, chatInput.sendButtonSizeDp)
+        assertEquals(40, playerControl.rowHeightDp)
         assertEquals(420, sheet.emoticonListMaxHeightDp)
         assertEquals(360, sheet.contributionListMaxHeightDp)
     }

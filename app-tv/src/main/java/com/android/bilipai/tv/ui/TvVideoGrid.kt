@@ -26,8 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.android.bilipai.tv.TvCatalogState
 import com.android.bilipai.tv.tvId
 import com.android.bilipai.tv.ui.components.TvVideoCard
 import com.android.purebilibili.core.ui.AppSpacingTokens

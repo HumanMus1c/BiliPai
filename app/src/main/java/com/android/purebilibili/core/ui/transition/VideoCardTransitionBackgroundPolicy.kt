@@ -10,6 +10,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -971,6 +972,17 @@ internal class VideoCardTransitionBackgroundFrameCache {
  * 更新 scale / BlurEffect / scrim，实现「看起来实时的动态模糊」与稳帧共存。
  */
 internal class VideoCardTransitionSnapshotLayerState {
+    // Lifecycle state, updated by effects rather than by per-frame draw callbacks.
+    private val sourceRenderers = mutableStateMapOf<Any, Boolean>()
+    val hasReadySourceRenderer: Boolean get() = sourceRenderers.values.any { it }
+    val hasAttachedSourceRenderer: Boolean get() = sourceRenderers.isNotEmpty()
+
+    fun attachSourceRenderer(token: Any) { sourceRenderers[token] = false }
+    fun detachSourceRenderer(token: Any) { sourceRenderers.remove(token) }
+    fun markSourceRendererReady(token: Any, ready: Boolean) {
+        if (token in sourceRenderers) sourceRenderers[token] = ready
+    }
+
     // Reused by both source and host renderers for the lifetime of the captured display list.
     private val blurEffects = LinkedHashMap<Float, BlurEffect>()
     fun blurEffect(radiusPx: Float, sdkInt: Int = Build.VERSION.SDK_INT): BlurEffect? {
@@ -1151,16 +1163,19 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
     val effectiveSnapshotHandle = snapshotHandle ?: rememberVideoCardTransitionSnapshotHandle()
     val contentLayer = effectiveSnapshotHandle.contentLayer
     val snapshotState = effectiveSnapshotHandle.state
+    val sourceRendererToken = remember(snapshotState, contentLayer) { Any() }
     val view = LocalView.current
     var deviceCornerRadiusPx by remember { mutableFloatStateOf(0f) }
-    // Host 共享 handle：dispose 时不 wipe 会话，但标记 display list 过期。
-    // 源页再次 compose（预测/返回）时强制重录真实首页，避免 draw 空层全黑。
+    // Keep the shared session snapshot when the last source detaches. A remounted
+    // source refreshes it after Host bridges the preparation frame.
     DisposableEffect(snapshotState, contentLayer, isHostOwnedSnapshot) {
+        if (isHostOwnedSnapshot) snapshotState.attachSourceRenderer(sourceRendererToken)
         onDispose {
+            if (isHostOwnedSnapshot) snapshotState.detachSourceRenderer(sourceRendererToken)
             if (shouldInvalidateSnapshotOnSourceDispose(isHostOwnedSnapshot = isHostOwnedSnapshot)) {
                 contentLayer.renderEffect = null
                 snapshotState.invalidateRecordedContent()
-            } else {
+            } else if (!snapshotState.hasAttachedSourceRenderer) {
                 // Host 会话层：保留 OPENING 冻结帧供 SettledHidden 满糊预热。
                 // 不标 displayListStale（否则完整进详情后 Host 无法预热 → 返回无糊）。
                 // 仅标记 needsSourceRefresh，源页再次挂上时重录真实首页。
@@ -1187,12 +1202,13 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
         realtimeBlurEnabledProvider() &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    LaunchedEffect(phase, exposure, retainSnapshot, isHostOwnedSnapshot) {
+    LaunchedEffect(phase, exposure, retainSnapshot, isHostOwnedSnapshot, sourceRendererToken) {
         if (!retainSnapshot) {
             // Host 会话层由 Host IDLE 释放；源页不得因 SettledHidden 误 reset。
             if (!isHostOwnedSnapshot) {
                 snapshotState.reset()
             }
+            snapshotState.markSourceRendererReady(sourceRendererToken, true)
             return@LaunchedEffect
         }
         when (exposure) {
@@ -1214,6 +1230,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                         displayListStale = snapshotState.displayListStale,
                     )
                 if (mustRefresh) {
+                    snapshotState.markSourceRendererReady(sourceRendererToken, false)
                     snapshotState.freezeRecording = false
                     withFrameNanos { }
                 } else {
@@ -1229,6 +1246,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 }
             }
         }
+        snapshotState.markSourceRendererReady(sourceRendererToken, true)
     }
 
     SideEffect {
@@ -1259,9 +1277,21 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
         val activePhase = phaseProvider()
         val activeExposure = exposureProvider()
         val activeDecision = resolveVideoCardTransitionRenderDecision(activeExposure)
-        // SettledHidden：详情盖住时源页通常已 dispose；若仍 compose，画 live 防黑洞，
-        // 不要 return 空画。Host 在 drawable 时另画冻结层。
-        // BackPreview/Returning 绝不能 yield 空画。
+        if (isHostOwnedSnapshot && shouldPaintHostOwnedDepthLayer(
+                exposure = activeExposure,
+                hasRecordedContent = snapshotState.hasRecordedContent,
+                displayListStale = snapshotState.displayListStale,
+                motionTier = motionTierProvider(),
+                realtimeBlurEnabled = realtimeBlurEnabledProvider(),
+                sourceRendererReady = snapshotState.hasReadySourceRenderer,
+            )
+        ) {
+            // Host owns the preparation frame. The effect transfers ownership after
+            // a frame boundary; both draw sites observe the same readiness state.
+            return@drawWithContent
+        }
+        // Once prepared, the source owns both held and exposed depth drawing.
+        // Missing/stale snapshots always fall back to live content rather than an empty frame.
         if (!activeDecision.drawTransitionBackground) {
             if (activeDecision.drawSourceNormally) {
                 drawContent()
@@ -1342,20 +1372,6 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 hasRecordedContent = snapshotState.hasRecordedContent,
                 displayListStale = snapshotState.displayListStale,
             )
-        if (
-            needsRecord &&
-            activeExposure == VideoCardTransitionExposure.BackPreview &&
-            !snapshotState.freezeRecording &&
-            isVideoCardTransitionSnapshotDrawable(
-                hasRecordedContent = snapshotState.hasRecordedContent,
-                displayListStale = snapshotState.displayListStale,
-            )
-        ) {
-            // 来源页重挂的第一个预测帧不盖住 Host：Host 先画上一场的满模糊冻结层，
-            // 下一帧再录制真实来源页并按 live back progress 消糊。
-            snapshotState.freezeRecording = true
-            return@drawWithContent
-        }
         if (needsRecord) {
             if (size.width <= 0f || size.height <= 0f) {
                 drawContent()

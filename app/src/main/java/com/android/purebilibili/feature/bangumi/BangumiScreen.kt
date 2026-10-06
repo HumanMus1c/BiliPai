@@ -256,6 +256,13 @@ fun BangumiScreen(
     ) { contentPadding ->
         val listTopPadding = contentPadding.calculateTopPadding()
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+        val nowPlayingAvoidance = if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+            com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+        } else {
+            0.dp
+        }
+        val bangumiListBottomPadding = maxOf(navBarBottom, 16.dp) + 80.dp + nowPlayingAvoidance
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -306,7 +313,7 @@ fun BangumiScreen(
                             homeScrollOffset = offset
                         },
                         scrollToTopRequestId = scrollToTopRequestId,
-                        listBottomPadding = maxOf(navBarBottom, 16.dp) + 80.dp,
+                        listBottomPadding = bangumiListBottomPadding,
                         listTopPadding = listTopPadding,
                         tabBackdrop = null,
                         showFollowStatusTabs = false,
@@ -324,7 +331,7 @@ fun BangumiScreen(
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = 20.dp,
-                        bottom = maxOf(navBarBottom, 16.dp) + 20.dp,
+                        bottom = maxOf(navBarBottom, 16.dp) + 20.dp + nowPlayingAvoidance,
                     ),
             )
         }

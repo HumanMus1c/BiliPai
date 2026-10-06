@@ -57,7 +57,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpe
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarTabItemWidthDp
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.DynamicPublishSkinDecoration
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import java.io.File
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.BiliPaiImmersiveTopBar
@@ -317,7 +317,7 @@ fun DynamicTopBarWithTabs(
                                     interactionSource = publishInteractionSource,
                                 ) {
                                     if (publishIconPaths != null) {
-                                        AsyncImage(
+                                        PageAwareAsyncImage(
                                             model = File(publishIconPaths.pathFor(publishPressed)),
                                             contentDescription = "发布动态",
                                             contentScale = ContentScale.Fit,

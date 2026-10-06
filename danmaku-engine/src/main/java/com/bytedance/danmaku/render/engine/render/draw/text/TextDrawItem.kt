@@ -41,6 +41,12 @@ open class TextDrawItem: DrawItem<TextData>() {
 
     private val mTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
     private val mUnderlinePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
+    private val mUpBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
+    private val mUpBadgeRect = android.graphics.RectF()
+
+    // UP 徽章随文字缩放；宽度计入 measure，避免弹幕轨道排布时与后续弹幕重叠。
+    private var upBadgeAdvance = 0f
+    private var textWidth = 0f
 
     private val gradientMatrix = Matrix()
     private var vipGradient: LinearGradient? = null
@@ -78,18 +84,62 @@ open class TextDrawItem: DrawItem<TextData>() {
         if (!TextUtils.isEmpty(data?.text)) {
             mTextPaint.textSize = data?.textSize ?: config.text.size
             mTextPaint.typeface = data?.typeface ?: config.text.typeface
-            width = mTextPaint.measureText(data?.text)
+            textWidth = mTextPaint.measureText(data?.text)
             val includeFontPadding = data?.includeFontPadding ?: config.text.includeFontPadding
             height = getFontHeight(includeFontPadding, mTextPaint)
+            width = textWidth
+            if (data?.isUpOwner == true) {
+                upBadgeAdvance = resolveUpBadgeAdvance(height)
+                width += upBadgeAdvance
+            } else {
+                upBadgeAdvance = 0f
+            }
         } else {
             width = 0F
             height = 0F
+            upBadgeAdvance = 0f
+            textWidth = 0f
         }
     }
 
     override fun onDraw(canvas: Canvas, config: DanmakuConfig) {
+        if (upBadgeAdvance > 0f) {
+            drawUpBadge(canvas)
+        }
         drawText(canvas, mTextPaint, config)
         drawUnderline(canvas, mTextPaint, mUnderlinePaint, config)
+    }
+
+    private fun resolveUpBadgeAdvance(textHeight: Float): Float {
+        val badgeHeight = textHeight * UP_BADGE_HEIGHT_RATIO
+        val badgeTextSize = badgeHeight * UP_BADGE_TEXT_RATIO
+        mUpBadgePaint.textSize = badgeTextSize
+        mUpBadgePaint.typeface = Typeface.DEFAULT_BOLD
+        val badgeTextWidth = mUpBadgePaint.measureText(UP_BADGE_TEXT)
+        return badgeTextWidth + badgeHeight + UP_BADGE_TEXT_GAP_RATIO * textHeight
+    }
+
+    private fun drawUpBadge(canvas: Canvas) {
+        val badgeHeight = height * UP_BADGE_HEIGHT_RATIO
+        // 徽章与文字在行内垂直居中
+        val badgeTop = y + (height - badgeHeight) / 2f
+        val badgeTextSize = badgeHeight * UP_BADGE_TEXT_RATIO
+        mUpBadgePaint.textSize = badgeTextSize
+        mUpBadgePaint.typeface = Typeface.DEFAULT_BOLD
+        val badgeTextWidth = mUpBadgePaint.measureText(UP_BADGE_TEXT)
+        val badgeWidth = badgeTextWidth + badgeHeight * UP_BADGE_H_PADDING_RATIO * 2f
+        mUpBadgePaint.color = UP_BADGE_COLOR
+        mUpBadgeRect.set(x, badgeTop, x + badgeWidth, badgeTop + badgeHeight)
+        canvas.drawRoundRect(mUpBadgeRect, badgeHeight * 0.22f, badgeHeight * 0.22f, mUpBadgePaint)
+        mUpBadgePaint.color = UP_BADGE_TEXT_COLOR
+        val metrics = mUpBadgePaint.fontMetrics
+        val badgeBaseline = badgeTop + (badgeHeight - metrics.bottom - metrics.top) / 2f
+        canvas.drawText(
+            UP_BADGE_TEXT,
+            x + (badgeWidth - badgeTextWidth) / 2f,
+            badgeBaseline,
+            mUpBadgePaint,
+        )
     }
 
     override fun recycle() {
@@ -98,9 +148,12 @@ open class TextDrawItem: DrawItem<TextData>() {
         mMetricsTypeface = null
         vipGradient = null
         vipGradientWidth = 0f
+        upBadgeAdvance = 0f
+        textWidth = 0f
         gradientMatrix.reset()
         mTextPaint.reset()
         mUnderlinePaint.reset()
+        mUpBadgePaint.reset()
     }
 
     /**
@@ -108,6 +161,8 @@ open class TextDrawItem: DrawItem<TextData>() {
      */
     private fun drawText(canvas: Canvas, paint: Paint, config: DanmakuConfig) {
         data?.text?.let { text ->
+            // UP 徽章占位在文字前方；渐变与描边按纯文字宽度计算。
+            val textX = x + upBadgeAdvance
             // 描边保持单色，复用的画笔不能带上上一条弹幕的渐变。
             paint.shader = null
             // draw stroke
@@ -118,7 +173,7 @@ open class TextDrawItem: DrawItem<TextData>() {
                 paint.textSize = data?.textSize ?: config.text.size
                 paint.strokeWidth = width
                 val baseline = getBaseline(data?.includeFontPadding ?: true, y, paint)
-                canvas.drawText(text, x, baseline, paint)
+                canvas.drawText(text, textX, baseline, paint)
             }
             // draw drawText
             paint.style = Paint.Style.FILL
@@ -128,20 +183,20 @@ open class TextDrawItem: DrawItem<TextData>() {
             paint.strokeWidth = 0f
             val includeFontPadding = data?.includeFontPadding ?: config.text.includeFontPadding
             val baseline = getBaseline(includeFontPadding, y, paint)
-            if (data?.isVipGradualColor == true && width > 0f) {
-                if (vipGradient == null || vipGradientWidth != width) {
+            if (data?.isVipGradualColor == true && textWidth > 0f) {
+                if (vipGradient == null || vipGradientWidth != textWidth) {
                     vipGradient = LinearGradient(
-                        0f, 0f, width, 0f,
+                        0f, 0f, textWidth, 0f,
                         VIP_GRADIENT_COLORS, null, Shader.TileMode.CLAMP,
                     )
-                    vipGradientWidth = width
+                    vipGradientWidth = textWidth
                 }
                 // 渐变跟随文字移动；只更新矩阵，不在每帧创建 Shader。
                 gradientMatrix.setTranslate(x, 0f)
                 vipGradient?.setLocalMatrix(gradientMatrix)
                 paint.shader = vipGradient
             }
-            canvas.drawText(text, x, baseline, paint)
+            canvas.drawText(text, textX, baseline, paint)
             paint.shader = null
         }
     }
@@ -171,6 +226,15 @@ open class TextDrawItem: DrawItem<TextData>() {
             0xFFFF80B5.toInt(),
             0xFF8A9FFF.toInt(),
         )
+
+        // UP 主徽章（对齐 B 站官方的粉色徽章样式），随弹幕字号等比缩放。
+        const val UP_BADGE_TEXT = "UP"
+        const val UP_BADGE_COLOR = 0xFFFB7299.toInt()
+        const val UP_BADGE_TEXT_COLOR = 0xFFFFFFFF.toInt()
+        const val UP_BADGE_HEIGHT_RATIO = 0.42f
+        const val UP_BADGE_TEXT_RATIO = 0.62f
+        const val UP_BADGE_H_PADDING_RATIO = 0.28f
+        const val UP_BADGE_TEXT_GAP_RATIO = 0.14f
     }
 
     private fun getFontHeight(includeFontPadding: Boolean, paint: Paint): Float {

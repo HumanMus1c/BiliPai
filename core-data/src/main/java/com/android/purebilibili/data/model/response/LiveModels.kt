@@ -24,7 +24,7 @@ data class LiveData(
     val list: List<LiveRoom>? = null,
     @SerialName("list_by_area") val listByArea: List<LiveRoom>? = null,
     val count: Int = 0,
-    @SerialName("has_more") val hasMore: Int = 0
+    @SerialName("has_more") val hasMore: Int? = null
 ) {
     fun getAllRooms(): List<LiveRoom> = list ?: listByArea ?: emptyList()
 }
@@ -132,7 +132,12 @@ data class LivePlayUrlData(
     val durl: List<LiveDurl>? = null,
     val quality_description: List<LiveQuality>? = null,
     val current_quality: Int = 0,
-    val playurl_info: PlayurlInfo? = null
+    val playurl_info: PlayurlInfo? = null,
+    @SerialName("room_id") val roomId: Long = 0,
+    val uid: Long = 0,
+    @SerialName("live_status") val liveStatus: Int? = null,
+    @SerialName("live_time") val liveTime: Long = 0,
+    @SerialName("is_portrait") val isPortrait: Boolean? = null
 )
 
 @Serializable

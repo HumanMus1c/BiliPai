@@ -11,17 +11,21 @@ internal data class LivePlaybackCandidate(
     val protocolName: String,
     val formatName: String,
     val codecName: String,
-    val urls: List<String>
+    val urls: List<String>,
+    val currentQuality: Int,
+    val qualityList: List<LiveQuality>
 )
 
 internal data class ResolvedLivePlayback(
     val requestedQuality: Int,
-    val currentQuality: Int,
-    val qualityList: List<LiveQuality>,
     val candidates: List<LivePlaybackCandidate>
 ) {
     val primaryUrl: String?
         get() = candidates.firstOrNull()?.urls?.firstOrNull()
+    val currentQuality: Int
+        get() = candidates.first().currentQuality
+    val qualityList: List<LiveQuality>
+        get() = candidates.first().qualityList
 }
 
 internal sealed interface LiveAdvanceResult {
@@ -56,7 +60,13 @@ internal fun resolveLivePlaybackErrorRecovery(
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-            PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+            // 音频/视频解码器瞬时失败（硬件解码器被系统回收等）：切换源会重新 prepare，
+            // 强制解码器重新初始化并走软件兜底，避免"画面正常、声音丢失"后一直哑着。
+            PlaybackException.ERROR_CODE_DECODING_FAILED,
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
         )
     ) {
         LivePlaybackErrorRecovery.TRY_NEXT_SOURCE
@@ -99,6 +109,9 @@ internal fun resolveLivePlayback(
     data: LivePlayUrlData,
     requestedQn: Int
 ): ResolvedLivePlayback? {
+    val qualities = (data.playurl_info?.playurl?.gQnDesc.orEmpty() + data.quality_description.orEmpty())
+        .filter { it.qn > 0 }
+        .distinctBy { it.qn }
     val candidates = data.playurl_info?.playurl?.stream
         .orEmpty()
         .flatMap { stream ->
@@ -120,7 +133,11 @@ internal fun resolveLivePlayback(
                             protocolName = stream.protocolName,
                             formatName = format.formatName,
                             codecName = codec.codecName,
-                            urls = urls
+                            urls = urls,
+                            currentQuality = codec.currentQn.takeIf { it > 0 }
+                                ?: data.current_quality.takeIf { it > 0 }
+                                ?: requestedQn,
+                            qualityList = resolveLiveQualityList(codec, qualities)
                         )
                     }
                 }
@@ -133,28 +150,26 @@ internal fun resolveLivePlayback(
         )
 
     if (candidates.isEmpty()) {
-        return null
+        val urls = data.durl.orEmpty().map { it.url }.filter { it.isNotBlank() }.distinct()
+        if (urls.isEmpty()) return null
+        return ResolvedLivePlayback(
+            requestedQuality = requestedQn,
+            candidates = listOf(
+                LivePlaybackCandidate(
+                    protocolName = "http_stream",
+                    formatName = "flv",
+                    codecName = "",
+                    urls = urls,
+                    currentQuality = data.current_quality.takeIf { it > 0 } ?: requestedQn,
+                    qualityList = qualities
+                )
+            )
+        )
     }
 
-    val codecs = data.playurl_info?.playurl?.stream
-        .orEmpty()
-        .flatMap { it.format.orEmpty() }
-        .flatMap { it.codec.orEmpty() }
-    val preferredCodec = codecs.firstOrNull { it.currentQn > 0 || !it.acceptQn.isNullOrEmpty() }
-    val qualityList = resolveLiveQualityList(
-        codec = preferredCodec,
-        data = data
-    )
-    val currentQuality = preferredCodec?.currentQn
-        ?.takeIf { it > 0 }
-        ?: data.current_quality.takeIf { it > 0 }
-        ?: qualityList.firstOrNull()?.qn
-        ?: requestedQn
 
     return ResolvedLivePlayback(
         requestedQuality = requestedQn,
-        currentQuality = currentQuality,
-        qualityList = qualityList,
         candidates = candidates
     )
 }
@@ -191,35 +206,21 @@ internal fun advanceLivePlayback(
 }
 
 private fun resolveLiveQualityList(
-    codec: CodecInfo?,
-    data: LivePlayUrlData
+    codec: CodecInfo,
+    qualities: List<LiveQuality>
 ): List<LiveQuality> {
-    val descriptions = linkedMapOf<Int, String>()
-    data.playurl_info?.playurl?.gQnDesc.orEmpty().forEach { quality ->
-        if (quality.qn > 0 && quality.desc.isNotBlank()) {
-            descriptions[quality.qn] = quality.desc
-        }
-    }
-    data.quality_description.orEmpty().forEach { quality ->
-        if (quality.qn > 0 && quality.desc.isNotBlank() && quality.qn !in descriptions) {
-            descriptions[quality.qn] = quality.desc
-        }
-    }
 
-    val acceptQn = codec?.acceptQn.orEmpty().filter { it > 0 }
+    val acceptQn = codec.acceptQn.orEmpty().filter { it > 0 }
     if (acceptQn.isNotEmpty()) {
         return acceptQn.distinct().map { qn ->
             LiveQuality(
                 qn = qn,
-                desc = descriptions[qn] ?: qn.toString()
+                desc = qualities.firstOrNull { it.qn == qn }?.desc?.takeIf { it.isNotBlank() } ?: qn.toString()
             )
         }
     }
 
-    val combined = data.playurl_info?.playurl?.gQnDesc.orEmpty() + data.quality_description.orEmpty()
-    return combined
-        .filter { it.qn > 0 }
-        .distinctBy { it.qn }
+    return qualities
 }
 
 private fun streamProtocolPriority(protocolName: String): Int {

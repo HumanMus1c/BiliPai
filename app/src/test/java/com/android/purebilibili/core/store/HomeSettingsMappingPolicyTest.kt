@@ -35,7 +35,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(HomeHeaderCollapseMode.BOTH, result.homeHeaderCollapseMode)
         assertEquals(HomeBarHideType.SYNC, result.homeBarHideType)
         assertEquals(
-            CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
             result.commonListHeaderCollapseMode
         )
         assertTrue(result.isHeaderCollapseEnabled)

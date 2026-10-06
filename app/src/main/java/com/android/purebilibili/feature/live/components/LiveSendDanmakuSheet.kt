@@ -31,7 +31,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,11 +73,12 @@ private const val LIVE_DANMAKU_MAX_COLOR_SWATCHES = 8
 fun LiveSendDanmakuSheet(
     onDismiss: () -> Unit,
     onSend: (String, Int, Int) -> Unit,
+    message: String,
+    onMessageChange: (String) -> Unit,
     permission: LiveDanmakuPermission = LiveDanmakuPermission(),
     replyTarget: LiveDanmakuItem? = null,
     onOpenEmote: (() -> Unit)? = null,
 ) {
-    var message by remember { mutableStateOf("") }
     val maxLength = permission.maxLength.takeIf { it > 0 } ?: 40
     val defaultColor = permission.availableColors.firstOrNull()?.color ?: LIVE_DANMAKU_DEFAULT_COLOR
     val defaultMode = permission.availableModes.firstOrNull { it.mode == LIVE_DANMAKU_DEFAULT_MODE }?.mode
@@ -119,7 +119,7 @@ fun LiveSendDanmakuSheet(
                 ) {
                     AppOutlinedTextField(
                         value = message,
-                        onValueChange = { message = it.take(maxLength) },
+                        onValueChange = { onMessageChange(it.take(maxLength)) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4,

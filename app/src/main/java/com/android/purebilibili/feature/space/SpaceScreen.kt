@@ -819,6 +819,12 @@ fun SpaceScreen(
                 targetValue = if (shouldPromptToLocatePlayedVideo) 76.dp else 24.dp,
                 label = "space_back_to_top_bottom_padding",
             )
+            // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+            val spaceBackToTopAvoidance = if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+            } else {
+                0.dp
+            }
 
             AppLiquidGlassBackToTopButton(
                 visible = rememberBackToTopButtonEnabled() &&
@@ -833,7 +839,7 @@ fun SpaceScreen(
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = 24.dp,
-                        bottom = animatedBackToTopBottomPadding,
+                        bottom = animatedBackToTopBottomPadding + spaceBackToTopAvoidance,
                     ),
                 backdrop = spaceChromeBackdrop,
             )
@@ -1478,7 +1484,12 @@ private fun SpaceContent(
                 start = outerPaddingDp,
                 end = outerPaddingDp,
                 top = chromeTopInset,
-                bottom = bottomInset + 24.dp
+                bottom = bottomInset + 24.dp +
+                    if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                        com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+                    } else {
+                        0.dp
+                    }
             ),
             horizontalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.itemSpacingDp.dp),
             verticalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.verticalItemSpacingDp.dp)

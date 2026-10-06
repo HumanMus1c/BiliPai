@@ -477,7 +477,7 @@ fun AppearanceSettingsContent(
         .collectAsStateWithLifecycle(initialValue = true)
     val commonListHeaderCollapseMode by SettingsManager
         .getCommonListHeaderCollapseMode(context)
-        .collectAsStateWithLifecycle(initialValue = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL)
+        .collectAsStateWithLifecycle(initialValue = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY)
     val commonListHeaderCollapseOptions = remember {
         listOf(
             AppSegmentOption(CommonListHeaderCollapseMode.ALWAYS_VISIBLE, "始终显示"),
@@ -1856,11 +1856,11 @@ fun AppearanceSettingsContent(
                             title = "列表页顶栏折叠",
                             subtitle = when (commonListHeaderCollapseMode) {
                                 CommonListHeaderCollapseMode.ALWAYS_VISIBLE ->
-                                    "历史、收藏、最近点赞等列表页顶栏保持展开"
+                                    "搜索、收藏、历史、稍后再看、我的点赞顶栏保持展开，与首页设置独立"
                                 CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL ->
-                                    "向下浏览时折叠搜索与分类标签，反向上滑时恢复"
+                                    "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，反向上滑时恢复"
                                 CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY ->
-                                    "向下浏览时折叠搜索与分类标签，回到顶部时恢复"
+                                    "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，仅回到顶部时恢复"
                             },
                             options = commonListHeaderCollapseOptions,
                             selectedValue = commonListHeaderCollapseMode,

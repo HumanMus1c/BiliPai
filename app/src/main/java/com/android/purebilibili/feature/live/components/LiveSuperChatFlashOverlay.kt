@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,13 +49,10 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 import com.android.purebilibili.feature.live.formatLiveSuperChatCountdown
 import com.android.purebilibili.feature.live.resolveLiveSuperChatColor
-import com.android.purebilibili.feature.live.resolveLiveSuperChatDurationSec
-import com.android.purebilibili.feature.live.shouldExpireLiveSuperChat
+import com.android.purebilibili.feature.live.remainingLiveSuperChatSeconds
+import com.android.purebilibili.feature.live.resolveLiveSuperChatFlashEndTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
-
-/** SC 浮层最长展示时长（秒），防止异常数据长时间遮挡画面 */
-private const val SUPER_CHAT_FLASH_MAX_DURATION_SEC = 30L
 
 /**
  * SC 左下角非侵入式悬浮卡片（借鉴 PiliPlus fsSC 体验）
@@ -73,28 +71,24 @@ fun LiveSuperChatFlashOverlay(
 ) {
     var current by remember { mutableStateOf<LiveDanmakuItem?>(null) }
     var remainingSec by remember { mutableIntStateOf(0) }
+    var flashEndTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(flashFlow) {
         flashFlow.collect { item ->
+            val now = System.currentTimeMillis() / 1_000L
+            flashEndTime = resolveLiveSuperChatFlashEndTime(item.superChatEndTime, now)
+            remainingSec = remainingLiveSuperChatSeconds(flashEndTime, now)
             current = item
         }
     }
 
     // 倒计时与自动消失
-    LaunchedEffect(current, persistUntilDismiss) {
-        val item = current ?: return@LaunchedEffect
-        if (persistUntilDismiss) {
-            remainingSec = 0
-            return@LaunchedEffect
-        }
-        val totalSec = resolveLiveSuperChatDurationSec(item.superChatDuration)
-            .coerceAtMost(SUPER_CHAT_FLASH_MAX_DURATION_SEC.toInt())
-        remainingSec = totalSec
-        var elapsed = 0
-        while (!shouldExpireLiveSuperChat(totalSec, elapsed)) {
+    LaunchedEffect(current, flashEndTime, persistUntilDismiss) {
+        if (current == null || persistUntilDismiss) return@LaunchedEffect
+        remainingSec = remainingLiveSuperChatSeconds(flashEndTime, System.currentTimeMillis() / 1_000L)
+        while (remainingSec > 0) {
             delay(1_000L)
-            elapsed += 1
-            remainingSec = (totalSec - elapsed).coerceAtLeast(0)
+            remainingSec = remainingLiveSuperChatSeconds(flashEndTime, System.currentTimeMillis() / 1_000L)
         }
         current = null
     }
@@ -104,7 +98,7 @@ fun LiveSuperChatFlashOverlay(
         contentAlignment = Alignment.BottomStart
     ) {
         AnimatedVisibility(
-            visible = current != null,
+            visible = current != null && (persistUntilDismiss || remainingSec > 0),
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut() + slideOutVertically { it / 2 },
             modifier = Modifier

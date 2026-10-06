@@ -688,18 +688,7 @@ interface BilibiliApi {
     //  [新增] 获取直播流 URL - 使用更可靠的 xlive API
     @GET("https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo")
     suspend fun getLivePlayUrl(
-        @Query("room_id") roomId: Long,
-        @Query("protocol") protocol: String = "0,1",  // 0=http_stream, 1=http_hls
-        @Query("format") format: String = "0,1,2",    // 0=flv, 1=ts, 2=fmp4
-        @Query("codec") codec: String = "0,1,2",      // 0=avc, 1=hevc, 2=av1
-        @Query("qn") quality: Int = 150,              // 150=高清
-        @Query("platform") platform: String = "web",
-        @Query("ptype") ptype: Int = 8,
-        @Query("dolby") dolby: Int = 5,
-        @Query("panorama") panorama: Int = 1,
-        @Query("web_location") webLocation: String = "444.8",
-        @Query("only_audio") onlyAudio: Int? = null,
-        @QueryMap signedParams: Map<String, String> = emptyMap()
+        @QueryMap params: Map<String, String>
     ): LivePlayUrlResponse
     
     //  [新增] 旧版直播流 API - 可靠返回 quality_description 画质列表
@@ -721,14 +710,14 @@ interface BilibiliApi {
         @retrofit2.http.Field("fontsize") fontsize: Int = 25,
         @retrofit2.http.Field("mode") mode: Int = 1,
         @retrofit2.http.Field("bubble") bubble: Int = 0,
-        @retrofit2.http.Field("room_type") roomType: Int = 0,
-        @retrofit2.http.Field("jumpfrom") jumpFrom: Int = 0,
-        @retrofit2.http.Field("reply_mid") replyMid: Long = 0,
-        @retrofit2.http.Field("reply_attr") replyAttr: Int = 0,
-        @retrofit2.http.Field("reply_uname") replyUname: String = "",
-        @retrofit2.http.Field("replay_dmid") replayDmid: String = "",
-        @retrofit2.http.Field("statistics") statistics: String = "{\"appId\":100,\"platform\":5}",
-        @retrofit2.http.Field("reply_type") replyType: Int = 0,
+        @retrofit2.http.Field("room_type") roomType: Int? = null,
+        @retrofit2.http.Field("jumpfrom") jumpFrom: Int? = null,
+        @retrofit2.http.Field("reply_mid") replyMid: Long? = null,
+        @retrofit2.http.Field("reply_attr") replyAttr: Int? = null,
+        @retrofit2.http.Field("reply_uname") replyUname: String? = null,
+        @retrofit2.http.Field("replay_dmid") replayDmid: String? = null,
+        @retrofit2.http.Field("statistics") statistics: String? = null,
+        @retrofit2.http.Field("reply_type") replyType: Int? = null,
         @retrofit2.http.Field("dm_type") dmType: Int? = null,
         @retrofit2.http.Field("emoticonOptions") emoticonOptions: String? = null,
         @retrofit2.http.Field("rnd") rnd: Long = System.currentTimeMillis() / 1000,

@@ -82,7 +82,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.ImageLoader
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.imageLoader
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
@@ -431,9 +431,10 @@ fun DynamicScreen(
     }
 
     LaunchedEffect(viewModel, isCurrentPage) {
-        if (isCurrentPage) {
-            viewModel.activateStartupLoads()
-        }
+        viewModel.setPageActive(isCurrentPage)
+    }
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.setPageActive(false) }
     }
 
     val density = LocalDensity.current
@@ -454,7 +455,13 @@ fun DynamicScreen(
         }
     }
     val dynamicListBottomPadding =
-        if (shouldAutoCollapseBottomBar) stickyListBottomPadding else liveListBottomPadding
+        if (shouldAutoCollapseBottomBar) stickyListBottomPadding else liveListBottomPadding +
+            // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+            if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+            } else {
+                0.dp
+            }
     val pullRefreshState = rememberPullToRefreshState()
 
     // GIF 图片加载器
@@ -570,11 +577,12 @@ fun DynamicScreen(
     val activeLoading = activePresentation.isLoading
     val activeError = activePresentation.error
     val allowAutomaticLoadMore = remember(
+        isCurrentPage,
         isSelectedUserTabActive,
         selectedUserContentFilter,
         filteredItems.size,
     ) {
-        shouldAutoLoadMoreForUserContentFilter(
+        isCurrentPage && shouldAutoLoadMoreForUserContentFilter(
             isSelectedUserFeed = isSelectedUserTabActive,
             filter = selectedUserContentFilter,
             visibleItemCount = filteredItems.size,
@@ -633,11 +641,12 @@ fun DynamicScreen(
     //  [修改] 加载更多 - 区分全部动态和用户动态
     LaunchedEffect(
         shouldLoadMore,
+        isCurrentPage,
         selectedUserId,
         isSelectedUserTabActive,
         displayedLogicalTab
     ) {
-        if (shouldLoadMore) {
+        if (isCurrentPage && shouldLoadMore) {
             if (isSelectedUserTabActive) {
                 viewModel.loadMoreUserDynamics()
             } else {
@@ -1279,8 +1288,8 @@ fun DynamicScreen(
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
-                        bottom = dynamicListBottomPadding + AppSpacingTokens.Medium + 76.dp,
-                    ),
+                        bottom = dynamicListBottomPadding + AppSpacingTokens.Medium,
+                ),
                 enter = fadeIn() + scaleIn(initialScale = 0.92f),
                 exit = fadeOut() + scaleOut(targetScale = 0.92f),
             ) {
@@ -1966,7 +1975,7 @@ private fun HorizontalUserList(
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                AsyncImage(
+                                PageAwareAsyncImage(
                                     model = coil3.request.ImageRequest.Builder(LocalContext.current)
                                         .data(user.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
                                         .crossfade(true)

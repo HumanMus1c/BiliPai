@@ -1,6 +1,8 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import com.android.purebilibili.core.util.HtmlEntityUtils
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.components.resolveVideoListColumns
@@ -29,6 +31,9 @@ import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.navigation.SearchSubmitAction
 import com.android.purebilibili.navigation.resolveSearchSubmitAction
+import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.feature.list.resolveCommonListHeaderOffsetAfterContentScroll
+import com.android.purebilibili.feature.list.resolveCommonListHeaderOffsetForSettledContent
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -868,7 +873,8 @@ fun SearchScreen(
                 searchPagerState.isScrollInProgress
         }
     }
-    val isSearchCollapseEnabled = homeSettings.homeHeaderCollapseMode.collapseSearch
+    val searchHeaderCollapseMode = homeSettings.commonListHeaderCollapseMode
+    val isSearchCollapseEnabled = searchHeaderCollapseMode != CommonListHeaderCollapseMode.ALWAYS_VISIBLE
     var searchTopBarHeightPx by remember { mutableIntStateOf(0) }
     var searchHeaderOffsetPx by remember { mutableFloatStateOf(0f) }
     var searchHeaderSettleJob by remember { mutableStateOf<Job?>(null) }
@@ -924,14 +930,48 @@ fun SearchScreen(
         }
     }
 
-    val searchHeaderScrollConnection = remember(isSearchCollapseEnabled, searchCollapseDistancePx) {
+    LaunchedEffect(
+        searchHeaderCollapseMode, searchCollapseDistancePx, state.showResults, state.searchType,
+        resultGridState, resultListState,
+    ) {
+        snapshotFlow {
+            val index = if (state.searchType == SearchType.VIDEO) {
+                resultGridState.firstVisibleItemIndex
+            } else {
+                resultListState.firstVisibleItemIndex
+            }
+            val offset = if (state.searchType == SearchType.VIDEO) {
+                resultGridState.firstVisibleItemScrollOffset
+            } else {
+                resultListState.firstVisibleItemScrollOffset
+            }
+            Triple(index, offset, isSearchResultsScrolling)
+        }.collect { (index, offset, scrolling) ->
+            if (!scrolling) {
+                animateSearchHeaderOffsetTo(resolveCommonListHeaderOffsetForSettledContent(
+                    firstVisibleItemIndex = if (state.showResults) index else 0,
+                    firstVisibleItemScrollOffset = if (state.showResults) offset else 0,
+                    maxCollapsePx = searchCollapseDistancePx,
+                    mode = searchHeaderCollapseMode,
+                ))
+            }
+        }
+    }
+    val searchHeaderScrollConnection = remember(searchHeaderCollapseMode, searchCollapseDistancePx, isSearchResultsAtTop) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (!isSearchCollapseEnabled || searchCollapseDistancePx <= 0f) return Offset.Zero
                 if (kotlin.math.abs(available.y) < 0.5f) return Offset.Zero
+                if (kotlin.math.abs(available.y) < kotlin.math.abs(available.x)) return Offset.Zero
                 searchHeaderSettleJob?.cancel()
                 searchHeaderSettleJob = null
-                searchHeaderOffsetPx = (searchHeaderOffsetPx + available.y).coerceIn(-searchCollapseDistancePx, 0f)
+                searchHeaderOffsetPx = resolveCommonListHeaderOffsetAfterContentScroll(
+                    currentOffsetPx = searchHeaderOffsetPx,
+                    contentConsumedDeltaYPx = available.y,
+                    maxCollapsePx = searchCollapseDistancePx,
+                    isAtTop = isSearchResultsAtTop,
+                    mode = searchHeaderCollapseMode,
+                )
                 return Offset.Zero
             }
         }
@@ -1140,7 +1180,12 @@ fun SearchScreen(
     val resultBottomPadding = resolveBottomSafeAreaPadding(
         navigationBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
         extraBottomPadding = 16.dp
-    )
+    ) + if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+        // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+        com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+    } else {
+        0.dp
+    }
 
     AppScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1220,33 +1265,19 @@ fun SearchScreen(
                             } else {
                                 0f
                             }
-                            val currentSearchHeightDp = with(density) {
-                                (searchTopBarHeightPx * (1f - searchCollapseFraction)).toDp()
-                            }
-                            val currentSearchAlpha = (1f - searchCollapseFraction * 1.35f).coerceIn(0f, 1f)
                             Layout(
-                                modifier = Modifier.clipToBounds(),
+                                modifier = Modifier
+                                    .clipToBounds()
+                                    .drawWithContent {
+                                        // The retained status-bar spacer is not a viewport for
+                                        // collapsed controls; clip below its safe inset.
+                                        val top = searchStatusBarHeightPx.coerceIn(0f, size.height)
+                                        if (size.height > top) {
+                                            clipRect(top = top) { this@drawWithContent.drawContent() }
+                                        }
+                                    },
                                 content = {
                                     Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .then(
-                                                if (isSearchCollapseEnabled && searchCollapseDistancePx > 0f) {
-                                                    Modifier.height(currentSearchHeightDp)
-                                                } else {
-                                                    Modifier
-                                                }
-                                            )
-                                            .clipToBounds()
-                                            .graphicsLayer {
-                                                alpha = if (isSearchCollapseEnabled && searchCollapseDistancePx > 0f) {
-                                                    currentSearchAlpha
-                                                } else {
-                                                    1f
-                                                }
-                                            }
-                                    ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -1321,88 +1352,91 @@ fun SearchScreen(
                                                     }
                                                 }
                                             }
-                                        }
-                                    }
-                                    SearchResultTypeTabRow(
-                                        tabs = searchTabs,
-                                        pagerState = searchPagerState,
-                                        counts = state.searchTypeCounts,
-                                        miuixBackdrop = searchChromeBackdrop,
-                                        onTabClick = { page, type ->
-                                            if (searchPagerState.currentPage == page && state.searchType == type) {
-                                                scrollToTopSearchType = type
-                                                scrollToTopRequestId += 1
-                                                animateSearchHeaderOffsetTo(0f)
-                                            } else {
-                                                scope.launch { animatePagerSelection(searchPagerState, page) }
-                                            }
-                                        }
-                                    )
-                                    val showStableFilterBar = resolveSearchFilterControls(
-                                        currentType = state.searchType,
-                                        currentUpOrder = state.upOrder
-                                    ).isNotEmpty()
-                                    AnimatedVisibility(
-                                        visible = showStableFilterBar,
-                                        enter = fadeIn(animationSpec = tween(90)),
-                                        exit = fadeOut(animationSpec = tween(70))
-                                    ) {
-                                        if (state.searchType == SearchType.VIDEO) {
-                                            SearchVideoFilterBar(
-                                                singleColumn = listLayout.singleColumn,
-                                                onLayoutToggle = listLayout.toggle,
-                                                currentOrder = state.searchOrder,
-                                                currentDurations = state.searchDurations,
-                                                currentVideoTid = state.videoTid,
-                                                currentPubTimeType = state.pubTimeType,
-                                                currentPubBegin = state.pubBegin,
-                                                currentPubEnd = state.pubEnd,
+                                            SearchResultTypeTabRow(
+                                                tabs = searchTabs,
+                                                pagerState = searchPagerState,
+                                                counts = state.searchTypeCounts,
                                                 miuixBackdrop = searchChromeBackdrop,
-                                                onOrderChange = { viewModel.setSearchOrder(it) },
-                                                onDurationSelect = { viewModel.setSearchDuration(it) },
-                                                onVideoTidChange = { viewModel.setVideoTid(it) },
-                                                onPubTimeTypeChange = { viewModel.setPubTimeType(it) },
-                                                onCustomPubTimeRange = { begin, end ->
-                                                    viewModel.setCustomPubTimeRange(begin, end)
+                                                onTabClick = { page, type ->
+                                                    if (searchPagerState.currentPage == page && state.searchType == type) {
+                                                        scrollToTopSearchType = type
+                                                        scrollToTopRequestId += 1
+                                                        animateSearchHeaderOffsetTo(0f)
+                                                    } else {
+                                                        scope.launch { animatePagerSelection(searchPagerState, page) }
+                                                    }
                                                 }
                                             )
-                                        } else {
-                                            SearchFilterBar(
+                                            val showStableFilterBar = resolveSearchFilterControls(
                                                 currentType = state.searchType,
-                                                currentOrder = state.searchOrder,
-                                                currentDurations = state.searchDurations,
-                                                currentVideoTid = state.videoTid,
-                                                currentUpOrder = state.upOrder,
-                                                currentUpOrderSort = state.upOrderSort,
-                                                currentUpUserType = state.upUserType,
-                                                currentLiveOrder = state.liveOrder,
-                                                currentArticleOrder = state.articleOrder,
-                                                currentArticleCategory = state.articleCategory,
-                                                currentPhotoOrder = state.photoOrder,
-                                                currentPhotoCategory = state.photoCategory,
-                                                onOrderChange = { viewModel.setSearchOrder(it) },
-                                                onDurationToggle = { viewModel.toggleSearchDuration(it) },
-                                                onVideoTidChange = { viewModel.setVideoTid(it) },
-                                                onUpOrderChange = { viewModel.setUpOrder(it) },
-                                                onUpOrderSortChange = { viewModel.setUpOrderSort(it) },
-                                                onUpUserTypeChange = { viewModel.setUpUserType(it) },
-                                                onLiveOrderChange = { viewModel.setLiveOrder(it) },
-                                                onArticleOrderChange = viewModel::setArticleOrder,
-                                                onArticleCategoryChange = viewModel::setArticleCategory,
-                                                onPhotoOrderChange = viewModel::setPhotoOrder,
-                                                onPhotoCategoryChange = viewModel::setPhotoCategory
-                                            )
+                                                currentUpOrder = state.upOrder
+                                            ).isNotEmpty()
+                                            AnimatedVisibility(
+                                                visible = showStableFilterBar,
+                                                enter = fadeIn(animationSpec = tween(90)),
+                                                exit = fadeOut(animationSpec = tween(70))
+                                            ) {
+                                                if (state.searchType == SearchType.VIDEO) {
+                                                    SearchVideoFilterBar(
+                                                        singleColumn = listLayout.singleColumn,
+                                                        onLayoutToggle = listLayout.toggle,
+                                                        currentOrder = state.searchOrder,
+                                                        currentDurations = state.searchDurations,
+                                                        currentVideoTid = state.videoTid,
+                                                        currentPubTimeType = state.pubTimeType,
+                                                        currentPubBegin = state.pubBegin,
+                                                        currentPubEnd = state.pubEnd,
+                                                        miuixBackdrop = searchChromeBackdrop,
+                                                        onOrderChange = { viewModel.setSearchOrder(it) },
+                                                        onDurationSelect = { viewModel.setSearchDuration(it) },
+                                                        onVideoTidChange = { viewModel.setVideoTid(it) },
+                                                        onPubTimeTypeChange = { viewModel.setPubTimeType(it) },
+                                                        onCustomPubTimeRange = { begin, end ->
+                                                            viewModel.setCustomPubTimeRange(begin, end)
+                                                        }
+                                                    )
+                                                } else {
+                                                    SearchFilterBar(
+                                                        currentType = state.searchType,
+                                                        currentOrder = state.searchOrder,
+                                                        currentDurations = state.searchDurations,
+                                                        currentVideoTid = state.videoTid,
+                                                        currentUpOrder = state.upOrder,
+                                                        currentUpOrderSort = state.upOrderSort,
+                                                        currentUpUserType = state.upUserType,
+                                                        currentLiveOrder = state.liveOrder,
+                                                        currentArticleOrder = state.articleOrder,
+                                                        currentArticleCategory = state.articleCategory,
+                                                        currentPhotoOrder = state.photoOrder,
+                                                        currentPhotoCategory = state.photoCategory,
+                                                        onOrderChange = { viewModel.setSearchOrder(it) },
+                                                        onDurationToggle = { viewModel.toggleSearchDuration(it) },
+                                                        onVideoTidChange = { viewModel.setVideoTid(it) },
+                                                        onUpOrderChange = { viewModel.setUpOrder(it) },
+                                                        onUpOrderSortChange = { viewModel.setUpOrderSort(it) },
+                                                        onUpUserTypeChange = { viewModel.setUpUserType(it) },
+                                                        onLiveOrderChange = { viewModel.setLiveOrder(it) },
+                                                        onArticleOrderChange = viewModel::setArticleOrder,
+                                                        onArticleCategoryChange = viewModel::setArticleCategory,
+                                                        onPhotoOrderChange = viewModel::setPhotoOrder,
+                                                        onPhotoCategoryChange = viewModel::setPhotoCategory
+                                                    )
+                                                }
+                                            }
                                         }
-                                    }
                                 }
                             ) { measurables, constraints ->
                                 val placeables = measurables.map { it.measure(constraints) }
                                 val width = placeables.maxOfOrNull { it.width }?.coerceIn(constraints.minWidth, constraints.maxWidth)
                                     ?: constraints.minWidth
-                                val height = placeables.sumOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+                                val topInset = placeables.firstOrNull()?.height ?: 0
+                                val offset = if (isSearchCollapseEnabled) searchHeaderOffsetPx.toInt() else 0
+                                val height = (placeables.sumOf { it.height } + offset)
+                                    .coerceIn(topInset.coerceAtLeast(constraints.minHeight), constraints.maxHeight)
                                 layout(width, height) {
-                                    var y = 0
-                                    placeables.forEach { placeable ->
+                                    placeables.firstOrNull()?.placeRelative(0, 0)
+                                    var y = topInset + offset
+                                    placeables.drop(1).forEach { placeable ->
                                         placeable.placeRelative(0, y)
                                         y += placeable.height
                                     }

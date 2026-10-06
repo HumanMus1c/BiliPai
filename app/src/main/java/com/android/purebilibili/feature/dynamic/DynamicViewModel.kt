@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
@@ -156,6 +157,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private var cacheSaveJob: Job? = null
     private var startupFollowingsHydrationScheduled: Boolean = false
     private var startupLoadsActivated: Boolean = false
+    private val pageActivity = MutableStateFlow(false)
+    private val isPageActive: Boolean get() = pageActivity.value
+    private var followStateObserverStarted: Boolean = false
 
     private val _uiState = MutableStateFlow(DynamicUiState())
     val uiState: StateFlow<DynamicUiState> = _uiState.asStateFlow()
@@ -202,12 +206,6 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 incrementalTimelineRefreshEnabled = enabled
             }
         }
-        loadUserPreferences()
-        loadNotInterestedDynamicIds()
-        loadCachedDynamics()
-        rebuildFollowedUsers()
-        observeFollowStateChanges()
-        loadUplistUpdates()
         observeAccountChanges()
     }
 
@@ -254,20 +252,41 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 likeRequestGate = DynamicLikeRequestGate()
                 _isRefreshing.value = false
                 _uiState.value = DynamicUiState()
-                loadUserPreferences()
-                loadNotInterestedDynamicIds()
-                if (identity.mid != null) loadCachedDynamics()
-                rebuildFollowedUsers()
-                loadUplistUpdates()
-                if (startupLoadsActivated) refreshInBackground()
+                startupLoadsActivated = false
+                if (isPageActive) activateStartupLoads()
             }
         }
     }
 
-    fun activateStartupLoads() {
+    fun setPageActive(active: Boolean) {
+        pageActivity.value = active
+        if (active) activateStartupLoads()
+    }
+
+    private fun activateStartupLoads() {
         if (startupLoadsActivated) return
         startupLoadsActivated = true
-        refreshInBackground(resolveDynamicStartupLoadPlan())
+        if (!followStateObserverStarted) {
+            followStateObserverStarted = true
+            observeFollowStateChanges()
+        }
+        hydrateStartupData()
+    }
+
+    private fun hydrateStartupData() {
+        loadUserPreferences()
+        loadNotInterestedDynamicIds()
+        _uiState.value = updateDynamicTimelinePage(_uiState.value, "all") { page ->
+            if (page.items.isEmpty()) page.copy(isLoading = true, error = null) else page
+        }
+        launchAccount {
+            pageActivity.first { it }
+            loadCachedDynamics()
+            pageActivity.first { it }
+            rebuildFollowedUsers()
+            loadUplistUpdates()
+            refreshInBackground(resolveDynamicStartupLoadPlan())
+        }
         if (_selectedTab.value == 4) {
             requestCompleteFollowingsLoad()
         }
@@ -276,6 +295,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private fun observeFollowStateChanges() {
         viewModelScope.launch {
             ActionRepository.followStateChanges.collect { change ->
+                // Preferences/cache for a newly switched account are not hydrated until activation.
+                if (!startupLoadsActivated) return@collect
                 if (change.isFollowing) {
                     followingsFullyLoaded = false
                     lastFollowingsLoadMs = 0L
@@ -340,25 +361,45 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             .apply()
     }
 
-    private fun loadCachedDynamics() {
+    private suspend fun loadCachedDynamics() {
         if (activeAccountIdentity.mid == null) return
-        val cachedJson = cachePrefs.getString(KEY_DYNAMIC_CACHE, null) ?: return
-        runCatching { json.decodeFromString<List<DynamicItem>>(cachedJson) }
-            .onSuccess { items ->
-                if (items.isNotEmpty()) {
-                    _uiState.value = updateDynamicTimelinePage(
-                        currentState = _uiState.value,
-                        requestType = "all"
-                    ) { page ->
-                        page.copy(
-                            items = items.toImmutableList(),
-                            isLoading = false,
-                            error = null,
-                            isCachePlaceholder = true
-                        )
-                    }
-                }
+        val cachedAccount = activeAccountIdentity
+        val targetPrefs = cachePrefs
+        val requestToken = activeTimelineRequestTokens["all"]
+        val cachedJson = withContext(Dispatchers.IO) {
+            targetPrefs.getString(KEY_DYNAMIC_CACHE, null)
+        } ?: return
+        val items = withContext(Dispatchers.Default) {
+            try {
+                json.decodeFromString<List<DynamicItem>>(cachedJson)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                emptyList()
             }
+        }
+        pageActivity.first { it }
+        if (!shouldApplyDeferredDynamicCache(
+                sameAccount = cachedAccount == activeAccountIdentity &&
+                    cachedAccount == TokenManager.accountIdentity.value,
+                requestTokenBeforeRead = requestToken,
+                currentRequestToken = activeTimelineRequestTokens["all"],
+                hasTimelineItems = _uiState.value.timelinePage("all").items.isNotEmpty(),
+            )
+        ) return
+        if (items.isNotEmpty()) {
+            _uiState.value = updateDynamicTimelinePage(
+                currentState = _uiState.value,
+                requestType = "all"
+            ) { page ->
+                page.copy(
+                    items = items.toImmutableList(),
+                    isLoading = false,
+                    error = null,
+                    isCachePlaceholder = true
+                )
+            }
+        }
     }
 
     private fun saveDynamicCache(items: List<DynamicItem>) {
@@ -389,6 +430,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         startupPlan: DynamicStartupLoadPlan = resolveDynamicStartupLoadPlan()
     ) {
         launchAccount {
+            pageActivity.first { it }
             refreshData(showRefreshIndicator = false)
             scheduleStartupFollowingsHydration(startupPlan)
         }
@@ -534,6 +576,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         startupFollowingsHydrationScheduled = true
         launchAccount {
             delay(startupPlan.followingsHydrationDelayMs.coerceAtLeast(0L))
+            pageActivity.first { it }
             loadAllFollowings(
                 force = false,
                 pageLimit = startupPlan.initialFollowingsPageLimit
@@ -978,6 +1021,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     //  [新增] 拉取关注 UP 列表未读标记（红点数据源，尽力而为）
     fun loadUplistUpdates() {
         launchAccount {
+            pageActivity.first { it }
             try {
                 val csrf = TokenManager.csrfCache
                 if (csrf.isNullOrEmpty()) return@launchAccount

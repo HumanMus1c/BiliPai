@@ -555,16 +555,18 @@ fun FloatingBottomBar(
         shellHeightDp = shellHeight.value,
         proportionalReferenceWidthDp = proportionalIndicatorReferenceWidth?.value,
     ).dp
+    // Scale lens reach when a compact slot reduces the indicator's actual height.
     val indicatorLensHeightRatio = if (segmentedGeometry) {
         (fittedIndicatorHeight.value / indicatorHeight.value.coerceAtLeast(0.001f))
             .coerceIn(0f, 1f)
     } else {
         1f
     }
-    // Record the full shell behind segmented indicators, including their top/bottom edges.
-    // Keep the capture capsule-shaped: the moving lens magnifies this layer while dragging,
-    // so a rectangular capture leaks square inner corners into the liquid indicator.
-    val capturedContentHeight = if (segmentedGeometry) {
+    // Compact segmented rows capture the full shell. Home top navigation uses the bottom
+    // dock's indicator-height capture so its moving rim can refract
+    // the page beyond the shell instead of sampling an oversized, tinted dock layer.
+    // Keep both captures capsule-shaped to avoid square corners inside the moving lens.
+    val capturedContentHeight = if (geometryMode == FloatingBottomBarGeometryMode.Segmented) {
         maxOf(shellHeight, fittedIndicatorHeight)
     } else {
         fittedIndicatorHeight

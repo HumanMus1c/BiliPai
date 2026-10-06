@@ -29,8 +29,23 @@ internal data class BottomPagerRenderBudget(
 
 internal const val BOTTOM_TAB_RENDER_BUDGET_HOLD_MILLIS = 220L
 internal const val BOTTOM_BAR_MAX_VISIBLE_ITEMS = 5
-// 底栏最多有 5 个栏目；预组合其余 4 页，避免跨多页动画途中临时创建中间页面。
+// 底栏最多有 5 个栏目；保留其余页的轻量布局槽，内容按各页预加载许可创建。
 internal const val BOTTOM_PAGER_MAX_PRELOAD_DISTANCE = BOTTOM_BAR_MAX_VISIBLE_ITEMS - 1
+internal const val BOTTOM_PAGER_PRELOAD_IDLE_MILLIS = 500L
+internal const val BOTTOM_PAGER_PRELOAD_INTERVAL_MILLIS = 240L
+
+internal fun shouldAllowBottomPagerBackgroundWork(
+    isMainHostTop: Boolean,
+    isCardTransitionIdle: Boolean,
+    isPagerNavigating: Boolean,
+): Boolean = isMainHostTop && isCardTransitionIdle && !isPagerNavigating
+
+internal fun nextBottomPagerPreloadItem(
+    visibleItems: List<BottomNavItem>,
+    preloadedItems: Set<BottomNavItem>,
+): BottomNavItem? = visibleItems.firstOrNull {
+    it != BottomNavItem.STORY && it !in preloadedItems
+}
 
 internal fun resolveTopLevelNavigationAction(
     currentRoute: String?,
@@ -233,7 +248,7 @@ internal fun shouldEnableBottomPagerUserScroll(): Boolean = false
  * BiliPai MainScreen composition:
  * `if (isCurrentPage || contentReady) XxxPager(...)`
  *
- * After first-frame ready, lightweight bottom-tab slots stay mounted so
+ * After an individual page is ready, its bottom-tab slot stays mounted so
  * [MainBottomPagerState.switchToPage] `animateScrollBy` far jumps
  * (rightmost → home) scroll across real pages instead of empty Boxes.
  * Story is intentionally excluded while inactive: mounting it creates a real media player and

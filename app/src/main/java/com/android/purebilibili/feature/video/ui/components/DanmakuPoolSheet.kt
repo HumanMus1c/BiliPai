@@ -73,6 +73,7 @@ fun DanmakuPoolSheet(
     onBlockSender: (userHash: String) -> Unit = {},
     onSendSame: (String) -> Unit = {},
     isSending: Boolean = false,
+    upOwnerUserHash: String? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -249,6 +250,8 @@ fun DanmakuPoolSheet(
                             item = item,
                             isLiked = isLiked,
                             isHighlighted = isNearCurrentTime,
+                            isUpOwner = item.isUpOwner ||
+                                (upOwnerUserHash != null && item.userHash == upOwnerUserHash),
                             onItemClick = {
                                 onSeekTo(item.showAtTime)
                                 Toast.makeText(
@@ -481,6 +484,7 @@ private fun DanmakuPoolItemRow(
     item: DanmakuItem,
     isLiked: Boolean,
     isHighlighted: Boolean,
+    isUpOwner: Boolean,
     onItemClick: () -> Unit,
     onLongClick: () -> Unit,
     onLikeClick: () -> Unit,
@@ -523,6 +527,24 @@ private fun DanmakuPoolItemRow(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
+
+            // UP 主弹幕：粉色 UP 标签（与播放器内徽章同色系）
+            if (isUpOwner) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color(0xFFFB7299).copy(alpha = 0.18f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                ) {
+                    AppText(
+                        text = "UP",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFFB7299),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+            }
 
             // 如果是自己的弹幕，显示“我的”标签
             if (item.isSelf) {

@@ -201,6 +201,7 @@ internal fun PortraitInlineVideoPlayerHost(
     onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit,
     fullscreenExtras: ContinuousPlayerFullscreenExtras? = null,
     residentCoverSource: VideoDetailResidentCoverSource? = null,
+    suppressTransientOverlaysForTransition: Boolean = false,
 ) {
     val successState = uiState as? VideoPlaybackUiState.Success
     // 竖屏全屏由 PortraitVideoPager 接管播放面；内联 section 不得再合成。
@@ -228,6 +229,7 @@ internal fun PortraitInlineVideoPlayerHost(
                 transitionEnabled = transitionEnabled,
                 transitionChromeAlphaProvider = transitionChromeAlphaProvider,
                 danmakuHostActive = danmakuHostActive,
+                suppressTransientOverlaysForTransition = suppressTransientOverlaysForTransition,
                 endDrawerRequestKey = endDrawerRequestKey,
                 landscapeCommentPanelVisible = isFullscreen &&
                     fullscreenExtras?.landscapeCommentPanelVisible == true,

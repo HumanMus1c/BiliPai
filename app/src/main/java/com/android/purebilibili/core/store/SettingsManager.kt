@@ -657,7 +657,7 @@ data class HomeSettings(
     val homeHeaderCollapseMode: HomeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
     val homeBarHideType: HomeBarHideType = HomeBarHideType.SYNC,
     val commonListHeaderCollapseMode: CommonListHeaderCollapseMode =
-        CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+        CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
     val isHeaderCollapseEnabled: Boolean = true,
     val showPgcTimeline: Boolean = true,
     val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)——宽屏（折叠屏内屏/平板）
@@ -875,7 +875,7 @@ enum class CommonListHeaderCollapseMode(
 
     companion object {
         fun fromValue(value: Int): CommonListHeaderCollapseMode =
-            entries.find { it.value == value } ?: SHOW_ON_REVERSE_SCROLL
+            entries.find { it.value == value } ?: SHOW_AT_TOP_ONLY
     }
 }
 
@@ -1105,8 +1105,8 @@ data class PlayerInteractionSettings(
     val pipNoDanmakuEnabled: Boolean = false,
     val seekForwardSeconds: Int = 10,
     val seekBackwardSeconds: Int = 10,
-    val inlineSwipeSeekSeconds: Int = 30,
-    val fullscreenSwipeSeekSeconds: Int = 15,
+    val inlineSwipeSeekSeconds: Int = 0,
+    val fullscreenSwipeSeekSeconds: Int = 0,
     val fullscreenSwipeSeekEnabled: Boolean = true,
     val fullscreenGestureReverse: Boolean = false,
     val hideVideoPageStatusBar: Boolean = false,
@@ -1799,7 +1799,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             ),
             commonListHeaderCollapseMode = CommonListHeaderCollapseMode.fromValue(
                 preferences[KEY_COMMON_LIST_HEADER_COLLAPSE_MODE]
-                    ?: CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL.value
+                    ?: CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY.value
             ),
             isHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse,
             showPgcTimeline = preferences[KEY_SHOW_PGC_TIMELINE] ?: true,
@@ -1914,10 +1914,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             seekForwardSeconds = (preferences[KEY_SEEK_FORWARD_SECONDS] ?: 10).coerceIn(1, 60),
             seekBackwardSeconds = (preferences[KEY_SEEK_BACKWARD_SECONDS] ?: 10).coerceIn(1, 60),
             inlineSwipeSeekSeconds = normalizeInlineSwipeSeekSeconds(
-                preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 30
+                preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 0
             ),
             fullscreenSwipeSeekSeconds = normalizeFullscreenSwipeSeekSeconds(
-                preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 15
+                preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 0
             ),
             fullscreenSwipeSeekEnabled = preferences[KEY_FULLSCREEN_SWIPE_SEEK_ENABLED] ?: true,
             fullscreenGestureReverse = preferences[KEY_FULLSCREEN_GESTURE_REVERSE] ?: false,
@@ -3143,7 +3143,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.data.map { preferences ->
             CommonListHeaderCollapseMode.fromValue(
                 preferences[KEY_COMMON_LIST_HEADER_COLLAPSE_MODE]
-                    ?: CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL.value
+                    ?: CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY.value
             )
         }
 
@@ -7230,7 +7230,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     // --- 非全屏左右滑动调进度范围（秒，默认 30） ---
     fun getInlineSwipeSeekSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences ->
-            val raw = preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 30
+            val raw = preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 0
             normalizeInlineSwipeSeekSeconds(raw)
         }
 
@@ -7241,6 +7241,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     private fun normalizeInlineSwipeSeekSeconds(seconds: Int): Int {
+        if (seconds == 0) return 0
         return INLINE_SWIPE_SEEK_OPTIONS.minByOrNull { option -> abs(option - seconds) } ?: 30
     }
 
@@ -7257,7 +7258,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     // --- 横屏左右滑动调进度范围（秒，默认 15） ---
     fun getFullscreenSwipeSeekSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences ->
-            val raw = preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 15
+            val raw = preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 0
             normalizeFullscreenSwipeSeekSeconds(raw)
         }
 
@@ -7268,6 +7269,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     private fun normalizeFullscreenSwipeSeekSeconds(seconds: Int): Int {
+        if (seconds == 0) return 0
         return FULLSCREEN_SWIPE_SEEK_OPTIONS.minByOrNull { option -> abs(option - seconds) } ?: 15
     }
 

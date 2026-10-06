@@ -32,6 +32,7 @@ internal data class VideoPlayerSectionState(
     val transitionEnabled: Boolean = true,
     val transitionChromeAlphaProvider: () -> Float = { 1f },
     val danmakuHostActive: Boolean = true,
+    val suppressTransientOverlaysForTransition: Boolean = false,
     val endDrawerRequestKey: Int = 0,
     val landscapeCommentPanelVisible: Boolean = false,
     val landscapeCommentPanelOnLeft: Boolean = true,

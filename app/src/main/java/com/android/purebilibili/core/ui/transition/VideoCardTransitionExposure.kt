@@ -16,6 +16,11 @@ internal enum class VideoCardTransitionExposure {
     Restoring,
 }
 
+/** Background feed work resumes when the source is fully restored, including cancellation. */
+internal fun shouldDeferVideoCardSourceHeavyWork(
+    exposure: VideoCardTransitionExposure,
+): Boolean = exposure != VideoCardTransitionExposure.Idle
+
 internal data class VideoCardTransitionRenderDecision(
     val retainSourceSnapshot: Boolean,
     val drawSourceNormally: Boolean,

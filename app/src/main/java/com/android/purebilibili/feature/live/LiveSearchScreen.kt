@@ -114,10 +114,11 @@ fun LiveSearchScreen(
     var userLoadingMore by remember { mutableStateOf(false) }
     var liveHasMore by remember { mutableStateOf(false) }
     var userHasMore by remember { mutableStateOf(false) }
-    var liveNextPage by remember { mutableIntStateOf(1) }
-    var userNextPage by remember { mutableIntStateOf(1) }
     var activeKeyword by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    var liveError by remember { mutableStateOf<String?>(null) }
+    var userError by remember { mutableStateOf<String?>(null) }
+    val liveRequests = remember { LiveBrowseRequestPolicy() }
+    val userRequests = remember { LiveBrowseRequestPolicy() }
     val liveResults = remember { mutableStateListOf<LiveRoomSearchItem>() }
     val userResults = remember { mutableStateListOf<SearchUpItem>() }
     val hasScrolledAwayFromTop by remember(selectedTab, liveGridState, userListState) {
@@ -136,69 +137,101 @@ fun LiveSearchScreen(
         }
     }
 
-    suspend fun submit() {
+    fun submit() {
         val normalized = query.trim()
         if (normalized.isEmpty()) return
-        if (normalized.all { it.isDigit() }) {
-            onLiveClick(normalized.toLong(), "", "")
+        normalized.takeIf { it.all { character -> character.isDigit() } }?.toLongOrNull()?.let {
+            onLiveClick(it, "", "")
             return
         }
+        if (isLoading && normalized == activeKeyword) return
+        val liveRequest = liveRequests.refresh(replace = true) ?: return
+        val userRequest = userRequests.refresh(replace = true) ?: return
         keyboard?.hide()
         hasSubmitted = true
         isLoading = true
-        error = null
+        liveLoadingMore = false
+        userLoadingMore = false
+        liveError = null
+        userError = null
         activeKeyword = normalized
         liveResults.clear()
         userResults.clear()
         liveHasMore = false
         userHasMore = false
-        liveNextPage = 1
-        userNextPage = 1
-        liveGridState.scrollToItem(0)
-        userListState.scrollToItem(0)
-        SearchRepository.searchLive(normalized, 1, SearchLiveOrder.ONLINE)
-            .onSuccess { (rooms, pageInfo) ->
-                liveResults.addAll(rooms.distinctBy { it.roomid })
-                liveHasMore = pageInfo.hasMore
-                liveNextPage = pageInfo.currentPage + 1
-            }
-            .onFailure { error = it.message ?: "直播搜索失败" }
-        SearchRepository.searchUp(normalized, 1)
-            .onSuccess { (ups, pageInfo) ->
-                userResults.addAll(ups.distinctBy { it.mid })
-                userHasMore = pageInfo.hasMore
-                userNextPage = pageInfo.currentPage + 1
-            }
-            .onFailure { if (error == null) error = it.message ?: "主播搜索失败" }
-        isLoading = false
+        scope.launch {
+            launch { liveGridState.scrollToItem(0) }
+            launch { userListState.scrollToItem(0) }
+            if (!liveRequests.owns(liveRequest)) return@launch
+            SearchRepository.searchLive(normalized, liveRequest.page, SearchLiveOrder.ONLINE)
+                .onSuccess { (rooms, pageInfo) ->
+                    if (!liveRequests.succeed(liveRequest, pageInfo.currentPage + 1)) return@onSuccess
+                    liveResults.addAll(rooms.distinctBy { it.roomid })
+                    liveHasMore = pageInfo.hasMore
+                }
+                .onFailure {
+                    if (liveRequests.fail(liveRequest)) liveError = it.message ?: "直播搜索失败"
+                }
+            if (!userRequests.owns(userRequest)) return@launch
+            SearchRepository.searchUp(normalized, userRequest.page)
+                .onSuccess { (ups, pageInfo) ->
+                    if (!userRequests.succeed(userRequest, pageInfo.currentPage + 1)) return@onSuccess
+                    userResults.addAll(ups.distinctBy { it.mid })
+                    userHasMore = pageInfo.hasMore
+                    isLoading = false
+                }
+                .onFailure {
+                    if (!userRequests.fail(userRequest)) return@onFailure
+                    userError = it.message ?: "主播搜索失败"
+                    isLoading = false
+                }
+        }
     }
 
-    suspend fun loadMoreLive() {
-        if (activeKeyword.isBlank() || liveLoadingMore || !liveHasMore) return
+    fun loadMoreLive() {
+        if (isLoading || activeKeyword.isBlank()) return
+        val request = liveRequests.loadMore(liveHasMore) ?: return
+        val keyword = activeKeyword
         liveLoadingMore = true
-        SearchRepository.searchLive(activeKeyword, liveNextPage, SearchLiveOrder.ONLINE)
-            .onSuccess { (rooms, pageInfo) ->
-                val currentIds = liveResults.map { it.roomid }.toSet()
-                liveResults.addAll(rooms.filterNot { it.roomid in currentIds })
-                liveHasMore = pageInfo.hasMore
-                liveNextPage = pageInfo.currentPage + 1
-            }
-            .onFailure { error = it.message ?: "直播加载更多失败" }
-        liveLoadingMore = false
+        liveError = null
+        scope.launch {
+            SearchRepository.searchLive(keyword, request.page, SearchLiveOrder.ONLINE)
+                .onSuccess { (rooms, pageInfo) ->
+                    if (!liveRequests.succeed(request, pageInfo.currentPage + 1)) return@onSuccess
+                    val currentIds = liveResults.map { it.roomid }.toSet()
+                    liveResults.addAll(rooms.distinctBy { it.roomid }.filterNot { it.roomid in currentIds })
+                    liveHasMore = pageInfo.hasMore
+                    liveLoadingMore = false
+                }
+                .onFailure {
+                    if (!liveRequests.fail(request)) return@onFailure
+                    liveError = it.message ?: "直播加载更多失败"
+                    liveLoadingMore = false
+                }
+        }
     }
 
-    suspend fun loadMoreUser() {
-        if (activeKeyword.isBlank() || userLoadingMore || !userHasMore) return
+    fun loadMoreUser() {
+        if (isLoading || activeKeyword.isBlank()) return
+        val request = userRequests.loadMore(userHasMore) ?: return
+        val keyword = activeKeyword
         userLoadingMore = true
-        SearchRepository.searchUp(activeKeyword, userNextPage)
-            .onSuccess { (ups, pageInfo) ->
-                val currentIds = userResults.map { it.mid }.toSet()
-                userResults.addAll(ups.filterNot { it.mid in currentIds })
-                userHasMore = pageInfo.hasMore
-                userNextPage = pageInfo.currentPage + 1
-            }
-            .onFailure { error = it.message ?: "主播加载更多失败" }
-        userLoadingMore = false
+        userError = null
+        scope.launch {
+            SearchRepository.searchUp(keyword, request.page)
+                .onSuccess { (ups, pageInfo) ->
+                    if (!userRequests.succeed(request, pageInfo.currentPage + 1)) return@onSuccess
+                    val currentIds = userResults.map { it.mid }.toSet()
+                    userResults.addAll(ups.distinctBy { it.mid }.filterNot { it.mid in currentIds })
+                    userHasMore = pageInfo.hasMore
+                    userLoadingMore = false
+                }
+                .onFailure {
+                    if (!userRequests.fail(request)) return@onFailure
+                    userError = it.message ?: "主播加载更多失败"
+                    userLoadingMore = false
+                }
+        }
     }
 
     AppScaffold(
@@ -234,7 +267,16 @@ fun LiveSearchScreen(
                             query = it
                             if (it.isBlank()) {
                                 hasSubmitted = false
-                                error = null
+                                liveRequests.invalidate()
+                                userRequests.invalidate()
+                                activeKeyword = ""
+                                isLoading = false
+                                liveLoadingMore = false
+                                userLoadingMore = false
+                                liveHasMore = false
+                                userHasMore = false
+                                liveError = null
+                                userError = null
                                 liveResults.clear()
                                 userResults.clear()
                             }
@@ -247,10 +289,10 @@ fun LiveSearchScreen(
                         },
                         shape = AppShapes.borderedContainer(ContainerLevel.Field),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { scope.launch { submit() } }),
+                        keyboardActions = KeyboardActions(onSearch = { submit() }),
                     )
                     AppIconButton(
-                        onClick = { scope.launch { submit() } },
+                        onClick = { submit() },
                         enabled = query.isNotBlank(),
                         modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
                     ) {
@@ -303,6 +345,13 @@ fun LiveSearchScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         val liveSearchBackdrop = rememberLayerBackdrop()
+        // 听视频小横条悬浮时统一上浮避让（与首页/稍后再看一致）
+        val liveSearchBottomPadding = LocalBottomBarContentPadding.current +
+            if (com.android.purebilibili.core.ui.rememberNowPlayingBarOverlayVisible()) {
+                com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
+            } else {
+                0.dp
+            }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -324,7 +373,7 @@ fun LiveSearchScreen(
                                 start = metrics.safeSpaceDp.dp,
                                 end = metrics.safeSpaceDp.dp,
                                 top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
-                                bottom = LocalBottomBarContentPadding.current,
+                                bottom = liveSearchBottomPadding,
                             ),
                             spacing = metrics.cardSpaceDp.dp,
                         )
@@ -335,11 +384,12 @@ fun LiveSearchScreen(
                                 start = metrics.safeSpaceDp.dp,
                                 end = metrics.safeSpaceDp.dp,
                                 top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
-                                bottom = LocalBottomBarContentPadding.current,
+                                bottom = liveSearchBottomPadding,
                             ),
                         )
                     }
-                    error != null -> LiveSearchState(error.orEmpty())
+                    selectedTab == 0 && liveError != null && liveResults.isEmpty() -> LiveSearchState(liveError.orEmpty())
+                    selectedTab != 0 && userError != null && userResults.isEmpty() -> LiveSearchState(userError.orEmpty())
                     selectedTab == 0 -> LazyVerticalGrid(
                         columns = GridCells.Fixed(gridColumns),
                         state = liveGridState,
@@ -350,7 +400,7 @@ fun LiveSearchScreen(
                             start = metrics.safeSpaceDp.dp,
                             end = metrics.safeSpaceDp.dp,
                             top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
-                            bottom = LocalBottomBarContentPadding.current,
+                            bottom = liveSearchBottomPadding,
                         ),
                         horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
                         verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
@@ -366,9 +416,13 @@ fun LiveSearchScreen(
                                 AppButton(
                                     enabled = !liveLoadingMore,
                                     modifier = Modifier.fillMaxWidth(),
-                                    onClick = { scope.launch { loadMoreLive() } },
+                                    onClick = { loadMoreLive() },
                                 ) {
-                                    AppText(if (liveLoadingMore) "加载中" else "加载更多")
+                                    AppText(
+                                        if (liveLoadingMore) "加载中"
+                                        else if (liveError != null) "$liveError · 重试"
+                                        else "加载更多"
+                                    )
                                 }
                             }
                         }
@@ -382,7 +436,7 @@ fun LiveSearchScreen(
                             start = metrics.safeSpaceDp.dp,
                             end = metrics.safeSpaceDp.dp,
                             top = innerPadding.calculateTopPadding() + AppSpacingTokens.Medium,
-                            bottom = LocalBottomBarContentPadding.current,
+                            bottom = liveSearchBottomPadding,
                         ),
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
                     ) {
@@ -394,9 +448,13 @@ fun LiveSearchScreen(
                                 AppButton(
                                     enabled = !userLoadingMore,
                                     modifier = Modifier.fillMaxWidth(),
-                                    onClick = { scope.launch { loadMoreUser() } },
+                                    onClick = { loadMoreUser() },
                                 ) {
-                                    AppText(if (userLoadingMore) "加载中" else "加载更多")
+                                    AppText(
+                                        if (userLoadingMore) "加载中"
+                                        else if (userError != null) "$userError · 重试"
+                                        else "加载更多"
+                                    )
                                 }
                             }
                         }
@@ -420,7 +478,7 @@ fun LiveSearchScreen(
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = AppSpacingTokens.Large,
-                        bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
+                        bottom = liveSearchBottomPadding + AppSpacingTokens.Medium,
                     ),
                 backdrop = liveSearchBackdrop,
             )

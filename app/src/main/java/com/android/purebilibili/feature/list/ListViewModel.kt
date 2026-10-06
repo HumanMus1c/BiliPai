@@ -180,6 +180,17 @@ class LikedVideosViewModelFactory(
 
 // --- 历史记录 ViewModel (支持游标分页加载) ---
 class HistoryViewModel(application: Application) : BaseListViewModel(application, "历史记录") {
+    private var isPageActive = false
+    private var startupLoadsActivated = false
+
+    fun setPageActive(active: Boolean) {
+        isPageActive = active
+        if (active && !startupLoadsActivated) {
+            startupLoadsActivated = true
+            loadHistoryPauseState()
+        }
+    }
+
     internal val recapSnapshots = mutableMapOf<PersonalRecapWindow, HistoryRecapSnapshot>()
     private var historySearchQuery: String = ""
     private var historySearchPage: Int = 1
@@ -838,14 +849,14 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     }
 
     init {
-        loadHistoryPauseState()
         observeHistoryRefresh()
     }
 
     private fun observeHistoryRefresh() {
         viewModelScope.launch {
             HistoryRefreshBus.changes.collect {
-                loadData(showLoading = false)
+                // Navigation reloads on activation, so an offscreen invalidation can wait.
+                if (isPageActive) loadData(showLoading = false)
             }
         }
     }
@@ -853,6 +864,14 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
 
 // --- 收藏 ViewModel (支持分页加载所有收藏夹) ---
 class FavoriteViewModel(application: Application) : BaseListViewModel(application, "我的收藏") {
+    private var startupLoadsActivated = false
+
+    fun activateStartupLoads() {
+        if (startupLoadsActivated) return
+        startupLoadsActivated = true
+        loadData()
+    }
+
     private val _searchUiState = MutableStateFlow(ListUiState(title = "收藏搜索"))
     val searchUiState = _searchUiState.asStateFlow()
     private var searchGeneration = 0L
@@ -1647,7 +1666,4 @@ class FavoriteViewModel(application: Application) : BaseListViewModel(applicatio
         }
     }
 
-    init {
-        loadData()
-    }
 }

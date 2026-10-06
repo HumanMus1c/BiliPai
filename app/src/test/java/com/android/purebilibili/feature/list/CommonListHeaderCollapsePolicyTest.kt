@@ -7,9 +7,9 @@ import kotlin.test.assertEquals
 class CommonListHeaderCollapsePolicyTest {
 
     @Test
-    fun `collapse mode falls back to reverse scroll behavior`() {
+    fun `collapse mode falls back to top only behavior`() {
         assertEquals(
-            CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
             CommonListHeaderCollapseMode.fromValue(999)
         )
     }

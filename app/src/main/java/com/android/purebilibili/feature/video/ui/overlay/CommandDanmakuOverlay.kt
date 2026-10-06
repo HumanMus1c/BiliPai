@@ -105,12 +105,17 @@ internal fun CommandDanmakuOverlay(
     onFollowClick: () -> Unit,
     onTripleClick: () -> Unit,
     onVoteSubmit: (CommandDanmakuItem, VoteOption, Int) -> Unit,
+    onLinkClick: (CommandDanmakuItem) -> Unit = {},
     isFollowing: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    renderingPaused: Boolean = false,
 ) {
     val placementHeightPx = (viewport.heightPx - bottomInsetPx.coerceAtLeast(0)).coerceAtLeast(0)
     if (placementHeightPx == 0) return
-    val currentPosition by produceState(initialValue = player.currentPosition, key1 = player) {
+    val currentPosition by produceState(
+        initialValue = player.currentPosition, key1 = player, key2 = renderingPaused,
+    ) {
+        if (renderingPaused) awaitDispose { }
         while (true) {
             value = player.currentPosition
             kotlinx.coroutines.delay(80)
@@ -131,6 +136,7 @@ internal fun CommandDanmakuOverlay(
                     onFollowClick = onFollowClick,
                     onTripleClick = onTripleClick,
                     onVoteSubmit = onVoteSubmit,
+                    onLinkClick = onLinkClick,
                     isFollowing = isFollowing,
                     onDismiss = { state.dismiss(item.id) }
                 )
@@ -149,6 +155,7 @@ private fun CommandDanmakuCard(
     onFollowClick: () -> Unit,
     onTripleClick: () -> Unit,
     onVoteSubmit: (CommandDanmakuItem, VoteOption, Int) -> Unit,
+    onLinkClick: (CommandDanmakuItem) -> Unit,
     isFollowing: Boolean,
     onDismiss: () -> Unit
 ) {
@@ -266,8 +273,18 @@ private fun CommandDanmakuCard(
                     onDismiss = onDismiss,
                 )
             } else {
+                val isLinkWithTarget = item.type == CommandDanmakuType.LINK &&
+                    (item.linkBvid.isNotBlank() || item.linkAid > 0L)
                 AppSurface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (isLinkWithTarget) {
+                                Modifier.clickable(role = Role.Button) { onLinkClick(item) }
+                            } else {
+                                Modifier
+                            }
+                        ),
                     color = Color.Black.copy(alpha = 0.54f),
                     contentColor = Color.White,
                     shape = AppShapes.container(ContainerLevel.Chip)

@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,8 +38,7 @@ import com.android.purebilibili.feature.live.LiveDanmakuItem
 import com.android.purebilibili.feature.live.formatLiveSuperChatCountdown
 import com.android.purebilibili.feature.live.rememberLiveChromePalette
 import com.android.purebilibili.feature.live.resolveLiveSuperChatColor
-import com.android.purebilibili.feature.live.resolveLiveSuperChatDurationSec
-import com.android.purebilibili.feature.live.shouldExpireLiveSuperChat
+import com.android.purebilibili.feature.live.remainingLiveSuperChatSeconds
 import kotlinx.coroutines.delay
 
 @Composable
@@ -89,21 +89,21 @@ private fun LiveSuperChatCard(
     val palette = rememberLiveChromePalette()
     val context = LocalContext.current
     var menuExpanded by remember(item.superChatId) { mutableStateOf(false) }
-    val totalSec = resolveLiveSuperChatDurationSec(item.superChatDuration)
-    var remainingSec by remember(item.superChatId, item.superChatDuration, item.text) {
-        mutableIntStateOf(totalSec)
+    val endTime = item.superChatEndTime
+    val currentOnExpired by rememberUpdatedState(onExpired)
+    var remainingSec by remember(item.superChatId, endTime, item.text) {
+        mutableIntStateOf(remainingLiveSuperChatSeconds(endTime, System.currentTimeMillis() / 1_000L))
     }
 
-    LaunchedEffect(item.superChatId, totalSec) {
-        remainingSec = totalSec
-        var elapsed = 0
-        while (!shouldExpireLiveSuperChat(totalSec, elapsed)) {
+    LaunchedEffect(item.superChatId, endTime, item.text) {
+        remainingSec = remainingLiveSuperChatSeconds(endTime, System.currentTimeMillis() / 1_000L)
+        while (remainingSec > 0) {
             delay(1_000)
-            elapsed += 1
-            remainingSec = (totalSec - elapsed).coerceAtLeast(0)
+            remainingSec = remainingLiveSuperChatSeconds(endTime, System.currentTimeMillis() / 1_000L)
         }
-        onExpired()
+        currentOnExpired()
     }
+    if (remainingSec <= 0) return
 
     Box {
       AppSurface(
