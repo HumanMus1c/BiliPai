@@ -120,8 +120,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 441
-        versionName = "0.3.0"
+        versionCode = 442
+        versionName = "0.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -356,10 +356,10 @@ dependencies {
     implementation(project(":brand-motion"))
     val material3Version = "1.5.0-alpha29"
     val material3AdaptiveVersion = "1.3.0"
-    val media3Version = "1.10.1"
+    val media3Version = "1.11.1"
     val lifecycleVersion = "2.11.0"
     val roomVersion = "2.8.4"
-    val hazeVersion = "2.0.0-alpha03"
+    val hazeVersion = "2.0.1"
 
     implementation(project(":settings-core"))
     implementation(project(":network-core"))
@@ -415,10 +415,10 @@ dependencies {
     implementation("org.brotli:dec:0.1.2")
 
     // --- 3. Image (图片加载) ---
-    implementation("io.coil-kt.coil3:coil-compose:3.5.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
-    implementation("io.coil-kt.coil3:coil-network-cache-control:3.5.0")
-    implementation("io.coil-kt.coil3:coil-gif:3.5.0")  // 🔥 GIF 动图支持
+    implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
+    implementation("io.coil-kt.coil3:coil-network-cache-control:3.6.3")
+    implementation("io.coil-kt.coil3:coil-gif:3.6.3")  // 🔥 GIF 动图支持
     
     // --- 3.1 Palette (颜色提取 - 动态取色) ---
     implementation("androidx.palette:palette-ktx:1.0.0")
@@ -543,7 +543,7 @@ dependencies {
     // MockK for Kotlin mocking
     testImplementation("io.mockk:mockk:1.13.9")
     // Coroutines testing
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // Turbine for Flow testing
     testImplementation("app.cash.turbine:turbine:1.0.0")
     

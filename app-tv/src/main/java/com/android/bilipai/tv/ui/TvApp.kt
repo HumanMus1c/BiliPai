@@ -149,9 +149,12 @@ private fun TvAppContent(state: TvUiState, viewModel: TvAppViewModel) {
                             onBack = { backFromContent() }, onRestoredAction = viewModel::consumeRestoredAction, onLike = viewModel::toggleLike, onFavorite = viewModel::chooseFavorites,
                             onSpace = { pageState.detail?.owner?.let { viewModel.openSpace(it.mid, it.name) } },
                             onCoin = { count, alsoLike -> viewModel.coin(count, alsoLike) },
+                            onComments = viewModel::openComments,
                             modifier = Modifier.fillMaxSize().padding(TvUiTokens.pagePadding))
                     }
                     TvScreen.Login -> TvLoginContent(pageState, contentFocus, viewModel::refreshQr, viewModel::signOut)
+                    TvScreen.Comments -> TvCommentsContent(pageState, contentFocus, viewModel,
+                        modifier = Modifier.fillMaxSize().padding(TvUiTokens.pagePadding))
                     TvScreen.Settings -> TvSettingsContent(pageState, contentFocus, viewModel::updateQuality,
                         viewModel::toggleAutoContinue, viewModel::toggleDanmaku, viewModel::togglePrivacy, viewModel::clearSearchHistory,
                         viewModel::toggleReduceMotion, viewModel::toggleSimpleEffects, viewModel::checkUpdate,

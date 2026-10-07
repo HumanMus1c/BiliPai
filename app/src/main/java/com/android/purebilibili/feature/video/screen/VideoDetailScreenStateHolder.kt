@@ -3300,12 +3300,11 @@ internal fun VideoDetailScreenStateHolder(
     // 沉浸式状态栏控制
     val backgroundColor = AppSurfaceTokens.background()
     val isLightBackground = remember(backgroundColor) { backgroundColor.luminance() > 0.5f }
-    var useCollapsedPlayerChromeAppearance by remember(currentBvid) { mutableStateOf(false) }
-    LaunchedEffect(useTabletLayout, isLandscape, isFullscreenMode, isPortraitFullscreen) {
-        if (useTabletLayout || isLandscape || isFullscreenMode || isPortraitFullscreen) {
-            useCollapsedPlayerChromeAppearance = false
-        }
-    }
+    // 进/出全屏瞬间系统栏图标明暗必须同帧切换；若经 LaunchedEffect 复位会晚一拍，
+    // 所以滚动折叠值只做原始状态，全屏/平板场景直接在派生处压制。
+    var playerChromeCollapsedByScroll by remember(currentBvid) { mutableStateOf(false) }
+    val useCollapsedPlayerChromeAppearance = playerChromeCollapsedByScroll &&
+        !(useTabletLayout || isLandscape || isFullscreenMode || isPortraitFullscreen)
     val systemBarsVisibilityPolicy = remember(
         isFullscreenMode,
         isPortraitFullscreen,
@@ -4525,7 +4524,7 @@ internal fun VideoDetailScreenStateHolder(
                             expandForSharedReturn = expandPlayerForSharedReturn,
                         )
                         SideEffect {
-                            useCollapsedPlayerChromeAppearance = layoutCollapseProgress >= 0.98f
+                            playerChromeCollapsedByScroll = layoutCollapseProgress >= 0.98f
                         }
                         LaunchedEffect(expandPlayerForSharedReturn) {
                             if (expandPlayerForSharedReturn) {
@@ -4843,7 +4842,40 @@ internal fun VideoDetailScreenStateHolder(
                                     } else {
                                         1f
                                     }
-                                    drawRect(Color.Black.copy(alpha = backingAlpha))
+                                    // The media shrinks inside this still detail-sized viewport.
+                                    // Keep its backing in the same slot so it cannot darken the
+                                    // source title/info band while that band fades in.
+                                    val handoffProgress = returnMediaHandoffProgressProvider()
+                                    val inverseScale = returnMediaInverseScaleProvider()
+                                    val backingFrame = resolveVideoDetailReturnMediaLayoutFrame(
+                                        containerWidthPx = size.width.roundToInt(),
+                                        containerHeightPx = size.height.roundToInt(),
+                                        landingLayout = landingLayoutForMedia,
+                                        handoffProgress = handoffProgress,
+                                        inverseScaleX = inverseScale.scaleX,
+                                        inverseScaleY = inverseScale.scaleY,
+                                        nativeSnapshotBounds = nativeSnapshotTargetBoundsProvider?.invoke(),
+                                    )
+                                    val hasTargetGeometry = landingLayoutForMedia?.canRender == true ||
+                                        nativeSnapshotTargetBoundsProvider?.invoke()
+                                            ?.let { it.width > 1f && it.height > 1f } == true
+                                    val radius = if (hasTargetGeometry) {
+                                        returnMediaClipCornerDp.toPx() * handoffProgress.coerceIn(0f, 1f)
+                                    } else {
+                                        0f
+                                    }
+                                    drawRoundRect(
+                                        color = Color.Black.copy(alpha = backingAlpha),
+                                        topLeft = androidx.compose.ui.geometry.Offset(
+                                            backingFrame.offsetXPx.toFloat(),
+                                            backingFrame.offsetYPx.toFloat(),
+                                        ),
+                                        size = androidx.compose.ui.geometry.Size(
+                                            backingFrame.widthPx.toFloat(),
+                                            backingFrame.heightPx.toFloat(),
+                                        ),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius, radius),
+                                    )
                                 }
                                 //  [PiP修复] 捕获视频播放器在屏幕上的位置
                                 .onGloballyPositioned { layoutCoordinates ->

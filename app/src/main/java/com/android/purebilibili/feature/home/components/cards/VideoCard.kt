@@ -966,9 +966,12 @@ internal fun ElegantVideoCard(
             )
             // The mounted draw modifier reads this latch directly, so the layer freezes
             // before OPENING can hide the stationary title and statistics.
-            freezeNativeCardLayer.value = true
-            captureNativeVideoCardImage(nativeCardLayer)
-            captureNativeCoverOverlayLayer(nativeCoverOverlayLayer)
+            // 过渡关闭时 draw modifier 未挂载，冻结/捕获纯属空转（层从未 record）。
+            if (transitionEnabled) {
+                freezeNativeCardLayer.value = true
+                captureNativeVideoCardImage(nativeCardLayer)
+                captureNativeCoverOverlayLayer(nativeCoverOverlayLayer)
+            }
         }
         onClick(video.bvid, video.cid)
     }

@@ -102,6 +102,55 @@ class VideoDomainViewModelTest {
     }
 
     @Test
+    fun `repost video caps coin options at one`() = runTest(dispatcher) {
+        val actions = FakeEngagementActions()
+        val viewModel = VideoEngagementViewModel(
+            actions = actions,
+            coinBalanceLoader = VideoCoinBalanceLoader { 8.5 }
+        )
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed(isRepost = true))
+
+        assertEquals(1, viewModel.uiState.value.coinLimit)
+
+        viewModel.openCoinDialog()
+        runCurrent()
+        assertTrue(viewModel.uiState.value.coinDialogVisible)
+
+        viewModel.doCoin(1, false)
+        runCurrent()
+        assertEquals(1, viewModel.uiState.value.coinCount)
+
+        // 转载已投满 1 币：不再打开面板，直接提示上限
+        val events = mutableListOf<VideoEngagementEvent>()
+        backgroundScope.launch { viewModel.events.collect { events += it } }
+        viewModel.openCoinDialog()
+        runCurrent()
+        assertFalse(viewModel.uiState.value.coinDialogVisible)
+        assertEquals(
+            listOf(VideoEngagementEvent.Message("转载视频最多投1个硬币")),
+            events.filterIsInstance<VideoEngagementEvent.Message>()
+        )
+
+        viewModel.doTripleAction()
+        runCurrent()
+        assertEquals(1, actions.lastTripleCoinCount)
+    }
+
+    @Test
+    fun `original video keeps two coin limit and triple coin count`() = runTest(dispatcher) {
+        val actions = FakeEngagementActions()
+        val viewModel = VideoEngagementViewModel(actions = actions)
+        viewModel.bindSubject(subject("BV1", generation = 1L), VideoEngagementSeed())
+
+        assertEquals(2, viewModel.uiState.value.coinLimit)
+
+        viewModel.doTripleAction()
+        runCurrent()
+        assertEquals(2, actions.lastTripleCoinCount)
+        assertEquals(2, viewModel.uiState.value.coinCount)
+    }
+
+    @Test
     fun `composer drops drafts when subject generation changes`() {
         val viewModel = VideoComposerViewModel()
         val first = subject("BV1", generation = 1L)
@@ -385,13 +434,19 @@ class VideoDomainViewModelTest {
         override suspend fun doCoin(aid: Long, count: Int, alsoLike: Boolean, bvid: String) =
             if (failCoin) Result.failure(IllegalStateException("coin failed")) else Result.success(true)
 
-        override suspend fun doTripleAction(aid: Long) = Result.success(
-            TripleActionResult(
-                likeSuccess = true,
-                coinSuccess = true,
-                coinMessage = null,
-                favoriteSuccess = true
+        override suspend fun doTripleAction(aid: Long, coinCount: Int) = run {
+            lastTripleCoinCount = coinCount
+            Result.success(
+                TripleActionResult(
+                    likeSuccess = true,
+                    coinSuccess = true,
+                    coinMessage = null,
+                    favoriteSuccess = true
+                )
             )
-        )
+        }
+
+        var lastTripleCoinCount: Int? = null
+            private set
     }
 }

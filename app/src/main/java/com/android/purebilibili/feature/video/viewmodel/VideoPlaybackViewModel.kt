@@ -141,8 +141,6 @@ import com.android.purebilibili.feature.video.interaction.evaluateInteractiveCho
 import com.android.purebilibili.feature.video.interaction.shouldTriggerInteractiveQuestion
 import com.android.purebilibili.feature.video.policy.resolveFavoriteFolderMediaId
 import com.android.purebilibili.feature.video.progress.PbpProgressData
-import com.android.purebilibili.feature.video.ui.feedback.resolveTripleActionFeedbackMessage
-import com.android.purebilibili.feature.video.ui.feedback.resolveTripleActionVisualState
 import com.android.purebilibili.feature.video.subtitle.SubtitleCue
 import com.android.purebilibili.feature.video.subtitle.SubtitleTrackMeta
 import com.android.purebilibili.feature.video.subtitle.isSubtitleFeatureEnabledForUser
@@ -1427,76 +1425,6 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         .map { session -> session.resumeSuggestion }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     
-    // Celebration animations
-    private val _likeBurstVisible = MutableStateFlow(false)
-    val likeBurstVisible = _likeBurstVisible.asStateFlow()
-    
-    private val _tripleCelebrationVisible = MutableStateFlow(false)
-    val tripleCelebrationVisible = _tripleCelebrationVisible.asStateFlow()
-    
-    // Coin dialog
-    private val _coinDialogVisible = MutableStateFlow(false)
-    val coinDialogVisible = _coinDialogVisible.asStateFlow()
-
-    
-    // [New] User Coin Balance
-    // [New] User Coin Balance
-    private val _userCoinBalance = MutableStateFlow<Double?>(null)
-    val userCoinBalance = _userCoinBalance.asStateFlow()
-
-    fun showCoinDialog() {
-        _coinDialogVisible.value = true
-        fetchUserCoins()
-    }
-    
-    private fun fetchUserCoins() {
-        viewModelScope.launch {
-            _userCoinBalance.value = null // Loading
-            try {
-                // Check if we even have a local token
-                if (com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()) {
-                     com.android.purebilibili.core.util.Logger.e("VideoPlaybackViewModel", "fetchUserCoins: No local token found")
-                    _userCoinBalance.value = -4.0 // Local Token Missing
-                    return@launch
-                }
-
-                com.android.purebilibili.core.util.Logger.d("VideoPlaybackViewModel", "fetchUserCoins calls getNavInfo")
-                
-                // [Fix] Use IO dispatcher and timeout to prevent hanging
-                val result = withContext(Dispatchers.IO) {
-                    kotlinx.coroutines.withTimeout(5000L) {
-                        com.android.purebilibili.core.network.NetworkModule.api.getNavInfo()
-                    }
-                }
-                
-                com.android.purebilibili.core.util.Logger.d("VideoPlaybackViewModel", 
-                    "NavInfo: code=${result.code}, isLogin=${result.data?.isLogin}, money=${result.data?.money}, wallet=${result.data?.wallet?.bcoin_balance}")
-                
-                if (result.code == 0 && result.data != null) {
-                    val checkedResultData = requireNotNull(result.data)
-                    if (checkedResultData.isLogin) {
-                        _userCoinBalance.value = checkedResultData.money
-                    } else {
-                        com.android.purebilibili.core.util.Logger.w("VideoPlaybackViewModel", "User not logged in according to getNavInfo")
-                        _userCoinBalance.value = -3.0 // API says Not Logged In
-                    }
-                } else {
-                    com.android.purebilibili.core.util.Logger.e("VideoPlaybackViewModel", "getNavInfo failed: code=${result.code}")
-                    _userCoinBalance.value = -1.0 // Network/API Error
-                }
-            } catch (e: Exception) {
-                com.android.purebilibili.core.util.Logger.e("VideoPlaybackViewModel", "fetchUserCoins Error: ${e.javaClass.simpleName} - ${e.message}")
-                e.printStackTrace()
-                _userCoinBalance.value = -2.0 // Exception (Network or Timeout)
-            }
-        }
-    }
-
-
-
-    fun dismissCoinDialog() {
-        _coinDialogVisible.value = false
-    }
 
     fun dismissQualitySwitchFailureDialog() {
         _qualitySwitchFailureDialog.value = null
@@ -4496,7 +4424,6 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
                     onResult?.invoke(liked)
-                    if (liked) _likeBurstVisible.value = true
                     //  彩蛋：使用趣味消息（如果设置开启）
                     val message = if (liked && appContext?.let { ctx -> com.android.purebilibili.core.store.SettingsManager.isEasterEggEnabledSync(ctx) } == true) {
                         com.android.purebilibili.core.util.EasterEggs.getLikeMessage()
@@ -7008,105 +6935,6 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
     }
     
-    fun openCoinDialog() {
-        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
-        if (current.coinCount >= 2) { toast("\u5df2\u6295\u6ee12\u4e2a\u786c\u5e01"); return }
-        _coinDialogVisible.value = true
-        fetchUserCoins()
-    }
-    
-    fun closeCoinDialog() { _coinDialogVisible.value = false }
-    
-    fun doCoin(count: Int, alsoLike: Boolean) {
-        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
-        _coinDialogVisible.value = false
-        viewModelScope.launch {
-            interactionUseCase.doCoin(current.info.aid, count, alsoLike, currentBvid)
-                .onSuccess { 
-                    var newState = current.copy(coinCount = minOf(current.coinCount + count, 2))
-                    if (alsoLike && !current.isLiked) newState = newState.copy(isLiked = true)
-                    _uiState.value = newState
-                    //  彩蛋：使用趣味消息（如果设置开启）
-                    val message = if (appContext?.let { ctx -> com.android.purebilibili.core.store.SettingsManager.isEasterEggEnabledSync(ctx) } == true) {
-                        com.android.purebilibili.core.util.EasterEggs.getCoinMessage()
-                    } else {
-                        "投币成功"
-                    }
-                    toast(message)
-                }
-                .onFailure { toast(it.message ?: "\u6295\u5e01\u5931\u8d25") }
-        }
-    }
-    
-    fun doTripleAction() {
-        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
-        doTripleActionForVideo(
-            aid = current.info.aid,
-            bvid = current.info.bvid,
-            currentLiked = current.isLiked,
-            currentCoinCount = current.coinCount,
-            currentFavorited = current.isFavorited
-        )
-    }
-
-    fun doTripleActionForVideo(
-        aid: Long,
-        bvid: String,
-        currentLiked: Boolean,
-        currentCoinCount: Int,
-        currentFavorited: Boolean,
-        onResult: ((TripleActionResult) -> Unit)? = null
-    ) {
-        if (aid <= 0L || bvid.isBlank()) return
-        viewModelScope.launch {
-            toast("正在三连")
-            interactionUseCase.doTripleAction(aid)
-                .onSuccess { result ->
-                    val visualState = resolveTripleActionVisualState(
-                        currentLiked = currentLiked,
-                        currentCoinCount = currentCoinCount,
-                        currentFavorited = currentFavorited,
-                        likeSuccess = result.likeSuccess,
-                        coinSuccess = result.coinSuccess,
-                        coinFailureMessage = result.coinMessage,
-                        favoriteSuccess = result.favoriteSuccess
-                    )
-                    val current = _uiState.value as? VideoPlaybackUiState.Success
-                    if (current != null && current.info.aid == aid && current.info.bvid == bvid) {
-                        _uiState.value = current.copy(
-                            isLiked = visualState.isLiked,
-                            coinCount = visualState.coinCount,
-                            isFavorited = visualState.isFavorited
-                        )
-                    }
-                    onResult?.invoke(result)
-                    if (result.allSuccess) _tripleCelebrationVisible.value = true
-                    toast(
-                        resolveTripleActionFeedbackMessage(
-                            likeSuccess = result.likeSuccess,
-                            coinSuccess = result.coinSuccess,
-                            favoriteSuccess = result.favoriteSuccess,
-                            coinFailureMessage = result.coinMessage
-                        )
-                    )
-
-                    // [New] Easter Egg: Auto Jump after Triple Action
-                    viewModelScope.launch {
-                        val context = appContext ?: return@launch
-                        val isJumpEnabled = com.android.purebilibili.core.store.SettingsManager.getTripleJumpEnabled(context).first()
-                        if (result.allSuccess && isJumpEnabled && current?.info?.bvid == bvid) {
-                             // Wait a bit for the celebration to show
-                            delay(2000)
-                            loadVideo("BV1JsK5eyEuB", autoPlay = true)
-                        }
-                    }
-                }
-                .onFailure { toast(it.message ?: "\u4e09\u8fde\u5931\u8d25") }
-        }
-    }
-    
-    fun dismissLikeBurst() { _likeBurstVisible.value = false }
-    fun dismissTripleCelebration() { _tripleCelebrationVisible.value = false }
     
     // ========== Download ==========
     

@@ -793,7 +793,7 @@ object ActionRepository {
     }
     
     /**
-     *  一键三连 (点赞 + 投币2个 + 收藏)
+     *  一键三连 (点赞 + 投币 + 收藏)；coinCount 由调用方按视频属性给出（原创 2、转载 1）。
      */
     data class TripleResult(
         val likeSuccess: Boolean,
@@ -802,7 +802,7 @@ object ActionRepository {
         val favoriteSuccess: Boolean
     )
     
-    suspend fun tripleAction(aid: Long): Result<TripleResult> {
+    suspend fun tripleAction(aid: Long, coinCount: Int = 2): Result<TripleResult> {
         return withContext(Dispatchers.IO) {
             val csrf = TokenManager.csrfCache ?: ""
             if (csrf.isEmpty()) {
@@ -813,8 +813,8 @@ object ActionRepository {
             val likeResult = likeVideo(aid, true)
             val likeSuccess = likeResult.isSuccess
             
-            // 2. 投币 (2个，同时点赞)
-            val coinResult = coinVideo(aid, 2, true)
+            // 2. 投币 (按上限，同时点赞)
+            val coinResult = coinVideo(aid, coinCount, true)
             val coinSuccess = coinResult.isSuccess
             val coinMessage = coinResult.exceptionOrNull()?.message
             

@@ -15,8 +15,10 @@ internal fun ambientSampleSize(width: Int, height: Int): Pair<Int, Int> {
     else (96f * w / h).roundToInt().coerceAtLeast(1) to 96
 }
 
+// 非 glow 场景只服务状态栏模糊条：1500ms 会让变色明显滞后于画面，
+// 动态画面收紧到 500ms，画面静止后（static 检测对非 glow 同样生效）再放宽省电。
 internal fun ambientIntervalMs(glow: Boolean, saving: Boolean, static: Boolean): Long = when {
-    !glow -> 1500L
+    !glow -> if (static) 1500L else 500L
     static -> if (saving) 500L else 250L
     saving -> 250L
     else -> 125L

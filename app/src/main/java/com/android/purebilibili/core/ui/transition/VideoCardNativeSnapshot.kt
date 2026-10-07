@@ -89,6 +89,10 @@ internal fun isNativeVideoCardLayerDrawable(widthPx: Int, heightPx: Int): Boolea
  * Sources that leave composition, such as the now-playing bar, additionally freeze this layer
  * to a stable bitmap at click time.
  * While the flying overlay covers this card, skip drawing at the list coordinates.
+ *
+ * Unfrozen draws execute the content exactly once: it is replayed from the freshly recorded
+ * layer instead of being drawn a second time. Recording per draw keeps click-time pixels
+ * current; blitting the layer keeps the feed's steady-state draw cost single-pass.
  */
 @Composable
 internal fun Modifier.recordNativeVideoCardLayer(
@@ -121,7 +125,7 @@ internal fun Modifier.recordNativeVideoCardLayer(
             exposure = bgState.exposureProvider(),
         )
         if (!hide) {
-            if (freezeProvider() && isNativeVideoCardLayerDrawable(layer.size.width, layer.size.height)) {
+            if (isNativeVideoCardLayerDrawable(layer.size.width, layer.size.height)) {
                 drawLayer(layer)
             } else {
                 drawContent()

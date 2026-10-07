@@ -14,12 +14,11 @@ import com.android.purebilibili.core.ui.adaptive.minMotionTier
 import com.android.purebilibili.core.ui.performance.LocalRuntimeVisualGuard
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeInputScale
-import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.blur.HazeBlurStyle
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 
 private val LocalUnifiedBlurIntensity = staticCompositionLocalOf<BlurIntensity?> { null }
 
@@ -133,24 +132,20 @@ fun Modifier.unifiedBlur(
         resolveBlurInputScale(budget = budget, surfaceType = surfaceType)
     }
 
-    // Haze 2: style/blurEnabled/blurredEdgeTreatment live on BlurVisualEffect via blurEffect {}.
-    // Shape still applied with clip; recoverable background gate is per-effect blurEnabled.
+    // Haze 2: Style 是不可变的可重放程序，recoverable 门控与边缘处理作为额外写入排在
+    // 主题材质样式之前；预算降级映射为性能档位（旧 inputScale 语义 ≈ Fixed 采样质量）。
     val recoverableEnabled = recoverableBlurEnabled(hazeState)
-    return (if (shape != null) this.clip(shape) else this).hazeEffect(
-        state = hazeState,
-    ) {
-        blurEffect {
-            style = blurStyle
-            blurEnabled = recoverableEnabled
-            blurredEdgeTreatment = edgeTreatment
-        }
-        @OptIn(ExperimentalHazeApi::class)
-        run {
-            inputScale = if (inputScaleFactor >= 1f) {
-                HazeInputScale.None
-            } else {
-                HazeInputScale.Fixed(inputScaleFactor)
-            }
-        }
+    val performanceMode = if (inputScaleFactor >= 1f) {
+        HazePerformanceMode.Quality
+    } else {
+        HazePerformanceMode.Fixed(inputScaleFactor)
     }
+    return (if (shape != null) this.clip(shape) else this).hazeBlur(
+        input = HazeInput.Sources(hazeState),
+        style = HazeBlurStyle {
+            blurEnabled(recoverableEnabled)
+            blurredEdgeTreatment(edgeTreatment)
+        }.then(blurStyle),
+        performanceMode = performanceMode,
+    )
 }

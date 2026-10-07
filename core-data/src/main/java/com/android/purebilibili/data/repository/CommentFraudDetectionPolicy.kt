@@ -2,25 +2,25 @@ package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.data.model.CommentFraudStatus
 
-internal data class CommentPresenceProbe(
+data class CommentPresenceProbe(
     val requestSucceeded: Boolean,
     val found: Boolean,
     val deletedHint: Boolean = false,
     val invisible: Boolean = false
 )
 
-internal data class CommentReplyPageProbe(
+data class CommentReplyPageProbe(
     val requestSucceeded: Boolean,
     val visible: Boolean,
     val deletedHint: Boolean = false
 )
 
-internal fun shouldStartCommentFraudDetection(
+fun shouldStartCommentFraudDetection(
     enabled: Boolean,
     rpid: Long
 ): Boolean = enabled && rpid > 0L
 
-internal fun shouldContinueSubReplyFraudScan(
+fun shouldContinueSubReplyFraudScan(
     page: Int,
     pageSize: Int,
     receivedCount: Int,
@@ -31,11 +31,11 @@ internal fun shouldContinueSubReplyFraudScan(
     return if (totalCount > 0) page * pageSize < totalCount else receivedCount >= pageSize
 }
 
-internal fun shouldShowCommentFraudResultDialog(status: CommentFraudStatus): Boolean {
+fun shouldShowCommentFraudResultDialog(status: CommentFraudStatus): Boolean {
     return status != CommentFraudStatus.NORMAL
 }
 
-internal fun resolveCommentFraudLightMessage(status: CommentFraudStatus): String? {
+fun resolveCommentFraudLightMessage(status: CommentFraudStatus): String? {
     return if (status == CommentFraudStatus.NORMAL) {
         "评论已正常显示"
     } else {
@@ -43,7 +43,7 @@ internal fun resolveCommentFraudLightMessage(status: CommentFraudStatus): String
     }
 }
 
-internal fun resolveReplyFraudStatus(
+fun resolveReplyFraudStatus(
     guestProbe: CommentPresenceProbe,
     authProbe: CommentPresenceProbe,
     confirmedNotFoundAfterRetry: Boolean
@@ -79,7 +79,7 @@ internal fun resolveReplyFraudStatus(
     return CommentFraudStatus.UNKNOWN
 }
 
-internal fun resolveRootFraudStatus(
+fun resolveRootFraudStatus(
     guestSeekProbe: CommentPresenceProbe,
     authSeekProbe: CommentPresenceProbe,
     guestReplyPageVisible: Boolean?,

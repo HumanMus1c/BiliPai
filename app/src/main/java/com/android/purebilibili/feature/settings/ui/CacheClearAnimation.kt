@@ -395,17 +395,19 @@ fun CacheClearAnimationDialog(
                             // 不叠加色调层，保留背景原本的明暗与色彩层次
                             Modifier.hazeEffectCompat(
                                 state = hazeState,
-                                style = dev.chrisbanes.haze.blur.HazeBlurStyle(
-                                    backgroundColor = Color.Transparent,
-                                    colorEffects = listOf(
-                                        dev.chrisbanes.haze.blur.HazeColorEffect.ColorFilter(
-                                            androidx.compose.ui.graphics.ColorFilter.colorMatrix(
-                                                saturationColorMatrix(1.6f)
+                                style = dev.chrisbanes.haze.blur.HazeBlurStyle {
+                                    backgroundColor(Color.Transparent)
+                                    colorEffects(
+                                        listOf(
+                                            dev.chrisbanes.haze.blur.HazeColorEffect.colorFilter(
+                                                androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+                                                    saturationColorMatrix(1.6f)
+                                                )
                                             )
                                         )
-                                    ),
-                                    noiseFactor = 0f,
-                                ),
+                                    )
+                                    noiseFactor(0f)
+                                },
                             )
                         } else {
                             Modifier

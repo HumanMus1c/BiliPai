@@ -1,15 +1,16 @@
 package com.android.purebilibili.core.network.grpc
 
+import com.android.purebilibili.core.network.CoreDataLog
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.store.TokenManager
-import com.android.purebilibili.core.util.Logger
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Base64
 import java.util.UUID
 
-internal object BiliGrpcClient {
+// gRPC 直连客户端为共享网络能力，手机与 TV 的评论、私信分享均通过它调用。
+object BiliGrpcClient {
     private const val APP_BASE_URL = "https://app.bilibili.com"
     private const val USER_AGENT =
         "Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2"
@@ -53,7 +54,7 @@ internal object BiliGrpcClient {
             // HTTP 200 with standard gRPC status (0 or absent on HTTP success) is considered valid
             val isStatusOk = grpcStatus == null || grpcStatus == "0"
             if (!response.isSuccessful || !isStatusOk) {
-                Logger.w(
+                CoreDataLog.w(
                     "BiliGrpc",
                     "gRPC request failed: path=$path http=${response.code} grpc=$grpcStatus message=${grpcMessage.orEmpty()}"
                 )

@@ -1772,6 +1772,7 @@ fun PortraitVideoPager(
         visible = engagementState.coinDialogVisible,
         currentCoinCount = engagementState.coinCount,
         userBalance = engagementState.userCoinBalance,
+        maxCoins = engagementState.coinLimit,
         onDismiss = { engagementViewModel.setCoinDialogVisible(false) },
         onConfirm = { count, alsoLike ->
             engagementViewModel.doCoin(count = count, alsoLike = alsoLike)

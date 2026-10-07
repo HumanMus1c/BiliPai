@@ -156,6 +156,7 @@ internal fun TvDetailContent(
     onRetry: () -> Unit,
     onBack: () -> Unit,
     onRestoredAction: () -> Unit = {}, onLike: () -> Unit = {}, onFavorite: () -> Unit = {}, onSpace: () -> Unit = {}, onCoin: (Int, Boolean) -> Unit = { _, _ -> },
+    onComments: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state.detailLoading) {
@@ -175,7 +176,7 @@ internal fun TvDetailContent(
     val scroll = rememberScrollState()
     val descriptionScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val actionIds = listOf("play", "later", "like", "coin", "favorite", "space", "expand", "description") +
+    val actionIds = listOf("play", "later", "like", "coin", "favorite", "comments", "space", "expand", "description") +
         (if (info.pages.size > 1) info.pages.map { "part:${it.cid}" } else emptyList())
     val actionRequesters = remember(info.bvid, actionIds) {
         actionIds.associateWith { FocusRequester() }
@@ -258,6 +259,9 @@ internal fun TvDetailContent(
                 TvAppButton(onLike, actionModifier("like"), isLoading = state.actionBusy) { Text(if (state.liked == true) "已点赞 · 取消" else "点赞") }
                 TvAppButton(onClick = { coinDialog = true }, isLoading = state.actionBusy, modifier = actionModifier("coin")) { Text("投币") }
                 TvAppButton(onFavorite, actionModifier("favorite"), isLoading = state.favoriteLoading || state.actionBusy) { Text("收藏") }
+                TvAppButton(onClick = onComments, modifier = actionModifier("comments").testTag("tv-comments-entry")) {
+                    Text("评论" + if (info.stat.reply > 0) " · ${FormatUtils.formatStat(info.stat.reply.toLong())}" else "")
+                }
                 TvAppButton(onSpace, actionModifier("space")) { Text("UP 主空间") }
             }
             if (state.detailResumePositionMs > 0) {

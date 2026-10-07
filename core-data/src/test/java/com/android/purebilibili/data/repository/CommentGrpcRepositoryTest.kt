@@ -1,9 +1,9 @@
 package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.core.network.grpc.ProtoWire
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 
 class CommentGrpcRepositoryTest {
 

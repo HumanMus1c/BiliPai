@@ -4,10 +4,10 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.android.purebilibili.core.network.BilibiliApi
+import com.android.purebilibili.core.network.BuvidManager
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiUtils
-import com.android.purebilibili.core.util.Logger
-import com.android.purebilibili.core.coroutines.AppScope
+import com.android.purebilibili.core.network.CoreDataLog
 import com.android.purebilibili.data.model.CommentFraudStatus
 import com.android.purebilibili.data.model.response.*
 import kotlinx.coroutines.CancellationException
@@ -19,7 +19,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -58,6 +57,12 @@ object CommentRepository {
     private val api = NetworkModule.api
     private val guestApi = NetworkModule.guestApi
     private val commentJson = Json { ignoreUnknownKeys = true }
+
+    /**
+     * 评论发布成功后的宿主旁路（如手机端反诈存库）。共享层不持有其实现与作用域，
+     * 由各端在启动时注入；TV 端只读不发布，保持为空即可。
+     */
+    var onCommentPosted: ((reply: ReplyItem, oid: Long, type: Int, root: Long, parent: Long, message: String) -> Unit)? = null
 
     private const val MAX_COMMENT_IMAGE_BYTES = 15L * 1024 * 1024
     private const val IMAGE_TOO_LARGE_MESSAGE = "图片过大（单张最大 15MB）"
@@ -125,7 +130,7 @@ object CommentRepository {
                     
                     wbiKeysCache = Pair(imgKey, subKey)
                     wbiKeysTimestamp = System.currentTimeMillis()
-                    com.android.purebilibili.core.util.Logger.d("CommentRepo", " WBI Keys obtained successfully (attempt $attempt)")
+                    CoreDataLog.d("CommentRepo", " WBI Keys obtained successfully (attempt $attempt)")
                     return wbiKeysCache!!
                 }
             } catch (e: Exception) {
@@ -185,7 +190,7 @@ object CommentRepository {
     ): ReplyResponse {
         return when (mode) {
             1 -> {
-                Logger.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=2 (回复数)")
+                CoreDataLog.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=2 (回复数)")
                 apiClient.getReplyListLegacy(
                     oid = oid,
                     type = type,
@@ -195,7 +200,7 @@ object CommentRepository {
                 )
             }
             4 -> {
-                Logger.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=1 (点赞数)")
+                CoreDataLog.d("CommentRepo", " getComments (Legacy): oid=$oid, type=$type, page=$page, sort=1 (点赞数)")
                 apiClient.getReplyListLegacy(
                     oid = oid,
                     type = type,
@@ -217,7 +222,7 @@ object CommentRepository {
 
                 val wbiKeys = getWbiKeysOrNull(apiClient)
                 if (wbiKeys != null) {
-                    Logger.d(
+                    CoreDataLog.d(
                         "CommentRepo",
                         " getComments (WBI): oid=$oid, type=$type, page=$page, mode=$mainListMode"
                     )
@@ -227,14 +232,14 @@ object CommentRepository {
                     if (response != null && (response.code == 0 || !shouldFallbackCommentRead(response.code))) {
                         response
                     } else {
-                        Logger.w(
+                        CoreDataLog.w(
                             "CommentRepo",
                             " getComments (WBI failed, code=${response?.code}), falling back to non-WBI main/legacy (PiliPlus alignment)"
                         )
                         fetchNonWbiCommentFallback(apiClient, oid, type, page, ps, mainListMode, params)
                     }
                 } else {
-                    Logger.w(
+                    CoreDataLog.w(
                         "CommentRepo",
                         " getComments (WBI keys unavailable), falling back directly to non-WBI main/legacy (PiliPlus alignment)"
                     )
@@ -251,7 +256,7 @@ object CommentRepository {
         ps: Int,
         paginationOffset: String? = null
     ): ReplyResponse {
-        Logger.d("CommentRepo", " getComments (CompatMain): oid=$oid, type=$type, page=$page, mode=3 (热度)")
+        CoreDataLog.d("CommentRepo", " getComments (CompatMain): oid=$oid, type=$type, page=$page, mode=3 (热度)")
         val params = TreeMap<String, String>()
         params["oid"] = oid.toString()
         params["type"] = type.toString()
@@ -274,7 +279,7 @@ object CommentRepository {
         page: Int,
         ps: Int,
     ): ReplyResponse {
-        Logger.d(
+        CoreDataLog.d(
             "CommentRepo",
             " getComments (LegacyHotCompat): oid=$oid, type=$type, page=$page, sort=1 (点赞/热评)"
         )
@@ -335,7 +340,7 @@ object CommentRepository {
 
         val fallbackMode = readPlan.fallback
         val identityResponse = if (fallbackMode != null) {
-            Logger.w(
+            CoreDataLog.w(
                 "CommentRepo",
                 "getComments empty-success identity fallback: to=$fallbackMode, oid=$oid, type=$type, page=$page, mode=$mode"
             )
@@ -372,7 +377,7 @@ object CommentRepository {
                     )
                 )
         ) {
-            Logger.w(
+            CoreDataLog.w(
                 "CommentRepo",
                 "getComments empty-success legacy hot fallback: oid=$oid, type=$type, page=$page"
             )
@@ -438,7 +443,7 @@ object CommentRepository {
         var fallbackGrpcResult: Result<ReplyData>? = null
         try {
             // 确保 buvid3 已初始化
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
 
             val hasSession = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
             if (
@@ -468,22 +473,22 @@ object CommentRepository {
                             data = grpcData,
                         )
                     ) {
-                        Logger.w(
+                        CoreDataLog.w(
                             "CommentRepo",
                             "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, reason=empty-renderable-success"
                         )
                     } else if (!fallbackOnMissingLocation || !shouldFallbackGrpcCommentReadOnMissingLocation(grpcData)) {
-                        Logger.d("CommentRepo", " getComments (gRPC MainList): oid=$oid, type=$type, page=$page, mode=$mode")
+                        CoreDataLog.d("CommentRepo", " getComments (gRPC MainList): oid=$oid, type=$type, page=$page, mode=$mode")
                         return@withContext grpcResult
                     } else {
                         fallbackGrpcResult = grpcResult
-                        Logger.w(
+                        CoreDataLog.w(
                             "CommentRepo",
                             "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, reason=missing-location"
                         )
                     }
                 } else {
-                    Logger.w(
+                    CoreDataLog.w(
                         "CommentRepo",
                         "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, error=${grpcResult.exceptionOrNull()?.message}"
                     )
@@ -512,7 +517,7 @@ object CommentRepository {
                     data = primaryResponse.data,
                 )
             ) {
-                Logger.w(
+                CoreDataLog.w(
                     "CommentRepo",
                     "getComments empty-success fallback triggered: from=$primaryMode, oid=$oid, type=$type, page=$page, mode=$mode, total=${primaryResponse.data?.getAllCount() ?: 0}"
                 )
@@ -532,7 +537,7 @@ object CommentRepository {
             ) {
                 val checkedReadPlanFallback = requireNotNull(readPlan.fallback)
                 val fallbackMode = checkedReadPlanFallback
-                Logger.w(
+                CoreDataLog.w(
                     "CommentRepo",
                     "getComments fallback triggered: code=${primaryResponse.code}, from=$primaryMode to=$fallbackMode, oid=$oid, type=$type, page=$page, mode=$mode"
                 )
@@ -555,7 +560,7 @@ object CommentRepository {
                 1 -> "回复数"
                 else -> "热度"
             }
-            Logger.d(
+            CoreDataLog.d(
                 "CommentRepo",
                 " getComments result: oid=$oid, type=$type, mode=$mode($sortLabel), replies=${finalResponse.data?.replies?.size ?: 0}, code=${finalResponse.code}"
             )
@@ -571,7 +576,7 @@ object CommentRepository {
                 )
             } else {
                 if (fallbackGrpcResult != null) {
-                    Logger.w("CommentRepo", "getComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
+                    CoreDataLog.w("CommentRepo", "getComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
                     return@withContext fallbackGrpcResult
                 }
                 val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
@@ -580,7 +585,7 @@ object CommentRepository {
             }
         } catch (e: Exception) {
             if (fallbackGrpcResult != null) {
-                Logger.w("CommentRepo", "getComments REST exception (${e.message}), restoring valid gRPC payload")
+                CoreDataLog.w("CommentRepo", "getComments REST exception (${e.message}), restoring valid gRPC payload")
                 return@withContext fallbackGrpcResult
             }
             android.util.Log.e("CommentRepo", " getComments exception: oid=$oid, type=$type, ${e.message}", e)
@@ -593,7 +598,7 @@ object CommentRepository {
         type: Int
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
             val response = api.getReplyCount(oid = oid, type = type)
             if (response.code == 0) {
                 Result.success(response.data?.count ?: 0)
@@ -630,7 +635,7 @@ object CommentRepository {
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
         try {
             require(mode == CommentGrpcRepository.MODE_TIME || mode == CommentGrpcRepository.MODE_HOT)
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
             val result = CommentGrpcRepository.getDetailList(
                 oid = oid,
                 type = type,
@@ -672,7 +677,7 @@ object CommentRepository {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        Logger.w("CommentRepo", "Sub-reply location supplement failed: ${e.message}")
+                        CoreDataLog.w("CommentRepo", "Sub-reply location supplement failed: ${e.message}")
                         null
                     } ?: break
                     if (response.code != 0) break
@@ -704,7 +709,7 @@ object CommentRepository {
         var fallbackGrpcResult: Result<ReplyData>? = null
         try {
             // 确保 buvid3 已初始化
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
 
             val useRestSubReplyPaging = preferRestPaging ||
                 (page > 1 && paginationOffset.isNullOrBlank())
@@ -718,23 +723,23 @@ object CommentRepository {
                 if (grpcResult.isSuccess) {
                     val grpcData = grpcResult.getOrNull()
                     if (!shouldFallbackGrpcCommentReadOnMissingLocation(grpcData)) {
-                        Logger.d("CommentRepo", " getSubComments (gRPC DetailList): oid=$oid, type=$type, root=$rootId, page=$page")
+                        CoreDataLog.d("CommentRepo", " getSubComments (gRPC DetailList): oid=$oid, type=$type, root=$rootId, page=$page")
                         return@withContext grpcResult
                     }
                     fallbackGrpcResult = grpcResult
-                    Logger.w(
+                    CoreDataLog.w(
                         "CommentRepo",
                         "getSubComments gRPC fallback to REST: oid=$oid, type=$type, root=$rootId, page=$page, reason=missing-location"
                     )
                 } else {
-                    Logger.w(
+                    CoreDataLog.w(
                         "CommentRepo",
                         "getSubComments gRPC fallback to REST: oid=$oid, type=$type, root=$rootId, page=$page, error=${grpcResult.exceptionOrNull()?.message}"
                     )
                 }
             }
             
-            Logger.d("CommentRepo", " getSubComments: oid=$oid, type=$type, rootId=$rootId, page=$page")
+            CoreDataLog.d("CommentRepo", " getSubComments: oid=$oid, type=$type, rootId=$rootId, page=$page")
             val hasSession = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
             val readPlan = resolveCommentReadPlan(hasSession = hasSession)
             val primaryMode = readPlan.primary
@@ -752,7 +757,7 @@ object CommentRepository {
             ) {
                 val checkedReadPlanFallback = requireNotNull(readPlan.fallback)
                 val fallbackMode = checkedReadPlanFallback
-                Logger.w(
+                CoreDataLog.w(
                     "CommentRepo",
                     "getSubComments fallback triggered: code=${primaryResponse.code}, from=$primaryMode to=$fallbackMode, oid=$oid, type=$type, root=$rootId, page=$page"
                 )
@@ -767,13 +772,13 @@ object CommentRepository {
                 primaryResponse
             }
             
-            Logger.d("CommentRepo", " getSubComments response: oid=$oid, type=$type, code=${finalResponse.code}, replies=${finalResponse.data?.replies?.size ?: 0}")
+            CoreDataLog.d("CommentRepo", " getSubComments response: oid=$oid, type=$type, code=${finalResponse.code}, replies=${finalResponse.data?.replies?.size ?: 0}")
             
             if (finalResponse.code == 0) {
                 Result.success(finalResponse.data ?: ReplyData())
             } else {
                 if (fallbackGrpcResult != null) {
-                    Logger.w("CommentRepo", "getSubComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
+                    CoreDataLog.w("CommentRepo", "getSubComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
                     return@withContext fallbackGrpcResult
                 }
                 android.util.Log.e("CommentRepo", " getSubComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
@@ -783,7 +788,7 @@ object CommentRepository {
             }
         } catch (e: Exception) {
             if (fallbackGrpcResult != null) {
-                Logger.w("CommentRepo", "getSubComments REST exception (${e.message}), restoring valid gRPC payload")
+                CoreDataLog.w("CommentRepo", "getSubComments REST exception (${e.message}), restoring valid gRPC payload")
                 return@withContext fallbackGrpcResult
             }
             android.util.Log.e("CommentRepo", " getSubComments exception: oid=$oid, type=$type, ${e.message}", e)
@@ -800,7 +805,7 @@ object CommentRepository {
         paginationOffset: String? = null
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
         try {
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
             if (!shouldTryGrpcPagedRequest(page = page, paginationOffset = paginationOffset)) {
                 return@withContext Result.failure(Exception("对话列表缺少分页参数"))
             }
@@ -812,7 +817,7 @@ object CommentRepository {
                 nextOffset = paginationOffset
             )
             if (grpcResult.isSuccess) {
-                Logger.d("CommentRepo", " getDialogComments (gRPC DialogList): oid=$oid, type=$type, root=$rootId, dialog=$dialogId, page=$page")
+                CoreDataLog.d("CommentRepo", " getDialogComments (gRPC DialogList): oid=$oid, type=$type, root=$rootId, dialog=$dialogId, page=$page")
             }
             grpcResult
         } catch (e: Exception) {
@@ -890,7 +895,7 @@ object CommentRepository {
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Logger.e("CommentRepo", "searchMentionUsers exception: keyword=$keyword", e)
+            CoreDataLog.e("CommentRepo", "searchMentionUsers exception: keyword=$keyword", e)
             Result.failure(e)
         }
     }
@@ -952,28 +957,13 @@ object CommentRepository {
             if (response.code == 0) {
                 val reply = response.data?.reply
                 if (reply != null && reply.rpid > 0L) {
-                    val serverPostTime = if (reply.ctime > 0L) reply.ctime * 1000L else System.currentTimeMillis()
-                    val userUid = reply.mid
-                    // [纯异步旁路] 在后台全局协程中静默存库，完全不卡主流程，零延迟返回
-                    AppScope.ioScope.launch {
-                        CommentFraudRepository.saveRecord(
-                            rpid = reply.rpid,
-                            oid = oid,
-                            type = type,
-                            root = root,
-                            parent = parent,
-                            uid = userUid,
-                            message = message,
-                            status = CommentFraudStatus.UNKNOWN, // 当前状态未知（检测中）
-                            initialStatus = null, // 初始状态先置为 null (等待 5 秒后初检回填)
-                            postTime = serverPostTime
-                        )
-                    }
+                    // 宿主旁路（如手机端反诈存库）在注入方自己的作用域里执行，不阻塞发布主流程。
+                    onCommentPosted?.invoke(reply, oid, type, root, parent, message)
                 }
                 // 立刻返回给 UI 渲染
                 Result.success(reply)
             } else {
-                Logger.e(
+                CoreDataLog.e(
                     "CommentRepo",
                     "addComment failed: oid=$oid, type=$type, root=$root, parent=$parent, pictureCount=${pictures.size}, code=${response.code}, message=${response.message}"
                 )
@@ -992,7 +982,7 @@ object CommentRepository {
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Logger.e("CommentRepo", "addComment exception: oid=$oid, type=$type, root=$root, parent=$parent", e)
+            CoreDataLog.e("CommentRepo", "addComment exception: oid=$oid, type=$type, root=$root, parent=$parent", e)
             Result.failure(e)
         }
     }
@@ -1095,14 +1085,14 @@ object CommentRepository {
                     )
                 )
             } else {
-                Logger.e(
+                CoreDataLog.e(
                     "CommentRepo",
                     "uploadCommentImage failed: fileName=$fileName, mimeType=$mimeType, size=${fileBody.contentLength()}, code=${response.code}, message=${response.message}"
                 )
                 Result.failure(Exception(response.message.ifEmpty { "图片上传失败 (${response.code})" }))
             }
         } catch (e: Exception) {
-            Logger.e(
+            CoreDataLog.e(
                 "CommentRepo",
                 "uploadCommentImage exception: fileName=$fileName, mimeType=$mimeType, size=${fileBody.contentLength()}",
                 e
@@ -1447,7 +1437,7 @@ object CommentRepository {
                 if (response.isSuccessful) response.body?.string() else null
             }
         } catch (e: Exception) {
-            Logger.e("CommentFraud", "rawCurlGuest 异常: ${e.message}")
+            CoreDataLog.e("CommentFraud", "rawCurlGuest 异常: ${e.message}")
             null
         }
     }
@@ -1480,7 +1470,7 @@ object CommentRepository {
     ): Result<CommentFraudStatus> = withContext(Dispatchers.IO) {
         try {
             // 确保本地设备访客指纹库 (buvid3) 已准备就绪
-            VideoRepository.ensureBuvid3()
+            BuvidManager.ensureBuvid3()
 
             // 等待分布式系统主从同步缓冲期
             val actualWait = when {
@@ -1489,12 +1479,12 @@ object CommentRepository {
                 else -> DEFAULT_WAIT_MS
             }
             if (actualWait > 0) {
-                Logger.d("CommentFraud", "等待 ${actualWait}ms 后开始检测...")
+                CoreDataLog.d("CommentFraud", "等待 ${actualWait}ms 后开始检测...")
                 delay(actualWait)
             }
 
             val isReply = rootId > 0
-            Logger.d("CommentFraud", "开始检测: aid=$aid, rpid=$rpid, root=$rootId, isReply=$isReply")
+            CoreDataLog.d("CommentFraud", "开始检测: aid=$aid, rpid=$rpid, root=$rootId, isReply=$isReply")
 
             if (isReply) {
                 Result.success(checkReplyComment(aid, rpid, rootId, sentAtSeconds))
@@ -1502,7 +1492,7 @@ object CommentRepository {
                 Result.success(checkRootComment(aid, rpid))
             }
         } catch (e: Exception) {
-            Logger.e("CommentFraud", "检测异常: ${e.message}", e)
+            CoreDataLog.e("CommentFraud", "检测异常: ${e.message}", e)
             Result.success(CommentFraudStatus.UNKNOWN)
         }
     }
@@ -1528,7 +1518,7 @@ object CommentRepository {
         rootId: Long,
         sentAtSeconds: Long = 0L
     ): CommentFraudStatus {
-        Logger.d("CommentFraud", "[楼中楼] Step1: rawCurl 获取路人视角总量 aid=$aid root=$rootId rpid=$rpid")
+        CoreDataLog.d("CommentFraud", "[楼中楼] Step1: rawCurl 获取路人视角总量 aid=$aid root=$rootId rpid=$rpid")
 
         // 1. 路人 rawCurl 请求第 1 页
         val firstPageUrl = "https://api.bilibili.com/x/v2/reply/reply?oid=$aid&type=1&root=$rootId&pn=1&ps=20"
@@ -1536,7 +1526,7 @@ object CommentRepository {
 
         // 根评论不存在或已被主站物理删除
         if (firstPageJson.contains("\"code\":12022") || firstPageJson.contains("\"code\": 12022")) {
-            Logger.d("CommentFraud", "[楼中楼] 根评论已失效(12022)，判定秒删")
+            CoreDataLog.d("CommentFraud", "[楼中楼] 根评论已失效(12022)，判定秒删")
             return CommentFraudStatus.DELETED
         }
 
@@ -1549,7 +1539,7 @@ object CommentRepository {
             20
         )
         val lastPage = maxOf(1, (totalCount + 19) / 20)
-        Logger.d("CommentFraud", "[楼中楼] Step2: 动态计算总量=$totalCount, 末页=第${lastPage}页")
+        CoreDataLog.d("CommentFraud", "[楼中楼] Step2: 动态计算总量=$totalCount, 末页=第${lastPage}页")
 
         val rpidPattern = Regex(""""rpid":\s*${rpid}""")
         var guestFound = false
@@ -1581,7 +1571,7 @@ object CommentRepository {
             var steps = 0
             val maxBinarySteps = 5 // 限制最大二分探测次数为 5 次（覆盖 32 页/640 楼，兼顾性能与防频控）
 
-            Logger.d("CommentFraud", "[时序二分] 末页未命中，启动二分收敛定位: 目标时间=$sentAtSeconds, 区间=[$low, $high]")
+            CoreDataLog.d("CommentFraud", "[时序二分] 末页未命中，启动二分收敛定位: 目标时间=$sentAtSeconds, 区间=[$low, $high]")
 
             while (low <= high && steps < maxBinarySteps) {
                 steps++
@@ -1593,7 +1583,7 @@ object CommentRepository {
                     guestFound = true
                     guestInvisible = midJson.contains(""""rpid":\s*${rpid}[^}]*?"invisible":\s*true""")
                     targetPage = mid
-                    Logger.d("CommentFraud", "[时序二分] 🎯 命中！在第 $mid 页成功捕获历史目标！")
+                    CoreDataLog.d("CommentFraud", "[时序二分] 🎯 命中！在第 $mid 页成功捕获历史目标！")
                     break
                 }
 
@@ -1630,12 +1620,12 @@ object CommentRepository {
                 authProbe = CommentPresenceProbe(requestSucceeded = true, found = true),
                 confirmedNotFoundAfterRetry = false
             )
-            Logger.d("CommentFraud", "[楼中楼] ✅ 路人 rawCurl 命中(第 ${targetPage} 页)，最终判定=$status")
+            CoreDataLog.d("CommentFraud", "[楼中楼] ✅ 路人 rawCurl 命中(第 ${targetPage} 页)，最终判定=$status")
             return status
         }
 
         // 5. 路人端未命中，使用带有用户登录态的原生 Retrofit API 对收敛的目标页进行账号视角复验
-        Logger.d("CommentFraud", "[楼中楼] Step3: 原生 auth 账号视角对第 $targetPage 页复验 rpid=$rpid")
+        CoreDataLog.d("CommentFraud", "[楼中楼] Step3: 原生 auth 账号视角对第 $targetPage 页复验 rpid=$rpid")
         var authFound = false
         var authInvisible = false
         var authRequestSucceeded = false
@@ -1652,7 +1642,7 @@ object CommentRepository {
                 authInvisible = match.invisible
             }
         } catch (e: Exception) {
-            Logger.w("CommentFraud", "auth 探测异常: ${e.message}")
+            CoreDataLog.w("CommentFraud", "auth 探测异常: ${e.message}")
         }
 
         val authProbe = CommentPresenceProbe(
@@ -1666,7 +1656,7 @@ object CommentRepository {
             authProbe = authProbe,
             confirmedNotFoundAfterRetry = !authFound
         )
-        Logger.d(
+        CoreDataLog.d(
             "CommentFraud",
             "[楼中楼] 判定结果=$finalStatus guest=$guestProbe auth=$authProbe (目标页: $targetPage)"
         )
@@ -1683,7 +1673,7 @@ object CommentRepository {
      * 4) 仅在双端持续未命中时：触发 2.2 秒延迟二次探测以防数据库缓存抖动，最终定性为系统秒删。
      */
     private suspend fun checkRootComment(aid: Long, rpid: Long): CommentFraudStatus {
-        Logger.d("CommentFraud", "[根评论] Step1: guest rawCurl 探测 rpid=$rpid")
+        CoreDataLog.d("CommentFraud", "[根评论] Step1: guest rawCurl 探测 rpid=$rpid")
 
         val rpidPattern = Regex(""""rpid":\s*${rpid}""")
 
@@ -1698,7 +1688,7 @@ object CommentRepository {
         )
 
         if (guestSeekProbe.requestSucceeded && guestSeekProbe.found) {
-            Logger.d("CommentFraud", "[根评论] ✅ 根评论路人 rawCurl 命中！")
+            CoreDataLog.d("CommentFraud", "[根评论] ✅ 根评论路人 rawCurl 命中！")
             return resolveRootFraudStatus(
                 guestSeekProbe = guestSeekProbe,
                 authSeekProbe = CommentPresenceProbe(requestSucceeded = true, found = true),
@@ -1708,7 +1698,7 @@ object CommentRepository {
         }
 
         // 2. 路人未找到，原生 Retrofit API 账号视角复验
-        Logger.d("CommentFraud", "[根评论] Step2: 原生 auth 账号视角复查 rpid=$rpid")
+        CoreDataLog.d("CommentFraud", "[根评论] Step2: 原生 auth 账号视角复查 rpid=$rpid")
         val authSeekProbe = probeCommentPresenceBySeekRpid(
             apiClient = api,
             aid = aid,
@@ -1718,7 +1708,7 @@ object CommentRepository {
         // 3. 区分 ShadowBan 与疑似审核中（通过单条回复页探测）
         var guestReplyPageVisible: Boolean? = null
         if (authSeekProbe.requestSucceeded && authSeekProbe.found) {
-            Logger.d("CommentFraud", "[根评论] Step3: guest 回复页检测 root=$rpid")
+            CoreDataLog.d("CommentFraud", "[根评论] Step3: guest 回复页检测 root=$rpid")
             val guestReplyUrl = "https://api.bilibili.com/x/v2/reply/reply?oid=$aid&root=$rpid&pn=1&ps=1"
             val guestReplyJson = rawCurlGuest(guestReplyUrl)
             if (guestReplyJson != null) {
@@ -1737,7 +1727,7 @@ object CommentRepository {
             !authSeekProbe.found &&
             !authSeekProbe.deletedHint
         ) {
-            Logger.d("CommentFraud", "[根评论] Step4: 二次确认未命中，避免瞬时误判")
+            CoreDataLog.d("CommentFraud", "[根评论] Step4: 二次确认未命中，避免瞬时误判")
             confirmDeletedBySecondProbe(aid = aid, rpid = rpid)
         } else {
             false
@@ -1749,7 +1739,7 @@ object CommentRepository {
             guestReplyPageVisible = guestReplyPageVisible,
             confirmedNotFoundAfterRetry = confirmedNotFoundAfterRetry
         )
-        Logger.d(
+        CoreDataLog.d(
             "CommentFraud",
             "[根评论] 判定结果=$status guestSeek=$guestSeekProbe authSeek=$authSeekProbe guestReply=$guestReplyPageVisible"
         )
@@ -1795,7 +1785,7 @@ object CommentRepository {
                     )
                 }
                 else -> {
-                    Logger.w("CommentFraud", "seek_rpid probe failed: code=${response.code}, message=${response.message}")
+                    CoreDataLog.w("CommentFraud", "seek_rpid probe failed: code=${response.code}, message=${response.message}")
                     CommentPresenceProbe(
                         requestSucceeded = false,
                         found = false,
@@ -1804,7 +1794,7 @@ object CommentRepository {
                 }
             }
         } catch (e: Exception) {
-            Logger.e("CommentFraud", "seek_rpid probe exception: ${e.message}")
+            CoreDataLog.e("CommentFraud", "seek_rpid probe exception: ${e.message}")
             CommentPresenceProbe(
                 requestSucceeded = false,
                 found = false,

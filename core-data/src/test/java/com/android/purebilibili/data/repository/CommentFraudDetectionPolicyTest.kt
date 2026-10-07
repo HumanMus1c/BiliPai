@@ -1,8 +1,8 @@
 package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.data.model.CommentFraudStatus
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Test
+import org.junit.Assert.assertEquals
 
 class CommentFraudDetectionPolicyTest {
 

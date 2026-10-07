@@ -12,8 +12,17 @@ import com.android.purebilibili.core.player.resolvePlaybackResumePosition
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.HistoryCursor
 import com.android.purebilibili.data.model.response.NavData
+import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.model.response.ViewInfo
+import com.android.purebilibili.data.repository.CommentRepository
+import com.android.purebilibili.data.repository.CommentGrpcRepository
+import com.android.purebilibili.data.repository.SubReplySortMode
+import com.android.purebilibili.data.repository.isSortedSubReplyPageEnd
+import com.android.purebilibili.data.repository.resolveCommentPageResolution
+import com.android.purebilibili.data.repository.resolveSubReplyLoadedTotalCount
+import com.android.purebilibili.data.repository.resolveSubReplyPageEnd
+import com.android.purebilibili.data.repository.resolveSubReplyRemoteTotalCount
 import com.android.purebilibili.data.repository.UserContentRepository
 import com.android.purebilibili.data.repository.UserActionRepository
 import com.android.purebilibili.data.repository.ContentRequestException
@@ -48,7 +57,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-enum class TvScreen { Home, Following, Followings, Space, Search, History, Folders, Favorites, WatchLater, Settings, Login, Detail, Player }
+enum class TvScreen { Home, Following, Followings, Space, Search, History, Folders, Favorites, WatchLater, Settings, Login, Detail, Player, Comments }
 
 @Serializable
 data class TvRoute(
@@ -74,6 +83,31 @@ data class TvCatalogState(
 enum class QrPhase { Loading, Waiting, Scanned, Expired, Success, Failed }
 data class TvQrState(val phase: QrPhase = QrPhase.Loading, val bitmap: Bitmap? = null, val error: String? = null)
 
+/** TV 评论阅读（只读第一阶段）：主评论分页、排序切换与楼中楼面板状态，按详情路由键缓存。 */
+data class TvCommentsState(
+    val loading: Boolean = false,
+    val error: String? = null,
+    val items: List<ReplyItem> = emptyList(),
+    val count: Int = 0,
+    val page: Int = 0,
+    val hasMore: Boolean = true,
+    val nextOffset: String = "",
+    val sortMode: Int = CommentGrpcRepository.MODE_HOT,
+    val focusedRpid: Long? = null,
+    val sub: TvSubRepliesState? = null,
+)
+
+data class TvSubRepliesState(
+    val root: ReplyItem,
+    val items: List<ReplyItem> = emptyList(),
+    val totalCount: Int = 0,
+    val loading: Boolean = false,
+    val error: String? = null,
+    val page: Int = 1,
+    val isEnd: Boolean = false,
+    val nextOffset: String? = null,
+)
+
 data class TvUiState(
     val route: TvRoute = TvRoute(), val rootScreen: TvScreen = TvScreen.Home, val catalog: TvCatalogState = TvCatalogState(),
     val detail: ViewInfo? = null, val detailLoading: Boolean = false, val detailError: String? = null,
@@ -91,6 +125,7 @@ data class TvUiState(
     val update: TvUpdateState = TvUpdateState(),
     val danmakuSettings: TvDanmakuSettings = TvDanmakuSettings(),
     val gridDensity: Float = 1f,
+    val comments: TvCommentsState = TvCommentsState(),
 )
 
 fun VideoItem.tvId(): String = bvid.takeIf { it.isNotBlank() } ?: "aid:${aid.takeIf { it > 0 } ?: id}"
@@ -103,6 +138,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     }.getOrDefault(emptyList()).ifEmpty { listOf(TvRoute()) }.toMutableList()
     private val catalogs = mutableMapOf<String, TvCatalogState>()
     private val details = mutableMapOf<String, ViewInfo>()
+    private val commentsStates = mutableMapOf<String, TvCommentsState>()
     private val mutableState = MutableStateFlow(TvUiState(route = stack.last(), rootScreen = stack.first().screen,
         query = savedState["query"] ?: "", searchHistory = preferences.searchHistory,
         quality = preferences.quality, autoContinue = preferences.autoContinue, privacyMode = preferences.privacyMode,
@@ -123,6 +159,8 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     private var autoLoadBlocked = false
     private var continueJob: Job? = null
     private var actionJob: Job? = null
+    private var commentsJob: Job? = null
+    private var subRevision = 0L
     private var pendingAction: String? = savedState["pendingAction"]
     private var pendingOwner: Long? = savedState["pendingOwner"]
 
@@ -145,12 +183,14 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
 
     fun navigate(route: TvRoute, root: Boolean = false) {
         if (route == mutableState.value.route) return
-        contentJob?.cancel(); qrJob?.cancel(); revision++
+        contentJob?.cancel(); qrJob?.cancel(); commentsJob?.cancel(); revision++
         catalogs[mutableState.value.route.key] = mutableState.value.catalog.copy(loading = false)
+        if (mutableState.value.route.screen == TvScreen.Comments) commentsStates[mutableState.value.route.key] = mutableState.value.comments
         if (root) { stack.clear(); stack.add(route) } else stack.add(route)
         savedState["routes"] = Json.encodeToString(stack.toList())
         mutableState.update { it.copy(route = route, rootScreen = stack.first().screen, catalog = catalogs[route.key] ?: TvCatalogState(),
-            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null) }
+            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
+            comments = commentsStates[route.key] ?: TvCommentsState()) }
         loadRoute()
     }
 
@@ -165,13 +205,15 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
             navigate(TvRoute(), root = true)
             return true
         }
-        contentJob?.cancel(); qrJob?.cancel(); revision++
+        contentJob?.cancel(); qrJob?.cancel(); commentsJob?.cancel(); revision++
         catalogs[mutableState.value.route.key] = mutableState.value.catalog.copy(loading = false)
+        if (mutableState.value.route.screen == TvScreen.Comments) commentsStates[mutableState.value.route.key] = mutableState.value.comments
         stack.removeAt(stack.lastIndex)
         val route = stack.last()
         savedState["routes"] = Json.encodeToString(stack.toList())
         mutableState.update { it.copy(route = route, rootScreen = stack.first().screen, catalog = catalogs[route.key] ?: TvCatalogState(),
-            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null) }
+            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
+            comments = commentsStates[route.key] ?: TvCommentsState()) }
         loadRoute()
         if (route.screen == TvScreen.Home) refreshContinueWatching()
         return true
@@ -188,6 +230,154 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     fun play(cid: Long) {
         val info = mutableState.value.detail ?: return
         navigate(TvRoute(TvScreen.Player, info.bvid, info.aid, cid = cid, label = info.title))
+    }
+
+    /** 详情页评论入口：按当前视频打开只读评论页。 */
+    fun openComments() {
+        val info = mutableState.value.detail ?: return
+        navigate(TvRoute(TvScreen.Comments, bvid = info.bvid, aid = info.aid, label = info.title))
+    }
+
+    fun refreshComments() = loadCommentsList(reset = true)
+
+    /** 排序切换（热门/最新）：重置分页与列表，保持路由键内的焦点记录失效。 */
+    fun switchCommentSort(mode: Int) {
+        val current = mutableState.value.comments
+        if (current.sortMode == mode && current.items.isNotEmpty()) return
+        mutableState.update { it.copy(comments = current.copy(
+            sortMode = mode, items = emptyList(), page = 0, hasMore = true, nextOffset = "",
+            loading = false, error = null, focusedRpid = null, sub = null)) }
+        loadCommentsList(reset = true)
+    }
+
+    fun loadMoreComments() {
+        val current = mutableState.value.comments
+        if (current.loading || current.sub != null) return
+        if (current.items.isEmpty() || !current.hasMore) return
+        loadCommentsList(reset = false)
+    }
+
+    fun focusComment(rpid: Long) = mutableState.update { it.copy(comments = it.comments.copy(focusedRpid = rpid)) }
+
+    private fun loadCommentsList(reset: Boolean) {
+        val route = mutableState.value.route
+        if (route.screen != TvScreen.Comments || route.aid <= 0) return
+        contentJob?.cancel()
+        val ticket = ++revision
+        val previous = mutableState.value.comments
+        val page = if (reset) 1 else previous.page + 1
+        val sortMode = previous.sortMode
+        mutableState.update { it.copy(comments = it.comments.copy(loading = true, error = null)) }
+        contentJob = viewModelScope.launch {
+            try {
+                val data = CommentRepository.getCommentsForSubject(
+                    oid = route.aid, type = 1, page = page, ps = 20, mode = sortMode,
+                    paginationOffset = if (reset) null else previous.nextOffset.ifBlank { null },
+                    fallbackOnMissingLocation = true,
+                ).getOrThrow()
+                if (ticket != revision) return@launch
+                val topLevel = data.replies.orEmpty()
+                // 首页合并置顶与热评（与手机评论面板同一合并顺序），后续页只追加普通评论。
+                val previousItems = if (reset || page == 1) emptyList() else previous.items
+                val merged = (previousItems + topLevel).distinctBy { it.rpid }
+                val resolution = resolveCommentPageResolution(
+                    data = data, pageToLoad = page,
+                    previousRepliesSize = previousItems.size,
+                    combinedRepliesSize = merged.size, newRepliesSize = topLevel.size,
+                    fallbackCount = previous.count,
+                )
+                val nextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() } ?: ""
+                val state = TvCommentsState(
+                    loading = false, error = null, items = merged, count = resolution.totalCount,
+                    page = page, hasMore = !resolution.isEnd, nextOffset = nextOffset,
+                    sortMode = sortMode, focusedRpid = if (reset) null else previous.focusedRpid, sub = null,
+                )
+                commentsStates[route.key] = state
+                mutableState.update { it.copy(comments = state) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (ticket != revision) return@launch
+                if (isAuthenticationFailure(error)) { requestLogin("comments"); return@launch }
+                mutableState.update { it.copy(comments = it.comments.copy(loading = false, error = error.message ?: "评论加载失败")) }
+            }
+        }
+    }
+
+    fun openSubReplies(root: ReplyItem) {
+        val route = mutableState.value.route
+        if (route.screen != TvScreen.Comments) return
+        subRevision++
+        val ticket = subRevision
+        mutableState.update { it.copy(comments = it.comments.copy(
+            sub = TvSubRepliesState(root = root, loading = true, totalCount = root.rcount.takeIf { it > 0 } ?: root.count)) ) }
+        commentsJob = viewModelScope.launch {
+            try {
+                val data = CommentRepository.getSortedSubCommentsForSubject(
+                    oid = route.aid, type = 1, rootId = root.rpid, mode = SubReplySortMode.TIME.apiMode,
+                ).getOrThrow()
+                if (ticket != subRevision) return@launch
+                val items = data.replies.orEmpty().distinctBy { it.rpid }
+                val totalCount = resolveSubReplyLoadedTotalCount(
+                    rootReply = root, loadedReplyCount = items.size,
+                    remoteReplyCount = resolveSubReplyRemoteTotalCount(data, root),
+                    previousTotalCount = root.rcount.takeIf { it > 0 } ?: root.count,
+                )
+                mutableState.update { it.copy(comments = it.comments.copy(sub = TvSubRepliesState(
+                    root = root, items = items, totalCount = totalCount, loading = false,
+                    isEnd = isSortedSubReplyPageEnd(data.cursor.isEnd, data.grpcNextOffset),
+                    nextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() },
+                ))) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (ticket != subRevision) return@launch
+                mutableState.update { it.copy(comments = it.comments.copy(sub = it.comments.sub?.copy(
+                    loading = false, error = error.message ?: "回复加载失败"))) }
+            }
+        }
+    }
+
+    fun loadMoreSubReplies() {
+        val sub = mutableState.value.comments.sub ?: return
+        val route = mutableState.value.route
+        if (sub.loading || sub.isEnd || route.screen != TvScreen.Comments) return
+        subRevision++
+        val ticket = subRevision
+        val page = sub.page + 1
+        mutableState.update { it.copy(comments = it.comments.copy(sub = sub.copy(loading = true, error = null))) }
+        commentsJob = viewModelScope.launch {
+            try {
+                val data = CommentRepository.getSubCommentsForSubject(
+                    oid = route.aid, type = 1, rootId = sub.root.rpid, page = page, ps = 20,
+                    paginationOffset = sub.nextOffset,
+                ).getOrThrow()
+                if (ticket != subRevision) return@launch
+                val fetched = data.replies.orEmpty()
+                val items = (sub.items + fetched).distinctBy { it.rpid }
+                val isEnd = resolveSubReplyPageEnd(
+                    cursorIsEnd = data.cursor.isEnd, fetchedReplyCount = fetched.size,
+                    loadedReplyCount = items.size, remoteReplyCount = sub.totalCount,
+                    requestedPage = page, pageSize = 20, restPage = data.page,
+                )
+                mutableState.update { it.copy(comments = it.comments.copy(sub = sub.copy(
+                    items = items, page = page, isEnd = isEnd, loading = false,
+                    nextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() } ?: sub.nextOffset,
+                ))) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (ticket != subRevision) return@launch
+                mutableState.update { it.copy(comments = it.comments.copy(sub = sub.copy(
+                    loading = false, error = error.message ?: "回复加载失败"))) }
+            }
+        }
+    }
+
+    fun closeSubReplies() {
+        subRevision++
+        commentsJob?.cancel()
+        mutableState.update { it.copy(comments = it.comments.copy(sub = null)) }
     }
 
     fun checkpointPlayback(snapshot: SharedPlaybackState) {
@@ -232,6 +422,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     private fun loadRoute() {
         when (mutableState.value.route.screen) {
             TvScreen.Detail -> loadDetail()
+            TvScreen.Comments -> if (mutableState.value.comments.items.isEmpty()) loadCommentsList(reset = true)
             TvScreen.Login -> {
                 if (TokenManager.sessDataCache.isNullOrBlank()) refreshQr()
                 else {
@@ -718,5 +909,5 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     }
     fun clearSearchHistory() { preferences.clearSearchHistory(); mutableState.update { it.copy(searchHistory = emptyList()) } }
 
-    override fun onCleared() { continueJob?.cancel(); actionJob?.cancel(); qrJob?.cancel(); contentJob?.cancel(); accountJob?.cancel(); super.onCleared() }
+    override fun onCleared() { continueJob?.cancel(); actionJob?.cancel(); qrJob?.cancel(); contentJob?.cancel(); accountJob?.cancel(); commentsJob?.cancel(); super.onCleared() }
 }

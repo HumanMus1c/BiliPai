@@ -16,7 +16,7 @@ MAJOR.MINOR.PATCH
 | `MINOR` | 新功能 | 第二位 +1，`PATCH` 归零 |
 | `PATCH` | 修 bug / 小改进 | 第三位 +1 |
 
-当前构建：`0.3.0` / `versionCode 440`。
+当前构建：`0.3.1` / `versionCode 442`。
 
 本次版本按发行计划使用 `0.3.0`；`versionCode` 独立递增。
 

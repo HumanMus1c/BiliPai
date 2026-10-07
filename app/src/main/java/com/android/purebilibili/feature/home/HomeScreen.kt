@@ -147,6 +147,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope  //  共享过渡
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionClock
@@ -195,6 +196,7 @@ import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import kotlinx.coroutines.channels.Channel
 import com.android.purebilibili.data.model.response.VideoItem // [Fix] Import VideoItem
 import com.android.purebilibili.feature.home.components.VideoPreviewDialog // [Fix] Import VideoPreviewDialog
+import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.feature.home.components.HomeNotInterestedReasonSheet
 import com.android.purebilibili.feature.partition.PartitionContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -353,8 +355,6 @@ fun HomeScreen(
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var dissolvingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
-    var previewDissolvingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
-    var reflowingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var pendingVideoShare by remember {
         mutableStateOf<com.android.purebilibili.feature.video.share.VideoSharePayload?>(null)
@@ -1074,47 +1074,28 @@ fun HomeScreen(
     val onDissolveCompleteCallback = remember(viewModel) {
         { bvid: String ->
             viewModel.completeVideoDissolve(bvid)
-            val video = dissolvingNotInterestedVideo
-            if (video?.bvid == bvid) {
+            if (dissolvingNotInterestedVideo?.bvid == bvid) {
                 dissolvingNotInterestedVideo = null
-                if (reflowingNotInterestedVideo?.bvid != bvid) {
-                    pendingNotInterestedVideo = video
-                }
             }
         }
     }
-    val onDissolveReflowStartedCallback = remember {
-        { bvid: String ->
-            val video = dissolvingNotInterestedVideo
-            if (video?.bvid == bvid) reflowingNotInterestedVideo = video
-        }
-    }
-    LaunchedEffect(reflowingNotInterestedVideo, previewDissolvingNotInterestedVideo, systemReduceMotion) {
-        val video = reflowingNotInterestedVideo ?: return@LaunchedEffect
-        // Open once the 180 ms particle tail has cleared; the 240 ms reflow is settling.
-        if (!systemReduceMotion) delay(180L)
-        if (previewDissolvingNotInterestedVideo?.bvid == video.bvid) return@LaunchedEffect
-        pendingNotInterestedVideo = video
-    }
-    val onDismissVideoCallback = remember(viewModel, context, systemReduceMotion) {
-        { video: VideoItem, keepPreviewOpen: Boolean ->
+    val onDismissVideoCallback = remember {
+        { video: VideoItem ->
             if (dissolvingNotInterestedVideo == null && pendingNotInterestedVideo == null) {
-                val particleDissolveEnabled = !systemReduceMotion && isThanosEffectSupported(context)
-                if (keepPreviewOpen && particleDissolveEnabled) {
-                    // Finish the long preview card first; its completion starts the feed-card dissolve.
-                    previewDissolvingNotInterestedVideo = video
-                } else {
-                    reflowingNotInterestedVideo = null
-                    dissolvingNotInterestedVideo = video
-                    targetVideoItemState.value = null
-                    if (particleDissolveEnabled) {
-                        viewModel.startVideoDissolve(video.bvid)
-                    } else {
-                        onDissolveCompleteCallback(video.bvid)
-                    }
-                }
+                targetVideoItemState.value = null
+                pendingNotInterestedVideo = video
             }
         }
+    }
+    val confirmNotInterested: (VideoItem, RecommendationFeedbackReason) -> Unit = { video, reason ->
+        pendingNotInterestedVideo = null
+        val dissolveEnabled = !systemReduceMotion && isThanosEffectSupported(context)
+        if (dissolveEnabled) dissolvingNotInterestedVideo = video
+        viewModel.markNotInterested(
+            video = video,
+            reason = reason,
+            dissolveAnimationEnabled = dissolveEnabled,
+        )
     }
     LaunchedEffect(dissolvingNotInterestedVideo) {
         val video = dissolvingNotInterestedVideo ?: return@LaunchedEffect
@@ -1973,10 +1954,13 @@ fun HomeScreen(
     }
 
     //  Scaffold 内容封装 (用于 Panel 左右布局复用)
-    val homeFeedOwnsVideoCardSnapshot = shouldHomeFeedOwnVideoCardTransitionSnapshot(
-        sourceRoute = videoCardTransitionBackgroundState.sourceRouteProvider(),
-        hasSnapshotHandle = videoCardTransitionBackgroundState.snapshotHandle != null,
-    )
+    // 过渡动画关闭时时钟恒为 IDLE，景深 effect 只是空转的 draw 包装：整层摘掉。
+    val cardTransitionGatesHomeDepth = LocalSharedTransitionEnabled.current
+    val homeFeedOwnsVideoCardSnapshot = cardTransitionGatesHomeDepth &&
+        shouldHomeFeedOwnVideoCardTransitionSnapshot(
+            sourceRoute = videoCardTransitionBackgroundState.sourceRouteProvider(),
+            hasSnapshotHandle = videoCardTransitionBackgroundState.snapshotHandle != null,
+        )
     val homeFeedSnapshotModifier = if (homeFeedOwnsVideoCardSnapshot) {
         val backgroundSource = resolveVideoCardTransitionBackgroundSource(
             videoCardTransitionBackgroundState.sourceRouteProvider(),
@@ -2503,10 +2487,9 @@ fun HomeScreen(
                                          viewModel.loadMore(category, selectedPopularSubCategory, retry = true)
                                      },
                                      onRetryRefresh = { viewModel.refresh(category, selectedPopularSubCategory) },
-                                     onDismissVideo = { video -> onDismissVideoCallback(video, false) },
+                                     onDismissVideo = { video -> onDismissVideoCallback(video) },
                                      onWatchLater = onWatchLaterCallback,
                                      onDissolveComplete = onDissolveCompleteCallback,
-                                     onDissolveReflowStarted = onDissolveReflowStartedCallback,
                                      dissolveReflowEnabled = !systemReduceMotion,
                                      longPressCallback = onLongPressCallback, // [Feature] Pass callback
                                      displayMode = displayMode,
@@ -3013,20 +2996,6 @@ fun HomeScreen(
             if (item != null) {
                 com.android.purebilibili.feature.home.components.VideoPreviewDialog(
                     video = item,
-                    isNotInterestedDissolving = previewDissolvingNotInterestedVideo?.bvid == item.bvid,
-                    onNotInterestedDissolveComplete = {
-                        if (previewDissolvingNotInterestedVideo?.bvid == item.bvid) {
-                            previewDissolvingNotInterestedVideo = null
-                            onDismissVideoCallback(item, false)
-                            targetVideoItemState.value = null
-                        }
-                    },
-                    keepOpenDuringNotInterestedDissolve = !systemReduceMotion &&
-                        isThanosEffectSupported(context) &&
-                        (previewDissolvingNotInterestedVideo == null ||
-                            previewDissolvingNotInterestedVideo?.bvid == item.bvid) &&
-                        dissolvingNotInterestedVideo == null &&
-                        pendingNotInterestedVideo == null,
                     onDismiss = { targetVideoItemState.value = null },
                     onPlay = {
                      // 1. Log click
@@ -3070,7 +3039,7 @@ fun HomeScreen(
                     )
                     targetVideoItemState.value = null
                 },
-                onNotInterested = { onDismissVideoCallback(item, true) },
+                onNotInterested = { onDismissVideoCallback(item) },
                 onBlockCreator = {
                     viewModel.blockCreator(item)
                     targetVideoItemState.value = null
@@ -3323,29 +3292,10 @@ fun HomeScreen(
                 video = video,
                 reasons = resolveHomeNotInterestedReasons(video),
                 onReasonSelected = { reason ->
-                    pendingNotInterestedVideo = null
-                    reflowingNotInterestedVideo = null
-                    if (dissolvingNotInterestedVideo?.bvid == video.bvid) {
-                        dissolvingNotInterestedVideo = null
-                    }
-                    viewModel.markNotInterested(
-                        video = video,
-                        reason = reason,
-                        // The card has already dissolved before the reason sheet opened.
-                        dissolveAnimationEnabled = false
-                    )
+                    confirmNotInterested(video, reason)
                 },
                 onDismissRequest = {
                     pendingNotInterestedVideo = null
-                    reflowingNotInterestedVideo = null
-                    if (dissolvingNotInterestedVideo?.bvid == video.bvid) {
-                        dissolvingNotInterestedVideo = null
-                    }
-                    viewModel.markNotInterested(
-                        video = video,
-                        reason = resolveDefaultHomeNotInterestedReason(),
-                        dissolveAnimationEnabled = false,
-                    )
                 }
             )
         }

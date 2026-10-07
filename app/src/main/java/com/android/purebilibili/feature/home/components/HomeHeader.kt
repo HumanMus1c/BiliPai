@@ -1607,8 +1607,6 @@ fun HomeHeader(
         isLiquidGlassEnabled = searchLiquidGlassEnabled,
         isProgressiveTopBlurEnabled = progressiveTopBlurEnabled,
     )
-    val useCompactSearchEntry =
-        searchChromeMaterialMode == TopTabMaterialMode.LIQUID_GLASS && appThemeConfig.liquidGlassEnabled
     //  读取当前模糊强度以确定背景透明度
     val blurIntensity = currentUnifiedBlurIntensity()
     val backgroundAlpha = resolveHomeHeaderSurfaceAlpha(
@@ -2669,13 +2667,9 @@ fun HomeHeader(
                                 modifier = Modifier
                                     .weight(1f)
                                     .widthIn(max = AppSpacingTokens.TripleExtraLarge * 13 + AppSpacingTokens.Large)
-                                    .then(
-                                        if (useCompactSearchEntry) {
-                                            Modifier.height(resolveHomeTopEdgeControlHeight())
-                                        } else {
-                                            Modifier
-                                        }
-                                    ),
+                                    // 搜索胶囊与头像/消息按钮共用 36dp 边缘控件高度；关闭液态玻璃时
+                                    // 不再回退到库组件原生高度（48/56dp）。
+                                    .height(resolveHomeTopEdgeControlHeight()),
                                 backdrop = miuixBackdrop,
                                 reuseEnabled = true,
                                 liquidGlassEffectsEnabled =
@@ -2683,11 +2677,7 @@ fun HomeHeader(
                                 useNeutralLiquidContainer = true,
                                 drawShellLens = true,
                                 shellLensIntensity = resolveFloatingDockGeometryScale(
-                                    if (useCompactSearchEntry) {
-                                        resolveHomeTopEdgeControlHeight().value
-                                    } else {
-                                        resolveHomeTopSearchPillHeight(topChromePolicy).value
-                                    }
+                                    resolveHomeTopEdgeControlHeight().value
                                 ),
                                 isScrollInProgressProvider = { topChromeMotionPolicy.isScrolling },
                             ) { liquidChromeActive ->

@@ -51,6 +51,7 @@ data class ViewInfo(
     val isSteinGate: Int = 0,
     val dimension: Dimension? = null,  //  视频尺寸信息
     val ugc_season: UgcSeason? = null,  //  [新增] 视频合集信息
+    val copyright: Int = 1,  //  1=原创,2=转载,0=历史脏数据(按原创处理)
     val staff: List<VideoStaff> = emptyList(),
     val rights: VideoDetailRights = VideoDetailRights(),
     @SerialName("is_upower_exclusive")
@@ -71,6 +72,10 @@ data class ViewInfo(
 ) {
     val isCooperation: Boolean
         get() = rights.isCooperation == 1 || staff.isNotEmpty()
+
+    /** 转载稿件服务端强制 1 币上限；与 PiliPlus `copyright != 2` 判定一致。 */
+    val isRepost: Boolean
+        get() = copyright == 2
 }
 
 @Serializable

@@ -134,7 +134,12 @@ internal class AmbientFrameController(
                             delay(2000)
                             lastRefresh = -1
                             presentation.clear()
+                        } else {
+                            // Surface 暂不可用（全屏切换重建中）：短间隔重试，避免模糊条回落黑底后
+                            // 还要等满一个采样周期才恢复。
+                            delay(100)
                         }
+                        continue
                     } else {
                         sample.getPixels(pixels, 0, w, 0, 0, w, h)
                         val raw = sample.copy(Bitmap.Config.ARGB_8888, false) ?: continue

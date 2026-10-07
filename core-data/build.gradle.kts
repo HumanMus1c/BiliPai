@@ -22,9 +22,9 @@ dependencies {
     api("com.squareup.okhttp3:okhttp:5.3.2")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     api("androidx.datastore:datastore-preferences:1.2.1")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }

@@ -1581,6 +1581,7 @@ fun ReplyItemView(
                 .fillMaxWidth()
                 .padding(
                     top = 10.dp,
+                    bottom = 2.dp,
                     start = layoutPolicy.horizontalPaddingDp.dp,
                     end = layoutPolicy.horizontalPaddingDp.dp
                 )
@@ -1757,6 +1758,8 @@ fun ReplyItemView(
                         )
                     }
                     }
+
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // Footer Actions
                     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -6,7 +6,8 @@ import java.nio.ByteOrder
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
-internal object ProtoWire {
+// protobuf wire 编解码为共享网络能力，与 BiliGrpcClient 一并供两端消费。
+object ProtoWire {
     const val WIRE_VARINT = 0
     const val WIRE_FIXED64 = 1
     const val WIRE_LENGTH_DELIMITED = 2

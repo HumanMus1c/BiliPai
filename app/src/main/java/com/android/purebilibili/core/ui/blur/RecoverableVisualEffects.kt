@@ -18,8 +18,8 @@ import java.util.Collections
 import java.util.WeakHashMap
 
 /**
- * Haze 2 removed [HazeState.blurEnabled]. Recoverable background/foreground gating is tracked
- * per-state and applied inside each [dev.chrisbanes.haze.hazeEffect] via [recoverableBlurEnabled].
+ * Haze 2 移除了 [HazeState.blurEnabled]。后台/前台门控按 state 记录，
+ * 在各处 [dev.chrisbanes.haze.blur.hazeBlur] 经 [recoverableBlurEnabled] 应用。
  */
 private val recoverableBlurGates: MutableMap<HazeState, MutableState<Boolean>> =
     Collections.synchronizedMap(WeakHashMap())

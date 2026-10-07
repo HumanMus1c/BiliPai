@@ -1,22 +1,25 @@
 package com.android.purebilibili.feature.video.ui.overlay
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import java.io.File
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ImmersiveStatusBarBackdropPolicyTest {
 
     @Test
     fun `ambient haze keeps captured video colors free of theme tint`() {
-        val style = resolveVideoStatusBarAmbientHazeStyle()
+        // Haze 2 的 HazeBlurStyle 是不透明程序，无法逐属性断言；改为核对样式工厂的关键写入。
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/overlay/ImmersiveStatusBarBackdrop.kt"
+        ).readText()
+        val styleBody = source.substringAfter("fun resolveVideoStatusBarAmbientHazeStyle()")
+            .substringBefore("}")
 
-        assertEquals(Color.Black, style.backgroundColor)
-        assertTrue(style.colorEffects.isEmpty())
-        assertEquals(24.dp, style.blurRadius)
-        assertEquals(0f, style.noiseFactor)
+        assertTrue(styleBody.contains("backgroundColor(Color.Black)"))
+        assertTrue(styleBody.contains("colorEffects(emptyList())"))
+        assertTrue(styleBody.contains("blurRadius(24.dp)"))
+        assertTrue(styleBody.contains("noiseFactor(0f)"))
+        assertTrue(styleBody.contains("fallbackColorEffect(HazeColorEffect.tint(Color.Black))"))
     }
 
     @Test

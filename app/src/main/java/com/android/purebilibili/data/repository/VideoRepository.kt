@@ -159,7 +159,6 @@ data class CreatorCardStats(
 
 object VideoRepository {
     private val api = NetworkModule.api
-    private val buvidApi = NetworkModule.buvidApi
     // Subtitle cache is shared with TV by SubtitleContentRepository.
     private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()
     private val verticalVideoCache = ConcurrentHashMap<String, Boolean>()
@@ -168,9 +167,6 @@ object VideoRepository {
     private const val APP_API_COOLDOWN_MS = 120_000L
     private var appApiCooldownUntilMs = 0L
     
-    //  [新增] 确保 buvid3 来自 Bilibili SPI API + 激活（解决 412 问题）
-    private var buvidInitialized = false
-
     internal fun playbackAccount() = NetworkModule.playbackAccount()
 
     internal fun isUsingDedicatedPlaybackAccount(): Boolean = playbackAccount() != null
@@ -253,62 +249,16 @@ object VideoRepository {
         }
     }
     
+    // buvid 引导已下沉 core-data/BuvidManager；保留原入口供手机既有调用路径使用。
     private suspend fun ensureBuvid3FromSpi() {
-        // 会话备份为异步恢复，先等它完成再判断 buvid 是否缺失，避免启动窗口内多打一次 SPI。
-        TokenManager.awaitRestore()
-        if (buvidInitialized) return
-        try {
-            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Fetching buvid3 from SPI API...")
-            val response = buvidApi.getSpi()
-            if (response.code == 0 && response.data != null) {
-                val checkedResponseData = requireNotNull(response.data)
-                val b3 = checkedResponseData.b_3
-                if (b3.isNotEmpty()) {
-                    TokenManager.buvid3Cache = b3
-                    com.android.purebilibili.core.util.Logger.d("VideoRepo", " buvid3 from SPI: ${b3.take(20)}...")
-                    
-                    //  [关键] 激活 buvid (参考 PiliPala)
-                    try {
-                        activateBuvid()
-                        com.android.purebilibili.core.util.Logger.d("VideoRepo", " buvid activated!")
-                    } catch (e: Exception) {
-                        android.util.Log.w("VideoRepo", "buvid activation failed: ${e.message}")
-                    }
-                    
-                    buvidInitialized = true
-                }
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            android.util.Log.e("VideoRepo", " Failed to get buvid3 from SPI: ${e.message}")
-        }
+        com.android.purebilibili.core.network.BuvidManager.ensureBuvid3()
     }
-    
+
     /**
      * 公开的 buvid3 初始化函数 - 供其他 Repository 调用
      */
     suspend fun ensureBuvid3() {
         ensureBuvid3FromSpi()
-    }
-    
-    //  激活 buvid (参考 PiliPala buvidActivate)
-    private suspend fun activateBuvid() {
-        val random = java.util.Random()
-        val randBytes = ByteArray(32) { random.nextInt(256).toByte() }
-        val endBytes = byteArrayOf(0, 0, 0, 0, 73, 69, 78, 68) + ByteArray(4) { random.nextInt(256).toByte() }
-        val randPngEnd = android.util.Base64.encodeToString(randBytes + endBytes, android.util.Base64.NO_WRAP)
-        
-        val payload = org.json.JSONObject().apply {
-            put("3064", 1)
-            put("39c8", "333.999.fp.risk")
-            put("3c43", org.json.JSONObject().apply {
-                put("adca", "Windows") // 与 User-Agent (Windows NT 10.0) 保持一致
-                put("bfe9", randPngEnd.takeLast(50))
-            })
-        }.toString()
-        
-        buvidApi.activateBuvid(payload)
     }
 
     // [新增] 预加载缓存
@@ -1413,7 +1363,7 @@ object VideoRepository {
         val hasAccessToken = !TokenManager.accessTokenCache.isNullOrEmpty()
         com.android.purebilibili.core.util.Logger.i(
             "VideoRepo",
-            "🤖 AI Summary preflight: bvid=$bvid cid=$cid upMidPresent=${upMid > 0L} hasSess=$hasSess hasCsrf=$hasCsrf hasBuvid=$hasBuvid hasAccessToken=$hasAccessToken buvidInitialized=$buvidInitialized"
+            "🤖 AI Summary preflight: bvid=$bvid cid=$cid upMidPresent=${upMid > 0L} hasSess=$hasSess hasCsrf=$hasCsrf hasBuvid=$hasBuvid hasAccessToken=$hasAccessToken"
         )
     }
 

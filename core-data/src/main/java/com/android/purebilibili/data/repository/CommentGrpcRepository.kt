@@ -33,13 +33,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
-internal object CommentGrpcRepository {
+// 评论 gRPC 读取为两端共用能力；手机功能层（翻译、排序常量）直接消费。
+object CommentGrpcRepository {
     private const val PATH_MAIN_LIST = "/bilibili.main.community.reply.v1.Reply/MainList"
     private const val PATH_DETAIL_LIST = "/bilibili.main.community.reply.v1.Reply/DetailList"
     private const val PATH_DIALOG_LIST = "/bilibili.main.community.reply.v1.Reply/DialogList"
     private const val PATH_TRANSLATE_REPLY = "/bilibili.main.community.reply.v1.Reply/TranslateReply"
-    internal const val MODE_TIME = 2
-    internal const val MODE_HOT = 3
+    const val MODE_TIME = 2
+    const val MODE_HOT = 3
 
     fun buildMainListRequest(
         oid: Long,

@@ -669,6 +669,7 @@ fun SearchScreen(
     val windowSizeClass = LocalWindowSizeClass.current
     var startupSettled by remember { mutableStateOf(false) }
     var searchFieldFocused by remember { mutableStateOf(false) }
+    var restoreFocusAfterClear by remember { mutableStateOf(false) }
     // One-shot autofocus for empty landing only; never re-open keyboard after results.
     var autoFocusConsumed by rememberSaveable { mutableStateOf(false) }
     var previousShowResults by rememberSaveable { mutableStateOf(false) }
@@ -1077,6 +1078,24 @@ fun SearchScreen(
         searchFieldFocused = false
         autoFocusConsumed = true
     }
+    val updateSearchQuery: (String) -> Unit = { query ->
+        // Clearing results replaces the top bar with the landing field.
+        if (state.showResults && query.isEmpty()) restoreFocusAfterClear = true
+        viewModel.onQueryChange(query)
+    }
+    val clearSearchQuery = {
+        restoreFocusAfterClear = true
+        viewModel.onQueryChange("")
+        viewModel.exitResultsToLanding()
+    }
+    LaunchedEffect(state.showResults, restoreFocusAfterClear) {
+        if (!state.showResults && restoreFocusAfterClear) {
+            androidx.compose.runtime.withFrameNanos { }
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+            restoreFocusAfterClear = false
+        }
+    }
     val submitSearch: (String) -> Unit = { keyword ->
         when (val action = resolveSearchSubmitAction(keyword)) {
             SearchSubmitAction.Ignore -> Unit
@@ -1290,14 +1309,9 @@ fun SearchScreen(
                                             SearchTopBar(
                                                 query = state.query,
                                                 onBack = handleSearchBack,
-                                                onQueryChange = {
-                                                    viewModel.onQueryChange(it)
-                                                },
+                                                onQueryChange = updateSearchQuery,
                                                 onSearch = submitSearch,
-                                                onClearQuery = {
-                                                    viewModel.onQueryChange("")
-                                                    viewModel.exitResultsToLanding()
-                                                },
+                                                onClearQuery = clearSearchQuery,
                                                 onFocusChanged = { focused ->
                                                     searchFieldFocused = focused
                                                     if (focused) {
@@ -2411,14 +2425,9 @@ fun SearchScreen(
             SearchTopBar(
                 query = state.query,
                 onBack = handleSearchBack,
-                onQueryChange = {
-                    viewModel.onQueryChange(it)
-                },
+                onQueryChange = updateSearchQuery,
                 onSearch = submitSearch,
-                onClearQuery = {
-                    viewModel.onQueryChange("")
-                    viewModel.exitResultsToLanding()
-                },
+                onClearQuery = clearSearchQuery,
                 onFocusChanged = { focused ->
                     searchFieldFocused = focused
                     if (focused) {

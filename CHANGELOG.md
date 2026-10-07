@@ -1,3 +1,23 @@
+## v0.3.1 (2026-10-07)
+
+更新日志(ChangeLog)
+
+[更改] 版本号 0.3.1，versionCode 442
+
+[更改] 合入社区贡献 [PR #873](https://github.com/jay3-yy/BiliPai/pull/873)，以下投币、评论留白与搜索胶囊条目来自该 PR @CoderTCY
+
+[修复] 投币尊重视频转载属性：转载视频投币上限降为 1 枚，一键三连按转载上限结算，投币面板只展示可选枚数并在确认时夹取，相关旧投币状态集群清理 @CoderTCY
+
+[修复] 评论区恢复正文与回复按钮、回复按钮与条目底部各 2dp 留白，根评论与楼中楼同步生效 @CoderTCY
+
+[修复] 关闭液态玻璃时首页顶部搜索胶囊高度与开启时对齐（36dp），不再回落组件库默认的 48/56dp，与头像、消息按钮统一基准 @CoderTCY
+
+[修复] 视频详情页播放器状态栏模糊变色延迟：采样失败（全屏切换重建 Surface 期间）改为 100ms 短间隔重试，不再等满一个采样周期才恢复；仅状态栏采样的变色间隔由 1500ms 收紧到 500ms，画面静止后仍放宽省电；竖屏黑边模糊条采样间隔同步收紧；全屏切换时系统栏图标明暗规格改为同帧派生，消除晚一拍
+
+[更改] 依赖升级：kotlinx-coroutines 1.11.0、Media3 1.11.1、Coil 3.6.3、Compose BOM 2026.09.00；统一 material3（1.5.0-alpha29）与 navigationevent（1.1.2）在全模块的版本声明
+
+[更改] Haze 模糊库从 2.0.0-alpha03 迁移到 2.0.1 正式版：`hazeEffect{blurEffect{}}` 可变 DSL 改为不可变 `hazeBlur` Style 程序，旧 inputScale 预算降级映射为 `HazePerformanceMode` 档位；`unifiedBlur`/`hazeEffectCompat`/`hazeSourceCompat` 封装层签名不变，调用点零改动；TV 端毛玻璃面板与状态栏氛围样式按新 DSL 重写，参数不变
+
 ## v0.3.0 (2026-10-06)
 
 更新日志(ChangeLog)

@@ -149,41 +149,20 @@ data class SubReplyUiState(
     val dissolvingIds: ImmutableSet<Long> = persistentSetOf()
 )
 
+// 楼中楼计数与末页判定规则已下沉 core-data；原包入口保留为同签名委托。
 internal fun resolveSubReplyRemoteTotalCount(
     data: ReplyData,
     rootReply: ReplyItem? = null
-): Int {
-    // 不同接口会把分页窗口大小也写进 page.count；不能把单页数量当总数。
-    // 取所有可用声明中的最大值，避免“显示还有 N 条，详情却在首屏结束”。
-    return listOf(
-        data.page.count,
-        data.root?.rcount ?: 0,
-        data.root?.count ?: 0,
-        data.cursor.allCount,
-        rootReply?.rcount ?: 0,
-        rootReply?.count ?: 0,
-        data.page.acount
-    ).filter { it > 0 }.maxOrNull() ?: 0
-}
+): Int = com.android.purebilibili.data.repository.resolveSubReplyRemoteTotalCount(data, rootReply)
 
 internal fun resolveSubReplyLoadedTotalCount(
     rootReply: ReplyItem?,
     loadedReplyCount: Int,
     remoteReplyCount: Int,
     previousTotalCount: Int = 0
-): Int {
-    val rootDeclaredCount = maxOf(
-        rootReply?.count ?: 0,
-        rootReply?.rcount ?: 0,
-        rootReply?.replies.orEmpty().size
-    )
-    return maxOf(
-        previousTotalCount,
-        rootDeclaredCount,
-        remoteReplyCount,
-        loadedReplyCount
-    ).coerceAtLeast(0)
-}
+): Int = com.android.purebilibili.data.repository.resolveSubReplyLoadedTotalCount(
+    rootReply, loadedReplyCount, remoteReplyCount, previousTotalCount
+)
 
 internal fun resolveSubReplyPageEnd(
     cursorIsEnd: Boolean,
@@ -193,28 +172,9 @@ internal fun resolveSubReplyPageEnd(
     requestedPage: Int = 1,
     pageSize: Int = SUB_REPLY_PAGE_SIZE,
     restPage: ReplyPage = ReplyPage()
-): Boolean {
-    val safeLoadedCount = loadedReplyCount.coerceAtLeast(0)
-    val declaredTotal = maxOf(restPage.count, remoteReplyCount).coerceAtLeast(0)
-    if (declaredTotal > 0 && safeLoadedCount >= declaredTotal) {
-        return true
-    }
-    // x/v2/reply/reply 的 page.count 可能只是窗口上限；分页进度必须以已解析总数为准。
-    if (restPage.count > 0 && restPage.num > 0 && restPage.size > 0) {
-        if (restPage.num * restPage.size < declaredTotal) {
-            return false
-        }
-        return fetchedReplyCount <= 0 || safeLoadedCount >= declaredTotal
-    }
-    if (declaredTotal > safeLoadedCount) {
-        // 楼中楼接口可能因审核或折叠导致中间页很稀疏，不能因单页为空提前结束。
-        // 最多探测到外层声明总数对应的理论末页，避免异常计数导致无限请求。
-        val safePageSize = pageSize.coerceAtLeast(1)
-        val expectedLastPage = (declaredTotal + safePageSize - 1) / safePageSize
-        return requestedPage.coerceAtLeast(1) >= expectedLastPage
-    }
-    return cursorIsEnd || fetchedReplyCount <= 0
-}
+): Boolean = com.android.purebilibili.data.repository.resolveSubReplyPageEnd(
+    cursorIsEnd, fetchedReplyCount, loadedReplyCount, remoteReplyCount, requestedPage, pageSize, restPage
+)
 
 internal fun resolveRoutedCommentRootReply(
     loadedReplies: List<ReplyItem>,

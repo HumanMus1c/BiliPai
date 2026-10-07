@@ -208,6 +208,24 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
             return
         }
         Logger.init(this)
+        // 评论仓库已下沉 core-data；手机端的发评后反诈旁路在此注入，共享层不感知其实现。
+        com.android.purebilibili.data.repository.CommentRepository.onCommentPosted =
+            { reply, oid, type, root, parent, message ->
+                AppScope.ioScope.launch {
+                    com.android.purebilibili.data.repository.CommentFraudRepository.saveRecord(
+                        rpid = reply.rpid,
+                        oid = oid,
+                        type = type,
+                        root = root,
+                        parent = parent,
+                        uid = reply.mid,
+                        message = message,
+                        status = com.android.purebilibili.data.model.CommentFraudStatus.UNKNOWN, // 当前状态未知（检测中）
+                        initialStatus = null, // 初始状态先置为 null (等待 5 秒后初检回填)
+                        postTime = if (reply.ctime > 0L) reply.ctime * 1000L else System.currentTimeMillis()
+                    )
+                }
+            }
         // 预热启动任务(wbi_key_restore)要在主线程同步读的 SP 文件:
         // IO 线程提前触发磁盘加载,主线程执行恢复时通常已命中内存缓存。
         AppScope.ioScope.launch {

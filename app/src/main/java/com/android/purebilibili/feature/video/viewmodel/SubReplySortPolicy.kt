@@ -2,12 +2,8 @@ package com.android.purebilibili.feature.video.viewmodel
 
 import kotlinx.collections.immutable.persistentListOf
 
-enum class SubReplySortMode(val apiMode: Int, val label: String) {
-    TIME(2, "按时间"),
-    HOT(3, "按热度");
-
-    fun toggled(): SubReplySortMode = if (this == TIME) HOT else TIME
-}
+// 排序档位与楼中楼末页判定已下沉 core-data；原包入口保留，手机各调用方不感知迁移。
+typealias SubReplySortMode = com.android.purebilibili.data.repository.SubReplySortMode
 
 internal fun SubReplyUiState.resetForSort(mode: SubReplySortMode): SubReplyUiState = copy(
     sortMode = mode,
@@ -27,4 +23,4 @@ internal fun SubReplyUiState.resetForSort(mode: SubReplySortMode): SubReplyUiSta
 )
 
 internal fun isSortedSubReplyPageEnd(cursorIsEnd: Boolean, nextOffset: String?): Boolean =
-    cursorIsEnd || nextOffset.isNullOrBlank()
+    com.android.purebilibili.data.repository.isSortedSubReplyPageEnd(cursorIsEnd, nextOffset)

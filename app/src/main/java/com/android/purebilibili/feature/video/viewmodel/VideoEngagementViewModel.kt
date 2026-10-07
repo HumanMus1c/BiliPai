@@ -38,6 +38,7 @@ data class VideoEngagementSeed(
     val coinCount: Int = 0,
     val favoriteCount: Int = 0,
     val isInWatchLater: Boolean = false,
+    val isRepost: Boolean = false,
     val followingMids: Set<Long> = emptySet()
 )
 
@@ -55,6 +56,7 @@ data class VideoEngagementUiState(
     val coinCount: Int = 0,
     val favoriteCount: Int = 0,
     val isInWatchLater: Boolean = false,
+    val isRepost: Boolean = false,
     val followingMids: Set<Long> = emptySet(),
     val userCoinBalance: Double? = null,
     val coinDialogVisible: Boolean = false,
@@ -66,7 +68,10 @@ data class VideoEngagementUiState(
     val tripleCelebrationVisible: Boolean = false,
     val tripleCelebrationId: Long = 0L,
     val tripleCelebrationFinished: Boolean = false
-)
+) {
+    /** 投币上限：原创 2 币，转载服务端强制 1 币。 */
+    val coinLimit: Int get() = if (isRepost) 1 else 2
+}
 
 sealed interface VideoEngagementEvent {
     data class Message(val text: String) : VideoEngagementEvent
@@ -109,7 +114,7 @@ interface VideoEngagementActions {
     suspend fun toggleFavorite(aid: Long, currentlyFavorited: Boolean, bvid: String): Result<Boolean>
     suspend fun toggleWatchLater(aid: Long, currentlyInWatchLater: Boolean, bvid: String): Result<Boolean>
     suspend fun doCoin(aid: Long, count: Int, alsoLike: Boolean, bvid: String): Result<Boolean>
-    suspend fun doTripleAction(aid: Long): Result<TripleActionResult>
+    suspend fun doTripleAction(aid: Long, coinCount: Int): Result<TripleActionResult>
 }
 
 private class DefaultVideoEngagementActions(
@@ -133,7 +138,8 @@ private class DefaultVideoEngagementActions(
     override suspend fun doCoin(aid: Long, count: Int, alsoLike: Boolean, bvid: String) =
         useCase.doCoin(aid, count, alsoLike, bvid)
 
-    override suspend fun doTripleAction(aid: Long) = useCase.doTripleAction(aid)
+    override suspend fun doTripleAction(aid: Long, coinCount: Int) =
+        useCase.doTripleAction(aid, coinCount)
 }
 
 class VideoEngagementViewModel(
@@ -189,6 +195,7 @@ class VideoEngagementViewModel(
             coinCount = seed.coinCount,
             favoriteCount = seed.favoriteCount,
             isInWatchLater = seed.isInWatchLater,
+            isRepost = seed.isRepost,
             followingMids = seed.followingMids
         )
     }
@@ -205,7 +212,7 @@ class VideoEngagementViewModel(
                 isDisliked = if (VideoEngagementField.DISLIKE in locallyModifiedFields) current.isDisliked else seed.isDisliked,
                 likeCount = if (VideoEngagementField.LIKE in locallyModifiedFields) current.likeCount else seed.likeCount,
                 coinCount = if (VideoEngagementField.COIN in locallyModifiedFields) current.coinCount else seed.coinCount,
-                isInWatchLater = if (VideoEngagementField.WATCH_LATER in locallyModifiedFields) current.isInWatchLater else seed.isInWatchLater,
+                isRepost = seed.isRepost,
                 followingMids = if (VideoEngagementField.FOLLOWING_MIDS in locallyModifiedFields) current.followingMids else seed.followingMids
             )
         }
@@ -216,8 +223,9 @@ class VideoEngagementViewModel(
     }
 
     fun openCoinDialog() {
-        if (_uiState.value.coinCount >= 2) {
-            emitMessage("已投满2个硬币")
+        val state = _uiState.value
+        if (state.coinCount >= state.coinLimit) {
+            emitMessage(if (state.isRepost) "转载视频最多投1个硬币" else "已投满2个硬币")
             return
         }
         _uiState.update { it.copy(coinDialogVisible = true, userCoinBalance = null) }
@@ -401,7 +409,7 @@ class VideoEngagementViewModel(
                     _uiState.update { current ->
                         if (current.subject?.generation != subject.generation) current
                         else current.copy(
-                            coinCount = minOf(current.coinCount + count, 2),
+                            coinCount = minOf(current.coinCount + count, current.coinLimit),
                             likeBurstVisible = false,
                             maidAction = VideoMaidAction.COIN,
                             maidActionId = current.maidActionId + 1,
@@ -429,7 +437,7 @@ class VideoEngagementViewModel(
         val targetBvid = bvid ?: state.subject?.bvid ?: return
         viewModelScope.launch {
             emitMessage("正在三连")
-            actions.doTripleAction(targetAid)
+            actions.doTripleAction(targetAid, state.coinLimit)
                 .onSuccess { result ->
                     if (_uiState.value.subject?.generation != state.subject?.generation) return@onSuccess
                     val visual = resolveTripleActionVisualState(
@@ -439,7 +447,8 @@ class VideoEngagementViewModel(
                         likeSuccess = result.likeSuccess,
                         coinSuccess = result.coinSuccess,
                         coinFailureMessage = result.coinMessage,
-                        favoriteSuccess = result.favoriteSuccess
+                        favoriteSuccess = result.favoriteSuccess,
+                        attemptedCoinCount = state.coinLimit
                     )
                     val celebrationId = ++tripleCelebrationSequence
                     _uiState.update { current ->
@@ -579,6 +588,7 @@ internal fun VideoPlaybackUiState.Success.toEngagementSeed(): VideoEngagementSee
         coinCount = coinCount,
         favoriteCount = info.stat.favorite,
         isInWatchLater = isInWatchLater,
+        isRepost = info.isRepost,
         followingMids = followingMids
     )
 
