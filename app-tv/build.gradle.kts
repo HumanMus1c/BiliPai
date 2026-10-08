@@ -11,7 +11,7 @@ android {
         applicationId = "com.android.bilipai.tv"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
+        versionCode = 3
         versionName = "0.2.0-beta.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -25,6 +25,17 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE*"
+            excludes += "/META-INF/NOTICE*"
+            excludes += "/META-INF/*.kotlin_module"
+            // pinyin4j 2.5.0 自带的 maven 元数据在资源合并时报告 duplicate entry（与手机端同一冲突）
+            excludes += "META-INF/maven/**"
         }
     }
     testOptions { unitTests.all { it.useJUnitPlatform() } }
@@ -48,6 +59,8 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze-blur:2.0.1")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.tv:tv-material:1.0.0")
+    // 动态取色：与移动端同一 Palette 库，从壁纸/封面提取强调色。
+    implementation("androidx.palette:palette-ktx:1.0.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.11.0")

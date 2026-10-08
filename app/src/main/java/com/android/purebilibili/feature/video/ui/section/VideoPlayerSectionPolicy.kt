@@ -1104,14 +1104,16 @@ internal fun shouldUseTextureSurfaceForFlip(
     isFlippedVertical: Boolean,
     liveBackPreview: Boolean = false,
     navigationTransformEnabled: Boolean = false,
-    requiresHdrSurfaceOutput: Boolean = false
+    requiresHdrSurfaceOutput: Boolean = false,
+    preferCompatibleTextureSurface: Boolean = com.android.purebilibili.core.util.prefersTextureVideoSurface()
 ): Boolean {
     // Flip is the only hard TextureView requirement under HDR; matrix transform
     // cannot run on SurfaceView. Navigation morph yields to HDR fidelity.
     if (requiresHdrSurfaceOutput) {
         return isFlippedHorizontal || isFlippedVertical
     }
-    return isFlippedHorizontal ||
+    return preferCompatibleTextureSurface ||
+        isFlippedHorizontal ||
         isFlippedVertical ||
         liveBackPreview ||
         navigationTransformEnabled

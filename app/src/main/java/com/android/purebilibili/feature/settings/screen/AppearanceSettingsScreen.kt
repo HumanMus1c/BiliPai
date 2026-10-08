@@ -497,6 +497,9 @@ fun AppearanceSettingsContent(
     val homePublishTimeVisible by SettingsManager
         .getHomePublishTimeVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val homeRefreshUndoVisible by SettingsManager
+        .getHomeRefreshUndoVisible(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val fullVideoCardContentVisible by SettingsManager
         .getFullVideoCardContentVisible(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -1578,6 +1581,20 @@ fun AppearanceSettingsContent(
                             onCheckedChange = {
                                 scope.launch {
                                     SettingsManager.setHomeRefreshTipVisible(context, it)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                            title = "撤销刷新按钮",
+                            subtitle = "刷新推荐流后显示撤销按钮，可恢复刷新前的内容",
+                            checked = homeRefreshUndoVisible,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    SettingsManager.setHomeRefreshUndoVisible(context, enabled)
                                 }
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue

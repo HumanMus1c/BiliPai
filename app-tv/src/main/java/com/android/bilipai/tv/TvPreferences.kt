@@ -36,6 +36,9 @@ class TvPreferences(context: Context) {
     var gridDensity: Float
         get() = prefs.getFloat("grid_density", 1f)
         set(value) { prefs.edit().putFloat("grid_density", value).apply() }
+    var dynamicColor: Boolean
+        get() = prefs.getBoolean("dynamic_color", false)
+        set(value) { prefs.edit().putBoolean("dynamic_color", value).apply() }
     var gridZoomHintShown: Boolean
         get() = prefs.getBoolean("grid_zoom_hint_shown", false)
         set(value) { prefs.edit().putBoolean("grid_zoom_hint_shown", value).apply() }

@@ -56,6 +56,19 @@ internal fun isAbnormalProcessExitReason(reason: Int): Boolean = reason in setOf
     ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
 )
 
+/** Some OEMs report cached-process low-memory reclamation as SIGKILL rather than LOW_MEMORY. */
+internal fun isBackgroundLowMemoryReclamation(
+    reason: Int,
+    status: Int,
+    importance: Int,
+    description: String?,
+): Boolean {
+    if (reason == ApplicationExitInfo.REASON_LOW_MEMORY) return true
+    return reason == ApplicationExitInfo.REASON_SIGNALED && status == 9 &&
+        importance >= ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED &&
+        description?.contains("iAwareF[LowMem]", ignoreCase = true) == true
+}
+
 internal data class ProcessExitCandidate(
     val processName: String?,
     val timestamp: Long,
@@ -313,6 +326,22 @@ internal object Android17Diagnostics {
             val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             if (prefs.getLong(KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP, 0L) == exitInfo.timestamp) return
             prefs.edit().putLong(KEY_LAST_CRASH_SNAPSHOT_TIMESTAMP, exitInfo.timestamp).apply()
+
+            // Preserve this event in system exit history, but do not present an OEM memory
+            // reclamation as a fresh application crash or replace a previous useful crash stack.
+            if (isBackgroundLowMemoryReclamation(
+                    reason = exitInfo.reason,
+                    status = exitInfo.status,
+                    importance = exitInfo.importance,
+                    description = exitInfo.description,
+                )
+            ) {
+                Logger.d(TAG) {
+                    "Background process reclaimed for memory; crash snapshot skipped: " +
+                        "reason=${exitInfo.reason}, status=${exitInfo.status}, importance=${exitInfo.importance}"
+                }
+                return
+            }
 
             val reason = resolveProcessExitReasonLabel(exitInfo.reason)
             val subReasonCode = extractApplicationExitSubReason(exitInfo)

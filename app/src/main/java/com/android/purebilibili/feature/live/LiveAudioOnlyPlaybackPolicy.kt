@@ -20,7 +20,8 @@ internal fun shouldUseTextureSurfaceForLivePlayer(
     hasSharedTransitionScope: Boolean,
     hasAnimatedVisibilityScope: Boolean
 ): Boolean {
-    return hasSharedTransitionScope && hasAnimatedVisibilityScope
+    return com.android.purebilibili.core.util.prefersTextureVideoSurface() ||
+        (hasSharedTransitionScope && hasAnimatedVisibilityScope)
 }
 
 internal fun resolveLiveTrackSelectionParametersForAudioOnly(

@@ -567,6 +567,12 @@ internal fun SubReplyDetailContent(
         wasRefreshing = isRefreshing
     }
     var highlightedTargetId by remember(rootReply.rpid) { mutableLongStateOf(0L) }
+    var targetReplyHandled by remember(rootReply.rpid, targetReplyId) { mutableStateOf(false) }
+    LaunchedEffect(highlightedTargetId) {
+        if (highlightedTargetId <= 0L) return@LaunchedEffect
+        delay(1_400)
+        highlightedTargetId = 0L
+    }
     var conversationAnchor by remember(rootReply.rpid) { mutableStateOf<ReplyItem?>(null) }
     var previousConversationMode by remember(rootReply.rpid) { mutableStateOf<Boolean?>(null) }
     var savedListScroll by remember(rootReply.rpid) {
@@ -712,11 +718,14 @@ internal fun SubReplyDetailContent(
         }
         previousConversationMode = currentMode
     }
-    LaunchedEffect(targetReplyId, visibleReplies, isLoading, isEnd) {
+    LaunchedEffect(rootReply.rpid, targetReplyId, visibleReplies, isLoading, isEnd, effectiveConversationMode) {
         if (targetReplyId <= 0L) {
             highlightedTargetId = 0L
             return@LaunchedEffect
         }
+        // This is an entry-time navigation request, not a persistent scroll anchor.
+        // Loading/refreshing changes the effect keys but must not replay the jump.
+        if (targetReplyHandled) return@LaunchedEffect
         val targetIndex = resolveSubReplyTargetListIndex(
             rootReplyId = rootReply.rpid,
             visibleReplies = visibleReplies,
@@ -724,10 +733,11 @@ internal fun SubReplyDetailContent(
         )
         when {
             targetIndex != null -> {
-                listState.animateScrollToItem(targetIndex)
+                // Consume before suspending: a page update or user scroll may cancel
+                // the animation, and must not cause a later update to restart it.
+                targetReplyHandled = true
                 highlightedTargetId = targetReplyId
-                delay(1_400)
-                highlightedTargetId = 0L
+                listState.animateScrollToItem(targetIndex)
             }
             targetReplyId > 0L && !isLoading && !isEnd && !effectiveConversationMode -> onLoadMore()
         }

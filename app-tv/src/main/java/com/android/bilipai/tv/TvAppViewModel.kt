@@ -7,8 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.player.SharedPlaybackState
-import com.android.purebilibili.core.player.PlaybackProgressManager
 import com.android.purebilibili.core.player.resolvePlaybackResumePosition
+import com.android.purebilibili.data.model.resolveVideoDisplayProgressState
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.HistoryCursor
 import com.android.purebilibili.data.model.response.NavData
@@ -25,6 +25,9 @@ import com.android.purebilibili.data.repository.resolveSubReplyPageEnd
 import com.android.purebilibili.data.repository.resolveSubReplyRemoteTotalCount
 import com.android.purebilibili.data.repository.UserContentRepository
 import com.android.purebilibili.data.repository.UserActionRepository
+import com.android.purebilibili.data.repository.VideoCatalogRepository
+import com.android.purebilibili.data.model.response.CreatorCardStats
+import com.android.purebilibili.data.model.response.toVideoItem
 import com.android.purebilibili.data.repository.ContentRequestException
 import com.android.purebilibili.data.repository.asVideoItem
 import com.android.purebilibili.core.player.RecentPlaybackStore
@@ -57,7 +60,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-enum class TvScreen { Home, Following, Followings, Space, Search, History, Folders, Favorites, WatchLater, Settings, Login, Detail, Player, Comments }
+enum class TvScreen { Home, Popular, Region, Following, Followings, Space, Search, History, Folders, Favorites, WatchLater, Settings, Login, Detail, Player, Comments }
 
 @Serializable
 data class TvRoute(
@@ -78,6 +81,8 @@ data class TvCatalogState(
     val searchOrder: SearchOrder = SearchOrder.TOTALRANK, val searchDuration: SearchDuration = SearchDuration.ALL,
     // 历史类型筛选（all/video/pgc/live/article，与移动端 HistoryContentFilter 同值）；收藏夹内排序（mtime/view/pubtime）
     val historyFilter: String = "all", val favoriteOrder: String = "mtime",
+    // 热门子分类（popular/ranking/weekly/precious，与移动端 PopularSubCategory 同语义）；分区 tid
+    val popularFilter: String = "popular", val regionTid: Int = 4,
 )
 
 enum class QrPhase { Loading, Waiting, Scanned, Expired, Success, Failed }
@@ -119,8 +124,11 @@ data class TvUiState(
     val danmakuEnabled: Boolean = true,
     val notice: String? = null,
     val continuing: List<VideoItem> = emptyList(), val reduceMotion: Boolean = false, val simpleEffects: Boolean = false,
+    val dynamicColor: Boolean = false,
     val liked: Boolean? = null, val following: Boolean? = null, val actionBusy: Boolean = false,
     val favoriteFolders: List<FavFolder>? = null, val favoriteLoading: Boolean = false, val favoriteSaved: Boolean = false, val favoriteError: String? = null,
+    val moveTargets: List<FavFolder>? = null, val moveCopy: Boolean = false, val moveAids: Set<Long> = emptySet(),
+    val related: List<VideoItem> = emptyList(), val relatedLoading: Boolean = false, val creator: CreatorCardStats? = null,
     val brandFeedback: MaidAnimation? = null, val feedbackId: Int = 0, val resumeAction: String? = null,
     val update: TvUpdateState = TvUpdateState(),
     val danmakuSettings: TvDanmakuSettings = TvDanmakuSettings(),
@@ -143,6 +151,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
         query = savedState["query"] ?: "", searchHistory = preferences.searchHistory,
         quality = preferences.quality, autoContinue = preferences.autoContinue, privacyMode = preferences.privacyMode,
         danmakuEnabled = preferences.danmakuEnabled, reduceMotion = preferences.reduceMotion, simpleEffects = preferences.simpleEffects,
+        dynamicColor = preferences.dynamicColor,
         danmakuSettings = TvDanmakuSettings(
             displayArea = preferences.danmakuArea, textSizeDp = preferences.danmakuTextSize,
             opacity = preferences.danmakuOpacity, speedScale = preferences.danmakuSpeed,
@@ -189,7 +198,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
         if (root) { stack.clear(); stack.add(route) } else stack.add(route)
         savedState["routes"] = Json.encodeToString(stack.toList())
         mutableState.update { it.copy(route = route, rootScreen = stack.first().screen, catalog = catalogs[route.key] ?: TvCatalogState(),
-            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
+            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, moveTargets = null, moveAids = emptySet(), related = emptyList(), relatedLoading = false, creator = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
             comments = commentsStates[route.key] ?: TvCommentsState()) }
         loadRoute()
     }
@@ -212,7 +221,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
         val route = stack.last()
         savedState["routes"] = Json.encodeToString(stack.toList())
         mutableState.update { it.copy(route = route, rootScreen = stack.first().screen, catalog = catalogs[route.key] ?: TvCatalogState(),
-            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
+            detail = details[route.key], detailLoading = false, detailError = null, detailResumePositionMs = 0, notice = null, favoriteFolders = null, favoriteLoading = false, favoriteError = null, moveTargets = null, moveAids = emptySet(), related = emptyList(), relatedLoading = false, creator = null, liked = null, following = null, resumeAction = null, brandFeedback = null,
             comments = commentsStates[route.key] ?: TvCommentsState()) }
         loadRoute()
         if (route.screen == TvScreen.Home) refreshContinueWatching()
@@ -230,6 +239,12 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     fun play(cid: Long) {
         val info = mutableState.value.detail ?: return
         navigate(TvRoute(TvScreen.Player, info.bvid, info.aid, cid = cid, label = info.title))
+    }
+
+    /** 合集分集直达播放：分集未经详情页，直接携带 bvid/aid/cid 进播放器。 */
+    fun playEpisode(bvid: String, aid: Long, cid: Long, label: String = "") {
+        if (cid <= 0L || (bvid.isBlank() && aid <= 0L)) return
+        navigate(TvRoute(TvScreen.Player, bvid, aid, cid = cid, label = label))
     }
 
     /** 详情页评论入口：按当前视频打开只读评论页。 */
@@ -332,6 +347,8 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
                 throw cancelled
             } catch (error: Exception) {
                 if (ticket != subRevision) return@launch
+                // 楼中楼遇到登录失效：收起面板回到评论列表，走统一扫码恢复，回来后可重开。
+                if (isAuthenticationFailure(error)) { closeSubReplies(); requestLogin("comments"); return@launch }
                 mutableState.update { it.copy(comments = it.comments.copy(sub = it.comments.sub?.copy(
                     loading = false, error = error.message ?: "回复加载失败"))) }
             }
@@ -368,6 +385,8 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
                 throw cancelled
             } catch (error: Exception) {
                 if (ticket != subRevision) return@launch
+                // 楼中楼分页遇到登录失效：收起面板走统一扫码恢复。
+                if (isAuthenticationFailure(error)) { closeSubReplies(); requestLogin("comments"); return@launch }
                 mutableState.update { it.copy(comments = it.comments.copy(sub = sub.copy(
                     loading = false, error = error.message ?: "回复加载失败"))) }
             }
@@ -501,6 +520,15 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
                             it.list.vlist.map { video -> video.asVideoItem(route.mid) }
                         }
                     }
+                    TvScreen.Popular -> when (previous.popularFilter) {
+                        "ranking" -> VideoCatalogRepository.getRankingVideos().getOrThrow().also { hasMore = false }
+                        "weekly" -> VideoCatalogRepository.getWeeklyMustWatchVideos().getOrThrow().also { hasMore = false }
+                        "precious" -> VideoCatalogRepository.getPreciousVideos().getOrThrow().also { hasMore = false }
+                        else -> VideoCatalogRepository.getPopularVideos(page).getOrThrow()
+                            .also { hasMore = it.size >= 30 }
+                    }
+                    TvScreen.Region -> VideoCatalogRepository.getRegionVideos(tid = previous.regionTid, page = page).getOrThrow()
+                        .also { hasMore = it.size >= 30 }
                     TvScreen.Search -> SearchRepository.search(query, order = previous.searchOrder,
                         duration = previous.searchDuration, page = page).getOrThrow().let {
                         hasMore = it.second.hasMore; it.first
@@ -522,7 +550,7 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
                                     "article" -> item.history?.business == "article"
                                     else -> true
                                 }
-                            }.map { item -> item.toVideoItem() }
+                            }.map { item -> item.toVideoItem() }.let { mergeLocalHistoryProgress(it) }
                         }
                     }
                     TvScreen.Folders -> {
@@ -584,8 +612,32 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
             result.fold(onSuccess = { info ->
                 details[route.key] = info
                 loadDetailActions(info, ticket)
+                loadDetailExtras(info, ticket)
                 mutableState.update { it.copy(detail = info, detailLoading = false, detailResumePositionMs = resumePosition) }
-            }, onFailure = { error -> mutableState.update { it.copy(detailLoading = false, detailError = error.message ?: "详情加载失败") } })
+            }, onFailure = { error ->
+                if (isAuthenticationFailure(error)) {
+                    mutableState.update { it.copy(detailLoading = false) }
+                    requestLogin("detail"); return@fold
+                }
+                mutableState.update { it.copy(detailLoading = false, detailError = error.message ?: "详情加载失败") }
+            })
+        }
+    }
+
+    /** 详情页扩展内容：相关推荐与 UP 主卡片（粉丝/投稿数），与详情并行加载、失败静默。 */
+    private var detailExtrasJob: Job? = null
+    private fun loadDetailExtras(info: ViewInfo, ticket: Long) {
+        detailExtrasJob?.cancel()
+        mutableState.update { it.copy(related = emptyList(), relatedLoading = true, creator = null) }
+        detailExtrasJob = viewModelScope.launch {
+            val related = withContext(Dispatchers.IO) {
+                VideoCatalogRepository.getRelatedVideos(info.bvid).map { it.toVideoItem() }
+            }
+            if (ticket == revision) mutableState.update { it.copy(related = related, relatedLoading = false) }
+        }
+        viewModelScope.launch {
+            val stats = VideoCatalogRepository.getCreatorCardStats(info.owner.mid).getOrNull()
+            if (ticket == revision && stats != null) mutableState.update { it.copy(creator = stats) }
         }
     }
 
@@ -598,6 +650,31 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
             serverMs = 0,
             durationMs = (info.pages.firstOrNull { it.cid == info.cid }?.duration ?: 0) * 1_000L,
         )
+    }
+
+    /**
+     * 历史列表加载时合并本地持久化进度：与手机端 enrichHistoryProgress 消费同一共享规则
+     * （resolveVideoDisplayProgressState，viewAt=1 表示条目必有观看记录）。
+     * 仅合并 bvid + cid 一致的本地检查点，避免多 P 串位；source 为 RecentPlaybackStore，
+     * 读取涉及 SharedPreferences，放到 IO 线程。
+     */
+    private suspend fun mergeLocalHistoryProgress(items: List<VideoItem>): List<VideoItem> {
+        if (items.isEmpty()) return items
+        val localItems = withContext(Dispatchers.IO) { recent.items(TokenManager.midCache) }
+        if (localItems.isEmpty()) return items
+        return items.map { video ->
+            if (video.bvid.isBlank()) return@map video
+            val local = localItems.firstOrNull {
+                it.bvid == video.bvid && (video.cid <= 0L || it.cid == video.cid)
+            } ?: return@map video
+            val merged = resolveVideoDisplayProgressState(
+                serverProgressSec = video.progress,
+                durationSec = video.duration,
+                localPositionMs = local.progress.takeIf { it > 0 }?.times(1000L) ?: 0L,
+                viewAt = 1L,
+            ).progressSec
+            if (merged == video.progress) video else video.copy(progress = merged)
+        }
     }
 
     private fun loadTrending() = viewModelScope.launch {
@@ -655,8 +732,11 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
                                 back()
                                 if (!sameAccount && mutableState.value.route.screen == TvScreen.Player) back()
                                 if (action == "catalog" && mutableState.value.catalog.page > 0) loadCatalog()
+                                // 登录成功回到原页面后立即重载触发登录时失败的内容，不要求用户再按一次重试。
+                                if (action == "comments") refreshComments()
+                                if (action == "detail") loadDetail(force = true)
                                 mutableState.update { it.copy(resumeAction = action.takeIf { sameAccount },
-                                    notice = if (sameAccount && action != "catalog" && action != "player") "登录成功，请再次确认操作" else if (!sameAccount) "已切换账号，请重新选择操作" else null) }
+                                    notice = if (sameAccount && action !in setOf("catalog", "player", "comments", "detail")) "登录成功，请再次确认操作" else if (!sameAccount) "已切换账号，请重新选择操作" else null) }
                             }
                             refreshContinueWatching()
                             return@launch
@@ -816,14 +896,64 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
             TvScreen.Favorites -> FavoriteRepository.removeResource(route.folderId, video.aid.takeIf { it > 0 } ?: video.id)
             else -> Result.failure<Unit>(IllegalStateException("当前列表不可移除"))
         } }) {
-            val catalog = mutableState.value.catalog
-            val index = catalog.items.indexOfFirst { it.tvId() == video.tvId() }.coerceAtLeast(0)
-            val remaining = catalog.items.filterNot { it.tvId() == video.tvId() }
-            val next = index.coerceAtMost((remaining.size - 1).coerceAtLeast(0))
             if (route.screen == TvScreen.History) recent.remove(TokenManager.midCache, video.bvid)
-            mutableState.update { it.copy(catalog = catalog.copy(items = remaining, focusedId = remaining.getOrNull(next)?.tvId(),
-                focusedIndex = next, resetVersion = catalog.resetVersion + 1), continuing = recent.items(TokenManager.midCache)) }
+            removeFromCatalogAndFocus(video)
             feedback("已移除")
+        }
+    }
+
+    /** 移除或移动成功后的本地收敛：从当前目录移除条目，焦点按相邻条目规则恢复。 */
+    private fun removeFromCatalogAndFocus(video: VideoItem) {
+        val catalog = mutableState.value.catalog
+        val index = catalog.items.indexOfFirst { it.tvId() == video.tvId() }.coerceAtLeast(0)
+        val remaining = catalog.items.filterNot { it.tvId() == video.tvId() }
+        val next = index.coerceAtMost((remaining.size - 1).coerceAtLeast(0))
+        mutableState.update { it.copy(catalog = catalog.copy(items = remaining, focusedId = remaining.getOrNull(next)?.tvId(),
+            focusedIndex = next, resetVersion = catalog.resetVersion + 1), continuing = recent.items(TokenManager.midCache)) }
+    }
+
+    /** 稍后再看移入/复制到收藏夹：先选目标收藏夹（与手机端同一仓库与语义）。 */
+    fun requestMoveToFavorite(video: VideoItem, copy: Boolean) {
+        val aid = video.aid.takeIf { it > 0 } ?: video.id
+        if (aid <= 0) { feedback("该内容不支持移入收藏夹"); return }
+        if (TokenManager.sessDataCache.isNullOrBlank()) { requestLogin("manage"); return }
+        val mid = TokenManager.midCache
+        if (mid == null) { feedback("请先登录"); return }
+        mutableState.update { it.copy(moveCopy = copy, moveAids = setOf(aid), moveTargets = null, favoriteLoading = true, notice = null) }
+        viewModelScope.launch {
+            val result = FavoriteRepository.getFavFolders(mid)
+            if (mid != TokenManager.midCache) return@launch
+            result.fold(onSuccess = { folders ->
+                if (folders.isEmpty()) {
+                    mutableState.update { it.copy(favoriteLoading = false, moveAids = emptySet(), notice = "还没有可用的收藏夹") }
+                } else {
+                    mutableState.update { it.copy(favoriteLoading = false, moveTargets = folders) }
+                }
+            }, onFailure = { error ->
+                mutableState.update { it.copy(favoriteLoading = false, moveTargets = null, moveAids = emptySet(), notice = error.message ?: "加载收藏夹失败") }
+                if (isAuthenticationFailure(error)) requestLogin("manage")
+            })
+        }
+    }
+
+    fun dismissMoveTargets() = mutableState.update { it.copy(moveTargets = null, moveAids = emptySet(), favoriteLoading = false) }
+
+    fun chooseMoveTarget(mediaId: Long) {
+        val pending = mutableState.value
+        val aids = pending.moveAids
+        val copy = pending.moveCopy
+        if (aids.isEmpty()) return
+        dismissMoveTargets()
+        action("manage", { WatchLaterRepository.copyOrMoveToFavorite(mediaId, aids, copy) }) {
+            catalogs.entries.removeAll { it.key.startsWith("WatchLater:") }
+            if (copy) {
+                feedback("已复制到收藏夹")
+            } else {
+                // 移动语义：源条目不再保留在稍后再看，本地按移除规则收敛并恢复相邻焦点。
+                mutableState.value.catalog.items.firstOrNull { (it.aid.takeIf { a -> a > 0 } ?: it.id) in aids }
+                    ?.let { removeFromCatalogAndFocus(it) }
+                feedback("已移动到收藏夹")
+            }
         }
     }
     fun clearHistory() = action("manage", { HistoryRepository.clearHistory(TokenManager.csrfCache.orEmpty()) }) {
@@ -833,6 +963,12 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     }
     fun toggleReduceMotion() { preferences.reduceMotion = !preferences.reduceMotion; mutableState.update { it.copy(reduceMotion = preferences.reduceMotion) } }
     fun toggleSimpleEffects() { preferences.simpleEffects = !preferences.simpleEffects; mutableState.update { it.copy(simpleEffects = preferences.simpleEffects) } }
+
+    /** 动态取色：跟随系统壁纸与当前封面提取强调色；关闭回品牌粉。 */
+    fun toggleDynamicColor() {
+        preferences.dynamicColor = !preferences.dynamicColor
+        mutableState.update { it.copy(dynamicColor = preferences.dynamicColor) }
+    }
     fun checkUpdate() {
         if (mutableState.value.update.loading) return
         mutableState.update { it.copy(update = it.update.copy(loading = true, message = null)) }
@@ -892,6 +1028,22 @@ class TvAppViewModel(application: Application, private val savedState: SavedStat
     fun updateHistoryFilter(filter: String) {
         if (mutableState.value.route.screen != TvScreen.History) return
         mutableState.update { it.copy(catalog = it.catalog.copy(historyFilter = filter)) }
+        loadCatalog(reset = true)
+    }
+
+    /** 热门子分类（综合热门/排行榜/每周必看/入站必刷）：与移动端 PopularSubCategory 同语义。 */
+    fun updatePopularFilter(filter: String) {
+        if (mutableState.value.route.screen != TvScreen.Popular) return
+        if (mutableState.value.catalog.popularFilter == filter) return
+        mutableState.update { it.copy(catalog = it.catalog.copy(popularFilter = filter, items = emptyList())) }
+        loadCatalog(reset = true)
+    }
+
+    /** 分区切换（游戏/知识/科技…）：tid 存目录状态，切区重置分页。 */
+    fun updateRegionTid(tid: Int) {
+        if (mutableState.value.route.screen != TvScreen.Region) return
+        if (mutableState.value.catalog.regionTid == tid) return
+        mutableState.update { it.copy(catalog = it.catalog.copy(regionTid = tid, items = emptyList())) }
         loadCatalog(reset = true)
     }
 

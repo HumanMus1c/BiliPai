@@ -36,7 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import com.android.purebilibili.core.ui.rememberCompatibleStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -184,11 +184,11 @@ fun DynamicScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val allListState = rememberLazyStaggeredGridState()
-    val videoListState = rememberLazyStaggeredGridState()
-    val pgcListState = rememberLazyStaggeredGridState()
-    val articleListState = rememberLazyStaggeredGridState()
-    val userListState = rememberLazyStaggeredGridState()
+    val allListState = rememberCompatibleStaggeredGridState()
+    val videoListState = rememberCompatibleStaggeredGridState()
+    val pgcListState = rememberCompatibleStaggeredGridState()
+    val articleListState = rememberCompatibleStaggeredGridState()
+    val userListState = rememberCompatibleStaggeredGridState()
     val listStates = remember(
         allListState,
         videoListState,

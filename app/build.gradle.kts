@@ -7,6 +7,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     // JSON 序列化插件
     id("org.jetbrains.kotlin.plugin.serialization")
+    // Compose 预组合兼容补丁：guard LayoutNodeSubcompositionsState 的 detached-root owner 查找
+    id("com.android.bilipai.compose-detached-owner-guard")
     // Room 数据库编译插件
     id("com.google.devtools.ksp")
     // 🔥 Firebase 相关插件
@@ -120,8 +122,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 442
-        versionName = "0.3.1"
+        versionCode = 445
+        versionName = "0.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -233,6 +235,8 @@ android {
             excludes += "DebugProbesKt.bin"
             // 📺 Cling DLNA 库冲突文件
             excludes += "META-INF/beans.xml"
+            // 各依赖自带的 maven 元数据不需要打进 APK（pinyin4j 相关曾因此报 duplicate entry）
+            excludes += "META-INF/maven/**"
         }
     }
     
@@ -484,7 +488,10 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.4.2")
     implementation("androidx.camera:camera-view:1.4.2")
     // Pinyin 拼音转换 (用于模糊搜索)
-    implementation("com.belerweb:pinyin4j:2.5.0")
+    // TinyPinyin：内置无声调字典表（常用多音字带上下文消歧），无需初始化、无资源加载。
+    // 不用 com.belerweb:pinyin4j:2.5.0——其 jar 内部含重复条目（pom.xml ×2），
+    // AGP 9/Kotlin BTAPI 会因 duplicate entry 拒绝编译 classpath。
+    implementation("io.github.biezhi:TinyPinyin:2.0.3.RELEASE")
     // Core KTX
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycleVersion")

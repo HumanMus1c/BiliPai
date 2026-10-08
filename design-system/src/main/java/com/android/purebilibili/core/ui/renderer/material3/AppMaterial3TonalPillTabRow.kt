@@ -1,6 +1,8 @@
 package com.android.purebilibili.core.ui.renderer.material3
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -100,6 +102,8 @@ fun <T> AppTonalPillTabRow(
 
     val animatedPosition by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
+        animationSpec = if (!com.android.purebilibili.core.ui.LocalComponentMotionEnabled.current ||
+            indicatorPositionProvider != null) snap() else spring(),
         label = "tonalPillTabPosition",
     )
     val followPosition = indicatorPositionProvider?.invoke()

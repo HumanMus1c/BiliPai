@@ -21,3 +21,10 @@ data class RelatedVideo(
     /** null means the lightweight source did not expose trustworthy dimensions. */
     val isVertical: Boolean? = null,
 )
+
+/** 相关推荐条目与通用 VideoItem 的映射，供目录/详情列表消费。 */
+fun RelatedVideo.toVideoItem(): VideoItem = VideoItem(
+    id = aid, bvid = bvid, aid = aid, cid = cid, title = title, pic = pic,
+    owner = owner, stat = stat, duration = duration, pubdate = pubdate,
+    isVertical = isVertical == true,
+)

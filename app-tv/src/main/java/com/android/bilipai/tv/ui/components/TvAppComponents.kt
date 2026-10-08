@@ -30,6 +30,8 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.FilterChip
+import androidx.tv.material3.FilterChipDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.android.bilipai.tv.ui.LocalTvReduceMotion
@@ -146,4 +148,46 @@ private fun rememberReturnFocus(source: MutableInteractionSource, interactive: B
     val focused by source.collectIsFocusedAsState()
     LaunchedEffect(focused, interactive, target) { if (focused && interactive) target?.requester = requester }
     return Modifier.focusRequester(requester)
+}
+
+/**
+ * 官方 FilterChip 适配：筛选行（热门子分类、分区、历史类型、已看完）统一使用官方选中语义，
+ * 形态与焦点边框沿用 TV tokens；选中态与焦点态分别表达。
+ */
+@Composable
+internal fun TvFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val interactive = LocalTvInteractive.current
+    val source = remember { MutableInteractionSource() }
+    val colors = MaterialTheme.colorScheme
+    val shape = TvUiTokens.buttonShape
+    FilterChip(
+        selected = selected,
+        onClick = { if (interactive) onClick() },
+        enabled = interactive,
+        interactionSource = source,
+        modifier = modifier.then(rememberReturnFocus(source, interactive))
+            .heightIn(min = TvUiTokens.minimumButtonHeight)
+            .semantics { this.selected = selected },
+        shape = FilterChipDefaults.shape(shape = shape),
+        colors = FilterChipDefaults.colors(
+            containerColor = colors.surfaceVariant,
+            contentColor = colors.onSurface,
+            focusedContainerColor = colors.surfaceVariant,
+            focusedContentColor = colors.onSurface,
+            selectedContainerColor = colors.primary.copy(alpha = 0.18f),
+            selectedContentColor = colors.primary,
+            focusedSelectedContainerColor = colors.primary.copy(alpha = 0.28f),
+            focusedSelectedContentColor = colors.primary,
+        ),
+        border = FilterChipDefaults.border(focusedBorder = Border(
+            border = BorderStroke(TvUiTokens.focusBorderWidth, colors.primary),
+            shape = shape,
+        )),
+        content = content,
+    )
 }

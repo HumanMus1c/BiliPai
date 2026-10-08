@@ -11,6 +11,45 @@ import kotlin.test.assertTrue
 class VideoDetailFullscreenOrientationPolicyTest {
 
     @Test
+    fun `phone small window detail entry stays portrait despite stale landscape bounds`() {
+        for (autoRotate in listOf(false, true)) {
+            for (mode in listOf(FullscreenMode.AUTO, FullscreenMode.HORIZONTAL)) {
+                assertEquals(
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                    resolvePhoneVideoRequestedOrientation(
+                        autoRotateEnabled = autoRotate,
+                        fullscreenMode = mode,
+                        isCompactDevice = true,
+                        isOrientationDrivenFullscreen = true,
+                        isFullscreenMode = false,
+                        manualFullscreenRequested = false,
+                        isInMultiWindowMode = true,
+                        isCurrentlyLandscape = true,
+                        currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `explicit fullscreen still requests landscape inside a phone small window`() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = true,
+                fullscreenMode = FullscreenMode.HORIZONTAL,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                isFullscreenMode = false,
+                manualFullscreenRequested = true,
+                isInMultiWindowMode = true,
+                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            )
+        )
+    }
+
+    @Test
     fun `right landscape entry remains exact before fullscreen configuration arrives`() {
         for (appAutoRotate in listOf(false, true)) {
             assertEquals(ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,

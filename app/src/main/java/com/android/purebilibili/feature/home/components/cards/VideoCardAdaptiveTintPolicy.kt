@@ -1,6 +1,8 @@
 package com.android.purebilibili.feature.home.components.cards
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -32,6 +34,10 @@ val LocalHomeCardFrostedGlassEnabled = staticCompositionLocalOf { false }
  * CompositionLocal 提供实时滚动 Tick（在 DrawPhase 中按需读取，零重组实现 120fps 极速刷新）
  */
 val LocalHomeScrollTickProvider = staticCompositionLocalOf<(() -> Int)?> { null }
+
+// Keep the state objects stable; only blur consumers subscribe to motion boundaries.
+val LocalHomeCardScrolling = compositionLocalOf<State<Boolean>?> { null }
+val LocalHomeCardTransitionRunning = compositionLocalOf<State<Boolean>?> { null }
 
 /**
  * 纯 Kotlin 采样区域定义（无 Android 运行库依赖，便于快速单元测试）

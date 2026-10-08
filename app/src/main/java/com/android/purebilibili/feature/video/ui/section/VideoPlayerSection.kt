@@ -170,6 +170,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import com.android.purebilibili.feature.video.screen.videoInputDiagnostics
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
@@ -241,6 +242,8 @@ import com.android.purebilibili.feature.video.playback.session.updatePlaybackSee
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -1303,13 +1306,15 @@ private fun VideoPlayerSectionContent(
 
     // 📱 [优化] 复用 VideoPlayerState 中的视频尺寸状态，避免重复监听
     val videoSizeState by playerState.videoSize.collectAsStateWithLifecycle()
-    val debugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
-    val latestDebugInfo = rememberUpdatedState(debugInfo)
-    val diagnosticEvents by playerState.diagnosticEvents.collectAsStateWithLifecycle()
-    val pendingUserAction by playerState.pendingUserAction.collectAsStateWithLifecycle()
-    val playerDiagnosticLoggingEnabled by SettingsManager
-        .getPlayerDiagnosticLoggingEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    // The cover needs only first-frame readiness; telemetry belongs to the control overlay.
+    val renderedFirstFrameFlow = remember(playerState) {
+        playerState.debugInfo
+            .map { it.firstFrame.equals("rendered", ignoreCase = true) }
+            .distinctUntilChanged()
+    }
+    val persistedRenderedFirstFrame by renderedFirstFrameFlow.collectAsStateWithLifecycle(
+        initialValue = playerState.debugInfo.value.firstFrame.equals("rendered", ignoreCase = true)
+    )
     val currentPlaybackIdentity = remember(bvid, uiState) {
         val success = uiState as? VideoPlaybackUiState.Success
         resolvePlayerInteractionIdentity(
@@ -2136,6 +2141,11 @@ private fun VideoPlayerSectionContent(
 
     Box(
         modifier = rootModifier
+            .videoInputDiagnostics("player") {
+                "fullscreen=$isFullscreen portraitFs=$isPortraitFullscreen pip=$isInPipMode " +
+                    "locked=$isScreenLocked controls=$showControls playing=${playerState.player.isPlaying} " +
+                    "playWhenReady=${playerState.player.playWhenReady} playbackState=${playerState.player.playbackState}"
+            }
             //  [新增] 处理双指缩放/平移，并在全屏时支持双指调倍速
             .pointerInput(
                 currentPlaybackIdentity,
@@ -2830,6 +2840,9 @@ private fun VideoPlayerSectionContent(
             .pointerInput(
                 currentPlaybackIdentity,
                 playerState.player,
+                // Restart the tap stream when the movable player changes presentation.
+                isFullscreen,
+                isInPipMode,
                 seekForwardSeconds,
                 seekBackwardSeconds,
                 doubleTapSeekEnabled,
@@ -2840,7 +2853,10 @@ private fun VideoPlayerSectionContent(
                     return@pointerInput
                 }
                 detectTapGestures(
-                    onTap = { 
+                    onTap = {
+                        com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+                            "player_tap fullscreen=$isFullscreen locked=$isScreenLocked controls=$showControls"
+                        }
                         // 🔒 锁定时点击只显示解锁按钮
                         if (
                             !shouldToggleControlsForVideoTap(
@@ -2857,6 +2873,10 @@ private fun VideoPlayerSectionContent(
                         }
                     },
                     onDoubleTap = { offset ->
+                        com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+                            "player_double_tap fullscreen=$isFullscreen locked=$isScreenLocked " +
+                                "playing=${playerState.player.isPlaying} playWhenReady=${playerState.player.playWhenReady}"
+                        }
                         // 🔒 锁定时禁用双击
                         if (isScreenLocked) return@detectTapGestures
                         
@@ -3226,7 +3246,7 @@ private fun VideoPlayerSectionContent(
             repeat(MEDIA_SWITCH_SURFACE_RETRY_ATTEMPTS) { retryIndex ->
                 delay(MEDIA_SWITCH_SURFACE_RETRY_INTERVAL_MS)
                 val currentPlayer = playerState.player
-                val hasRenderedFirstFrame = latestDebugInfo.value.firstFrame.equals(
+                val hasRenderedFirstFrame = playerState.debugInfo.value.firstFrame.equals(
                     "rendered",
                     ignoreCase = true
                 )
@@ -3563,9 +3583,6 @@ private fun VideoPlayerSectionContent(
         
         // --- [优化] 视频封面逻辑 ---
         // 使用 isFirstFrameRendered + smooth reveal 确保只有在首帧稳定后才揭开封面，避免黑屏和硬切。
-        val persistedRenderedFirstFrame = remember(debugInfo.firstFrame) {
-            debugInfo.firstFrame.equals("rendered", ignoreCase = true)
-        }
         val autoPlayOnOpenEnabled by SettingsManager
             .getClickToPlay(context)
             .collectAsStateWithLifecycle(initialValue = SettingsManager.getClickToPlaySync(context))
@@ -3657,6 +3674,10 @@ private fun VideoPlayerSectionContent(
             currentQualityId = currentQualityId,
             colorTransfer = videoInputFormat?.colorInfo?.colorTransfer ?: 0
         )
+        // 诊断日志开关变化频率极低；在此局部收集，只影响本区域的重组。
+        val playerDiagnosticLoggingEnabled by SettingsManager
+            .getPlayerDiagnosticLoggingEnabled(context)
+            .collectAsStateWithLifecycle(initialValue = true)
         BindPlayerAmbient(
             player = playerState.player,
             playerView = playerViewRef,
@@ -5371,6 +5392,14 @@ private fun VideoPlayerSectionContent(
             // overflow DEX invocation registers and cause VerifyError on Android.
             // A composable lambda stores captures on its closure instead.
             val renderVideoPlayerOverlay: @Composable () -> Unit = {
+                // Read diagnostics in this restart scope so updates do not invalidate the
+                // surface, cover, subtitles, and gesture setup in the parent player.
+                val debugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
+                val diagnosticEvents by playerState.diagnosticEvents.collectAsStateWithLifecycle()
+                val pendingUserAction by playerState.pendingUserAction.collectAsStateWithLifecycle()
+                val playerDiagnosticLoggingEnabled by SettingsManager
+                    .getPlayerDiagnosticLoggingEnabled(context)
+                    .collectAsStateWithLifecycle(initialValue = true)
                 val overlayState = VideoPlayerOverlayState(
                     player = playerState.player,
                     title = uiState.info.title,

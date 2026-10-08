@@ -216,10 +216,10 @@ val openSourceLibraries = listOf(
         description = "二维码解析与生成"
     ),
     OpenSourceLibrary(
-        name = "pinyin4j",
-        license = "GPL-2.0",
-        url = "https://github.com/belerweb/pinyin4j",
-        description = "中文拼音转换"
+        name = "TinyPinyin",
+        license = "Apache-2.0",
+        url = "https://github.com/biezhi/TinyPinyin",
+        description = "中文拼音转换（替代含损坏 jar 的 com.belerweb:pinyin4j）"
     ),
     OpenSourceLibrary(
         name = "Google Cast SDK",

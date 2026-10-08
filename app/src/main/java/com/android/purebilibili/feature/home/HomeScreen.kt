@@ -22,7 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import com.android.purebilibili.core.ui.rememberHomeStaggeredGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.*  // 🌊 瀑布流布局
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
@@ -332,18 +332,18 @@ fun HomeScreen(
     HomeCategory.entries.forEach { category ->
         gridStates[category] = rememberSaveable(
             category.name,
-            saver = LazyStaggeredGridState.Saver
+            saver = com.android.purebilibili.core.ui.HomeStaggeredGridStateSaver
         ) {
-            LazyStaggeredGridState()
+            com.android.purebilibili.core.ui.createHomeStaggeredGridState()
         }
     }
     val popularGridStates = remember { mutableMapOf<PopularSubCategory, LazyStaggeredGridState>() }
     PopularSubCategory.entries.forEach { subCategory ->
         popularGridStates[subCategory] = rememberSaveable(
             "popular_${subCategory.name}",
-            saver = LazyStaggeredGridState.Saver
+            saver = com.android.purebilibili.core.ui.HomeStaggeredGridStateSaver
         ) {
-            LazyStaggeredGridState()
+            com.android.purebilibili.core.ui.createHomeStaggeredGridState()
         }
     }
     var liveScrollToTopRequestId by remember { mutableIntStateOf(0) }
@@ -351,7 +351,7 @@ fun HomeScreen(
     var partitionScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var subscriptionScrollToTopRequestId by remember { mutableIntStateOf(0) }
     var subscriptionArticleOpen by remember { mutableStateOf(false) }
-    val subscriptionListState = rememberLazyStaggeredGridState()
+    val subscriptionListState = rememberHomeStaggeredGridState()
     // [Feature] Video Preview State (Global Scope)
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var dissolvingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
@@ -858,6 +858,10 @@ fun HomeScreen(
             )
         }
     }
+    // Retained home must not issue scroll/chrome/image work while another page or morph owns the UI.
+    val homeFeedWorkAllowed = isTopLevelActive &&
+        hasSyncedPagerWithState && pendingFeedScrollAnchor == null &&
+        !isReturningFromVideoDetail && !deferHomeHeavyWork
     val videoCardReturnGestureInProgress =
         videoCardTransitionBackgroundState.isReturnGestureInProgressProvider()
     var settledShowHomeUpAvatars by rememberSaveable {
@@ -867,12 +871,12 @@ fun HomeScreen(
         homeSettings.showHomeUpAvatars,
         videoCardReturnGestureInProgress,
         isReturningFromVideoDetail,
-        deferHomeHeavyWork,
+        homeFeedWorkAllowed,
     ) {
         // 首页作为预测返回的底层页重新进入活跃状态时，DataStore 可能正好补发新值。
         // 在手势/整卡落位期间改变作者行高度会让 sharedBounds 的目标边界跳动；先沿用
         // 首页上次稳定展示的值，落位完成后再应用，同时关闭头像时仍不保留横向头像槽。
-        if (!deferHomeHeavyWork && !videoCardReturnGestureInProgress && !isReturningFromVideoDetail) {
+        if (homeFeedWorkAllowed && !videoCardReturnGestureInProgress) {
             settledShowHomeUpAvatars = homeSettings.showHomeUpAvatars
         }
     }
@@ -910,7 +914,8 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(refreshNewItemsKey, isRefreshing, currentCategory) {
+    LaunchedEffect(refreshNewItemsKey, isRefreshing, currentCategory, homeFeedWorkAllowed) {
+        if (!homeFeedWorkAllowed) return@LaunchedEffect
         val refreshKey = refreshNewItemsKey
         if (!shouldHandleRefreshNewItemsEvent(refreshKey, refreshNewItemsHandledKey)) {
             return@LaunchedEffect
@@ -936,9 +941,13 @@ fun HomeScreen(
             }
         }
         refreshDeltaTipText = if (count > 0) "新增 $count 条内容" else "暂无新内容"
-        delay(2200)
-        refreshDeltaTipText = null
+        // The scroll/result has been handled; leaving during the tip must not replay it on return.
         viewModel.markRefreshNewItemsHandled(refreshKey)
+        try {
+            delay(2200)
+        } finally {
+            refreshDeltaTipText = null
+        }
     }
 
     // 仅在推荐页检测“刷新后是否已下滑”，用于激活旧内容分割线
@@ -1138,11 +1147,9 @@ fun HomeScreen(
     val chromeCategoryState by chromeCategoryStateFlow.collectAsStateWithLifecycle()
     val chromeContentReady = !(chromeCategoryState.isLoading &&
         chromeCategoryState.videos.isEmpty() && chromeCategoryState.liveRooms.isEmpty())
-    val shouldCaptureHomeChromeBackdrop = isLiquidGlassEnabled ||
-        isHeaderBlurEnabled || isBottomBarBlurEnabled || appThemeConfig.progressiveTopBlurEnabled ||
-        (targetVideoItemState.value != null &&
-            shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT) &&
-            !com.android.purebilibili.core.ui.performance.isLowBlurBudgetForced())
+    val homeChromeBlurEnabled = isLiquidGlassEnabled || isHeaderBlurEnabled ||
+        isBottomBarBlurEnabled || appThemeConfig.progressiveTopBlurEnabled
+    val shouldCaptureHomeChromeBackdrop = homeChromeBlurEnabled
     val homeMiuixBackdropSource = if (shouldCaptureHomeChromeBackdrop) {
         rememberChromeBackdropSource()
     } else {
@@ -1189,8 +1196,8 @@ fun HomeScreen(
     val wallpaperPalette by com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.currentPalette.collectAsStateWithLifecycle()
     val homeLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val homeLifecycleState by homeLifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    LaunchedEffect(homeWallpaperUri, wallpaperPalette == null, homeLifecycleState, deferHomeHeavyWork) {
-        if (deferHomeHeavyWork) return@LaunchedEffect
+    LaunchedEffect(homeWallpaperUri, wallpaperPalette == null, homeLifecycleState, homeFeedWorkAllowed) {
+        if (!homeFeedWorkAllowed) return@LaunchedEffect
         if (homeLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
             if (wallpaperPalette == null || homeWallpaperUri.isNotBlank()) {
                 com.android.purebilibili.feature.home.components.cards.WallpaperPaletteStore.loadWallpaperPalette(
@@ -1555,7 +1562,14 @@ fun HomeScreen(
     }
     
     //  [新增] 滚动方向检测逻辑
-    LaunchedEffect(currentCategory, popularSubCategory, bottomBarVisibilityMode, useSideNavigation) {
+    LaunchedEffect(
+        currentCategory,
+        popularSubCategory,
+        bottomBarVisibilityMode,
+        useSideNavigation,
+        homeFeedWorkAllowed,
+    ) {
+        if (!homeFeedWorkAllowed) return@LaunchedEffect
         resolveHomeBottomBarBaseVisibility(
             useSideNavigation = useSideNavigation,
             mode = bottomBarVisibilityMode
@@ -1747,7 +1761,7 @@ fun HomeScreen(
     } else {
         0f
     }
-    val collapsedEmbeddedTabInset by animateDpAsState(
+    val collapsedEmbeddedTabInset = animateDpAsState(
         targetValue = if (topTabsAutoCollapsedByScroll) tabRowHeightDp else AppSpacingTokens.None,
         animationSpec = AppMotionTokens.emphasizedSpec(),
         label = "homeEmbeddedTabInset",
@@ -1766,7 +1780,7 @@ fun HomeScreen(
                         offsetPx = headerOffsetHeightPx,
                         stepPx = AppSpacingTokens.ExtraSmall.toPx(),
                     ),
-                    collapsedTabInsetPx = collapsedEmbeddedTabInset.toPx(),
+                    collapsedTabInsetPx = collapsedEmbeddedTabInset.value.toPx(),
                     minimumTopPaddingPx = statusBarHeight.toPx(),
                 ).toDp()
             }
@@ -1921,9 +1935,10 @@ fun HomeScreen(
     LaunchedEffect(
         todayWatchPluginEnabled,
         todayWatchPlan?.generatedAt,
-        currentCategory
+        currentCategory,
+        homeFeedWorkAllowed,
     ) {
-        if (todayWatchStartupRevealHandled) return@LaunchedEffect
+        if (!homeFeedWorkAllowed || todayWatchStartupRevealHandled) return@LaunchedEffect
 
         val recommendGridState = gridStates[HomeCategory.RECOMMEND] ?: return@LaunchedEffect
         val decision = decideTodayWatchStartupReveal(
@@ -2197,7 +2212,7 @@ fun HomeScreen(
                         }
 
                         //  使用 animateFloatAsState 包装偏移量
-                        val animatedDragOffsetFraction by androidx.compose.animation.core.animateFloatAsState(
+                        val animatedDragOffsetFraction = androidx.compose.animation.core.animateFloatAsState(
                             targetValue = resolvedStablePullOffsetFraction,
                             animationSpec = if (
                                 shouldSnapPullOffsetToFinger(
@@ -2221,16 +2236,16 @@ fun HomeScreen(
                         ) {
                             {
                                 val maxPx = resolvePullContentMaxOffsetDp(pullRefreshIndicatorStyle).dp.toPx()
-                                maxPx * animatedDragOffsetFraction
+                                maxPx * animatedDragOffsetFraction.value
                             }
                         }
                         
                         //  每个页面独立的 GridState
                         //  使用 saveable 记住滚动位置
                         val pageGridState = if (category == HomeCategory.POPULAR) {
-                            popularGridStates[popularSubCategory] ?: rememberLazyStaggeredGridState()
+                            popularGridStates[popularSubCategory] ?: rememberHomeStaggeredGridState()
                         } else {
-                            gridStates[category] ?: rememberLazyStaggeredGridState()
+                            gridStates[category] ?: rememberHomeStaggeredGridState()
                         }
                         
                         //  把 GridState 提升给父级用于控制 Header? 
@@ -2472,6 +2487,9 @@ fun HomeScreen(
                                      isActive = isTopLevelActive && pagerState.currentPage == page &&
                                          !deferHomeHeavyWork,
                                      gridState = contentGridState,
+                                     pageScrollInProgress = remember(pagerState) {
+                                         derivedStateOf { pagerState.isScrollInProgress }
+                                     },
                                      gridColumns = effectiveGridColumns,
                                      contentPadding = pageContentPadding,
                                      dissolvingVideos = dissolvingVideos,
@@ -2580,7 +2598,7 @@ fun HomeScreen(
                                      }
                                      val subCategoryState by subCategoryStateFlow.collectAsStateWithLifecycle()
                                      val subCategoryGridState =
-                                         popularGridStates[popularSubCategory] ?: rememberLazyStaggeredGridState()
+                                         popularGridStates[popularSubCategory] ?: rememberHomeStaggeredGridState()
                                      renderHomeCategoryPage(
                                          subCategoryState,
                                          subCategoryGridState,
@@ -2874,6 +2892,7 @@ fun HomeScreen(
         )
 
         //  [新增] 刷新撤销悬浮按钮（右下角，5秒后自动消失）
+        if (homeSettings.homeRefreshUndoVisible) {
         //  与「定位上次刷新」胶囊共用同一底部锚点：跟随听视频横条上浮，且在定位胶囊
         //  可见时再抬一个胶囊位（胶囊高约 36dp + 8dp 间距），避免两者互相遮挡。
         val undoVisible = undoAvailable && currentCategory == HomeCategory.RECOMMEND
@@ -2968,6 +2987,8 @@ fun HomeScreen(
             }
         }
 
+        } // Refresh undo is opt-in; disabled path does not compose the overlay.
+
         com.android.purebilibili.feature.video.share.VideoShareSheetHost(
             payload = pendingVideoShare,
             onDismiss = { pendingVideoShare = null },
@@ -3049,6 +3070,7 @@ fun HomeScreen(
                 },
                 hazeState = hazeState,
                 miuixBackdrop = readyHomeMiuixBackdrop,
+                backgroundBlurEnabled = homeChromeBlurEnabled,
                 modifier = Modifier.fillMaxSize(),
             )
             }
@@ -3180,18 +3202,16 @@ fun HomeScreen(
         popularSubCategory,
         isDataSaverActive,
         preloadAheadCount,
-        isReturningFromVideoDetail,
         homeCoverRequestSpec,
-        deferHomeHeavyWork,
-        isTopLevelActive,
+        homeFeedWorkAllowed,
         lifecycleOwner,
     ) {
         // 📉 省流量模式下跳过预加载
         if (isDataSaverActive) return@LaunchedEffect
         if (preloadAheadCount <= 0) return@LaunchedEffect
-        // 详情返回 morph 窗口：延后封面预加载，避免与 live surface + 景深抢 IO/主线程。
-        if (isReturningFromVideoDetail || deferHomeHeavyWork) return@LaunchedEffect
-        if (!isTopLevelActive) return@LaunchedEffect
+        // Restore Pager/scroll anchors before preloading; also pause while the retained
+        // source page is covered or its shared transition is still running.
+        if (!homeFeedWorkAllowed) return@LaunchedEffect
         
         val currentGridState = if (currentCategory == HomeCategory.POPULAR) {
             popularGridStates[popularSubCategory]

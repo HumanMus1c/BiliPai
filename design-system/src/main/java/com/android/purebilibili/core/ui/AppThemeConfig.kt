@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -55,6 +56,18 @@ fun resolveAppChromeMaterial(
 }
 
 val LocalAppThemeConfig = staticCompositionLocalOf { AppThemeConfig() }
+
+/** Individual switches retain their scope; all disabled also stops component transitions. */
+fun resolveComponentMotionEnabled(
+    entranceEnabled: Boolean,
+    cardEntranceEnabled: Boolean,
+    cardTransitionEnabled: Boolean,
+    navigationEnabled: Boolean,
+    systemReduceMotion: Boolean,
+): Boolean = !systemReduceMotion &&
+    (entranceEnabled || cardEntranceEnabled || cardTransitionEnabled || navigationEnabled)
+
+val LocalComponentMotionEnabled = compositionLocalOf { true }
 
 private object DisabledAppHapticFeedback : HapticFeedback {
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit

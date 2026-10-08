@@ -1,6 +1,5 @@
 package com.android.purebilibili.feature.home.components.cards
 
-import kotlinx.coroutines.launch
 
 import android.os.Build
 import coil3.request.crossfade
@@ -30,7 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,6 +61,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
+import com.android.purebilibili.core.ui.components.LocalPageImageLoadingAllowed
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -581,7 +581,6 @@ internal fun ElegantVideoCard(
     }
     val haptic = rememberHapticFeedback()
     val contentTypography = feedContentTypography()
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val playbackProgressManager = remember(context) {
         PlaybackProgressManager.getInstance(context)
@@ -1241,22 +1240,32 @@ internal fun ElegantVideoCard(
                     .diskCacheKey(requestCoverCacheKey)
                     .build()
             }
+            var loadedCoverCacheKey by remember(requestCoverCacheKey) { mutableStateOf<String?>(null) }
+            val coverWorkAllowed = LocalPageImageLoadingAllowed.current
+            LaunchedEffect(
+                loadedCoverCacheKey,
+                requestCoverCacheKey,
+                requestCoverUrl,
+                homeCardDynamicTintEnabled,
+                coverWorkAllowed,
+            ) {
+                if (!coverWorkAllowed || !homeCardDynamicTintEnabled || coverTint != null ||
+                    loadedCoverCacheKey != requestCoverCacheKey
+                ) return@LaunchedEffect
+                val extracted = VideoCardCoverColorStore.extractColor(
+                    context = context,
+                    cacheKey = requestCoverCacheKey,
+                    coverUrl = requestCoverUrl,
+                )
+                if (activeCoverCacheKey == requestCoverCacheKey && extracted != null) {
+                    coverTint = extracted
+                }
+            }
             PageAwareAsyncImage(
                 model = coverImageRequest,
                 contentDescription = null,
                 onSuccess = {
-                    if (homeCardDynamicTintEnabled && coverTint == null) {
-                        scope.launch {
-                            val extracted = VideoCardCoverColorStore.extractColor(
-                                context = context,
-                                cacheKey = requestCoverCacheKey,
-                                coverUrl = requestCoverUrl,
-                            )
-                            if (activeCoverCacheKey == requestCoverCacheKey && extracted != null) {
-                                coverTint = extracted
-                            }
-                        }
-                    }
+                    loadedCoverCacheKey = requestCoverCacheKey
                 },
                 modifier = Modifier
                     .fillMaxSize(),
@@ -1553,8 +1562,8 @@ internal fun ElegantVideoCard(
                     hazeState = wallpaperHazeState,
                     shape = infoSurfaceShape,
                     surfaceType = BlurSurfaceType.BOTTOM_BAR,
-                    isScrolling = false,
-                    isTransitionRunning = false,
+                    isScrolling = LocalHomeCardScrolling.current?.value == true,
+                    isTransitionRunning = LocalHomeCardTransitionRunning.current?.value == true,
                     forceLowBudget = false
                 )
             } else {
@@ -1587,63 +1596,69 @@ internal fun ElegantVideoCard(
                 .onPlaced { coordinates ->
                     infoLayoutCoordinates.value = coordinates
                 }
-                .drawBehind {
-                    if (homeCardDynamicTintEnabled && !useRealtimeWallpaperBackdrop) {
-                        // 1. 在 Draw 阶段按需读取滚动 tick，零重组实现 120fps 实时刷新跟随
-                        homeScrollTickProvider?.invoke()
-
-                        // 2. 动态获取当前帧卡片底部组件在窗口根布局的物理 Y 坐标
-                        val coords = infoLayoutCoordinates.value
-                        val currentY = if (coords != null && coords.isAttached) {
-                            coords.positionInRoot().y
-                        } else null
-
-                        val yFrac = if (currentY != null && screenMetrics.heightPx > 0f) {
-                            (currentY / screenMetrics.heightPx).coerceIn(0f, 1f)
-                        } else {
-                            cardYFraction.floatValue
-                        }
-                        val drawSpec = resolveVideoCardAmbientDrawSpec(
-                            wallpaperPalette = wallpaperPalette,
-                            yFraction = yFrac,
-                            coverTint = if (animatedCoverTint.alpha > 0f) animatedCoverTint else null,
-                            wallpaperTintEnabled = wallpaperTintEnabled,
-                            isDarkTheme = isDarkCardTheme,
-                            defaultContainerColor = baseContainerColor,
-                            defaultBorderColor = baseBorderColor,
-                            isDataSaverActive = isDataSaverActive,
-                            frostedGlassEnabled = homeCardFrostedGlassEnabled,
-                            dynamicTintEnabled = homeCardDynamicTintEnabled,
+                .drawWithCache {
+                    val cachedSpec = resolveVideoCardAmbientDrawSpec(
+                        wallpaperPalette = wallpaperPalette,
+                        yFraction = 0.5f,
+                        coverTint = if (animatedCoverTint.alpha > 0f) animatedCoverTint else null,
+                        wallpaperTintEnabled = wallpaperTintEnabled,
+                        isDarkTheme = isDarkCardTheme,
+                        defaultContainerColor = baseContainerColor,
+                        defaultBorderColor = baseBorderColor,
+                        isDataSaverActive = isDataSaverActive,
+                        frostedGlassEnabled = homeCardFrostedGlassEnabled,
+                        dynamicTintEnabled = homeCardDynamicTintEnabled,
+                    )
+                    val followsWallpaperPosition = homeCardDynamicTintEnabled &&
+                        !useRealtimeWallpaperBackdrop && wallpaperTintEnabled && wallpaperPalette != null
+                    val glowBrush = if (cachedSpec.coverGlowAlpha > 0f && animatedCoverTint.alpha > 0f) {
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                animatedCoverTint.copy(alpha = cachedSpec.coverGlowAlpha),
+                                animatedCoverTint.copy(alpha = cachedSpec.coverGlowAlpha * 0.35f),
+                                Color.Transparent,
+                            ),
+                            startY = 0f,
+                            endY = size.height * 0.85f,
                         )
-                        drawRect(color = drawSpec.containerColor)
-                        if (drawSpec.coverGlowAlpha > 0f && animatedCoverTint.alpha > 0f) {
+                    } else null
+                    onDrawBehind {
+                        if (homeCardDynamicTintEnabled && !useRealtimeWallpaperBackdrop) {
+                            val containerColor = if (followsWallpaperPosition) {
+                                // Subscribe to scrolling only when position changes wallpaper tint.
+                                homeScrollTickProvider?.invoke()
+                                val coords = infoLayoutCoordinates.value
+                                val currentY = if (coords != null && coords.isAttached) {
+                                    coords.positionInRoot().y
+                                } else null
+                                val yFraction = if (currentY != null && screenMetrics.heightPx > 0f) {
+                                    (currentY / screenMetrics.heightPx).coerceIn(0f, 1f)
+                                } else {
+                                    cardYFraction.floatValue
+                                }
+                                // Only the wallpaper RGB depends on Y; alpha/glow/border remain cached.
+                                interpolateWallpaperColor(requireNotNull(wallpaperPalette), yFraction)
+                                    .copy(alpha = cachedSpec.containerColor.alpha)
+                            } else {
+                                cachedSpec.containerColor
+                            }
+                            drawRect(color = containerColor)
+                            if (glowBrush != null) drawRect(brush = glowBrush)
+                        } else {
+                            val neutralGlassAlpha = if (isDarkCardTheme) 0.38f else 0.34f
+                            val realtimeAlpha = if (isDarkCardTheme) 0.44f else 0.36f
                             drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        animatedCoverTint.copy(alpha = drawSpec.coverGlowAlpha),
-                                        animatedCoverTint.copy(alpha = drawSpec.coverGlowAlpha * 0.35f),
-                                        Color.Transparent
-                                    ),
-                                    startY = 0f,
-                                    endY = size.height * 0.85f
+                                color = baseContainerColor.copy(
+                                    alpha = if (useRealtimeWallpaperBackdrop) {
+                                        realtimeAlpha
+                                    } else if (homeCardFrostedGlassEnabled) {
+                                        neutralGlassAlpha
+                                    } else {
+                                        infoSurfaceAppearance.containerAlpha
+                                    }
                                 )
                             )
                         }
-                    } else {
-                        val neutralGlassAlpha = if (isDarkCardTheme) 0.38f else 0.34f
-                        // 实时毛玻璃直接透出壁纸，透明度过低时标题/作者文字会被壁纸细节淹没
-                        val realtimeAlpha = if (isDarkCardTheme) 0.44f else 0.36f
-                        drawRect(
-                            color = baseContainerColor.copy(
-                                alpha = if (useRealtimeWallpaperBackdrop) {
-                                    realtimeAlpha
-                                } else if (homeCardFrostedGlassEnabled) {
-                                    neutralGlassAlpha
-                                } else {
-                                    infoSurfaceAppearance.containerAlpha
-                                }
-                            )
-                        )
                     }
                 }
                 .border(
@@ -1677,17 +1692,16 @@ internal fun ElegantVideoCard(
                 shouldUseCoverTintForCard(wallpaperTintEnabled, coverTint) &&
                 animatedCoverTint.alpha > 0f
             ) {
-                Modifier.drawBehind {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                animatedCoverTint.copy(alpha = if (isDarkCardTheme) 0.16f else 0.10f),
-                                Color.Transparent
-                            ),
-                            startY = 0f,
-                            endY = size.height * 0.75f
-                        )
+                Modifier.drawWithCache {
+                    val glowBrush = Brush.verticalGradient(
+                        colors = listOf(
+                            animatedCoverTint.copy(alpha = if (isDarkCardTheme) 0.16f else 0.10f),
+                            Color.Transparent,
+                        ),
+                        startY = 0f,
+                        endY = size.height * 0.75f,
                     )
+                    onDrawBehind { drawRect(brush = glowBrush) }
                 }
             } else {
                 Modifier
@@ -2023,15 +2037,14 @@ internal fun HomeVideoBadgePill(
         // Wallpaper-only HazeState (sibling source), never main content HazeState —
         // badges live inside the main hazeSource and would SO the render tree otherwise.
         val hazeState = LocalWallpaperHazeState.current
-        // Match bottom bar: keep blur on while scrolling (isScrolling=false → full visual path).
+        // Motion changes input sampling quality while keeping blur radius and fill stable.
         val glassModifier = if (useRealtimeHaze && hazeState != null) {
             modifier.unifiedBlur(
                 hazeState = hazeState,
                 shape = shape,
                 surfaceType = BlurSurfaceType.BOTTOM_BAR,
-                // Bottom bar intentionally does not zero blur on feed scroll.
-                isScrolling = false,
-                isTransitionRunning = false,
+                isScrolling = LocalHomeCardScrolling.current?.value == true,
+                isTransitionRunning = LocalHomeCardTransitionRunning.current?.value == true,
                 forceLowBudget = false
             )
         } else {

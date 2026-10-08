@@ -423,8 +423,10 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
         AppSurfaceTokens.groupedListContainer()
     } else Color.Transparent
     val listState = rememberLazyListState()
-    LaunchedEffect(selectedIndex, itemWidths) {
-        listState.animateScrollToItem(selectedIndex.coerceIn(0, options.lastIndex))
+    val motionEnabled = com.android.purebilibili.core.ui.LocalComponentMotionEnabled.current
+    LaunchedEffect(selectedIndex, itemWidths, motionEnabled) {
+        val target = selectedIndex.coerceIn(0, options.lastIndex)
+        if (motionEnabled) listState.animateScrollToItem(target) else listState.scrollToItem(target)
     }
     Box(
         modifier = modifier

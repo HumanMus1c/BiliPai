@@ -221,10 +221,16 @@ internal fun shouldPreparePlayerBeforeExplicitPlay(
 }
 
 internal fun playPlayerFromUserAction(player: Player) {
+    Logger.d("VideoInputTrace") {
+        "play_callback state=${player.playbackState} playing=${player.isPlaying} playWhenReady=${player.playWhenReady}"
+    }
     playPlayerForUserIntent(player, trackUserAction = true)
 }
 
 internal fun pausePlayerFromUserAction(player: Player) {
+    Logger.d("VideoInputTrace") {
+        "pause_callback state=${player.playbackState} playing=${player.isPlaying} playWhenReady=${player.playWhenReady}"
+    }
     PlaybackUserActionTracker.recordAction(
         player = player,
         type = PlaybackUserActionType.PAUSE

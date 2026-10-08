@@ -198,6 +198,12 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
         // until the upstream cache-window path is safe for this feed.
         ComposeFoundationFlags.isUsingCacheWindowInStaggeredGrids = false
 
+        // The matching release stack trace resolves to LazyGridKt.keepAroundItems (line 507)
+        // calling LazyGridSpanLayoutProvider.getLineConfiguration with an invalid cache line.
+        // Regular grids need their own fallback: the staggered-grid flag above does not apply.
+        // Retain normal line prefetching while bypassing the default cache-window keepAround path.
+        ComposeFoundationFlags.isPreferDefaultCacheWindowOverPrefetchStrategy = false
+
         // Install the local crash path before theme, StrictMode, or any other startup work. This
         // ensures even an early initialization exception has a private snapshot for feedback.
         LogCollector.init(this)

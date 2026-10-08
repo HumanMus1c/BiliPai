@@ -88,6 +88,7 @@ fun VideoPreviewDialog(
     onGetPreviewUrl: suspend (String, Long) -> String? = { _, _ -> null }, // [New] Fetch Url
     hazeState: dev.chrisbanes.haze.HazeState? = null,
     miuixBackdrop: Backdrop? = null,
+    backgroundBlurEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val haptic = rememberHapticFeedback()
@@ -98,7 +99,8 @@ fun VideoPreviewDialog(
     val shareIcon = rememberAppShareIcon()
     val blockCreatorIcon = rememberAppVisibilityOffIcon()
     val watchLaterIcon = rememberAppWatchLaterIcon()
-    val allowBackgroundBlur = shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT) &&
+    val allowBackgroundBlur = backgroundBlurEnabled &&
+        shouldAllowRenderEffectBackedHazeEffect(android.os.Build.VERSION.SDK_INT) &&
         !isLowBlurBudgetForced()
     val backgroundBlurRadiusPx = with(LocalDensity.current) { 24.dp.toPx() }
     val backgroundBlurModifier = when {

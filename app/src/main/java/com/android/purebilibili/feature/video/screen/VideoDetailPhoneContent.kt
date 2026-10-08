@@ -1,11 +1,9 @@
 package com.android.purebilibili.feature.video.screen
 
 import android.content.Context
-import android.graphics.RenderEffect as AndroidRenderEffect
-import android.graphics.Shader
 import android.os.Build
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import com.android.purebilibili.core.ui.transition.BlurRenderEffectCache
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackBlurFrame
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -118,16 +116,23 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     externalPlaylistQueueTitle: String,
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit,
-    commentThreadCoveredBlurProgress: Float = 0f,
+    commentThreadCoveredBlurProgressProvider: () -> Float = { 0f },
     commentPullToRefreshEnabled: Boolean = true,
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val danmakuManager = rememberDanmakuManager(success.info.bvid)
     var pendingVideoShare by remember { mutableStateOf<VideoSharePayload?>(null) }
+    val coveredBlurEffectCache = remember { BlurRenderEffectCache() }
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
     key(success.info.bvid) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().videoInputDiagnostics("detail_body") {
+            "fullscreen=$isFullscreenMode portraitFs=$isPortraitFullscreen " +
+                "leaving=$isLeaving transitionFinished=$isTransitionFinished thread=$isCommentThreadVisible " +
+                "commentInput=$showCommentInput favoriteDialog=$showFavoriteFolderDialog " +
+                "tab=${videoContentPagerState.currentPage} introScrolling=${introListState.isScrollInProgress} " +
+                "commentScrolling=${commentListState.isScrollInProgress} pagerScrolling=${videoContentPagerState.isScrollInProgress}"
+        }) {
             Box(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -198,7 +203,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             .indexOfFirst { it.cid == success.info.cid }
                             .coerceAtLeast(0)
 
-                        val coveredBlurProgress = if (isCommentThreadVisible) commentThreadCoveredBlurProgress else 0f
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -211,23 +215,17 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 )
                                 .hazeSourceCompat(hazeState)
                                 .graphicsLayer {
-                                    renderEffect = null
-                                    if (coveredBlurProgress > 0f &&
-                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                                    ) {
-                                        val blurFrame = resolvePredictiveBackBlurFrame(
-                                            progress = coveredBlurProgress,
-                                        )
-                                        renderEffect = if (blurFrame.blurRadiusPx > 0.5f) {
-                                            AndroidRenderEffect.createBlurEffect(
-                                                blurFrame.blurRadiusPx,
-                                                blurFrame.blurRadiusPx,
-                                                Shader.TileMode.CLAMP,
-                                            ).asComposeRenderEffect()
-                                        } else {
-                                            null
-                                        }
+                                    // 在图层阶段读动画值，模糊动画不重新组合评论与简介。
+                                    val coveredBlurProgress = if (isCommentThreadVisible) {
+                                        commentThreadCoveredBlurProgressProvider()
+                                    } else {
+                                        0f
                                     }
+                                    renderEffect = coveredBlurEffectCache.resolve(
+                                        resolvePredictiveBackBlurFrame(
+                                            progress = coveredBlurProgress,
+                                        ).blurRadiusPx
+                                    )
                                 }
                         ) {
                             VideoContentSection(
@@ -384,7 +382,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                         }
 
                         // 底栏可见度跟随翻页进度:滑动过程中连续淡入淡出,而不是过半时瞬间弹出。
-                        val commentBarProgress by remember {
+                        val commentBarProgress = remember(videoContentPagerState) {
                             derivedStateOf {
                                 resolveVideoDetailCommentBarProgress(
                                     pagerPosition = videoContentPagerState.currentPage +
@@ -393,13 +391,17 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 )
                             }
                         }
-                        if (showFrozenCommentBar || commentBarProgress > 0f) {
+                        val commentBarVisible by remember(commentBarProgress, showFrozenCommentBar) {
+                            derivedStateOf { showFrozenCommentBar || commentBarProgress.value > 0f }
+                        }
+                        if (commentBarVisible) {
                             BottomInputBar(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .graphicsLayer {
-                                        alpha = commentBarProgress
-                                        translationY = (1f - commentBarProgress) * 32f
+                                        val progress = commentBarProgress.value
+                                        alpha = progress
+                                        translationY = (1f - progress) * 32f
                                     },
                                 isLiked = engagementState.isLiked,
                                 isFavorited = engagementState.isFavorited,

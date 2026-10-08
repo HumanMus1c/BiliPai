@@ -1,13 +1,10 @@
 package com.android.purebilibili.core.ui.transition
 
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.os.Build
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.navigation3.BiliPaiNavKey
@@ -170,23 +167,14 @@ internal fun Modifier.predictiveBackBackgroundEffect(
     isLightBackgroundProvider: () -> Boolean = { false },
 ): Modifier {
     val frameCache = PredictiveBackBlurFrameCache()
+    val effectCache = BlurRenderEffectCache()
     return graphicsLayer {
         val frame = frameCache.resolve(
             progressProvider(),
             motionTierProvider(),
             isLightBackgroundProvider(),
         )
-        renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && frame.blurRadiusPx > 0.01f) {
-            RenderEffect
-                .createBlurEffect(
-                    frame.blurRadiusPx,
-                    frame.blurRadiusPx,
-                    Shader.TileMode.CLAMP,
-                )
-                .asComposeRenderEffect()
-        } else {
-            null
-        }
+        renderEffect = effectCache.resolve(frame.blurRadiusPx)
     }.drawWithContent {
         drawContent()
         val frame = frameCache.resolve(

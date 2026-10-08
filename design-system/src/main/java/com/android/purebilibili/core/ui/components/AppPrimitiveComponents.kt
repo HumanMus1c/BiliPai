@@ -36,6 +36,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -201,6 +202,8 @@ private fun AppElasticTabIndicator(
     indicatorPositionProvider: (() -> Float)? = null,
 ) {
     if (tabSlots.isEmpty()) return
+    val animateIndicator = com.android.purebilibili.core.ui.LocalComponentMotionEnabled.current &&
+        indicatorPositionProvider == null
     val followPosition = indicatorPositionProvider?.invoke()
     val safeIndex = selectedTabIndex.coerceIn(tabSlots.indices)
     val previousIndex = remember { mutableIntStateOf(selectedTabIndex) }
@@ -211,7 +214,7 @@ private fun AppElasticTabIndicator(
     val targetRight = targetLeft + targetWidth
     val animatedLeft by animateDpAsState(
         targetValue = targetLeft,
-        animationSpec = tween(
+        animationSpec = if (!animateIndicator) snap() else tween(
             durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
             easing = if (movingRight) PiliPlusIndicatorAccelerate else PiliPlusIndicatorDecelerate,
         ),
@@ -219,7 +222,7 @@ private fun AppElasticTabIndicator(
     )
     val animatedRight by animateDpAsState(
         targetValue = targetRight,
-        animationSpec = tween(
+        animationSpec = if (!animateIndicator) snap() else tween(
             durationMillis = APP_TAB_INDICATOR_DURATION_MILLIS,
             easing = if (movingRight) PiliPlusIndicatorDecelerate else PiliPlusIndicatorAccelerate,
         ),

@@ -74,6 +74,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.android.bilipai.tv.ui.components.TvAppButton
 import com.android.bilipai.tv.ui.components.TvNavigationItem
+import com.android.bilipai.tv.ui.components.TvVideoCard
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.DarkSurfaceElevated
@@ -81,6 +82,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.bilipai.tv.QrPhase
 import com.android.bilipai.tv.TvUiState
 import com.android.purebilibili.data.model.VideoQuality
+import com.android.purebilibili.data.model.response.VideoItem
 import kotlinx.coroutines.launch
 
 @Composable
@@ -157,6 +159,8 @@ internal fun TvDetailContent(
     onBack: () -> Unit,
     onRestoredAction: () -> Unit = {}, onLike: () -> Unit = {}, onFavorite: () -> Unit = {}, onSpace: () -> Unit = {}, onCoin: (Int, Boolean) -> Unit = { _, _ -> },
     onComments: () -> Unit = {},
+    onOpenVideo: (VideoItem) -> Unit = {},
+    onPlayEpisode: (String, Long, Long, String) -> Unit = { _, _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     if (state.detailLoading) {
@@ -177,7 +181,8 @@ internal fun TvDetailContent(
     val descriptionScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val actionIds = listOf("play", "later", "like", "coin", "favorite", "comments", "space", "expand", "description") +
-        (if (info.pages.size > 1) info.pages.map { "part:${it.cid}" } else emptyList())
+        (if (info.pages.size > 1) info.pages.map { "part:${it.cid}" } else emptyList()) +
+        (if (info.ugc_season != null) listOf("season") else emptyList())
     val actionRequesters = remember(info.bvid, actionIds) {
         actionIds.associateWith { FocusRequester() }
     }
@@ -231,6 +236,14 @@ internal fun TvDetailContent(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(info.owner.name, style = MaterialTheme.typography.titleMedium)
+            // UP 主卡片数据（与手机端 getCreatorCardStats 同链路）：粉丝/投稿数为选片决策上下文。
+            state.creator?.let { creator ->
+                Text(
+                    "${FormatUtils.formatStat(creator.followerCount.toLong())} 粉丝 · ${FormatUtils.formatStat(creator.videoCount.toLong())} 投稿",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             // BV 式数据行：点赞 · 投币 · 收藏 · 发布日期，小字次级色，提供选片决策上下文。
             Text(
                 buildString {
@@ -340,6 +353,59 @@ internal fun TvDetailContent(
                     }
                 }
             }
+            // 联合创作成员：被动展示（与手机端 staff 归并语义一致，owner 之外的成员列出）。
+            if (info.staff.size > 1) {
+                Text("联合创作", style = MaterialTheme.typography.titleLarge)
+                info.staff.forEach { member ->
+                    Text(
+                        member.name + member.title.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // 合集入口：弹窗列出分集，确认直接播放该集；当前集在弹窗中标出。
+            info.ugc_season?.let { season ->
+                val episodes = season.sections.flatMap { it.episodes }.filter { it.cid > 0 }
+                if (episodes.isNotEmpty()) {
+                    var seasonDialog by rememberSaveable(info.bvid) { mutableStateOf(false) }
+                    val seasonTitle = season.title.ifBlank { "合集" }
+                    TvAppButton(
+                        onClick = { seasonDialog = true },
+                        modifier = actionModifier("season").testTag("tv-season-entry"),
+                    ) {
+                        Text("$seasonTitle · ${episodes.size} 集")
+                    }
+                    if (seasonDialog) TvChoiceDialog(
+                        seasonTitle,
+                        episodes.map { it to (it.title.ifBlank { "第 ${episodes.indexOf(it) + 1} 集" }) },
+                        onDismiss = { seasonDialog = false },
+                        onChoose = { episode ->
+                            seasonDialog = false
+                            onPlayEpisode(episode.bvid, episode.aid, episode.cid, episode.title)
+                        },
+                        selectedValue = episodes.firstOrNull { it.bvid == info.bvid || (it.bvid.isBlank() && it.aid == info.aid) },
+                    )
+                }
+            }
+            // 相关推荐：与手机端同链路（VideoCatalogRepository.getRelatedVideos），确认打开新详情。
+            if (state.related.isNotEmpty()) {
+                Text("相关推荐", style = MaterialTheme.typography.titleLarge)
+                state.related.take(12).chunked(3).forEach { rowVideos ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        rowVideos.forEach { video ->
+                            TvVideoCard(
+                                video = video,
+                                onClick = { onOpenVideo(video) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        repeat(3 - rowVideos.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            } else if (state.relatedLoading) {
+                Text("正在加载相关推荐…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -408,7 +474,7 @@ private fun TvSettingsPanel(title: String, content: @Composable androidx.compose
 
 @Composable
 internal fun TvSettingsContent(state: TvUiState, requester: FocusRequester, onQuality: (Int) -> Unit,
-    onAutoContinue: () -> Unit, onDanmaku: () -> Unit, onPrivacy: () -> Unit, onClearSearchHistory: () -> Unit, onReduceMotion: () -> Unit = {}, onSimpleEffects: () -> Unit = {}, onCheckUpdate: () -> Unit = {}, onDensity: (Float) -> Unit = {}) {
+    onAutoContinue: () -> Unit, onDanmaku: () -> Unit, onPrivacy: () -> Unit, onClearSearchHistory: () -> Unit, onReduceMotion: () -> Unit = {}, onSimpleEffects: () -> Unit = {}, onCheckUpdate: () -> Unit = {}, onDensity: (Float) -> Unit = {}, onDynamicColor: () -> Unit = {}) {
     var chooseQuality by remember { mutableStateOf(false) }
     var densityDialog by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf(false) }
@@ -430,6 +496,7 @@ internal fun TvSettingsContent(state: TvUiState, requester: FocusRequester, onQu
             TvNavigationItem(state.reduceMotion, onReduceMotion, rowModifier) { Text("减少动画：${if (state.reduceMotion) "开启" else "关闭"}") }
             // 全局模糊总开关：关闭后氛围背景与所有玻璃面板回退官方 MD3 纯色表面。
             TvNavigationItem(state.simpleEffects, onSimpleEffects, rowModifier) { Text("模糊效果：${if (state.simpleEffects) "关闭" else "开启"}（关闭时使用系统默认表面）") }
+            TvNavigationItem(state.dynamicColor, onDynamicColor, rowModifier) { Text("动态取色：${if (state.dynamicColor) "跟随壁纸与封面" else "关闭"}（关闭时使用品牌粉）") }
             TvAppButton(onClick = { densityDialog = true }, modifier = rowModifier) { Text("网格密度：${gridDensityLabel(state.gridDensity)}") }
             Text("关闭后氛围背景与毛玻璃面板改为纯色表面；网格列表页长按 OK 键也可随时调整列数。", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary)

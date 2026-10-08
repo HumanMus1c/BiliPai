@@ -84,7 +84,12 @@ import com.android.purebilibili.data.model.response.ReplySailingFan
 import com.android.purebilibili.data.model.response.ReplyUpAction
 import com.android.purebilibili.data.repository.BlockedUpRelationSource
 import com.android.purebilibili.data.repository.BlockedUpRepository
+import com.android.purebilibili.data.repository.COMMENT_EMOTE_TOKEN_PATTERN
 import com.android.purebilibili.data.repository.VideoRepository
+import com.android.purebilibili.data.repository.resolveCommentPictureUrls
+import com.android.purebilibili.data.repository.resolveCommentPictureGridColumns
+import com.android.purebilibili.data.repository.resolveCommentRenderableEmoteKeys
+import com.android.purebilibili.data.repository.resolveCommentSinglePictureAspectRatio
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.isImagePreviewSourceHidden
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
@@ -125,7 +130,8 @@ import kotlinx.coroutines.delay
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
-internal val EMOTE_TOKEN_PATTERN = """\[(.*?)\]""".toRegex()
+// 表情 token 规则下沉 core-data（CommentMediaPolicy），手机原入口保留并委托。
+internal val EMOTE_TOKEN_PATTERN = COMMENT_EMOTE_TOKEN_PATTERN
 private const val COMMENT_INLINE_UP_BADGE_ID = "comment_inline_up_badge"
 private const val COMMENT_INLINE_VERIFY_PERSONAL_BADGE_ID = "comment_inline_verify_personal_badge"
 private const val COMMENT_INLINE_VERIFY_ORGANIZATION_BADGE_ID = "comment_inline_verify_organization_badge"
@@ -353,13 +359,7 @@ internal fun parseCommentTimestampSeconds(match: MatchResult): Long? {
 internal fun collectRenderableEmoteKeys(
     text: String,
     emoteMap: Map<String, String>
-): Set<String> {
-    if (text.isEmpty() || emoteMap.isEmpty()) return emptySet()
-    return EMOTE_TOKEN_PATTERN.findAll(text)
-        .map { it.value }
-        .filter { emoteMap.containsKey(it) }
-        .toSet()
-}
+): Set<String> = resolveCommentRenderableEmoteKeys(text, emoteMap)
 
 /**
  * 是否挂载 SelectionContainer。
@@ -3124,22 +3124,9 @@ fun CommentPictures(
     onImageClick: (List<String>, Int, ImagePreviewSourceAnchor?) -> Unit,
     testTagPrefix: String = COMMENT_PICTURE_TAG_PREFIX
 ) {
-    //  获取高质量图片URL（移除分辨率限制参数）
+    //  获取高质量图片URL（移除分辨率限制参数）；URL 归一化规则下沉 core-data 后委托共享实现
     val imageUrls = remember(pictures) {
-        pictures.map { pic ->
-            var url = pic.imgSrc
-            // 修复协议
-            if (url.startsWith("//")) {
-                url = "https:$url"
-            } else if (url.startsWith("http://")) {
-                url = url.replace("http://", "https://")
-            }
-            //  移除尺寸参数以获取原图（避免模糊）
-            if (url.contains("@")) {
-                url = url.substringBefore("@")
-            }
-            url
-        }
+        resolveCommentPictureUrls(pictures)
     }
     val galleryRects = remember(imageUrls) { mutableMapOf<Int, Rect>() }
     val context = LocalContext.current
@@ -3160,12 +3147,8 @@ fun CommentPictures(
         1 -> {
             // 单张图片：保持原始比例，限制最大尺寸
             val pic = pictures[0]
-            //  [优化] 更好的比例计算
-            val aspectRatio = if (pic.imgHeight > 0 && pic.imgWidth > 0) {
-                (pic.imgWidth.toFloat() / pic.imgHeight.toFloat()).coerceIn(0.5f, 2f)
-            } else {
-                1.33f  // 默认 4:3 比例
-            }
+            //  [优化] 更好的比例计算；比例规则下沉 core-data 后委托共享实现
+            val aspectRatio = resolveCommentSinglePictureAspectRatio(pic)
             var imageRect by remember { mutableStateOf<Rect?>(null) }
             val sourceHidden = isImagePreviewSourceHidden(imageRect)
             
@@ -3212,10 +3195,8 @@ fun CommentPictures(
         else -> {
             // 多张图片：网格布局
             val displayItems = pictures.take(9)  //  [优化] 最多显示9张
-            val columns = when {
-                displayItems.size <= 4 -> 2
-                else -> 3
-            }
+            // 列数规则下沉 core-data 后委托共享实现
+            val columns = resolveCommentPictureGridColumns(displayItems.size)
             
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {  //  [优化] 增加间距 4dp → 6dp
                 displayItems.chunked(columns).forEachIndexed { rowIndex, row ->

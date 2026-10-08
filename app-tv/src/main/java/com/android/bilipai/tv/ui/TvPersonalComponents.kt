@@ -23,6 +23,7 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.MaterialTheme
 import com.android.bilipai.tv.TvCatalogState
 import com.android.bilipai.tv.ui.components.TvAppButton
+import com.android.bilipai.tv.ui.components.TvFilterChip
 import com.android.bilipai.tv.ui.components.TvNavigationItem
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.DarkSurfaceElevated
@@ -64,13 +65,13 @@ internal fun TvListToolbar(catalog: TvCatalogState, onFilter: (String, Int) -> U
                 TvAppButton({ onFilter(query, catalog.viewed) }) { Text("搜索") }
                 if (catalog.keyword.isNotEmpty()) TvAppButton({ onFilter("", catalog.viewed) }) { Text("清除搜索") }
             }
-            // 历史类型筛选：与移动端 HistoryContentFilter 同值同语义。
+            // 历史类型筛选：与移动端 HistoryContentFilter 同值同语义；官方 FilterChip 选中语义。
             if (history) listOf("all" to "全部", "video" to "视频", "pgc" to "番剧", "live" to "直播", "article" to "专栏")
                 .forEach { (value, label) ->
-                    TvNavigationItem(catalog.historyFilter == value, { onHistoryFilter(value) }) { Text(label) }
+                    TvFilterChip(catalog.historyFilter == value, { onHistoryFilter(value) }) { Text(label) }
                 }
             if (watchLater) listOf(0 to "全部", 2 to "未看完", 1 to "已看完").forEach { (value, label) ->
-                TvNavigationItem(catalog.viewed == value, { onFilter(query, value) }) { Text(label) }
+                TvFilterChip(catalog.viewed == value, { onFilter(query, value) }) { Text(label) }
             }
             if (favorites) TvAppButton({ orderDialog = true }) {
                 Text("排序：" + when (favoriteOrder) {

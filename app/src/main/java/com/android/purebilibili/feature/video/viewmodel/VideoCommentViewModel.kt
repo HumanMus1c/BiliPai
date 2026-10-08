@@ -495,6 +495,9 @@ class VideoCommentViewModel : ViewModel() {
 
     fun openSubReply(rootReply: ReplyItem, targetReplyId: Long = 0L) {
         val requestSubject = currentSubject
+        com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+            "subreply_click subjectValid=${requestSubject.isValid} visible=${_subReplyState.value.visible}"
+        }
         if (!requestSubject.isValid) return
         subReplyLoadJob?.cancel()
         _subReplyState.value = SubReplyUiState(
@@ -715,7 +718,15 @@ class VideoCommentViewModel : ViewModel() {
             (state.isLoading && state.items.isEmpty()) || !currentSubject.isValid
         ) return
         subReplyLoadJob?.cancel()
-        _subReplyState.value = state.copy(isLoading = true, isRefreshing = true, error = null)
+        _subReplyState.update { current ->
+            current.copy(
+                isLoading = true,
+                isRefreshing = true,
+                error = null,
+                // A user refresh starts a normal first page, not another deep-link lookup.
+                targetReplyId = 0L,
+            )
+        }
         val anchor = state.conversationAnchor
         if (anchor != null) {
             loadConversationReplies(anchor, page = 1, paginationOffset = null)

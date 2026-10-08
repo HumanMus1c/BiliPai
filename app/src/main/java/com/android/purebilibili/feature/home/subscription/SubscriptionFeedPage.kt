@@ -54,7 +54,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.items
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import com.android.purebilibili.core.ui.rememberCompatibleStaggeredGridState
 import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.Logger
 import androidx.compose.foundation.rememberScrollState
@@ -193,7 +193,7 @@ fun SubscriptionFeedPage(
     contentPadding: PaddingValues,
     articleContentPadding: PaddingValues = contentPadding,
     scrollToTopRequestId: Int,
-    listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
+    listState: LazyStaggeredGridState = rememberCompatibleStaggeredGridState(),
     gridColumns: Int = 1,
     pinchEnabled: Boolean = false,
     pinchBounds: IntRange = 1..1,

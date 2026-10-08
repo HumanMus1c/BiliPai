@@ -35,7 +35,8 @@ import com.android.purebilibili.core.theme.DarkSurfaceElevated
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 
 private val railMenu = listOf(
-    TvScreen.Home to "推荐", TvScreen.Following to "关注", TvScreen.Search to "搜索", TvScreen.History to "历史",
+    TvScreen.Home to "推荐", TvScreen.Popular to "热门", TvScreen.Region to "分区", TvScreen.Following to "关注",
+    TvScreen.Search to "搜索", TvScreen.History to "历史",
     TvScreen.Folders to "收藏", TvScreen.WatchLater to "稍后再看", TvScreen.Settings to "设置",
     TvScreen.Login to "账号",
 )

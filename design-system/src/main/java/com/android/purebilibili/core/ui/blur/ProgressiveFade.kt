@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -82,19 +82,23 @@ fun Modifier.topSolidProgressiveFade(
     enabled: Boolean = true,
 ): Modifier {
     if (!enabled || surfaceColor.alpha <= 0.001f || fadeHeight <= 0.dp) return this
-    return this.drawWithContent {
-        drawContent()
+    return this.drawWithCache {
         val fadePx = fadeHeight.toPx().coerceAtMost(size.height)
-        if (fadePx > 0f) {
-            val brush = ProgressiveFadeDefaults.createVerticalBrush(
+        val brush = if (fadePx > 0f) {
+            ProgressiveFadeDefaults.createVerticalBrush(
                 baseColor = surfaceColor,
                 startY = 0f,
-                endY = fadePx
+                endY = fadePx,
             )
-            drawRect(
-                brush = brush,
-                size = Size(width = size.width, height = fadePx)
-            )
+        } else null
+        onDrawWithContent {
+            drawContent()
+            if (brush != null) {
+                drawRect(
+                    brush = brush,
+                    size = Size(width = size.width, height = fadePx),
+                )
+            }
         }
     }
 }

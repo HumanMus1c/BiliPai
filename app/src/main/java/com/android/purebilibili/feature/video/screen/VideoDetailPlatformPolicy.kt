@@ -645,6 +645,13 @@ internal fun resolvePhoneVideoRequestedOrientation(
     if (isPortraitFullscreen) {
         return null
     }
+    // Freeform bounds can still report landscape from the previous window. A normal
+    // phone detail entry stays portrait until the user explicitly enters fullscreen.
+    if (isInMultiWindowMode && isCompactDevice &&
+        !isFullscreenMode && !manualFullscreenRequested
+    ) {
+        return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
     if (!shouldApplyPhoneAutoRotatePolicy(isCompactDevice)) {
         return when {
             isFullscreenMode || manualFullscreenRequested -> {

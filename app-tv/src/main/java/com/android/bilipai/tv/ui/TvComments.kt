@@ -2,12 +2,17 @@
 
 package com.android.bilipai.tv.ui
 
+import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,9 +21,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -31,10 +39,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -44,6 +57,7 @@ import com.android.bilipai.tv.TvSubRepliesState
 import com.android.bilipai.tv.TvUiState
 import com.android.bilipai.tv.ui.components.TvAppButton
 import com.android.bilipai.tv.ui.components.TvAppCard
+import com.android.bilipai.tv.ui.components.TvNavigationItem
 import com.android.bilipai.tv.ui.components.TvSkeletonGrid
 import com.android.bilipai.tv.ui.components.TvStateFeedback
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -51,7 +65,16 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.DarkSurfaceElevated
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.ReplyItem
+import com.android.purebilibili.data.model.response.ReplyPicture
+import com.android.purebilibili.data.repository.COMMENT_EMOTE_INLINE_EM
+import com.android.purebilibili.data.repository.COMMENT_PICTURE_MAX_COUNT
+import com.android.purebilibili.data.repository.CommentEmoteSegment
 import com.android.purebilibili.data.repository.CommentGrpcRepository
+import com.android.purebilibili.data.repository.resolveCommentEmoteSegments
+import com.android.purebilibili.data.repository.resolveCommentPictureGridColumns
+import com.android.purebilibili.data.repository.resolveCommentPictureUrls
+import com.android.purebilibili.data.repository.resolveCommentRenderableEmoteKeys
+import com.android.purebilibili.data.repository.resolveCommentSinglePictureAspectRatio
 import kotlinx.coroutines.flow.first
 
 /**
@@ -74,6 +97,8 @@ internal fun TvCommentsContent(
         if (comments.sub != null) hadSub = true
         else if (hadSub) { hadSub = false; subClosedTick++ }
     }
+    // 图片查看器：由无回复评论行的确认键或楼中楼面板入口打开，返回/确认关闭。
+    var pictureViewer by remember(state.route.key) { mutableStateOf<List<ReplyPicture>?>(null) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -96,9 +121,10 @@ internal fun TvCommentsContent(
             comments.items.isEmpty() && !comments.loading -> TvStateFeedback(
                 "评论区已关闭或暂无评论", com.android.purebilibili.core.ui.MaidAnimation.EMPTY,
                 "刷新", model::refreshComments, requester, Modifier.weight(1f))
-            else -> TvCommentList(comments, model, subClosedTick, Modifier.weight(1f))
+            else -> TvCommentList(comments, model, subClosedTick, onOpenPictures = { pictureViewer = it }, Modifier.weight(1f))
         }
     }
+    if (pictureViewer != null) TvCommentPictureViewer(pictureViewer!!, onDismiss = { pictureViewer = null })
     if (sortDialog) TvChoiceDialog(
         "评论排序",
         listOf(CommentGrpcRepository.MODE_HOT to "热门", CommentGrpcRepository.MODE_TIME to "最新"),
@@ -107,18 +133,20 @@ internal fun TvCommentsContent(
         selectedValue = comments.sortMode,
     )
     if (comments.sub != null) {
-        val sub = comments.sub!!
+        val sub = comments.sub
         TvSubRepliesDialog(
             sub,
             onLoadMore = model::loadMoreSubReplies,
             onRetry = { model.openSubReplies(sub.root) },
             onDismiss = model::closeSubReplies,
+            onOpenPictures = { pictureViewer = it },
         )
     }
 }
 
 @Composable
-private fun TvCommentList(comments: TvCommentsState, model: TvAppViewModel, subClosedTick: Int, modifier: Modifier = Modifier) {
+private fun TvCommentList(comments: TvCommentsState, model: TvAppViewModel, subClosedTick: Int,
+    onOpenPictures: (List<ReplyPicture>) -> Unit, modifier: Modifier = Modifier) {
     val interactive = LocalTvInteractive.current
     val listState = rememberLazyListState()
     val latestLoadMore by rememberUpdatedState(model::loadMoreComments)
@@ -147,6 +175,7 @@ private fun TvCommentList(comments: TvCommentsState, model: TvAppViewModel, subC
                 restoreFocus = comments.focusedRpid != null && index == restoreIndex,
                 restoreTick = subClosedTick,
                 onOpenSubReplies = { model.openSubReplies(reply) },
+                onOpenPictures = onOpenPictures,
                 onFocused = { model.focusComment(reply.rpid) },
             )
         }
@@ -186,6 +215,7 @@ private fun TvCommentRow(
     restoreFocus: Boolean,
     restoreTick: Int,
     onOpenSubReplies: () -> Unit,
+    onOpenPictures: (List<ReplyPicture>) -> Unit,
     onFocused: () -> Unit,
 ) {
     val interactive = LocalTvInteractive.current
@@ -194,10 +224,20 @@ private fun TvCommentRow(
         LaunchedEffect(requester, interactive, restoreTick) { if (interactive) requester.requestFocus() }
     }
     val replyCount = maxOf(reply.rcount, reply.count)
+    val pictures = reply.content.pictures.orEmpty()
     var expanded by rememberSaveable(reply.rpid) { mutableStateOf(false) }
     var textOverflowed by remember(reply.rpid) { mutableStateOf(false) }
     TvAppCard(
-        onClick = { if (replyCount > 0) onOpenSubReplies() else expanded = !expanded },
+        // 确认键按内容优先级响应：回复 > 展开溢出的长评 > 图片查看 > 展开收起；
+        // 带图评论展开后确认键转为打开图片查看器，收起能力让位（面板内可完整阅读）。
+        onClick = {
+            when {
+                replyCount > 0 -> onOpenSubReplies()
+                !expanded && textOverflowed -> expanded = true
+                pictures.isNotEmpty() -> onOpenPictures(pictures)
+                else -> expanded = !expanded
+            }
+        },
         modifier = Modifier.fillMaxWidth()
             .then(if (initialFocus || restoreFocus) Modifier.focusRequester(requester) else Modifier)
             .onFocusChanged { if (it.isFocused) onFocused() }
@@ -219,10 +259,16 @@ private fun TvCommentRow(
                 if (reply.replyControl?.isUpTop == true) {
                     Text("UP 置顶", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
+                if (pictures.isNotEmpty()) {
+                    Text("${pictures.size} 张图片", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                }
                 Text("${FormatUtils.formatStat(reply.like.toLong())} 点赞",
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (replyCount > 0) {
                     Text("${FormatUtils.formatStat(replyCount.toLong())} 条回复",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                } else if (pictures.isNotEmpty() && (expanded || !textOverflowed)) {
+                    Text("确认查看图片",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 } else if (textOverflowed) {
                     Text(if (expanded) "确认收起" else "确认展开全文",
@@ -233,7 +279,7 @@ private fun TvCommentRow(
     }
 }
 
-/** 评论正文为被动展示：昵称、头像与内容；展开状态与溢出探测由行持有。 */
+/** 评论正文为被动展示：昵称、头像、表情内联与图片缩略图；展开状态与溢出探测由行持有。 */
 @Composable
 private fun TvCommentBody(
     reply: ReplyItem,
@@ -243,7 +289,7 @@ private fun TvCommentBody(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
         AsyncImage(
-            model = reply.member.avatar.let { if (it.startsWith("//")) "https:$it" else it },
+            model = FormatUtils.normalizeImageUrl(reply.member.avatar),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(if (compact) 28.dp else 36.dp).clip(CircleShape)
@@ -255,14 +301,102 @@ private fun TvCommentBody(
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                reply.content.message,
-                style = MaterialTheme.typography.bodyLarge,
-                // 列表行默认收起长评（约 6 行）；楼中楼面板内完整阅读。
-                maxLines = if (expanded) Int.MAX_VALUE else 6,
-                overflow = TextOverflow.Ellipsis,
-                onTextLayout = { if (!expanded) onOverflowChanged(it.hasVisualOverflow) },
-            )
+            TvCommentRichText(reply, expanded = expanded, onOverflowChanged = onOverflowChanged)
+            if (!compact) TvCommentPictures(reply.content.pictures.orEmpty())
+        }
+    }
+}
+
+/**
+ * 评论正文内联表情：分段规则与手机端共用（CommentMediaPolicy），
+ * 表情占位与手机端同为正文大小的 1.4em、垂直居中。
+ */
+@Composable
+private fun TvCommentRichText(
+    reply: ReplyItem,
+    expanded: Boolean,
+    onOverflowChanged: (Boolean) -> Unit,
+) {
+    val emoteUrls = remember(reply.content.emote) {
+        reply.content.emote.orEmpty().mapValues { it.value.url }
+    }
+    val text = remember(reply.content.message, emoteUrls) {
+        buildAnnotatedString {
+            resolveCommentEmoteSegments(reply.content.message, emoteUrls).forEach { segment ->
+                when (segment) {
+                    is CommentEmoteSegment.Text -> append(segment.value)
+                    is CommentEmoteSegment.Emote -> appendInlineContent(segment.token, segment.token)
+                }
+            }
+        }
+    }
+    val inlineContent = remember(text, emoteUrls) {
+        val renderable = resolveCommentRenderableEmoteKeys(text.text, emoteUrls)
+        buildMap {
+            renderable.forEach { token ->
+                put(token, InlineTextContent(
+                    Placeholder(
+                        width = COMMENT_EMOTE_INLINE_EM.em,
+                        height = COMMENT_EMOTE_INLINE_EM.em,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center,
+                    )
+                ) {
+                    AsyncImage(
+                        model = emoteUrls[token],
+                        contentDescription = token,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                })
+            }
+        }
+    }
+    Text(
+        text,
+        inlineContent = inlineContent,
+        style = MaterialTheme.typography.bodyLarge,
+        // 列表行默认收起长评（约 6 行）；楼中楼面板内完整阅读。
+        maxLines = if (expanded) Int.MAX_VALUE else 6,
+        overflow = TextOverflow.Ellipsis,
+        onTextLayout = { if (!expanded) onOverflowChanged(it.hasVisualOverflow) },
+    )
+}
+
+/**
+ * 评论图片为被动展示：单图保持服务端宽高比，多图按共享列数规则排网格，
+ * 最多 9 张；不新增可聚焦目标。
+ */
+@Composable
+private fun TvCommentPictures(pictures: List<ReplyPicture>) {
+    val urls = remember(pictures) { resolveCommentPictureUrls(pictures) }
+    if (urls.isEmpty()) return
+    if (pictures.size == 1) {
+        val aspectRatio = resolveCommentSinglePictureAspectRatio(pictures.first())
+        AsyncImage(
+            model = urls.first(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.widthIn(max = 320.dp).heightIn(max = 320.dp).aspectRatio(aspectRatio)
+                .clip(TvUiTokens.shape(ContainerLevel.Card))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        )
+    } else {
+        val displayUrls = urls.take(COMMENT_PICTURE_MAX_COUNT)
+        val columns = resolveCommentPictureGridColumns(displayUrls.size)
+        Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+            displayUrls.chunked(columns).forEach { rowUrls ->
+                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+                    rowUrls.forEach { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(120.dp)
+                                .clip(TvUiTokens.shape(ContainerLevel.Field))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -274,9 +408,11 @@ private fun TvSubRepliesDialog(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
+    onOpenPictures: (List<ReplyPicture>) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val latestLoadMore by rememberUpdatedState(onLoadMore)
+    val rootPictures = sub.root.content.pictures.orEmpty()
     TvDialogFrame(onDismiss) { dismiss ->
         Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().heightIn(max = 560.dp)
             .tvGlass(TvUiTokens.shape(ContainerLevel.Dialog), DarkSurfaceElevated, sampleBackdrop = false)
@@ -321,7 +457,64 @@ private fun TvSubRepliesDialog(
                     }
                 }
             }
+            if (rootPictures.isNotEmpty()) TvNavigationItem(selected = false,
+                onClick = { onOpenPictures(rootPictures) }, modifier = Modifier.fillMaxWidth()) {
+                Text("查看根评论图片（${rootPictures.size} 张）")
+            }
             TvAppButton(onClick = dismiss) { Text("关闭") }
         }
+    }
+}
+
+/**
+ * 评论图片查看器：左右切换、底部计数；确认或返回关闭。
+ * 弹窗根容器自身持有焦点并拦截左右键，避免浏览时移出查看器。
+ */
+@Composable
+private fun TvCommentPictureViewer(pictures: List<ReplyPicture>, onDismiss: () -> Unit) {
+    val interactive = LocalTvInteractive.current
+    val requester = remember { FocusRequester() }
+    var index by remember { mutableIntStateOf(0) }
+    val urls = remember(pictures) { resolveCommentPictureUrls(pictures) }
+    if (urls.isEmpty()) {
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
+    TvDialogFrame(onDismiss) { dismiss ->
+        Box(Modifier.widthIn(max = 880.dp).fillMaxWidth().height(500.dp)
+            .tvGlass(TvUiTokens.shape(ContainerLevel.Dialog), DarkSurfaceElevated, sampleBackdrop = false)
+            .focusRequester(requester).focusable()
+            .onPreviewKeyEvent { event ->
+                when (event.nativeKeyEvent.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && index > 0) index--
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && index < urls.lastIndex) index++
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        if (event.nativeKeyEvent.action == KeyEvent.ACTION_UP) dismiss()
+                        true
+                    }
+                    else -> false
+                }
+            },
+            contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = urls[index.coerceIn(0, urls.lastIndex)],
+                contentDescription = "第 ${index + 1} 张图片",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Text(
+                "${index + 1} / ${urls.size}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(AppSpacingTokens.Medium),
+            )
+        }
+        LaunchedEffect(interactive) { if (interactive) requester.requestFocus() }
     }
 }

@@ -39,35 +39,6 @@ import java.util.concurrent.ConcurrentHashMap
 private const val SUBTITLE_CUE_CACHE_MAX_ENTRIES = 512
 private const val SUBTITLE_CUE_CACHE_ENTRY_OVERHEAD_BYTES = 512L
 private const val SUBTITLE_CUE_ESTIMATED_BYTES_PER_CUE = 160L
-private val UGC_MAIN_REGION_TIDS = setOf(
-    1, 3, 4, 5, 36, 119, 129, 155, 160, 181, 188, 202, 211, 217, 223, 234
-)
-
-/**
- * The ranking endpoint uses v2 region ids (100x), while the region feed uses
- * the legacy tid ids.  Keep the conversion in one place for the fallback so
- * a main region does not turn into a -400/-404 request (notably 资讯=202).
- */
-private val REGION_TID_TO_RANKING_RID = mapOf(
-    1 to 1005,   // 动画
-    3 to 1003,   // 音乐
-    4 to 1008,   // 游戏
-    5 to 1002,   // 娱乐
-    36 to 1010,  // 知识
-    119 to 1007, // 鬼畜
-    129 to 1004, // 舞蹈
-    155 to 1014, // 时尚
-    160 to 1015, // 生活
-    181 to 1001, // 影视
-    188 to 1012, // 科技
-    202 to 1009, // 资讯
-    211 to 1020, // 美食
-    217 to 1024, // 动物圈
-    223 to 1013, // 汽车
-    234 to 1018  // 运动
-)
-
-internal fun resolveRegionRankingRid(tid: Int): Int? = REGION_TID_TO_RANKING_RID[tid]
 
 internal fun shouldStartHomePreload(
     hasPreloadedData: Boolean,
@@ -86,15 +57,6 @@ internal fun shouldReuseInFlightPreloadForHomeRequest(
     hasPreloadedData: Boolean
 ): Boolean {
     return idx == 0 && isPreloading && !hasPreloadedData
-}
-
-internal fun shouldFallbackRegionLatestToRanking(
-    tid: Int,
-    page: Int,
-    latestVideoCount: Int,
-    latestResponseCode: Int
-): Boolean {
-    return tid in UGC_MAIN_REGION_TIDS && page == 1 && (latestResponseCode != 0 || latestVideoCount == 0)
 }
 
 internal fun shouldReportHomeDataReadyForSplash(
@@ -148,19 +110,12 @@ data class SubtitleCueCacheStats(
     val estimatedBytes: Long
 )
 
-data class CreatorCardStats(
-    val followerCount: Int,
-    val videoCount: Int,
-    val vipStatus: Int = 0,
-    val vipType: Int = 0,
-    val officialType: Int = -1,
-    val pendantImage: String = "",
-)
+// UP 主卡片模型下沉 core-data（VideoCatalogRepository 迁移），原包名通过 typealias 保留。
+typealias CreatorCardStats = com.android.purebilibili.data.model.response.CreatorCardStats
 
 object VideoRepository {
     private val api = NetworkModule.api
     // Subtitle cache is shared with TV by SubtitleContentRepository.
-    private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()
     private val verticalVideoCache = ConcurrentHashMap<String, Boolean>()
 
     private val QUALITY_CHAIN = listOf(120, 116, 112, 80, 74, 64, 32, 16)
@@ -807,168 +762,21 @@ object VideoRepository {
         }
     }
     
-    //  [新增] 热门视频
-    suspend fun getPopularVideos(page: Int = 1): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
-        try {
-            val resp = api.getPopularVideos(pn = page, ps = 30)
-            val list = resp.data?.list?.map { it.toVideoItem() }?.filter { it.bvid.isNotEmpty() } ?: emptyList()
-            Result.success(list)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
+    //  [新增] 热门视频（下沉 core-data/VideoCatalogRepository，两端消费同一实现）
+    suspend fun getPopularVideos(page: Int = 1): Result<List<VideoItem>> = VideoCatalogRepository.getPopularVideos(page)
 
-    suspend fun getRankingVideos(rid: Int = 0, type: String = "all"): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
-        try {
-            val keys = WbiKeyManager.getWbiKeys().getOrElse { throw it }
-            val signedParams = WbiUtils.sign(
-                params = mapOf("rid" to rid.toString(), "type" to type),
-                imgKey = keys.first,
-                subKey = keys.second,
-            )
-            val resp = api.getRankingVideos(signedParams)
-            if (resp.code != 0) {
-                return@withContext Result.failure(Exception(resp.message.ifBlank { "排行榜加载失败(${resp.code})" }))
-            }
-            val list = resp.data?.list
-                ?.map { it.toVideoItem() }
-                ?.filter { it.bvid.isNotEmpty() }
-                ?: emptyList()
-            Result.success(list)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
+    suspend fun getRankingVideos(rid: Int = 0, type: String = "all"): Result<List<VideoItem>> = VideoCatalogRepository.getRankingVideos(rid, type)
 
-    suspend fun getPreciousVideos(): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
-        try {
-            val resp = api.getPopularPreciousVideos()
-            if (resp.code != 0) {
-                return@withContext Result.failure(Exception(resp.message.ifBlank { "入站必刷加载失败(${resp.code})" }))
-            }
-            val list = resp.data?.list
-                ?.map { it.toVideoItem() }
-                ?.filter { it.bvid.isNotEmpty() }
-                ?: emptyList()
-            Result.success(list)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
+    suspend fun getPreciousVideos(): Result<List<VideoItem>> = VideoCatalogRepository.getPreciousVideos()
 
-    suspend fun getWeeklyPeriods(): Result<List<PopularSeriesPeriod>> = withContext(Dispatchers.IO) {
-        try {
-            val response = api.getWeeklySeriesList()
-            if (response.code != 0) {
-                Result.failure(Exception(response.message.ifBlank { "每周必看期数加载失败(${response.code})" }))
-            } else {
-                Result.success(response.data?.list.orEmpty().filter { it.number > 0 }
-                    .distinctBy { it.number }.sortedByDescending { it.number })
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getWeeklyPeriods(): Result<List<PopularSeriesPeriod>> = VideoCatalogRepository.getWeeklyPeriods()
 
-    suspend fun getWeeklyPeriod(number: Int): Result<PopularSeriesOneData> = withContext(Dispatchers.IO) {
-        try {
-            val response = api.getWeeklySeriesVideos(number)
-            val data = response.data
-            if (response.code != 0 || data == null) {
-                Result.failure(Exception(response.message.ifBlank { "第${number}期加载失败(${response.code})" }))
-            } else {
-                Result.success(data)
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getWeeklyPeriod(number: Int): Result<PopularSeriesOneData> = VideoCatalogRepository.getWeeklyPeriod(number)
 
-    suspend fun getWeeklyMustWatchVideos(number: Int? = null): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
-        try {
-            val targetNumber = number ?: run {
-                val listResp = api.getWeeklySeriesList()
-                if (listResp.code != 0) {
-                    return@withContext Result.failure(Exception(listResp.message.ifBlank { "每周必看列表加载失败(${listResp.code})" }))
-                }
-                val latest = listResp.data?.list
-                    ?.map { it.number }
-                    ?.maxOrNull()
-                latest ?: 1
-            }
-            val resp = api.getWeeklySeriesVideos(number = targetNumber)
-            if (resp.code != 0) {
-                return@withContext Result.failure(Exception(resp.message.ifBlank { "每周必看加载失败(${resp.code})" }))
-            }
-            val list = resp.data?.list
-                ?.map { it.toVideoItem() }
-                ?.filter { it.bvid.isNotEmpty() }
-                ?: emptyList()
-            Result.success(list)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-    
-    //  [新增] 分区视频（按分类 ID 获取视频）
-    suspend fun getRegionVideos(tid: Int, page: Int = 1): Result<List<VideoItem>> = withContext(Dispatchers.IO) {
-        try {
-            val resp = api.getRegionVideos(rid = tid, pn = page, ps = 30)
-            val list = resp.data?.archives
-                ?.map { it.toVideoItem() }
-                ?.filter { it.bvid.isNotEmpty() }
-                ?: emptyList()
-            if (shouldFallbackRegionLatestToRanking(
-                    tid = tid,
-                    page = page,
-                    latestVideoCount = list.size,
-                    latestResponseCode = resp.code
-                )
-            ) {
-                if (tid == 202) {
-                    val legacy = api.getLegacyRegionVideos(rid = tid, pn = page, ps = 30)
-                    if (legacy.code == 0) {
-                        return@withContext Result.success(
-                            legacy.data?.archives
-                                ?.map { it.toVideoItem() }
-                                ?.filter { it.bvid.isNotEmpty() }
-                                ?: emptyList()
-                        )
-                    }
-                }
-                // dynamic/region 只稳定支持子分区；一级分区用排行榜兜底，避免标签页空白。
-                val rankingRid = resolveRegionRankingRid(tid)
-                if (rankingRid != null) {
-                    return@withContext getRankingVideos(rid = rankingRid)
-                }
-            }
-            if (resp.code != 0) {
-                return@withContext Result.failure(Exception(resp.message.ifBlank { "分区视频加载失败(${resp.code})" }))
-            }
-            Result.success(list)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
+    suspend fun getWeeklyMustWatchVideos(number: Int? = null): Result<List<VideoItem>> = VideoCatalogRepository.getWeeklyMustWatchVideos(number)
+
+    //  [新增] 分区视频（按分类 ID 获取视频；下沉后两端消费同一实现）
+    suspend fun getRegionVideos(tid: Int, page: Int = 1): Result<List<VideoItem>> = VideoCatalogRepository.getRegionVideos(tid, page)
     
     //  [新增] 上报播放心跳（记录到历史记录）
     suspend fun reportPlayHeartbeat(
@@ -1065,30 +873,7 @@ object VideoRepository {
             ?: cachedIsVip
     }
 
-    suspend fun getCreatorCardStats(mid: Long): Result<CreatorCardStats> = withContext(Dispatchers.IO) {
-        if (mid <= 0L) return@withContext Result.failure(IllegalArgumentException("Invalid mid"))
-        creatorCardStatsCache[mid]?.let { return@withContext Result.success(it) }
-        try {
-            val response = api.getUserCard(mid = mid, photo = false)
-            val data = response.data
-            if (response.code == 0 && data != null) {
-                val stats = CreatorCardStats(
-                    followerCount = data.follower.coerceAtLeast(0),
-                    videoCount = data.archive_count.coerceAtLeast(0),
-                    vipStatus = data.card?.vip?.status ?: 0,
-                    vipType = data.card?.vip?.type ?: 0,
-                    officialType = data.card?.Official?.type ?: -1,
-                    pendantImage = data.card?.pendant?.image.orEmpty(),
-                )
-                creatorCardStatsCache[mid] = stats
-                Result.success(stats)
-            } else {
-                Result.failure(Exception(response.message.ifBlank { "UP主信息加载失败(${response.code})" }))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getCreatorCardStats(mid: Long): Result<CreatorCardStats> = VideoCatalogRepository.getCreatorCardStats(mid)
 
     suspend fun isVerticalVideo(bvid: String, aid: Long = 0L): Boolean = withContext(Dispatchers.IO) {
         val normalizedBvid = bvid.trim()
@@ -2201,9 +1986,7 @@ object VideoRepository {
         }
     }
     
-    suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> = withContext(Dispatchers.IO) {
-        try { api.getRelatedVideos(bvid).data ?: emptyList() } catch (e: Exception) { emptyList() }
-    }
+    suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> = VideoCatalogRepository.getRelatedVideos(bvid)
 
 
     //  [新增] API 错误码分类，提供用户友好的错误提示

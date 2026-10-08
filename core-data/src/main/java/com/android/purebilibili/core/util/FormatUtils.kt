@@ -83,7 +83,7 @@ object FormatUtils {
         return "$normalized@${width}w_${height}h.$format"
     }
 
-    private fun normalizeImageUrl(url: String?): String {
+    fun normalizeImageUrl(url: String?): String {
         if (url.isNullOrEmpty()) return ""
 
         val withProtocol = if (url.startsWith("//")) {

@@ -427,9 +427,6 @@ fun AppNavigation(
         }
     }
     val uriHandler = LocalUriHandler.current
-    val downloadTasks by com.android.purebilibili.feature.download.DownloadManager.tasks.collectAsStateWithLifecycle(
-        context = kotlin.coroutines.EmptyCoroutineContext
-    )
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
     )
@@ -1229,7 +1226,8 @@ fun AppNavigation(
             }
             val isNetworkAvailable = NetworkUtils.isNetworkAvailable(context)
             val offlineTask = com.android.purebilibili.feature.download.resolveOfflineVideoNavigationTask(
-                tasks = downloadTasks.values,
+                // 下载进度仅在点击时用于离线分流，不应让整个导航树订阅进度更新。
+                tasks = com.android.purebilibili.feature.download.DownloadManager.tasks.value.values,
                 bvid = bvid,
                 cid = cid,
                 isNetworkAvailable = isNetworkAvailable
@@ -1542,8 +1540,17 @@ fun AppNavigation(
         // This raw signal is intentionally independent from the user's bottom-bar visibility
         // mode: the linked playback strip still compacts on downward browsing when the bar itself
         // is configured to remain visible.
-        val collapseLinkedPlaybackDock = !isBottomBarVisible ||
-            (currentBottomNavItem == BottomNavItem.DYNAMIC && scrollOffsetState.floatValue > 50f)
+        val collapseLinkedPlaybackDock by remember(
+            isBottomBarVisible,
+            currentBottomNavItem,
+            scrollOffsetState,
+        ) {
+            // 根导航只关心是否越过折叠阈值，不读取每一帧的滚动距离。
+            derivedStateOf {
+                !isBottomBarVisible ||
+                    (currentBottomNavItem == BottomNavItem.DYNAMIC && scrollOffsetState.floatValue > 50f)
+            }
+        }
         val bottomBarVisibilityState = remember { MutableTransitionState(finalBottomBarVisible) }
         bottomBarVisibilityState.targetState = finalBottomBarVisible
         val bottomBarCanMount =
@@ -1899,7 +1906,15 @@ fun AppNavigation(
             null
         }
         val bottomBarBackdrop = bottomBarBackdropSource?.backdrop
+        val componentMotionEnabled = com.android.purebilibili.core.ui.resolveComponentMotionEnabled(
+            entranceEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.uiEntranceAnimationEnabled,
+            cardEntranceEnabled = homeSettings.cardAnimationEnabled,
+            cardTransitionEnabled = cardTransitionEnabled,
+            navigationEnabled = predictiveBackAnimationStyle != BiliPaiPredictiveBackAnimationStyle.NONE,
+            systemReduceMotion = systemReduceMotion,
+        )
         CompositionLocalProvider(
+            com.android.purebilibili.core.ui.LocalComponentMotionEnabled provides componentMotionEnabled,
             com.android.purebilibili.core.ui.LocalAppPopupSurfaceRenderer provides
                 com.android.purebilibili.core.ui.components.BiliPaiPopupSurfaceRenderer,
             com.android.purebilibili.core.ui.blur.LocalFloatingChromeBackdrop provides

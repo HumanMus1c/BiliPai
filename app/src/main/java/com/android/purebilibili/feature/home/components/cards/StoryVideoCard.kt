@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import coil3.request.ImageRequest
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.iOSCardTapEffect
@@ -368,7 +368,7 @@ internal fun StoryVideoCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant) // 封面占位色
         ) {
             // 封面比例由首页卡片样式统一配置。
-            AsyncImage(
+            PageAwareAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(coverUrl)
                     .apply {
@@ -495,7 +495,7 @@ internal fun StoryVideoCard(
                 ),
                 leadingContent = if ((showUpAvatar ?: com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current.showAvatars) && video.owner.face.isNotEmpty()) {
                     {
-                        AsyncImage(
+                        PageAwareAsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(FormatUtils.fixImageUrl(video.owner.face))
                                 .size(96, 96)

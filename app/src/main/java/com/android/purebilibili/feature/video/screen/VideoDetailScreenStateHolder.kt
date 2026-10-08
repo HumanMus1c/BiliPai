@@ -4,6 +4,8 @@ package com.android.purebilibili.feature.video.screen
 import com.android.purebilibili.feature.video.ambient.PlayerAmbientLayout
 import coil3.request.crossfade
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -58,6 +60,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -906,6 +909,9 @@ internal fun VideoDetailScreenStateHolder(
         selectedVideoContentTabIndex,
     ) {
         { targetBvid: String, options: android.os.Bundle? ->
+            com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+                "related_click committed=$hasCommittedRelatedVideoNavigation visible=$isVisible"
+            }
             val success = uiState as? VideoPlaybackUiState.Success
             val explicitCid = options?.getLong(VIDEO_NAV_TARGET_CID_KEY) ?: 0L
             val resolvedCid = resolveNavigationTargetCid(
@@ -1276,12 +1282,10 @@ internal fun VideoDetailScreenStateHolder(
 
     // 🔧 [修复] 追踪用户是否主动请求全屏（点击全屏按钮）
     // 使用 rememberSaveable 确保状态在横竖屏切换时保持
-    // 分屏 / 系统小窗下打开视频即进入全屏（横屏形态），无需手动点全屏
-    // A landscape request can temporarily change freeform bounds enough that the OS
-    // stops reporting multi-window. Do not key this intent to that changing signal:
-    // resetting it lets the sensor immediately request portrait and starts an orientation loop.
+    // 系统小窗 / 分屏也是普通详情入口；窗口模式不代表用户请求了全屏。
+    // 按视频保存手动全屏状态，显式路由请求由下方的入口 effect 处理。
     var userRequestedFullscreen by rememberSaveable(currentBvid) {
-        mutableStateOf(isActivityInMultiWindowMode)
+        mutableStateOf(false)
     }
     var hasHandledStartFullscreenRequest by rememberSaveable(currentBvid, startInFullscreen) {
         mutableStateOf(false)
@@ -2110,10 +2114,16 @@ internal fun VideoDetailScreenStateHolder(
             hasStartedCurrentVideoPlayback = true
         }
     }
-    val playerDebugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
-    val hasRenderedFirstFrameForReturn = remember(playerDebugInfo.firstFrame) {
-        playerDebugInfo.firstFrame.equals("rendered", ignoreCase = true)
+    // 返回动效只需要首帧信号；带宽、丢帧等诊断更新不应重组整个详情页。
+    val renderedFirstFrameFlow = remember(playerState) {
+        playerState.debugInfo
+            .map { it.firstFrame.equals("rendered", ignoreCase = true) }
+            .distinctUntilChanged()
     }
+    val hasRenderedFirstFrameForReturn by renderedFirstFrameFlow.collectAsStateWithLifecycle(
+        initialValue = playerState.debugInfo.value.firstFrame.equals("rendered", ignoreCase = true),
+        lifecycle = lifecycleOwner.lifecycle,
+    )
     // 全量 Success 但无首帧 / 强制封面 UI 时禁止 LIVE，避免黑壳缩回。
     val hasRenderableLiveFrameForReturn = shouldTreatLiveSurfaceRenderableForReturnMorph(
         hasRenderedFirstFrame = hasRenderedFirstFrameForReturn,
@@ -3237,6 +3247,10 @@ internal fun VideoDetailScreenStateHolder(
     // 辅助函数：切换全屏状态
     val toggleFullscreen = {
         val activity = context.findActivity()
+        com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+            "fullscreen_toggle fullscreen=$isFullscreenMode portraitFs=$isPortraitFullscreen " +
+                "landscape=$isLandscape phase=$continuousPlayerPhase requested=${activity?.requestedOrientation}"
+        }
         val currentPositionMs = playerState.player.currentPosition.coerceAtLeast(0L)
         val shouldPreserveCurrentFrame = activity != null &&
             (!isVerticalVideo || isFullscreenMode) &&
@@ -3272,6 +3286,35 @@ internal fun VideoDetailScreenStateHolder(
         )
     }
 
+    // Fullscreen removes the inline scrollable nodes while retaining their states. A scroll
+    // mutation from the old attachment must not suppress clicks/scrolls after reattachment.
+    // stopScroll cancels the old mutation without changing the saved item/page position.
+    var inlineContentWasFullscreen by remember(currentBvid) {
+        mutableStateOf(isFullscreenMode || isPortraitFullscreen)
+    }
+    LaunchedEffect(currentBvid, isFullscreenMode, isPortraitFullscreen) {
+        val fullscreenNow = isFullscreenMode || isPortraitFullscreen
+        val returningToInline = inlineContentWasFullscreen && !fullscreenNow
+        inlineContentWasFullscreen = fullscreenNow
+        com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+            "presentation_changed fullscreen=$fullscreenNow returning=$returningToInline " +
+                "introScrolling=${introListState.isScrollInProgress} commentScrolling=${commentListState.isScrollInProgress} " +
+                "pagerScrolling=${videoContentPagerState.isScrollInProgress} phase=$continuousPlayerPhase"
+        }
+        if (returningToInline) {
+            kotlinx.coroutines.coroutineScope {
+                launch { introListState.stopScroll() }
+                launch { commentListState.stopScroll() }
+                launch { videoContentPagerState.stopScroll() }
+            }
+            com.android.purebilibili.core.util.Logger.d(
+                "VideoDetailScreen",
+                "Inline input restored after fullscreen: introScrolling=${introListState.isScrollInProgress} " +
+                    "commentScrolling=${commentListState.isScrollInProgress} pagerScrolling=${videoContentPagerState.isScrollInProgress}",
+            )
+        }
+    }
+
     val localBackTarget = resolveVideoDetailLocalBackTarget(
         isLandscapeFullscreen = isFullscreenMode,
         isPortraitFullscreen = isPortraitFullscreen,
@@ -3282,6 +3325,9 @@ internal fun VideoDetailScreenStateHolder(
         state = localBackEventState,
         isBackEnabled = localBackTarget != VideoDetailLocalBackTarget.NAVIGATE_BACK,
         onBackCompleted = {
+            com.android.purebilibili.core.util.Logger.d("VideoInputTrace") {
+                "local_back_completed target=$localBackTarget fullscreen=$isFullscreenMode portraitFs=$isPortraitFullscreen"
+            }
             when (localBackTarget) {
                 VideoDetailLocalBackTarget.EXIT_PORTRAIT_FULLSCREEN -> presentationState.setPortraitFullscreen(false)
                 VideoDetailLocalBackTarget.EXIT_LANDSCAPE_FULLSCREEN -> toggleFullscreen()
@@ -5084,7 +5130,8 @@ internal fun VideoDetailScreenStateHolder(
                                         VideoCardTransitionBackgroundPhase.OPENING, false,
                                     ) else detailInfoRevealProgress.value.coerceIn(0f, 1f)
                                     val holdFullyOpaque =
-                                        suppressEnterFadeAfterBackPreview && !isLeaving
+                                        suppressEnterFadeAfterBackPreview &&
+                                            !useReturningVideoDetailVisualState
                                     // Miuix flying entry: always complement source-card chrome with
                                     // morph depth (not only LIVE surface). Cover-first related/home
                                     // returns need the same gradual player-below ↔ cover-below handoff.
@@ -5205,7 +5252,7 @@ internal fun VideoDetailScreenStateHolder(
                                         isPortraitFullscreen = isPortraitFullscreen,
                                         showCommentInput = showCommentInput,
                                         isCommentThreadVisible = subReplyState.visible,
-                                        commentThreadCoveredBlurProgress = if (subReplyState.visible) subReplyCoveredBlurProgress else 0f,
+                                        commentThreadCoveredBlurProgressProvider = { subReplyCoveredBlurProgress },
                                         showFavoriteFolderDialog = showFavoriteFolderDialog,
                                         downloadProgress = downloadProgress,
                                         danmakuEnabledForDetail = effectiveDanmakuEnabledForDetail,
@@ -5689,7 +5736,13 @@ internal fun VideoDetailScreenStateHolder(
         routeSheetMotion = routeSheetMotion,
         isFullscreenMode = isFullscreenMode,
         backgroundColor = AppSurfaceTokens.background(),
-        modifier = detailShellModifier,
+        modifier = detailShellModifier.videoInputDiagnostics("detail_root") {
+            "fullscreen=$isFullscreenMode portraitFs=$isPortraitFullscreen landscape=$isLandscape " +
+                "visible=$isVisible leaving=$useReturningVideoDetailVisualState phase=$continuousPlayerPhase " +
+                "tab=${videoContentPagerState.currentPage} introScrolling=${introListState.isScrollInProgress} " +
+                "commentScrolling=${commentListState.isScrollInProgress} pagerScrolling=${videoContentPagerState.isScrollInProgress} " +
+                "playerBounds=$videoPlayerBounds"
+        },
         mainContent = { VideoDetailRouteSheetMainContent() },
         overlayContent = { VideoDetailRouteSheetOverlayContent() }
     )

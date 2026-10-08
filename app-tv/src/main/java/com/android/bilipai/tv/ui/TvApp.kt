@@ -16,6 +16,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.android.bilipai.tv.ui.components.TvStateFeedback
 import com.android.bilipai.tv.ui.components.TvBrandFeedback
+import com.android.bilipai.tv.ui.components.TvFilterChip
 import com.android.bilipai.tv.ui.components.TvNavigationItem
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -110,6 +111,12 @@ private fun TvAppContent(state: TvUiState, viewModel: TvAppViewModel) {
     val contentFocus = remember(state.route.key) { FocusRequester() }
     var railHasFocus by remember { mutableStateOf(false) }
     var ambientUrl by remember { mutableStateOf<String?>(null) }
+    // 动态取色：设置开启时跟随系统壁纸，壁纸不可用则提取当前氛围封面；关闭回品牌色。
+    val ambientContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(state.dynamicColor, ambientUrl) {
+        if (state.dynamicColor) TvAmbientColorStore.refresh(ambientContext, ambientUrl)
+        else TvAmbientColorStore.clear()
+    }
 
     fun backFromContent() {
         if (state.route.screen == TvScreen.Detail) routeStateHolder.removeState(state.route.key)
@@ -150,6 +157,8 @@ private fun TvAppContent(state: TvUiState, viewModel: TvAppViewModel) {
                             onSpace = { pageState.detail?.owner?.let { viewModel.openSpace(it.mid, it.name) } },
                             onCoin = { count, alsoLike -> viewModel.coin(count, alsoLike) },
                             onComments = viewModel::openComments,
+                            onOpenVideo = viewModel::openVideo,
+                            onPlayEpisode = { bvid, aid, cid, label -> viewModel.playEpisode(bvid, aid, cid, label) },
                             modifier = Modifier.fillMaxSize().padding(TvUiTokens.pagePadding))
                     }
                     TvScreen.Login -> TvLoginContent(pageState, contentFocus, viewModel::refreshQr, viewModel::signOut)
@@ -158,7 +167,7 @@ private fun TvAppContent(state: TvUiState, viewModel: TvAppViewModel) {
                     TvScreen.Settings -> TvSettingsContent(pageState, contentFocus, viewModel::updateQuality,
                         viewModel::toggleAutoContinue, viewModel::toggleDanmaku, viewModel::togglePrivacy, viewModel::clearSearchHistory,
                         viewModel::toggleReduceMotion, viewModel::toggleSimpleEffects, viewModel::checkUpdate,
-                        onDensity = viewModel::updateGridDensity)
+                        onDensity = viewModel::updateGridDensity, onDynamicColor = viewModel::toggleDynamicColor)
                     TvScreen.Home -> TvHomeContent(pageState, navigationFocus, contentFocus, viewModel,
                         onAmbientChange = { ambientUrl = it }, autoAdvanceEnabled = !railHasFocus)
                     else -> TvCatalogContent(pageState, contentFocus, navigationFocus, viewModel)
@@ -229,6 +238,12 @@ private fun TvHomeContent(
         })
 }
 
+/** 分区目录：与手机端 HomeCategory 对齐，直播、追番除外。 */
+private data class TvRegionCategory(val tid: Int, val label: String)
+private val regionCategories = listOf(
+    TvRegionCategory(4, "游戏"), TvRegionCategory(36, "知识"), TvRegionCategory(188, "科技"),
+)
+
 @Composable
 private fun TvCatalogContent(state: TvUiState, contentFocus: FocusRequester, navigationFocus: FocusRequester, model: TvAppViewModel) {
     val interactive = LocalTvInteractive.current
@@ -246,8 +261,28 @@ private fun TvCatalogContent(state: TvUiState, contentFocus: FocusRequester, nav
     }
     val personal = state.route.screen in setOf(TvScreen.History, TvScreen.WatchLater, TvScreen.Favorites)
     BackHandler(enabled = interactive && state.catalog.managing && managedItem == null) { model.toggleManagement() }
-    managedItem?.let { item -> TvChoiceDialog(item.title, listOf("open" to "打开视频", "remove" to "从列表移除"),
-        onDismiss = { managedItem = null }, onChoose = { if (it == "remove") model.removeItem(item) else model.openVideo(item) }) }
+    managedItem?.let { item ->
+        // 稍后再看管理模式额外提供移入收藏夹（复制保留条目，移动后从列表移除），与手机端同语义。
+        val options = buildList {
+            add("open" to "打开视频")
+            if (state.route.screen == TvScreen.WatchLater) { add("copy" to "复制到收藏夹"); add("move" to "移动到收藏夹") }
+            add("remove" to "从列表移除")
+        }
+        TvChoiceDialog(item.title, options,
+            onDismiss = { managedItem = null }, onChoose = { when (it) {
+                "open" -> model.openVideo(item)
+                "remove" -> model.removeItem(item)
+                "copy" -> model.requestMoveToFavorite(item, copy = true)
+                "move" -> model.requestMoveToFavorite(item, copy = false)
+            } })
+    }
+    state.moveTargets?.let { folders ->
+        TvChoiceDialog(if (state.moveCopy) "复制到收藏夹" else "移动到收藏夹",
+            folders.map { it.id to it.title },
+            onDismiss = model::dismissMoveTargets,
+            onChoose = { model.chooseMoveTarget(it) },
+            selectedValue = null)
+    }
     if (clearConfirm) TvChoiceDialog("清空当前账号的观看历史？", listOf(true to "确认清空"),
         onDismiss = { clearConfirm = false }, onChoose = { model.clearHistory() })
     // 搜索筛选：数据层 SearchRepository 参数现成，这里只做遥控器选择；变更后重置分页。
@@ -281,6 +316,8 @@ private fun TvCatalogContent(state: TvUiState, contentFocus: FocusRequester, nav
         Row(verticalAlignment = Alignment.Bottom) {
             Text(when (state.route.screen) {
                 TvScreen.Home -> "为你推荐"
+                TvScreen.Popular -> "热门"
+                TvScreen.Region -> "分区 · " + (regionCategories.firstOrNull { it.tid == state.catalog.regionTid }?.label ?: "游戏")
                 TvScreen.Following -> "关注视频更新"
                 TvScreen.Followings -> "关注列表"
                 TvScreen.Space -> state.catalog.space?.name ?: state.route.label.ifBlank { "UP 主空间" }
@@ -313,6 +350,23 @@ private fun TvCatalogContent(state: TvUiState, contentFocus: FocusRequester, nav
                 watchLater = state.route.screen == TvScreen.WatchLater, favorites = state.route.screen == TvScreen.Favorites,
                 historyFilter = state.catalog.historyFilter, onHistoryFilter = model::updateHistoryFilter,
                 favoriteOrder = state.catalog.favoriteOrder, onFavoriteOrder = model::updateFavoriteOrder)
+        }
+        // 热门子分类与分区切换：与手机端同名目对齐（直播、追番除外），确认切换并重置分页。
+        // 筛选行使用官方 FilterChip：选中与焦点分别表达。
+        if (state.route.screen == TvScreen.Popular) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                listOf("popular" to "综合热门", "ranking" to "排行榜", "weekly" to "每周必看", "precious" to "入站必刷")
+                    .forEach { (value, label) ->
+                        TvFilterChip(state.catalog.popularFilter == value, { model.updatePopularFilter(value) }) { Text(label) }
+                    }
+            }
+        }
+        if (state.route.screen == TvScreen.Region) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                regionCategories.forEach { category ->
+                    TvFilterChip(state.catalog.regionTid == category.tid, { model.updateRegionTid(category.tid) }) { Text(category.label) }
+                }
+            }
         }
         if (state.route.screen == TvScreen.Search) {
             TvSearchInput(state, contentFocus, model::search, onSuggest = model::querySuggest)

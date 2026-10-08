@@ -113,7 +113,6 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.ui.section.AiSummarySheet
 import com.android.purebilibili.feature.video.ui.section.VideoSupplementStatsActions
@@ -877,15 +876,25 @@ internal fun VideoContentSection(
             }
         }
     }
-    val tabBarCollapseProgress = resolveVideoContentTabBarCollapseProgress(
-        collapsePx = tabBarCollapsePx,
-        maxCollapsePx = tabBarMaxHeightPx,
-        selectedTabIndex = pagerState.currentPage,
-        listAtTop = commentListAtTop,
-        enabled = tabBarCollapseEnabled,
-    )
-    val tabBarVisibleHeightDp = with(density) {
-        (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f).toDp()
+    // Read the scroll-driven collapse only in measure/draw, not while composing the pages.
+    val tabBarCollapseProgress = {
+        resolveVideoContentTabBarCollapseProgress(
+            collapsePx = tabBarCollapsePx,
+            maxCollapsePx = tabBarMaxHeightPx,
+            selectedTabIndex = pagerState.currentPage,
+            listAtTop = commentListAtTop,
+            enabled = tabBarCollapseEnabled,
+        )
+    }
+    val tabBarVisibleHeightPx = {
+        (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f)
+    }
+    val pageContentPadding = remember(density, bottomContentPadding, immersiveVideoContentChromeEnabled) {
+        videoContentPadding(
+            topPx = { if (immersiveVideoContentChromeEnabled) tabBarVisibleHeightPx() else 0f },
+            bottom = bottomContentPadding,
+            density = density,
+        )
     }
     val commentSortDockLiftDp = remember {
         resolveCommentSortDockViewportOverflowDp(
@@ -925,7 +934,7 @@ internal fun VideoContentSection(
                         if (immersiveVideoContentChromeEnabled) {
                             Modifier
                         } else {
-                            Modifier.padding(top = tabBarVisibleHeightDp)
+                            Modifier.videoContentTopPadding(tabBarVisibleHeightPx)
                         }
                     )
                     .verticalPriorityHorizontalPagerSwipe(
@@ -969,10 +978,7 @@ internal fun VideoContentSection(
                         onDownloadClick = onDownloadClick,
                         onWatchLaterClick = onWatchLaterClick,
                         onShareClick = onShareClick,
-                        contentPadding = PaddingValues(
-                            top = if (immersiveVideoContentChromeEnabled) tabBarVisibleHeightDp else 0.dp,
-                            bottom = bottomContentPadding,
-                        ),
+                        contentPadding = pageContentPadding,
                         transitionEnabled = transitionEnabled,
                         isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
                         sourceRouteForSharedElement = sourceRouteForSharedElement,
@@ -1024,10 +1030,7 @@ internal fun VideoContentSection(
                         },
                         onTimestampClick = onTimestampClick,
                         showUpFlag = showUpFlag,
-                        contentPadding = PaddingValues(
-                            top = if (immersiveVideoContentChromeEnabled) tabBarVisibleHeightDp else 0.dp,
-                            bottom = bottomContentPadding,
-                        ),
+                        contentPadding = pageContentPadding,
                         currentMid = currentMid,
                         dissolvingIds = dissolvingIds,
                         onDeleteComment = onDeleteComment,
@@ -1066,7 +1069,9 @@ internal fun VideoContentSection(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(tabBarVisibleHeightDp + commentChromeHeight)
+                    .videoContentHeight {
+                        tabBarVisibleHeightPx() + with(density) { commentChromeHeight.toPx() }
+                    }
                     .background(
                         if (isPlayerCollapsed && !liquidGlassEnabled) {
                             MaterialTheme.colorScheme.surface
@@ -1095,9 +1100,9 @@ internal fun VideoContentSection(
                         Modifier.wrapContentHeight()
                     } else {
                         Modifier
-                            .height(tabBarVisibleHeightDp)
+                            .videoContentHeight(tabBarVisibleHeightPx)
                             .graphicsLayer {
-                                clip = tabBarCollapseProgress > 0.001f
+                                clip = tabBarCollapseProgress() > 0.001f
                             }
                     }
                 ),
@@ -1133,7 +1138,7 @@ internal fun VideoContentSection(
                         }
                     }
                     .graphicsLayer {
-                        val progress = tabBarCollapseProgress.coerceIn(0f, 1f)
+                        val progress = tabBarCollapseProgress().coerceIn(0f, 1f)
                         alpha = 1f - progress
                         translationY = -tabBarMaxHeightPx * progress * 0.35f
                     },
@@ -1152,7 +1157,7 @@ internal fun VideoContentSection(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = tabBarVisibleHeightDp)
+                    .videoContentTopPadding(tabBarVisibleHeightPx)
                     .heightIn(min = 46.dp)
                     .graphicsLayer {
                         translationX = pagerState.getOffsetDistanceInPages(1) * size.width
@@ -1380,6 +1385,9 @@ private fun VideoIntroTab(
     val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
         filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
     }
+    val relatedRows = remember(visibleRelatedVideos) {
+        chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
+    }
     val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
     LazyColumn(
         state = listState,
@@ -1387,7 +1395,7 @@ private fun VideoIntroTab(
         contentPadding = contentPadding
     ) {
         // 1. 移入的 Header 区域
-        item {
+        item(key = "video_intro_header", contentType = "video_intro_header") {
             VideoHeaderContent(
                 info = info,
                 videoTags = videoTags,
@@ -1441,11 +1449,10 @@ private fun VideoIntroTab(
                 animateVideoDetailLayout = animateVideoDetailLayout
             )
         }
-        item {
+        item(key = "video_related_header", contentType = "video_related_header") {
             VideoRecommendationHeader()
         }
 
-        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
         itemsIndexed(
             items = relatedRows,
             key = { rowIndex, row ->
@@ -1457,7 +1464,8 @@ private fun VideoIntroTab(
                     aid = first?.aid ?: 0L,
                     cid = first?.cid ?: 0L
                 )
-            }
+            },
+            contentType = { _, _ -> "video_related_row" },
         ) { _, row ->
             CompositionLocalProvider(
                 LocalVideoCardSharedElementSourceRoute provides "video/${info.bvid}"
@@ -1533,7 +1541,6 @@ internal fun VideoCommentTab(
     pullToRefreshEnabled: Boolean = true,
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
-    val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val shouldLoadMore by remember(
         listState,
         replies.size,
@@ -1579,26 +1586,24 @@ internal fun VideoCommentTab(
                 title = "${sortMode.label}评论",
             )
         }
-        AdaptivePullToRefreshBox(
+        val commentContentPadding = remember(contentPadding, floatingHeaderContentPadding) {
+            videoContentAdditionalTopPadding(contentPadding, floatingHeaderContentPadding)
+        }
+        VideoCommentRefreshContainer(
             isRefreshing = isRepliesRefreshing,
             onRefresh = onRefreshReplies,
             enabled = pullToRefreshEnabled,
-            indicatorTopInset = contentPadding.calculateTopPadding() + floatingHeaderContentPadding,
+            contentPadding = commentContentPadding,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = contentPadding.calculateStartPadding(layoutDirection),
-                    top = contentPadding.calculateTopPadding() + floatingHeaderContentPadding,
-                    end = contentPadding.calculateEndPadding(layoutDirection),
-                    bottom = contentPadding.calculateBottomPadding(),
-                )
+                contentPadding = commentContentPadding
             ) {
             if (repliesError != null) {
-                item(key = "video_comment_refresh_error") {
+                item(key = "video_comment_refresh_error", contentType = "video_comment_error") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1618,7 +1623,7 @@ internal fun VideoCommentTab(
                 }
             }
             voteCard?.let { card ->
-                item(key = "inline_vote_${card.voteId}") {
+                item(key = "inline_vote_${card.voteId}", contentType = "video_comment_vote") {
                     VideoCommentVoteCard(
                         card = card,
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -1626,11 +1631,11 @@ internal fun VideoCommentTab(
                 }
             }
             if (isRepliesLoading && !isRepliesRefreshing && replies.isEmpty()) {
-                item {
+                item(key = "video_comment_skeleton", contentType = "video_comment_skeleton") {
                     com.android.purebilibili.core.ui.skeleton.CommentListColumnSkeleton()
                 }
             } else if (replies.isEmpty() && voteCard == null && repliesError == null) {
-                item {
+                item(key = "video_comment_empty", contentType = "video_comment_empty") {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         // replyCount 来自详情/游标 all_count：>0 却列表空 = 最热链路空成功，勿误报「暂无」
                         AppText(
@@ -1701,7 +1706,7 @@ internal fun VideoCommentTab(
                 }
 
                 // 加载更多
-                item {
+                item(key = "video_comment_footer", contentType = "video_comment_footer") {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         contentAlignment = Alignment.Center
