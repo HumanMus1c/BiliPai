@@ -317,7 +317,7 @@ class PluginsScreenPolicyTest {
 
         assertTrue(skinSection.contains(".fillMaxWidth()"))
         assertTrue(skinSection.contains(".clip(AppShapes.container(ContainerLevel.Card))"))
-        assertTrue(skinSection.contains("text = \"在线装扮目录\""))
+        assertTrue(skinSection.contains("text = \"在线装扮\""))
         assertTrue(skinSection.contains("text = \"导入界面皮肤包\""))
         assertFalse(
             skinSection.contains(".padding(horizontal = 16.dp)\n                        .clip(AppShapes.container(ContainerLevel.Card))")

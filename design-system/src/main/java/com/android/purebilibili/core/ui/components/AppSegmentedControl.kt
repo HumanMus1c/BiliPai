@@ -1,13 +1,10 @@
 package com.android.purebilibili.core.ui.components
 
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -120,35 +117,32 @@ fun resolveCompactMiuixTabRowWidth(
     scrollable: Boolean,
 ): Dp = if (optionCount == 2 && !scrollable) minTabWidth * 2 else viewportWidth
 
-fun resolveLabelContentMinWidth(
-    labels: List<String>,
-): Dp {
-    if (labels.isEmpty()) return 0.dp
-    val maxEstimatedWidthDp = labels.maxOfOrNull { label ->
-        val textWidth = label.sumOf { char ->
-            if (char.code in 0..127) 8 else 16
-        }
-        val padding = if (textWidth > 64) 28 else 24
-        textWidth + padding
-    } ?: 0
-    return maxEstimatedWidthDp.coerceIn(48, 320).dp
-}
+internal fun resolveMeasuredTabMinWidth(
+    requestedMinWidth: Dp,
+    labelWidths: List<Dp>,
+    horizontalPadding: Dp = 12.dp,
+): Dp = maxOf(requestedMinWidth, (labelWidths.maxOrNull() ?: 0.dp) + horizontalPadding * 2)
 
-fun resolveReadableNativeTabMinWidth(
+@Composable
+fun rememberMeasuredTabMinWidth(
     requestedMinWidth: Dp,
     labels: List<String>,
-    allowLabelOverflow: Boolean,
+    textStyle: androidx.compose.ui.text.TextStyle,
 ): Dp {
-    if (!allowLabelOverflow || labels.isEmpty()) return requestedMinWidth
-    val maxEstimatedWidthDp = labels.maxOfOrNull { label ->
-        val textWidth = label.sumOf { char ->
-            if (char.code in 0..127) 8 else 16
-        }
-        val padding = if (textWidth > 64) 28 else 24
-        textWidth + padding
-    } ?: 0
-    val boundedEstimatedWidthDp = maxEstimatedWidthDp.coerceAtMost(320)
-    return maxOf(requestedMinWidth, boundedEstimatedWidthDp.dp)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    return androidx.compose.runtime.remember(requestedMinWidth, labels, textStyle, density, measurer) {
+        resolveMeasuredTabMinWidth(
+            requestedMinWidth,
+            labels.map { label ->
+                with(density) {
+                    measurer.measure(
+                        androidx.compose.ui.text.AnnotatedString(label), textStyle, maxLines = 1,
+                    ).size.width.toDp()
+                }
+            },
+        )
+    }
 }
 
 enum class MiuixNonGlassTabItemWidthMode {
@@ -377,12 +371,20 @@ fun <T> AppNativeTabRow(
     onSelectionChange: (T) -> Unit,
 ) {
     if (options.isEmpty()) return
-    val labelContentMinWidth = resolveLabelContentMinWidth(options.map { it.label })
-    val readableMinTabWidth = resolveReadableNativeTabMinWidth(
-        requestedMinWidth = minTabWidth,
+    val labelStyle = if (isMiuixNonGlassEnabled()) {
+        top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.main.copy(
+            fontSize = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body1.fontSize,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        )
+    } else {
+        MaterialTheme.typography.labelLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+    }
+    val labelContentMinWidth = rememberMeasuredTabMinWidth(
+        requestedMinWidth = AppChromeSizeTokens.MinimumTouchTarget,
         labels = options.map { it.label },
-        allowLabelOverflow = allowLabelOverflow,
+        textStyle = labelStyle,
     )
+    val readableMinTabWidth = maxOf(minTabWidth, labelContentMinWidth)
     val compactItemWidth = maxOf(minTabWidth, readableMinTabWidth, labelContentMinWidth)
     val equalizeMiuixNonGlassItems = shouldEqualizeMiuixNonGlassTabItems(
         widthMode = miuixNonGlassItemWidthMode,
@@ -392,12 +394,11 @@ fun <T> AppNativeTabRow(
     val effectiveScrollable = !forceEqualWidth &&
         (equalizeMiuixNonGlassItems || scrollable || options.size > 3 ||
             (readableMinTabWidth > minTabWidth && options.size > 2))
-    val useContentSizedMiuixItems = contentSizedMiuixNonGlassItems &&
+    // Ordinary Miuix rails own each item's surface and hit target. Upstream TabRow
+    // uses one moving background with cached equal-width geometry instead.
+    val useContentSizedMiuixItems = (isMiuixNonGlassEnabled() || contentSizedMiuixNonGlassItems) &&
         miuixNonGlassItemWidthMode == MiuixNonGlassTabItemWidthMode.CONTENT &&
         effectiveScrollable
-    val viewportBoundedModifier = modifier.widthIn(
-        max = LocalConfiguration.current.screenWidthDp.dp,
-    )
     val policy = rememberAppSegmentedControlPolicy()
     val materialColors = MaterialTheme.colorScheme
     val isImmersiveTopChrome = LocalImmersiveTopChromeActive.current
@@ -442,7 +443,7 @@ fun <T> AppNativeTabRow(
             allowLabelOverflow = allowLabelOverflow,
             indicatorPresentation = indicatorPresentation,
             indicatorPositionProvider = indicatorPositionProvider,
-            modifier = viewportBoundedModifier,
+            modifier = modifier,
             onSelectionChange = onSelectionChange,
         )
         AppSegmentedRenderer.MIUIX -> AppMiuixTabRow(
@@ -461,9 +462,9 @@ fun <T> AppNativeTabRow(
             preferredCornerRadius = policy.preferredCornerRadius,
             height = height,
             modifier = if (shouldUseCompactMiuixTabRow(options.size, effectiveScrollable, compactMiuixWhenTwoOptions)) {
-                viewportBoundedModifier.requiredWidth(compactItemWidth * options.size)
+                modifier.width(compactItemWidth * options.size)
             } else {
-                viewportBoundedModifier
+                modifier
             },
             indicatorPositionProvider = indicatorPositionProvider,
             equalizeScrollableItemWidths = equalizeMiuixNonGlassItems,

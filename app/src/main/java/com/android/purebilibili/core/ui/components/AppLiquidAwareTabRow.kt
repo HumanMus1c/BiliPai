@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui.components
 
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -9,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -154,58 +152,111 @@ fun <T> AppLiquidAwareTabRow(
     // Give every tab enough room for its longest label. The row itself remains
     // horizontally scrollable, so labels are never ellipsized or clipped on
     // narrow phones; this also applies to shared rows such as UP space tabs.
-    val readableTabWidth = resolveReadableNativeTabMinWidth(
+    val readableTabWidth = rememberMeasuredTabMinWidth(
         requestedMinWidth = resolvedMinTabWidth,
         labels = options.map { it.label },
-        allowLabelOverflow = true,
+        textStyle = androidx.compose.material3.MaterialTheme.typography.bodyLarge.copy(
+            fontSize = if (labelFontSize.isSpecified) labelFontSize else
+                androidx.compose.material3.MaterialTheme.typography.labelLarge.fontSize,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+        ),
     )
-    val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp
-    // Compact 2-option segmented controls should not turn into scrollable containers.
-    val isCompact = (compactMiuixWhenTwoOptions && options.size <= 2) || (minTabWidth.isSpecified && !scrollable)
-    // Liquid rows and MD3 retain beta.21's 72dp default and overflow contract. Only the
-    // non-glass Miuix renderer uses beta.22's 48dp accessibility minimum.
-    val needsHorizontalScroll = scrollable && !isCompact && (options.size > 4 || readableTabWidth > resolvedMinTabWidth)
-    if (needsHorizontalScroll) {
-        val scrollState = rememberScrollState()
-        val density = LocalDensity.current
-        BoxWithConstraints(
-            modifier = modifier
-                .widthIn(max = viewportMaxWidth)
-                .liquidDockViewport(),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            val viewportWidthPx = with(density) { maxWidth.toPx() }
-            val itemWidthPx = with(density) { readableTabWidth.toPx() }
-            val totalContentWidthPx = with(density) {
-                (readableTabWidth * options.size + AppSpacingTokens.ExtraSmall * 2).toPx()
+    // Two-option controls stay compact when their measured content fits the parent.
+    val isCompact = compactMiuixWhenTwoOptions && options.size <= 2
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.CenterStart) {
+        val contentWidth = readableTabWidth * options.size + AppSpacingTokens.ExtraSmall * 2
+        val needsHorizontalScroll = (scrollable && !isCompact) ||
+            (constraints.hasBoundedWidth && contentWidth > maxWidth)
+        if (needsHorizontalScroll) {
+            val scrollState = rememberScrollState()
+            val density = LocalDensity.current
+            BoxWithConstraints(
+                modifier = Modifier.liquidDockViewport(),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                val viewportWidthPx = with(density) { maxWidth.toPx() }
+                val itemWidthPx = with(density) { readableTabWidth.toPx() }
+                val totalContentWidthPx = with(density) {
+                    (readableTabWidth * options.size + AppSpacingTokens.ExtraSmall * 2).toPx()
+                }
+                val contentOverflows = totalContentWidthPx > viewportWidthPx
+                val dragFollowEdgePaddingPx = with(density) { AppSpacingTokens.Medium.toPx() }
+                val pagerPositionProvider = indicatorPositionProvider
+                val pagerMotionActiveProvider = isScrollInProgressProvider
+                KeepScrollableTabSelectionVisible(
+                    scrollState = scrollState,
+                    selectedIndex = selectedIndex,
+                    itemWidthPx = itemWidthPx,
+                    contentPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() },
+                    focusPosition = {
+                        pagerPositionProvider?.invoke() ?: selectedIndex.toFloat()
+                    },
+                    continuousFollow = {
+                        pagerPositionProvider != null && pagerMotionActiveProvider()
+                    },
+                )
+                BottomBarLiquidSegmentedControl(
+                    items = options.map { it.label },
+                    selectedIndex = selectedIndex,
+                    onSelected = { index ->
+                        options.getOrNull(index)?.let { onSelectionChange(it.value) }
+                    },
+                    modifier = Modifier.liquidDockViewport(),
+                    scrollState = scrollState,
+                    enabled = enabled,
+                    itemWidth = readableTabWidth,
+                    height = height,
+                    indicatorHeight = indicatorHeight,
+                    labelFontSize = labelFontSize,
+                    liquidGlassEffectsEnabled = true,
+                    dragSelectionEnabled = resolvedDragSelectionEnabled,
+                    tapPressRefractionEnabled = tapPressRefractionEnabled,
+                    miuixBackdrop = miuixBackdrop,
+                    preferInlineContentStyle = preferInlineContentStyle,
+                    indicatorPositionProvider = indicatorPositionProvider,
+                    onIndicatorPositionChanged = { position ->
+                        // During pager motion the shared scroll helper lock-steps the rail
+                        // with the continuous indicator position. Keep edge-follow for idle
+                        // indicator nudges so two scroll owners never compete.
+                        if (pagerPositionProvider == null || !pagerMotionActiveProvider()) {
+                            scrollState.dispatchRawDelta(
+                                resolveScrollableTabIndicatorFollowDeltaPx(
+                                    indicatorPosition = position,
+                                    itemWidthPx = itemWidthPx,
+                                    viewportWidthPx = viewportWidthPx,
+                                    currentScrollPx = scrollState.value.toFloat(),
+                                    contentPaddingPx = with(density) {
+                                        AppSpacingTokens.ExtraSmall.toPx()
+                                    },
+                                    edgePaddingPx = dragFollowEdgePaddingPx,
+                                )
+                            )
+                        }
+                    },
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                    externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
+                )
             }
-            val contentOverflows = totalContentWidthPx > viewportWidthPx
-            val dragFollowEdgePaddingPx = with(density) { AppSpacingTokens.Medium.toPx() }
-            val pagerPositionProvider = indicatorPositionProvider
-            val pagerMotionActiveProvider = isScrollInProgressProvider
-            KeepScrollableTabSelectionVisible(
-                scrollState = scrollState,
-                selectedIndex = selectedIndex,
-                itemWidthPx = itemWidthPx,
-                viewportWidthPx = viewportWidthPx,
-                contentPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.toPx() },
-                focusPosition = {
-                    pagerPositionProvider?.invoke() ?: selectedIndex.toFloat()
-                },
-                continuousFollow = {
-                    pagerPositionProvider != null && pagerMotionActiveProvider()
-                },
-            )
+        } else {
+            val rowModifier = if (isCompact) {
+                Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+            } else {
+                Modifier
+            }
+            val rowItemWidth = if (isCompact) {
+                readableTabWidth
+            } else {
+                null
+            }
             BottomBarLiquidSegmentedControl(
                 items = options.map { it.label },
                 selectedIndex = selectedIndex,
                 onSelected = { index ->
                     options.getOrNull(index)?.let { onSelectionChange(it.value) }
                 },
-                modifier = Modifier.liquidDockViewport(),
-                scrollState = scrollState,
+                modifier = rowModifier,
                 enabled = enabled,
-                itemWidth = readableTabWidth,
+                itemWidth = rowItemWidth,
                 height = height,
                 indicatorHeight = indicatorHeight,
                 labelFontSize = labelFontSize,
@@ -215,60 +266,9 @@ fun <T> AppLiquidAwareTabRow(
                 miuixBackdrop = miuixBackdrop,
                 preferInlineContentStyle = preferInlineContentStyle,
                 indicatorPositionProvider = indicatorPositionProvider,
-                onIndicatorPositionChanged = { position ->
-                    // During pager motion the shared scroll helper lock-steps the rail
-                    // with the continuous indicator position. Keep edge-follow for idle
-                    // indicator nudges so two scroll owners never compete.
-                    if (pagerPositionProvider == null || !pagerMotionActiveProvider()) {
-                        scrollState.dispatchRawDelta(
-                            resolveScrollableTabIndicatorFollowDeltaPx(
-                                indicatorPosition = position,
-                                itemWidthPx = itemWidthPx,
-                                viewportWidthPx = viewportWidthPx,
-                                currentScrollPx = scrollState.value.toFloat(),
-                                contentPaddingPx = with(density) {
-                                    AppSpacingTokens.ExtraSmall.toPx()
-                                },
-                                edgePaddingPx = dragFollowEdgePaddingPx,
-                            )
-                        )
-                    }
-                },
                 isScrollInProgressProvider = isScrollInProgressProvider,
                 externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
             )
         }
-    } else {
-        val rowModifier = if (isCompact) {
-            modifier.wrapContentWidth(Alignment.CenterHorizontally)
-        } else {
-            modifier
-        }
-        val rowItemWidth = if (isCompact) {
-            readableTabWidth
-        } else {
-            null
-        }
-        BottomBarLiquidSegmentedControl(
-            items = options.map { it.label },
-            selectedIndex = selectedIndex,
-            onSelected = { index ->
-                options.getOrNull(index)?.let { onSelectionChange(it.value) }
-            },
-            modifier = rowModifier,
-            enabled = enabled,
-            itemWidth = rowItemWidth,
-            height = height,
-            indicatorHeight = indicatorHeight,
-            labelFontSize = labelFontSize,
-            liquidGlassEffectsEnabled = true,
-            dragSelectionEnabled = resolvedDragSelectionEnabled,
-            tapPressRefractionEnabled = tapPressRefractionEnabled,
-            miuixBackdrop = miuixBackdrop,
-            preferInlineContentStyle = preferInlineContentStyle,
-            indicatorPositionProvider = indicatorPositionProvider,
-            isScrollInProgressProvider = isScrollInProgressProvider,
-            externalPagerMotionEffectsEnabled = indicatorPositionProvider != null,
-        )
     }
 }

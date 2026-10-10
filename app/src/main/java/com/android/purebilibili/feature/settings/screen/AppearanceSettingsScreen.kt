@@ -112,6 +112,7 @@ fun AppearanceSettingsScreen(
     onBack: () -> Unit,
     onNavigateToIconSettings: () -> Unit = {},
     contentMode: AppearanceSettingsContentMode = AppearanceSettingsContentMode.APPEARANCE,
+    onAnimationClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -124,7 +125,7 @@ fun AppearanceSettingsScreen(
     val backLabel = stringResource(R.string.common_back)
     val screenTitle = when (contentMode) {
         AppearanceSettingsContentMode.APPEARANCE -> stringResource(R.string.appearance_settings_title)
-        AppearanceSettingsContentMode.HOME -> "首页设置"
+        AppearanceSettingsContentMode.HOME -> "首页与动态"
     }
     val restartDialogTitle = stringResource(R.string.app_language_restart_dialog_title)
     val restartDialogMessage = stringResource(R.string.app_language_restart_dialog_message)
@@ -171,6 +172,7 @@ fun AppearanceSettingsScreen(
     ) {
         CompositionLocalProvider(LocalSettingsLiquidGlassEnabled provides effectiveLiquidGlassEnabled) {
             AppearanceSettingsContent(
+                onAnimationClick = onAnimationClick,
                 state = state,
                 onNavigateToIconSettings = onNavigateToIconSettings,
                 contentMode = contentMode,
@@ -235,7 +237,8 @@ fun AppearanceSettingsContent(
     contentMode: AppearanceSettingsContentMode,
     viewModel: SettingsViewModel,
     context: android.content.Context,
-    onAppLanguageChange: (AppLanguage) -> Unit
+    onAppLanguageChange: (AppLanguage) -> Unit,
+    onAnimationClick: () -> Unit = {},
 ) {
     val activity = context as? android.app.Activity
     val supportedDisplayModes = remember(activity) {
@@ -251,7 +254,7 @@ fun AppearanceSettingsContent(
         )
     }
     val screenDisplayModeOptions = remember(supportedDisplayModes) {
-        listOf(AppSegmentOption(SYSTEM_AUTO_DISPLAY_MODE_ID, "自动（系统）")) +
+        listOf(AppSegmentOption(SYSTEM_AUTO_DISPLAY_MODE_ID, "跟随系统")) +
             supportedDisplayModes.map { mode ->
                 AppSegmentOption(mode.modeId, displayModePreferenceLabel(mode))
             }
@@ -259,7 +262,7 @@ fun AppearanceSettingsContent(
     val selectedScreenDisplayModeLabel = screenDisplayModeOptions
         .firstOrNull { option -> option.value == selectedScreenDisplayModeId }
         ?.label
-        ?: "自动（系统）"
+        ?: "跟随系统"
     val singleChoicePresentation by SettingsManager
         .getSingleChoicePresentation(context)
         .collectAsStateWithLifecycle(AppSingleChoicePresentation.WINDOW_POPUP)
@@ -268,7 +271,7 @@ fun AppearanceSettingsContent(
         .collectAsStateWithLifecycle(initialValue = true)
     val singleChoicePresentationOptions = remember {
         listOf(
-            AppSegmentOption(AppSingleChoicePresentation.WINDOW_POPUP, "跟随选项弹出"),
+            AppSegmentOption(AppSingleChoicePresentation.WINDOW_POPUP, "选项旁展开"),
             AppSegmentOption(AppSingleChoicePresentation.CENTERED_DIALOG, "居中弹窗"),
         )
     }
@@ -280,21 +283,22 @@ fun AppearanceSettingsContent(
     val displayMetricsSnapshot = LocalDisplayMetricsSnapshot.current
     val windowSizeClass = LocalWindowSizeClass.current
     val isTablet = windowSizeClass.isTablet
-    LaunchedEffect(focusRequest?.token, isTablet) {
-        val request = focusRequest ?: return@LaunchedEffect
-        val expectedTarget = when (contentMode) {
-            AppearanceSettingsContentMode.APPEARANCE -> SettingsSearchTarget.APPEARANCE
-            AppearanceSettingsContentMode.HOME -> SettingsSearchTarget.HOME_FEED
-        }
-        if (request.target != expectedTarget) return@LaunchedEffect
-        val index = when (contentMode) {
-            AppearanceSettingsContentMode.APPEARANCE ->
-                resolveAppearanceSettingsScrollIndex(request.focusId, isTablet)
-            AppearanceSettingsContentMode.HOME -> resolveHomeSettingsScrollIndex(request.focusId)
-        } ?: return@LaunchedEffect
-        listState.animateScrollToItem(index)
-        SettingsSearchFocusController.clear(request.token)
-    }
+    val sectionKeys = when (contentMode) {
+        AppearanceSettingsContentMode.APPEARANCE -> listOf("appearance_display_mode", "appearance_theme_color", "appearance_text_size", "appearance_splash_icon", "appearance_language")
+        AppearanceSettingsContentMode.HOME -> listOf("home_list", "home_wallpaper", "home_recommendation", "home_browsing")
+    }.flatMap { listOf(it + "_title", it) }
+    SettingsSectionFocusEffect(
+        listState = listState,
+        target = if (contentMode == AppearanceSettingsContentMode.HOME) SettingsSearchTarget.HOME_FEED else SettingsSearchTarget.APPEARANCE,
+        sectionKeys = if (contentMode == AppearanceSettingsContentMode.APPEARANCE) sectionKeys else sectionKeys + "home_options",
+        legacyKeys = mapOf(
+            SettingsSearchFocusIds.APPEARANCE_THEME to "appearance_display_mode_title",
+            SettingsSearchFocusIds.APPEARANCE_DISPLAY to "appearance_text_size_title",
+            SettingsSearchFocusIds.APPEARANCE_SPLASH to "appearance_splash_icon_title",
+            SettingsSearchFocusIds.APPEARANCE_PERSONALIZATION to "appearance_splash_icon_title",
+            SettingsSearchFocusIds.HOME_OVERVIEW to "home_list_title",
+        ),
+    )
     val deviceUiProfile = remember(windowSizeClass.widthSizeClass) {
         resolveDeviceUiProfile(
             widthSizeClass = windowSizeClass.widthSizeClass
@@ -310,25 +314,6 @@ fun AppearanceSettingsContent(
         resolveThemeSelectionOptions(
             material3Label = uiStyleMaterialLabel,
             miuixLabel = uiStyleMiuixLabel,
-        )
-    }
-    val uiPresetAndroidMaterialTitle = stringResource(R.string.appearance_ui_preset_android_material_title)
-    val uiPresetAndroidMaterialSummary = stringResource(R.string.appearance_ui_preset_android_material_summary)
-    val uiPresetAndroidMiuixTitle = stringResource(R.string.appearance_ui_preset_android_miuix_title)
-    val uiPresetAndroidMiuixSummary = stringResource(R.string.appearance_ui_preset_android_miuix_summary)
-    val uiPresetDescription = remember(
-        state.themeSelection,
-        uiPresetAndroidMaterialTitle,
-        uiPresetAndroidMaterialSummary,
-        uiPresetAndroidMiuixTitle,
-        uiPresetAndroidMiuixSummary
-    ) {
-        resolveAppearanceUiPresetDescription(
-            selection = state.themeSelection,
-            materialTitle = uiPresetAndroidMaterialTitle,
-            materialSummary = uiPresetAndroidMaterialSummary,
-            miuixTitle = uiPresetAndroidMiuixTitle,
-            miuixSummary = uiPresetAndroidMiuixSummary
         )
     }
     val selectedUiStyleLabel = uiStyleOptions
@@ -592,14 +577,13 @@ fun AppearanceSettingsContent(
         contentPadding = PaddingValues(top = LocalSettingsTopContentPadding.current, bottom = contentBottomPadding)
     ) {
         if (contentMode == AppearanceSettingsContentMode.APPEARANCE) {
-
         //  显示模式
-        item { 
+        item(key = "appearance_display_mode_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("显示模式")
+                AppPreferenceSectionTitle("界面与效果")
             }
         }
-        item {
+        item(key = "appearance_display_mode") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -611,17 +595,11 @@ fun AppearanceSettingsContent(
                             onSelectionChange = viewModel::setThemeSelection,
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AppearanceUiPresetDescriptionCard(
-                            title = uiPresetDescription.title,
-                            summary = uiPresetDescription.summary
-                        )
-
                         Column {
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                title = "屏幕帧率：$selectedScreenDisplayModeLabel",
-                                subtitle = "默认跟随系统自动调节；手动锁定某一档后，LTPO 设备将暂停自动升降帧率",
+                                title = "屏幕刷新率：$selectedScreenDisplayModeLabel",
+                                subtitle = "手动固定刷新率后，LTPO 屏幕不再自动调节，可能增加耗电",
                                 options = screenDisplayModeOptions,
                                 selectedValue = selectedScreenDisplayModeId,
                                 enabled = activity != null && supportedDisplayModes.isNotEmpty(),
@@ -636,60 +614,73 @@ fun AppearanceSettingsContent(
 
                         Column {
                             AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
-                                title = "安卓液态玻璃",
-                                subtitle = if (isLiquidGlassAvailable) {
-                                    "开启后，首页顶部标签栏、搜索框、底部导航栏和评论区底栏统一使用液态玻璃"
-                                } else {
-                                    "当前 Android 版本暂不支持液态玻璃效果"
-                                },
-                                checked = effectiveLiquidGlassEnabled,
-                                onCheckedChange = { viewModel.toggleAndroidNativeLiquidGlass(it) },
-                                enabled = isLiquidGlassAvailable,
-                                iconTint = iOSBlue
+                            SettingsItemAnchor("appearance.effective_liquid_glass_enabled") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
+                                    title = settingItemTitle("appearance.effective_liquid_glass_enabled"),
+                                    subtitle = if (isLiquidGlassAvailable) {
+                                        "首页顶栏、搜索框、底栏和评论底栏使用玻璃效果"
+                                    } else {
+                                        "当前 Android 版本暂不支持液态玻璃效果"
+                                    },
+                                    checked = effectiveLiquidGlassEnabled,
+                                    onCheckedChange = { viewModel.toggleAndroidNativeLiquidGlass(it) },
+                                    enabled = isLiquidGlassAvailable,
+                                    iconTint = iOSBlue
+                                )
+                            }
+                        }
+
+                        AppPreferenceDivider()
+
+                        SettingsItemAnchor("appearance.app_list_item_style") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.app_list_item_style"),
+                                subtitle = "统一圆角条目，或跟随当前界面预设",
+                                options = resolveAppListItemStyleOptions(),
+                                selectedValue = state.appListItemStyle,
+                                onSelectionChange = { style ->
+                                    viewModel.setAppListItemStyle(style)
+                                }
                             )
                         }
 
                         AppPreferenceDivider()
 
-                        SettingsSingleChoicePreference(
-                            title = "列表条目样式",
-                            subtitle = "统一圆角条目，或跟随当前界面预设",
-                            options = resolveAppListItemStyleOptions(),
-                            selectedValue = state.appListItemStyle,
-                            onSelectionChange = { style ->
-                                viewModel.setAppListItemStyle(style)
-                            }
-                        )
-
-                        AppPreferenceDivider()
-
-                        SettingsSingleChoicePreference(
-                            title = "图标样式",
-                            subtitle = "彩色底图或单色图标，全局生效",
-                            options = resolveAppIconStyleOptions(),
-                            selectedValue = state.appIconStyle,
-                            onSelectionChange = { style ->
-                                viewModel.setAppIconStyle(style)
-                            }
-                        )
-
-                        AppPreferenceDivider()
-
-                        SettingsSingleChoicePreference(
-                            title = "选项弹窗样式",
-                            subtitle = "从条目旁展开，或居中弹出",
-                            options = singleChoicePresentationOptions,
-                            selectedValue = singleChoicePresentation,
-                            onSelectionChange = { presentation ->
-                                scope.launch {
-                                    SettingsManager.setSingleChoicePresentation(
-                                        context = context,
-                                        presentation = presentation,
-                                    )
+                        SettingsItemAnchor("appearance.app_icon_style") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.app_icon_style"),
+                                subtitle = "彩色底图或单色图标，全局生效",
+                                options = resolveAppIconStyleOptions(),
+                                selectedValue = state.appIconStyle,
+                                onSelectionChange = { style ->
+                                    viewModel.setAppIconStyle(style)
                                 }
-                            },
+                            )
+                        }
+
+                        AppPreferenceDivider()
+
+                        SettingsItemAnchor("appearance.single_choice_presentation") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.single_choice_presentation"),
+                                subtitle = "从条目旁展开，或居中弹出",
+                                options = singleChoicePresentationOptions,
+                                selectedValue = singleChoicePresentation,
+                                onSelectionChange = { presentation ->
+                                    scope.launch {
+                                        SettingsManager.setSingleChoicePresentation(
+                                            context = context,
+                                            presentation = presentation,
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                        AppPreferenceDivider()
+                        AppPreference(
+                            title = "动画、振动与玻璃效果",
+                            onClick = onAnimationClick,
                         )
                     }
                 }
@@ -697,12 +688,12 @@ fun AppearanceSettingsContent(
         }
 
         //  主题与色彩
-        item { 
+        item(key = "appearance_theme_color_title") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceSectionTitle("主题与色彩")
             }
         }
-        item {
+        item(key = "appearance_theme_color") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -737,17 +728,19 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider()
 
-                        SettingsSingleChoicePreference(
-                            title = "主题颜色来源：$selectedMd3ColorSourceLabel",
-                            subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                "跟随时直接使用系统当前壁纸配色；自定义模式可选择色彩风格"
-                            } else {
-                                "当前系统不支持 Monet 壁纸取色，可使用自定义主题色"
-                            },
-                            options = md3ColorSourceOptions,
-                            selectedValue = state.md3ColorSource,
-                            onSelectionChange = viewModel::setMd3ColorSource
-                        )
+                        SettingsItemAnchor("appearance.md3_color_source") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.md3_color_source"),
+                                subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    "跟随时直接使用系统当前壁纸配色；自定义模式可选择色彩风格"
+                                } else {
+                                    "系统不支持壁纸取色，请选择自定义颜色"
+                                },
+                                options = md3ColorSourceOptions,
+                                selectedValue = state.md3ColorSource,
+                                onSelectionChange = viewModel::setMd3ColorSource
+                            )
+                        }
 
                         AnimatedVisibility(
                             visible = state.md3ColorSource == Md3ColorSource.FOLLOW_WALLPAPER,
@@ -780,25 +773,27 @@ fun AppearanceSettingsContent(
                         ) {
                             Column {
                                 AppPreferenceDivider()
-                                AppSwitchPreference(
-                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.ADVANCED_COLOR),
-                                    title = "高级配色",
-                                    subtitle = resolveAdvancedPaletteSubtitle(state.themeSelection),
-                                    checked = themeRoleOverrides.enabled,
-                                    onCheckedChange = { enabled ->
-                                        scope.launch {
-                                            SettingsManager.setThemeRoleOverrides(
-                                                context,
-                                                if (enabled) {
-                                                    baseThemeRoleOverrides.copy(enabled = true)
-                                                } else {
-                                                    themeRoleOverrides.copy(enabled = false)
-                                                }
-                                            )
-                                        }
-                                    },
-                                    iconTint = MaterialTheme.colorScheme.primary
-                                )
+                                SettingsItemAnchor("appearance.theme_role_overrides.enabled") {
+                                    AppSwitchPreference(
+                                        icon = rememberSettingsSemanticIcon(SettingsIconRole.ADVANCED_COLOR),
+                                        title = settingItemTitle("appearance.theme_role_overrides.enabled"),
+                                        subtitle = resolveAdvancedPaletteSubtitle(state.themeSelection),
+                                        checked = themeRoleOverrides.enabled,
+                                        onCheckedChange = { enabled ->
+                                            scope.launch {
+                                                SettingsManager.setThemeRoleOverrides(
+                                                    context,
+                                                    if (enabled) {
+                                                        baseThemeRoleOverrides.copy(enabled = true)
+                                                    } else {
+                                                        themeRoleOverrides.copy(enabled = false)
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        iconTint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
 
                                 AnimatedVisibility(
                                     visible = themeRoleOverrides.enabled,
@@ -977,34 +972,38 @@ fun AppearanceSettingsContent(
             }
         }
 
-        item {
+        item(key = "appearance_text_size_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("字体与密度")
+                AppPreferenceSectionTitle("文字与大小")
             }
         }
-        item {
+        item(key = "appearance_text_size") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        SettingsSingleChoicePreference(
-                            title = "字体大小：${state.appFontSizePreset.label}",
-                            subtitle = "仅调整应用内文字比例",
-                            options = resolveAppFontSizeSegmentOptions(),
-                            selectedValue = state.appFontSizePreset,
-                            onSelectionChange = { preset ->
-                                viewModel.setAppFontSizePreset(preset)
-                            }
-                        )
+                        SettingsItemAnchor("appearance.app_font_size_preset") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.app_font_size_preset"),
+                                subtitle = "仅调整应用内文字比例",
+                                options = resolveAppFontSizeSegmentOptions(),
+                                selectedValue = state.appFontSizePreset,
+                                onSelectionChange = { preset ->
+                                    viewModel.setAppFontSizePreset(preset)
+                                }
+                            )
+                        }
 
-                        SettingsSingleChoicePreference(
-                            title = "全局字重：${state.appFontWeightPreset.label}",
-                            subtitle = "统一调整全部文字的粗细",
-                            options = resolveAppFontWeightSegmentOptions(),
-                            selectedValue = state.appFontWeightPreset,
-                            onSelectionChange = { preset ->
-                                viewModel.setAppFontWeightPreset(preset)
-                            }
-                        )
+                        SettingsItemAnchor("appearance.app_font_weight_preset") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.app_font_weight_preset"),
+                                subtitle = "统一调整全部文字的粗细",
+                                options = resolveAppFontWeightSegmentOptions(),
+                                selectedValue = state.appFontWeightPreset,
+                                onSelectionChange = { preset ->
+                                    viewModel.setAppFontWeightPreset(preset)
+                                }
+                            )
+                        }
 
                         AppPreferenceDivider()
 	                        AppPreference(
@@ -1046,15 +1045,17 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider()
 
-                        SettingsSingleChoicePreference(
-                            title = "界面缩放：${state.appUiScalePreset.label}",
-                            subtitle = "调整列表、卡片与控件的整体密度",
-                            options = resolveAppUiScaleSegmentOptions(),
-                            selectedValue = state.appUiScalePreset,
-                            onSelectionChange = { preset ->
-                                viewModel.setAppUiScalePreset(preset)
-                            }
-                        )
+                        SettingsItemAnchor("appearance.app_ui_scale_preset") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.app_ui_scale_preset"),
+                                subtitle = "整体放大或缩小列表、卡片和按钮",
+                                options = resolveAppUiScaleSegmentOptions(),
+                                selectedValue = state.appUiScalePreset,
+                                onSelectionChange = { preset ->
+                                    viewModel.setAppUiScalePreset(preset)
+                                }
+                            )
+                        }
 
                         AppPreferenceDivider()
 
@@ -1099,18 +1100,20 @@ fun AppearanceSettingsContent(
                                 )
                             }
                         }
+                        AppPreferenceDivider()
+                        SettingsTextCopyPreference()
                     }
                 }
             }
         }
         
         //  开屏与图标
-        item { 
+        item(key = "appearance_splash_icon_title") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceSectionTitle("开屏与图标")
             }
         }
-        item {
+        item(key = "appearance_splash_icon") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     val isSplashEnabled by com.android.purebilibili.core.store.SettingsManager.isSplashEnabled(context).collectAsStateWithLifecycle(initialValue = false)
@@ -1154,24 +1157,28 @@ fun AppearanceSettingsContent(
                     AppPreferenceDivider()
 
                     // 开关项
-                    AppSwitchPreference(
-                        icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_WALLPAPER),
-                        title = "使用开屏壁纸",
-                        subtitle = "应用启动时显示官方或相册壁纸",
-                        checked = isSplashEnabled,
-                        onCheckedChange = { viewModel.toggleSplashEnabled(it) },
-                        iconTint = com.android.purebilibili.core.theme.iOSBlue
-                    )
+                    SettingsItemAnchor("appearance.is_splash_enabled") {
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_WALLPAPER),
+                            title = settingItemTitle("appearance.is_splash_enabled"),
+                            subtitle = "应用启动时显示官方或相册壁纸",
+                            checked = isSplashEnabled,
+                            onCheckedChange = { viewModel.toggleSplashEnabled(it) },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+                    }
 
                     AppPreferenceDivider()
-                    AppSwitchPreference(
-                        icon = rememberSettingsSemanticIcon(SettingsIconRole.RANDOM_WALLPAPER),
-                        title = "随机展示开屏壁纸",
-                        subtitle = "启动时从可见官方壁纸中随机展示",
-                        checked = splashRandomEnabled,
-                        onCheckedChange = { viewModel.toggleSplashRandomEnabled(it) },
-                        iconTint = com.android.purebilibili.core.theme.iOSGreen
-                    )
+                    SettingsItemAnchor("appearance.splash_random_enabled") {
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.RANDOM_WALLPAPER),
+                            title = settingItemTitle("appearance.splash_random_enabled"),
+                            subtitle = "启动时从可见官方壁纸中随机展示",
+                            checked = splashRandomEnabled,
+                            onCheckedChange = { viewModel.toggleSplashRandomEnabled(it) },
+                            iconTint = com.android.purebilibili.core.theme.iOSGreen
+                        )
+                    }
 
                     androidx.compose.animation.AnimatedVisibility(
                         visible = isSplashEnabled && splashRandomEnabled,
@@ -1188,7 +1195,7 @@ fun AppearanceSettingsContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AppText(
-                                    text = "随机池预览",
+                                    text = "参与随机的壁纸",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -1238,25 +1245,29 @@ fun AppearanceSettingsContent(
                     }
 
                     AppPreferenceDivider()
-                    AppSwitchPreference(
-                        icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_ICON_ANIMATION),
-                        title = "开屏图标遮罩动画",
-                        subtitle = "关闭后不播放图标飞出或蓝雪女仆动画",
-                        checked = splashIconAnimationEnabled,
-                        onCheckedChange = { viewModel.toggleSplashIconAnimationEnabled(it) },
-                        iconTint = com.android.purebilibili.core.theme.iOSPink
-                    )
+                    SettingsItemAnchor("appearance.splash_icon_animation_enabled") {
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_ICON_ANIMATION),
+                            title = settingItemTitle("appearance.splash_icon_animation_enabled"),
+                            subtitle = "关闭后不播放图标飞出或蓝雪女仆动画",
+                            checked = splashIconAnimationEnabled,
+                            onCheckedChange = { viewModel.toggleSplashIconAnimationEnabled(it) },
+                            iconTint = com.android.purebilibili.core.theme.iOSPink
+                        )
+                    }
                     
-                    SettingsSingleChoicePreference(
-                        title = "启动动画样式",
-                        subtitle = "蓝雪女仆与自定义启动壁纸可同时展示",
-                        options = com.android.purebilibili.core.store.StartupAnimationStyle.entries.map {
-                            AppSegmentOption(it, it.label)
-                        },
-                        selectedValue = startupAnimationStyle,
-                        enabled = splashIconAnimationEnabled,
-                        onSelectionChange = viewModel::setStartupAnimationStyle
-                    )
+                    SettingsItemAnchor("appearance.startup_animation_style") {
+                        SettingsSingleChoicePreference(
+                            title = settingItemTitle("appearance.startup_animation_style"),
+                            subtitle = "蓝雪女仆与自定义启动壁纸可同时展示",
+                            options = com.android.purebilibili.core.store.StartupAnimationStyle.entries.map {
+                                AppSegmentOption(it, it.label)
+                            },
+                            selectedValue = startupAnimationStyle,
+                            enabled = splashIconAnimationEnabled,
+                            onSelectionChange = viewModel::setStartupAnimationStyle
+                        )
+                    }
 
                     // 当开启时，显示选择壁纸入口
                     androidx.compose.animation.AnimatedVisibility(
@@ -1345,12 +1356,12 @@ fun AppearanceSettingsContent(
         }
         
         //  语言
-        item { 
+        item(key = "appearance_language_title") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceSectionTitle("语言")
             }
         }
-        item {
+        item(key = "appearance_language") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1373,12 +1384,12 @@ fun AppearanceSettingsContent(
 
         if (contentMode == AppearanceSettingsContentMode.HOME) {
             //  首页与列表
-            item { 
+            item(key = "home_list_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("首页与列表")
                 }
             }
-            item {
+            item(key = "home_list") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         val displayMode = state.displayMode
@@ -1386,7 +1397,7 @@ fun AppearanceSettingsContent(
                             .firstOrNull { it.value == displayMode }
                         SettingsSingleChoicePreference(
                             title = "展示样式",
-                            subtitle = currentDisplayMode?.description ?: "首页视频流布局",
+                            subtitle = currentDisplayMode?.description ?: "首页视频排列方式",
                             options = DisplayMode.entries.map { mode ->
                                 AppSegmentOption(mode.value, mode.title)
                             },
@@ -1404,230 +1415,256 @@ fun AppearanceSettingsContent(
                         ) {
                             Column {
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsSingleChoicePreference(
-                                    icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_format_list_bulleted_24),
-                                    iconTint = com.android.purebilibili.core.theme.iOSBlue,
-                                    title = "网格列数",
-                                    subtitle = if (state.gridColumnCount == 0) {
-                                        "自适应（默认）；折叠屏外屏与窄屏独立记忆，可用双指缩放调整"
-                                    } else {
-                                        "宽屏固定 ${state.gridColumnCount} 列；折叠屏外屏与窄屏独立记忆"
-                                    },
-                                    options = (0..6).map { count ->
-                                        AppSegmentOption(
-                                            value = count,
-                                            label = if (count == 0) "自动" else "$count 列",
-                                        )
-                                    },
-                                    selectedValue = state.gridColumnCount,
-                                    onSelectionChange = viewModel::setGridColumnCount,
-                                )
+                                SettingsItemAnchor("appearance.grid_column_count") {
+                                    SettingsSingleChoicePreference(
+                                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_format_list_bulleted_24),
+                                        iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                                        title = settingItemTitle("appearance.grid_column_count"),
+                                        subtitle = if (state.gridColumnCount == 0) {
+                                            "自适应（默认）；折叠屏外屏与窄屏独立记忆，可用双指缩放调整"
+                                        } else {
+                                            "宽屏固定 ${state.gridColumnCount} 列；折叠屏外屏与窄屏独立记忆"
+                                        },
+                                        options = (0..6).map { count ->
+                                            AppSegmentOption(
+                                                value = count,
+                                                label = if (count == 0) "自动" else "$count 列",
+                                            )
+                                        },
+                                        selectedValue = state.gridColumnCount,
+                                        onSelectionChange = viewModel::setGridColumnCount,
+                                    )
+                                }
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsSingleChoicePreference(
-                                    title = "推荐流卡片宽度",
-                                    subtitle = if (state.gridColumnCount > 0) {
-                                        "当前固定 ${state.gridColumnCount} 列优先生效，自动列数时使用该宽度"
-                                    } else {
-                                        "自动列数时控制首页推荐卡片的最小宽度"
-                                    },
-                                    options = resolveHomeFeedCardWidthPresetSegmentOptions(),
-                                    selectedValue = state.homeFeedCardWidthPreset,
-                                    onSelectionChange = viewModel::setHomeFeedCardWidthPreset,
-                                )
+                                SettingsItemAnchor("appearance.home_feed_card_width_preset") {
+                                    SettingsSingleChoicePreference(
+                                        title = settingItemTitle("appearance.home_feed_card_width_preset"),
+                                        subtitle = if (state.gridColumnCount > 0) {
+                                            "当前固定 ${state.gridColumnCount} 列优先生效，自动列数时使用该宽度"
+                                        } else {
+                                            "自动列数时控制首页推荐卡片的最小宽度"
+                                        },
+                                        options = resolveHomeFeedCardWidthPresetSegmentOptions(),
+                                        selectedValue = state.homeFeedCardWidthPreset,
+                                        onSelectionChange = viewModel::setHomeFeedCardWidthPreset,
+                                    )
+                                }
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                AppSwitchPreference(
-                                    title = "双指缩放网格列数",
-                                    subtitle = "在视频列表上双指捏合即可调节列数",
-                                    checked = pinchToChangeGridColumnsEnabled,
-                                    onCheckedChange = { enabled ->
-                                        scope.launch {
-                                            SettingsManager.setPinchToChangeGridColumnsEnabled(context, enabled)
-                                        }
-                                    },
-                                )
+                                SettingsItemAnchor("appearance.pinch_to_change_grid_columns_enabled") {
+                                    AppSwitchPreference(
+                                        title = settingItemTitle("appearance.pinch_to_change_grid_columns_enabled"),
+                                        subtitle = "在视频列表上双指捏合即可调节列数",
+                                        checked = pinchToChangeGridColumnsEnabled,
+                                        onCheckedChange = { enabled ->
+                                            scope.launch {
+                                                SettingsManager.setPinchToChangeGridColumnsEnabled(context, enabled)
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULL_VIDEO_CARD_CONTENT),
-                            title = "标题完整显示",
-                            subtitle = if (fullVideoCardContentVisible) {
-                                "标题不截断，卡片高度可能不一致"
-                            } else {
-                                "标题最多两行，其余信息不变"
-                            },
-                            checked = fullVideoCardContentVisible,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setFullVideoCardContentVisible(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.full_video_card_content_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.FULL_VIDEO_CARD_CONTENT),
+                                title = settingItemTitle("appearance.full_video_card_content_visible"),
+                                subtitle = if (fullVideoCardContentVisible) {
+                                    "标题不截断，卡片高度可能不一致"
+                                } else {
+                                    "标题最多两行，其余信息不变"
+                                },
+                                checked = fullVideoCardContentVisible,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setFullVideoCardContentVisible(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsSingleChoicePreference(
-                            title = "卡片封面比例：${homeFeedCardStyle.label}",
-                            subtitle = homeFeedCardStyle.subtitle + "（首页、搜索、列表、相关推荐等同步）",
-                            options = HomeFeedCardStyle.entries.map {
-                                AppSegmentOption(it, it.label)
-                            },
-                            selectedValue = homeFeedCardStyle,
-                            onSelectionChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeFeedCardStyle(context, it)
+                        SettingsItemAnchor("appearance.home_feed_card_style") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.home_feed_card_style"),
+                                subtitle = homeFeedCardStyle.subtitle + "（首页、搜索、列表、相关推荐等同步）",
+                                options = HomeFeedCardStyle.entries.map {
+                                    AppSegmentOption(it, it.label)
+                                },
+                                selectedValue = homeFeedCardStyle,
+                                onSelectionChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeFeedCardStyle(context, it)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_CARD_STATS_COMPACT),
-                            title = "数据贴在封面上",
-                            subtitle = if (compactVideoStatsOnCover) {
-                                "播放量和弹幕显示在封面底部"
-                            } else {
-                                "默认显示在标题下方"
-                            },
-                            checked = compactVideoStatsOnCover,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setCompactVideoStatsOnCover(context, it)
-                                }
-                            },
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("appearance.compact_video_stats_on_cover") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_CARD_STATS_COMPACT),
+                                title = settingItemTitle("appearance.compact_video_stats_on_cover"),
+                                subtitle = if (compactVideoStatsOnCover) {
+                                    "播放量和弹幕显示在封面底部"
+                                } else {
+                                    "默认显示在标题下方"
+                                },
+                                checked = compactVideoStatsOnCover,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setCompactVideoStatsOnCover(context, it)
+                                    }
+                                },
+                                iconTint = iOSTeal
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsSingleChoicePreference(
-                            title = "首页视频时长：${homeDurationStyle.label}",
-                            subtitle = "显示在统计行、纯文字或隐藏",
-                            options = HomeDurationStyle.entries.map {
-                                AppSegmentOption(it, it.label)
-                            },
-                            selectedValue = homeDurationStyle,
-                            onSelectionChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeDurationStyle(context, it)
+                        SettingsItemAnchor("appearance.home_duration_style") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.home_duration_style"),
+                                subtitle = "选择视频时长的显示方式",
+                                options = HomeDurationStyle.entries.map {
+                                    AppSegmentOption(it, it.label)
+                                },
+                                selectedValue = homeDurationStyle,
+                                onSelectionChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeDurationStyle(context, it)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TIME_STATUS),
-                            title = "发布时间",
-                            subtitle = if (homePublishTimeVisible) {
-                                "首页视频卡片显示发布时间"
-                            } else {
-                                "首页视频卡片不显示发布时间"
-                            },
-                            checked = homePublishTimeVisible,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomePublishTimeVisible(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSPurple
-                        )
+                        SettingsItemAnchor("appearance.home_publish_time_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TIME_STATUS),
+                                title = settingItemTitle("appearance.home_publish_time_visible"),
+                                subtitle = if (homePublishTimeVisible) {
+                                    "首页视频卡片显示发布时间"
+                                } else {
+                                    "首页视频卡片不显示发布时间"
+                                },
+                                checked = homePublishTimeVisible,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomePublishTimeVisible(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_AVATAR),
-                            title = "UP主头像",
-                            subtitle = if (homeUpAvatarsVisible) {
-                                "首页视频卡片显示 UP 主头像"
-                            } else {
-                                "隐藏头像，为 UP 主名称留出更多空间"
-                            },
-                            checked = homeUpAvatarsVisible,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeUpAvatarsVisible(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSPurple
-                        )
+                        SettingsItemAnchor("appearance.home_up_avatars_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_AVATAR),
+                                title = settingItemTitle("appearance.home_up_avatars_visible"),
+                                subtitle = if (homeUpAvatarsVisible) {
+                                    "首页视频卡片显示 UP 主头像"
+                                } else {
+                                    "隐藏头像，为 UP 主名称留出更多空间"
+                                },
+                                checked = homeUpAvatarsVisible,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeUpAvatarsVisible(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
-                            title = "UP主标识",
-                            subtitle = if (homeUpBadgesVisible) {
-                                "首页和相关推荐显示 UP 标识"
-                            } else {
-                                "首页和相关推荐隐藏 UP 标识"
-                            },
-                            checked = homeUpBadgesVisible,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeUpBadgesVisible(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_up_badges_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                                title = settingItemTitle("appearance.home_up_badges_visible"),
+                                subtitle = if (homeUpBadgesVisible) {
+                                    "首页和相关推荐显示 UP 标识"
+                                } else {
+                                    "首页和相关推荐隐藏 UP 标识"
+                                },
+                                checked = homeUpBadgesVisible,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeUpBadgesVisible(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
-                            title = "上次刷新提示",
-                            subtitle = if (homeRefreshTipVisible) {
-                                "推荐流刷新后保留旧内容，并在刷新位置显示提示"
-                            } else {
-                                "关闭后刷新直接替换推荐内容，不显示刷新位置提示"
-                            },
-                            checked = homeRefreshTipVisible,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeRefreshTipVisible(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_refresh_tip_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                                title = settingItemTitle("appearance.home_refresh_tip_visible"),
+                                subtitle = if (homeRefreshTipVisible) {
+                                    "推荐流刷新后保留旧内容，并在刷新位置显示提示"
+                                } else {
+                                    "关闭后刷新直接替换推荐内容，不显示刷新位置提示"
+                                },
+                                checked = homeRefreshTipVisible,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeRefreshTipVisible(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
-                            title = "撤销刷新按钮",
-                            subtitle = "刷新推荐流后显示撤销按钮，可恢复刷新前的内容",
-                            checked = homeRefreshUndoVisible,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setHomeRefreshUndoVisible(context, enabled)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_refresh_undo_visible") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                                title = settingItemTitle("appearance.home_refresh_undo_visible"),
+                                subtitle = "刷新推荐流后显示撤销按钮，可恢复刷新前的内容",
+                                checked = homeRefreshUndoVisible,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setHomeRefreshUndoVisible(context, enabled)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_ONLINE_COUNT),
-                            title = "显示观看人数",
-                            subtitle = if (showOnlineCount) {
-                                "首页、搜索等视频卡片和视频页显示“xx人正在看”"
-                            } else {
-                                "关闭后隐藏卡片和视频页的同时观看人数"
-                            },
-                            checked = showOnlineCount,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setShowOnlineCount(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSPurple
-                        )
+                        SettingsItemAnchor("appearance.show_online_count") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_ONLINE_COUNT),
+                                title = settingItemTitle("appearance.show_online_count"),
+                                subtitle = if (showOnlineCount) {
+                                    "在视频卡片和视频页显示“xx 人正在看”"
+                                } else {
+                                    "关闭后隐藏卡片和视频页的同时观看人数"
+                                },
+                                checked = showOnlineCount,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setShowOnlineCount(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                            )
+                        }
                     }
                 }
             }
 
             //  首页壁纸与氛围
-            item {
+            item(key = "home_wallpaper_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("首页壁纸与氛围")
+                    AppPreferenceSectionTitle("首页壁纸")
                 }
             }
-            item {
+            item(key = "home_wallpaper") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         var showHomeWallpaperPicker by remember { mutableStateOf(false) }
@@ -1704,22 +1741,24 @@ fun AppearanceSettingsContent(
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsSingleChoicePreference(
-                            title = "首页壁纸效果",
-                            subtitle = when (homeWallpaperEffectMode) {
-                                HomeWallpaperEffectMode.OFF -> "首页不使用开屏壁纸作为背景"
-                                HomeWallpaperEffectMode.SOFT_BLUR -> "真实壁纸轻微模糊，卡片信息区半透明接入壁纸"
-                                HomeWallpaperEffectMode.STRONG_BLUR -> "更强模糊和更稳遮罩，保留壁纸色彩但降低细节干扰"
-                                HomeWallpaperEffectMode.ORIGINAL -> "直接接入真实壁纸，文字区使用更轻的保护层"
-                            },
-                            options = homeWallpaperEffectOptions,
-                            selectedValue = homeWallpaperEffectMode,
-                            onSelectionChange = { mode ->
-                                scope.launch {
-                                    SettingsManager.setHomeWallpaperEffectMode(context, mode)
+                        SettingsItemAnchor("appearance.home_wallpaper_effect_mode") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.home_wallpaper_effect_mode"),
+                                subtitle = when (homeWallpaperEffectMode) {
+                                    HomeWallpaperEffectMode.OFF -> "首页不使用开屏壁纸作为背景"
+                                    HomeWallpaperEffectMode.SOFT_BLUR -> "轻微模糊壁纸，卡片背景半透明"
+                                    HomeWallpaperEffectMode.STRONG_BLUR -> "加深模糊，保留颜色并减少背景干扰"
+                                    HomeWallpaperEffectMode.ORIGINAL -> "显示原图，文字背景略微遮挡"
+                                },
+                                options = homeWallpaperEffectOptions,
+                                selectedValue = homeWallpaperEffectMode,
+                                onSelectionChange = { mode ->
+                                    scope.launch {
+                                        SettingsManager.setHomeWallpaperEffectMode(context, mode)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         AnimatedVisibility(
                             visible = homeWallpaperEffectMode != HomeWallpaperEffectMode.OFF,
@@ -1728,183 +1767,201 @@ fun AppearanceSettingsContent(
                         ) {
                             Column {
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsSingleChoicePreference(
-                                    title = "壁纸作用范围",
-                                    subtitle = when (homeWallpaperEffectScope) {
-                                        HomeWallpaperEffectScope.HOME_ONLY -> "仅首页使用该壁纸背景效果"
-                                        HomeWallpaperEffectScope.GLOBAL -> "首页与私信聊天复用同一壁纸背景，默认背景层会半透明保护文字"
-                                    },
-                                    options = homeWallpaperEffectScopeOptions,
-                                    selectedValue = homeWallpaperEffectScope,
-                                    onSelectionChange = { scopeValue ->
-                                        scope.launch {
-                                            SettingsManager.setHomeWallpaperEffectScope(context, scopeValue)
+                                SettingsItemAnchor("appearance.home_wallpaper_effect_scope") {
+                                    SettingsSingleChoicePreference(
+                                        title = settingItemTitle("appearance.home_wallpaper_effect_scope"),
+                                        subtitle = when (homeWallpaperEffectScope) {
+                                            HomeWallpaperEffectScope.HOME_ONLY -> "仅首页使用该壁纸背景效果"
+                                            HomeWallpaperEffectScope.GLOBAL -> "首页和私信聊天使用同一壁纸"
+                                        },
+                                        options = homeWallpaperEffectScopeOptions,
+                                        selectedValue = homeWallpaperEffectScope,
+                                        onSelectionChange = { scopeValue ->
+                                            scope.launch {
+                                                SettingsManager.setHomeWallpaperEffectScope(context, scopeValue)
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
-                            title = "卡片毛玻璃",
-                            subtitle = if (homeCardFrostedGlassEnabled) {
-                                "卡片信息区模糊背后的壁纸，支持时实时采样"
-                            } else {
-                                "卡片不使用实时模糊"
-                            },
-                            checked = homeCardFrostedGlassEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeCardFrostedGlassEnabled(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_card_frosted_glass_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
+                                title = settingItemTitle("appearance.home_card_frosted_glass_enabled"),
+                                subtitle = if (homeCardFrostedGlassEnabled) {
+                                    "模糊卡片文字背后的壁纸"
+                                } else {
+                                    "卡片不使用实时模糊"
+                                },
+                                checked = homeCardFrostedGlassEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeCardFrostedGlassEnabled(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
-                            title = "卡片动态取色",
-                            subtitle = if (homeCardDynamicTintEnabled) {
-                                "卡片信息区跟随壁纸或封面颜色"
-                            } else {
-                                "卡片不跟随壁纸或封面变色"
-                            },
-                            checked = homeCardDynamicTintEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeCardDynamicTintEnabled(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_card_dynamic_tint_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
+                                title = settingItemTitle("appearance.home_card_dynamic_tint_enabled"),
+                                subtitle = if (homeCardDynamicTintEnabled) {
+                                    "卡片信息区跟随壁纸或封面颜色"
+                                } else {
+                                    "卡片不跟随壁纸或封面变色"
+                                },
+                                checked = homeCardDynamicTintEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeCardDynamicTintEnabled(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
                     }
                 }
             }
 
             //  内容与推荐流
-            item {
+            item(key = "home_recommendation_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("内容与推荐流")
                 }
             }
-            item {
+            item(key = "home_recommendation") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_CAROUSEL),
-                            title = "首页顶部轮播封面",
-                            subtitle = if (homeHeroCarouselEnabled) {
-                                "推荐页顶部显示官方比例的视频封面轮播"
-                            } else {
-                                "推荐页直接显示普通视频流"
-                            },
-                            checked = homeHeroCarouselEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setHomeHeroCarouselEnabled(context, it)
-                                }
-                            },
-                            iconTint = iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.home_hero_carousel_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_CAROUSEL),
+                                title = settingItemTitle("appearance.home_hero_carousel_enabled"),
+                                subtitle = if (homeHeroCarouselEnabled) {
+                                    "推荐页顶部显示官方比例的视频封面轮播"
+                                } else {
+                                    "推荐页直接显示普通视频流"
+                                },
+                                checked = homeHeroCarouselEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeHeroCarouselEnabled(context, it)
+                                    }
+                                },
+                                iconTint = iOSBlue
+                            )
+                        }
 
                         AnimatedVisibility(visible = homeHeroCarouselEnabled) {
                             Column {
                                 AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                AppSwitchPreference(
-                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_AUTOPLAY),
-                                    title = "轮播默认播放",
-                                    subtitle = if (homeHeroCarouselAutoplayEnabled) {
-                                        "当前轮播项进入视野后静音循环播放"
-                                    } else {
-                                        "默认只展示封面，点开后进入视频详情"
-                                    },
-                                    checked = homeHeroCarouselAutoplayEnabled,
-                                    onCheckedChange = {
-                                        scope.launch {
-                                            SettingsManager.setHomeHeroCarouselAutoplayEnabled(context, it)
-                                        }
-                                    },
-                                    iconTint = iOSBlue
-                                )
+                                SettingsItemAnchor("appearance.home_hero_carousel_autoplay_enabled") {
+                                    AppSwitchPreference(
+                                        icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_AUTOPLAY),
+                                        title = settingItemTitle("appearance.home_hero_carousel_autoplay_enabled"),
+                                        subtitle = if (homeHeroCarouselAutoplayEnabled) {
+                                            "轮播视频出现在屏幕上时静音循环播放"
+                                        } else {
+                                            "默认只展示封面，点开后进入视频详情"
+                                        },
+                                        checked = homeHeroCarouselAutoplayEnabled,
+                                        onCheckedChange = {
+                                            scope.launch {
+                                                SettingsManager.setHomeHeroCarouselAutoplayEnabled(context, it)
+                                            }
+                                        },
+                                        iconTint = iOSBlue
+                                    )
+                                }
                             }
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PGC_TIMELINE),
-                            title = "展示番剧影视时间表",
-                            subtitle = "番剧与影视页显示最近更新时间表",
-                            checked = showPgcTimeline,
-                            onCheckedChange = { value ->
-                                scope.launch {
-                                    SettingsManager.setShowPgcTimeline(context, value)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSPurple
-                        )
+                        SettingsItemAnchor("appearance.show_pgc_timeline") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.PGC_TIMELINE),
+                                title = settingItemTitle("appearance.show_pgc_timeline"),
+                                subtitle = "番剧与影视页显示最近更新时间表",
+                                checked = showPgcTimeline,
+                                onCheckedChange = { value ->
+                                    scope.launch {
+                                        SettingsManager.setShowPgcTimeline(context, value)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                            )
+                        }
                     }
                 }
             }
 
             //  浏览交互与手势
-            item {
+            item(key = "home_browsing_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("浏览交互与手势")
                 }
             }
-            item {
+            item(key = "home_browsing") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HEADER_COLLAPSE),
-                            title = "顶栏滚动时收起",
-                            subtitle = "向下滚动时收起搜索框和标签，点底栏「首页」回顶后重新出现",
-                            checked = state.isHeaderCollapseEnabled,
-                            onCheckedChange = { value ->
-                                viewModel.toggleHeaderCollapse(value)
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSTeal
-                        )
+                        SettingsItemAnchor("appearance.is_header_collapse_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HEADER_COLLAPSE),
+                                title = settingItemTitle("appearance.is_header_collapse_enabled"),
+                                subtitle = "向下滚动时收起搜索框和标签，点底栏「首页」回顶后重新出现",
+                                checked = state.isHeaderCollapseEnabled,
+                                onCheckedChange = { value ->
+                                    viewModel.toggleHeaderCollapse(value)
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSTeal
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsSingleChoicePreference(
-                            title = "列表页顶栏折叠",
-                            subtitle = when (commonListHeaderCollapseMode) {
-                                CommonListHeaderCollapseMode.ALWAYS_VISIBLE ->
-                                    "搜索、收藏、历史、稍后再看、我的点赞顶栏保持展开，与首页设置独立"
-                                CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL ->
-                                    "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，反向上滑时恢复"
-                                CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY ->
-                                    "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，仅回到顶部时恢复"
-                            },
-                            options = commonListHeaderCollapseOptions,
-                            selectedValue = commonListHeaderCollapseMode,
-                            onSelectionChange = { mode ->
-                                scope.launch {
-                                    SettingsManager.setCommonListHeaderCollapseMode(context, mode)
+                        SettingsItemAnchor("appearance.common_list_header_collapse_mode") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("appearance.common_list_header_collapse_mode"),
+                                subtitle = when (commonListHeaderCollapseMode) {
+                                    CommonListHeaderCollapseMode.ALWAYS_VISIBLE ->
+                                        "搜索、收藏、历史、稍后再看、我的点赞顶栏保持展开，与首页设置独立"
+                                    CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL ->
+                                        "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，反向上滑时恢复"
+                                    CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY ->
+                                        "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，仅回到顶部时恢复"
+                                },
+                                options = commonListHeaderCollapseOptions,
+                                selectedValue = commonListHeaderCollapseMode,
+                                onSelectionChange = { mode ->
+                                    scope.launch {
+                                        SettingsManager.setCommonListHeaderCollapseMode(context, mode)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BACK_TO_TOP),
-                            title = "显示一键回顶",
-                            subtitle = if (hasCustomBackToTopOffset) {
-                                "长内容页统一跟随（已记忆自定义位置，长按按钮可拖拽）"
-                            } else {
-                                "搜索、列表、动态和评论区等长内容页统一跟随；长按按钮可自由拖拽位置"
-                            },
-                            checked = backToTopButtonEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    BackToTopSettingsStore.setEnabled(context, it)
-                                }
-                            },
-                            iconTint = iOSBlue,
-                        )
+                        SettingsItemAnchor("appearance.back_to_top_button_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BACK_TO_TOP),
+                                title = settingItemTitle("appearance.back_to_top_button_enabled"),
+                                subtitle = if (hasCustomBackToTopOffset) {
+                                    "已保存按钮位置；长按可拖动"
+                                } else {
+                                    "在长页面显示回顶按钮；长按可拖动"
+                                },
+                                checked = backToTopButtonEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        BackToTopSettingsStore.setEnabled(context, it)
+                                    }
+                                },
+                                iconTint = iOSBlue,
+                            )
+                        }
                         if (backToTopButtonEnabled && hasCustomBackToTopOffset) {
                             AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                             AppPreference(
@@ -1922,41 +1979,53 @@ fun AppearanceSettingsContent(
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE),
-                            title = "长按视频卡片",
-                            subtitle = if (videoCardLongPressActionEnabled) {
-                                "长按卡片显示快捷操作与预览"
-                            } else {
-                                "已关闭长按手势，避免误触（默认关闭）"
-                            },
-                            checked = videoCardLongPressActionEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setVideoCardLongPressActionEnabled(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.video_card_long_press_action_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE),
+                                title = settingItemTitle("appearance.video_card_long_press_action_enabled"),
+                                subtitle = if (videoCardLongPressActionEnabled) {
+                                    "长按卡片显示快捷操作与预览"
+                                } else {
+                                    "已关闭长按手势，避免误触（默认关闭）"
+                                },
+                                checked = videoCardLongPressActionEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setVideoCardLongPressActionEnabled(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        AppSwitchPreference(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_edit_note_24),
-                            title = "编辑资料按钮",
-                            subtitle = if (showProfileEditButton) {
-                                "个人主页显示“编辑资料”按钮"
-                            } else {
-                                "个人主页隐藏“编辑资料”按钮"
-                            },
-                            checked = showProfileEditButton,
-                            onCheckedChange = {
-                                scope.launch {
-                                    SettingsManager.setShowProfileEditButton(context, it)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("appearance.show_profile_edit_button") {
+                            AppSwitchPreference(
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_edit_note_24),
+                                title = settingItemTitle("appearance.show_profile_edit_button"),
+                                subtitle = if (showProfileEditButton) {
+                                    "个人主页显示“编辑资料”按钮"
+                                } else {
+                                    "个人主页隐藏“编辑资料”按钮"
+                                },
+                                checked = showProfileEditButton,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        SettingsManager.setShowProfileEditButton(context, it)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
                     }
+                }
+            }
+        }
+        if (contentMode == AppearanceSettingsContentMode.HOME) {
+            item(key = "home_options") {
+                Column {
+                    AppPreferenceSectionTitle("推荐与动态")
+                    HomeFeedSettingsSection()
                 }
             }
         }
@@ -2126,7 +2195,7 @@ internal fun ThemeRoleModeEditor(
         )
         if (warning) {
             AppText(
-                text = "当前文字与背景对比度偏低，仍可按精确颜色保存。",
+                text = "文字与背景过于接近，可能难以阅读；仍可保存。",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp)
@@ -2196,7 +2265,7 @@ private fun Md3CustomColorPickerDialog(
                 AppText("取消")
             }
         },
-        title = { AppText("自定义 MD3 颜色") },
+        title = { AppText("自定义主题颜色") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -2396,83 +2465,6 @@ private fun Md3ColorPickerSliderFrame(
     }
 }
 
-@Composable
-private fun AppearanceUiPresetDescriptionCard(
-    title: String,
-    summary: String
-) {
-    val icon = rememberAppSparklesIcon()
-    val colorScheme = MaterialTheme.colorScheme
-    val nativeMiuix = com.android.purebilibili.core.ui.isMiuixNonGlassEnabled()
-    val cardColors = remember(colorScheme, nativeMiuix) {
-        resolveAccessibleContainerColors(
-            containerColor = if (nativeMiuix) colorScheme.surfaceContainer
-                else colorScheme.primaryContainer.copy(alpha = 0.44f),
-            contentColor = colorScheme.onPrimaryContainer,
-            backgroundColor = colorScheme.surface,
-            fallbackContentColors = listOf(colorScheme.onSurface, colorScheme.onBackground),
-        )
-    }
-    val iconColors = remember(colorScheme, cardColors.containerColor) {
-        resolveAccessibleContainerColors(
-            containerColor = colorScheme.primary.copy(alpha = 0.14f),
-            contentColor = colorScheme.primary,
-            backgroundColor = cardColors.containerColor,
-            fallbackContentColors = listOf(colorScheme.onSurface),
-            minimumContrast = ACCESSIBLE_UI_MIN_CONTRAST,
-        )
-    }
-    val borderColor = colorScheme.outlineVariant.copy(alpha = 0.55f)
-
-    AdaptivePlainTooltipBox(text = summary) {
-        AppSurface(
-            shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
-            color = cardColors.containerColor,
-            contentColor = cardColors.contentColor,
-            tonalElevation = 0.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                AppSurface(
-                    modifier = Modifier.size(34.dp),
-                    shape = CircleShape,
-                    color = iconColors.containerColor,
-                    contentColor = iconColors.contentColor,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AppIcon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    AppText(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    AppText(
-                        text = summary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = cardColors.contentColor
-                    )
-                }
-            }
-        }
-    }
-}
 
 internal fun restartApp(context: android.content.Context) {
     val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return

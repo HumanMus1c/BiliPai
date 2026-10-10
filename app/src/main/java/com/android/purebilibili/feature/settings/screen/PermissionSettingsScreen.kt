@@ -106,7 +106,7 @@ fun PermissionSettingsContent(
                 alwaysGranted = true
             ),
             PermissionInfo(
-                name = "通知权限",
+                name = "发送通知",
                 permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     Manifest.permission.POST_NOTIFICATIONS
                 } else {
@@ -119,9 +119,9 @@ fun PermissionSettingsContent(
                 alwaysGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
             ),
             PermissionInfo(
-                name = "前台服务",
+                name = "后台运行服务",
                 permission = Manifest.permission.FOREGROUND_SERVICE,
-                description = "支持后台播放和可选的常驻消息检查",
+                description = "保持后台播放，并按需检查新消息",
                 iconResId = R.drawable.ms_play_circle_24,
                 iconTint = iOSPurple,
                 isNormal = true,
@@ -154,9 +154,9 @@ fun PermissionSettingsContent(
             ),
              // 📁 存储写入（使用 MediaStore/SAF，不申请所有文件访问）
             PermissionInfo(
-                name = "媒体文件写入",
+                name = "保存图片和下载",
                 permission = "scoped_storage",
-                description = "保存图片/截图时使用系统媒体库，下载导出使用系统文件夹授权",
+                description = "图片和截图保存到相册；下载导出需授权文件夹",
                 iconResId = R.drawable.ms_folder_shared_24,
                 iconTint = iOSPink,
                 isNormal = true,

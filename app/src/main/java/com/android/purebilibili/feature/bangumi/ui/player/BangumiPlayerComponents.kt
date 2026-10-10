@@ -78,6 +78,8 @@ import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybackParameters
 import com.android.purebilibili.feature.video.ui.section.VideoOutputRouter
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
+import com.android.purebilibili.feature.video.ui.section.resolveVerticalGestureMode
+import com.android.purebilibili.feature.video.ui.section.shouldTriggerFullscreenBySwipe
 import com.android.purebilibili.feature.video.ui.section.resolveSystemStreamVolumeFromGesture
 import com.android.purebilibili.feature.video.util.captureAndSaveVideoScreenshot
 import com.android.purebilibili.data.model.response.SponsorSegment
@@ -93,7 +95,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 /**
  * 手势模式枚举
  */
-enum class BangumiGestureMode { None, Brightness, Volume, Seek }
+enum class BangumiGestureMode { None, Brightness, Volume, Seek, SwipeToFullscreen }
 
 /**
  * 增强版播放器视图
@@ -165,6 +167,11 @@ fun BangumiPlayerView(
     onShowMessage: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val playerInteractionSettings by SettingsManager.getPlayerInteractionSettings(context)
+        .collectAsStateWithLifecycle(
+            initialValue = com.android.purebilibili.core.store.PlayerInteractionSettings()
+        )
+    val latestOnToggleFullscreen by rememberUpdatedState(onToggleFullscreen)
     val statusBarsInsetTopDp = WindowInsets.statusBars
         .asPaddingValues()
         .calculateTopPadding()
@@ -378,13 +385,21 @@ fun BangumiPlayerView(
                 )
             }
             .then(
-                Modifier.pointerInput(isFullscreen, isScreenLocked) {
+                Modifier.pointerInput(isFullscreen, isScreenLocked, playerInteractionSettings, exoPlayer) {
                     val screenWidth = size.width.toFloat()
                     val screenHeight = size.height.toFloat()
+                    val minDragThreshold = 20.dp.toPx()
+                    val boundaryPadding = 16.dp.toPx()
+                    var dragStartX = 0f
+                    var totalDragDistanceX = 0f
+                    var totalDragDistanceY = 0f
                     
                     detectDragGestures(
-                        onDragStart = {
+                        onDragStart = { position ->
                             showControls = true
+                            dragStartX = position.x
+                            totalDragDistanceX = 0f
+                            totalDragDistanceY = 0f
                             dragDelta = 0f
                             totalVolumeDragDistanceY = 0f
                             seekPreviewPosition = currentPosition
@@ -394,28 +409,53 @@ fun BangumiPlayerView(
                             if (gestureMode == BangumiGestureMode.Seek && kotlin.math.abs(dragDelta) > 20f) {
                                 exoPlayer.seekTo(seekPreviewPosition)
                             }
+                            if (!isScreenLocked && gestureMode == BangumiGestureMode.SwipeToFullscreen &&
+                                shouldTriggerFullscreenBySwipe(
+                                    isFullscreen = isFullscreen,
+                                    reverseGesture = playerInteractionSettings.fullscreenGestureReverse,
+                                    totalDragDistanceY = totalDragDistanceY,
+                                    thresholdPx = 50.dp.toPx()
+                                )
+                            ) {
+                                latestOnToggleFullscreen()
+                            }
                             gestureMode = BangumiGestureMode.None
                         },
                         onDragCancel = { gestureMode = BangumiGestureMode.None },
                         onDrag = { change, dragAmount ->
                             change.consume()
                             if (isScreenLocked) return@detectDragGestures
+                            totalDragDistanceX += dragAmount.x
+                            totalDragDistanceY += dragAmount.y
                             
                             if (gestureMode == BangumiGestureMode.None) {
-                                gestureMode = if (isFullscreen && kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y)) {
+                                if (kotlin.math.hypot(totalDragDistanceX, totalDragDistanceY) < minDragThreshold) {
+                                    return@detectDragGestures
+                                }
+                                gestureMode = if (isFullscreen && kotlin.math.abs(totalDragDistanceX) > kotlin.math.abs(totalDragDistanceY)) {
                                     BangumiGestureMode.Seek
-                                } else if (kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x)) {
-                                    if (change.position.x < screenWidth * 0.5f) {
-                                        gestureValue = currentBrightness
-                                        BangumiGestureMode.Brightness
-                                    } else {
-                                        startVolumeStep = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                        gestureValue = if (maxVolume > 0) {
-                                            startVolumeStep.toFloat() / maxVolume.toFloat()
-                                        } else {
-                                            0f
+                                } else if (kotlin.math.abs(totalDragDistanceY) > kotlin.math.abs(totalDragDistanceX)) {
+                                    when (resolveVerticalGestureMode(
+                                        isFullscreen = isFullscreen,
+                                        isSwipeUp = totalDragDistanceY < -minDragThreshold,
+                                        startX = dragStartX,
+                                        leftZoneEnd = (screenWidth / 3f - boundaryPadding).coerceAtLeast(0f),
+                                        rightZoneStart = (screenWidth * 2f / 3f + boundaryPadding).coerceAtMost(screenWidth),
+                                        portraitSwipeToFullscreenEnabled = playerInteractionSettings.portraitSwipeToFullscreenEnabled,
+                                        centerSwipeToFullscreenEnabled = playerInteractionSettings.centerSwipeToFullscreenEnabled,
+                                        slideVolumeBrightnessEnabled = playerInteractionSettings.slideVolumeBrightnessEnabled
+                                    )) {
+                                        VideoGestureMode.Brightness -> {
+                                            gestureValue = currentBrightness
+                                            BangumiGestureMode.Brightness
                                         }
-                                        BangumiGestureMode.Volume
+                                        VideoGestureMode.Volume -> {
+                                            startVolumeStep = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            gestureValue = if (maxVolume > 0) startVolumeStep.toFloat() / maxVolume.toFloat() else 0f
+                                            BangumiGestureMode.Volume
+                                        }
+                                        VideoGestureMode.SwipeToFullscreen -> BangumiGestureMode.SwipeToFullscreen
+                                        else -> BangumiGestureMode.None
                                     }
                                 } else {
                                     BangumiGestureMode.None

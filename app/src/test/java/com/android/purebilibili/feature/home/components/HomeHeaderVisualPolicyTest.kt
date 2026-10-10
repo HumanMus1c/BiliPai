@@ -26,6 +26,42 @@ import org.junit.Test
 
 class HomeHeaderVisualPolicyTest {
     @Test
+    fun `collapsed header preserves ordinary status bar blur`() {
+        assertEquals(
+            HomeTopChromeRenderMode.BLUR,
+            resolveEffectiveHomeTopContinuousSlabRenderMode(
+                renderMode = HomeTopChromeRenderMode.BLUR,
+                liquidGlassEnabled = false,
+                integratedCollapsedTopBar = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `local glass controls do not remove requested header blur`() {
+        assertEquals(
+            HomeTopChromeRenderMode.BLUR,
+            resolveEffectiveHomeTopContinuousSlabRenderMode(
+                renderMode = HomeTopChromeRenderMode.BLUR,
+                liquidGlassEnabled = true,
+                integratedCollapsedTopBar = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `glass header still delegates material to its local controls`() {
+        assertEquals(
+            HomeTopChromeRenderMode.PLAIN,
+            resolveEffectiveHomeTopContinuousSlabRenderMode(
+                renderMode = HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP,
+                liquidGlassEnabled = true,
+                integratedCollapsedTopBar = false,
+            ),
+        )
+    }
+
+    @Test
     fun `illustrated header uses a light action surface above the skin`() {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
             .readText()

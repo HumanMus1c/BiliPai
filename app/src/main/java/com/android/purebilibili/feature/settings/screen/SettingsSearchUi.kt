@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +70,8 @@ internal fun SettingsHomeSearchEntry(
 internal fun SettingsSearchResultsSection(
     results: List<SettingsSearchResult>,
     onResultClick: (SettingsSearchResult) -> Unit,
+    settingsState: SettingsUiState? = null,
+    onClearQuery: () -> Unit = {},
 ) {
     val visualSpec = rememberAdaptiveListVisualCapabilities().componentSpec
     // 必须包一层 Column：上层 Entrance 是 Box，多个子节点会叠在同一原点，
@@ -107,24 +114,35 @@ internal fun SettingsSearchResultsSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+                androidx.compose.material3.TextButton(onClick = onClearQuery) { AppText("清除搜索") }
             }
         } else {
             // 顶栏已是「搜索结果」，不再重复放 CategoryHeader，避免与列表叠字。
             Spacer(modifier = Modifier.height(8.dp))
             AppPreferenceGroup {
                 results.forEachIndexed { index, result ->
+                    key(result.settingId) {
+                    val item = settingsItemDirectory.firstOrNull { it.settingId == result.settingId }
+                    val context = LocalContext.current
+                    val valueFlow = remember(item, context) { item?.observeValue?.invoke(context) }
+                    val currentValue = if (valueFlow != null) {
+                        val value by valueFlow.collectAsStateWithLifecycle(initialValue = "")
+                        value
+                    } else if (settingsState != null) item?.readState?.invoke(settingsState)
+                        ?: playbackSettingStateValue(result.settingId, settingsState) else result.currentValue
                     val visual = rememberSettingsEntryVisual(result.target)
                     AppPreference(
                         icon = visual.icon,
                         iconPainter = visual.iconResId?.let { painterResource(id = it) },
                         title = result.title,
-                        subtitle = result.subtitle,
-                        value = result.section,
+                        subtitle = result.path,
+                        value = currentValue,
                         onClick = { onResultClick(result) },
                         iconTint = visual.iconTint,
                     )
                     if (index != results.lastIndex) {
                         AppPreferenceDivider(startIndent = visualSpec.dividerStartIndentDp.dp)
+                    }
                     }
                 }
             }

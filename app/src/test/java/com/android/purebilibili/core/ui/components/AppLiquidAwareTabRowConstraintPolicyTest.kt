@@ -11,9 +11,9 @@ class AppLiquidAwareTabRowConstraintPolicyTest {
             "app/src/main/java/com/android/purebilibili/core/ui/components/AppLiquidAwareTabRow.kt",
         ).readText()
 
-        assertTrue(source.contains("val viewportMaxWidth = LocalConfiguration.current.screenWidthDp.dp"))
-        assertTrue(source.contains(".widthIn(max = viewportMaxWidth)"))
-        assertTrue(source.contains(".clip(CircleShape)"))
+        assertTrue(source.contains("BoxWithConstraints(modifier = modifier"))
+        assertTrue(source.contains("contentWidth > maxWidth"))
+        assertTrue(source.contains(".liquidDockViewport()"))
         assertTrue(source.contains("onIndicatorPositionChanged = { position ->"))
         assertTrue(source.contains("resolveScrollableTabIndicatorFollowDeltaPx("))
         assertTrue(source.contains("scrollState.dispatchRawDelta("))

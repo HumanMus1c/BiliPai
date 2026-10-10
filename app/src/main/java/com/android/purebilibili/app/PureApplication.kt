@@ -428,7 +428,10 @@ class PureApplication : Application(), SingletonImageLoader.Factory, ComponentCa
         com.android.purebilibili.core.plugin.json.JsonPluginManager.initialize(this)
         Logger.d(PureApplicationRuntimeConfig.TAG, " JSON plugin system initialized")
 
-        com.android.purebilibili.feature.download.DownloadManager.init(this)
+        AppScope.ioScope.launch {
+            com.android.purebilibili.feature.download.DownloadManager.init(this@PureApplication)
+            com.android.purebilibili.feature.download.DownloadManager.observeDownloadPath(this@PureApplication)
+        }
 
         AppScope.ioScope.launch {
             val sponsorBlockEnabled = com.android.purebilibili.core.store.SettingsManager

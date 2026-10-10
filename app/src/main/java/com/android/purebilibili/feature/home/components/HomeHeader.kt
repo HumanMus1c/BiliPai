@@ -111,6 +111,7 @@ import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
+import top.yukonga.miuix.kmp.blur.blur as miuixBlur
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 
 private const val HOME_HEADER_LIQUID_GLASS_ALPHA = 0.10f
@@ -765,6 +766,20 @@ internal fun resolveHomeTopContinuousSlabRenderMode(
         HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP -> HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP
         HomeTopChromeRenderMode.LIQUID_GLASS_HAZE -> HomeTopChromeRenderMode.LIQUID_GLASS_HAZE
         HomeTopChromeRenderMode.PLAIN -> HomeTopChromeRenderMode.PLAIN
+    }
+}
+
+internal fun resolveEffectiveHomeTopContinuousSlabRenderMode(
+    renderMode: HomeTopChromeRenderMode,
+    liquidGlassEnabled: Boolean,
+    integratedCollapsedTopBar: Boolean,
+): HomeTopChromeRenderMode {
+    // Compact controls replace their local chrome, but the status bar still needs blur.
+    if (renderMode == HomeTopChromeRenderMode.BLUR) return renderMode
+    return if (liquidGlassEnabled || integratedCollapsedTopBar) {
+        HomeTopChromeRenderMode.PLAIN
+    } else {
+        renderMode
     }
 }
 
@@ -1442,6 +1457,18 @@ internal fun Modifier.homeTopChromeSurface(
                                     ?: BILIPAI_PROGRESSIVE_TOP_BLUR_FALLOFF_CURVE,
                             ),
                         )
+                    } else if (miuixBackdrop != null && !useProgressiveTopFade &&
+                        !isLowBlurBudgetForced(forceLowBlurBudget)
+                    ) {
+                        // Miuix home captures only Backdrop; Haze is intentionally absent.
+                        val density = LocalDensity.current
+                        val blurRadiusPx = with(density) { 25.dp.toPx() }
+                        val shapeBlock = remember(shape) { { shape } }
+                        Modifier.miuixDrawBackdrop(
+                            backdrop = miuixBackdrop,
+                            shape = shapeBlock,
+                            effects = { miuixBlur(blurRadiusPx, blurRadiusPx) },
+                        )
                     } else if (hazeState != null && !useProgressiveTopFade) {
                         Modifier.unifiedBlur(
                             hazeState = hazeState,
@@ -1976,11 +2003,11 @@ fun HomeHeader(
         animationSpec = AppMotionTokens.standardSpec(),
         label = "tabContentAlpha"
     )
-    val effectiveContinuousSlabRenderMode = if (isGlassEnabled || topChromeLiquidGlassEnabled || integratedCollapsedTopBar) {
-        HomeTopChromeRenderMode.PLAIN
-    } else {
-        continuousSlabRenderMode
-    }
+    val effectiveContinuousSlabRenderMode = resolveEffectiveHomeTopContinuousSlabRenderMode(
+        renderMode = continuousSlabRenderMode,
+        liquidGlassEnabled = isGlassEnabled || topChromeLiquidGlassEnabled,
+        integratedCollapsedTopBar = integratedCollapsedTopBar,
+    )
     val effectiveTopPanelChromeRenderMode = if (integratedCollapsedTopBar) {
         HomeTopChromeRenderMode.PLAIN
     } else {

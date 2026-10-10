@@ -77,6 +77,45 @@ class PlayerControlsUiRegressionTest {
         assertTrue(progress.top >= controls.bottom)
     }
 
+    @Test
+    fun progressProviders_updatePausedTimeAndDurationWithSeekOverride() {
+        val progress = mutableStateOf(PlayerProgress(current = 30_000, duration = 120_000))
+        val seekOverride = mutableStateOf<Long?>(null)
+        composeTestRule.setContent {
+            MaterialTheme {
+                Box(Modifier.size(width = 800.dp, height = 180.dp)) {
+                    BottomControlBar(
+                        isPlaying = false,
+                        progressProvider = { progress.value },
+                        seekPositionProvider = { seekOverride.value ?: progress.value.current },
+                        isFullscreen = false,
+                        onPlayPauseClick = {},
+                        onSeek = {},
+                        onToggleFullscreen = {},
+                    )
+                }
+            }
+        }
+        composeTestRule.onNodeWithText("00:30 / 02:00").assertIsDisplayed()
+
+        // Progress must remain live even though neither the host nor the play button changes.
+        composeTestRule.runOnIdle {
+            progress.value = PlayerProgress(current = 45_000, duration = 180_000, buffered = 90_000)
+        }
+        composeTestRule.onNodeWithText("00:45 / 03:00").assertIsDisplayed()
+
+        composeTestRule.runOnIdle { seekOverride.value = 91_000L }
+        composeTestRule.onNodeWithText("01:31 / 03:00").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            progress.value = progress.value.copy(current = 46_000)
+        }
+        composeTestRule.onNodeWithText("01:31 / 03:00").assertIsDisplayed()
+
+        composeTestRule.runOnIdle { seekOverride.value = null }
+        composeTestRule.onNodeWithText("00:46 / 03:00").assertIsDisplayed()
+    }
+
     private fun assertProgressIsAboveControls() {
         val progress = composeTestRule.onNodeWithTag("player_progress").fetchSemanticsNode().boundsInRoot
         val controls = composeTestRule.onNodeWithTag("player_control_row").fetchSemanticsNode().boundsInRoot

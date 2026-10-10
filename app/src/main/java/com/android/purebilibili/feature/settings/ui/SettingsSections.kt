@@ -386,6 +386,25 @@ internal fun SettingsRootCategoryContent(
     val resolvedCategory = canonicalSettingsRootCategory(category)
     Column {
         when (resolvedCategory) {
+            SettingsRootCategory.FULLSCREEN_GESTURE,
+            SettingsRootCategory.COMMENTS_CONTENT,
+            SettingsRootCategory.MESSAGE_NOTIFICATION,
+            SettingsRootCategory.VIDEO_DECODER,
+            SettingsRootCategory.GLASS_ADVANCED -> Unit
+            SettingsRootCategory.PLAYER_DIAGNOSTICS -> {
+                SettingsDetailGroup(title = "应用日志") {
+                    DiagnosticsSection(
+                        crashTrackingEnabled = state.crashTrackingEnabled,
+                        analyticsEnabled = state.analyticsEnabled,
+                        enhancedDiagnosticLoggingEnabled = state.enhancedDiagnosticLoggingEnabled,
+                        onCrashTrackingChange = actions.onCrashTrackingChange,
+                        onAnalyticsChange = actions.onAnalyticsChange,
+                        onEnhancedDiagnosticLoggingChange = actions.onEnhancedDiagnosticLoggingChange,
+                        onExportLogsClick = actions.onExportLogsClick,
+                    )
+                }
+                SettingsDetailGroup(title = "播放器") { PlaybackDiagnosticsSection() }
+            }
             SettingsRootCategory.APPEARANCE_THEME -> {
                 SettingsRootCategoryEntranceSection {
                     SettingsDetailGroup(title = "外观与主题") {
@@ -774,15 +793,14 @@ internal fun SettingsRootCategoryContent(
             }
             SettingsRootCategory.SYSTEM_ABOUT -> {
                 SettingsRootCategoryEntranceSection {
-                    SettingsDetailGroup(title = "系统诊断") {
+                    SettingsDetailGroup(title = "问题排查") {
                         DiagnosticsSection(
                             crashTrackingEnabled = state.crashTrackingEnabled,
                             analyticsEnabled = state.analyticsEnabled,
                             enhancedDiagnosticLoggingEnabled = state.enhancedDiagnosticLoggingEnabled,
                             onCrashTrackingChange = actions.onCrashTrackingChange,
                             onAnalyticsChange = actions.onAnalyticsChange,
-                            onEnhancedDiagnosticLoggingChange =
-                                actions.onEnhancedDiagnosticLoggingChange,
+                            onEnhancedDiagnosticLoggingChange = actions.onEnhancedDiagnosticLoggingChange,
                             onExportLogsClick = actions.onExportLogsClick,
                         )
                         SettingsAdaptiveDivider()
@@ -796,9 +814,9 @@ internal fun SettingsRootCategoryContent(
                                         SettingsSearchTarget.PLAYBACK,
                                         SettingsSearchFocusIds.PLAYBACK_DEBUG,
                                     ),
-                                    onClick = actions.onPlaybackClick
-                                )
-                            )
+                                    onClick = actions.onPlaybackClick,
+                                ),
+                            ),
                         )
                     }
                 }
@@ -811,20 +829,18 @@ internal fun SettingsRootCategoryContent(
                     }
                 }
                 SettingsRootCategoryEntranceSection {
-                    SettingsDetailGroup(title = "关于与更新") {
+                    SettingsDetailGroup(title = "应用信息") {
                         var showUserAgreement by remember { mutableStateOf(false) }
                         SettingClickableItem(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(
-                                com.android.purebilibili.R.drawable.ms_gavel_24
-                            ),
+                            icon = rememberMaterialSymbol(R.drawable.ms_gavel_24),
                             title = "用户协议与隐私政策",
                             value = "查看全文",
-                            onClick = { showUserAgreement = true }
+                            onClick = { showUserAgreement = true },
                         )
                         SettingsAdaptiveDivider()
                         if (showUserAgreement) {
                             com.android.purebilibili.feature.agreement.UserAgreementReviewDialog(
-                                onDismiss = { showUserAgreement = false }
+                                onDismiss = { showUserAgreement = false },
                             )
                         }
                         AboutSection(
@@ -875,7 +891,7 @@ internal fun SettingsRootCategoryContent(
 @Composable
 fun SupportToolsSection(
     onTipsClick: () -> Unit,
-    onOpenLinksClick: () -> Unit
+    onOpenLinksClick: () -> Unit,
 ) {
     val tipsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.TIPS)
     val openLinksVisual = rememberSettingsEntryVisual(SettingsSearchTarget.OPEN_LINKS)
@@ -1047,23 +1063,27 @@ fun FeedApiSection(
             onSelectionChange = onFeedApiTypeChange,
         )
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = refreshIcon,
-            title = "刷新时保留当前列表",
-            subtitle = "下拉刷新只把新动态加到顶部，不重新排列已看到的内容",
-            checked = incrementalTimelineRefreshEnabled,
-            onCheckedChange = onIncrementalTimelineRefreshChange,
-            iconTint = siblingTints[1]
-        )
+        SettingsItemAnchor("home.incremental_timeline_refresh_enabled") {
+            SettingSwitchItem(
+                icon = refreshIcon,
+                title = settingItemTitle("home.incremental_timeline_refresh_enabled"),
+                subtitle = "下拉刷新只把新动态加到顶部，不重新排列已看到的内容",
+                checked = incrementalTimelineRefreshEnabled,
+                onCheckedChange = onIncrementalTimelineRefreshChange,
+                iconTint = siblingTints[1]
+            )
+        }
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = previewTextIcon,
-            title = "动态图片默认显示文字",
-            subtitle = "打开图文动态图片时默认显示下方文字，可用右上角眼睛临时切换",
-            checked = dynamicImagePreviewTextVisible,
-            onCheckedChange = onDynamicImagePreviewTextVisibleChange,
-            iconTint = siblingTints[2]
-        )
+        SettingsItemAnchor("home.dynamic_image_preview_text_visible") {
+            SettingSwitchItem(
+                icon = previewTextIcon,
+                title = settingItemTitle("home.dynamic_image_preview_text_visible"),
+                subtitle = "打开图文动态图片时默认显示下方文字，可用右上角眼睛临时切换",
+                checked = dynamicImagePreviewTextVisible,
+                onCheckedChange = onDynamicImagePreviewTextVisibleChange,
+                iconTint = siblingTints[2]
+            )
+        }
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
             title = "动态详情图片展示",
@@ -1080,31 +1100,35 @@ fun FeedApiSection(
             onSelectionChange = onDynamicDetailImageLayoutChange,
         )
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = visibilityIcon,
-            title = "“全部”页显示关注用户栏",
-            subtitle = "关闭后隐藏顶部横向用户列表，“UP主”页仍可选择关注用户",
-            checked = dynamicAllTabHorizontalUserListVisible,
-            onCheckedChange = onDynamicAllTabHorizontalUserListVisibleChange,
-            iconTint = siblingTints[4]
-        )
+        SettingsItemAnchor("home.dynamic_all_tab_horizontal_user_list_visible") {
+            SettingSwitchItem(
+                icon = visibilityIcon,
+                title = settingItemTitle("home.dynamic_all_tab_horizontal_user_list_visible"),
+                subtitle = "关闭后隐藏顶部横向用户列表，“UP主”页仍可选择关注用户",
+                checked = dynamicAllTabHorizontalUserListVisible,
+                onCheckedChange = onDynamicAllTabHorizontalUserListVisibleChange,
+                iconTint = siblingTints[4]
+            )
+        }
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = topBarCollapseIcon,
-            title = "浏览动态时收起顶部栏",
-            subtitle = if (dynamicTopBarCollapseOnScroll) {
-                "列表下滑时折叠 Tab 顶栏；横向 UP 主栏仍会单独收起"
-            } else {
-                "Tab 顶栏固定在顶部；横向 UP 主栏仍会单独收起"
-            },
-            checked = dynamicTopBarCollapseOnScroll,
-            onCheckedChange = onDynamicTopBarCollapseOnScrollChange,
-            iconTint = siblingTints[5]
-        )
+        SettingsItemAnchor("home.dynamic_top_bar_collapse_on_scroll") {
+            SettingSwitchItem(
+                icon = topBarCollapseIcon,
+                title = settingItemTitle("home.dynamic_top_bar_collapse_on_scroll"),
+                subtitle = if (dynamicTopBarCollapseOnScroll) {
+                    "浏览下方动态时收起分类栏；UP 主栏独立收起"
+                } else {
+                    "分类栏固定在顶部；UP 主栏独立收起"
+                },
+                checked = dynamicTopBarCollapseOnScroll,
+                onCheckedChange = onDynamicTopBarCollapseOnScrollChange,
+                iconTint = siblingTints[5]
+            )
+        }
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
             title = "动态页面布局",
-            subtitle = "瀑布流会按屏幕宽度显示多列；列表模式固定为单列",
+            subtitle = "多列随屏幕宽度调整；列表每行一条",
             options = com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode.entries.map { mode ->
                 com.android.purebilibili.core.ui.components.AppSegmentOption(
                     value = mode,
@@ -1182,13 +1206,13 @@ private fun FeedDynamicTabVisibilityItem(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
-                    text = "动态栏位显示",
+                    text = "动态分类",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 AppText(
-                    text = "选择动态页显示哪些栏位，至少保留 1 个。隐藏 UP 后，点侧栏用户会直接打开主页。",
+                    text = "选择动态分类和顺序，至少保留一个。隐藏 UP 分类后，点侧栏用户直接打开主页。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1303,8 +1327,8 @@ fun PrivacySection(
     SettingsCardGroup {
         SettingSwitchItem(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_SEARCH_GLASS),
-            title = "搜索框默认词",
-            subtitle = "显示应用提供的默认搜索词；关闭后显示固定搜索提示",
+            title = "搜索框推荐词",
+            subtitle = "在搜索框显示推荐词；关闭后显示固定提示",
             checked = searchHintEnabled,
             onCheckedChange = { enabled ->
                 scope.launch {
@@ -1315,23 +1339,27 @@ fun PrivacySection(
         )
         SettingsAdaptiveDivider()
 
-        SettingSwitchItem(
-            icon = visibilityOffIcon,
-            title = "个性化搜索推荐",
-            subtitle = "开启时使用官方搜索推荐；关闭后改用公开热搜词",
-            checked = searchSuggestionsEnabled,
-            onCheckedChange = onSearchSuggestionsChange,
-            iconTint = siblingTints[0],
-        )
+        SettingsItemAnchor("privacy.search_suggestions_enabled") {
+            SettingSwitchItem(
+                icon = visibilityOffIcon,
+                title = settingItemTitle("privacy.search_suggestions_enabled"),
+                subtitle = "开启时使用官方搜索推荐；关闭后改用公开热搜词",
+                checked = searchSuggestionsEnabled,
+                onCheckedChange = onSearchSuggestionsChange,
+                iconTint = siblingTints[0],
+            )
+        }
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = visibilityOffIcon,
-            title = "不记录历史",
-            subtitle = "开启后不再新增播放和搜索历史，已有记录不会被删除",
-            checked = privacyModeEnabled,
-            onCheckedChange = onPrivacyModeChange,
-            iconTint = siblingTints[0]
-        )
+        SettingsItemAnchor("privacy.privacy_mode_enabled") {
+            SettingSwitchItem(
+                icon = visibilityOffIcon,
+                title = settingItemTitle("privacy.privacy_mode_enabled"),
+                subtitle = "开启后不再新增播放和搜索历史，已有记录不会被删除",
+                checked = privacyModeEnabled,
+                onCheckedChange = onPrivacyModeChange,
+                iconTint = siblingTints[0]
+            )
+        }
         SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = visibilityOffIcon,
@@ -1344,14 +1372,16 @@ fun PrivacySection(
             iconTint = siblingTints[0],
         )
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = contentAuthenticationIcon,
-            title = "进入隐私内容时验证",
-            subtitle = "进入收藏、历史等页面前使用指纹、人脸或锁屏密码确认身份",
-            checked = privacyContentAuthenticationEnabled,
-            onCheckedChange = onPrivacyContentAuthenticationChange,
-            iconTint = siblingTints[1]
-        )
+        SettingsItemAnchor("privacy.privacy_content_authentication_enabled") {
+            SettingSwitchItem(
+                icon = contentAuthenticationIcon,
+                title = settingItemTitle("privacy.privacy_content_authentication_enabled"),
+                subtitle = "进入收藏、历史等页面前使用指纹、人脸或锁屏密码确认身份",
+                checked = privacyContentAuthenticationEnabled,
+                onCheckedChange = onPrivacyContentAuthenticationChange,
+                iconTint = siblingTints[1]
+            )
+        }
         SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = permissionVisual.icon,
@@ -1359,15 +1389,6 @@ fun PrivacySection(
             title = settingsDestinationCopy(SettingsSearchTarget.PERMISSION).title,
             onClick = onPermissionClick,
             iconTint = siblingTints[2]
-        )
-        SettingsAdaptiveDivider()
-        SettingClickableItem(
-            icon = messageNotificationVisual.icon,
-            iconPainter = messageNotificationVisual.iconResId?.let { painterResource(id = it) },
-            title = settingsDestinationCopy(SettingsSearchTarget.MESSAGE_NOTIFICATION).title,
-            value = settingsDestinationCopy(SettingsSearchTarget.MESSAGE_NOTIFICATION).summary,
-            onClick = onMessageNotificationClick,
-            iconTint = messageNotificationVisual.iconTint
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1381,8 +1402,8 @@ fun PrivacySection(
         SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_shield_24),
-            title = "发评反诈历史",
-            value = "查看历史发评与风控状态",
+            title = "评论检查记录",
+            value = "查看已发评论及其显示状态",
             onClick = onCommentFraudHistoryClick,
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
@@ -1524,7 +1545,7 @@ private fun DiagnosticsSection(
     val siblingTints = remember { resolveSettingsSiblingIconTints(6, paletteOffset = 5) }
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
     val useMd3ExportLogsDescription = LocalAppUiStyle.current == AppUiStyle.MATERIAL3
-    val exportLogsDescription = "崩溃摘要优先；原始回溯需单独选择"
+    val exportLogsDescription = "默认导出崩溃摘要，详细错误记录需另选"
     val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
         initialValue = NetworkProxyStore.getSync(context)
     )
@@ -1532,39 +1553,45 @@ private fun DiagnosticsSection(
     var showEnhancedDiagnosticConsent by remember { mutableStateOf(false) }
 
     SettingsCardGroup {
-        SettingSwitchItem(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.CRASH_TRACKING),
-            title = "崩溃追踪",
-            subtitle = "记录崩溃和严重故障信息，帮助定位问题；默认开启",
-            checked = crashTrackingEnabled,
-            onCheckedChange = onCrashTrackingChange,
-            iconTint = siblingTints[0],
-        )
+        SettingsItemAnchor("diagnostics.crash_tracking_enabled") {
+            SettingSwitchItem(
+                icon = rememberSettingsSemanticIcon(SettingsIconRole.CRASH_TRACKING),
+                title = settingItemTitle("diagnostics.crash_tracking_enabled"),
+                subtitle = "记录崩溃和严重故障信息，帮助定位问题；默认开启",
+                checked = crashTrackingEnabled,
+                onCheckedChange = onCrashTrackingChange,
+                iconTint = siblingTints[0],
+            )
+        }
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANALYTICS),
-            title = "使用情况统计",
-            subtitle = "匿名统计每日活跃和基础功能使用情况，不包含账号内容；默认开启",
-            checked = analyticsEnabled,
-            onCheckedChange = onAnalyticsChange,
-            iconTint = siblingTints[1],
-        )
+        SettingsItemAnchor("diagnostics.analytics_enabled") {
+            SettingSwitchItem(
+                icon = rememberSettingsSemanticIcon(SettingsIconRole.ANALYTICS),
+                title = settingItemTitle("diagnostics.analytics_enabled"),
+                subtitle = "匿名统计每日活跃和基础功能使用情况，不包含账号内容；默认开启",
+                checked = analyticsEnabled,
+                onCheckedChange = onAnalyticsChange,
+                iconTint = siblingTints[1],
+            )
+        }
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_pest_control_24),
-            title = "增强诊断日志",
-            subtitle = if (enhancedDiagnosticLoggingEnabled) {
-                "正在采集脱敏后的详细运行信息；关闭会清除详细日志，保留基础错误日志"
-            } else {
-                "基础错误日志默认保留；开启后记录更多排障信息，不含凭据与观看内容"
-            },
-            checked = enhancedDiagnosticLoggingEnabled,
-            onCheckedChange = { enabled ->
-                if (enabled) showEnhancedDiagnosticConsent = true
-                else onEnhancedDiagnosticLoggingChange(false)
-            },
-            iconTint = siblingTints[2],
-        )
+        SettingsItemAnchor("diagnostics.enhanced_diagnostic_logging_enabled") {
+            SettingSwitchItem(
+                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_pest_control_24),
+                title = settingItemTitle("diagnostics.enhanced_diagnostic_logging_enabled"),
+                subtitle = if (enhancedDiagnosticLoggingEnabled) {
+                    "记录详细运行信息；关闭后清除，基础错误日志保留"
+                } else {
+                    "记录更多排查信息，隐藏账号凭据与观看内容"
+                },
+                checked = enhancedDiagnosticLoggingEnabled,
+                onCheckedChange = { enabled ->
+                    if (enabled) showEnhancedDiagnosticConsent = true
+                    else onEnhancedDiagnosticLoggingChange(false)
+                },
+                iconTint = siblingTints[2],
+            )
+        }
         SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lan_24),
@@ -1616,7 +1643,7 @@ private fun DiagnosticsSection(
     if (showEnhancedDiagnosticConsent) {
         AppAlertDialog(
             onDismissRequest = { showEnhancedDiagnosticConsent = false },
-            title = { AppText("开启增强诊断日志？", fontWeight = FontWeight.Bold) },
+            title = { AppText("开启详细运行日志？", fontWeight = FontWeight.Bold) },
             text = {
                 AppText(
                     text = "将记录应用版本、设备与系统环境、请求结果、播放器状态和错误堆栈。" +
@@ -1820,12 +1847,12 @@ fun AboutSection(
     updateStatusText: String = "点击检查",
     isCheckingUpdate: Boolean = false,
     verificationLabel: String = "未验证",
-    verificationSubtitle: String = "暂未获取到可核对的 release 证据",
+    verificationSubtitle: String = "尚未获取官方发布信息",
     buildSourceValue: String = "本地构建",
-    buildSourceSubtitle: String = "未绑定 GitHub Release",
+    buildSourceSubtitle: String = "未关联 GitHub 官方发布",
     buildFingerprintValue: String = "未读取",
     buildFingerprintCopyValue: String = "未读取",
-    buildFingerprintSubtitle: String = "暂未读取到当前安装包 SHA-256",
+    buildFingerprintSubtitle: String = "尚未读取安装包 SHA-256",
     versionClickCount: Int = 0,
     versionClickThreshold: Int = EasterEggs.VERSION_EASTER_EGG_THRESHOLD
 ) {
@@ -1931,7 +1958,7 @@ fun AboutSection(
     )
     Spacer(modifier = Modifier.height(12.dp))
 
-    SettingsSectionTitle(title = "源码与验证")
+    SettingsSectionTitle(title = "来源与验证")
     SettingsCardGroup {
         SettingClickableItem(
             icon = openSourceHomeVisual.icon,
@@ -1954,7 +1981,7 @@ fun AboutSection(
         SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = verificationIcon,
-            title = "源码一致性",
+            title = "安装包来源验证",
             subtitle = verificationSubtitle,
             value = verificationLabel,
             onClick = {
@@ -1972,7 +1999,7 @@ fun AboutSection(
         SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = buildSourceIcon,
-            title = "构建来源",
+            title = "版本来源",
             subtitle = buildSourceSubtitle,
             value = buildSourceValue,
             onClick = {
@@ -2025,17 +2052,19 @@ fun AboutSection(
             iconTint = updateSiblingTints[2]
         )
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = notificationIcon,
-            title = "自动检查更新",
-            subtitle = resolveAutoCheckUpdateSubtitle(autoCheckEnabled = autoCheckUpdateEnabled),
-            checked = autoCheckUpdateEnabled,
-            onCheckedChange = onAutoCheckUpdateChange,
-            iconTint = updateSiblingTints[3]
-        )
+        SettingsItemAnchor("help.auto_check_update_enabled") {
+            SettingSwitchItem(
+                icon = notificationIcon,
+                title = settingItemTitle("help.auto_check_update_enabled"),
+                subtitle = resolveAutoCheckUpdateSubtitle(autoCheckEnabled = autoCheckUpdateEnabled),
+                checked = autoCheckUpdateEnabled,
+                onCheckedChange = onAutoCheckUpdateChange,
+                iconTint = updateSiblingTints[3]
+            )
+        }
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
-            title = "检测渠道",
+            title = "更新渠道",
             subtitle = appUpdateChannel.description,
             options = SettingsManager.AppUpdateChannel.entries.map { channel ->
                 com.android.purebilibili.core.ui.components.AppSegmentOption(
@@ -2051,7 +2080,7 @@ fun AboutSection(
     }
     Spacer(modifier = Modifier.height(12.dp))
 
-    SettingsSectionTitle(title = "辅助")
+    SettingsSectionTitle(title = "使用与反馈")
     SettingsCardGroup {
         SettingClickableItem(
             icon = infoIcon,
@@ -2072,14 +2101,16 @@ fun AboutSection(
             iconTint = replayOnboardingVisual.iconTint
         )
         SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = sparklesIcon,
-            title = "趣味彩蛋",
-            subtitle = "刷新、点赞、投币、搜索时显示趣味提示",
-            checked = easterEggEnabled,
-            onCheckedChange = onEasterEggChange,
-            iconTint = easterEggTint
-        )
+        SettingsItemAnchor("help.easter_egg_enabled") {
+            SettingSwitchItem(
+                icon = sparklesIcon,
+                title = settingItemTitle("help.easter_egg_enabled"),
+                subtitle = "刷新、点赞、投币、搜索时显示趣味提示",
+                checked = easterEggEnabled,
+                onCheckedChange = onEasterEggChange,
+                iconTint = easterEggTint
+            )
+        }
     }
 }
 

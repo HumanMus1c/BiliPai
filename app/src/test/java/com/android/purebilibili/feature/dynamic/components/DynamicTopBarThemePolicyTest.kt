@@ -28,17 +28,16 @@ class DynamicTopBarThemePolicyTest {
     }
 
     @Test
-    fun `miuix non glass dynamic tabs can omit the inner track`() {
+    fun `dynamic tabs delegate native geometry to the shared renderer`() {
         val source = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         ).readText()
 
         assertTrue(source.contains("if (liquidGlassEnabled)"))
-        assertTrue(source.contains(".clip(RectangleShape)"))
         assertTrue(source.contains(".clip(dockShape)"))
         assertTrue(source.contains(".background(dockColor)"))
-        assertTrue(source.contains("drawMiuixNonGlassTrack = liquidGlassEnabled"))
-        assertTrue(source.contains("LocalAppUiStyle.current != AppUiStyle.MIUIX"))
+        assertTrue(source.contains("AppThemeAdaptiveTabRow("))
+        assertTrue(source.contains("scrollable = true"))
     }
 
     @Test

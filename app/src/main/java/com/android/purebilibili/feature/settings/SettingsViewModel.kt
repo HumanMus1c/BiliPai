@@ -1222,6 +1222,6 @@ internal class SettingsViewModelFactory(
 
 // Move DisplayMode enum here to be accessible
 enum class DisplayMode(val title: String, val description: String, val value: Int) {
-    DoubleGrid(title = "双列网格", description = "经典双列瀑布流布局", value = 0),
-    SingleColumn(title = "单列视频", description = "类似信息流的单列布局", value = 1)
+    DoubleGrid(title = "多列网格", description = "按屏幕宽度排列多列视频", value = 0),
+    SingleColumn(title = "单列视频", description = "每行显示一个视频", value = 1)
 }

@@ -23,7 +23,6 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -631,108 +630,6 @@ internal fun resolveBottomBarRefractionCaptureWidth(
     } else {
         dockWidth
     }
-}
-
-private data class BiliPaiBottomBarSearchLayoutState(
-    val dockWidth: Dp,
-    val dockHeight: Dp,
-    val minimumIndicatorWidth: Dp,
-    val indicatorReferenceWidth: Dp,
-    val searchWidth: Dp,
-    val searchHeight: Dp,
-    val searchGap: Dp,
-    val launchAdjustedSearchGap: Dp,
-    val shellHeight: Dp
-)
-
-@Composable
-private fun rememberBiliPaiBottomBarSearchLayoutState(
-    containerWidth: Dp,
-    itemCount: Int,
-    minEdgePadding: Dp,
-    searchEnabled: Boolean,
-    searchExpanded: Boolean,
-    labelMode: Int,
-    searchLayoutMode: BottomBarSearchLayoutMode,
-    hasUiSkinDecoration: Boolean
-): BiliPaiBottomBarSearchLayoutState {
-    val targetDockHeight = resolveBiliPaiBottomBarDockHeight(
-        searchExpanded = searchExpanded,
-        hasUiSkinDecoration = hasUiSkinDecoration
-    )
-    val targetSearchLayout = resolveBiliPaiBottomBarSearchLayout(
-        containerWidth = containerWidth,
-        itemCount = itemCount,
-        minEdgePadding = minEdgePadding,
-        searchEnabled = searchEnabled,
-        searchExpanded = searchExpanded,
-        labelMode = labelMode,
-        cornerRadius = targetDockHeight / 2,
-        searchLayoutMode = searchLayoutMode
-    )
-    if (!searchEnabled) {
-        val dockWidth by animateDpAsState(
-            targetValue = targetSearchLayout.dockWidth,
-            animationSpec = bottomBarDockWidthMotionSpec(),
-            label = "bottomBarDockWidth"
-        )
-        val dockHeight by animateDpAsState(
-            targetValue = targetDockHeight,
-            animationSpec = bottomBarChromeHeightMotionSpec(),
-            label = "bottomBarDockHeight"
-        )
-        return BiliPaiBottomBarSearchLayoutState(
-            dockWidth = dockWidth,
-            dockHeight = dockHeight,
-            minimumIndicatorWidth = targetSearchLayout.minimumIndicatorWidth,
-            indicatorReferenceWidth = targetSearchLayout.indicatorReferenceWidth,
-            searchWidth = AppSpacingTokens.None,
-            searchHeight = AppSpacingTokens.None,
-            searchGap = AppSpacingTokens.None,
-            launchAdjustedSearchGap = AppSpacingTokens.None,
-            shellHeight = dockHeight
-        )
-    }
-
-    val dockWidth by animateDpAsState(
-        targetValue = targetSearchLayout.dockWidth,
-        animationSpec = bottomBarDockWidthMotionSpec(),
-        label = "bottomBarDockWidth"
-    )
-    val searchWidth by animateDpAsState(
-        targetValue = targetSearchLayout.searchWidth,
-        animationSpec = bottomBarDockWidthMotionSpec(),
-        label = "bottomBarSearchWidth"
-    )
-    val searchGap by animateDpAsState(
-        targetValue = targetSearchLayout.gap,
-        animationSpec = bottomBarSearchGapMotionSpec(),
-        label = "bottomBarSearchGap"
-    )
-    val dockHeight by animateDpAsState(
-        targetValue = targetDockHeight,
-        animationSpec = bottomBarChromeHeightMotionSpec(),
-        label = "bottomBarDockHeight"
-    )
-    val searchHeight by animateDpAsState(
-        targetValue = resolveBiliPaiBottomBarSearchHeight(
-            searchExpanded = searchExpanded
-        ),
-        animationSpec = bottomBarChromeHeightMotionSpec(),
-        label = "bottomBarSearchHeight"
-    )
-    val shellHeight = if (dockHeight > searchHeight) dockHeight else searchHeight
-    return BiliPaiBottomBarSearchLayoutState(
-        dockWidth = dockWidth,
-        dockHeight = dockHeight,
-        minimumIndicatorWidth = targetSearchLayout.minimumIndicatorWidth,
-        indicatorReferenceWidth = targetSearchLayout.indicatorReferenceWidth,
-        searchWidth = searchWidth,
-        searchHeight = searchHeight,
-        searchGap = searchGap,
-        launchAdjustedSearchGap = searchGap,
-        shellHeight = shellHeight
-    )
 }
 
 private const val BottomBarSearchTopThresholdPx = 32f
@@ -3947,24 +3844,18 @@ private fun BiliPaiFloatingBottomBarChrome(
                 searchLayoutMode = bottomBarSearchLayoutMode,
                 hasUiSkinDecoration = uiSkinDecoration != null
             )
-            val dockWidth = searchLayoutState.dockWidth
-            val searchWidth = searchLayoutState.searchWidth
-            val searchHeight = searchLayoutState.searchHeight
-            val launchAdjustedSearchGap = searchLayoutState.launchAdjustedSearchGap
-            val dockHeight = searchLayoutState.dockHeight
-            val shellHeight = searchLayoutState.shellHeight
             val compactSearchLayout =
                 bottomBarSearchLayoutMode == BottomBarSearchLayoutMode.HOME_AND_SEARCH
             val visualSearchExpanded = resolveBiliPaiBottomBarSearchFieldExpanded(
                 searchExpanded = effectiveSearchExpanded,
                 searchLayoutMode = bottomBarSearchLayoutMode
             )
-            val animatedDockContentAlpha by animateFloatAsState(
+            val animatedDockContentAlpha = animateFloatAsState(
                 targetValue = if (compactSearchLayout && effectiveSearchExpanded) 0f else 1f,
                 animationSpec = bottomBarContentVisibilityMotionSpec(),
                 label = "bottomBarDockContentAlpha"
             )
-            val animatedCompactHomeAlpha by animateFloatAsState(
+            val animatedCompactHomeAlpha = animateFloatAsState(
                 targetValue = if (compactSearchLayout && effectiveSearchExpanded) 1f else 0f,
                 animationSpec = bottomBarContentVisibilityMotionSpec(),
                 label = "bottomBarCompactHomeAlpha"
@@ -3973,12 +3864,21 @@ private fun BiliPaiFloatingBottomBarChrome(
             // 大号首页图标会直接压到原 Dock 的“推荐”文字上。关闭玻璃时改为原子切换。
             val useImmediatePlainHomeSwap = !effectiveGlassEnabled &&
                 compactSearchLayout && effectiveSearchExpanded
-            val dockContentAlpha = if (useImmediatePlainHomeSwap) 0f else animatedDockContentAlpha
-            val compactHomeAlpha = if (useImmediatePlainHomeSwap) 1f else animatedCompactHomeAlpha
-            val shouldComposeDockContent = shouldComposeBottomBarDockContent(
-                dockContentAlpha = dockContentAlpha,
-                effectiveSearchExpanded = effectiveSearchExpanded
-            )
+            val dockContentAlpha = remember(useImmediatePlainHomeSwap, animatedDockContentAlpha) {
+                derivedStateOf { if (useImmediatePlainHomeSwap) 0f else animatedDockContentAlpha.value }
+            }
+            val compactHomeAlpha = remember(useImmediatePlainHomeSwap, animatedCompactHomeAlpha) {
+                derivedStateOf { if (useImmediatePlainHomeSwap) 1f else animatedCompactHomeAlpha.value }
+            }
+            // Composition observes only membership changes; layers consume every alpha frame.
+            val shouldComposeDockContent by remember(dockContentAlpha, effectiveSearchExpanded) {
+                derivedStateOf {
+                    shouldComposeBottomBarDockContent(dockContentAlpha.value, effectiveSearchExpanded)
+                }
+            }
+            val shouldComposeCompactHome by remember(compactHomeAlpha) {
+                derivedStateOf { compactHomeAlpha.value > BottomBarTransientAlphaThreshold }
+            }
             val compactHomeIconSize = resolveBiliPaiExpandedHomeIconSize()
             val compactHomeIconScale = resolveBiliPaiExpandedHomeIconScale()
             val selectedIndexForBar = if (isValidSelection) selectedIndex else selectedIndex
@@ -4009,14 +3909,16 @@ private fun BiliPaiFloatingBottomBarChrome(
 
             Row(
                 modifier = Modifier
-                    .height(shellHeight)
+                    .bottomBarAnimatedSize(height = searchLayoutState.shellHeight)
                     .align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .width(dockWidth)
-                        .height(dockHeight)
+                        .bottomBarAnimatedSize(
+                            width = searchLayoutState.dockWidth,
+                            height = searchLayoutState.dockHeight,
+                        )
                         // Allow reminder badges to paint slightly outside the dock band.
                         .graphicsLayer { clip = false }
                 ) {
@@ -4028,10 +3930,14 @@ private fun BiliPaiFloatingBottomBarChrome(
                     )
                     if (shouldComposeDockContent) {
                         val dockModifier = Modifier
-                            .width(dockWidth)
-                            .height(dockHeight)
-                            .alpha(dockContentAlpha)
-                            .graphicsLayer { clip = false }
+                            .bottomBarAnimatedSize(
+                                width = searchLayoutState.dockWidth,
+                                height = searchLayoutState.dockHeight,
+                            )
+                            .graphicsLayer {
+                                alpha = dockContentAlpha.value
+                                clip = false
+                            }
                         val dockContent: @Composable RowScope.() -> Unit = {
                             visibleItems.forEachIndexed { index, item ->
                                 val label = resolveBottomNavItemLabel(item, itemLabels)
@@ -4110,40 +4016,42 @@ private fun BiliPaiFloatingBottomBarChrome(
                                 content = dockContent,
                             )
                         } else {
-                            FloatingBottomBar(
-                                selectedIndex = floatingSelectedIndex,
-                                onSelected = floatingOnSelected,
-                                onReselected = floatingOnReselected,
-                                backdrop = miuixBackdrop,
-                                tabsCount = totalItems,
-                                modifier = dockModifier,
-                                mode = floatingMode,
-                                colors = floatingColors,
-                                indicatorIdleSurfaceColorOverride = neutralIndicatorContainerColor,
-                                shellHeight = dockHeight,
-                                indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
-                                minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
-                                proportionalIndicatorReferenceWidth = if (effectiveGlassEnabled) {
-                                    searchLayoutState.indicatorReferenceWidth
-                                } else {
-                                    null
-                                },
-                                indicatorPositionProvider = indicatorPositionProvider,
-                                isScrollInProgressProvider = isPagerScrollInProgressProvider,
-                                liquidGlassTuning = liquidGlassTuning,
-                            ) {
-                                dockContent()
+                            BottomBarDockHeightContent(searchLayoutState.dockHeight) { dockHeight ->
+                                FloatingBottomBar(
+                                    selectedIndex = floatingSelectedIndex,
+                                    onSelected = floatingOnSelected,
+                                    onReselected = floatingOnReselected,
+                                    backdrop = miuixBackdrop,
+                                    tabsCount = totalItems,
+                                    modifier = dockModifier,
+                                    mode = floatingMode,
+                                    colors = floatingColors,
+                                    indicatorIdleSurfaceColorOverride = neutralIndicatorContainerColor,
+                                    shellHeight = dockHeight,
+                                    indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
+                                    minimumIndicatorWidth = searchLayoutState.minimumIndicatorWidth,
+                                    proportionalIndicatorReferenceWidth = if (effectiveGlassEnabled) {
+                                        searchLayoutState.indicatorReferenceWidth
+                                    } else {
+                                        null
+                                    },
+                                    indicatorPositionProvider = indicatorPositionProvider,
+                                    isScrollInProgressProvider = isPagerScrollInProgressProvider,
+                                    liquidGlassTuning = liquidGlassTuning,
+                                ) {
+                                    dockContent()
+                                }
                             }
                         }
                     }
 
                     if (searchEnabled && compactSearchLayout &&
-                        compactHomeAlpha > BottomBarTransientAlphaThreshold
+                        shouldComposeCompactHome
                     ) {
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .alpha(compactHomeAlpha)
+                                .graphicsLayer { alpha = compactHomeAlpha.value }
                                 .then(
                                     if (effectiveSearchExpanded) {
                                         Modifier.clickable(
@@ -4223,9 +4131,7 @@ private fun BiliPaiFloatingBottomBarChrome(
 
                 BiliPaiBottomBarSearchSlot(
                     visible = searchLayoutReserved,
-                    launchAdjustedSearchGap = launchAdjustedSearchGap,
-                    searchWidth = searchWidth,
-                    searchHeight = searchHeight,
+                    layoutState = searchLayoutState,
                     expanded = visualSearchExpanded,
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -4549,9 +4455,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
 @Composable
 private fun BiliPaiBottomBarSearchSlot(
     visible: Boolean,
-    launchAdjustedSearchGap: Dp,
-    searchWidth: Dp,
-    searchHeight: Dp,
+    layoutState: BiliPaiBottomBarSearchLayoutState,
     expanded: Boolean,
     query: String,
     onQueryChange: (String) -> Unit,
@@ -4579,15 +4483,12 @@ private fun BiliPaiBottomBarSearchSlot(
     iconStyle: SharedFloatingBottomBarIconStyle
 ) {
     if (!visible) return
-    Spacer(modifier = Modifier.width(launchAdjustedSearchGap))
+    Spacer(modifier = Modifier.bottomBarAnimatedSize(width = layoutState.launchAdjustedSearchGap))
     Box(
         modifier = Modifier
-            .width(searchWidth)
-            .height(searchHeight)
+            .bottomBarAnimatedSize(width = layoutState.searchWidth, height = layoutState.searchHeight)
     ) {
         BiliPaiBottomBarSearchCapsule(
-            width = searchWidth,
-            height = searchHeight,
             expanded = expanded,
             query = query,
             onQueryChange = onQueryChange,
@@ -4619,8 +4520,6 @@ private fun BiliPaiBottomBarSearchSlot(
 
 @Composable
 private fun BiliPaiBottomBarSearchCapsule(
-    width: Dp,
-    height: Dp,
     expanded: Boolean,
     query: String,
     onQueryChange: (String) -> Unit,
@@ -4682,8 +4581,7 @@ private fun BiliPaiBottomBarSearchCapsule(
 
     Box(
         modifier = Modifier
-            .width(width)
-            .height(height)
+            .fillMaxSize()
             .biliPaiMiuixFloatingDockSurface(
                 shape = shape,
                 backdrop = miuixBackdrop,

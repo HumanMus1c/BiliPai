@@ -51,9 +51,9 @@ class PlaybackSettingsSelectionPolicyTest {
         val contentBlock = source
             .substringAfter("fun PlaybackSettingsContent(")
             .substringBefore("private fun PlaybackInteractionSettingsSection(")
-        assertTrue(source.contains("视频小横条"))
+        assertTrue(source.contains("底部视频入口"))
         assertTrue(source.contains("setAudioNowPlayingBarEnabled(context, it)"))
-        assertTrue(source.contains("点击小横条进入听视频"))
+        assertTrue(source.contains("点底部视频入口听视频"))
         assertTrue(source.contains("setAudioNowPlayingBarOpensAudioMode(context, it)"))
         assertTrue(contentBlock.contains("AppPreferenceSectionTitle(\"互动与评论\")"))
         assertTrue(contentBlock.contains("AppPreferenceSectionTitle(\"全屏与手势\")"))
@@ -376,7 +376,7 @@ class PlaybackSettingsSelectionPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
             .readText()
 
-        assertTrue(source.contains("双击跳转"))
+        assertTrue(source.contains("双击快进或后退"))
         assertTrue(source.contains("getDoubleTapSeekEnabled"))
         assertTrue(source.contains("setDoubleTapSeekEnabled"))
         assertTrue(source.contains("getSeekForwardSeconds"))
@@ -390,8 +390,8 @@ class PlaybackSettingsSelectionPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
             .readText()
 
-        assertTrue(source.contains("画质降档诊断弹窗"))
-        assertTrue(source.contains("降档弹窗仅提示一次"))
+        assertTrue(source.contains("画质切换失败时提示"))
+        assertTrue(source.contains("只提醒一次"))
         assertTrue(source.contains("getQualitySwitchFailureDialogEnabled"))
         assertTrue(source.contains("setQualitySwitchFailureDialogEnabled"))
         assertTrue(source.contains("getQualitySwitchFailureDialogOnceEnabled"))
@@ -421,9 +421,9 @@ class PlaybackSettingsSelectionPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
             .readText()
 
-        assertTrue(source.contains("每个视频都会自动选择当前账号和设备可播放的最高画质"))
+        assertTrue(source.contains("自动选择账号和设备支持的最高画质"))
         assertTrue(source.contains("视频本身无更高档不打断播放"))
-        assertTrue(source.contains("仅作为关闭自动最高后的无线网络偏好保留"))
+        assertTrue(source.contains("关闭“自动最高画质”后生效"))
     }
 
     private fun loadSource(path: String): String {

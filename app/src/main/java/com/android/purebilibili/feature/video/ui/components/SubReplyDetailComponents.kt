@@ -615,41 +615,32 @@ internal fun SubReplyDetailContent(
             scrollOffset = listState.firstVisibleItemScrollOffset,
         )
     }
-    val listScrollMetrics by remember {
+    val canScrollForwardState = remember(listState) {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
-            Triple(
-                lastVisibleItem?.index ?: -1,
-                (lastVisibleItem?.offset ?: 0) + (lastVisibleItem?.size ?: 0),
-                layoutInfo.totalItemsCount to layoutInfo.viewportEndOffset
+            resolveLazyListCanScrollForward(
+                lastVisibleIndex = lastVisibleItem?.index ?: -1,
+                lastVisibleEndOffset = (lastVisibleItem?.offset ?: 0) + (lastVisibleItem?.size ?: 0),
+                totalItemsCount = layoutInfo.totalItemsCount,
+                viewportEndOffset = layoutInfo.viewportEndOffset
             )
         }
     }
-    val canScrollForward = remember(listScrollMetrics) {
-        val (lastVisibleIndex, lastVisibleEndOffset, totalAndViewport) = listScrollMetrics
-        val (totalItemsCount, viewportEndOffset) = totalAndViewport
-        resolveLazyListCanScrollForward(
-            lastVisibleIndex = lastVisibleIndex,
-            lastVisibleEndOffset = lastVisibleEndOffset,
-            totalItemsCount = totalItemsCount,
-            viewportEndOffset = viewportEndOffset
-        )
-    }
-    val shouldLoadMore by remember(isLoading, isEnd, error, localConversationMode) {
+    val shouldLoadMore by remember(listState, isLoading, isEnd, error, localConversationMode) {
         derivedStateOf {
-            val (lastVisibleIndex, _, totalAndViewport) = listScrollMetrics
+            val layoutInfo = listState.layoutInfo
             error == null && !localConversationMode &&
                 shouldLoadMoreSubReplyList(
-                    lastVisibleIndex = lastVisibleIndex,
-                    totalItemsCount = totalAndViewport.first,
+                    lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1,
+                    totalItemsCount = layoutInfo.totalItemsCount,
                     isLoading = isLoading,
                     isEnd = isEnd
                 )
         }
     }
     val shouldPrefetchShortList by remember(
-        isLoading, isEnd, error, localConversationMode, visibleReplies.size, detailReplyDisplayCount
+        canScrollForwardState, isLoading, isEnd, error, localConversationMode, visibleReplies.size, detailReplyDisplayCount
     ) {
         derivedStateOf {
             error == null && !localConversationMode &&
@@ -658,7 +649,7 @@ internal fun SubReplyDetailContent(
                     totalReplyCount = detailReplyDisplayCount,
                     isLoading = isLoading,
                     isEnd = isEnd,
-                    canScrollForward = canScrollForward
+                    canScrollForward = canScrollForwardState.value
                 )
         }
     }

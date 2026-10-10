@@ -10,6 +10,26 @@ import kotlin.test.assertTrue
 class BiliPaiNavBackStackPolicyTest {
 
     @Test
+    fun animationOpenedFromAppearance_returnsToAppearance() {
+        val appearanceStack = listOf(
+            BiliPaiNavKey.MainHost,
+            BiliPaiNavKey.Settings,
+            BiliPaiNavKey.AppearanceSettings,
+        )
+        val animationStack = pushBiliPaiNavKey(appearanceStack, BiliPaiNavKey.AnimationSettings)
+        assertEquals(appearanceStack, popBiliPaiNavKey(animationStack))
+    }
+
+    @Test
+    fun animationOpenedFromSearch_returnsToSearch() {
+        val searchStack = listOf(BiliPaiNavKey.MainHost, BiliPaiNavKey.SettingsSearch)
+        assertEquals(
+            searchStack,
+            popBiliPaiNavKey(pushBiliPaiNavKey(searchStack, BiliPaiNavKey.AnimationSettings)),
+        )
+    }
+
+    @Test
     fun initialBackStack_usesOnboardingWhenRequired() {
         assertEquals(
             listOf(BiliPaiNavKey.Onboarding),

@@ -59,13 +59,13 @@ fun TipsSettingsScreen(
             TipEntry(
                 iconResId = R.drawable.ms_draw_fill_24,
                 iconTint = iOSBlue,
-                title = "1. 摸鱼模式：播放器缩小策略",
-                content = "在播放设置里把「播放器缩小策略」设为竖屏、横屏、全部或暂停时，再按对应条件缩小播放器。"
+                title = "1. 浏览评论时缩小视频",
+                content = "在“全屏与手势”中设置“浏览时缩小视频”，可选择适用的视频方向或仅在暂停时缩小。"
             ),
             TipEntry(
                 iconResId = R.drawable.ms_keyboard_arrow_up_24,
                 iconTint = iOSTeal,
-                title = "2. 回顶部不用狂划",
+                title = "2. 快速回到顶部",
                 content = "首页刷太深时，双击底栏「首页」图标，或双击顶部频道标题，可快速回到列表顶部。"
             ),
             TipEntry(
@@ -89,7 +89,7 @@ fun TipsSettingsScreen(
                 iconResId = R.drawable.ms_skip_next_fill_24,
                 iconTint = iOSPink,
                 title = "5. 关闭自动连播，结尾更安静",
-                content = "在播放设置关闭「自动播放下一个」后，视频播完会停在结束态，不再自动连播。"
+                content = "关闭“自动播放下一个”可停止分 P 或合集连播。收藏夹等列表的连播方式需单独设置。"
             ),
             TipEntry(
                 iconResId = R.drawable.ms_cameraswitch_fill_24,
@@ -100,8 +100,8 @@ fun TipsSettingsScreen(
             TipEntry(
                 iconResId = R.drawable.ms_picture_in_picture_fill_24,
                 iconTint = iOSTeal,
-                title = "7. 小窗和画中画是两种玩法",
-                content = "播放设置中的「后台播放模式」可选择应用内小窗、系统画中画，或让两者同时生效；画中画需先授予权限。"
+                title = "7. 离开视频页后继续观看",
+                content = "先开启“后台播放”，再选择离开视频页后的播放方式。应用内小窗用于应用内，画中画用于桌面；画中画需系统授权。"
             ),
             TipEntry(
                 iconResId = R.drawable.ms_thumb_up_fill_24,
@@ -124,13 +124,13 @@ fun TipsSettingsScreen(
                 iconResId = R.drawable.ms_label_fill_24,
                 iconTint = iOSPink,
                 title = "10. 版本号连点有彩蛋",
-                content = "在设置页连续点击版本号会触发隐藏彩蛋提示，适合探索党。"
+                content = "在设置页连续点按版本号，可打开彩蛋提示。"
             ),
             TipEntry(
                 iconResId = R.drawable.ms_card_giftcard_fill_24,
                 iconTint = iOSOrange,
                 title = "11. 趣味彩蛋可随时关闭",
-                content = "如果不想看到趣味提示，可在设置里关闭「趣味彩蛋」，界面会更克制。"
+                content = "关闭“趣味彩蛋”后，不再显示刷新、点赞等操作的趣味提示。"
             ),
             TipEntry(
                 iconResId = R.drawable.ms_link_24,

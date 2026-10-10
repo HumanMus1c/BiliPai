@@ -382,7 +382,7 @@ class FloatingBottomBarStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         )
 
-        assertTrue(video.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(video.contains("AppThemeAdaptiveTabRow("))
         assertTrue(video.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
         assertTrue(search.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(search.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))

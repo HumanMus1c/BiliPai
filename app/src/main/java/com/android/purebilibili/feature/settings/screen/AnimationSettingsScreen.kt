@@ -72,11 +72,12 @@ import kotlin.math.roundToInt
 @Composable
 fun AnimationSettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    advancedOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val screenTitle = stringResource(R.string.animation_effects_title)
+    val screenTitle = if (advancedOnly) "玻璃高级调节" else stringResource(R.string.animation_effects_title)
     val backLabel = stringResource(R.string.common_back)
     val bottomContentPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -93,6 +94,7 @@ fun AnimationSettingsScreen(
             AnimationSettingsContent(
                 state = state,
                 viewModel = viewModel,
+                advancedOnly = advancedOnly,
             )
         }
     }
@@ -102,7 +104,8 @@ fun AnimationSettingsScreen(
 fun AnimationSettingsContent(
     modifier: Modifier = Modifier,
     state: SettingsUiState,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    advancedOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -156,9 +159,9 @@ fun AnimationSettingsContent(
     }
     val motionTierHint = remember(cardMotionTier) {
         when (cardMotionTier) {
-            MotionTier.Reduced -> "更短延迟与更弱位移，优先稳定和性能"
+            MotionTier.Reduced -> "动画更轻、更快，减少性能开销"
             MotionTier.Normal -> "平衡性能与动效，适合大多数设备"
-            MotionTier.Enhanced -> "更明显的层级与动势，适合大屏展示"
+            MotionTier.Enhanced -> "动画幅度更大，层次更明显"
         }
     }
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
@@ -256,13 +259,15 @@ fun AnimationSettingsContent(
         val snapped = min + (((value - min) / stepMillis).roundToInt() * stepMillis)
         return normalizeVideoSharedTransitionCustomDurationMillis(snapped)
     }
-    LaunchedEffect(focusRequest?.token) {
-        val request = focusRequest ?: return@LaunchedEffect
-        if (request.target != SettingsSearchTarget.ANIMATION) return@LaunchedEffect
-        val index = resolveAnimationSettingsScrollIndex(request.focusId) ?: return@LaunchedEffect
-        listState.animateScrollToItem(index)
-        SettingsSearchFocusController.clear(request.token)
-    }
+    SettingsSectionFocusEffect(
+        listState = listState,
+        target = SettingsSearchTarget.ANIMATION,
+        sectionKeys = (if (advancedOnly) emptyList() else listOf("animation_page_title", "animation_page", "animation_card_title", "animation_card")) + listOf("animation_glass_title", "animation_glass"),
+        legacyKeys = mapOf(
+            SettingsSearchFocusIds.ANIMATION_START to "animation_page_title",
+            SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS to "animation_glass_title",
+        ),
+    )
 
     EntranceGroup {
     LazyColumn(
@@ -275,48 +280,55 @@ fun AnimationSettingsContent(
     ) {
 
             //  界面动效（全 App 入场）
-            item {
+            if (!advancedOnly) {
+            item(key = "animation_page_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("界面动效")
+                    AppPreferenceSectionTitle("页面动画")
                 }
             }
-            item {
+            item(key = "animation_page") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.UI_ENTRANCE_ANIMATION),
-                            title = "界面入场动画",
-                            subtitle = "进入页面时内容依次淡入",
-                            checked = uiEntranceAnimationEnabled,
-                            onCheckedChange = { value ->
-                                scope.launch {
-                                    SettingsManager.setUiEntranceAnimationEnabled(context, value)
-                                }
-                            },
-                            iconTint = iOSGreen
-                        )
+                        SettingsItemAnchor("animation.ui_entrance_animation_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.UI_ENTRANCE_ANIMATION),
+                                title = settingItemTitle("animation.ui_entrance_animation_enabled"),
+                                subtitle = "进入页面时内容依次淡入",
+                                checked = uiEntranceAnimationEnabled,
+                                onCheckedChange = { value ->
+                                    scope.launch {
+                                        SettingsManager.setUiEntranceAnimationEnabled(context, value)
+                                    }
+                                },
+                                iconTint = iOSGreen
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HAPTIC_FEEDBACK),
-                            title = "触感反馈",
-                            subtitle = "导航和关键操作时提供振动反馈",
-                            checked = state.hapticFeedbackEnabled,
-                            onCheckedChange = viewModel::toggleHapticFeedback,
-                            iconTint = iOSBlue,
-                        )
+                        SettingsItemAnchor("animation.haptic_feedback_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HAPTIC_FEEDBACK),
+                                title = settingItemTitle("animation.haptic_feedback_enabled"),
+                                subtitle = "切换页面或完成操作时轻微振动",
+                                checked = state.hapticFeedbackEnabled,
+                                onCheckedChange = viewModel::toggleHapticFeedback,
+                                iconTint = iOSBlue,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.COPY_TEXT),
-                            title = "点按文字复制",
-                            subtitle = "点按正文文字即可复制",
-                            checked = globalTextTapCopyEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setGlobalTextTapCopyEnabled(context, enabled)
-                                }
-                            },
-                            iconTint = iOSOrange,
-                        )
+                        SettingsItemAnchor("animation.global_text_tap_copy_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.COPY_TEXT),
+                                title = settingItemTitle("animation.global_text_tap_copy_enabled"),
+                                subtitle = "点按正文文字即可复制",
+                                checked = globalTextTapCopyEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setGlobalTextTapCopyEnabled(context, enabled)
+                                    }
+                                },
+                                iconTint = iOSOrange,
+                            )
+                        }
                         if (entranceDowngradedBySystem) {
                             AppPreferenceDivider()
                             Column(
@@ -336,129 +348,145 @@ fun AnimationSettingsContent(
             }
 
             //  卡片动画
-            item {
+            item(key = "animation_card_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("卡片动画")
                 }
             }
-            item {
+            item(key = "animation_card") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
-                            title = "进场动画",
-                            subtitle = "打开首页时卡片依次淡入",
-                            checked = state.cardAnimationEnabled,
-                            onCheckedChange = { viewModel.toggleCardAnimation(it) },
-                            iconTint = iOSPink
-                        )
+                            SettingsItemAnchor("animation.card_animation_enabled") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
+                                title = settingItemTitle("animation.card_animation_enabled"),
+                                subtitle = "打开首页时卡片依次淡入",
+                                checked = state.cardAnimationEnabled,
+                                onCheckedChange = { viewModel.toggleCardAnimation(it) },
+                                iconTint = iOSPink
+                            )
+                            }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
-                            title = "过渡动画",
-                            subtitle = "封面和标题平滑过渡到详情页",
-                            checked = state.cardTransitionEnabled,
-                            onCheckedChange = { viewModel.toggleCardTransition(it) },
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("animation.card_transition_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                                title = settingItemTitle("animation.card_transition_enabled"),
+                                subtitle = "封面和标题平滑过渡到详情页",
+                                checked = state.cardTransitionEnabled,
+                                onCheckedChange = { viewModel.toggleCardTransition(it) },
+                                iconTint = iOSTeal
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.RELATED_VIDEO_TRANSITION),
-                            title = "相关推荐过渡动画",
-                            subtitle = if (relatedVideoTransitionEnabled) {
-                                "点击相关推荐时使用卡片变形过渡"
-                            } else {
-                                "点击相关推荐时使用默认页面过渡"
-                            },
-                            checked = relatedVideoTransitionEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setRelatedVideoTransitionEnabled(context, enabled)
-                                }
-                            },
-                            enabled = state.cardTransitionEnabled,
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("animation.related_video_transition_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.RELATED_VIDEO_TRANSITION),
+                                title = settingItemTitle("animation.related_video_transition_enabled"),
+                                subtitle = if (relatedVideoTransitionEnabled) {
+                                    "点开相关推荐时，卡片展开为视频页"
+                                } else {
+                                    "点开相关推荐时，使用普通页面动画"
+                                },
+                                checked = relatedVideoTransitionEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setRelatedVideoTransitionEnabled(context, enabled)
+                                    }
+                                },
+                                enabled = state.cardTransitionEnabled,
+                                iconTint = iOSTeal
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LIVE_SURFACE_TRANSITION),
-                            title = "实时画面转场",
-                            subtitle = "用播放器当前画面做转场变形，不降低画质",
-                            checked = liveSurfaceCardTransitionEnabled,
-                            onCheckedChange = { viewModel.toggleLiveSurfaceCardTransition(it) },
-                            enabled = state.cardTransitionEnabled,
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("animation.live_surface_card_transition_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.LIVE_SURFACE_TRANSITION),
+                                title = settingItemTitle("animation.live_surface_card_transition_enabled"),
+                                subtitle = "过渡时保留正在播放的画面",
+                                checked = liveSurfaceCardTransitionEnabled,
+                                onCheckedChange = { viewModel.toggleLiveSurfaceCardTransition(it) },
+                                enabled = state.cardTransitionEnabled,
+                                iconTint = iOSTeal
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
-                            title = "返回内容跟随进度",
-                            subtitle = if (appNavigationSettings.videoReturnContentFollowProgressEnabled) {
-                                "返回时封面和底部信息随进度逐渐恢复为卡片"
-                            } else {
-                                "返回途中保留详情页内容，落位后切换为卡片"
-                            },
-                            checked = appNavigationSettings.videoReturnContentFollowProgressEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setVideoReturnContentFollowProgressEnabled(context, enabled)
-                                }
-                            },
-                            enabled = state.cardTransitionEnabled,
-                            iconTint = iOSTeal,
-                        )
+                        SettingsItemAnchor("animation.app_navigation_settings.video_return_content_follow_progress_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+                                title = settingItemTitle("animation.app_navigation_settings.video_return_content_follow_progress_enabled"),
+                                subtitle = if (appNavigationSettings.videoReturnContentFollowProgressEnabled) {
+                                    "返回途中，封面和信息逐渐恢复为卡片"
+                                } else {
+                                    "返回完成后，再切换为视频卡片"
+                                },
+                                checked = appNavigationSettings.videoReturnContentFollowProgressEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setVideoReturnContentFollowProgressEnabled(context, enabled)
+                                    }
+                                },
+                                enabled = state.cardTransitionEnabled,
+                                iconTint = iOSTeal,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.RETURN_GESTURE_POSE),
-                            title = "视频返回跟手姿态",
-                            subtitle = if (appNavigationSettings.videoSharedReturnGestureFollowEnabled) {
-                                "返回时保留斜向 3D 旋转和透视；独立于二维跟手位移"
-                            } else {
-                                "关闭 3D 旋转和透视，二维位移由下方开关独立控制"
-                            },
-                            checked = appNavigationSettings.videoSharedReturnGestureFollowEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setVideoSharedReturnGestureFollowEnabled(
-                                        context,
-                                        enabled,
-                                    )
-                                }
-                            },
-                            enabled = state.cardTransitionEnabled,
-                            iconTint = iOSTeal,
-                        )
+                        SettingsItemAnchor("animation.app_navigation_settings.video_shared_return_gesture_follow_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.RETURN_GESTURE_POSE),
+                                title = settingItemTitle("animation.app_navigation_settings.video_shared_return_gesture_follow_enabled"),
+                                subtitle = if (appNavigationSettings.videoSharedReturnGestureFollowEnabled) {
+                                    "滑动返回时，画面随手指倾斜"
+                                } else {
+                                    "画面不倾斜；是否随手指移动由下方控制"
+                                },
+                                checked = appNavigationSettings.videoSharedReturnGestureFollowEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setVideoSharedReturnGestureFollowEnabled(
+                                            context,
+                                            enabled,
+                                        )
+                                    }
+                                },
+                                enabled = state.cardTransitionEnabled,
+                                iconTint = iOSTeal,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
-                            title = "视频返回跟手位移",
-                            subtitle = if (appNavigationSettings.videoSharedReturnGestureTranslationEnabled) {
-                                "整卡跟手平移，可横向和纵向移动；松手落回原卡片，取消平滑复位"
-                            } else {
-                                "共享卡片沿固定轨迹返回，3D 姿态由上方开关独立控制"
-                            },
-                            checked = appNavigationSettings.videoSharedReturnGestureTranslationEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setVideoSharedReturnGestureTranslationEnabled(context, enabled)
-                                }
-                            },
-                            enabled = state.cardTransitionEnabled,
-                            iconTint = iOSTeal,
-                        )
+                        SettingsItemAnchor("animation.app_navigation_settings.video_shared_return_gesture_translation_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+                                title = settingItemTitle("animation.app_navigation_settings.video_shared_return_gesture_translation_enabled"),
+                                subtitle = if (appNavigationSettings.videoSharedReturnGestureTranslationEnabled) {
+                                    "滑动返回时，画面随手指移动"
+                                } else {
+                                    "画面沿固定路线返回；倾斜由上方控制"
+                                },
+                                checked = appNavigationSettings.videoSharedReturnGestureTranslationEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setVideoSharedReturnGestureTranslationEnabled(context, enabled)
+                                    }
+                                },
+                                enabled = state.cardTransitionEnabled,
+                                iconTint = iOSTeal,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.WALLPAPER_EFFECT),
-                            title = "转场时模糊背景",
-                            subtitle = "转场更有层次感；关闭可省电",
-                            checked = videoTransitionRealtimeBlurEnabled,
-                            onCheckedChange = { viewModel.toggleVideoTransitionRealtimeBlur(it) },
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("animation.video_transition_realtime_blur_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.WALLPAPER_EFFECT),
+                                title = settingItemTitle("animation.video_transition_realtime_blur_enabled"),
+                                subtitle = "转场更有层次感；关闭可省电",
+                                checked = videoTransitionRealtimeBlurEnabled,
+                                onCheckedChange = { viewModel.toggleVideoTransitionRealtimeBlur(it) },
+                                iconTint = iOSTeal
+                            )
+                        }
                         AppPreferenceDivider()
                         SettingsSingleChoicePreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
-                            title = "全局导航动画",
+                            title = "页面切换动画",
                             subtitle = "页面进入与返回共用的动画样式",
                             options = predictiveBackStyleOptions,
                             selectedValue = predictiveBackStyle,
@@ -476,8 +504,8 @@ fun AnimationSettingsContent(
                         if (predictiveBackStyle == BiliPaiPredictiveBackAnimationStyle.MIUIX) {
                             AppPreferenceDivider()
                             AppSliderDialogPreference(
-                                title = "预见式返回最大进度",
-                                subtitle = "限制按住时预览的距离",
+                                title = "返回预览幅度",
+                                subtitle = "调整滑动返回时的预览幅度",
                                 value = appNavigationSettings
                                     .miuixPredictiveBackMaxProgressPercent
                                     .toFloat(),
@@ -496,27 +524,29 @@ fun AnimationSettingsContent(
                         }
                         if (predictiveBackStyle != BiliPaiPredictiveBackAnimationStyle.NONE) {
                             AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(
-                                    SettingsIconRole.MIUIX_TRANSITION_BLUR
-                                ),
-                                title = "返回过渡模糊",
-                                subtitle = if (appNavigationSettings.miuixTransitionBlurEnabled) {
-                                    "四种返回动画均为下层页面添加 Miuix 同款实时景深模糊"
-                                } else {
-                                    "保留当前返回动画，不使用实时景深模糊"
-                                },
-                                checked = appNavigationSettings.miuixTransitionBlurEnabled,
-                                onCheckedChange = { enabled ->
-                                    scope.launch {
-                                        SettingsManager.setMiuixTransitionBlurEnabled(
-                                            context,
-                                            enabled,
-                                        )
-                                    }
-                                },
-                                iconTint = iOSTeal,
-                            )
+                            SettingsItemAnchor("animation.app_navigation_settings.miuix_transition_blur_enabled") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(
+                                        SettingsIconRole.MIUIX_TRANSITION_BLUR
+                                    ),
+                                    title = settingItemTitle("animation.app_navigation_settings.miuix_transition_blur_enabled"),
+                                    subtitle = if (appNavigationSettings.miuixTransitionBlurEnabled) {
+                                        "滑动返回时，模糊后方页面"
+                                    } else {
+                                        "返回时不模糊后方页面"
+                                    },
+                                    checked = appNavigationSettings.miuixTransitionBlurEnabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            SettingsManager.setMiuixTransitionBlurEnabled(
+                                                context,
+                                                enabled,
+                                            )
+                                        }
+                                    },
+                                    iconTint = iOSTeal,
+                                )
+                            }
                         }
                         if (predictiveBackStyle == BiliPaiPredictiveBackAnimationStyle.SCALE) {
                             AppPreferenceDivider()
@@ -536,30 +566,34 @@ fun AnimationSettingsContent(
                             )
                         }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_SWIPE_BACK),
-                            title = "全屏滑动返回",
-                            subtitle = if (fullScreenSwipeBackEnabled) {
-                                "列表与设置页支持全屏右滑返回；播放器、详情与网页页不受影响"
-                            } else {
-                                "仅屏幕边缘系统手势触发返回"
-                            },
-                            checked = fullScreenSwipeBackEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setFullScreenSwipeBackEnabled(context, enabled)
-                                }
-                            },
-                            iconTint = iOSTeal
-                        )
+                        SettingsItemAnchor("animation.full_screen_swipe_back_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_SWIPE_BACK),
+                                title = settingItemTitle("animation.full_screen_swipe_back_enabled"),
+                                subtitle = if (fullScreenSwipeBackEnabled) {
+                                    "列表和设置页可从屏幕中间右滑返回"
+                                } else {
+                                    "使用屏幕边缘的系统返回手势"
+                                },
+                                checked = fullScreenSwipeBackEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setFullScreenSwipeBackEnabled(context, enabled)
+                                    }
+                                },
+                                iconTint = iOSTeal
+                            )
+                        }
                         AppPreferenceDivider()
-                        SettingsSingleChoicePreference(
-                            title = "视频转场速度：${state.videoSharedTransitionSpeed.label}",
-                            subtitle = "进出详情页的转场速度",
-                            options = sharedTransitionSpeedOptions,
-                            selectedValue = state.videoSharedTransitionSpeed,
-                            onSelectionChange = viewModel::setVideoSharedTransitionSpeed
-                        )
+                        SettingsItemAnchor("animation.video_shared_transition_speed") {
+                            SettingsSingleChoicePreference(
+                                title = settingItemTitle("animation.video_shared_transition_speed"),
+                                subtitle = "进出详情页的转场速度",
+                                options = sharedTransitionSpeedOptions,
+                                selectedValue = state.videoSharedTransitionSpeed,
+                                onSelectionChange = viewModel::setVideoSharedTransitionSpeed
+                            )
+                        }
                         if (state.videoSharedTransitionSpeed == VideoSharedTransitionSpeed.CUSTOM) {
                             AppPreferenceDivider()
                             AppSliderDialogPreference(
@@ -587,7 +621,7 @@ fun AnimationSettingsContent(
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             AppText(
-                                text = "首页卡片动画档位",
+                                text = "首页动画强度",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -606,7 +640,7 @@ fun AnimationSettingsContent(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             AppText(
-                                text = "设置页使用独立轻量入场动效，不跟随此开关关闭。",
+                                text = "此项只调整首页卡片，设置页动画独立控制。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -616,16 +650,24 @@ fun AnimationSettingsContent(
             }
 
             // ✨ 视觉效果
-            item {
+            }
+            item(key = "animation_glass_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("液态玻璃与磨砂")
+                    AppPreferenceSectionTitle(if (advancedOnly) "玻璃高级调节" else "液态玻璃与磨砂")
                 }
             }
-            item {
+            item(key = "animation_glass") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        if (isLiquidGlassAvailable && state.androidNativeLiquidGlassEnabled) {
-                            LiquidGlassAdjustmentPanel(
+                        if (!isLiquidGlassAvailable || !state.androidNativeLiquidGlassEnabled) {
+                            AppText(
+                                text = if (!isLiquidGlassAvailable) "当前设备不支持玻璃效果，以下参数暂不生效" else "先在外观设置中启用液态玻璃，以下参数暂不生效",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        LiquidGlassAdjustmentPanel(
+                                alwaysShowAdvanced = false,
                                 persistedProgress = state.liquidGlassProgress,
                                 previewImageUri = liquidGlassPreviewImageUri,
                                 persistedAdvancedSettings = liquidGlassAdvancedSettings,
@@ -664,7 +706,7 @@ fun AnimationSettingsContent(
                                                         )
                                                         putExtra(
                                                             Intent.EXTRA_TEXT,
-                                                            "BiliPai 液态玻璃设置，可在“动画与效果 > 液态玻璃与磨砂”中导入。",
+                                                            "BiliPai 液态玻璃设置，可在“动画与触感 > 液态玻璃与磨砂”中导入。",
                                                         )
                                                         addFlags(
                                                             Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -694,59 +736,69 @@ fun AnimationSettingsContent(
                                     }
                                 },
                             )
-                            AppPreferenceDivider()
+                        AppPreferenceDivider()
+                        if (!advancedOnly) {
+                        SettingsItemAnchor("animation.skeleton_breathing_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                                title = settingItemTitle("animation.skeleton_breathing_enabled"),
+                                subtitle = "加载时，占位卡片轻轻明暗变化",
+                                checked = skeletonBreathingEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        com.android.purebilibili.core.store.SkeletonSettingsStore
+                                            .setBreathingEnabled(context, enabled)
+                                    }
+                                },
+                                iconTint = iOSBlue,
+                            )
                         }
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
-                            title = "骨架呼吸动画",
-                            subtitle = "加载时的轻微呼吸动效",
-                            checked = skeletonBreathingEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    com.android.purebilibili.core.store.SkeletonSettingsStore
-                                        .setBreathingEnabled(context, enabled)
-                                }
-                            },
-                            iconTint = iOSBlue,
-                        )
                         AppPreferenceDivider()
                         // 磨砂效果 (始终显示)
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
-                            title = "顶部栏磨砂",
-                            subtitle = "模糊顶栏背后的内容，不含折射和光效",
-                            checked = state.headerBlurEnabled,
-                            onCheckedChange = { viewModel.toggleHeaderBlur(it) },
-                            iconTint = iOSBlue
-                        )
+                        SettingsItemAnchor("animation.header_blur_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                                title = settingItemTitle("animation.header_blur_enabled"),
+                                subtitle = "模糊顶栏背后的内容，不含折射和光效",
+                                checked = state.headerBlurEnabled,
+                                onCheckedChange = { viewModel.toggleHeaderBlur(it) },
+                                iconTint = iOSBlue
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
-                            title = "顶部渐进模糊",
-                            subtitle = "顶栏模糊随滚动渐变（需 Android 13+）",
-                            checked = state.progressiveTopBlurEnabled,
-                            onCheckedChange = { viewModel.toggleProgressiveTopBlur(it) },
-                            iconTint = iOSBlue
-                        )
+                        SettingsItemAnchor("animation.progressive_top_blur_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                                title = settingItemTitle("animation.progressive_top_blur_enabled"),
+                                subtitle = "顶栏模糊随滚动渐变（需 Android 13+）",
+                                checked = state.progressiveTopBlurEnabled,
+                                onCheckedChange = { viewModel.toggleProgressiveTopBlur(it) },
+                                iconTint = iOSBlue
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
-                            title = "顶栏纯色渐变",
-                            subtitle = "状态栏到顶栏用纯色渐变过渡，比模糊更省电",
-                            checked = state.progressiveTopFadeEnabled,
-                            onCheckedChange = { viewModel.toggleProgressiveTopFade(it) },
-                            iconTint = iOSBlue
-                        )
+                        SettingsItemAnchor("animation.progressive_top_fade_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                                title = settingItemTitle("animation.progressive_top_fade_enabled"),
+                                subtitle = "状态栏到顶栏用纯色渐变过渡，比模糊更省电",
+                                checked = state.progressiveTopFadeEnabled,
+                                onCheckedChange = { viewModel.toggleProgressiveTopFade(it) },
+                                iconTint = iOSBlue
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
-                            title = "底栏磨砂",
-                            subtitle = "模糊底栏背后的内容，不含折射和光效",
-                            checked = state.bottomBarBlurEnabled,
-                            onCheckedChange = { viewModel.toggleBottomBarBlur(it) },
-                            iconTint = iOSBlue
-                        )
-                        
+                        SettingsItemAnchor("animation.bottom_bar_blur_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
+                                title = settingItemTitle("animation.bottom_bar_blur_enabled"),
+                                subtitle = "模糊底栏背后的内容，不含折射和光效",
+                                checked = state.bottomBarBlurEnabled,
+                                onCheckedChange = { viewModel.toggleBottomBarBlur(it) },
+                                iconTint = iOSBlue
+                            )
+                        }
+
                         // 模糊强度（仅在任意模糊开启时显示）
                         if (state.headerBlurEnabled || state.progressiveTopBlurEnabled || state.bottomBarBlurEnabled) {
                             AppPreferenceDivider()
@@ -755,11 +807,13 @@ fun AnimationSettingsContent(
                                 onIntensityChange = { viewModel.setBlurIntensity(it) }
                             )
                         }
+                        }
                     }
                 }
             }
-            
+
             //  提示
+            if (!advancedOnly) {
             item {
                 Box(modifier = Modifier.entrance()) {
                     AppSurface(
@@ -789,7 +843,8 @@ fun AnimationSettingsContent(
                     }
                 }
             }
-            
+
+            }
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }

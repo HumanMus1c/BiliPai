@@ -985,8 +985,10 @@ class VideoPlayerOverlayPolicyTest {
 
     @Test
     fun inlineProgressPolling_restartsWhenPlaybackMediaChanges() {
-        val source = loadVideoPlayerOverlaySource()
-        val progressStateBlock = source.substringAfter("val progressState by produceState(")
+        val relativePath = "src/main/java/com/android/purebilibili/feature/video/ui/overlay/VideoPlayerOverlayProgressState.kt"
+        val source = listOf(File("app/$relativePath"), File(relativePath))
+            .first(File::exists).readText()
+        val progressStateBlock = source.substringAfter("return produceState(")
             .substringBefore(") {")
 
         assertTrue(progressStateBlock.contains("bvid"))

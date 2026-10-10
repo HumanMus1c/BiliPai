@@ -50,10 +50,13 @@ fun SettingsSearchScreen(
     onCategoryClick: (SettingsRootCategory) -> Unit = {},
     mainHazeState: HazeState? = null,
 ) {
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var visibleCount by rememberSaveable { mutableStateOf(20) }
+    val settingsState by viewModel.state.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle(initialValue = emptyList())
     val searchResults = remember(searchQuery) {
-        resolveSettingsSearchResults(query = searchQuery, maxResults = 20)
+        resolveSettingsSearchResults(query = searchQuery, maxResults = Int.MAX_VALUE)
     }
     val windowSizeClass = LocalWindowSizeClass.current
     val bottomBarVisible = LocalBottomBarVisible.current
@@ -80,7 +83,7 @@ fun SettingsSearchScreen(
         header = {
             SettingsSearchBarSection(
                 query = searchQuery,
-                onQueryChange = { searchQuery = it },
+                onQueryChange = { searchQuery = it; visibleCount = 20 },
                 onSearch = { viewModel.recordSearchQuery(searchQuery) },
             )
         },
@@ -103,18 +106,21 @@ fun SettingsSearchScreen(
                             onClear = viewModel::clearSearchHistory,
                         )
                     } else SettingsSearchResultsSection(
-                        results = searchResults,
+                        results = searchResults.take(visibleCount),
+                        settingsState = settingsState,
+                        onClearQuery = { searchQuery = ""; visibleCount = 20 },
                         onResultClick = { result ->
                             viewModel.recordSearchQuery(searchQuery)
-                            val category = resolveSettingsRootCategoryForSearchTarget(result.target)
-                            if (isSceneSettingsSearchTarget(result.target) && category != null) {
-                                onCategoryClick(category)
-                            } else {
-                                SettingsSearchFocusController.submit(result.target, result.focusId)
-                                onSearchResultClick(result)
-                            }
+                            keyboard?.hide()
+                            SettingsSearchFocusController.submit(result.target, result.focusId, result.settingId.takeUnless { it.startsWith("legacy.") })
+                            onSearchResultClick(result)
                         },
                     )
+                    if (searchQuery.isNotBlank() && searchResults.size > visibleCount) {
+                        androidx.compose.material3.TextButton(onClick = { visibleCount += 20 }) {
+                            com.android.purebilibili.core.ui.components.AppText("加载更多")
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))

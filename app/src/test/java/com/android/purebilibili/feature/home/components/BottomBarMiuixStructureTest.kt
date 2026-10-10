@@ -35,6 +35,9 @@ class BottomBarMiuixStructureTest {
         val floatingSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"
         )
+        val layoutStateSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarSearchLayoutState.kt"
+        )
         val renderer = biliPaiFloatingBody(source)
 
         assertTrue(source.contains("BiliPaiFloatingBottomBar("))
@@ -48,11 +51,11 @@ class BottomBarMiuixStructureTest {
         assertTrue(renderer.contains("BiliPaiBottomBarSearchSlot("))
         assertTrue(renderer.contains("BottomBarSkinDecorativeTrim("))
         assertTrue(renderer.contains("uiSkinDecoration: BottomBarUiSkinDecoration? = null"))
-        assertTrue(source.contains("private data class BiliPaiBottomBarSearchLayoutState("))
-        assertTrue(source.contains("private fun rememberBiliPaiBottomBarSearchLayoutState("))
+        assertTrue(layoutStateSource.contains("internal data class BiliPaiBottomBarSearchLayoutState("))
+        assertTrue(layoutStateSource.contains("internal fun rememberBiliPaiBottomBarSearchLayoutState("))
         assertTrue(source.contains("resolveBiliPaiFloatingBottomBarWidth("))
         assertTrue(source.contains("resolveBiliPaiBottomBarSearchLayout("))
-        assertTrue(source.contains("val shellHeight = if (dockHeight > searchHeight) dockHeight else searchHeight"))
+        assertTrue(layoutStateSource.contains("derivedStateOf { maxOf(dockHeight.value, searchHeight.value) }"))
         assertTrue(source.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET =") ||
             floatingSource.contains("BottomBarReferencePressedScale"))
 
@@ -124,20 +127,19 @@ class BottomBarMiuixStructureTest {
 
     @Test
     fun `disabled sukisu search path skips search layout animations`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-        val layoutStateSource = source
-            .substringAfter("private fun rememberBiliPaiBottomBarSearchLayoutState(")
-            .substringBefore("private const val BottomBarSearchTopThresholdPx")
+        val layoutStateSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarSearchLayoutState.kt"
+        ).substringAfter("internal fun rememberBiliPaiBottomBarSearchLayoutState(")
 
         assertTrue(layoutStateSource.contains("if (!searchEnabled) {"))
-        assertTrue(layoutStateSource.contains("searchWidth = AppSpacingTokens.None"))
-        assertTrue(layoutStateSource.contains("searchGap = AppSpacingTokens.None"))
-        assertTrue(layoutStateSource.contains("searchHeight = AppSpacingTokens.None"))
-        assertTrue(layoutStateSource.contains("return BiliPaiBottomBarSearchLayoutState("))
+        assertTrue(layoutStateSource.contains("searchWidth = emptySize"))
+        assertTrue(layoutStateSource.contains("searchGap = emptySize"))
+        assertTrue(layoutStateSource.contains("searchHeight = emptySize"))
+        assertTrue(layoutStateSource.contains("BiliPaiBottomBarSearchLayoutState("))
 
         val disabledBranch = layoutStateSource
             .substringAfter("if (!searchEnabled) {")
-            .substringBefore("val searchWidth by animateDpAsState(")
+            .substringBefore("val searchWidth = animateDpAsState(")
         assertFalse(disabledBranch.contains("label = \"bottomBarSearchWidth\""))
         assertFalse(disabledBranch.contains("label = \"bottomBarSearchGap\""))
         assertFalse(disabledBranch.contains("label = \"bottomBarSearchHeight\""))
@@ -331,9 +333,12 @@ class BottomBarMiuixStructureTest {
         assertFalse(source.contains("scaleX = lerp(1f, searchLaunchSpec.targetScaleX, searchLaunchProgress)"))
         assertFalse(source.contains("scaleY = lerp(1f, searchLaunchSpec.targetScaleY, searchLaunchProgress)"))
         assertFalse(source.contains("alpha = lerp(1f, searchLaunchSpec.targetAlpha, searchLaunchProgress)"))
-        assertTrue(source.contains("launchAdjustedSearchGap = searchGap"))
+        val layoutStateSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarSearchLayoutState.kt"
+        )
+        assertTrue(layoutStateSource.contains("launchAdjustedSearchGap = searchGap"))
         assertFalse(source.contains("Spacer(modifier = Modifier.width(searchGap))"))
-        assertTrue(source.contains("Spacer(modifier = Modifier.width(launchAdjustedSearchGap))"))
+        assertTrue(source.contains("Spacer(modifier = Modifier.bottomBarAnimatedSize(width = layoutState.launchAdjustedSearchGap))"))
     }
 
     @Test

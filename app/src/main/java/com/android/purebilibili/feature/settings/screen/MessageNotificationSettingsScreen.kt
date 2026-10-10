@@ -234,7 +234,7 @@ fun MessageNotificationSettingsScreen(onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(LocalSettingsTopContentPadding.current))
             AppText(
-                text = "后台消息通知会在应用不活跃时检查私信、互动消息、关注更新和开播提醒。检查频率与常驻后台可能增加耗电，系统仍可能终止后台任务。",
+                text = "离开应用后也检查新消息。更频繁检查和保持后台运行会增加耗电；系统可能中止检查。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -250,224 +250,244 @@ fun MessageNotificationSettingsScreen(onBack: () -> Unit) {
 
             AppPreferenceSectionTitle("后台通知")
             SettingsCardGroup {
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.MESSAGE_NOTIFICATION),
-                    title = "后台消息通知",
-                    subtitle = masterSubtitle,
-                    checked = settings.enabled,
-                    onCheckedChange = { enabled ->
-                        if (!enabled) {
-                            scope.launch {
-                                persistAndSync {
-                                    MessageNotificationSettingsStore.setEnabled(context, false)
+                SettingsItemAnchor("notification.enabled") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.MESSAGE_NOTIFICATION),
+                        title = settingItemTitle("notification.enabled"),
+                        subtitle = masterSubtitle,
+                        checked = settings.enabled,
+                        onCheckedChange = { enabled ->
+                            if (!enabled) {
+                                scope.launch {
+                                    persistAndSync {
+                                        MessageNotificationSettingsStore.setEnabled(context, false)
+                                    }
                                 }
-                            }
-                        } else if (!notificationPermissionGranted) {
-                            if (permissionRequestAttempted) {
+                            } else if (!notificationPermissionGranted) {
+                                if (permissionRequestAttempted) {
+                                    openNotificationSettings()
+                                } else {
+                                    requestNotificationPermission(NotificationPermissionRequest.MASTER_ENABLE)
+                                }
+                            } else if (!notificationsCanPost) {
                                 openNotificationSettings()
                             } else {
-                                requestNotificationPermission(NotificationPermissionRequest.MASTER_ENABLE)
-                            }
-                        } else if (!notificationsCanPost) {
-                            openNotificationSettings()
-                        } else {
-                            scope.launch {
-                                persistAndSync {
-                                    MessageNotificationSettingsStore.setEnabled(context, true)
+                                scope.launch {
+                                    persistAndSync {
+                                        MessageNotificationSettingsStore.setEnabled(context, true)
+                                    }
                                 }
                             }
-                        }
-                    },
-                    iconTint = iOSBlue,
-                )
+                        },
+                        iconTint = iOSBlue,
+                    )
+                }
                 AppPreferenceDivider()
-                AppSingleChoicePreference(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.MESSAGE_NOTIFICATION),
-                    title = "检查频率",
-                    subtitle = "省电优先可减少耗电，更及时会增加检查频率",
-                    selectedValue = settings.mode,
-                    options = listOf(
-                        AppChoiceOption(
-                            value = MessageNotificationMode.POWER_SAVING,
-                            label = "省电优先",
-                            description = "系统空闲时批量检查，延迟较高、耗电低（默认）",
+                SettingsItemAnchor("notification.mode") {
+                    AppSingleChoicePreference(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.MESSAGE_NOTIFICATION),
+                        title = settingItemTitle("notification.mode"),
+                        subtitle = "省电优先可减少耗电，更及时会增加检查频率",
+                        selectedValue = settings.mode,
+                        options = listOf(
+                            AppChoiceOption(
+                                value = MessageNotificationMode.POWER_SAVING,
+                                label = "省电优先",
+                                description = "检查较少，通知可能延迟，耗电更低",
+                            ),
+                            AppChoiceOption(
+                                value = MessageNotificationMode.MORE_TIMELY,
+                                label = "更及时",
+                                description = "检查更频繁，耗电略增",
+                            ),
                         ),
-                        AppChoiceOption(
-                            value = MessageNotificationMode.MORE_TIMELY,
-                            label = "更及时",
-                            description = "检查更频繁，耗电略增",
-                        ),
-                    ),
-                    onValueChange = { mode ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setMode(context, mode)
+                        onValueChange = { mode ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setMode(context, mode)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSGreen,
-                )
+                        },
+                        iconTint = iOSGreen,
+                    )
+                }
             }
 
             AppPreferenceSectionTitle("通知范围")
             SettingsCardGroup {
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_MESSAGE),
-                    title = "私信",
-                    subtitle = "新私信消息；仅在总开关开启时生效",
-                    checked = settings.notifyPrivateMessages,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setPrivateMessagesEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_private_messages") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_MESSAGE),
+                        title = settingItemTitle("notification.notify_private_messages"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "收到新私信时通知",
+                        checked = settings.notifyPrivateMessages,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setPrivateMessagesEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSPurple,
-                )
+                        },
+                        iconTint = iOSPurple,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_REPLY),
-                    title = "回复我的",
-                    subtitle = "视频与动态评论回复；仅在总开关开启时生效",
-                    checked = settings.notifyReplies,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setRepliesEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_replies") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_REPLY),
+                        title = settingItemTitle("notification.notify_replies"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "有人回复视频或动态评论时通知",
+                        checked = settings.notifyReplies,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setRepliesEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSBlue,
-                )
+                        },
+                        iconTint = iOSBlue,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_AT_ME),
-                    title = "@我",
-                    subtitle = "评论与动态中提到我；仅在总开关开启时生效",
-                    checked = settings.notifyAtMe,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setAtMeEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_at_me") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_AT_ME),
+                        title = settingItemTitle("notification.notify_at_me"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "有人在评论或动态中提到我时通知",
+                        checked = settings.notifyAtMe,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setAtMeEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSTeal,
-                )
+                        },
+                        iconTint = iOSTeal,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_LIKE),
-                    title = "收到的赞",
-                    subtitle = "点赞与投币收藏等；仅在总开关开启时生效",
-                    checked = settings.notifyLikes,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setLikesEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_likes") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_LIKE),
+                        title = settingItemTitle("notification.notify_likes"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "收到点赞、投币或收藏时通知",
+                        checked = settings.notifyLikes,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setLikesEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSPink,
-                )
+                        },
+                        iconTint = iOSPink,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_SYSTEM),
-                    title = "系统通知",
-                    subtitle = "官方系统公告与通知；仅在总开关开启时生效",
-                    checked = settings.notifySystemNotices,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setSystemNoticesEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_system_notices") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_SYSTEM),
+                        title = settingItemTitle("notification.notify_system_notices"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "收到 B 站系统消息时通知",
+                        checked = settings.notifySystemNotices,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setSystemNoticesEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSRed,
-                )
+                        },
+                        iconTint = iOSRed,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_DYNAMIC_UP),
-                    title = "关注 UP 更新",
-                    subtitle = "关注 UP 主的视频和动态更新；仅在总开关开启时生效",
-                    checked = settings.notifyDynamicUpdates,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setDynamicUpdatesEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_dynamic_updates") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_DYNAMIC_UP),
+                        title = settingItemTitle("notification.notify_dynamic_updates"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "关注的 UP 主发视频或动态时通知",
+                        checked = settings.notifyDynamicUpdates,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setDynamicUpdatesEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSBlue,
-                )
+                        },
+                        iconTint = iOSBlue,
+                    )
+                }
                 AppPreferenceDivider()
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_LIVE),
-                    title = "开播提醒",
-                    subtitle = "关注主播开播提醒；仅在总开关开启时生效",
-                    checked = settings.notifyLiveAlerts,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            persistAndSync {
-                                MessageNotificationSettingsStore.setLiveAlertsEnabled(context, enabled)
+                SettingsItemAnchor("notification.notify_live_alerts") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.NOTIFICATION_SCOPE_LIVE),
+                        title = settingItemTitle("notification.notify_live_alerts"),
+                        subtitle = if (!settings.enabled) "先开启“后台消息通知”" else "关注的主播开播时通知",
+                        checked = settings.notifyLiveAlerts,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                persistAndSync {
+                                    MessageNotificationSettingsStore.setLiveAlertsEnabled(context, enabled)
+                                }
                             }
-                        }
-                    },
-                    iconTint = iOSOrange,
-                )
+                        },
+                        iconTint = iOSOrange,
+                    )
+                }
             }
 
             AppPreferenceSectionTitle("后台运行")
             SettingsCardGroup {
-                SettingSwitchItem(
-                    icon = rememberSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS),
-                    title = "常驻后台",
-                    subtitle = if (settings.enabled && notificationsCanPost) {
-                        "保持应用后台运行以更及时地收到通知；会增加耗电，系统仍可能终止"
-                    } else {
-                        "需要先开启后台消息通知和可用的通知权限；会增加耗电，系统仍可能终止"
-                    },
-                    checked = settings.residentEnabled,
-                    onCheckedChange = { enabled ->
-                        if (!enabled) {
-                            scope.launch {
-                                persistAndSync {
-                                    MessageNotificationSettingsStore.setResidentEnabled(context, false)
-                                }
-                            }
-                        } else if (!settings.enabled) {
-                            statusMessage = "请先开启后台消息通知，再启用常驻后台"
-                            Toast.makeText(context, "请先开启后台消息通知，再启用常驻后台", Toast.LENGTH_SHORT).show()
-                        } else if (!notificationPermissionGranted || !notificationsCanPost) {
-                            statusMessage = "请先在通知权限中开启通知，并确保通知渠道未被系统关闭"
-                            Toast.makeText(
-                                context,
-                                "请先在通知权限中开启通知，并确保通知渠道未被系统关闭",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            if (notificationPermissionGranted && !notificationsCanPost) {
-                                openNotificationSettings()
-                            }
+                SettingsItemAnchor("notification.resident_enabled") {
+                    SettingSwitchItem(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS),
+                        title = settingItemTitle("notification.resident_enabled"),
+                        subtitle = if (settings.enabled && notificationsCanPost) {
+                            "保持应用后台运行以更及时地收到通知；会增加耗电，系统仍可能终止"
                         } else {
-                            scope.launch {
-                                persistAndSync {
-                                    MessageNotificationSettingsStore.setResidentEnabled(context, true)
+                            "需要先开启后台消息通知和可用的通知权限；会增加耗电，系统仍可能终止"
+                        },
+                        checked = settings.residentEnabled,
+                        onCheckedChange = { enabled ->
+                            if (!enabled) {
+                                scope.launch {
+                                    persistAndSync {
+                                        MessageNotificationSettingsStore.setResidentEnabled(context, false)
+                                    }
+                                }
+                            } else if (!settings.enabled) {
+                                statusMessage = "请先开启后台消息通知，再启用常驻后台"
+                                Toast.makeText(context, "请先开启后台消息通知，再启用常驻后台", Toast.LENGTH_SHORT).show()
+                            } else if (!notificationPermissionGranted || !notificationsCanPost) {
+                                statusMessage = "请先在通知权限中开启通知，并确保通知渠道未被系统关闭"
+                                Toast.makeText(
+                                    context,
+                                    "请先在通知权限中开启通知，并确保通知渠道未被系统关闭",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                                if (notificationPermissionGranted && !notificationsCanPost) {
+                                    openNotificationSettings()
+                                }
+                            } else {
+                                scope.launch {
+                                    persistAndSync {
+                                        MessageNotificationSettingsStore.setResidentEnabled(context, true)
+                                    }
                                 }
                             }
-                        }
-                    },
-                    iconTint = iOSOrange,
-                )
+                        },
+                        iconTint = iOSOrange,
+                    )
+                }
 
             }
 
-            AppPreferenceSectionTitle("通知权限")
+            AppPreferenceSectionTitle("发送通知")
             SettingsCardGroup {
                 SettingClickableItem(
                     icon = rememberSettingsSemanticIcon(SettingsIconRole.PERMISSION),
-                    title = "通知权限",
+                    title = "发送通知",
                     value = notificationPermissionValue,
-                    subtitle = "点击检查权限；永久拒绝、系统总开关或通知渠道关闭时前往系统设置",
+                    subtitle = "点按检查授权；系统禁用通知时需前往设置",
                     onClick = {
                         if (!notificationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             if (permissionRequestAttempted) {

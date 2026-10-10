@@ -61,13 +61,13 @@ fun CommentFraudHistoryScreen(
                     if (!content.isNullOrBlank()) {
                         val result = CommentFraudRepository.importFromJson(content)
                         result.onSuccess { count ->
-                            Toast.makeText(context, "✅ 成功导入 $count 条历史记录！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "已导入 $count 条记录", Toast.LENGTH_SHORT).show()
                         }.onFailure {
-                            Toast.makeText(context, "❌ 导入失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "导入失败：${it.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(context, "❌ 读取文件失败", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "无法读取文件", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -82,9 +82,9 @@ fun CommentFraudHistoryScreen(
                 try {
                     val json = CommentFraudRepository.exportToJson()
                     context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(json) }
-                    Toast.makeText(context, "✅ 成功导出 JSON 备份文件！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "已导出备份文件", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "❌ 导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "导出失败：${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -94,7 +94,7 @@ fun CommentFraudHistoryScreen(
 
     EntranceGroup {
         SettingsPageScaffold(
-            title = "发评反诈历史",
+            title = "评论检查记录",
             onBack = onBack,
             backContentDescription = "返回",
             bottomContentPadding = bottomPadding,
@@ -130,13 +130,13 @@ fun CommentFraudHistoryScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         AppText(
-                            text = "暂无发评记录",
+                            text = "暂无评论检查记录",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         AppText(
-                            text = "发出的评论将在此处沉淀并追踪全生命周期状态",
+                            text = "在此查看已发评论是否正常显示",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -159,20 +159,20 @@ fun CommentFraudHistoryScreen(
                                         val res = CommentFraudRepository.recheckRecord(record)
                                         recheckingRpid = null
                                         res.onSuccess { status ->
-                                            Toast.makeText(context, "复检完成: $status", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "检查完成：$status", Toast.LENGTH_SHORT).show()
                                         }.onFailure {
-                                            Toast.makeText(context, "复检失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "检查失败：${it.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 },
                                 onCopyMessage = {
                                     copyText(context, record.message)
-                                    Toast.makeText(context, "✅ 文案已复制！", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "已复制评论内容", Toast.LENGTH_SHORT).show()
                                 },
                                 onCopyScheme = {
                                     val scheme = generateBiliUrlScheme(record)
                                     copyText(context, scheme)
-                                    Toast.makeText(context, "✅ Scheme 已复制！", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "已复制评论链接", Toast.LENGTH_SHORT).show()
                                 },
                                 onDeleteLocal = {
                                     scope.launch { CommentFraudRepository.deleteLocalRecord(record.rpid) }
@@ -191,8 +191,8 @@ fun CommentFraudHistoryScreen(
     if (showClearDialog) {
         AppAlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { AppText("清空所有反诈记录？", fontWeight = FontWeight.Bold) },
-            text = { AppText("这将会删除本地保存的历史发评快照，此操作不可恢复。") },
+            title = { AppText("清空评论检查记录？", fontWeight = FontWeight.Bold) },
+            text = { AppText("删除本地保存的全部评论检查记录，无法恢复。B 站上的评论会保留。") },
             confirmButton = {
                 AppTextButton(
                     onClick = {
@@ -212,16 +212,16 @@ fun CommentFraudHistoryScreen(
         AppAlertDialog(
             onDismissRequest = { recordToDeleteOnBili = null },
             title = { AppText("在 B 站永久删除此评论？", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
-            text = { AppText("这将会调用 B 站官方接口彻底抹除这条评论，并同时清理本地记录。") },
+            text = { AppText("删除 B 站上的这条评论及本地记录，无法恢复。") },
             confirmButton = {
                 AppTextButton(
                     onClick = {
                         scope.launch {
                             val res = CommentFraudRepository.deleteBiliComment(record)
                             res.onSuccess {
-                                Toast.makeText(context, "✅ 删评成功！", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
                             }.onFailure {
-                                Toast.makeText(context, "❌ 删评失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "删除失败：${it.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                         recordToDeleteOnBili = null
@@ -345,7 +345,7 @@ private fun CommentFraudItemCard(
                             contentPadding = PaddingValues(horizontal = AppSpacingTokens.Small, vertical = 2.dp)
                         ) {
                             AppText(
-                                if (isRechecking) "更新中…" else "【更新状态】",
+                                if (isRechecking) "更新中…" else "重新检查",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -357,20 +357,20 @@ private fun CommentFraudItemCard(
                         DetailRow(label = "初始状态", value = initLabel)
                     }
 
-                    DetailRow(label = "风控定性", value = record.fraudAssessment, valueColor = statusColor)
+                    DetailRow(label = "检查结果", value = record.fraudAssessment, valueColor = statusColor)
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    DetailRow(label = "评论区源 ID", value = record.source_id ?: "无")
-                    DetailRow(label = "评论区 OID", value = "${record.oid}")
+                    DetailRow(label = "Source ID", value = record.source_id ?: "无")
+                    DetailRow(label = "OID", value = "${record.oid}")
                     DetailRow(label = "评论区类型", value = record.typeName)
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    DetailRow(label = "用户 UID", value = if (record.uid > 0L) "${record.uid}" else "未记录")
-                    DetailRow(label = "评论 RPID", value = "${record.rpid}")
+                    DetailRow(label = "UID", value = if (record.uid > 0L) "${record.uid}" else "未记录")
+                    DetailRow(label = "RPID", value = "${record.rpid}")
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    DetailRow(label = "楼层 Root ID", value = if (record.root > 0L) "${record.root}" else "0 (根评论)")
-                    DetailRow(label = "目标 Parent ID", value = if (record.parent > 0L) "${record.parent}" else "0")
+                    DetailRow(label = "Root ID", value = if (record.root > 0L) "${record.root}" else "0（主评论）")
+                    DetailRow(label = "Parent ID", value = if (record.parent > 0L) "${record.parent}" else "0")
 
                     Spacer(modifier = Modifier.height(4.dp))
                     DetailRow(label = "发送日期", value = postTimeStr)
@@ -394,24 +394,24 @@ private fun CommentFraudItemCard(
                         colors = ButtonDefaults.textButtonColors(contentColor = iOSBlue)
                     ) {
                         AppText(
-                            if (isRechecking) "复检中…" else "🔄 复检",
+                            if (isRechecking) "检查中…" else "重新检查",
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
 
                     AppTextButton(onClick = onCopyScheme) {
-                        AppText("📱 Scheme", style = MaterialTheme.typography.labelMedium)
+                        AppText("复制链接", style = MaterialTheme.typography.labelMedium)
                     }
 
                     AppTextButton(onClick = onDeleteLocal) {
-                        AppText("❌ 移除", style = MaterialTheme.typography.labelMedium)
+                        AppText("移除记录", style = MaterialTheme.typography.labelMedium)
                     }
 
                     AppTextButton(
                         onClick = onDeleteBili,
                         colors = ButtonDefaults.textButtonColors(contentColor = iOSRed)
                     ) {
-                        AppText("🗑️ 删评", style = MaterialTheme.typography.labelMedium)
+                        AppText("删除评论", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 

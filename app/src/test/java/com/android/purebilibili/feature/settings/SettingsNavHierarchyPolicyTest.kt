@@ -34,7 +34,7 @@ class SettingsNavHierarchyPolicyTest {
 
     @Test
     fun resolveSettingsNavParentRoute_keepsIndependentCategoriesAtRootDetailDepth() {
-        assertEquals("settings_category", resolveSettingsNavParentRoute("animation_settings"))
+        assertEquals("appearance_settings", resolveSettingsNavParentRoute("animation_settings"))
         assertEquals("settings_category", resolveSettingsNavParentRoute("home_settings"))
         assertEquals("appearance_settings", resolveSettingsNavParentRoute("icon_settings"))
         assertEquals("settings_category", resolveSettingsNavParentRoute("message_notification_settings"))
@@ -79,7 +79,7 @@ class SettingsNavHierarchyPolicyTest {
                 childRoute = "message_notification_settings",
             )
         )
-        assertFalse(
+        assertTrue(
             isSettingsNavHierarchyTransition(
                 parentRoute = "appearance_settings",
                 childRoute = "animation_settings",

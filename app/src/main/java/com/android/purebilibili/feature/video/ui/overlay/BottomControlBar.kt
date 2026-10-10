@@ -54,7 +54,6 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
 import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.components.AppWindowActionMenu
-import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.player.resolveProgressFraction as resolveSharedProgressFraction
 import com.android.purebilibili.core.ui.drawMediaProgressTrack
 import com.android.purebilibili.data.model.response.SponsorProgressMarker
@@ -415,7 +414,7 @@ private fun Modifier.consumeTap(onTap: () -> Unit): Modifier {
 @Composable
 fun BottomControlBar(
     isPlaying: Boolean,
-    progress: PlayerProgress,
+    progress: PlayerProgress = PlayerProgress(),
     isFullscreen: Boolean,
     currentSpeed: Float = 1.0f,
     currentRatio: VideoAspectRatio = VideoAspectRatio.FIT,
@@ -489,7 +488,9 @@ fun BottomControlBar(
     compactPlayerChrome: Boolean = false,
 
     modifier: Modifier = Modifier,
-    seekPositionProvider: (() -> Long)? = null
+    seekPositionProvider: (() -> Long)? = null,
+    progressProvider: () -> PlayerProgress = { progress },
+    currentChapterProvider: () -> String? = { currentChapter },
 ) {
     val subtitleTrackAvailable = subtitleControlState.trackAvailable
     val subtitlePrimaryAvailable = subtitleControlState.primaryAvailable
@@ -715,12 +716,9 @@ fun BottomControlBar(
         )
     }
     val progressBarContent: @Composable () -> Unit = {
-        VideoProgressBar(
-            currentPosition = progress.current,
-            displayPositionMs = seekPositionMs,
+        PlayerControlProgressBar(
+            progressProvider = progressProvider,
             displayPositionProvider = displayedPositionProvider,
-            duration = progress.duration,
-            bufferedPosition = progress.buffered,
             isSeekScrubbing = isSeekScrubbing,
             layoutPolicy = progressLayoutPolicy,
             onSeek = onSeek,
@@ -732,7 +730,7 @@ fun BottomControlBar(
             viewPoints = viewPoints,
             sponsorMarkers = sponsorMarkers,
             pbpRidgeSamples = pbpRidgeSamples,
-            currentChapter = currentChapter,
+            currentChapterProvider = currentChapterProvider,
             onChapterClick = onChapterClick,
             modifier = Modifier
                 .padding(horizontal = if (isFullscreen) layoutPolicy.horizontalPaddingDp.dp else 0.dp)
@@ -755,18 +753,15 @@ fun BottomControlBar(
     ) {
         if (progressPlacement == PlayerProgressPlacement.ABOVE_CONTROLS) {
             progressBarContent()
-            if (viewPoints.isNotEmpty() && progress.duration > 0L) {
-                ViewPointSegmentBar(
-                    viewPoints = viewPoints,
-                    durationMs = progress.duration,
-                    currentPositionMs = progress.current,
-                    onSeek = onSeek,
-                    modifier = Modifier
-                        .padding(horizontal = if (isFullscreen) layoutPolicy.horizontalPaddingDp.dp else 0.dp)
-                        .testTag("player_viewpoint_segments")
-                )
-                Spacer(modifier = Modifier.height(layoutPolicy.progressSpacingDp.dp))
-            }
+            PlayerControlViewPointSegments(
+                progressProvider = progressProvider,
+                viewPoints = viewPoints,
+                onSeek = onSeek,
+                spacing = layoutPolicy.progressSpacingDp.dp,
+                modifier = Modifier
+                    .padding(horizontal = if (isFullscreen) layoutPolicy.horizontalPaddingDp.dp else 0.dp)
+                    .testTag("player_viewpoint_segments"),
+            )
         }
 
         // 2. Control Row
@@ -796,7 +791,11 @@ fun BottomControlBar(
 
                 Spacer(modifier = Modifier.width(layoutPolicy.afterPlaySpacingDp.dp))
 
-                ProgressTimeText(displayedPositionProvider, progress.duration, layoutPolicy.timeFontSp)
+                ProgressTimeText(
+                    positionProvider = displayedPositionProvider,
+                    durationProvider = { progressProvider().duration },
+                    fontSp = layoutPolicy.timeFontSp,
+                )
 
                 Spacer(modifier = Modifier.width(layoutPolicy.afterTimeSpacingDp.dp))
 
@@ -1938,18 +1937,6 @@ fun VideoProgressBar(
             }
         }
     }
-}
-
-@Composable
-private fun ProgressTimeText(positionProvider: () -> Long, duration: Long, fontSp: Int) {
-    val seconds by remember(positionProvider) { derivedStateOf { positionProvider() / 1000L } }
-    AppText(
-        text = "${FormatUtils.formatDuration(seconds.toInt())} / ${FormatUtils.formatDuration((duration / 1000L).toInt())}",
-        color = Color.White.copy(alpha = 0.9f),
-        fontSize = fontSp.sp,
-        lineHeight = (fontSp + 2).sp,
-        fontWeight = FontWeight.Medium
-    )
 }
 
 @Composable

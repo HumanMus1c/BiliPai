@@ -45,4 +45,15 @@ class SettingsEntryVisualPolicyTest {
         assertEquals(iOSPink, resolveSettingsEntryVisual(SettingsSearchTarget.APPEARANCE, materialPolicy).iconTint)
         assertEquals(iOSBlue, resolveSettingsEntryVisual(SettingsSearchTarget.CLEAR_CACHE, materialPolicy).iconTint)
     }
+
+    @Test
+    fun helpCategory_usesInformationIconInsteadOfDiagnosticTerminal() {
+        val category = SettingsRootCategory.SYSTEM_ABOUT
+        assertEquals(SettingsSearchTarget.ABOUT_SUPPORT, category.searchTarget)
+        assertEquals(
+            R.drawable.ms_info_24,
+            resolveSettingsEntryVisual(category.searchTarget, materialPolicy).iconResId,
+        )
+        assertEquals(category, resolveSettingsRootCategoryForSearchTarget(category.searchTarget))
+    }
 }

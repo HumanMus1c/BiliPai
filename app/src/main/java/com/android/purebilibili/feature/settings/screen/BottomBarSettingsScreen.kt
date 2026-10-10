@@ -179,13 +179,21 @@ fun BottomBarSettingsContent(
             widthSizeClass = windowSizeClass.widthSizeClass
         )
     }
-    LaunchedEffect(focusRequest?.token) {
-        val request = focusRequest ?: return@LaunchedEffect
-        if (request.target != SettingsSearchTarget.BOTTOM_BAR) return@LaunchedEffect
-        val index = resolveBottomBarSettingsScrollIndex(request.focusId) ?: return@LaunchedEffect
-        listState.animateScrollToItem(index)
-        SettingsSearchFocusController.clear(request.token)
-    }
+    SettingsSectionFocusEffect(
+        listState = listState,
+        target = SettingsSearchTarget.BOTTOM_BAR,
+        sectionKeys = listOf("navigation_intro") + listOf("navigation_behavior", "navigation_display", "navigation_top_tabs", "navigation_search_tabs", "navigation_tablet", "navigation_current", "navigation_available").flatMap { listOf(it + "_title", it) } + listOf("navigation_restore", "navigation_hint"),
+        legacyKeys = mapOf(
+            SettingsSearchFocusIds.BOTTOM_BAR_START to "navigation_intro",
+            SettingsSearchFocusIds.BOTTOM_BAR_BEHAVIOR to "navigation_behavior_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_DISPLAY to "navigation_display_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_TOP_TABS to "navigation_top_tabs_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_SEARCH_TABS to "navigation_search_tabs_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_TABLET to "navigation_tablet_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_CURRENT to "navigation_current_title",
+            SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE to "navigation_available_title",
+        ),
+    )
     val allBottomBarTabs = resolveAllBottomBarTabs(iconFamily)
     val allTopTabs = resolveAllTopTabs(iconFamily)
 
@@ -351,7 +359,7 @@ fun BottomBarSettingsContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
             // 说明文字
-            item {
+            item(key = "navigation_intro") {
                 Box(modifier = Modifier.entrance()) {
                     AppText(
                         text = "集中管理底部导航、首页顶部标签、搜索分类栏和平板侧边栏。底栏项目最少 2 个，最多 5 个。",
@@ -361,115 +369,129 @@ fun BottomBarSettingsContent(
                 }
             }
 
-            item {
+            item(key = "navigation_behavior_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("导航行为")
                 }
             }
-            item {
+            item(key = "navigation_behavior") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FLOATING_BOTTOM_BAR),
-                            title = "悬浮底栏",
-                            subtitle = "开启后底栏与屏幕边缘留出间距；关闭后贴近底部显示",
-                            checked = isBottomBarFloating,
-                            onCheckedChange = { enabled ->
-                                scope.launch { SettingsManager.setBottomBarFloating(context, enabled) }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSPurple,
-                        )
+                        SettingsItemAnchor("navigation.is_bottom_bar_floating") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.FLOATING_BOTTOM_BAR),
+                                title = settingItemTitle("navigation.is_bottom_bar_floating"),
+                                subtitle = "开启后底栏与屏幕边缘留出间距；关闭后贴近底部显示",
+                                checked = isBottomBarFloating,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { SettingsManager.setBottomBarFloating(context, enabled) }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.NAV_ICON_CROSS_SCALE),
-                            title = "导航图标交叉缩放",
-                            subtitle = "指示器滑动途中图标短暂放大，停稳后恢复原始大小",
-                            checked = navigationIconCrossScaleEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setNavigationIconCrossScaleEnabled(context, enabled)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue,
-                        )
+                        SettingsItemAnchor("navigation.navigation_icon_cross_scale_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.NAV_ICON_CROSS_SCALE),
+                                title = settingItemTitle("navigation.navigation_icon_cross_scale_enabled"),
+                                subtitle = "切换底栏时，图标短暂放大再恢复",
+                                checked = navigationIconCrossScaleEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setNavigationIconCrossScaleEnabled(context, enabled)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                            )
+                        }
                         AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
-                            title = "底栏搜索联动",
-                            subtitle = "显示独立搜索胶囊，并与推荐和视频小横条随滚动自然收拢或展开",
-                            checked = bottomBarSearchEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch { SettingsManager.setBottomBarSearchEnabled(context, enabled) }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                        )
+                        SettingsItemAnchor("navigation.bottom_bar_search_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
+                                title = settingItemTitle("navigation.bottom_bar_search_enabled"),
+                                subtitle = "显示搜索按钮，并随浏览收起或展开",
+                                checked = bottomBarSearchEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { SettingsManager.setBottomBarSearchEnabled(context, enabled) }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                            )
+                        }
                         if (bottomBarSearchEnabled) {
                             AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
-                                title = "保留首页顶部搜索条",
-                                subtitle = "开启时顶部与底栏搜索同时显示；关闭时隐藏首页顶部搜索条",
-                                checked = keepHomeTopSearch,
-                                onCheckedChange = { enabled ->
-                                    scope.launch { SettingsManager.setKeepHomeTopSearchWithBottomSearch(context, enabled) }
-                                },
-                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                            )
+                            SettingsItemAnchor("navigation.keep_home_top_search") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
+                                    title = settingItemTitle("navigation.keep_home_top_search"),
+                                    subtitle = "开启时顶部与底栏搜索同时显示；关闭时隐藏首页顶部搜索条",
+                                    checked = keepHomeTopSearch,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch { SettingsManager.setKeepHomeTopSearchWithBottomSearch(context, enabled) }
+                                    },
+                                    iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                                )
+                            }
                             AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
-                                title = "下滑合体",
-                                subtitle = "下滑时搜索胶囊与导航 dock 收拢合并；关闭后保持分体的圆钮与完整底栏",
-                                checked = linkedDockMergeOnScrollEnabled,
-                                onCheckedChange = { enabled ->
-                                    scope.launch {
-                                        SettingsManager.setLinkedDockMergeOnScrollEnabled(context, enabled)
-                                    }
-                                },
-                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                            )
+                            SettingsItemAnchor("navigation.linked_dock_merge_on_scroll_enabled") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
+                                    title = settingItemTitle("navigation.linked_dock_merge_on_scroll_enabled"),
+                                    subtitle = "向下浏览时，搜索按钮与底栏合并",
+                                    checked = linkedDockMergeOnScrollEnabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            SettingsManager.setLinkedDockMergeOnScrollEnabled(context, enabled)
+                                        }
+                                    },
+                                    iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                                )
+                            }
                             AppPreferenceDivider()
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
-                                title = "列表精简搜索",
-                                subtitle = "隐藏收藏、历史与稍后再看页顶部搜索栏；底栏搜索仅搜索当前页内容",
-                                checked = listScopedSearchEnabled,
-                                onCheckedChange = { enabled ->
-                                    scope.launch {
-                                        SettingsManager.setListScopedSearchEnabled(context, enabled)
-                                    }
-                                },
-                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
-                            )
+                            SettingsItemAnchor("navigation.list_scoped_search_enabled") {
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_SEARCH),
+                                    title = settingItemTitle("navigation.list_scoped_search_enabled"),
+                                    subtitle = "收藏、历史和稍后再看改用底栏搜索当前页",
+                                    checked = listScopedSearchEnabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            SettingsManager.setListScopedSearchEnabled(context, enabled)
+                                        }
+                                    },
+                                    iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                                )
+                            }
                         }
                     }
                 }
             }
             
             // 底部导航
-            item {
+            item(key = "navigation_display_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("底部导航")
                 }
             }
 
-            item {
+            item(key = "navigation_display") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         val visibilityMode by SettingsManager.getBottomBarVisibilityMode(context).collectAsStateWithLifecycle(initialValue = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE)
-                        SettingsSingleChoicePreference(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_24),
-                            iconTint = com.android.purebilibili.core.theme.iOSOrange,
-                            title = "显示模式",
-                            subtitle = visibilityMode.description,
-                            options = SettingsManager.BottomBarVisibilityMode.entries.map { mode ->
-                                AppSegmentOption(mode, mode.label)
-                            },
-                            selectedValue = visibilityMode,
-                            onSelectionChange = { mode ->
-                                scope.launch { SettingsManager.setBottomBarVisibilityMode(context, mode) }
-                            },
-                        )
+                        SettingsItemAnchor("navigation.visibility_mode") {
+                            SettingsSingleChoicePreference(
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_24),
+                                iconTint = com.android.purebilibili.core.theme.iOSOrange,
+                                title = settingItemTitle("navigation.visibility_mode"),
+                                subtitle = visibilityMode.description,
+                                options = SettingsManager.BottomBarVisibilityMode.entries.map { mode ->
+                                    AppSegmentOption(mode, mode.label)
+                                },
+                                selectedValue = visibilityMode,
+                                onSelectionChange = { mode ->
+                                    scope.launch { SettingsManager.setBottomBarVisibilityMode(context, mode) }
+                                },
+                            )
+                        }
                         AppPreferenceDivider()
                         SettingsSingleChoicePreference(
                             icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_label_24),
@@ -490,25 +512,27 @@ fun BottomBarSettingsContent(
             }
 
             // 顶部标签
-            item {
+            item(key = "navigation_top_tabs_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("顶部标签")
                 }
             }
 
-            item {
+            item(key = "navigation_top_tabs") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_off_24),
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue,
-                            title = "完全隐藏顶部标签",
-                            subtitle = "开启后首页不显示顶部标签栏，提供纯净沉浸浏览",
-                            checked = hideTopTabs,
-                            onCheckedChange = { hide ->
-                                scope.launch { SettingsManager.setHideTopTabs(context, hide) }
-                            },
-                        )
+                        SettingsItemAnchor("navigation.hide_top_tabs") {
+                            AppSwitchPreference(
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_visibility_off_24),
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                                title = settingItemTitle("navigation.hide_top_tabs"),
+                                subtitle = "首页不显示推荐、热门等分类标签",
+                                checked = hideTopTabs,
+                                onCheckedChange = { hide ->
+                                    scope.launch { SettingsManager.setHideTopTabs(context, hide) }
+                                },
+                            )
+                        }
                         if (!hideTopTabs) {
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
@@ -597,7 +621,7 @@ fun BottomBarSettingsContent(
 
                             val visibleTopOrder = localTopTabOrder.filter { it in localTopTabVisible }
                             AppText(
-                                text = "已显示（上下按钮可排序）",
+                                text = "已显示的标签",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -714,13 +738,13 @@ fun BottomBarSettingsContent(
             }
 
             // 搜索分类栏
-            item {
+            item(key = "navigation_search_tabs_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("搜索分类栏")
                 }
             }
 
-            item {
+            item(key = "navigation_search_tabs") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         Column(
@@ -733,7 +757,7 @@ fun BottomBarSettingsContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             AppText(
-                                text = "分类顺序（上下按钮可排序）",
+                                text = "分类顺序",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -780,55 +804,59 @@ fun BottomBarSettingsContent(
             }
 
             // 平板导航
-            item {
+            item(key = "navigation_tablet_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("平板导航")
                 }
             }
 
-            item {
+            item(key = "navigation_tablet") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        AppSwitchPreference(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_view_sidebar_24),
-                            title = "侧边导航栏",
-                            subtitle = if (isLargeScreenCapable) {
-                                "平板、大屏或展开后的折叠屏建议开启；仅在当前窗口足够宽时显示侧栏"
-                            } else {
-                                "在平板横屏或大屏布局中使用侧边栏代替底部导航"
-                            },
-                            checked = tabletUseSidebar,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    SettingsManager.setTabletUseSidebar(context, checked)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
-                        AppSwitchPreference(
-                            icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_swap_horiz_24),
-                            title = "侧边栏账号切换",
-                            subtitle = "在平板首页侧边栏底部显示切换账号按钮",
-                            checked = sidebarAccountSwitcherEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    SettingsManager.setSidebarAccountSwitcherEnabled(context, checked)
-                                }
-                            },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
-                        )
+                        SettingsItemAnchor("navigation.tablet_use_sidebar") {
+                            AppSwitchPreference(
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_view_sidebar_24),
+                                title = settingItemTitle("navigation.tablet_use_sidebar"),
+                                subtitle = if (isLargeScreenCapable) {
+                                    "平板、大屏或展开后的折叠屏建议开启；仅在当前窗口足够宽时显示侧栏"
+                                } else {
+                                    "在平板横屏或大屏布局中使用侧边栏代替底部导航"
+                                },
+                                checked = tabletUseSidebar,
+                                onCheckedChange = { checked ->
+                                    scope.launch {
+                                        SettingsManager.setTabletUseSidebar(context, checked)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
+                        SettingsItemAnchor("navigation.sidebar_account_switcher_enabled") {
+                            AppSwitchPreference(
+                                icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_swap_horiz_24),
+                                title = settingItemTitle("navigation.sidebar_account_switcher_enabled"),
+                                subtitle = "在平板首页侧边栏底部显示切换账号按钮",
+                                checked = sidebarAccountSwitcherEnabled,
+                                onCheckedChange = { checked ->
+                                    scope.launch {
+                                        SettingsManager.setSidebarAccountSwitcherEnabled(context, checked)
+                                    }
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            )
+                        }
                     }
                 }
             }
 
             // 当前底栏预览
-            item {
+            item(key = "navigation_current_title") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceSectionTitle("当前底栏")
                 }
             }
             
-            item {
+            item(key = "navigation_current") {
                 Box(modifier = Modifier.entrance()) {
                     BottomBarPreview(
                         tabs = localOrder.filter { it in localVisibleTabs }
@@ -842,7 +870,7 @@ fun BottomBarSettingsContent(
             }
             
             // 可用项目列表
-            item {
+            item(key = "navigation_available_title") {
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -851,7 +879,7 @@ fun BottomBarSettingsContent(
                 }
             }
             
-            item {
+            item(key = "navigation_available") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         allBottomBarTabs.forEachIndexed { index, tab ->
@@ -897,7 +925,7 @@ fun BottomBarSettingsContent(
             }
             
             // 顺序调整说明
-            item {
+            item(key = "navigation_restore") {
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -911,7 +939,7 @@ fun BottomBarSettingsContent(
             }
             
             // 重置按钮
-            item {
+            item(key = "navigation_hint") {
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(16.dp))

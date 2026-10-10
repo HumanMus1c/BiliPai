@@ -1,5 +1,7 @@
 // 文件路径: feature/dynamic/components/DynamicTopBar.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -16,7 +18,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -29,7 +30,6 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppWindowAction
 import com.android.purebilibili.core.ui.components.AppWindowActionMenu
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -54,8 +54,6 @@ import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPadding
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
-import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarTabItemWidthDp
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.DynamicPublishSkinDecoration
 import com.android.purebilibili.core.ui.components.PageAwareAsyncImage
 import java.io.File
@@ -124,7 +122,6 @@ fun DynamicTopBarWithTabs(
     val context = LocalContext.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
     val liquidTabSpec = resolveDynamicTopBarLiquidTabSpec()
-    val tabScrollState = rememberScrollState()
     val homeSettings by SettingsManager
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
@@ -191,55 +188,22 @@ fun DynamicTopBarWithTabs(
             horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BoxWithConstraints(
+            AppThemeAdaptiveTabRow(
+                options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
+                selectedValue = selectedTab,
+                onSelectionChange = onTabSelected,
                 modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                val tabCount = tabs.size.coerceAtLeast(1)
-                // 操作 dock 展开时保留标签宽度，剩余空间只限制滚动视口。
-                val tabItemWidth = resolveDynamicTopBarTabItemWidthDp().dp
-                val tabContentWidth = tabItemWidth * tabCount + AppSpacingTokens.ExtraSmall * 2
-                val viewportWidth = minOf(maxWidth, tabContentWidth)
-                val viewportWidthPx = with(density) { viewportWidth.roundToPx() }
-                val tabItemWidthPx = with(density) { tabItemWidth.roundToPx() }
-                val tabPaddingPx = with(density) { AppSpacingTokens.ExtraSmall.roundToPx() }
-                LaunchedEffect(selectedTab, viewportWidthPx, tabScrollState.maxValue) {
-                    val selectedStart = tabPaddingPx + selectedTab.coerceIn(0, tabCount - 1) * tabItemWidthPx
-                    val selectedEnd = selectedStart + tabItemWidthPx + tabPaddingPx
-                    val target = when {
-                        selectedStart < tabScrollState.value -> selectedStart - tabPaddingPx
-                        selectedEnd > tabScrollState.value + viewportWidthPx -> selectedEnd - viewportWidthPx
-                        else -> tabScrollState.value
-                    }
-                    tabScrollState.animateScrollTo(target.coerceIn(0, tabScrollState.maxValue))
-                }
-                BottomBarLiquidSegmentedControl(
-                    items = tabs,
-                    selectedIndex = selectedTab,
-                    onSelected = onTabSelected,
-                    modifier = Modifier.widthIn(max = tabContentWidth),
-                    scrollState = tabScrollState,
-                    itemWidth = tabItemWidth,
-                    height = liquidTabSpec.heightDp.dp,
-                    geometryMode = com.android.purebilibili.feature.home.components.FloatingBottomBarGeometryMode.TopNavigation,
-                    indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
-                    labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
-                    allowNativeLabelOverflow = false,
-                    indicatorPositionProvider = indicatorPositionProvider,
-                    isScrollInProgressProvider = isScrollInProgressProvider,
-                    liquidGlassEffectsEnabled = liquidGlassEnabled,
-                    dragSelectionEnabled = tabs.size > 1,
-                    tapPressRefractionEnabled = true,
-                    externalPagerMotionEffectsEnabled = true,
-                    miuixBackdrop = dockBackdrop.takeIf { liquidGlassEnabled },
-                    containerColorOverride = dockColor,
-                    liquidGlassTuningOverride = liquidGlassTuning,
-                    drawMiuixNonGlassTrack = liquidGlassEnabled ||
-                        LocalAppUiStyle.current != AppUiStyle.MIUIX ||
-                        isProgressiveBlurActive ||
-                        headerBlurEnabled,
-                )
-            }
+                scrollable = true,
+                compactMiuixWhenTwoOptions = false,
+                height = liquidTabSpec.heightDp.dp,
+                indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
+                labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
+                indicatorPositionProvider = indicatorPositionProvider,
+                isScrollInProgressProvider = isScrollInProgressProvider,
+                dragSelectionEnabled = tabs.size > 1,
+                tapPressRefractionEnabled = true,
+                miuixBackdrop = dockBackdrop.takeIf { liquidGlassEnabled },
+            )
 
             val localActionDockBackdrop = if (liquidGlassEnabled && dockBackdrop == null) {
                 rememberLayerBackdrop()

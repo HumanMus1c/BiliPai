@@ -5482,11 +5482,17 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             isVerticalVideo = false
         )
         
-        val started = com.android.purebilibili.feature.download.DownloadManager.addTask(task)
-        if (started) {
-            toast("已开始下载音频")
-        } else {
-            toast("该任务已在下载中或已完成")
+        enqueueAudioDownload(task)
+    }
+
+    internal fun enqueueAudioDownload(task: com.android.purebilibili.feature.download.DownloadTask) {
+        viewModelScope.launch {
+            val started = com.android.purebilibili.feature.download.DownloadManager.addTask(task)
+            if (started) {
+                toast("已开始下载音频")
+            } else {
+                toast("该任务已在下载中或已完成")
+            }
         }
     }
 

@@ -66,7 +66,6 @@ import com.android.purebilibili.feature.video.ui.components.LandscapeDanmakuComp
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.AspectRatioMenu
 import com.android.purebilibili.feature.video.ui.components.VideoSettingsPanel
-import com.android.purebilibili.feature.video.ui.components.ChapterListPanel
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.resolveCurrentUgcEpisodeLazyListIndex
 import com.android.purebilibili.feature.video.ui.components.LandscapeSidePanel
@@ -712,12 +711,19 @@ fun VideoPlayerOverlay(
     var activeCastRoute by remember { mutableStateOf<CastPluginRoute?>(null) }
     var lastCastMediaSignature by remember { mutableStateOf<CastMediaSourceSignature?>(null) }
     var lastCastMediaUrl by remember { mutableStateOf<String?>(null) }
-    val pluginPlaybackState by produceState(CastPluginPlaybackState(), activeCastPlugin) {
+    val pluginPlaybackState = produceState(CastPluginPlaybackState(), activeCastPlugin) {
         val plugin = activeCastPlugin
         if (plugin != null) {
             plugin.playbackState.collect { value = it }
         } else {
             value = CastPluginPlaybackState()
+        }
+    }
+    // Only transport changes invalidate the shell; cast position stays with progress consumers.
+    val pluginPlaybackStatus by remember(pluginPlaybackState) {
+        derivedStateOf {
+            val snapshot = pluginPlaybackState.value
+            snapshot.isActive to snapshot.isPlaying
         }
     }
     var showPlaybackOrderSheet by remember { mutableStateOf(false) }
@@ -1091,81 +1097,36 @@ fun VideoPlayerOverlay(
     // 先打开设备面板；只有用户选择搜索 DLNA 时才请求原始局域网权限。
     val onCastClickAction = { showCastDialog = true }
 
-    val progressState by produceState(
-        initialValue = PlayerProgress(),
-        player,
-        bvid,
-        cid,
-        videoDuration,
-        isVisible,
-        hostLifecycleStarted,
-        hasPendingSeekResume,
-        highFrequencyProgressActive
-    ) {
-        if (!shouldPollInlineVideoOverlayProgress(
-                playerExists = true,
-                hostLifecycleStarted = hostLifecycleStarted
-            )
-        ) {
-            val duration = resolveSeekableDurationMs(
-                playbackDurationMs = player.duration,
-                fallbackDurationMs = videoDuration
-            )
-            value = PlayerProgress(
-                current = player.currentPosition,
-                duration = duration,
-                buffered = player.bufferedPosition
-            )
-            isPlaying = resolveOverlayPlaybackButtonPlayingState(
-                isPlaying = player.isPlaying,
-                playWhenReady = player.playWhenReady,
-                playbackState = player.playbackState,
-                hasPendingSeekResume = hasPendingSeekResume
-            )
-            return@produceState
-        }
-        while (isActive) {
-            //  [修复] 始终更新进度，不仅在播放时
-            // 这样横竖屏切换后也能显示正确的进度
-            val duration = resolveSeekableDurationMs(
-                playbackDurationMs = player.duration,
-                fallbackDurationMs = videoDuration
-            )
-            value = PlayerProgress(
-                current = player.currentPosition,
-                duration = duration,
-                buffered = player.bufferedPosition
-            )
-            isPlaying = resolveOverlayPlaybackButtonPlayingState(
-                isPlaying = player.isPlaying,
-                playWhenReady = player.playWhenReady,
-                playbackState = player.playbackState,
-                hasPendingSeekResume = hasPendingSeekResume
-            )
-            val delayMs = resolveInlineVideoOverlayProgressPollingIntervalMs(
-                controlsVisible = isVisible,
-                isPlaying = player.isPlaying,
-                highFrequencyProgressActive = highFrequencyProgressActive
-            )
-            delay(delayMs)
-        }
-    }
+    val progressState = rememberVideoPlayerOverlayProgress(
+        player = player,
+        bvid = bvid,
+        cid = cid,
+        videoDuration = videoDuration,
+        controlsVisible = isVisible,
+        hostLifecycleStarted = hostLifecycleStarted,
+        hasPendingSeekResume = hasPendingSeekResume,
+        highFrequencyProgressActive = highFrequencyProgressActive,
+        onPlayingChanged = { isPlaying = it },
+    )
     val effectiveProgressState = remember(progressState, pluginPlaybackState) {
-        resolveEffectivePlayerProgress(progressState, pluginPlaybackState)
+        derivedStateOf {
+            resolveEffectivePlayerProgress(progressState.value, pluginPlaybackState.value)
+        }
     }
     val latestProgressOverrideProvider = rememberUpdatedState(progressDisplayOverridePositionProvider)
     val displayedProgressState = remember(effectiveProgressState, progressDisplayOverridePositionMs) {
         derivedStateOf {
             resolveDisplayedPlayerProgressWithOverride(
-                progress = effectiveProgressState,
+                progress = effectiveProgressState.value,
                 overridePositionMs = latestProgressOverrideProvider.value?.invoke()
                     ?: progressDisplayOverridePositionMs
             )
         }
     }
-    val effectiveIsPlaying = remember(isPlaying, pluginPlaybackState) {
-        resolveEffectivePlayingState(isPlaying, pluginPlaybackState)
-    }
+    val effectiveIsPlaying = if (pluginPlaybackStatus.first) pluginPlaybackStatus.second else isPlaying
+    val progressProvider = remember(effectiveProgressState) { { effectiveProgressState.value } }
+    val displayedProgressProvider = remember(displayedProgressState) { { displayedProgressState.value } }
+    val seekPositionProvider = remember(displayedProgressState) { { displayedProgressState.value.current } }
     val centerLoadingUiState = remember(
         isBuffering,
         isQualitySwitching,
@@ -1194,11 +1155,13 @@ fun VideoPlayerOverlay(
         )
     }
 
-    // 📖 计算当前章节（必须在 progressState 之后定义）
-    val currentChapter = remember(effectiveProgressState.current, viewPoints) {
-        if (viewPoints.isEmpty()) null
-        else viewPoints.lastOrNull { effectiveProgressState.current >= it.fromMs }?.content
+    val currentChapterState = remember(effectiveProgressState, viewPoints) {
+        derivedStateOf {
+            val position = effectiveProgressState.value.current
+            viewPoints.lastOrNull { position >= it.fromMs }?.content
+        }
     }
+    val currentChapterProvider = remember(currentChapterState) { { currentChapterState.value } }
 
     LaunchedEffect(
         isVisible,
@@ -1280,9 +1243,9 @@ fun VideoPlayerOverlay(
 
     fun togglePlayPause() {
         val plugin = activeCastPlugin
-        if (plugin != null && pluginPlaybackState.isActive) {
+        if (plugin != null && pluginPlaybackState.value.isActive) {
             scope.launch {
-                if (pluginPlaybackState.isPlaying) {
+                if (pluginPlaybackState.value.isPlaying) {
                     plugin.pause()
                 } else {
                     plugin.play()
@@ -1305,7 +1268,7 @@ fun VideoPlayerOverlay(
 
     val commitSeek: (Long) -> Unit = { position ->
         val plugin = activeCastPlugin
-        if (plugin != null && pluginPlaybackState.isActive) {
+        if (plugin != null && pluginPlaybackState.value.isActive) {
             scope.launch { plugin.seek(position.coerceAtLeast(0L)) }
         } else {
             val safePosition = position.coerceAtLeast(0L)
@@ -1396,9 +1359,8 @@ fun VideoPlayerOverlay(
                 behavior = bottomProgressBehavior
             )
         ) {
-            PersistentBottomProgressBar(
-                current = displayedProgressState.value.current,
-                duration = displayedProgressState.value.duration,
+            OverlayPersistentProgressBar(
+                progressProvider = displayedProgressProvider,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(end = endDrawerReservedWidth)
@@ -1500,7 +1462,7 @@ fun VideoPlayerOverlay(
                     BottomControlBar(
                     viewportWidthDpOverride = viewportWidthDpOverride,
                     isPlaying = effectiveIsPlaying,
-                    progress = effectiveProgressState,
+                    progressProvider = progressProvider,
                     isFullscreen = isFullscreen,
                     compactPlayerChrome = playerControlVisibility.compactPlayerChrome,
                     currentSpeed = currentSpeed,
@@ -1513,7 +1475,7 @@ fun VideoPlayerOverlay(
                     onSeekDragStart = onSeekDragStart,
                     onSeekDragUpdate = onSeekDragUpdate,
                     onSeekDragCancel = onSeekDragCancel,
-                    seekPositionProvider = { displayedProgressState.value.current },
+                    seekPositionProvider = seekPositionProvider,
                     isSeekScrubbing = isSeekScrubbing,
                     onSpeedClick = { showSpeedMenu = true },
                     onRatioClick = { showRatioMenu = true },
@@ -1573,7 +1535,7 @@ fun VideoPlayerOverlay(
                     viewPoints = viewPoints,
                     sponsorMarkers = sponsorMarkers,
                     pbpRidgeSamples = pbpRidgeSamples,
-                    currentChapter = currentChapter,
+                    currentChapterProvider = currentChapterProvider,
                     onChapterClick = { showChapterList = true },
                     // 📱 [新增] 竖屏全屏模式
                     isVerticalVideo = isVerticalVideo,
@@ -1730,6 +1692,14 @@ fun VideoPlayerOverlay(
             )
             PlaybackInsightPanel(
                 presentation = insightPresentation,
+                presentationProvider = {
+                    val localProgress = progressState.value
+                    resolvePlaybackInsightPresentation(
+                        effectiveDebugInfo.copy(
+                            forwardBuffer = "${(localProgress.buffered - localProgress.current).coerceAtLeast(0L)} ms",
+                        )
+                    )
+                },
                 diagnosticEvents = diagnosticEvents,
                 onCopyReport = if (playerDiagnosticLoggingEnabled) {
                     {
@@ -2191,9 +2161,9 @@ fun VideoPlayerOverlay(
         
         // --- 10. 📖 [新增] 章节列表面板 ---
         if (showChapterList && viewPoints.isNotEmpty()) {
-            ChapterListPanel(
+            OverlayChapterListPanel(
                 viewPoints = viewPoints,
-                currentPositionMs = displayedProgressState.value.current,
+                progressProvider = displayedProgressProvider,
                 onSeek = commitSeek,
                 onDismiss = { showChapterList = false }
             )
@@ -2347,13 +2317,13 @@ fun VideoPlayerOverlay(
         }
 
         // --- 13. 🔄 Active Cast quality/source reload ---
-        LaunchedEffect(currentCastSignature, activeCastPlugin, activeCastRoute, pluginPlaybackState.isActive) {
+        LaunchedEffect(currentCastSignature, activeCastPlugin, activeCastRoute, pluginPlaybackStatus.first) {
             val plugin = activeCastPlugin ?: return@LaunchedEffect
             val route = activeCastRoute ?: return@LaunchedEffect
             if (!shouldReloadActiveCastAfterMediaSourceChange(
                     activePluginExists = true,
                     activeRouteExists = true,
-                    pluginState = pluginPlaybackState,
+                    pluginState = pluginPlaybackState.value,
                     currentSignature = currentCastSignature,
                     lastCastSignature = lastCastMediaSignature
                 )) {
@@ -2376,8 +2346,8 @@ fun VideoPlayerOverlay(
                 title = videoTitle,
                 creator = videoOwnerName,
                 contentType = resolution.contentType,
-                startPositionMs = pluginPlaybackState.currentPositionMs.coerceAtLeast(0L),
-                autoplay = pluginPlaybackState.isPlaying
+                startPositionMs = pluginPlaybackState.value.currentPositionMs.coerceAtLeast(0L),
+                autoplay = pluginPlaybackState.value.isPlaying
             )
 
             val result = plugin.cast(context, route, request)
@@ -2625,8 +2595,10 @@ private fun PlaybackInsightPanel(
     onCopyReport: (() -> Unit)?,
     onDismiss: () -> Unit,
     hazeState: HazeState?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    presentationProvider: (() -> PlaybackInsightPresentation)? = null,
 ) {
+    val displayedPresentation = presentationProvider?.invoke() ?: presentation
     val panelShape = AppShapes.container(ContainerLevel.Floating)
     val realtimeHazeState = hazeState?.takeIf {
         shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)
@@ -2664,7 +2636,7 @@ private fun PlaybackInsightPanel(
                 Column(modifier = Modifier.weight(1f)) {
                     AppText("播放器洞察", style = MaterialTheme.typography.titleMedium)
                     AppText(
-                        presentation.statusText,
+                        displayedPresentation.statusText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2687,7 +2659,7 @@ private fun PlaybackInsightPanel(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                presentation.sections.forEach { (section, rows) ->
+                displayedPresentation.sections.forEach { (section, rows) ->
                     item(key = section.name) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             AppText(

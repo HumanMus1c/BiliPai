@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -61,7 +59,8 @@ import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnc
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.components.*
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.VideoNoteUiState
@@ -175,42 +174,21 @@ internal fun TabletSecondaryLiquidTabRow(
     isScrollInProgressProvider: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val liquidGlassEnabled = LocalAppThemeConfig.current.liquidGlassEnabled
-    BoxWithConstraints(modifier = modifier) {
-        val minimumScrollableWidth = (labels.size * 76).dp
-        val needsHorizontalScroll = maxWidth < minimumScrollableWidth
-        val scrollState = rememberScrollState()
-        Box(
-            modifier = if (needsHorizontalScroll) {
-                Modifier
-                    .horizontalScroll(scrollState)
-                    .width(minimumScrollableWidth)
-            } else {
-                Modifier.fillMaxWidth()
-            }
-        ) {
-            BottomBarLiquidSegmentedControl(
-                items = labels,
-                selectedIndex = selectedIndex,
-                onSelected = onSelected,
-                modifier = Modifier.fillMaxWidth(),
-                itemWidth = if (needsHorizontalScroll) 76.dp else null,
-                height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
-                indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
-                labelFontSize = 15.sp,
-                liquidGlassEffectsEnabled = liquidGlassEnabled,
-                equalizeMiuixNonGlassItemWidths = false,
-                allowNativeLabelOverflow = true,
-                forceEqualWidth = !needsHorizontalScroll,
-                compactMiuixWhenTwoOptions = false,
-                dragSelectionEnabled = true,
-                tapPressRefractionEnabled = true,
-                indicatorPositionProvider = indicatorPositionProvider,
-                isScrollInProgressProvider = isScrollInProgressProvider,
-                externalPagerMotionEffectsEnabled = true,
-            )
-        }
-    }
+    AppThemeAdaptiveTabRow(
+        options = labels.mapIndexed { index, label -> AppSegmentOption(index, label) },
+        selectedValue = selectedIndex,
+        onSelectionChange = onSelected,
+        modifier = modifier,
+        scrollable = true,
+        compactMiuixWhenTwoOptions = false,
+        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+        labelFontSize = 15.sp,
+        dragSelectionEnabled = true,
+        tapPressRefractionEnabled = true,
+        indicatorPositionProvider = indicatorPositionProvider,
+        isScrollInProgressProvider = isScrollInProgressProvider,
+    )
 }
 
 /**

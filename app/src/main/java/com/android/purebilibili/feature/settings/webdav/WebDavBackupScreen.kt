@@ -141,8 +141,8 @@ fun WebDavBackupScreen(
                     // 配置项图标按“能力/服务器/账号/目录”映射，降低识别成本。
                     AppSwitchPreference(
                         icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_cloud_fill_24),
-                        title = "启用 WebDAV 云备份",
-                        subtitle = "开启后每天自动备份，同时保留手动备份能力",
+                        title = "每天自动备份",
+                        subtitle = "每天备份设置和插件，也可手动备份",
                         checked = uiState.config.enabled,
                         onCheckedChange = { viewModel.setEnabled(it) },
                         iconTint = iOSBlue
@@ -172,7 +172,7 @@ fun WebDavBackupScreen(
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
                         icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_drive_folder_upload_fill_24),
-                        title = "远端目录",
+                        title = "云端文件夹",
                         value = uiState.config.remoteDir,
                         onClick = {
                             editMode = WebDavEditMode.REMOTE_DIR
@@ -192,7 +192,7 @@ fun WebDavBackupScreen(
                             miuixIcon = MiuixIcons.UploadCloud,
                         ),
                         title = "测试连接",
-                        subtitle = "验证账号与目录可用性",
+                        subtitle = "检查账号和云端文件夹是否可用",
                         onClick = { viewModel.testConnection() },
                         iconTint = iOSGreen
                     )
@@ -218,7 +218,7 @@ fun WebDavBackupScreen(
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
                         icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_refresh_fill_24),
-                        title = "刷新远端列表",
+                        title = "刷新备份列表",
                         subtitle = "读取 WebDAV 目录中的备份文件",
                         onClick = { viewModel.refreshRemoteBackups() },
                         iconTint = iOSOrange
@@ -227,7 +227,7 @@ fun WebDavBackupScreen(
             }
 
             item {
-                AppPreferenceSectionTitle("远端备份")
+                AppPreferenceSectionTitle("云端备份")
                 AppPreferenceGroup {
                     if (uiState.remoteBackups.isEmpty()) {
                         AppPreference(
@@ -272,7 +272,7 @@ fun WebDavBackupScreen(
         val dialogTitle = when (editMode) {
             WebDavEditMode.SERVER -> "服务器地址"
             WebDavEditMode.ACCOUNT -> "账号信息"
-            WebDavEditMode.REMOTE_DIR -> "远端目录"
+            WebDavEditMode.REMOTE_DIR -> "云端文件夹"
         }
         AppAlertDialog(
             onDismissRequest = { showEditDialog = false },
@@ -309,7 +309,7 @@ fun WebDavBackupScreen(
                             AppTextField(
                                 value = draftRemoteDir,
                                 onValueChange = { draftRemoteDir = it },
-                                label = "远端目录",
+                                label = "云端文件夹",
                                 placeholder = "/BiliPai/backups",
                                 singleLine = true
                             )

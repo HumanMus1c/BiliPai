@@ -3245,7 +3245,6 @@ private fun SearchResultTypeTabRow(
             scrollState = scrollState,
             selectedIndex = if (useScrollableRail) selectedIndex else 0,
             itemWidthPx = itemWidthPx,
-            viewportWidthPx = viewportWidthPx,
             contentPaddingPx = containerHorizontalPaddingPx,
             // Glide with the indicator (page + fraction) while the pager is moving; settle when idle.
             focusPosition = {

@@ -4,9 +4,8 @@ import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.ui.components.shouldUseOpaqueMiuixTabBackdrop
 import com.android.purebilibili.core.ui.components.shouldUseCompactMiuixTabRow
-import com.android.purebilibili.core.ui.components.resolveReadableNativeTabMinWidth
+import com.android.purebilibili.core.ui.components.resolveMeasuredTabMinWidth
 import com.android.purebilibili.core.ui.components.resolveCompactMiuixTabRowWidth
-import com.android.purebilibili.core.ui.components.resolveLabelContentMinWidth
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabContentColor
 import com.android.purebilibili.core.ui.components.resolveAppMiuixTabTrackColor
 import com.android.purebilibili.core.ui.components.resolveEqualMiuixNonGlassTabItemWidth
@@ -77,48 +76,11 @@ class AppSegmentedControlPolicyTest {
     }
 
     @Test
-    fun `label content min width calculates safe minimum width to prevent ellipsis truncation`() {
-        assertEquals(88.dp, resolveLabelContentMinWidth(listOf("相关推荐", "评论")))
-        assertEquals(56.dp, resolveLabelContentMinWidth(listOf("简介", "评论")))
-        assertEquals(72.dp, resolveLabelContentMinWidth(listOf("按热度", "按时间")))
-        assertEquals(48.dp, resolveLabelContentMinWidth(listOf("A", "B")))
-        assertEquals(0.dp, resolveLabelContentMinWidth(emptyList()))
-    }
-
-    @Test
-    fun `native tabs expand shared item width across themes for complete long labels`() {
-        assertEquals(
-            56.dp,
-            resolveReadableNativeTabMinWidth(
-                requestedMinWidth = AppChromeSizeTokens.MinimumTouchTarget,
-                labels = listOf("简介", "评论"),
-                allowLabelOverflow = true,
-            ),
-        )
-        assertEquals(
-            88.dp,
-            resolveReadableNativeTabMinWidth(
-                requestedMinWidth = 72.dp,
-                labels = listOf("播放多", "默认排序", "新发布"),
-                allowLabelOverflow = true,
-            ),
-        )
-        assertEquals(
-            72.dp,
-            resolveReadableNativeTabMinWidth(
-                requestedMinWidth = 72.dp,
-                labels = listOf("视频", "番剧"),
-                allowLabelOverflow = true,
-            ),
-        )
-        assertEquals(
-            72.dp,
-            resolveReadableNativeTabMinWidth(
-                requestedMinWidth = 72.dp,
-                labels = listOf("默认排序"),
-                allowLabelOverflow = false,
-            ),
-        )
+    fun `tab minimum follows measured text rather than character count`() {
+        assertEquals(56.dp, resolveMeasuredTabMinWidth(48.dp, listOf(32.dp, 20.dp)))
+        assertEquals(114.dp, resolveMeasuredTabMinWidth(48.dp, listOf(90.dp, 20.dp)))
+        assertEquals(72.dp, resolveMeasuredTabMinWidth(72.dp, listOf(20.dp)))
+        assertEquals(48.dp, resolveMeasuredTabMinWidth(48.dp, emptyList()))
     }
 
     @Test
@@ -152,10 +114,9 @@ class AppSegmentedControlPolicyTest {
 
     @Test
     fun `long collection titles do not inflate short content sized tabs`() {
-        val sharedWidth = resolveReadableNativeTabMinWidth(
+        val sharedWidth = resolveMeasuredTabMinWidth(
             requestedMinWidth = 48.dp,
-            labels = listOf("视频", "图文", "这是一个很长的合集标题"),
-            allowLabelOverflow = true,
+            labelWidths = listOf(32.dp, 32.dp, 176.dp),
         )
         assertTrue(sharedWidth > 56.dp)
         val contentMinWidth = resolveMiuixTabMinWidth(

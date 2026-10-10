@@ -138,7 +138,6 @@ fun SearchVideoFilterBar(
                 scrollState = scrollState,
                 selectedIndex = if (useScrollableRail) selectedIndex else 0,
                 itemWidthPx = itemWidthPx,
-                viewportWidthPx = viewportWidthPx,
                 contentPaddingPx = containerHorizontalPaddingPx,
             )
 

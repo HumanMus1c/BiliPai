@@ -151,7 +151,7 @@ fun SettingsShareScreen(
                             materialSymbolResource = R.drawable.ms_task_alt_24,
                             miuixIcon = MiuixIcons.Tasks,
                         ),
-                        title = "会一起分享的内容",
+                        title = "包含的设置",
                         subtitle = "外观、播放、手势、弹幕和导航等不含隐私的设置",
                         onClick = null,
                         iconTint = iOSGreen,
@@ -160,7 +160,7 @@ fun SettingsShareScreen(
                     AppPreferenceDivider(startIndent = 66.dp)
                     AppPreference(
                         icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_lock_fill_24),
-                        title = "会自动跳过的内容",
+                        title = "不包含的设置",
                         subtitle = "账号、保存路径、云备份账号、隐私和设备专属配置",
                         onClick = null,
                         iconTint = iOSPurple,
@@ -173,7 +173,7 @@ fun SettingsShareScreen(
                 AppPreferenceSectionTitle("导出选项")
                 AppPreferenceGroup {
                     AppSwitchPreference(
-                        title = "包含设备调试信息",
+                        title = "附带设备信息",
                         subtitle = "附带安卓版本、界面风格和屏幕信息，便于排查问题；导入时不会应用",
                         checked = uiState.includeDeviceDebug,
                         onCheckedChange = viewModel::setIncludeDeviceDebug,
@@ -227,7 +227,7 @@ fun SettingsShareScreen(
             }
 
             item {
-                AppPreferenceSectionTitle("本机保存配置")
+                AppPreferenceSectionTitle("本机保存的设置")
                 AppPreferenceGroup {
                     AppPreference(
                         icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(

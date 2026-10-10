@@ -382,7 +382,7 @@ private fun BlockedListSyncAction(
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        AppText("导出 JSON 文件")
+                        AppText("导出文件")
                     }
                 }
                 if (onImportBlockedListJsonRequest != null) {
@@ -391,7 +391,7 @@ private fun BlockedListSyncAction(
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        AppText("导入 JSON 文件")
+                        AppText("导入文件")
                     }
                 }
                 if (onImportBlockedListRequest != null) {

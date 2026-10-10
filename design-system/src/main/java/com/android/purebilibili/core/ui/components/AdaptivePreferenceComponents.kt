@@ -1424,14 +1424,12 @@ internal fun AdaptivePreferenceContent(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         } else {
-            // Title stays single-line so long search labels don't wrap under the trailing section path.
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = textColor,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    softWrap = true,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start
                 )
                 if (subtitle != null) {
@@ -1440,8 +1438,7 @@ internal fun AdaptivePreferenceContent(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = subtitleColor,
-                        maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        softWrap = true,
                     )
                 }
             }

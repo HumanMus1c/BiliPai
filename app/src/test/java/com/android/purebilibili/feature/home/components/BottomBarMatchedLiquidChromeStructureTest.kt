@@ -124,7 +124,7 @@ class BottomBarMatchedLiquidChromeStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/audio/screen/MusicPlayerContent.kt"
         )
 
-        assertTrue(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(dynamicTopBar.contains("AppThemeAdaptiveTabRow("))
         assertTrue(dynamicTopBar.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertTrue(dynamicTopBar.contains("isScrollInProgressProvider = isScrollInProgressProvider"))
         assertTrue(dynamicScreen.contains("BottomBarMatchedDockVisibility("))

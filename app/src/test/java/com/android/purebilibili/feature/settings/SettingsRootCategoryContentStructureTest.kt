@@ -399,7 +399,7 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(settingsSections.contains("SettingsDetailGroup(title = \"画质与播放\")"))
         assertTrue(settingsSections.contains("SettingsDetailGroup(title = \"隐私与安全\")"))
         assertTrue(appearance.contains("AppPreferenceSectionTitle(\"显示模式\")"))
-        assertTrue(appearance.contains("AppPreferenceSectionTitle(\"字体与密度\")"))
+        assertTrue(appearance.contains("AppPreferenceSectionTitle(\"文字与大小\")"))
         assertTrue(appearance.contains("AppPreferenceSectionTitle(\"开屏与图标\")"))
         assertTrue(playback.contains("AppPreferenceSectionTitle(\"小窗与后台\")"))
         assertTrue(playback.contains("AppPreferenceSectionTitle(\"诊断\")"))
@@ -463,7 +463,7 @@ class SettingsRootCategoryContentStructureTest {
             File("src/main/java/com/android/purebilibili/feature/settings/SettingsDestinationCopy.kt")
         ).first { it.exists() }.readText().replace("\r\n", "\n")
 
-        assertTrue(copySource.contains("title = \"首页样式与推荐卡片\""))
+        assertTrue(copySource.contains("title = \"首页与推荐\""))
         assertTrue(copySource.contains("title = \"全屏与手势\""))
         assertTrue(source.contains("value = \"出现黑屏、卡顿或画质切换失败时用于排查问题\""))
     }

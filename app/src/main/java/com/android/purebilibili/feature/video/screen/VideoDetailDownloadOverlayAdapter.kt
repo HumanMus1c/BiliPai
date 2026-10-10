@@ -150,9 +150,7 @@ internal fun VideoDetailDownloadOverlayAdapter(
                                 )
                             )
                             if (task.audioUrl.isNotEmpty()) {
-                                val started = com.android.purebilibili.feature.download.DownloadManager.addTask(task)
-                                if (started) viewModel.toast("已开始下载音频")
-                                else viewModel.toast("该任务已在下载中或已完成")
+                                viewModel.enqueueAudioDownload(task)
                             } else {
                                 viewModel.toast("无法获取音频地址")
                             }

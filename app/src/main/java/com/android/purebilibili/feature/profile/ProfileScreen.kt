@@ -52,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -74,6 +75,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.transition.LocalDynamicImagePreviewTextVisible
@@ -1223,19 +1225,6 @@ private fun ProfileSpaceContent(
     val isMobileScrolling by remember {
         derivedStateOf { mobileListState.isScrollInProgress }
     }
-    val mobileTopChromeScrim by remember {
-        derivedStateOf {
-            resolveProfilePinnedTopChromeScrim(
-                firstVisibleItemIndex = mobileListState.firstVisibleItemIndex,
-                firstVisibleItemScrollOffset = mobileListState.firstVisibleItemScrollOffset,
-            )
-        }
-    }
-    val topBarIconColor = androidx.compose.ui.graphics.lerp(
-        heroChrome.textColor,
-        contentChrome.onSurfaceColor,
-        mobileTopChromeScrim
-    )
     ObserveProfileScrollToTop(
         requestId = scrollToTopRequestId,
         listState = if (isTablet) tabletFeedListState else mobileListState,
@@ -1397,44 +1386,90 @@ private fun ProfileSpaceContent(
                 }
                 }
             }
-            BiliPaiImmersiveTopBar(
-                backdrop = null,
-                enabled = false,
-                headerBlurActive = false,
-                opaqueBackgroundFallback = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = mobileTopChromeScrim)
-                    ),
-            ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = statusBarTopPadding)
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppIconButton(onClick = onBack) {
-                    AppIcon(rememberAppBackIcon(), contentDescription = "返回", tint = topBarIconColor)
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                ProfileTopActions(
-                    compact = true,
-                    privacyModeEnabled = privacyModeEnabled,
-                    onSearchClick = onSearchClick,
-                    onInboxClick = onInboxClick,
-                    onPrivacyClick = onPrivacyClick,
-                    onAccountClick = onAccountManageClick,
-                    onThemeClick = onThemeClick,
-                    onSettingsClick = onSettingsClick,
-                    onWallpaperClick = { showWallpaperActionSheet = true },
-                    tint = topBarIconColor,
-                )
+            ProfilePinnedSpaceTopBar(
+                listState = mobileListState,
+                heroTextColor = heroChrome.textColor,
+                contentColor = contentChrome.onSurfaceColor,
+                statusBarTopPadding = statusBarTopPadding,
+                privacyModeEnabled = privacyModeEnabled,
+                onBack = onBack,
+                onSearchClick = onSearchClick,
+                onInboxClick = onInboxClick,
+                onPrivacyClick = onPrivacyClick,
+                onAccountManageClick = onAccountManageClick,
+                onThemeClick = onThemeClick,
+                onSettingsClick = onSettingsClick,
+                onWallpaperClick = { showWallpaperActionSheet = true },
+                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfilePinnedSpaceTopBar(
+    listState: LazyListState,
+    heroTextColor: Color,
+    contentColor: Color,
+    statusBarTopPadding: Dp,
+    privacyModeEnabled: Boolean,
+    onBack: () -> Unit,
+    onSearchClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onThemeClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onWallpaperClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val topChromeScrim = remember(listState) {
+        derivedStateOf {
+            resolveProfilePinnedTopChromeScrim(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
+    val topBarIconColor = androidx.compose.ui.graphics.lerp(
+        heroTextColor,
+        contentColor,
+        topChromeScrim.value,
+    )
+    BiliPaiImmersiveTopBar(
+        backdrop = null,
+        enabled = false,
+        headerBlurActive = false,
+        opaqueBackgroundFallback = false,
+        modifier = modifier.drawBehind {
+            drawRect(surfaceColor.copy(alpha = topChromeScrim.value))
+        },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = statusBarTopPadding)
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppIconButton(onClick = onBack) {
+                AppIcon(rememberAppBackIcon(), contentDescription = "返回", tint = topBarIconColor)
             }
-            }
+            Spacer(modifier = Modifier.weight(1f))
+            ProfileTopActions(
+                compact = true,
+                privacyModeEnabled = privacyModeEnabled,
+                onSearchClick = onSearchClick,
+                onInboxClick = onInboxClick,
+                onPrivacyClick = onPrivacyClick,
+                onAccountClick = onAccountManageClick,
+                onThemeClick = onThemeClick,
+                onSettingsClick = onSettingsClick,
+                onWallpaperClick = onWallpaperClick,
+                tint = topBarIconColor,
+            )
         }
     }
 }
@@ -3364,7 +3399,7 @@ private fun MobileProfileContent(
     val isGuestScrolling by remember {
         derivedStateOf { guestListState.isScrollInProgress }
     }
-    val guestTopChromeScrim by remember {
+    val guestTopChromeScrim = remember(guestListState) {
         derivedStateOf {
             resolveProfilePinnedTopChromeScrim(
                 firstVisibleItemIndex = guestListState.firstVisibleItemIndex,
@@ -3372,6 +3407,10 @@ private fun MobileProfileContent(
             )
         }
     }
+    val showGuestPinnedTitle by remember(guestTopChromeScrim) {
+        derivedStateOf { guestTopChromeScrim.value > 0.4f }
+    }
+    val guestTopChromeSurfaceColor = MaterialTheme.colorScheme.surface
     ObserveProfileScrollToTop(
         requestId = scrollToTopRequestId,
         listState = guestListState
@@ -3469,7 +3508,7 @@ private fun MobileProfileContent(
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         ) {
         AppTopBar(
-            title = if (guestTopChromeScrim > 0.4f) "我的" else "",
+            title = if (showGuestPinnedTitle) "我的" else "",
             style = AppTopBarStyle.CENTERED,
             navigationIcon = {
                 AppIconButton(onClick = onBack) {
@@ -3484,9 +3523,9 @@ private fun MobileProfileContent(
                     AppIcon(rememberAppSettingsIcon(), contentDescription = "Settings", tint = contentColor)
                 }
             },
-            modifier = Modifier.background(
-                MaterialTheme.colorScheme.surface.copy(alpha = guestTopChromeScrim)
-            ),
+            modifier = Modifier.drawBehind {
+                drawRect(guestTopChromeSurfaceColor.copy(alpha = guestTopChromeScrim.value))
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
                 scrolledContainerColor = Color.Transparent,

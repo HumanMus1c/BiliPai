@@ -2,6 +2,9 @@ package com.android.purebilibili.feature.web
 import com.android.purebilibili.core.ui.components.AppIcon
 
 import android.view.ViewGroup
+import android.content.Context
+import android.webkit.RenderProcessGoneDetail
+import android.widget.Toast
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -10,16 +13,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
-import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
-import kotlinx.coroutines.launch
 
 /**
  * WebViewScreen - 应用内浏览器
@@ -46,7 +55,17 @@ fun WebViewScreen(
     onBangumiClick: ((seasonId: Long, epId: Long, mediaId: Long) -> Unit)? = null,
     onMusicClick: ((musicId: String) -> Unit)? = null
 ) {
-    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    var rendererFailed by remember(url) { mutableStateOf(false) }
+    var externalUrl by remember(url) { mutableStateOf<String?>(null) }
+    val openExternal by rememberUpdatedState<(String) -> Unit>({ targetUrl ->
+        runCatching { uriHandler.openUri(targetUrl) }
+            .onSuccess { externalUrl = targetUrl }
+            .onFailure {
+                Toast.makeText(context, "没有可打开此链接的应用", Toast.LENGTH_SHORT).show()
+            }
+    })
 
     AppScaffold(
         topBar = {
@@ -55,6 +74,11 @@ fun WebViewScreen(
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
                         AppIcon(rememberAppBackIcon(), contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    TextButton(onClick = { openExternal(externalUrl ?: url) }) {
+                        Text("外部打开")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -69,161 +93,196 @@ fun WebViewScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        
-                        // [核心] 自定义 WebViewClient 拦截 Bilibili 链接
-                        webViewClient = object : WebViewClient() {
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: WebResourceRequest?
-                            ): Boolean {
-                                val requestUrl = request?.url?.toString() ?: return false
-                                return handleBilibiliUrl(
-                                    webView = view,
-                                    urlString = requestUrl,
-                                    hasUserGesture = request.hasGesture()
+            if (rendererFailed || externalUrl != null) {
+                Text(
+                    text = if (rendererFailed) "网页渲染异常，请使用外部浏览器打开"
+                        else "已交给外部应用打开，可返回评论区",
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else {
+                key(url) {
+                    AndroidView(
+                        factory = { context ->
+                            BrowserWebView(context).apply {
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
                                 )
-                            }
-                            
-                            // 兼容旧版 API
-                            @Deprecated("Deprecated in Java")
-                            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                return url?.let {
-                                    handleBilibiliUrl(
-                                        webView = view,
-                                        urlString = it,
-                                        hasUserGesture = false
-                                    )
-                                } ?: false
-                            }
-                            
-                            /**
-                             * 处理 Bilibili URL 拦截
-                             * @param webView WebView 实例，用于加载转换后的 URL
-                             * @return true 表示已拦截处理，false 表示继续加载网页
-                             */
-                            private fun handleBilibiliUrl(
-                                webView: WebView?,
-                                urlString: String,
-                                hasUserGesture: Boolean
-                            ): Boolean {
-                                android.util.Log.d("WebViewScreen", "🔗 Intercepting URL: $urlString")
-                                try {
-                                    val uri = android.net.Uri.parse(urlString)
-                                    val scheme = uri.scheme ?: ""
-                                    val host = uri.host ?: ""
-                                    
-                                    android.util.Log.d("WebViewScreen", "🔍 Scheme: $scheme, Host: $host")
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
 
-                                    fun dispatchTarget(target: BilibiliNavigationTarget): Boolean {
-                                        return when (target) {
-                                            is BilibiliNavigationTarget.Video -> {
-                                                onVideoClick?.invoke(target.videoId)
-                                                onVideoClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.Space -> {
-                                                onSpaceClick?.invoke(target.mid)
-                                                onSpaceClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.Live -> {
-                                                onLiveClick?.invoke(target.roomId)
-                                                onLiveClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.BangumiSeason -> {
-                                                onBangumiClick?.invoke(target.seasonId, 0, target.mediaId)
-                                                onBangumiClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.BangumiEpisode -> {
-                                                onBangumiClick?.invoke(0, target.epId, 0)
-                                                onBangumiClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.Music -> {
-                                                onMusicClick?.invoke(target.musicId)
-                                                onMusicClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.Dynamic -> {
-                                                onDynamicClick?.invoke(target.dynamicId)
-                                                onDynamicClick != null
-                                            }
-
-                                            is BilibiliNavigationTarget.Search -> false
-                                            is BilibiliNavigationTarget.Article -> false
-                                            is BilibiliNavigationTarget.PopularFeed -> false
-                                        }
+                                // [核心] 自定义 WebViewClient 拦截 Bilibili 链接
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView?,
+                                        request: WebResourceRequest?
+                                    ): Boolean {
+                                        if (request?.isForMainFrame != true) return false
+                                        val requestUrl = request?.url?.toString() ?: return false
+                                        return handleBilibiliUrl(
+                                            webView = view,
+                                            urlString = requestUrl,
+                                            hasUserGesture = request.hasGesture()
+                                        )
                                     }
 
-                                    when (val action = resolveWebViewNavigationAction(urlString, hasUserGesture)) {
-                                        is WebViewNavigationAction.Block -> {
-                                            android.util.Log.d("WebViewScreen", "⛔ Blocked navigation: $urlString")
-                                            return true
-                                        }
+                                    override fun onRenderProcessGone(
+                                        view: WebView,
+                                        detail: RenderProcessGoneDetail
+                                    ): Boolean {
+                                        android.util.Log.e("WebViewScreen", "Renderer exited: crashed=${detail.didCrash()}")
+                                        (view as BrowserWebView).release(rendererGone = true)
+                                        rendererFailed = true
+                                        return true
+                                    }
 
-                                        is WebViewNavigationAction.LoadInWebView -> {
-                                            android.util.Log.d("WebViewScreen", "🔄 Deep link -> ${action.url}")
-                                            webView?.loadUrl(action.url)
-                                            return true
-                                        }
+                                    // 兼容旧版 API
+                                    @Deprecated("Deprecated in Java")
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        return url?.let {
+                                            handleBilibiliUrl(
+                                                webView = view,
+                                                urlString = it,
+                                                hasUserGesture = false
+                                            )
+                                        } ?: false
+                                    }
 
-                                        is WebViewNavigationAction.DispatchTarget -> {
-                                            if (dispatchTarget(action.target)) {
-                                                android.util.Log.d("WebViewScreen", "✅ Routed target: ${action.target}")
+                                    /**
+                                     * 处理 Bilibili URL 拦截
+                                     * @param webView WebView 实例，用于加载转换后的 URL
+                                     * @return true 表示已拦截处理，false 表示继续加载网页
+                                     */
+                                    private fun handleBilibiliUrl(
+                                        webView: WebView?,
+                                        urlString: String,
+                                        hasUserGesture: Boolean
+                                    ): Boolean {
+                                        android.util.Log.d("WebViewScreen", "🔗 Intercepting URL: $urlString")
+                                        try {
+                                            val uri = android.net.Uri.parse(urlString)
+                                            val scheme = uri.scheme ?: ""
+                                            val host = uri.host ?: ""
+
+                                            android.util.Log.d("WebViewScreen", "🔍 Scheme: $scheme, Host: $host")
+
+                                            fun dispatchTarget(target: BilibiliNavigationTarget): Boolean {
+                                                return when (target) {
+                                                    is BilibiliNavigationTarget.Video -> {
+                                                        onVideoClick?.invoke(target.videoId)
+                                                        onVideoClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.Space -> {
+                                                        onSpaceClick?.invoke(target.mid)
+                                                        onSpaceClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.Live -> {
+                                                        onLiveClick?.invoke(target.roomId)
+                                                        onLiveClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.BangumiSeason -> {
+                                                        onBangumiClick?.invoke(target.seasonId, 0, target.mediaId)
+                                                        onBangumiClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.BangumiEpisode -> {
+                                                        onBangumiClick?.invoke(0, target.epId, 0)
+                                                        onBangumiClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.Music -> {
+                                                        onMusicClick?.invoke(target.musicId)
+                                                        onMusicClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.Dynamic -> {
+                                                        onDynamicClick?.invoke(target.dynamicId)
+                                                        onDynamicClick != null
+                                                    }
+
+                                                    is BilibiliNavigationTarget.Search -> false
+                                                    is BilibiliNavigationTarget.Article -> false
+                                                    is BilibiliNavigationTarget.PopularFeed -> false
+                                                }
+                                            }
+
+                                            when (val action = resolveWebViewNavigationAction(urlString, hasUserGesture)) {
+                                                is WebViewNavigationAction.OpenExternal -> {
+                                                    openExternal(action.url)
+                                                    return true
+                                                }
+                                                is WebViewNavigationAction.Block -> {
+                                                    android.util.Log.d("WebViewScreen", "⛔ Blocked navigation: $urlString")
+                                                    return true
+                                                }
+
+                                                is WebViewNavigationAction.LoadInWebView -> {
+                                                    android.util.Log.d("WebViewScreen", "🔄 Deep link -> ${action.url}")
+                                                    webView?.loadUrl(action.url)
+                                                    return true
+                                                }
+
+                                                is WebViewNavigationAction.DispatchTarget -> {
+                                                    if (dispatchTarget(action.target)) {
+                                                        android.util.Log.d("WebViewScreen", "✅ Routed target: ${action.target}")
+                                                        return true
+                                                    }
+                                                }
+
+                                                WebViewNavigationAction.AllowWebLoad -> Unit
+                                            }
+
+                                            if (scheme == "bilibili" || scheme == "bili") {
+                                                android.util.Log.w("WebViewScreen", "⚠️ Blocked unknown deep link: $urlString")
                                                 return true
                                             }
+
+                                            // Let short links follow redirects normally. Re-loading an
+                                            // unresolved short URL here would repeat the same interception.
+
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("WebViewScreen", "URL parsing error: ${e.message}")
                                         }
 
-                                        WebViewNavigationAction.AllowWebLoad -> Unit
+                                        return false // 不拦截，继续加载
                                     }
-
-                                    if (scheme == "bilibili" || scheme == "bili") {
-                                        android.util.Log.w("WebViewScreen", "⚠️ Blocked unknown deep link: $urlString")
-                                        return true
-                                    }
-
-                                    if (host.contains("b23.tv")) {
-                                        scope.launch {
-                                            val resolvedTarget = BilibiliNavigationTargetParser.resolve(urlString)
-                                            if (resolvedTarget != null && dispatchTarget(resolvedTarget)) {
-                                                android.util.Log.d("WebViewScreen", "✅ Routed resolved short link: $resolvedTarget")
-                                            } else {
-                                                webView?.post { webView.loadUrl(urlString) }
-                                            }
-                                        }
-                                        return true
-                                    }
-                                    
-                                } catch (e: Exception) {
-                                    android.util.Log.e("WebViewScreen", "URL parsing error: ${e.message}")
                                 }
-                                
-                                return false // 不拦截，继续加载
+
                             }
-                        }
-                        
-                        loadUrl(url)
-                    }
-                },
-                update = { webView ->
-                    // Avoid reloading on recomposition if URL hasn't changed
-                    if (webView.url != url) {
-                        webView.loadUrl(url)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                        },
+                        update = { webView ->
+                            // Compare the caller's request, not the current URL after redirects.
+                            webView.loadRequestedUrl(url)
+                        },
+                        onRelease = { it.release() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
+    }
+}
+
+private class BrowserWebView(context: Context) : WebView(context) {
+    private var requestedUrl: String? = null
+    private var released = false
+
+    fun loadRequestedUrl(url: String) {
+        if (released || requestedUrl == url) return
+        requestedUrl = url
+        loadUrl(url)
+    }
+
+    fun release(rendererGone: Boolean = false) {
+        if (released) return
+        released = true
+        (parent as? ViewGroup)?.removeView(this)
+        if (!rendererGone) stopLoading()
+        webViewClient = WebViewClient()
+        webChromeClient = null
+        destroy()
     }
 }

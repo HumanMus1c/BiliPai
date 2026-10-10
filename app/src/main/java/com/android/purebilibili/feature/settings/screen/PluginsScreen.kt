@@ -1044,7 +1044,7 @@ fun PluginsContent(
                             Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 AppText(
-                                    text = "在线装扮目录",
+                                    text = "在线装扮",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -1502,7 +1502,7 @@ fun PluginsContent(
             text = {
                 Column {
                     AppText(
-                        text = "输入 JSON 规则插件链接（支持任意返回 JSON 的 http/https 地址）",
+                        text = "粘贴规则插件的 http 或 https 链接",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1611,7 +1611,7 @@ fun PluginsContent(
                         AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_extension_24), contentDescription = null)
                     }
                 },
-                title = { AppText("安装插件预览") },
+                title = { AppText("确认安装插件") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppText(
@@ -2540,7 +2540,7 @@ private fun JsPluginTestDialog(
         text = {
             Column {
                 AppText(
-                    text = "用默认参数运行模块函数，检查返回结构和耗时。完整内容体验请用「打开内容」。",
+                    text = "检查插件能否正常加载内容及所需时间。浏览内容请选“打开内容”。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2684,7 +2684,7 @@ private fun PluginCapabilityDetailSection(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         AppText(
-            text = if (showAuthorizationLabels) "能力与授权" else "能力",
+            text = if (showAuthorizationLabels) "权限与用途" else "功能",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )

@@ -22,7 +22,7 @@ internal fun <T> SettingsSingleChoicePreference(
     onSelectionChange: (T) -> Unit,
 ) {
     AppSingleChoicePreference(
-        title = title,
+        title = title.substringBefore("："),
         selectedValue = selectedValue,
         options = options.map { option ->
             AppChoiceOption(value = option.value, label = option.label)

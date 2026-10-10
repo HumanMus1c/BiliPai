@@ -85,7 +85,6 @@ internal fun KeepScrollableTabSelectionVisible(
     scrollState: ScrollState,
     selectedIndex: Int,
     itemWidthPx: Float,
-    viewportWidthPx: Float,
     contentPaddingPx: Float = 0f,
     focusPosition: () -> Float = { selectedIndex.toFloat() },
     continuousFollow: () -> Boolean = { false },
@@ -93,16 +92,19 @@ internal fun KeepScrollableTabSelectionVisible(
     val entranceAnimationEnabled = LocalAppThemeConfig.current.uiEntranceAnimationEnabled
     val focusPositionLatest by rememberUpdatedState(focusPosition)
     val continuousFollowLatest by rememberUpdatedState(continuousFollow)
-    LaunchedEffect(scrollState, itemWidthPx, viewportWidthPx, contentPaddingPx, entranceAnimationEnabled) {
+    LaunchedEffect(scrollState, itemWidthPx, contentPaddingPx, entranceAnimationEnabled) {
         // maxValue is unknown before the scroll container is measured. Also follow resizes
         // without restarting this effect on every animation frame or fighting a manual swipe.
         snapshotFlow {
-            Triple(scrollState.maxValue, focusPositionLatest(), continuousFollowLatest())
+            MeasuredTabRailFocus(
+                scrollState.maxValue, scrollState.viewportSize,
+                focusPositionLatest(), continuousFollowLatest(),
+            )
         }
-            .filter { (maxScrollPx, _, _) -> maxScrollPx != Int.MAX_VALUE }
-            .collectLatest { (maxScrollPx, focus, continuous) ->
+            .filter { it.maxScrollPx != Int.MAX_VALUE && it.viewportWidthPx > 0 }
+            .collectLatest { (maxScrollPx, measuredViewportPx, focus, continuous) ->
                 val target = resolveTabSelectionScrollOffsetPx(
-                    focus, itemWidthPx, viewportWidthPx, maxScrollPx, contentPaddingPx,
+                    focus, itemWidthPx, measuredViewportPx.toFloat(), maxScrollPx, contentPaddingPx,
                 )
                 when (
                     resolveTabSelectionRailScrollMode(
@@ -156,4 +158,11 @@ private data class TabRailGeometry(
     val itemWidthPx: Int,
     val contentPaddingPx: Int,
     val itemCount: Int,
+)
+
+private data class MeasuredTabRailFocus(
+    val maxScrollPx: Int,
+    val viewportWidthPx: Int,
+    val position: Float,
+    val continuous: Boolean,
 )

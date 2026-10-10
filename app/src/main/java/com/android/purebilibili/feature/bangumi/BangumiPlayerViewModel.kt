@@ -10,6 +10,8 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.util.MediaUtils
+import com.android.purebilibili.core.util.NetworkUtils
+import com.android.purebilibili.core.util.resolvePlaybackDefaultQualityId
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.data.model.response.*
 import com.android.purebilibili.data.repository.ActionRepository
@@ -441,18 +443,26 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         if (isCourse) "avc1" else if (MediaUtils.isHevcSupported()) "hev1" else "avc1"
 
     /**
-     * 番剧首次加载的请求画质：会员且设备支持 HDR/HEVC 时直接上探 HDR 档，
-     * 与普通视频的自动最高画质行为对齐；无权限时服务端会自然降档返回。
+     * 与普通视频共用网络默认画质、自动最高画质及账号权限策略。
      */
-    private fun resolveBangumiInitialQuality(): Int {
-        val isVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip()
+    private suspend fun resolveBangumiInitialQuality(): Int {
+        val context = NetworkModule.appContext ?: return 64
         val isLoggedIn = com.android.purebilibili.data.repository.VideoRepository.isPlaybackLoggedIn()
-        return when {
-            isVip && MediaUtils.isHdrSupported() && MediaUtils.isHevcSupported() -> 125
-            isVip -> 112
-            isLoggedIn -> 80
-            else -> 64
-        }
+        val storedQuality = NetworkUtils.getDefaultQualityId(context)
+        val autoHighestEnabled = SettingsManager.getAutoHighestQualitySync(context)
+        val isVip = com.android.purebilibili.data.repository.VideoRepository
+            .refreshVipStatusForPreferredQualityIfNeeded(
+                isLoggedIn = isLoggedIn,
+                cachedIsVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip(),
+                storedQuality = storedQuality,
+                autoHighestEnabled = autoHighestEnabled
+            )
+        return resolvePlaybackDefaultQualityId(
+            storedQuality = storedQuality,
+            autoHighestEnabled = autoHighestEnabled,
+            isLoggedIn = isLoggedIn,
+            isVip = isVip
+        )
     }
 
     /**
@@ -504,6 +514,7 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
             var audioUrl: String? = null
             var dashManifest: String? = null
             var durlSegmentUrls: List<String> = emptyList()
+            var selectedQuality = playData.quality
             val requestedAudioQuality = resolveConfiguredAudioQuality()
             val audioSelection = playData.dash?.let { dash ->
                 resolveAudioStreamSelection(
@@ -519,11 +530,24 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 val checkedPlayDataDash = requireNotNull(playData.dash)
                 // DASH 格式
                 val dash = checkedPlayDataDash
+                val targetQuality = if (requestedQn >= 127) {
+                    dash.video.map { it.id }.filter { quality ->
+                        when (quality) {
+                            126 -> MediaUtils.isDolbyVisionSupported()
+                            125 -> MediaUtils.isHdrSupported()
+                            else -> true
+                        }
+                    }.maxOrNull() ?: playData.quality
+                } else {
+                    requestedQn
+                }
                 //  设备支持 HEVC 时优先 hev1（HDR/杜比视界轨道基本为 HEVC），否则回退 avc1 保证可解码
                 val video = dash.getBestVideo(
-                    playData.quality,
-                    preferCodec = resolveBangumiPreferredCodec(isCourse)
+                    targetQuality,
+                    preferCodec = resolveBangumiPreferredCodec(isCourse),
+                    isHevcSupported = MediaUtils.isHevcSupported()
                 )
+                selectedQuality = video?.id ?: playData.quality
                 val audio = audioSelection?.selected?.track
                 
                 com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "📹 DASH videos: ${dash.video.size}, audios: ${dash.audio?.size ?: 0}")
@@ -669,7 +693,7 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 currentEpisodeIndex = episodeIndex,
                 playUrl = videoUrl,
                 audioUrl = audioUrl,
-                quality = playData.quality,
+                quality = selectedQuality,
                 acceptQuality = qualityOptions.ids,
                 acceptDescription = qualityOptions.labels,
                 cachedDash = playData.dash,
@@ -848,8 +872,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
             videoUrl = videoUrl,
             audioUrl = state.audioUrl.orEmpty()
         )
-        val added = DownloadManager.addTask(task)
         viewModelScope.launch {
+            val added = DownloadManager.addTask(task)
             _toastEvent.send(if (added) "已加入课程下载" else "该集已在下载列表")
         }
     }

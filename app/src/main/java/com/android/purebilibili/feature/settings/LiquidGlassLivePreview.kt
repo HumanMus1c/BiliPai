@@ -99,6 +99,7 @@ internal fun LiquidGlassAdjustmentPanel(
     onShareSettings: () -> Unit,
     isImportingSettings: Boolean,
     modifier: Modifier = Modifier,
+    alwaysShowAdvanced: Boolean = false,
 ) {
     val context = LocalContext.current
     val previewImagePicker = rememberLauncherForActivityResult(
@@ -397,7 +398,7 @@ internal fun LiquidGlassAdjustmentPanel(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        AppTextButton(
+        if (!alwaysShowAdvanced) AppTextButton(
             onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
         ) {
             Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_tune_24), contentDescription = null)
@@ -405,13 +406,14 @@ internal fun LiquidGlassAdjustmentPanel(
             AppText(if (advancedSettingsExpanded) "收起高级调节" else "展开高级调节")
         }
         AnimatedVisibility(
-            visible = advancedSettingsExpanded,
+            visible = alwaysShowAdvanced || advancedSettingsExpanded,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LiquidGlassAdvancedSlider(
-                    title = "顶部模糊强度",
+                    settingId = "glass.progressive_blur_radius",
+                    title = settingItemTitle("glass.progressive_blur_radius"),
                     description = "数值越高，顶部背景越柔和；0% 关闭顶部模糊",
                     value = advancedSettings.progressiveBlurRadius,
                     valueText = if (advancedSettings.progressiveBlurRadius <= 0.001f) {
@@ -430,7 +432,8 @@ internal fun LiquidGlassAdjustmentPanel(
                     onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "模糊覆盖范围",
+                    settingId = "glass.progressive_blur_extent",
+                    title = settingItemTitle("glass.progressive_blur_extent"),
                     description = "数值越高，顶部有更多区域保持模糊",
                     value = advancedSettings.progressiveBlurExtent,
                     onValueChange = { value ->
@@ -444,7 +447,8 @@ internal fun LiquidGlassAdjustmentPanel(
                     onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "模糊过渡",
+                    settingId = "glass.progressive_blur_curve",
+                    title = settingItemTitle("glass.progressive_blur_curve"),
                     description = "向左过渡更快，向右过渡更柔和",
                     value = advancedSettings.progressiveBlurCurve,
                     onValueChange = { value ->
@@ -458,8 +462,9 @@ internal fun LiquidGlassAdjustmentPanel(
                     onValueChangeFinished = { onAdvancedSettingsCommitted(advancedSettings) },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "文字清晰度保护",
-                    description = "数值越高，越优先保证图标和文字与背景有足够对比度",
+                    settingId = "glass.content_readability",
+                    title = settingItemTitle("glass.content_readability"),
+                    description = "调高后，文字和图标更容易看清",
                     value = advancedSettings.contentReadability,
                     onValueChange = { value ->
                         val updatedSettings = advancedSettings.copy(
@@ -474,8 +479,9 @@ internal fun LiquidGlassAdjustmentPanel(
                     },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "边缘彩光",
-                    description = "控制玻璃边缘出现彩色光晕的明显程度",
+                    settingId = "glass.chromatic_aberration",
+                    title = settingItemTitle("glass.chromatic_aberration"),
+                    description = "调整玻璃边缘彩色光晕的强弱",
                     value = advancedSettings.chromaticAberration,
                     onValueChange = { value ->
                         val updatedSettings = advancedSettings.copy(
@@ -490,8 +496,9 @@ internal fun LiquidGlassAdjustmentPanel(
                     },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "内容折射",
-                    description = "控制文字和图标随玻璃产生形变的程度；调至 0% 可完全关闭",
+                    settingId = "glass.content_distortion",
+                    title = settingItemTitle("glass.content_distortion"),
+                    description = "调整文字和图标的变形程度；0% 关闭",
                     value = advancedSettings.contentDistortion,
                     valueText = if (advancedSettings.contentDistortion <= 0.001f) {
                         "关闭"
@@ -524,7 +531,7 @@ internal fun LiquidGlassAdjustmentPanel(
                 ) {
                     Icon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_restore_24), contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    AppText("关闭内容折射")
+                    AppText("关闭玻璃形变")
                 }
             }
         }
@@ -1019,6 +1026,7 @@ private fun LiquidGlassOpenSourceAcknowledgements(
 
 @Composable
 private fun LiquidGlassAdvancedSlider(
+    settingId: String,
     title: String,
     description: String,
     value: Float,
@@ -1026,6 +1034,7 @@ private fun LiquidGlassAdvancedSlider(
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
+    SettingsItemAnchor(settingId) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1063,4 +1072,5 @@ private fun LiquidGlassAdvancedSlider(
                 },
         )
     }
+}
 }

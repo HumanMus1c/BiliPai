@@ -502,9 +502,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         )
 
-        assertTrue(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(dynamicTopBar.contains("contentAlignment = Alignment.Center"))
-        assertTrue(dynamicTopBar.contains("itemWidth = resolveDynamicTopBarTabItemWidthDp().dp"))
+        assertTrue(dynamicTopBar.contains("AppThemeAdaptiveTabRow("))
+        assertTrue(dynamicTopBar.contains("modifier = Modifier.weight(1f)"))
+        assertFalse(dynamicTopBar.contains("resolveDynamicTopBarTabItemWidthDp"))
         assertFalse(dynamicTopBar.contains("fillMaxHeight()"))
         assertFalse(dynamicTopBar.contains("AppNativeTabRow("))
         assertFalse(dynamicTopBar.contains("forceLiquidChrome"))
@@ -592,7 +592,8 @@ class BottomBarLiquidSegmentedControlStructureTest {
 
         paths.forEach { path ->
             assertTrue(
-                loadSource(path).contains("BottomBarLiquidSegmentedControl("),
+                (loadSource(path).contains("BottomBarLiquidSegmentedControl(") ||
+                    loadSource(path).contains("AppThemeAdaptiveTabRow(")),
                 "$path should keep using BottomBarLiquidSegmentedControl so the global Android native fallback applies"
             )
         }

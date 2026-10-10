@@ -1499,8 +1499,8 @@ private fun SpaceContent(
                     userInfo = state.headerState.userInfo ?: state.userInfo,
                     relationStat = state.headerState.relationStat ?: state.relationStat,
                     upStat = state.headerState.upStat ?: state.upStat,
-                    collapseFraction = headerCollapseFraction.value,
-                    bannerScrollOffsetPx = bannerScrollOffsetPx.value,
+                    collapseFractionProvider = { headerCollapseFraction.value },
+                    bannerScrollOffsetPxProvider = { bannerScrollOffsetPx.value },
                     chargeGroup = state.chargeGroup,
                     guardGroup = state.guardGroup,
                     onWebClick = onWebClick,
@@ -2623,8 +2623,8 @@ private fun SpaceHeader(
     userInfo: SpaceUserInfo,
     relationStat: RelationStatData?,
     upStat: UpStatData?,
-    collapseFraction: Float,
-    bannerScrollOffsetPx: Float = 0f,
+    collapseFractionProvider: () -> Float,
+    bannerScrollOffsetPxProvider: () -> Float = { 0f },
     chargeGroup: SpaceSupporterGroup? = null,
     guardGroup: SpaceSupporterGroup? = null,
     onWebClick: (String, String) -> Unit = { _, _ -> },
@@ -2728,12 +2728,10 @@ private fun SpaceHeader(
         val avatarTopPadding = (heroHeight - avatarBannerOverlap).coerceAtLeast(0.dp)
         // 视差余量 = 背景图向上溢出窗口的量（chromeTopInset）。平移钳在该范围内，
         // 图片永远不会滑出窗口顶部露底；效果为背景以约 1/4 速率跟随滚动。
-        val bannerParallaxTranslationPx = with(LocalDensity.current) {
-            val maxTranslationPx = chromeTopInset.coerceAtLeast(0.dp).roundToPx().toFloat()
-            (bannerScrollOffsetPx * 0.75f).coerceIn(0f, maxTranslationPx)
+        val maxBannerParallaxTranslationPx = with(LocalDensity.current) {
+            chromeTopInset.coerceAtLeast(0.dp).roundToPx().toFloat()
         }
-        // 头部内容（头像/统计/按钮/信息区）随滚动渐隐，对齐 PiliPlus 的 _FlexibleSpaceHeaderOpacity。
-        val headerContentAlpha = 1f - collapseFraction
+        // Keep scroll reads in graphics layers so the identity/actions don't recompose per pixel.
 
         Column(
             modifier = Modifier
@@ -2750,7 +2748,10 @@ private fun SpaceHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     // graphicsLayer 置于 bounds 修饰符之前，让预览回位框把视差位移算进去。
-                    .graphicsLayer { translationY = bannerParallaxTranslationPx }
+                    .graphicsLayer {
+                        translationY = (bannerScrollOffsetPxProvider() * 0.75f)
+                            .coerceIn(0f, maxBannerParallaxTranslationPx)
+                    }
                     .imagePreviewSourceBounds(topPhotoRect)
                     .alpha(if (topPhotoHidden) 0f else 1f)
                     .layout { measurable, constraints ->
@@ -2807,7 +2808,7 @@ private fun SpaceHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { alpha = headerContentAlpha }
+                    .graphicsLayer { alpha = 1f - collapseFractionProvider() }
                     .padding(top = avatarTopPadding, start = 4.dp, end = 0.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -2890,7 +2891,7 @@ private fun SpaceHeader(
                         onLiveClick = onLiveClick,
                         modifier = Modifier
                             .weight(1f)
-                            .graphicsLayer { alpha = headerContentAlpha }
+                            .graphicsLayer { alpha = 1f - collapseFractionProvider() }
                             .padding(top = avatarBannerOverlap),
                     )
                     Spacer(modifier = Modifier.width(24.dp))
@@ -2955,7 +2956,7 @@ private fun SpaceHeader(
                 onLiveClick = onLiveClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { alpha = headerContentAlpha }
+                    .graphicsLayer { alpha = 1f - collapseFractionProvider() }
                     .padding(start = 4.dp, end = 0.dp, top = 10.dp, bottom = 8.dp),
             )
         }
@@ -2972,7 +2973,7 @@ private fun SpaceHeader(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { alpha = headerContentAlpha }
+                .graphicsLayer { alpha = 1f - collapseFractionProvider() }
                 .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
         )
         }

@@ -54,6 +54,7 @@ import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.util.NetworkUtils
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -69,6 +70,7 @@ fun DownloadListScreen(
     onOfflineVideoClick: (String) -> Unit = {}  // 🔧 [新增] taskId - 离线播放
 ) {
     val context = LocalContext.current
+    val actionScope = rememberCoroutineScope()
     val listLayout = rememberVideoListLayoutControl(defaultSingleColumn = true)
     val gridState = rememberLazyGridState()
     val columns = resolveVideoListColumns(
@@ -76,10 +78,11 @@ fun DownloadListScreen(
         androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.toFloat(),
     )
     val tasks by DownloadManager.tasks.collectAsStateWithLifecycle()
+    val downloadsInitialized by DownloadManager.isInitialized.collectAsStateWithLifecycle()
     var isNetworkAvailable by remember(context) { mutableStateOf(NetworkUtils.isNetworkAvailable(context)) }
     val customDownloadPath by SettingsManager.getDownloadPath(context).collectAsStateWithLifecycle(initialValue = null)
     val downloadExportTreeUri by SettingsManager.getDownloadExportTreeUri(context).collectAsStateWithLifecycle(initialValue = null)
-    val taskList = tasks.values.toList().sortedByDescending { it.createdAt }
+    val taskList = remember(tasks) { tasks.values.toList().sortedByDescending { it.createdAt } }
     var pendingDeleteTask by remember { mutableStateOf<com.android.purebilibili.feature.download.DownloadTask?>(null) }
     var dissolvingTaskIds by remember { mutableStateOf(setOf<String>()) }
     val currentDir = resolveDisplayedDownloadLocation(
@@ -95,24 +98,24 @@ fun DownloadListScreen(
         }
     }
 
-    // 下载速度：串行队列同时只有一个任务在下载，按已下载字节差值估算
-    var activeDownloadSpeedBytesPerSecond by remember { mutableStateOf(0L) }
-    var lastSampledBytes by remember { mutableStateOf(0L) }
-    LaunchedEffect(taskList) {
+    // Keep one sampling loop alive across progress emissions and reset each task's baseline independently.
+    var downloadSpeedsByTask by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    val latestTasks by rememberUpdatedState(tasks)
+    LaunchedEffect(Unit) {
+        var previousSamples = emptyMap<String, Long>()
         while (true) {
             delay(1_000L)
-            val activeTask = tasks.values.firstOrNull { it.status == DownloadStatus.DOWNLOADING }
-            if (activeTask == null) {
-                activeDownloadSpeedBytesPerSecond = 0L
-                lastSampledBytes = 0L
-                continue
+            val samples = latestTasks.values
+                .filter { it.status == DownloadStatus.DOWNLOADING }
+                .associate { task ->
+                    task.id to task.assets.sumOf { it.downloadedBytes.coerceAtLeast(0L) }
+                }
+            downloadSpeedsByTask = samples.mapValues { (taskId, totalBytes) ->
+                previousSamples[taskId]?.let { previous ->
+                    (totalBytes - previous).coerceAtLeast(0L)
+                } ?: 0L
             }
-            val totalBytes = activeTask.assets.sumOf { it.downloadedBytes.coerceAtLeast(0L) }
-            val delta = totalBytes - lastSampledBytes
-            if (lastSampledBytes > 0L && delta >= 0L) {
-                activeDownloadSpeedBytesPerSecond = delta
-            }
-            lastSampledBytes = totalBytes
+            previousSamples = samples
         }
     }
 
@@ -130,13 +133,15 @@ fun DownloadListScreen(
                     val hasResumable = taskList.any(::shouldContinueAllInclude)
                     if (hasActive || hasResumable) {
                         androidx.compose.material3.TextButton(onClick = {
-                            if (hasActive) {
-                                taskList.filter(::shouldPauseAllInclude).forEach {
-                                    DownloadManager.pauseDownload(it.id)
-                                }
-                            } else {
-                                taskList.filter(::shouldContinueAllInclude).forEach {
-                                    DownloadManager.startDownload(it.id)
+                            actionScope.launch {
+                                if (hasActive) {
+                                    taskList.filter(::shouldPauseAllInclude).forEach {
+                                        DownloadManager.pauseDownload(it.id)
+                                    }
+                                } else {
+                                    taskList.filter(::shouldContinueAllInclude).forEach {
+                                        DownloadManager.startDownload(it.id)
+                                    }
                                 }
                             }
                         }) {
@@ -162,7 +167,14 @@ fun DownloadListScreen(
         com.android.purebilibili.core.ui.adaptive.AppHingeSafeContent(
             modifier = Modifier.fillMaxSize(),
         ) {
-        if (taskList.isEmpty()) {
+        if (!downloadsInitialized) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                AppCircularProgressIndicator()
+            }
+        } else if (taskList.isEmpty()) {
             // 空状态
             Box(
                 modifier = Modifier
@@ -205,8 +217,10 @@ fun DownloadListScreen(
                         isDissolving = isDissolving,
                         onDissolveComplete = {
                             dissolvingTaskIds = dissolvingTaskIds - task.id
-                            DownloadManager.removeTask(task.id)
-                            pendingDeleteTask = null
+                            actionScope.launch {
+                                DownloadManager.removeTask(task.id)
+                                pendingDeleteTask = null
+                            }
                         },
                         cardId = task.id,
                         preset = com.android.purebilibili.core.ui.animation.DissolveAnimationPreset.TELEGRAM_FAST,
@@ -236,10 +250,12 @@ fun DownloadListScreen(
                                 }
                             },
                             onPauseResume = {
-                                if (task.isDownloading) {
-                                    DownloadManager.pauseDownload(task.id)
-                                } else if (task.canResume) {
-                                    DownloadManager.startDownload(task.id)
+                                actionScope.launch {
+                                    if (task.isDownloading) {
+                                        DownloadManager.pauseDownload(task.id)
+                                    } else if (task.canResume) {
+                                        DownloadManager.startDownload(task.id)
+                                    }
                                 }
                             },
                             onDelete = {
@@ -247,7 +263,7 @@ fun DownloadListScreen(
                             },
                             offlinePlayable = playableOffline,
                             speedBytesPerSecond = if (task.status == DownloadStatus.DOWNLOADING) {
-                                activeDownloadSpeedBytesPerSecond
+                                downloadSpeedsByTask[task.id] ?: 0L
                             } else {
                                 0L
                             }

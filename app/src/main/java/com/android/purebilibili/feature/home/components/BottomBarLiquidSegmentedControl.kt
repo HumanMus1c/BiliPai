@@ -13,7 +13,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -421,6 +420,7 @@ fun BottomBarLiquidSegmentedControl(
     indicatorIdleSurfaceColorOverride: Color? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     onIndicatorPositionChanged: ((Float) -> Unit)? = null,
+    onIndicatorDragStateChanged: ((Boolean) -> Unit)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuningOverride: LiquidGlassTuning? = null,
@@ -450,24 +450,14 @@ fun BottomBarLiquidSegmentedControl(
         val nativeOptions = remember(items) {
             items.mapIndexed { index, label -> AppSegmentOption(index, label) }
         }
-        val nativeScrollModifier = if (scrollState != null) {
-            modifier.horizontalScroll(scrollState)
-        } else {
-            modifier
-        }
-        val nativeModifier = if (itemWidth != null) {
-            nativeScrollModifier.width(
-                itemWidth.coerceAtLeast(AppChromeSizeTokens.MinimumTouchTarget) * items.size +
-                    containerHorizontalPadding.coerceAtLeast(0.dp) * 2
-            )
-        } else {
-            nativeScrollModifier
-        }
+        // Native TabRow owns its scroll viewport and selection alignment. An outer
+        // horizontalScroll measures it with an unbounded width and then scrolls it
+        // again using liquid-dock geometry, clipping neighboring native hit targets.
         AppNativeTabRow(
             options = nativeOptions,
             selectedValue = selectedIndex.coerceIn(0, items.lastIndex),
             onSelectionChange = onSelected,
-            modifier = nativeModifier,
+            modifier = modifier,
             enabled = enabled,
             scrollable = itemWidth != null,
             forceEqualWidth = forceEqualWidth,
@@ -537,6 +527,7 @@ fun BottomBarLiquidSegmentedControl(
         indicatorPositionProvider = indicatorPositionProvider,
         onIndicatorPositionChanged = onIndicatorPositionChanged,
         isScrollInProgressProvider = isScrollInProgressProvider,
+        onIndicatorDragStateChanged = onIndicatorDragStateChanged,
         externalPagerMotionEffectsEnabled = externalPagerMotionEffectsEnabled,
         liquidGlassTuningOverride = liquidGlassTuningOverride,
         geometryMode = geometryMode,

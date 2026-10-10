@@ -467,6 +467,7 @@ fun FloatingBottomBar(
     longPressDragSelectionEnabled: Boolean = false,
     dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING,
     onIndicatorPositionChanged: ((Float) -> Unit)? = null,
+    onIndicatorDragStateChanged: ((Boolean) -> Unit)? = null,
     externalPagerMotionEffectsEnabled: Boolean = false,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     drawShell: Boolean = true,
@@ -626,6 +627,7 @@ fun FloatingBottomBar(
     val selectedIndexLatest = rememberUpdatedState(selectedIndex)
     val onSelectedLatest = rememberUpdatedState(onSelected)
     val onIndicatorPositionChangedLatest = rememberUpdatedState(onIndicatorPositionChanged)
+    val onIndicatorDragStateChangedLatest = rememberUpdatedState(onIndicatorDragStateChanged)
     val dragScrollViewportWidthLatest = rememberUpdatedState(dragScrollViewportWidthPx)
     val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
     val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
@@ -673,6 +675,7 @@ fun FloatingBottomBar(
                 )
             },
             onDragStarted = {
+                onIndicatorDragStateChangedLatest.value?.invoke(true)
                 pagerFollowGate.ownedTargetIndex = null
                 pagerFollowGate.previousExternalPosition = null
             },
@@ -691,6 +694,7 @@ fun FloatingBottomBar(
                 if (targetIndex != selected) {
                     onSelectedLatest.value(targetIndex)
                 }
+                onIndicatorDragStateChangedLatest.value?.invoke(false)
                 offsetJobHolder.job?.cancel()
                 offsetJobHolder.job = animationScope.launch(start = CoroutineStart.UNDISPATCHED) {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))

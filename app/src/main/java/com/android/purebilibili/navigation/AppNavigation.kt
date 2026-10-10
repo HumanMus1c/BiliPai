@@ -1225,6 +1225,26 @@ fun AppNavigation(
                 }
             }
             val isNetworkAvailable = NetworkUtils.isNetworkAvailable(context)
+            if (!isNetworkAvailable && !com.android.purebilibili.feature.download.DownloadManager.isInitialized.value) {
+                val sourceBackStack = navigation3BackStack.toList()
+                coroutineScope.launch {
+                    com.android.purebilibili.feature.download.DownloadManager.awaitInitialization()
+                    if (navigation3BackStack.toList() != sourceBackStack) return@launch
+                    navigateToVideoInNavigation3(
+                        bvid = bvid,
+                        cid = cid,
+                        coverUrl = coverUrl,
+                        startAudio = startAudio,
+                        autoPortrait = autoPortrait,
+                        resumePositionMs = resumePositionMs,
+                        initialVertical = initialVertical,
+                        directPortraitEntry = directPortraitEntry,
+                        sourceRoute = sourceRoute,
+                        skipPortraitStoryResolution = skipPortraitStoryResolution,
+                    )
+                }
+                return
+            }
             val offlineTask = com.android.purebilibili.feature.download.resolveOfflineVideoNavigationTask(
                 // 下载进度仅在点击时用于离线分流，不应让整个导航树订阅进度更新。
                 tasks = com.android.purebilibili.feature.download.DownloadManager.tasks.value.values,
@@ -1747,6 +1767,7 @@ fun AppNavigation(
                     openBilibiliNativeTargetInNavigation3(action.target)
                 }
                 is BilibiliLinkNavigationAction.InAppWeb -> {
+                    if (!canNavigate(false)) return
                     if (isBilibiliShortWebLink(action.url)) {
                         coroutineScope.launch {
                             val resolvedTarget = BilibiliNavigationTargetParser.resolve(action.url)
@@ -1757,7 +1778,7 @@ fun AppNavigation(
                                 pushNavigation3Key(BiliPaiNavKey.Web(action.url))
                             }
                         }
-                    } else if (canNavigate(false)) {
+                    } else {
                         pushNavigation3Key(BiliPaiNavKey.Web(action.url))
                     }
                 }
@@ -3297,6 +3318,7 @@ fun AppNavigation(
                                     viewModel = settingsViewModel,
                                     onBack = { performSystemBackAction() },
                                     onNavigateToIconSettings = { pushNavigation3Key(BiliPaiNavKey.IconSettings) },
+                                    onAnimationClick = { pushNavigation3Key(BiliPaiNavKey.AnimationSettings) },
                                 )
                             }
                         BiliPaiNavEntryContentRole.HOME_SETTINGS ->
@@ -3317,14 +3339,14 @@ fun AppNavigation(
                             SettingsTabletEntry {
                                 com.android.purebilibili.feature.settings.AnimationSettingsScreen(
                                     viewModel = settingsViewModel,
-                                    onBack = { performSystemBackAction() }
+                                    onBack = { performSystemBackAction() },
                                 )
                             }
                         BiliPaiNavEntryContentRole.PLAYBACK_SETTINGS ->
                             SettingsTabletEntry {
                                 PlaybackSettingsScreen(
                                     viewModel = settingsViewModel,
-                                    onBack = { performSystemBackAction() }
+                                    onBack = { performSystemBackAction() },
                                 )
                             }
                         BiliPaiNavEntryContentRole.PERMISSION_SETTINGS ->

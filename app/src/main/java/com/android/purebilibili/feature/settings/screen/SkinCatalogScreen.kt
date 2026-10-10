@@ -191,7 +191,7 @@ fun SkinCatalogScreen(
     }
 
     SettingsPageScaffold(
-        title = "在线装扮目录",
+        title = "在线装扮",
         onBack = onBack,
         backContentDescription = "返回插件中心",
         bottomContentPadding = 0.dp,
@@ -428,7 +428,7 @@ private fun SkinCatalogPreviewDialog(
                 if (loading) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppCircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        AppText("正在下载并生成真实预览…", style = MaterialTheme.typography.bodySmall)
+                        AppText("正在下载并准备预览…", style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (error != null) {
                     AppText(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

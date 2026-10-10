@@ -394,7 +394,7 @@ enum class PortraitPlayerCollapseMode(val value: Int, val label: String, val des
     OFF(0, "关闭", "关闭滚动缩小；暂停后仍可上滑评论隐藏视频"),
     INTRO_ONLY(1, "竖屏", "竖屏视频评论区或简介上滑时缩小播放器"),
     COMMENT_ONLY(2, "横屏", "仅横屏视频详情页滚动时缩小播放器"),
-    BOTH(3, "全部", "横竖屏视频都使用播放器缩小策略"),
+    BOTH(3, "全部", "横屏和竖屏视频均可随浏览缩小"),
     PAUSED_ONLY(4, "暂停时", "视频暂停后，上滑评论隐藏视频，上滑简介缩小播放器");
 
     val enablesPortraitVideo: Boolean
@@ -426,7 +426,7 @@ enum class PortraitPlayerCollapseMode(val value: Int, val label: String, val des
 
 enum class FullscreenMode(val value: Int, val label: String, val description: String) {
     AUTO(0, "自动", "按视频方向自动切换全屏方向"),
-    NONE(1, "不改方向", "保持当前方向，仅切换全屏 UI"),
+    NONE(1, "不改方向", "保持当前方向，进入全屏"),
     VERTICAL(2, "竖屏", "进入全屏时保持竖屏"),
     HORIZONTAL(3, "横屏", "进入全屏时切换到横屏");
 
@@ -831,10 +831,10 @@ enum class HomeHeaderCollapseMode(
     val collapseSearch: Boolean,
     val collapseTabs: Boolean
 ) {
-    SEARCH_ONLY(0, "仅搜索", "列表下滑时只收起搜索行，标签页保持显示", true, false),
-    TABS_ONLY(1, "仅标签", "列表下滑时只收起标签页，搜索行保持显示", false, true),
-    BOTH(2, "都折叠", "搜索行和标签页都会随列表下滑收起", true, true),
-    OFF(3, "都不折叠", "搜索行和标签页始终展开", false, false);
+    SEARCH_ONLY(0, "仅搜索", "浏览下方内容时只收起搜索框", true, false),
+    TABS_ONLY(1, "仅标签", "浏览下方内容时只收起分类栏", false, true),
+    BOTH(2, "都收起", "浏览下方内容时，搜索框和分类栏都收起", true, true),
+    OFF(3, "始终显示", "搜索框和分类栏始终显示", false, false);
 
     val hasAnyCollapse: Boolean
         get() = collapseSearch || collapseTabs
@@ -5746,9 +5746,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
      * - MOBILE: 移动端 API (x/v2/feed/index)，使用 appkey+sign 签名，需要 access_token
      */
     enum class FeedApiType(val value: Int, val label: String, val description: String) {
-        WEB(0, "网页端 (Web)", "使用 Web 推荐算法"),
-        MOBILE(1, "移动端 (App)", "使用手机端推荐算法，需登录"),
-        MERGED(2, "合并 (App+Web)", "同时使用 Web 与移动端推荐算法，移动端需登录，失败自动回退");
+        WEB(0, "网页端", "使用 B 站网页端的推荐内容"),
+        MOBILE(1, "手机端", "使用 B 站手机端的推荐内容，需登录"),
+        MERGED(2, "合并推荐", "合并网页端和手机端推荐；手机端需登录，不可用时使用网页端");
         
         companion object {
             fun fromValue(value: Int): FeedApiType = entries.find { it.value == value } ?: WEB
